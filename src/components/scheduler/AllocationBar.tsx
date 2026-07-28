@@ -114,6 +114,18 @@ export const AllocationBar = memo(function AllocationBar({
   ]
     .filter(Boolean)
     .join(' · ')
+  // A Viewer cannot fall back to the edit modal, so its accessible name carries every read-only
+  // detail even when the device has hidden client/project from the compact face label. Editors keep
+  // the shorter note-presence cue because Enter exposes the complete editable record.
+  const viewerLabelText = [
+    bar.label,
+    [bar.project, bar.client].filter(Boolean).join(' · '),
+  ]
+    .filter(Boolean)
+    .join(', ')
+  const popoverFooter = canEdit
+    ? m.scheduler_bar_pop_footer()
+    : m.scheduler_bar_pop_footer_viewer()
 
   const fmt = (d: string) => format(parseDate(d), 'd MMM')
   const gripClass = 'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center'
@@ -133,10 +145,11 @@ export const AllocationBar = memo(function AllocationBar({
         data-alloc-id={bar.allocation.id}
         data-status={bar.allocation.status}
         // Viewer (P1.12): a read-only bar is NOT an edit button — role="img" + a description-only
-        // aria-label, no tab stop, no edit/move keys, no drag pointerdown. It still shows its hover/
-        // focus popover (a read). An editor keeps the full interactive button semantics below.
+        // aria-label, no edit/move keys and no drag pointerdown. It remains a tab stop so the same
+        // detail popover available on hover is also reachable from the keyboard. An editor keeps the
+        // full interactive button semantics below.
         role={canEdit ? 'button' : 'img'}
-        tabIndex={canEdit ? 0 : undefined}
+        tabIndex={0}
         aria-label={
           canEdit
             ? m.scheduler_bar_aria_editor({
@@ -152,12 +165,12 @@ export const AllocationBar = memo(function AllocationBar({
                 note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : '',
               })
             : m.scheduler_bar_aria_viewer({
-                label: labelText,
+                label: viewerLabelText,
                 hours: hideHours ? '' : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
                 status: allocationStatusLabels()[bar.allocation.status],
                 start: fmt(bar.allocation.startDate),
                 end: fmt(bar.allocation.endDate),
-                note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : '',
+                note: bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : '',
               })
         }
         onPointerDown={
@@ -292,7 +305,7 @@ export const AllocationBar = memo(function AllocationBar({
         showArrow={false}
         data-testid="allocation-popover"
         aria-hidden
-        aria-label={m.scheduler_bar_pop_footer()}
+        aria-label={popoverFooter}
         className="scheduler-alloc-popover pointer-events-none z-(--z-index-popover) w-60 rounded-lg p-3 font-normal"
       >
         <div className="mb-1 flex items-center gap-2">
@@ -312,7 +325,7 @@ export const AllocationBar = memo(function AllocationBar({
         </div>
         {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>}
         <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">
-          {m.scheduler_bar_pop_footer()}
+          {popoverFooter}
         </div>
       </TooltipContent>
       )}

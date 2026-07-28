@@ -125,6 +125,10 @@ describe('dateMath', () => {
     expect(xForDate('', '2026-05-29', 40)).toBe(0)
     expect(widthForRange('', '', 40)).toBe(0)
     expect(widthForRange('2026-06-05', '2026-06-01', 40)).toBe(0) // reversed -> 0, never negative
+    expect(widthForRange('2026-05-29', '2026-05-29', -1)).toBe(0)
+    expect(widthForRange('2026-05-29', '2026-05-29', Number.NaN)).toBe(0)
+    expect(widthForRange('2026-05-29', '2026-05-29', Number.POSITIVE_INFINITY)).toBe(0)
+    expect(widthForRange('2026-05-29', '2026-05-30', Number.MAX_VALUE)).toBe(0)
   })
 
   it('isWithin is inclusive of both ends', () => {
@@ -222,9 +226,47 @@ describe('countWorkingDays', () => {
     expect(countWorkingDays('2026-06-02', '2026-06-01', [1, 2, 3, 4, 5])).toBe(0)
     expect(countWorkingDays('2026-06-10', '2026-06-01', [1, 2, 3, 4, 5])).toBe(0)
   })
+
+  it('matches a date-string scan across starts, spans and working-week patterns', () => {
+    const reference = (start: string, end: string, workingDays: Weekday[]): number => {
+      const span = daysInclusive(start, end)
+      let count = 0
+      for (let i = 0; i < span; i++) {
+        if (workingDays.includes(weekdayOf(addDaysISO(start, i)))) count++
+      }
+      return count
+    }
+    const patterns: Weekday[][] = [
+      [],
+      [1, 2, 3, 4, 5],
+      [0, 6],
+      [1, 3, 5],
+      [2],
+      [1, 1, 1],
+      [0, 1, 2, 3, 4, 5],
+      [0, 1, 2, 3, 4, 5, 6],
+    ]
+    for (let startOffset = 0; startOffset < 7; startOffset++) {
+      const start = addDaysISO('2024-02-25', startOffset) // leap day + every start weekday
+      for (const span of [1, 2, 7, 31, 366]) {
+        const end = addDaysISO(start, span - 1)
+        for (const pattern of patterns) {
+          expect(countWorkingDays(start, end, pattern)).toBe(reference(start, end, pattern))
+        }
+      }
+    }
+  })
 })
 
 describe('endDateForWorkingDays', () => {
+  it.each([1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects a non-safe-integer working-day count (%s)',
+    (count) => {
+      expect(() => endDateForWorkingDays('2026-06-01', count, [1, 2, 3, 4, 5]))
+        .toThrow('count must be a safe integer.')
+    },
+  )
+
   it('falls back to the raw calendar span (start itself) when count <= 0', () => {
     expect(endDateForWorkingDays('2026-06-01', 0, [1, 2, 3, 4, 5])).toBe('2026-06-01')
     expect(endDateForWorkingDays('2026-06-01', -3, [1, 2, 3, 4, 5])).toBe('2026-06-01')

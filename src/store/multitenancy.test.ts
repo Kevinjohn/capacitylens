@@ -43,19 +43,38 @@ describe('account CRUD', () => {
 
   it('addAccount works with no active account (bootstraps the first tenant)', () => {
     expect(s().activeAccountId).toBeNull()
-    const a = s().addAccount({ name: 'Acme Co', color: '#6366f1' })
+    const a = s().addAccount({ name: 'Acme Co', color: '#6366f1' })!
     expect(a.id).toBeTruthy()
     expect(s().data.accounts).toHaveLength(1)
   })
 
+  it('addAccount is a read-only no-op for a viewer', () => {
+    const existing = s().addAccount({ name: 'Existing', color: '#6366f1' })!
+    s().setActiveAccount(existing.id)
+    s().setActiveRole('viewer')
+    const dataBefore = s().data
+    const summariesBefore = s().accountSummaries
+
+    const created = s().addAccount({ name: 'Forbidden', color: '#3b82f6' })
+
+    expect(created).toBeNull()
+    expect(s().data).toBe(dataBefore)
+    expect(s().accountSummaries).toBe(summariesBefore)
+    expect(s().notice).toEqual({
+      message: "Read-only — you don't have edit access.",
+      tone: 'error',
+    })
+  })
+
   it('updateAccount renames', () => {
-    const a = s().addAccount({ name: 'Old', color: '#1' })
+    const a = s().addAccount({ name: 'Old', color: '#1' })!
+    s().setActiveAccount(a.id)
     s().updateAccount(a.id, { name: 'New' })
     expect(s().data.accounts[0].name).toBe('New')
   })
 
   it('scoped add* throws without an active account', () => {
-    expect(() => s().addClient({ name: 'X', color: '#1' })).toThrow()
+    expect(() => s().addClient({ name: 'X', color: '#1' })).toThrow(/no active account/i)
   })
 
   it('deleteAccount cascade-drops all of that account’s scoped data and clears it if active', () => {
@@ -110,6 +129,24 @@ describe('setActiveAccount resets per-account view state', () => {
     expect(s().ui.selectedAllocationId).toBeNull()
     expect(s().past).toEqual([])
     expect(s().future).toEqual([])
+  })
+
+  it('atomically clears tenant-bound navigation and interaction state on switch', () => {
+    s().setActiveAccount('a1')
+    s().jumpToResource('resource-a1')
+    s().setDirtyForm(true)
+    s().setDraggingAllocation('allocation-a1')
+    s().setNotice('Company One changed', 'info')
+    s().announceCapacity('Company One is over capacity')
+
+    s().setActiveAccount('a2')
+
+    expect(s().ui.scrollToResource).toBeNull()
+    expect(s().dirtyForm).toBe(false)
+    expect(s().dirtyFormSources.size).toBe(0)
+    expect(s().draggingAllocationId).toBeNull()
+    expect(s().notice).toBeNull()
+    expect(s().srAnnouncement).toBeNull()
   })
 })
 

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
+import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
 
 const s = () => useStore.getState()
@@ -39,7 +40,7 @@ describe('importData hardening', () => {
     expect(r.kind).toBe('person')
     expect(r.employmentType).toBe('permanent')
     expect(r.workingHoursPerDay).toBe(8)
-    expect(r.color).toBe('#2d75da')
+    expect(r.color).toBe(FALLBACK_PRESET_COLOR)
   })
 
   it('returns a delta summary counting records kept vs. dropped as invalid', () => {

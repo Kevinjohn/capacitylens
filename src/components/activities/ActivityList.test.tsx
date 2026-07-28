@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ActivityList } from './ActivityList'
 import { useStore } from '../../store/useStore'
@@ -47,6 +47,28 @@ describe('ActivityList', () => {
     expect(screen.getByRole('heading', { name: 'Cross-project activities' })).toBeInTheDocument()
     const row = within(screen.getByTestId('cross-project-activities')).getByTestId('activity-row')
     expect(row).toHaveTextContent('Design')
+  })
+
+  it('does not show global first-activity onboarding when only a later section has rows', () => {
+    useStore.getState().addActivity({ name: 'Design system', kind: 'repeatable' })
+
+    render(<ActivityList />)
+
+    expect(screen.getByText('Design system')).toBeInTheDocument()
+    expect(screen.getByText('No internal activities yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add your first activity' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Activities are the work you allocate/)).not.toBeInTheDocument()
+  })
+
+  it('gives repeated row delete controls distinct contextual names', () => {
+    useStore.getState().addActivity({ name: 'Planning', kind: 'internal' })
+    useStore.getState().addActivity({ name: 'Operations', kind: 'internal' })
+
+    render(<ActivityList />)
+
+    expect(screen.getByRole('button', { name: 'Delete Planning' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Operations' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
   })
 
   it('adds a project-specific activity, showing the client / project label in the Project-specific activities section', async () => {
@@ -168,7 +190,7 @@ describe('ActivityList', () => {
     expect(screen.getByTestId('activity-row')).toBeInTheDocument()
 
     // Click Delete on the activity row — a confirm dialog appears
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Delete My Activity' }))
     const dialog = screen.getByRole('alertdialog')
     expect(dialog).toHaveTextContent(/Delete activity\?/i)
 
@@ -177,10 +199,52 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities).toHaveLength(1)
 
     // Confirm removes the activity
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Delete My Activity' }))
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
 
     expect(useStore.getState().data.activities).toHaveLength(0)
     expect(screen.queryByTestId('activity-row')).not.toBeInTheDocument()
+  })
+
+  it('keeps deletion open and surfaces a store integrity failure', async () => {
+    const user = userEvent.setup()
+    const activity = useStore.getState().addActivity({ name: 'Internal sync', kind: 'internal' })
+    const originalDelete = useStore.getState().deleteActivity
+    useStore.setState({ deleteActivity: () => { throw new Error('Stored activity is inconsistent.') } })
+    try {
+      render(<ActivityList />)
+      await user.click(within(screen.getByTestId('activity-row')).getByRole('button', { name: 'Delete Internal sync' }))
+      const dialog = screen.getByRole('alertdialog')
+
+      await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+      expect(dialog).toBeInTheDocument()
+      expect(useStore.getState().data.activities).toContainEqual(activity)
+      expect(useStore.getState().notice).toMatchObject({
+        message: 'Stored activity is inconsistent.',
+        tone: 'error',
+      })
+    } finally {
+      useStore.setState({ deleteActivity: originalDelete })
+    }
+  })
+
+  it('keeps the edit form open when its activity vanished during editing', async () => {
+    const user = userEvent.setup()
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
+    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
+    const activity = useStore.getState().addActivity({ name: 'A1', kind: 'project', projectId: project.id })
+    render(<ActivityList />)
+
+    await user.click(within(screen.getByTestId('activity-row')).getByRole('button', { name: 'Edit' }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit activity' })
+    act(() => useStore.getState().deleteActivity(activity.id))
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.type(within(dialog).getByLabelText('Name'), 'Renamed')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('dialog', { name: 'Edit activity' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/changed while you were editing/i)
+    expect(useStore.getState().data.activities).toHaveLength(0)
   })
 })

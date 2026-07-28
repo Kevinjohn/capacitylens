@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { ResourceList } from './ResourceList'
 import { useStore } from '../../store/useStore'
 import { WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from '../../test/fixtures'
+import { PermissionContext } from '../../auth/permissionContext'
 
 beforeEach(() => {
   resetStoreWithAccount()
@@ -36,6 +37,17 @@ const freelancerDraft = (name: string) => ({
 })
 
 describe('ResourceList display', () => {
+  it('hides direct section create actions from viewers', () => {
+    render(
+      <PermissionContext.Provider value={{ role: 'viewer' }}>
+        <ResourceList />
+      </PermissionContext.Provider>,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Add resource' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add placeholder' })).not.toBeInTheDocument()
+  })
+
   it('shows an empty state when no resources exist', () => {
     render(<ResourceList />)
     expect(screen.getByText(/No resources yet/i)).toBeInTheDocument()
@@ -89,6 +101,27 @@ describe('ResourceList display', () => {
     expect(within(row).getByText(/Senior Designer/)).toBeInTheDocument()
     // No "Temp" tag since it is permanent
     expect(within(row).queryByText('Temp')).not.toBeInTheDocument()
+  })
+
+  it('does not show global first-resource onboarding when only a visible later section has rows', () => {
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
+    const project = useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' })
+    useStore.getState().addResource({
+      kind: 'placeholder',
+      role: 'Senior Designer',
+      employmentType: 'permanent',
+      workingHoursPerDay: 8,
+      workingDays: WORKDAYS,
+      color: '#a855f7',
+      projectId: project.id,
+    })
+
+    render(<ResourceList />)
+
+    expect(screen.getByText('Placeholder')).toBeInTheDocument()
+    expect(screen.getByText(/No resources yet/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add your first resource' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Resources are the people you schedule work for.')).not.toBeInTheDocument()
   })
 
   it('hides the Placeholders section + its placeholders when the pref is OFF (default)', () => {

@@ -11,3 +11,14 @@ f6454edaec6f93b5697ba2fe18dbcd0d2b464da6:server/package.json:generic-api-key:16
 f6454edaec6f93b5697ba2fe18dbcd0d2b464da6:server/src/app.auth.test.ts:generic-api-key:178
 f6454edaec6f93b5697ba2fe18dbcd0d2b464da6:server/src/accounts/sqliteAccountAdminPort.test.ts:generic-api-key:17
 f6454edaec6f93b5697ba2fe18dbcd0d2b464da6:server/src/accounts/conformance/accountFlows.conformance.test.ts:generic-api-key:18
+
+# Deliberately fake test-only secrets and idempotency keys introduced by the 0.27.0-alpha.1
+# release. These deterministic fixture values have never been credentials.
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/accounts/conformance/accountFlows.conformance.test.ts:generic-api-key:24
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/accounts/conformance/accountFlows.conformance.test.ts:generic-api-key:821
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/db.migrate.test.ts:generic-api-key:62
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/credentialOnboardingDurability.test.ts:generic-api-key:49
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/app.auth.test.ts:generic-api-key:222
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/fixtures/credentialOnboardingCrashFixture.ts:generic-api-key:14
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/accounts/sqliteAccountAdminPort.test.ts:generic-api-key:212
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/app.invites.test.ts:generic-api-key:242

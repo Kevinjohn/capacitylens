@@ -1,11 +1,21 @@
 import {
+  assertActivityProjectAllowsDependents,
   assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
+  assertResourceProjectAllowsDependents,
   assertScopedRefs,
+  type ValidationDataLookup,
 } from '@capacitylens/shared/domain/mutations'
-import { sanitizeImportedRecord, sanitizeAccount } from '@capacitylens/shared/lib/sanitizeImport'
+import {
+  DomainError,
+  type DomainErrorCode,
+} from '@capacitylens/shared/domain/errors'
+import {
+  sanitizeImportedRecord,
+  sanitizeAccount,
+} from '@capacitylens/shared/lib/sanitizeImport'
 import {
   INTERNAL_CLIENT_COLOR,
   INTERNAL_CLIENT_NAME,
@@ -13,15 +23,36 @@ import {
 } from '@capacitylens/shared/data/internalClient'
 import { snapToPresetColor } from '@capacitylens/shared/lib/color'
 import { cleanText } from '@capacitylens/shared/lib/strings'
-import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
-import { SCHEDULING_MODES, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
-import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities'
+import {
+  inspectLifecycleAncestry,
+  isLifecycleEntityKey,
+  type LifecycleAncestryLookup,
+  type LifecycleAncestryRow,
+} from '@capacitylens/shared/domain/lifecycle'
+import {
+  isScopedEntityKey,
+  SCHEDULING_MODES,
+} from '@capacitylens/shared/types/entities'
+import type {
+  Activity,
+  AppData,
+  AppDataKey,
+  Resource,
+  ScopedEntityKey,
+} from '@capacitylens/shared/types/entities'
 import { TABLES } from './tables'
 import { pinGatedFields, type SanitizeWriteOptions } from './fieldPolicy'
 
 // SanitizeWriteOptions is owned by fieldPolicy.ts (the single source of role-gated field policy);
 // re-exported here so existing importers (app.ts) keep their `from './validate'` import unchanged.
 export type { SanitizeWriteOptions } from './fieldPolicy'
+
+/** Account calendar/locale facts become immutable after their first valid stored value. */
+export const IMMUTABLE_ACCOUNT_FIELDS = [
+  'language',
+  'weekStartsOn',
+  'timezone',
+] as const
 
 // The server is the integrity boundary for direct API writes. Two layers, both
 // reusing the SAME shared domain-core the client uses (so server rules can't drift
@@ -35,11 +66,17 @@ export type { SanitizeWriteOptions } from './fieldPolicy'
 /** A caller-fault error (bad request body) — mapped to HTTP 400. Distinct from an
  *  unexpected server/db error, which must surface as 500. */
 export class ValidationError extends Error {
+  readonly code?: DomainErrorCode
+
   // Accepts ErrorOptions so a re-tag from a catch can forward `{ cause }` and preserve the full
   // chain (not just the message) — see validateWrite below.
-  constructor(message: string, options?: ErrorOptions) {
+  constructor(
+    message: string,
+    options?: ErrorOptions & { code?: DomainErrorCode },
+  ) {
     super(message, options)
     this.name = 'ValidationError'
+    this.code = options?.code
   }
 }
 
@@ -60,11 +97,6 @@ export function assertIdPresent(row: Record<string, unknown>): void {
   }
 }
 
-// Derived from SCOPED_KEYS — the single source of truth — so a new entity added to
-// AppData is automatically treated as scoped without an update here.
-const isScopedKey = (table: string): table is ScopedEntityKey =>
-  (SCOPED_KEYS as string[]).includes(table)
-
 /** Copy only columns accepted by the table codec. Generic request bodies are untrusted; keeping
  * extra properties would leak them into audit metadata and response echoes even though SQLite
  * silently ignores them. */
@@ -75,13 +107,32 @@ export function acceptedWriteFields(
   const spec = TABLES[table]
   if (!spec) return {}
   const accepted = new Set(spec.columns.map((column) => column.name))
-  return Object.fromEntries(Object.entries(row).filter(([key]) => accepted.has(key)))
+  return Object.fromEntries(
+    Object.entries(row).filter(([key]) => accepted.has(key)),
+  )
 }
 
 export function acceptedFieldNames(table: string, row: unknown): string[] {
   return row && typeof row === 'object'
     ? Object.keys(acceptedWriteFields(table, row as Record<string, unknown>))
     : []
+}
+
+/** Field names the caller requested AND the write funnel actually changed. This keeps audit
+ * metadata value-free while excluding rejected, pinned and normalized-to-existing input. */
+export function appliedRequestedFieldNames(
+  table: string,
+  requested: unknown,
+  existing: Record<string, unknown> | undefined,
+  applied: Record<string, unknown>,
+): string[] {
+  if (!requested || typeof requested !== 'object') return []
+  return acceptedFieldNames(table, requested).filter(
+    (field) =>
+      Object.hasOwn(applied, field) &&
+      (existing === undefined ||
+        JSON.stringify(existing[field]) !== JSON.stringify(applied[field])),
+  )
 }
 
 /**
@@ -122,13 +173,27 @@ export function sanitizeWrite(
     // schedulingMode is an OPTIONAL enum (absent = 'hourly'). Drop a junk value rather
     // than persisting a mode the scheduler's hourly/days/blocks switch can't handle — the
     // one enum a direct /api/accounts write would otherwise slip past every other guard.
-    if (copy.schedulingMode !== undefined && !SCHEDULING_MODES.includes(copy.schedulingMode as never)) {
+    if (
+      copy.schedulingMode !== undefined &&
+      !SCHEDULING_MODES.includes(copy.schedulingMode as never)
+    ) {
       delete copy.schedulingMode
     }
     sanitizeAccount(copy)
+    // Frozen account values are write-once, but old/API-created rows may legitimately have no
+    // value yet. Preserve an existing value when a PUT omits it or sanitisation drops malformed
+    // input; the route-level guard then rejects only a different valid value. This makes malformed
+    // input a no-op instead of either a misleading freeze violation or an accidental NULL write.
+    if (existing) {
+      for (const field of IMMUTABLE_ACCOUNT_FIELDS) {
+        if (copy[field] === undefined && existing[field] !== undefined) {
+          copy[field] = existing[field]
+        }
+      }
+    }
     return copy
   }
-  if (isScopedKey(table)) {
+  if (isScopedEntityKey(table)) {
     const cleaned = sanitizeImportedRecord(table, copy)
     // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
     // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions +
@@ -147,9 +212,11 @@ export function sanitizeWrite(
     // The IMPORT path is untouched: it uses sanitizeImportedRecord directly (not sanitizeWrite), so a
     // legitimate export round-trips its tombstones. (accounts/disciplines carry no tombstones.)
     if (isLifecycleEntityKey(table)) {
-      if (typeof existing?.archivedAt === 'string') cleaned.archivedAt = existing.archivedAt
+      if (typeof existing?.archivedAt === 'string')
+        cleaned.archivedAt = existing.archivedAt
       else delete cleaned.archivedAt
-      if (typeof existing?.deletedAt === 'string') cleaned.deletedAt = existing.deletedAt
+      if (typeof existing?.deletedAt === 'string')
+        cleaned.deletedAt = existing.deletedAt
       else delete cleaned.deletedAt
     }
     // P1.6 field-confidentiality PINS (note-erasure guard + private-name guard): same PIN mechanism
@@ -165,7 +232,12 @@ export function sanitizeWrite(
   return copy
 }
 
-const SCOPED_REF_TABLES: ScopedEntityKey[] = ['projects', 'phases', 'activities', 'resources']
+const SCOPED_REF_TABLES: ScopedEntityKey[] = [
+  'projects',
+  'phases',
+  'activities',
+  'resources',
+]
 
 /**
  * Referential-integrity + date-range validation for a write. `row` is the full
@@ -177,19 +249,48 @@ export function validateWrite(
   table: string,
   row: Record<string, unknown>,
   existing?: Record<string, unknown>,
+  lookup?: ValidationDataLookup,
 ): void {
+  // The built-in Internal singleton is always active. In particular, a legacy-id replacement must
+  // not promote an archived/soft-deleted ordinary client while retiring the healthy generated row.
+  // Check both values so this invariant remains closed even if a future caller does not run the
+  // generic-write tombstone pin before validation.
+  if (
+    table === 'clients' &&
+    row.builtin === true &&
+    [
+      row.archivedAt,
+      row.deletedAt,
+      existing?.archivedAt,
+      existing?.deletedAt,
+    ].some((value) => typeof value === 'string')
+  ) {
+    throw new ValidationError(
+      'The built-in Internal client must remain active.',
+    )
+  }
   if (isLifecycleEntityKey(table) && typeof existing?.deletedAt === 'string') {
-    throw new ValidationError('Soft-deleted records can only be changed through lifecycle endpoints.')
+    throw new ValidationError(
+      'Soft-deleted records can only be changed through lifecycle endpoints.',
+    )
   }
   const accountId = row.accountId as string
-  const deletedParent = (() => {
-    if (table === 'projects') return state.clients.find((parent) => parent.id === row.clientId && parent.accountId === accountId)
-    if (table === 'phases' || table === 'activities') return state.projects.find((parent) => parent.id === row.projectId && parent.accountId === accountId)
-    if (table === 'allocations' || table === 'timeOff') return state.resources.find((parent) => parent.id === row.resourceId && parent.accountId === accountId)
-    return undefined
-  })()
-  if (deletedParent?.deletedAt) {
-    throw new ValidationError('Records beneath a soft-deleted parent cannot be changed through generic endpoints.')
+  const ancestryLookup: LifecycleAncestryLookup = lookup
+    ? (parentTable, id) =>
+        lookup.row(parentTable, id) as LifecycleAncestryRow | undefined
+    : (parentTable, id) =>
+        (state[parentTable] as unknown as LifecycleAncestryRow[]).find(
+          (parent) => parent.id === id,
+        )
+  const ancestry = inspectLifecycleAncestry(
+    table as AppDataKey,
+    row as LifecycleAncestryRow,
+    ancestryLookup,
+  )
+  if (ancestry.inactiveAncestor) {
+    throw new ValidationError(
+      'Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.',
+    )
   }
   // A client carries no outbound FK, but the built-in Internal client is a SINGLETON: exactly one per
   // account. This is the SERVER-REJECT enforcement point (3) of the single-Internal invariant — the
@@ -208,21 +309,43 @@ export function validateWrite(
     //      until the next boot backfill re-creates one. The web store never sends this (Draft<Client>
     //      excludes builtin); it is purely a direct/crafted-request guard. Updating the SAME builtin
     //      (matching id, builtin still true) is fine.
-    const existing = state.clients.find((c) => c.id === row.id)
-    if (existing?.builtin === true) {
+    const currentClient =
+      existing ??
+      (typeof row.id === 'string'
+        ? lookup
+          ? lookup.row('clients', row.id)
+          : state.clients.find((client) => client.id === row.id)
+        : undefined)
+    if (currentClient?.builtin === true) {
       if (
         row.builtin !== true ||
         row.name !== INTERNAL_CLIENT_NAME ||
         row.color !== INTERNAL_CLIENT_COLOR
       ) {
-        throw new ValidationError('The built-in Internal client cannot be modified.')
+        throw new ValidationError(
+          'The built-in Internal client cannot be modified.',
+        )
       }
     }
-    if (row.builtin === true && (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)) {
-      throw new ValidationError('The built-in Internal client has a fixed name and colour.')
+    if (
+      row.builtin === true &&
+      (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)
+    ) {
+      throw new ValidationError(
+        'The built-in Internal client has a fixed name and colour.',
+      )
     }
-    if (row.builtin === true && wouldAddSecondBuiltin(state.clients, row.accountId as string, row.id as string)) {
-      throw new ValidationError('This company already has its built-in Internal client.')
+    if (
+      row.builtin === true &&
+      wouldAddSecondBuiltin(
+        state.clients,
+        row.accountId as string,
+        row.id as string,
+      )
+    ) {
+      throw new ValidationError(
+        'This company already has its built-in Internal client.',
+      )
     }
     return
   }
@@ -239,14 +362,46 @@ export function validateWrite(
       return
     }
     if (SCOPED_REF_TABLES.includes(table as ScopedEntityKey)) {
-      assertScopedRefs(state, accountId, table as ScopedEntityKey, row, existing)
+      assertScopedRefs(
+        state,
+        accountId,
+        table as ScopedEntityKey,
+        row,
+        existing,
+        lookup,
+        { fullRow: true },
+      )
       // `row` is the full merged entity (PUT carries the whole row; PATCH merges {...existing, ...body}),
       // so `row.kind` is the kind the resource WILL have. Reject a flip-to-external that would orphan
       // existing loaded work / time-off — `state` is loaded BEFORE the write, so it still holds those
       // dependents. Same shared assert the store's updateResource calls, so the two can't drift. A no-op
       // for non-resource tables and for any write that doesn't make the resource external.
       if (table === 'resources') {
-        assertResourceKindAllowsDependents(state, accountId, row.id as string, row.kind)
+        assertResourceProjectAllowsDependents(
+          state,
+          accountId,
+          row.id as string,
+          row as unknown as Resource,
+          existing as unknown as Resource | undefined,
+          lookup,
+        )
+        assertResourceKindAllowsDependents(
+          state,
+          accountId,
+          row.id as string,
+          row.kind,
+          lookup,
+        )
+      }
+      if (table === 'activities') {
+        assertActivityProjectAllowsDependents(
+          state,
+          accountId,
+          row.id as string,
+          row as unknown as Activity,
+          existing as unknown as Activity | undefined,
+          lookup,
+        )
       }
       return
     }
@@ -258,18 +413,28 @@ export function validateWrite(
         row.activityId as string,
         row.hoursPerDay as number,
         existing as never,
+        lookup,
       )
       assertDateRange(row.startDate as string, row.endDate as string)
       return
     }
     if (table === 'timeOff') {
-      assertResourceExists(state, accountId, row.resourceId as string, existing as never)
+      assertResourceExists(
+        state,
+        accountId,
+        row.resourceId as string,
+        existing as never,
+        lookup,
+      )
       assertDateRange(row.startDate as string, row.endDate as string)
       return
     }
   } catch (e) {
-    // The shared asserts throw plain Errors; tag them as caller-fault so the route
-    // returns 400, not 500. Forward the original as `cause` so the full chain survives the re-tag.
-    throw new ValidationError(e instanceof Error ? e.message : String(e), { cause: e })
+    // Shared domain rejections retain their stable code across the HTTP boundary. Unexpected
+    // errors are still re-tagged only because this catch encloses curated validation calls.
+    throw new ValidationError(e instanceof Error ? e.message : String(e), {
+      cause: e,
+      code: e instanceof DomainError ? e.code : undefined,
+    })
   }
 }

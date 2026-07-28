@@ -29,6 +29,7 @@ type RuntimeSliceKeys =
   | 'notice'
   | 'srAnnouncement'
   | 'dirtyForm'
+  | 'dirtyFormSources'
   | 'draggingAllocationId'
   | 'theme'
   | 'utilizationPrefs'
@@ -48,6 +49,7 @@ type RuntimeSliceKeys =
   | 'setNotice'
   | 'announceCapacity'
   | 'setDirtyForm'
+  | 'setDirtyFormSource'
   | 'setDraggingAllocation'
   | 'setTheme'
   | 'setUtilizationPref'
@@ -64,6 +66,15 @@ type RuntimeSliceKeys =
 
 export type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>
 
+const legacyDirtyFormSource = Symbol('setDirtyForm')
+
+function dirtyFormState(state: StoreState, source: symbol, dirty: boolean) {
+  const dirtyFormSources = new Set(state.dirtyFormSources)
+  if (dirty) dirtyFormSources.add(source)
+  else dirtyFormSources.delete(source)
+  return { dirtyFormSources, dirtyForm: dirtyFormSources.size > 0 }
+}
+
 /** Device preferences and transient application/session state. */
 export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set, get) => ({
   hydrated: false,
@@ -73,6 +84,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
   notice: null,
   srAnnouncement: null,
   dirtyForm: false,
+  dirtyFormSources: new Set(),
   draggingAllocationId: null,
   theme: readStoredTheme(),
   utilizationPrefs: readStoredUtilizationPrefs(),
@@ -95,7 +107,10 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     set((state) => ({
       srAnnouncement: { text, seq: (state.srAnnouncement?.seq ?? 0) + 1 },
     })),
-  setDirtyForm: (value) => set({ dirtyForm: value }),
+  // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
+  // clearing one contribution can never erase another still-dirty owner.
+  setDirtyForm: (value) => set((state) => dirtyFormState(state, legacyDirtyFormSource, value)),
+  setDirtyFormSource: (source, dirty) => set((state) => dirtyFormState(state, source, dirty)),
   setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
   setTheme: (preference) => {
     writeStoredTheme(preference)

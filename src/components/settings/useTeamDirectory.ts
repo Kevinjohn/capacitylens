@@ -26,6 +26,7 @@ export function useTeamDirectory({
     invites: TeamInvitation[]
     gate: 'loading' | 'shown' | 'hidden' | 'error'
   }>({ accountId: null, members: null, invites: [], gate: 'loading' })
+  const directoryRef = useRef(directory)
   const [reloadKey, setReloadKey] = useState(0)
   const requestGeneration = useRef(0)
   const actionLock = useRef<string | null>(null)
@@ -44,7 +45,14 @@ export function useTeamDirectory({
   }, [])
 
   useEffect(() => {
+    directoryRef.current = directory
+  }, [directory])
+
+  useEffect(() => {
     if (!enabled || !activeAccountId || offlineReadOnly) return
+    const currentDirectory = directoryRef.current
+    const hadAuthorizedDirectory =
+      currentDirectory.accountId === activeAccountId && currentDirectory.members !== null && currentDirectory.gate !== 'hidden'
     const generation = ++requestGeneration.current
     let cancelled = false
     const current = () => !cancelled && requestGeneration.current === generation
@@ -55,7 +63,12 @@ export function useTeamDirectory({
         const membersResult = await teamAccessClient.listMembers(activeAccountId)
         if (membersResult.kind === 'rejected' && membersResult.status === 403) {
           if (current()) {
-            setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: 'hidden' })
+            if (hadAuthorizedDirectory) {
+              setDirectory((previous) => ({ ...previous, gate: 'error' }))
+              fail(null, m.settings_members_err_access_changed())
+            } else {
+              setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: 'hidden' })
+            }
           }
           return
         }
@@ -95,7 +108,7 @@ export function useTeamDirectory({
             null,
             invitationsResult.kind === 'rejected' && invitationsResult.message
               ? invitationsResult.message
-              : m.settings_members_err_load({ status: invitationsResult.status }),
+              : m.settings_invites_err_load({ status: invitationsResult.status }),
           )
           return
         }

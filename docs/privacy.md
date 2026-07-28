@@ -9,8 +9,10 @@ The SQLite database can contain account names, member names/email addresses, res
 projects, activities, allocations, time off and free-text notes. Authentication tables contain
 identities, linked providers, sessions, invitations and password-reset state.
 
-The audit log records who changed which entity and field names, but not field values. Online
-database snapshots contain the full database and must be protected like production data.
+The audit log records who changed which entity and field names, but not field values. Pending
+mutation-audit records temporarily retain that same metadata in SQLite until fsynced JSONL delivery;
+they still contain no entity values. Online database snapshots contain the full database and must
+be protected like production data.
 
 Clients and projects can optionally store a code name alongside the real name. This is an access-
 control feature, not database encryption: real names remain in SQLite, operator backups and owner
@@ -26,11 +28,12 @@ The demo stores scheduling data only in memory and resets on refresh. Device pre
 localStorage and are not part of an account export.
 
 Optional offline reading stores the last verified identity, account list and account snapshots in
-IndexedDB for up to seven days, plus an application-shell cache. It is read-only and never queues
-writes. Snapshot records are encrypted with a non-extractable per-browser key, but access to an
-unlocked application origin can still invoke that key. Sign-out removes the current user's cached
-snapshots; “Clear device data” removes every CapacityLens cache and preference stored by that
-browser profile. See `docs/offline.md`.
+IndexedDB with a seven-day expiry, plus an application-shell cache. Before any later cache read or
+write, maintenance physically removes expired envelopes. It is read-only and never queues writes.
+Snapshot records are encrypted with a non-extractable per-browser key, but access to an unlocked
+application origin can still invoke that key. Sign-out removes the current user's cached snapshots;
+opting out or using “Clear device data” removes every user's CapacityLens cache and its device key
+from that browser profile. See `docs/offline.md`.
 
 Offline snapshots contain the same role-filtered payload last returned by the server: a non-owner's
 snapshot contains code names, while an owner's snapshot may contain real private names. Protect an
@@ -55,7 +58,9 @@ data. Operators should review that provider's own terms and retention behavior.
 
 ## Retention and erasure
 
-- Soft-deleting a resource immediately replaces its name with a stable anonymised label.
+- Soft-deleting a resource immediately replaces its name with a stable anonymised label and removes
+  notes from dependent allocations and time off. Import repair applies the same rule before storing
+  a deleted resource from legacy, restored or hand-edited data.
 - Permanently deleting an account removes its scoped scheduling data and erases identities that no
   longer belong to another account, including sessions and provider links.
 - Audit files and backup snapshots are separate copies. Operators must include their retention,

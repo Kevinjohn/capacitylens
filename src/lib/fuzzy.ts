@@ -11,7 +11,7 @@
  * Within a tier, shorter names rank higher (tighter fit).
  * Tie-break: lexicographic on lower-cased name (stable).
  *
- * All comparisons are case-insensitive; the original text is preserved for display.
+ * All comparisons are case- and diacritic-insensitive; the original text is preserved for display.
  */
 
 export interface FuzzyScore {
@@ -19,6 +19,12 @@ export interface FuzzyScore {
   score: number
   /** The source text (unmodified). */
   text: string
+}
+
+/** Fold canonically decomposable diacritics and case for search comparisons. The fixed NFD form
+ * and Unicode-property regex are total for arbitrary strings, including lone surrogate code units. */
+function foldForSearch(value: string): string {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 }
 
 /** Return the score for `query` against `text`, or Infinity if no match.
@@ -29,8 +35,8 @@ export interface FuzzyScore {
 export function fuzzyScore(query: string, text: string): number {
   if (!query) return 0
 
-  const q = query.toLowerCase()
-  const t = text.toLowerCase()
+  const q = foldForSearch(query)
+  const t = foldForSearch(text)
 
   // Tier 0: exact prefix
   if (t.startsWith(q)) return 0

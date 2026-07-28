@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from '@playwright/test'
+import { test, expect, type Locator } from './fixtures'
 import { openApp } from './helpers'
 
 async function box(locator: Locator) {
@@ -12,15 +12,23 @@ test.describe('Toolbar', () => {
   test('zooms the timeline and tracks the active level', async ({ page }) => {
     await openApp(page)
     await page.getByRole('radio', { name: '8w', exact: true }).click()
-    await expect(page.getByRole('radio', { name: '8w', exact: true })).toHaveAttribute('aria-checked', 'true')
-    await expect(page.getByRole('radio', { name: '1w', exact: true })).toHaveAttribute('aria-checked', 'false')
+    await expect(
+      page.getByRole('radio', { name: '8w', exact: true }),
+    ).toHaveAttribute('aria-checked', 'true')
+    await expect(
+      page.getByRole('radio', { name: '1w', exact: true }),
+    ).toHaveAttribute('aria-checked', 'false')
   })
 
   test('pans the window a week with Prev and Next', async ({ page }) => {
     await openApp(page)
     await page.getByRole('radio', { name: '4w', exact: true }).click()
-    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
+    await page.getByTestId('scheduler-grid').evaluate((el) => {
+      ;(el as HTMLElement).scrollLeft = 0
+    })
+    const bar = page
+      .getByTestId('allocation-bar')
+      .filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
 
     // Panning forward moves the origin later, so a fixed-date bar shifts left.
@@ -37,9 +45,13 @@ test.describe('Toolbar', () => {
   test('re-centres on Today after scrolling away', async ({ page }) => {
     await openApp(page)
     const grid = page.getByTestId('scheduler-grid')
-    await grid.evaluate((el) => { (el as HTMLElement).scrollLeft = 5000 })
+    await grid.evaluate((el) => {
+      ;(el as HTMLElement).scrollLeft = 5000
+    })
     await page.getByRole('button', { name: 'Today', exact: true }).click()
-    await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(4000)
+    await expect
+      .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
+      .toBeLessThan(4000)
   })
 
   test('jumps to a chosen date', async ({ page }) => {
@@ -65,25 +77,45 @@ test.describe('Toolbar', () => {
     // ancestor makes it non-interactive, off the tab order, and removed from the a11y tree.
     // Prove the semantics hold THROUGH the ancestor: every bar is matched by `[inert] <bar>`,
     // and an attempt to focus one is refused (inert subtrees can't take focus).
-    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    await page.getByTestId('scheduler-grid').evaluate((el) => {
+      ;(el as HTMLElement).scrollLeft = 0
+    })
     const bar = page.getByTestId('allocation-bar').first()
     await expect(bar).toBeVisible()
     // The bar lives under an [inert] ancestor (the BarsLayer); no bar is outside one.
-    await expect(page.locator('[inert] [data-testid="allocation-bar"]').first()).toBeVisible()
-    await expect(page.locator('[data-testid="allocation-bar"]:not([inert] *)')).toHaveCount(0)
+    await expect(
+      page.locator('[inert] [data-testid="allocation-bar"]').first(),
+    ).toBeVisible()
+    await expect(
+      page.locator('[data-testid="allocation-bar"]:not([inert] *)'),
+    ).toHaveCount(0)
     // Inert ⇒ unfocusable: a focus() attempt leaves activeElement off the bar.
-    expect(await bar.evaluate((el) => { el.focus(); return document.activeElement === el })).toBe(false)
+    expect(
+      await bar.evaluate((el) => {
+        el.focus()
+        return document.activeElement === el
+      }),
+    ).toBe(false)
 
     // Toggling back to Work clears the ancestor inert — the bar is interactive (focusable) again.
     await work.click()
-    await expect(page.locator('[inert] [data-testid="allocation-bar"]')).toHaveCount(0)
-    expect(await bar.evaluate((el) => { el.focus(); return document.activeElement === el })).toBe(true)
+    await expect(
+      page.locator('[inert] [data-testid="allocation-bar"]'),
+    ).toHaveCount(0)
+    expect(
+      await bar.evaluate((el) => {
+        el.focus()
+        return document.activeElement === el
+      }),
+    ).toBe(true)
   })
 
   // Undo/redo now has BOTH a visible affordance (the toolbar buttons) and the global
   // ⌘Z / ⌘⇧Z shortcut (handled in AppShell). This test drives the buttons + their
   // disabled states; the keyboard test below covers the shortcut path + the typing guard.
-  test('undoes and redoes with the toolbar buttons, disabled when the stack is empty', async ({ page }) => {
+  test('undoes and redoes with the toolbar buttons, disabled when the stack is empty', async ({
+    page,
+  }) => {
     await openApp(page)
     const undoBtn = page.getByTestId('undo-button')
     const redoBtn = page.getByTestId('redo-button')
@@ -93,10 +125,19 @@ test.describe('Toolbar', () => {
 
     // Make a mutation (delete an allocation) → Undo becomes available.
     await page.getByRole('radio', { name: '4w', exact: true }).click()
-    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    await page.getByTestId('scheduler-grid').evaluate((el) => {
+      ;(el as HTMLElement).scrollLeft = 0
+    })
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(6)
     const before = await page.getByTestId('allocation-bar').count()
-    await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
-    await page.getByRole('dialog', { name: 'Edit allocation' }).getByRole('button', { name: 'Delete' }).click()
+    await page
+      .getByTestId('allocation-bar')
+      .filter({ hasText: 'Brand System' })
+      .click()
+    await page
+      .getByRole('dialog', { name: 'Edit allocation' })
+      .getByRole('button', { name: 'Delete' })
+      .click()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
     await expect(undoBtn).toBeEnabled()
 
@@ -110,13 +151,24 @@ test.describe('Toolbar', () => {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
   })
 
-  test('undoes/redoes with the keyboard and ignores the shortcut while typing', async ({ page }) => {
+  test('undoes/redoes with the keyboard and ignores the shortcut while typing', async ({
+    page,
+  }) => {
     await openApp(page)
     await page.getByRole('radio', { name: '4w', exact: true }).click()
-    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    await page.getByTestId('scheduler-grid').evaluate((el) => {
+      ;(el as HTMLElement).scrollLeft = 0
+    })
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(6)
     const before = await page.getByTestId('allocation-bar').count()
-    await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
-    await page.getByRole('dialog', { name: 'Edit allocation' }).getByRole('button', { name: 'Delete' }).click()
+    await page
+      .getByTestId('allocation-bar')
+      .filter({ hasText: 'Brand System' })
+      .click()
+    await page
+      .getByRole('dialog', { name: 'Edit allocation' })
+      .getByRole('button', { name: 'Delete' })
+      .click()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
 
     // Typing in the search box must NOT trigger undo.

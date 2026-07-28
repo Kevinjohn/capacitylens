@@ -11,14 +11,20 @@ import type { AuthProviderInfo, AuthUser } from './authContext'
 
 const signInEmail = vi.fn()
 const signInOauth2 = vi.fn()
+const signInSocial = vi.fn()
+const verifyTotp = vi.fn()
+const verifyBackupCode = vi.fn()
 vi.mock('./authClient', () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
       oauth2: (...args: unknown[]) => signInOauth2(...args),
-      social: vi.fn(),
+      social: (...args: unknown[]) => signInSocial(...args),
     },
-    twoFactor: { verifyTotp: vi.fn() },
+    twoFactor: {
+      verifyTotp: (...args: unknown[]) => verifyTotp(...args),
+      verifyBackupCode: (...args: unknown[]) => verifyBackupCode(...args),
+    },
   },
 }))
 
@@ -43,6 +49,9 @@ afterEach(() => {
   if (reauthPending()) resolveReauth(false)
   signInEmail.mockReset()
   signInOauth2.mockReset()
+  signInSocial.mockReset()
+  verifyTotp.mockReset()
+  verifyBackupCode.mockReset()
   window.history.replaceState({}, '', '/')
 })
 
@@ -83,13 +92,61 @@ describe('ReauthDialog (SESSION_NOT_FRESH step-up)', () => {
     void requestReauth()
     await screen.findByRole('heading', { name: "Confirm it's you" })
 
-    fireEvent.change(screen.getByTestId('reauth-password'), { target: { value: 'wrong' } })
+    const password = screen.getByTestId('reauth-password')
+    expect(password).not.toHaveAttribute('aria-invalid')
+    expect(password).not.toHaveAttribute('aria-describedby')
+    fireEvent.change(password, { target: { value: 'wrong' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
-    expect(await screen.findByText('Invalid email or password.')).toBeInTheDocument()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Invalid email or password.')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAttribute('aria-describedby', alert.id)
     // Still open, still pending — the user can try again.
     expect(screen.getByRole('heading', { name: "Confirm it's you" })).toBeInTheDocument()
     expect(reauthPending()).toBe(true)
+  })
+
+  it('associates a rejected second factor with its authentication-code input', async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null })
+    verifyTotp.mockResolvedValue({ data: null, error: { message: 'Authentication code is incorrect.' } })
+    render(<Harness user={user} />)
+    void requestReauth()
+    await screen.findByRole('heading', { name: "Confirm it's you" })
+    fireEvent.change(screen.getByTestId('reauth-password'), { target: { value: 'correct horse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    const code = await screen.findByTestId('reauth-2fa-code')
+    fireEvent.change(code, { target: { value: '123456' } })
+    fireEvent.click(screen.getByTestId('reauth-2fa-submit'))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Authentication code is incorrect.')
+    expect(code).toHaveAttribute('aria-invalid', 'true')
+    expect(code).toHaveAttribute('aria-describedby', alert.id)
+  })
+
+  it('uses a recovery code for in-place step-up without trusting the browser', async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null })
+    verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null })
+    render(<Harness user={user} />)
+    const outcome = requestReauth()
+    await screen.findByRole('heading', { name: "Confirm it's you" })
+    fireEvent.change(screen.getByTestId('reauth-password'), { target: { value: 'correct horse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    const authenticatorCode = await screen.findByLabelText('Authentication code')
+    fireEvent.click(screen.getByRole('button', { name: 'Use a recovery code' }))
+    expect(authenticatorCode).toHaveValue('')
+    const recoveryCode = screen.getByLabelText('Recovery code')
+    expect(recoveryCode).toHaveAttribute('inputmode', 'text')
+    fireEvent.change(recoveryCode, { target: { value: 'backup-code-1' } })
+    fireEvent.click(screen.getByTestId('reauth-2fa-submit'))
+
+    await expect(outcome).resolves.toBe(true)
+    expect(verifyBackupCode).toHaveBeenCalledWith({ code: 'backup-code-1', trustDevice: false })
+    expect(verifyTotp).not.toHaveBeenCalled()
+    expect(screen.queryByRole('heading', { name: "Confirm it's you" })).not.toBeInTheDocument()
   })
 
   it('preserves the product route and supplies a marked OIDC failure return', async () => {
@@ -107,6 +164,26 @@ describe('ReauthDialog (SESSION_NOT_FRESH step-up)', () => {
 
     await waitFor(() => expect(signInOauth2).toHaveBeenCalledWith({
       providerId: 'sso',
+      callbackURL: 'http://localhost:3000/team?tab=access',
+      errorCallbackURL: 'http://localhost:3000/team?tab=access&externalSignInError=1',
+    }))
+  })
+
+  it('preserves the product route and supplies a marked social-provider failure return', async () => {
+    signInSocial.mockResolvedValue({ data: {}, error: null })
+    window.history.replaceState({}, '', '/team?tab=access')
+    render(<Harness
+      authMode="sso"
+      user={user}
+      providers={[{ id: 'github', label: 'GitHub', kind: 'social', experimental: true }]}
+    />)
+    void requestReauth()
+    await screen.findByRole('heading', { name: "Confirm it's you" })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with GitHub' }))
+
+    await waitFor(() => expect(signInSocial).toHaveBeenCalledWith({
+      provider: 'github',
       callbackURL: 'http://localhost:3000/team?tab=access',
       errorCallbackURL: 'http://localhost:3000/team?tab=access&externalSignInError=1',
     }))

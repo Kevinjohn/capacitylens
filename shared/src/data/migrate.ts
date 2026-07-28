@@ -31,6 +31,23 @@ export class UnsupportedSchemaVersionError extends Error {
   }
 }
 
+/** A present version marker is an integrity boundary, not a hint that can fall back to legacy. */
+export class InvalidSchemaVersionError extends Error {
+  constructor() {
+    super('Schema version must be a non-negative safe integer.')
+    this.name = 'InvalidSchemaVersionError'
+  }
+}
+
+function schemaVersion(obj: Record<string, unknown>): number {
+  if (!Object.hasOwn(obj, 'schemaVersion')) return 0
+  const value = obj.schemaVersion
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new InvalidSchemaVersionError()
+  }
+  return value
+}
+
 // Unwrap the object the import shape-guards inspect: either the bare AppData map, or
 // the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.
 export function importCandidate(value: unknown): Record<string, unknown> | null {
@@ -122,13 +139,28 @@ function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
 // `activities`, and every allocation's `taskId` foreign key to `activityId`. Pure key
 // renames — no field values change (the `kind` strings 'project'|'internal'|'repeatable'
 // are unaffected). Idempotent: a blob already on the new shape (no `tasks` key) passes
-// through untouched, and an in-progress blob carrying BOTH keys prefers the new one.
+// through untouched. An in-progress blob carrying BOTH keys keeps every distinct row while
+// preferring the modern activity when the same valid id appears in both tables.
 function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
   const next: Record<string, unknown> = { ...data }
-  // Rename the table: `tasks` → `activities`. Only when a legacy `tasks` exists and the
-  // new key isn't already populated (don't clobber an already-migrated `activities`).
-  if ('tasks' in next && !('activities' in next)) {
-    next.activities = next.tasks
+  // Rename/merge the table: `tasks` → `activities`. Modern rows come first and own id
+  // conflicts; malformed/missing ids are retained for the import sanitiser to repair later.
+  if (Array.isArray(next.tasks)) {
+    if (!Array.isArray(next.activities)) {
+      next.activities = next.tasks
+    } else {
+      const modernIds = new Set(next.activities.flatMap((activity) => {
+        if (!activity || typeof activity !== 'object') return []
+        const id = (activity as Record<string, unknown>).id
+        return typeof id === 'string' && id.length > 0 ? [id] : []
+      }))
+      const legacyOnly = next.tasks.filter((task) => {
+        if (!task || typeof task !== 'object') return true
+        const id = (task as Record<string, unknown>).id
+        return typeof id !== 'string' || id.length === 0 || !modernIds.has(id)
+      })
+      next.activities = [...next.activities, ...legacyOnly]
+    }
   }
   delete next.tasks
   // Rename the FK on every allocation: `taskId` → `activityId`.
@@ -136,8 +168,9 @@ function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
     next.allocations = next.allocations.map((a) => {
       if (!a || typeof a !== 'object') return a
       const rec = a as Record<string, unknown>
-      if (!('taskId' in rec) || 'activityId' in rec) return rec
-      const renamed: Record<string, unknown> = { ...rec, activityId: rec.taskId }
+      if (!('taskId' in rec)) return rec
+      const renamed: Record<string, unknown> = { ...rec }
+      if (!('activityId' in renamed)) renamed.activityId = renamed.taskId
       delete renamed.taskId
       return renamed
     })
@@ -205,10 +238,25 @@ function migrateV8toV9(data: Record<string, unknown>): Record<string, unknown> {
   return data
 }
 
-export function migrate(raw: unknown): AppData {
-  if (!raw || typeof raw !== 'object') return emptyAppData()
+export interface MigrationWithRepairBase {
+  /** Fully migrated and repaired data presented to the application. */
+  data: AppData
+  /** Structurally migrated state before Internal-client synthesis/repair, for durable hydration. */
+  repairBase: AppData
+}
+
+/**
+ * Migrate a value while retaining the pre-Internal-repair state. Server hydration uses this base to
+ * persist raw-to-repaired operations before acknowledging the repaired snapshot; ordinary import and
+ * local persistence callers should continue to use {@link migrate}.
+ */
+export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
+  if (!raw || typeof raw !== 'object') {
+    const empty = emptyAppData()
+    return { data: empty, repairBase: empty }
+  }
   const obj = raw as Record<string, unknown>
-  const version = typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 0
+  const version = schemaVersion(obj)
   if (version > EXPORT_SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version)
 
   // Accept either a { schemaVersion, data } wrapper or a bare AppData (legacy).
@@ -223,6 +271,11 @@ export function migrate(raw: unknown): AppData {
   if (data && typeof data === 'object' && version < 5) {
     data = migrateV4toV5(data)
   }
+  // Capture the raw durable state immediately before the only migration which synthesises an
+  // Internal client. This also captures current-version bare server slices (which have no schema
+  // wrapper and therefore follow the legacy version path) without treating the synthetic row as
+  // already acknowledged.
+  const repairBase = normalize(data as Partial<AppData> | undefined)
   if (data && typeof data === 'object' && version < 6) {
     data = migrateV5toV6(data)
   }
@@ -236,5 +289,15 @@ export function migrate(raw: unknown): AppData {
     data = migrateV8toV9(data)
   }
 
-  return ensureInternalClients(normalize(data as Partial<AppData> | undefined), '2026-01-01T00:00:00.000Z')
+  return {
+    data: ensureInternalClients(
+      normalize(data as Partial<AppData> | undefined),
+      '2026-01-01T00:00:00.000Z',
+    ),
+    repairBase,
+  }
+}
+
+export function migrate(raw: unknown): AppData {
+  return migrateWithRepairBase(raw).data
 }

@@ -1,11 +1,13 @@
 import type { StateCreator } from 'zustand'
 import { addDaysISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
 import {
   DEFAULT_RANGE_DAYS,
   DEFAULT_ZOOM,
   PAST_BUFFER_DAYS,
 } from '../../lib/schedulerConfig'
 import type { Filters, SchedulerUI, StoreState } from '../useStore'
+import { timeZoneFor, weekStartsOnFor } from '../selectors'
 
 type SchedulerSliceKeys =
   | 'ui'
@@ -20,6 +22,7 @@ type SchedulerSliceKeys =
   | 'clearFilters'
   | 'toggleGroup'
   | 'jumpToResource'
+  | 'consumeResourceJump'
 
 export type SchedulerSlice = Pick<StoreState, SchedulerSliceKeys>
 
@@ -53,12 +56,9 @@ export function createSchedulerSlice(
       })),
     goToToday: () =>
       set((state) => {
-        const account = state.activeAccountId
-          ? state.data.accounts.find((candidate) => candidate.id === state.activeAccountId)
-          : null
         const weekStart = startOfWeekISO(
-          todayISO(account?.timezone ?? 'Etc/GMT'),
-          account?.weekStartsOn ?? 1,
+          todayISO(timeZoneFor(state.data, state.activeAccountId)),
+          weekStartsOnFor(state.data, state.activeAccountId),
         )
         return {
           ui: {
@@ -71,10 +71,7 @@ export function createSchedulerSlice(
       }),
     goToDate: (date) =>
       set((state) => {
-        const account = state.activeAccountId
-          ? state.data.accounts.find((candidate) => candidate.id === state.activeAccountId)
-          : null
-        const weekStart = startOfWeekISO(date, account?.weekStartsOn ?? 1)
+        const weekStart = startOfWeekISO(date, weekStartsOnFor(state.data, state.activeAccountId))
         return {
           ui: {
             ...state.ui,
@@ -90,11 +87,17 @@ export function createSchedulerSlice(
     setFilters: (patch) =>
       set((state) => {
         const filters: Filters = { ...state.ui.filters, ...patch }
-        if (patch.activityId || patch.activityKind) {
+        if (patch.activityId) filters.activityKind = null
+        // If an invalid patch supplies both lenses, the kind wins consistently with the toolbar.
+        if (patch.activityKind) filters.activityId = null
+        const patchesActivityLens = !!(patch.activityId || patch.activityKind)
+        const patchesProjectLens = !!(patch.clientId || patch.projectId)
+        // A malformed bulk patch spanning both lens families resolves to the activity family. Use
+        // one branch so the two requests cannot clear each other and silently produce no lens.
+        if (patchesActivityLens) {
           filters.clientId = null
           filters.projectId = null
-        }
-        if (patch.clientId || patch.projectId) {
+        } else if (patchesProjectLens) {
           filters.activityId = null
           filters.activityKind = null
         }
@@ -112,15 +115,43 @@ export function createSchedulerSlice(
         },
       })),
     jumpToResource: (id) =>
-      set((state) => ({
-        ui: {
-          ...state.ui,
-          filters: emptyFilters(),
-          scrollToResource: {
-            id,
-            token: (state.ui.scrollToResource?.token ?? 0) + 1,
+      set((state) => {
+        const resource = state.data.resources.find((candidate) => candidate.id === id)
+        const knownDiscipline = resource?.disciplineId && state.data.disciplines.some(
+          (discipline) => discipline.id === resource.disciplineId,
+        )
+        const groupKey = !resource
+          ? null
+          : isExternalResource(resource)
+            ? 'external'
+            : knownDiscipline
+              ? resource.disciplineId
+              : 'none'
+        return {
+          ui: {
+            ...state.ui,
+            filters: emptyFilters(),
+            collapsedGroups: groupKey
+              ? state.ui.collapsedGroups.filter((candidate) => candidate !== groupKey)
+              : state.ui.collapsedGroups,
+            scrollToResource: {
+              id,
+              token: (state.ui.scrollToResource?.token ?? 0) + 1,
+              consumed: false,
+            },
           },
-        },
-      })),
+        }
+      }),
+    consumeResourceJump: (token) =>
+      set((state) => {
+        const request = state.ui.scrollToResource
+        if (!request || request.token !== token || request.consumed) return state
+        return {
+          ui: {
+            ...state.ui,
+            scrollToResource: { ...request, consumed: true },
+          },
+        }
+      }),
   })
 }

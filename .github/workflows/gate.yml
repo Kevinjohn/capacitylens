@@ -5,12 +5,12 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   # Monthly run on the default branch: PR/tag runs never feed the README's unqualified
   # badge (it reflects default-branch runs only), so without this the badge reads
   # "no status" between releases. Also doubles as a bit-rot canary for the toolchain.
   schedule:
-    - cron: '17 6 3 * *'
+    - cron: "17 6 3 * *"
 
 concurrency:
   group: gate-${{ github.ref }}
@@ -54,11 +54,11 @@ jobs:
           persist-credentials: false
       - name: Verify every pull-request commit is signed off
         env:
-          ACTOR: ${{ github.actor }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
-          if [ "$ACTOR" = 'dependabot[bot]' ]; then
+          if [ "$PR_AUTHOR" = 'dependabot[bot]' ]; then
             echo 'Dependabot commits are exempt from DCO sign-off.'
             exit 0
           fi
@@ -94,13 +94,15 @@ jobs:
         with:
           files: ./coverage/lcov.info
           flags: unit
-          fail_ci_if_error: true
+          # Coverage thresholds are enforced by `pnpm run gate`; reporting availability is not a
+          # code-quality signal and must not make this required job depend on Codecov uptime.
+          fail_ci_if_error: false
           token: ${{ env.CODECOV_TOKEN }}
 
-  server:
-    name: Server typecheck · lint · unit
+  server-static:
+    name: Server typecheck · lint
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -111,7 +113,71 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run gate:server
+      - name: Check cryptographic implementation inventory
+        run: pnpm run security:crypto-inventory
+      - name: Type-check server
+        run: pnpm --filter capacitylens-server type-check
+      - name: Lint server and shared packages
+        run: pnpm exec eslint server shared --max-warnings 0
+
+  server-unit:
+    name: Server unit shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run server unit shard
+        run: >-
+          timeout --signal=TERM --kill-after=30s 4m
+          pnpm --filter capacitylens-server test:unit-shard --
+          ${{ matrix.shard }}/4
+
+  server-process-durability:
+    name: Credential onboarding crash durability
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run crash durability regression in isolation
+        run: >-
+          timeout --signal=TERM --kill-after=30s 4m
+          pnpm --filter capacitylens-server test:credential-durability
+
+  server:
+    name: Server typecheck · lint · unit
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [server-static, server-unit, server-process-durability]
+    steps:
+      - name: Require every server check and unit shard
+        env:
+          DURABILITY_RESULT: ${{ needs.server-process-durability.result }}
+          STATIC_RESULT: ${{ needs.server-static.result }}
+          UNIT_RESULT: ${{ needs.server-unit.result }}
+        run: |
+          test "$DURABILITY_RESULT" = success
+          test "$STATIC_RESULT" = success
+          test "$UNIT_RESULT" = success
 
   account-conformance:
     name: Account boundary · ports · policies · architecture
@@ -143,7 +209,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run rehearse:migrations
+      - name: Rehearse the released database migration
+        run: timeout --signal=TERM --kill-after=30s 7m pnpm run rehearse:migrations
+      - name: Run migration regression tests in isolation
+        run: timeout --signal=TERM --kill-after=30s 7m pnpm --filter capacitylens-server test:migrations
 
   production-audit:
     name: Production dependency audit
@@ -159,4 +228,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --prod --audit-level high
+      # CapacityLens uses React Router in browser-only library mode, so no RSC server actions exist.
+      # Fastify is created as an HTTP/1 server and packaged nginx proxies HTTP/1.1, so the HTTP/2
+      # request-routing path in the second advisory is unreachable. Keep both exceptions exact.
+      - run: pnpm audit --prod --audit-level high --ignore GHSA-qwww-vcr4-c8h2 --ignore GHSA-c96f-x56v-gq3h

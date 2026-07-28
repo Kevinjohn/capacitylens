@@ -13,10 +13,16 @@ A bar can only show so much on its face, especially when narrow. The manager oft
 1. Hover the **Brand System** bar.
 2. A popover (`data-testid="allocation-popover"`) appears showing: the activity/label, **project · client** (e.g. *Brand Themes · Globex*), the **date range**, **Nh/day**, the **status**, and a note line if the allocation has one.
 3. Move the pointer off the bar — the popover hides.
-4. Now use the keyboard: **Tab** to focus an allocation bar. The same popover appears on focus.
+4. Now use the keyboard: **Tab** to focus an allocation bar. The same popover appears on focus,
+   including in Viewer read-only mode where the bar remains a non-editable image.
+5. A Viewer sees **Read-only allocation details** in the footer instead of drag/resize/reassign
+   guidance. Assistive technology receives the complete activity, project/client, dates, hours,
+   status and note text from the bar even when optional face-label parts are turned off.
 
 ## Acceptance criteria
 - ✅ Hovering a bar shows the **allocation-popover** with the project/client and the date range.
 - ✅ The popover includes hours/day, status, and (when present) the note.
 - ✅ Moving the pointer off the bar hides the popover.
-- ✅ Keyboard-focusing a bar (Tab) shows the same popover — it's not mouse-only.
+- ✅ Keyboard-focusing a bar (Tab) shows the same popover for editors and Viewers — it's not
+  mouse-only, and Viewer focus does not enable editing, moving or resizing.
+- ✅ Viewer detail output contains the complete read-only context and never advertises edit gestures.

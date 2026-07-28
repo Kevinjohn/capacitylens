@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { disciplinesEnabledFor, internalColourModeFor, resourcesByDiscipline, activitiesForProject, visibleRange } from './selectors'
+import { disciplinesEnabledFor, internalColourModeFor, resourcesByDiscipline, activitiesForProject, timeZoneFor, visibleRange, weekStartsOnFor } from './selectors'
 import { emptyFilters } from './useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
@@ -51,6 +51,24 @@ describe('disciplinesEnabledFor', () => {
   it('returns the explicit account value', () => {
     expect(disciplinesEnabledFor(accounts(false), 'a1')).toBe(false)
     expect(disciplinesEnabledFor(accounts(true), 'a1')).toBe(true)
+  })
+})
+
+describe('calendar primitive selectors', () => {
+  const accounts = (calendar?: { timezone?: string; weekStartsOn?: 0 | 1 }) => ({
+    ...emptyAppData(),
+    accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#1', ...calendar }],
+  })
+
+  it('single-sources absent calendar defaults without returning a fresh object', () => {
+    expect(timeZoneFor(accounts(), 'missing')).toBe('Etc/GMT')
+    expect(weekStartsOnFor(accounts(), 'missing')).toBe(1)
+  })
+
+  it('returns the active account calendar values', () => {
+    const data = accounts({ timezone: 'Europe/London', weekStartsOn: 0 })
+    expect(timeZoneFor(data, 'a1')).toBe('Europe/London')
+    expect(weekStartsOnFor(data, 'a1')).toBe(0)
   })
 })
 

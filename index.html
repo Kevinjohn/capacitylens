@@ -5,6 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CapacityLens</title>
+    <script src="/auth-error-init.js"></script>
     <!-- Set the colour scheme before first paint so dark-mode users don't get a
          flash of light. Mirrors readStoredTheme()/resolveTheme() in
          src/lib/theme.ts (default: light); main.tsx re-applies + wires changes.
@@ -12,6 +13,15 @@
          so a returning user still gets the right pre-paint scheme BEFORE main.tsx's
          storage-key migration runs (the legacy fallback is removable a release later). -->
     <script src="/theme-init.js"></script>
+    <noscript>
+      <!-- With scripting disabled, replace the transient/selective-blocking placeholder with the
+           terminal explanation below. When scripting is enabled this style is not applied. -->
+      <style>
+        #root {
+          display: none;
+        }
+      </style>
+    </noscript>
   </head>
   <body>
     <!-- Static fallback so a JS-less load is never a silent white page. React's
@@ -28,18 +38,22 @@
         <p>CapacityLens</p>
         <p>Loading&hellip;</p>
         <p>
-          If this message doesn't go away, JavaScript isn't running on this page —
-          it may be disabled for this site in your browser settings, or blocked by an
-          extension (content/script blockers also run in private windows when allowed).
-          CapacityLens needs JavaScript; nothing is shown without it.
+          If this message doesn't go away, JavaScript isn't running on this page
+          — it may be disabled for this site in your browser settings, or
+          blocked by an extension (content/script blockers also run in private
+          windows when allowed). CapacityLens needs JavaScript; nothing is shown
+          without it.
         </p>
       </div>
     </div>
     <noscript>
-      <div>
-        JavaScript is disabled in this browser, and CapacityLens cannot start without it.
-        Enable JavaScript for this site, then reload.
-      </div>
+      <main>
+        <h1>CapacityLens requires JavaScript</h1>
+        <p>
+          JavaScript is disabled in this browser. Enable it for this site, then
+          reload CapacityLens.
+        </p>
+      </main>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

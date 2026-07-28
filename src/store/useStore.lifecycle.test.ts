@@ -50,6 +50,34 @@ describe('archiveEntity', () => {
     s().archiveEntity('resources', r.id)
     expect(() => s().archiveEntity('resources', r.id)).toThrow(/already archived/i)
   })
+
+  it('rejects stale descendant creates beneath a client hidden after the caller captured its ids', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
+    const r = s().addResource(personDraft)
+
+    s().archiveEntity('clients', c.id)
+    expect(activeOnly(s().data).projects.some((project) => project.id === p.id)).toBe(false)
+
+    expect(() => s().addPhase({ name: 'Late phase', projectId: p.id })).toThrow(
+      'Phase must reference a project in this company.',
+    )
+    expect(() => s().addActivity({ name: 'Late activity', kind: 'project', projectId: p.id })).toThrow(
+      'Activity must reference a project in this company.',
+    )
+    expect(() => s().addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })).toThrow('Allocation must reference an activity under an active project.')
+    expect(s().data.phases).toHaveLength(0)
+    expect(s().data.activities).toEqual([t])
+    expect(s().data.allocations).toHaveLength(0)
+  })
 })
 
 describe('unarchiveEntity', () => {
@@ -104,6 +132,25 @@ describe('softDeleteEntity', () => {
     const prow = s().data.projects.find((x) => x.id === p.id)!
     expect(lifecycleStatus(prow)).toBe('deleted')
     expect(prow.name).toBe('Project X')
+  })
+
+  it('advances deletion and revision past a future archive timestamp', () => {
+    const futureArchive = '2099-01-01T00:00:00.000Z'
+    const c = s().addClient({ name: 'Future archive', color: '#1' })
+    const data = s().data
+    s().replaceAll({
+      ...data,
+      clients: data.clients.map((client) => client.id === c.id
+        ? { ...client, archivedAt: futureArchive }
+        : client),
+    })
+    s().setActiveAccount(data.accounts[0].id)
+
+    s().softDeleteEntity('clients', c.id)
+
+    const deleted = s().data.clients.find((client) => client.id === c.id)!
+    expect(deleted.deletedAt! >= futureArchive).toBe(true)
+    expect(deleted.updatedAt >= deleted.deletedAt!).toBe(true)
   })
 })
 
@@ -176,7 +223,7 @@ describe('built-in Internal client is protected from every lifecycle action', ()
   // privileged path) — matching internalClient.test.ts.
   const seedWithInternal = () => {
     s().replaceAll({ ...s().data, accounts: [], clients: [] })
-    const a = s().addAccount({ name: 'Acme Co', color: '#6366f1' })
+    const a = s().addAccount({ name: 'Acme Co', color: '#6366f1' })!
     s().setActiveAccount(a.id)
     return internalClientFor(s().data.clients, a.id)!
   }

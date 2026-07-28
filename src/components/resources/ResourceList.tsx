@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Plus, Users } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../../store/selectors'
@@ -22,6 +22,10 @@ export function ResourceList() {
   const data = useActiveScopedData()
   const resources = data.resources
   const disciplines = data.disciplines
+  const disciplineById = useMemo(
+    () => new Map(disciplines.map((discipline) => [discipline.id, discipline])),
+    [disciplines],
+  )
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   // Per-account view pref (default OFF). When off the placeholder feature is hidden, so the
   // Placeholders section and its "Add placeholder" affordance don't render. Existing placeholder
@@ -48,13 +52,16 @@ export function ResourceList() {
   const people = resources.filter((r) => r.kind === 'person')
   const placeholders = resources.filter((r) => r.kind === 'placeholder')
   const externals = resources.filter(isExternalResource)
+  const visibleResourceCount = people.length +
+    (placeholdersEnabled ? placeholders.length : 0) +
+    (externalEnabled ? externals.length : 0)
 
-  const disciplineName = (id?: string) => disciplines.find((d) => d.id === id)?.name ?? '—'
+  const disciplineName = (id?: string) => (id ? disciplineById.get(id)?.name : undefined) ?? '—'
   // A resource's colour follows its discipline (resources no longer pick their own);
   // fall back to the stored colour for the disciplineless ones — and for everyone when
   // the account doesn't use disciplines.
   const swatchColor = (r: Resource) =>
-    (disciplinesEnabled ? disciplines.find((d) => d.id === r.disciplineId)?.color : undefined) ?? r.color
+    (disciplinesEnabled && r.disciplineId ? disciplineById.get(r.disciplineId)?.color : undefined) ?? r.color
 
   const renderRow = (r: Resource) => (
     <Item size="sm" role="listitem" data-testid="resource-row" className="rounded-none">
@@ -104,10 +111,16 @@ export function ResourceList() {
 
   return (
     <ListPage title={m.list_resources_title()} addLabel={m.list_resources_add()} onAdd={() => setCreatingKind('person')}>
-      {box(people, m.list_resources_empty(), {
-        description: m.list_resources_empty_desc(),
-        action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind('person') },
-      })}
+      {box(
+        people,
+        m.list_resources_empty(),
+        visibleResourceCount === 0
+          ? {
+              description: m.list_resources_empty_desc(),
+              action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind('person') },
+            }
+          : undefined,
+      )}
 
       {/* The whole placeholder feature is behind the per-account `placeholdersEnabled` pref
           (default off, Settings → Placeholders). When off, the management section + "Add

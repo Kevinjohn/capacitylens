@@ -34,5 +34,5 @@ body:
     id: logs
     attributes:
       label: Logs / console errors
-      description: Server output or browser console, if relevant.
+      description: Server output or browser console, if relevant. Remove secrets, personal data and private hostnames before posting.
       render: shell

@@ -5,6 +5,7 @@ import { serializeData, parseData } from './transfer'
 import { ensureInternalClients, internalClientFor, buildInternalClient, wouldAddSecondBuiltin, INTERNAL_CLIENT_NAME } from './internalClient'
 import { emptyAppData } from '../types/entities'
 import type { Client } from '../types/entities'
+import { activeOnly } from '../domain/lifecycle'
 
 const TS = '2026-01-01T00:00:00.000Z'
 
@@ -36,6 +37,26 @@ describe('built-in Internal client', () => {
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2)
   })
 
+  it('uses a collision-free id when an ordinary client already owns the generated id', () => {
+    const ordinary = {
+      id: 'internal:a1', accountId: 'a1', createdAt: TS, updatedAt: TS,
+      name: 'Ordinary', color: '#111111',
+    } as Client
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      clients: [ordinary, { ...ordinary, id: 'internal:a1:1', name: 'Also ordinary' }],
+    }
+
+    const repaired = ensureInternalClients(data, TS)
+
+    expect(repaired.clients).toHaveLength(3)
+    expect(new Set(repaired.clients.map(({ id }) => id)).size).toBe(3)
+    expect(internalClientFor(repaired.clients, 'a1')?.id).toBe('internal:a1:2')
+    expect(repaired.clients).toContain(ordinary)
+    expect(ensureInternalClients(repaired, TS)).toBe(repaired)
+  })
+
   it('deterministically folds duplicate builtins and rewires their projects', () => {
     const generated = { ...buildInternalClient('a1', TS), id: 'internal:a1' }
     const duplicate: Client = {
@@ -53,7 +74,48 @@ describe('built-in Internal client', () => {
 
     expect(repaired.clients.filter((client) => client.builtin)).toEqual([generated])
     expect(repaired.projects[0].clientId).toBe(generated.id)
+    expect(repaired.projects[0].updatedAt).toBe('2026-01-01T00:00:00.001Z')
     expect(ensureInternalClients(repaired, TS)).toBe(repaired)
+  })
+
+  it('folds duplicate builtins that share the same primary id', () => {
+    const retained = buildInternalClient('a1', TS)
+    const duplicate = { ...retained, createdAt: '2026-01-02T00:00:00.000Z' }
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      clients: [retained, duplicate],
+      projects: [{
+        id: 'p1', accountId: 'a1', clientId: retained.id, createdAt: TS, updatedAt: TS,
+        name: 'P', color: '#111111',
+      }],
+    }
+
+    const repaired = ensureInternalClients(data, TS)
+
+    expect(repaired.clients).toEqual([retained])
+    expect(repaired.projects).toBe(data.projects)
+    expect(ensureInternalClients(repaired, TS)).toBe(repaired)
+  })
+
+  it('bumps only rewired projects so updatedAt-based sync persists a duplicate fold', () => {
+    const generated = buildInternalClient('a1', TS)
+    const duplicate = { ...buildInternalClient('a1', TS), id: 'legacy-internal' }
+    const rewired = {
+      id: 'p1', accountId: 'a1', clientId: duplicate.id, createdAt: TS, updatedAt: TS,
+      name: 'Rewired', color: '#111111',
+    }
+    const untouched = { ...rewired, id: 'p2', clientId: generated.id, name: 'Untouched' }
+
+    const repaired = ensureInternalClients({
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      clients: [generated, duplicate],
+      projects: [rewired, untouched],
+    }, TS)
+
+    expect(repaired.projects[0]).toMatchObject({ clientId: generated.id, updatedAt: '2026-01-01T00:00:00.001Z' })
+    expect(repaired.projects[1]).toBe(untouched)
   })
 
   it('stamps a REPAIRED retained builtin with a fresh updatedAt so the repair persists', () => {
@@ -70,6 +132,44 @@ describe('built-in Internal client', () => {
     const internal = internalClientFor(ensureInternalClients(data, NOW).clients, 'a1')!
     expect(internal.name).toBe(INTERNAL_CLIENT_NAME)
     expect(internal.updatedAt).toBe(NOW)
+  })
+
+  it.each([
+    ['archived', { archivedAt: TS }],
+    ['deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
+  ] as const)('reactivates a retained %s built-in Internal client', (_state, tombstones) => {
+    const internal = { ...buildInternalClient('a1', TS), ...tombstones }
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      clients: [internal],
+    }
+
+    const repaired = ensureInternalClients(data, TS)
+    const retained = internalClientFor(repaired.clients, 'a1')!
+
+    expect(repaired).not.toBe(data)
+    expect(retained).not.toHaveProperty('archivedAt')
+    expect(retained).not.toHaveProperty('deletedAt')
+    expect(retained.updatedAt).toBe('2026-01-01T00:00:00.001Z')
+    expect(activeOnly(repaired).clients).toEqual([retained])
+  })
+
+  it('forces a distinct, non-decreasing revision when the repair clock is equal or older', () => {
+    const repair = (updatedAt: string, now: string) => {
+      const data = {
+        ...emptyAppData(),
+        accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+        clients: [{
+          id: 'internal:a1', accountId: 'a1', createdAt: TS, updatedAt,
+          name: 'JUNK NAME', color: '#000000', builtin: true,
+        } as Client],
+      }
+      return internalClientFor(ensureInternalClients(data, now).clients, 'a1')!.updatedAt
+    }
+
+    expect(repair(TS, TS)).toBe('2026-01-01T00:00:00.001Z')
+    expect(repair('2027-01-01T00:00:00.000Z', TS)).toBe('2027-01-01T00:00:00.001Z')
   })
 
   it('leaves an already-canonical retained builtin updatedAt untouched (no phantom-write churn)', () => {

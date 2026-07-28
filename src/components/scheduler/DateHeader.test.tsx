@@ -13,7 +13,10 @@ const renderHeader = (dayWidth: number) =>
     <DateHeader
       days={DAYS}
       dayWidth={dayWidth}
-      geom={buildColumnGeometry(DAYS, dayWidth, { minimiseWeekends: false, weekendWidth: 22 })}
+      geom={buildColumnGeometry(DAYS, dayWidth, {
+        minimiseWeekends: false,
+        weekendWidth: 22,
+      })}
       {...DEFAULT_PROPS}
     />,
   )
@@ -26,10 +29,68 @@ describe('DateHeader', () => {
 
   describe('at a coarse zoom (dayWidth < 18)', () => {
     it('shows week-start labels instead of day numbers', () => {
-      renderHeader(12)
+      const { container } = renderHeader(17)
       expect(screen.getByText('1 Jun')).toBeInTheDocument()
       expect(screen.queryByText('2')).not.toBeInTheDocument()
+      expect(container.querySelectorAll('.flex.flex-auto > div')).toHaveLength(
+        1,
+      )
     })
+  })
+
+  it('switches from week blocks to day cells exactly at the day threshold', () => {
+    const below = renderHeader(17)
+    expect(screen.queryByText('2')).not.toBeInTheDocument()
+    below.unmount()
+
+    renderHeader(18)
+    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('6')).toBeInTheDocument()
+  })
+
+  it('switches weekday labels on exactly at the weekday threshold', () => {
+    const below = renderHeader(35)
+    expect(screen.queryByText('Mon')).not.toBeInTheDocument()
+    below.unmount()
+
+    renderHeader(36)
+    expect(screen.getByText('Mon')).toBeInTheDocument()
+    expect(screen.getByText('Tue')).toBeInTheDocument()
+    expect(screen.getByText('Sat')).toBeInTheDocument()
+  })
+
+  it('groups a cross-month window into correctly sized month spans', () => {
+    const days = ['2026-05-31', '2026-06-01', '2026-06-02']
+    const { container } = render(
+      <DateHeader
+        days={days}
+        dayWidth={20}
+        geom={buildColumnGeometry(days, 20, {
+          minimiseWeekends: false,
+          weekendWidth: 10,
+        })}
+        {...DEFAULT_PROPS}
+      />,
+    )
+
+    expect(screen.getByText('May 2026').parentElement).toHaveStyle({
+      width: '20px',
+    })
+    expect(screen.getByText('Jun 2026').parentElement).toHaveStyle({
+      width: '40px',
+    })
+    expect(
+      container.querySelectorAll(':scope > div:first-child > div'),
+    ).toHaveLength(2)
+  })
+
+  it('marks today independently from ordinary and weekend cells', () => {
+    renderHeader(48)
+    const todayCell = screen.getByText('1').parentElement
+    const ordinaryCell = screen.getByText('2').parentElement
+    expect(todayCell).toHaveClass('bg-brand-soft', 'font-semibold', 'text-ink')
+    expect(ordinaryCell).not.toHaveClass('bg-brand-soft')
   })
 
   describe('with dayWidth={48} (>= 36)', () => {
@@ -69,13 +130,21 @@ describe('DateHeader', () => {
 
   describe('with minimise weekends ON (narrowed weekend columns)', () => {
     // Fri, Sat, Sun, Mon — a window straddling a full weekend.
-    const WEEKEND_DAYS = ['2026-06-05', '2026-06-06', '2026-06-07', '2026-06-08']
+    const WEEKEND_DAYS = [
+      '2026-06-05',
+      '2026-06-06',
+      '2026-06-07',
+      '2026-06-08',
+    ]
     const renderMinimised = (dayWidth: number) =>
       render(
         <DateHeader
           days={WEEKEND_DAYS}
           dayWidth={dayWidth}
-          geom={buildColumnGeometry(WEEKEND_DAYS, dayWidth, { minimiseWeekends: true, weekendWidth: 22 })}
+          geom={buildColumnGeometry(WEEKEND_DAYS, dayWidth, {
+            minimiseWeekends: true,
+            weekendWidth: 22,
+          })}
           weekStartsOn={1}
           today="2026-06-05"
         />,
@@ -100,7 +169,9 @@ describe('DateHeader', () => {
       const { container } = renderMinimised(48)
       const cells = container.querySelectorAll('.flex.flex-auto > div')
       // Fri(48), Sat(22), Sun(22), Mon(48) — widths come straight from the geometry.
-      expect(Array.from(cells).map((c) => (c as HTMLElement).style.width)).toEqual(['48px', '22px', '22px', '48px'])
+      expect(
+        Array.from(cells).map((c) => (c as HTMLElement).style.width),
+      ).toEqual(['48px', '22px', '22px', '48px'])
     })
   })
 })

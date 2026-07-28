@@ -5,25 +5,29 @@ import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '.
 import { ActivityForm } from './ActivityForm'
 import type { Activity } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 import { ClipboardCheck, Plus } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
+import { errorMessage } from '../../lib/errorMessage'
 
 export function ActivityList() {
   const data = useActiveScopedData()
   const activities = data.activities
   const projects = data.projects
   const clients = data.clients
+  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects])
+  const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients])
   const del = useStore((s) => s.deleteActivity)
+  const setNotice = useStore((s) => s.setNotice)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>()
 
   // A project-less activity (internal/cross-project) is bucketed under the account's built-in
   // Internal client for display — so its label reads "Internal", not "(no project)".
   const projectLabel = (id: string | undefined) => {
     if (!id) return m.list_activities_internal_label()
-    const p = projects.find((x) => x.id === id)
+    const p = projectById.get(id)
     if (!p) return m.list_activities_no_project()
-    const c = clients.find((x) => x.id === p.clientId)
+    const c = clientById.get(p.clientId)
     return c ? `${c.name} / ${p.name}` : p.name
   }
 
@@ -46,7 +50,7 @@ export function ActivityList() {
       </ItemContent>
       <ItemActions>
         <EditButton onClick={() => setEditing(activity)} />
-        <DeleteButton onClick={() => setConfirming(activity)} />
+        <DeleteButton label={m.list_activities_delete_aria({ name: activity.name })} onClick={() => setConfirming(activity)} />
       </ItemActions>
     </Item>
   )
@@ -86,10 +90,18 @@ export function ActivityList() {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_internal_heading()}</h2>
       </div>
-      {box(internalActivities, false, m.list_activities_internal_empty(), 'internal-activities', {
-        description: m.list_activities_empty_desc(),
-        action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true) },
-      })}
+      {box(
+        internalActivities,
+        false,
+        m.list_activities_internal_empty(),
+        'internal-activities',
+        activities.length === 0
+          ? {
+              description: m.list_activities_empty_desc(),
+              action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true) },
+            }
+          : undefined,
+      )}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
@@ -108,8 +120,12 @@ export function ActivityList() {
           title={m.list_activities_delete_title()}
           message={m.list_activities_delete_message({ name: confirming.name })}
           onConfirm={() => {
-            del(confirming.id)
-            setConfirming(null)
+            try {
+              del(confirming.id)
+              setConfirming(null)
+            } catch (error) {
+              setNotice(errorMessage(error), 'error')
+            }
           }}
           onCancel={() => setConfirming(null)}
         />

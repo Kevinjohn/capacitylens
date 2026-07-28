@@ -1,5 +1,141 @@
-import type { AppData } from '@capacitylens/shared/types/entities'
-import { type Db, readSlice, replaceAccountSlice } from './db'
+import type {
+  AppData,
+  Client,
+  Project,
+  Resource,
+} from '@capacitylens/shared/types/entities'
+import type { LifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
+import {
+  deleteRow,
+  getRow,
+  type Db,
+  readSlice,
+  replaceAccountSlice,
+  upsertRow,
+} from './db'
+import { tx } from './txn'
+
+type SynchronousResult<Result> = [
+  Extract<Result, PromiseLike<unknown>>,
+] extends [never]
+  ? Result
+  : never
+
+interface TenantSliceReadOptions {
+  includeTimeOffNote: boolean
+  includeInactive: boolean
+  includePrivateNames: boolean
+}
+
+export type LifecycleRow = Resource | Client | Project
+
+export interface ResourceNoteScrubResult {
+  allocationNotes: boolean
+  timeOffNotes: boolean
+}
+
+function nextRevision(updatedAt: unknown): string {
+  const previous =
+    typeof updatedAt === 'string' ? Date.parse(updatedAt) : Number.NaN
+  return new Date(
+    Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0),
+  ).toISOString()
+}
+
+function ownedLifecycleRow(
+  db: Db,
+  accountId: string,
+  entity: LifecycleEntityKey,
+  id: string,
+): LifecycleRow | undefined {
+  const row = getRow(db, entity, id) as LifecycleRow | undefined
+  return row?.accountId === accountId ? row : undefined
+}
+
+function restampRows(
+  db: Db,
+  table: 'resources' | 'activities',
+  rows: Array<{ id: string; updatedAt: unknown }>,
+  clearedColumn: 'projectId' | 'phaseId',
+): void {
+  const update = db.prepare(
+    `UPDATE ${table} SET ${clearedColumn} = NULL, updatedAt = ? WHERE id = ?`,
+  )
+  for (const row of rows) update.run(nextRevision(row.updatedAt), row.id)
+}
+
+function purgeLifecycleRow(
+  db: Db,
+  accountId: string,
+  entity: LifecycleEntityKey,
+  id: string,
+): boolean {
+  if (!ownedLifecycleRow(db, accountId, entity, id)) return false
+
+  if (entity === 'projects') {
+    const resources = db
+      .prepare(
+        `SELECT id, updatedAt FROM resources WHERE accountId = ? AND projectId = ?`,
+      )
+      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>
+    const activities = db
+      .prepare(
+        `SELECT activities.id, activities.updatedAt
+         FROM activities
+         JOIN phases ON phases.id = activities.phaseId
+        WHERE activities.accountId = ? AND phases.projectId = ?
+          AND (activities.projectId IS NULL OR activities.projectId <> ?)`,
+      )
+      .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>
+    restampRows(db, 'resources', resources, 'projectId')
+    restampRows(db, 'activities', activities, 'phaseId')
+  } else if (entity === 'clients') {
+    const resources = db
+      .prepare(
+        `SELECT resources.id, resources.updatedAt
+         FROM resources
+         JOIN projects ON projects.id = resources.projectId
+        WHERE resources.accountId = ? AND projects.clientId = ?`,
+      )
+      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>
+    const activities = db
+      .prepare(
+        `SELECT activities.id, activities.updatedAt
+         FROM activities
+         JOIN phases ON phases.id = activities.phaseId
+         JOIN projects AS phaseProjects ON phaseProjects.id = phases.projectId
+        WHERE activities.accountId = ? AND phaseProjects.clientId = ?
+          AND (
+            activities.projectId IS NULL OR
+            activities.projectId NOT IN (SELECT id FROM projects WHERE clientId = ?)
+          )`,
+      )
+      .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>
+    restampRows(db, 'resources', resources, 'projectId')
+    restampRows(db, 'activities', activities, 'phaseId')
+  }
+
+  deleteRow(db, entity, id)
+  return true
+}
+
+function transactSlice<Result>(
+  db: Db,
+  accountId: string,
+  opts: TenantSliceReadOptions,
+  operation: (slice: AppData) => {
+    next: AppData
+    result: SynchronousResult<Result>
+  },
+): Result {
+  let output!: Result
+  tx(db, () => {
+    const { next, result } = operation(readSlice(db, accountId, opts))
+    replaceAccountSlice(db, accountId, next)
+    output = result as Result
+  })
+  return output
+}
 
 // THE TENANT-STORE SWAP POINT (P1.4). The single per-account scoped read/write primitive every
 // permissioned route goes through — "code as if one-instance-per-agency, run shared for now."
@@ -14,13 +150,16 @@ import { type Db, readSlice, replaceAccountSlice } from './db'
 // that account's slice; readSlice's predicates (db.ts) enforce it at the SQL layer. A future
 // implementation MUST preserve this — a method that could touch >1 account breaks the seam's contract.
 //
-// SYNCHRONOUS today: node:sqlite is synchronous, so these are sync (simpler, no needless async). The
-// architecture writes the aspirational interface as `Promise<…>` for a later per-agency-DB / Postgres
-// swap; wrapping a sync return in `await` is harmless, so a future async swap is anticipated.
+// ATOMICITY INVARIANT: a read that feeds a whole-slice replacement belongs inside `transact`; never
+// pair readSlice and write across a suspension point. The interface is deliberately synchronous for
+// node:sqlite. A future async backend must preserve `transact` as one storage transaction and update
+// callers to await that complete unit; changing readSlice/write to promises independently is unsafe.
 //
-// SCOPE NOTE (P1.4): `write` is a THIN wrap of replaceAccountSlice. Lifecycle mutations use this
-// seam; /api/batch and the generic per-entity write routes still call the lower-level helpers
-// directly. Closing those remaining paths behind TenantStore is P1.5; full can()-gating is P1.5 too.
+// SCOPE NOTE (P1.4): `write` is a THIN wrap of replaceAccountSlice for independently complete
+// imports. Lifecycle routes use the semantic row/cascade methods below so one tombstone change never
+// rewrites every tenant row. /api/batch assembles its validation projection from scoped reads but
+// applies individual mutations through lower-level helpers. Generic per-entity routes likewise use
+// scoped validation reads and lower-level row writes.
 
 /**
  * The per-account scoped storage seam — the documented swap point for the tenancy backend.
@@ -45,25 +184,67 @@ export interface TenantStore {
    * resources/clients/projects are included. When `false` (the normal app read), they are dropped
    * server-side (see {@link readSlice}); `true` is the P2.5 admin "Archived & deleted" read.
    */
-  readSlice(accountId: string, opts: {
-    includeTimeOffNote: boolean
-    includeInactive: boolean
-    includePrivateNames: boolean
-  }): AppData
+  readSlice(
+    accountId: string,
+    opts: {
+      includeTimeOffNote: boolean
+      includeInactive: boolean
+      includePrivateNames: boolean
+    },
+  ): AppData
   /**
    * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
    * account's scoped tables; the global `accounts` row and every other account are left untouched.
+   * This is for an independently complete replacement. If `next` came from a prior slice read, use
+   * {@link transact}; separating that read from this destructive replacement is unsafe.
    */
   write(accountId: string, next: AppData): void
+  /**
+   * Atomically read, transform and replace one complete tenant slice. `operation` must be
+   * synchronous and returns both the replacement and a caller result. Throwing rolls the whole
+   * unit back. Any read that will feed {@link write} must use this boundary.
+   */
+  transact<Result>(
+    accountId: string,
+    opts: TenantSliceReadOptions,
+    operation: (slice: AppData) => {
+      next: AppData
+      result: SynchronousResult<Result>
+    },
+  ): Result
+  /** Read one lifecycle row, concealed as absent unless it belongs to `accountId`. */
+  readLifecycleRow(
+    accountId: string,
+    entity: LifecycleEntityKey,
+    id: string,
+  ): LifecycleRow | undefined
+  /** Replace one owned lifecycle row without rewriting its tenant siblings. */
+  writeLifecycleRow(
+    accountId: string,
+    entity: LifecycleEntityKey,
+    row: LifecycleRow,
+  ): void
+  /** Remove sensitive notes attached to one soft-deleted resource. */
+  scrubResourceNotes(
+    accountId: string,
+    resourceId: string,
+  ): ResourceNoteScrubResult
+  /** Purge one owned lifecycle root through SQLite cascades, restamping nullable survivors. */
+  purgeLifecycleRow(
+    accountId: string,
+    entity: LifecycleEntityKey,
+    id: string,
+  ): boolean
 }
 
 /**
  * THE single shared-SQLite {@link TenantStore} — the documented swap point (see the module header).
  *
  * `readSlice` delegates to db.ts's {@link readSlice} (`WHERE accountId = ?` on all scoped tables +
- * accounts-by-id); `write` delegates to {@link replaceAccountSlice} (scoped delete + reinsert for
- * the one account). A THIN wrap by design: the isolation logic lives in db.ts, and this is the seam
- * a future backend swaps. No method here issues a cross-tenant query.
+ * accounts-by-id); `write` delegates to {@link replaceAccountSlice} for complete imports. Lifecycle
+ * methods use owned point reads, one-row upserts, bounded dependent-note updates and database
+ * cascades with explicit nullable-survivor revisions. The isolation logic stays behind this seam,
+ * and no method issues a cross-tenant query.
  *
  * @param db  The open SQLite handle this store reads from / writes to.
  * @returns A {@link TenantStore} bound to `db`.
@@ -72,5 +253,49 @@ export function sqliteTenantStore(db: Db): TenantStore {
   return {
     readSlice: (accountId, opts) => readSlice(db, accountId, opts),
     write: (accountId, next) => replaceAccountSlice(db, accountId, next),
+    transact: (accountId, opts, operation) =>
+      transactSlice(db, accountId, opts, operation),
+    readLifecycleRow: (accountId, entity, id) =>
+      ownedLifecycleRow(db, accountId, entity, id),
+    writeLifecycleRow: (accountId, entity, row) => {
+      if (
+        row.accountId !== accountId ||
+        !ownedLifecycleRow(db, accountId, entity, row.id)
+      ) {
+        throw new Error(
+          'Lifecycle row does not belong to the requested company.',
+        )
+      }
+      upsertRow(db, entity, row as unknown as Record<string, unknown>)
+    },
+    scrubResourceNotes: (accountId, resourceId) => {
+      if (!ownedLifecycleRow(db, accountId, 'resources', resourceId)) {
+        throw new Error(
+          'Lifecycle row does not belong to the requested company.',
+        )
+      }
+      const scrub = (table: 'allocations' | 'timeOff') => {
+        const rows = db
+          .prepare(
+            `SELECT id, updatedAt FROM ${table}
+            WHERE accountId = ? AND resourceId = ? AND note IS NOT NULL`,
+          )
+          .all(accountId, resourceId) as Array<{
+          id: string
+          updatedAt: unknown
+        }>
+        const update = db.prepare(
+          `UPDATE ${table} SET note = NULL, updatedAt = ? WHERE id = ?`,
+        )
+        for (const row of rows) update.run(nextRevision(row.updatedAt), row.id)
+        return rows.length > 0
+      }
+      return {
+        allocationNotes: scrub('allocations'),
+        timeOffNotes: scrub('timeOff'),
+      }
+    },
+    purgeLifecycleRow: (accountId, entity, id) =>
+      purgeLifecycleRow(db, accountId, entity, id),
   }
 }

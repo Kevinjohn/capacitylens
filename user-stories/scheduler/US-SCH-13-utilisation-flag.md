@@ -1,4 +1,4 @@
-# US-SCH-13 — Per-resource near-term load flag
+# US-SCH-13 — Per-resource near-term utilisation flag
 
 **Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"
 
@@ -16,7 +16,7 @@ The timeline shows *where* work sits; the left-column figure answers "is this pe
 4. Scroll/jump the timeline elsewhere and confirm the **red flag** stays put — it tracks the fixed 14-day forward window, not the viewport (the % itself recomputes for the visible window).
 
 ## Acceptance criteria
-- ✅ Each resource row shows a **utilization** figure (`data-testid="utilization"`) as a percentage under **"Utilisation · Nw"** (N = the active week-range toggle).
+- ✅ Each resource row shows a **utilisation** figure (`data-testid="utilization"`) as a percentage under **"Utilisation · Nw"** (N = the active week-range toggle).
 - ✅ A resource over-allocated within the **fixed 14-day forward window** shows their figure in **red / emphasised** styling.
 - ✅ A resource within capacity in that window shows the normal (non-red) styling.
 - ✅ Scrolling or jumping the timeline does **not** move the **red flag** — it tracks the fixed 14-day forward window, not the visible range (the % itself recomputes for the visible window).

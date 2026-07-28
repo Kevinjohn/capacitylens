@@ -136,9 +136,12 @@ export function useSchedulerViewport({
 
   const focusX = geom.xForDateInGeom(ui.focusDate)
   const focusXRef = useRef(focusX)
-  useEffect(() => {
+  // Recenter consumes this ref in a later layout effect from the same commit. Update it here,
+  // before that consumer runs, so a simultaneous origin/focus/token change cannot use the prior
+  // geometry's offset. Keeping the ref avoids making ordinary geometry changes trigger recentering.
+  useLayoutEffect(() => {
     focusXRef.current = focusX
-  })
+  }, [focusX])
 
   const prevGeomRef = useRef(geom)
   const prevDaysRef = useRef(days)
@@ -188,12 +191,14 @@ export function useSchedulerViewport({
     if (scrollRaf.current) return
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
-      // Freezing re-windowing is load-bearing: unmounting the active bar would
-      // tear down its document pointer listeners before the drop can commit.
-      if (useStore.getState().draggingAllocationId !== null) return
       const el = scrollRef.current
       if (!el) return
+      // Vertical windowing follows the viewport during a drag so newly visible rows can become
+      // drop targets. SchedulerGrid separately pins the source row to keep gesture ownership.
       setScrollTop(el.scrollTop)
+      // Horizontal state and idle snapping remain frozen until the drag ends: changing the date
+      // geometry underneath a pointer gesture would change its meaning mid-flight.
+      if (useStore.getState().draggingAllocationId !== null) return
       // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (HiDPI can store scrollLeft
       // just below an integer column boundary; indexAt's strict floor would resolve that to the
       // previous, narrower-under-minimised-weekends column).

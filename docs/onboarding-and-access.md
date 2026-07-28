@@ -7,11 +7,11 @@
 
 CapacityLens currently has three different concepts that can all look like “a person” in the UI:
 
-| Concept | Stored as | Scope | What it controls |
-| --- | --- | --- | --- |
-| Login identity | Better Auth `user` and credential/session tables | The whole installation | Who can sign in. One identity may belong to several companies. |
-| Company membership | `account_members` (`accountId`, `userId`, `role`, `status`) | One company | Which company the identity may open and what it may do there. |
-| Schedulable resource | `resources` (`kind: person`) | One company | Who can receive allocations and time off on the schedule. |
+| Concept              | Stored as                                                   | Scope                  | What it controls                                               |
+| -------------------- | ----------------------------------------------------------- | ---------------------- | -------------------------------------------------------------- |
+| Login identity       | Better Auth `user` and credential/session tables            | The whole installation | Who can sign in. One identity may belong to several companies. |
+| Company membership   | `account_members` (`accountId`, `userId`, `role`, `status`) | One company            | Which company the identity may open and what it may do there.  |
+| Schedulable resource | `resources` (`kind: person`)                                | One company            | Who can receive allocations and time off on the schedule.      |
 
 These records are deliberately independent today:
 
@@ -86,48 +86,54 @@ and edit its companies. No fictional Owner role or member-management controls ar
 Roles are per company and strictly nested for action permissions:
 `Viewer < Editor < Admin < Owner`.
 
-| Capability or data | Viewer | Editor | Admin | Owner |
-| --- | :---: | :---: | :---: | :---: |
-| Open the company and read active scheduling data | Yes | Yes | Yes | Yes |
-| Create, edit and archive scheduling data | No | Yes | Yes | Yes |
-| Export the active slice | Redacted | Redacted | Yes, including inactive rows | Yes, including inactive rows |
-| See a time-off note | No | No | Yes | Yes |
-| See a private client/project real name and raw code name | No; quoted code name only | No; quoted code name only | No; quoted code name only | Yes |
-| List members and invitations | No | No | Yes | Yes |
-| Invite, remove or change non-owner members | No | No | Yes | Yes |
-| Assign Owner through an invite or ordinary role change | No | No | No | No |
-| Revoke an Owner's sessions/reset their password | No | No | No | Yes, subject to cross-company authority |
-| Restore, soft-delete and permanently purge lifecycle data | No | No | Yes | Yes |
-| Import/replace the whole company slice | No | No | No | Yes |
-| Delete the company | No | No | No | Yes |
-| Transfer ownership | No | No | No | Yes |
+| Capability or data                                        |          Viewer           |          Editor           |            Admin             |                  Owner                  |
+| --------------------------------------------------------- | :-----------------------: | :-----------------------: | :--------------------------: | :-------------------------------------: |
+| Open the company and read active scheduling data          |            Yes            |            Yes            |             Yes              |                   Yes                   |
+| Create, edit and archive scheduling data                  |            No             |            Yes            |             Yes              |                   Yes                   |
+| Change ordinary company planning and display settings     |            No             |            Yes            |             Yes              |                   Yes                   |
+| Export the active slice                                   |         Redacted          |         Redacted          | Yes, including inactive rows |      Yes, including inactive rows       |
+| See a time-off note                                       |            No             |            No             |             Yes              |                   Yes                   |
+| See a private client/project real name and raw code name  | No; quoted code name only | No; quoted code name only |  No; quoted code name only   |                   Yes                   |
+| List members and invitations                              |            No             |            No             |             Yes              |                   Yes                   |
+| Invite, remove or change non-owner members                |            No             |            No             |             Yes              |                   Yes                   |
+| Assign Owner through an invite or ordinary role change    |            No             |            No             |              No              |                   No                    |
+| Revoke an Owner's sessions/reset their password           |            No             |            No             |              No              | Yes, subject to cross-company authority |
+| Restore, soft-delete and permanently purge lifecycle data |            No             |            No             |             Yes              |                   Yes                   |
+| Import/replace the whole company slice                    |            No             |            No             |              No              |                   Yes                   |
+| Delete the company                                        |            No             |            No             |              No              |                   Yes                   |
+| Transfer ownership                                        |            No             |            No             |              No              |                   Yes                   |
 
 Additional rules:
 
 - No membership means no company listing and no tenant data, even if an account id is guessed.
+- Ordinary company settings means the name, scheduling mode, disciplines, colour mode and
+  feature-visibility switches. It excludes identity, member administration, privacy, lifecycle,
+  import and erasure controls, which keep their stricter rows and rules below.
 - Offline snapshots always become Viewer/read-only and never queue writes.
 - An Admin cannot touch an Owner, grant Owner, or transfer ownership.
 - The single Owner cannot be demoted or removed through ordinary member management.
 - Ownership transfer atomically promotes the recipient and steps the current Owner down to Admin.
 - Owner cannot be selected in an invite or ordinary role change. A definition-checked partial unique
   database index prevents a second active Owner; the boot assertion also rejects a member-bearing
-  company with zero Owners. Migration deterministically promotes the oldest active member if a
-  legacy company is ownerless. Explicit transfer is the only ownership-change operation.
+  company with zero Owners. If a legacy company is ownerless, migration promotes its highest-tier
+  active member, breaking ties by earliest membership; it promotes a Viewer only when every active
+  member is a Viewer. Every such repair emits a structured security event for operator review.
+  Explicit transfer is the only ordinary ownership-change operation.
 - Creating another company is an installation policy, not simply a capability on the active
   company. It also depends on the single/multi-company cap and whether the caller is already an
   Owner/Admin somewhere or holds an operator bootstrap token.
 
 ## Where enforcement lives
 
-| Layer | Responsibility | Current implementation |
-| --- | --- | --- |
-| Session | Establish a verified identity | Neutral `IdentityPort` through `AuthProvider`; password and strict OIDC are first-class, named social providers experimental |
-| Membership | Bind identity to company and role | Server-only `account_members` through the neutral `AccountAdminPort`; product authorization consumes its active-role lookup |
-| Action policy | Decide whether the role may read/write/administer | Pure shared `can(role, action)` matrix used by server and client |
-| Tenant boundary | Prevent cross-company reads/writes | Server resolves membership before scoped reads and writes; every scoped entity also carries `accountId` |
-| Field visibility | Remove confidential columns/identities | Server redacts time-off notes below Admin and private real names below Owner |
-| UI affordance | Avoid offering an action that will be refused | `PermissionProvider`, `useCanEdit`, member-management guards and role-specific forms |
-| Local defence | Prevent optimistic Viewer edits | Store no-ops Viewer mutations and surfaces a read-only notice |
+| Layer            | Responsibility                                    | Current implementation                                                                                                       |
+| ---------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Session          | Establish a verified identity                     | Neutral `IdentityPort` through `AuthProvider`; password and strict OIDC are first-class, named social providers experimental |
+| Membership       | Bind identity to company and role                 | Server-only `account_members` through the neutral `AccountAdminPort`; product authorization consumes its active-role lookup  |
+| Action policy    | Decide whether the role may read/write/administer | Pure shared `can(role, action)` matrix used by server and client                                                             |
+| Tenant boundary  | Prevent cross-company reads/writes                | Server resolves membership before scoped reads and writes; every scoped entity also carries `accountId`                      |
+| Field visibility | Remove confidential columns/identities            | Server redacts time-off notes below Admin and private real names below Owner                                                 |
+| UI affordance    | Avoid offering an action that will be refused     | `PermissionProvider`, `useCanEdit`, member-management guards and role-specific forms                                         |
+| Local defence    | Prevent optimistic Viewer edits                   | Store no-ops Viewer mutations and surfaces a read-only notice                                                                |
 
 The server, not the hidden button, owns authorization. This is already the right architectural
 boundary.
@@ -179,16 +185,16 @@ the actual session, membership, server projection and 403 boundaries.
 
 ## Acceptance assessment
 
-| Area | State | Evidence |
-| --- | --- | --- |
-| Tenant isolation and action authorization | Acceptance target met | Shared policy and server enforcement remain the boundary. |
-| Four-role policy | Acceptance target met | Plain-language role copy plus an exactly-one-Owner boot assertion and definition-checked index. |
-| Invitation and member administration | Acceptance target met | First-class destination, safe preview and explicit signed-in acceptance. |
-| Viewer/edit affordance gating | Acceptance target met | Every role is visible, capability status is accessible, and membership mutations invalidate live projections. |
-| Confidential field projection | Acceptance target met | Auth-backed tests plus human-visible private-name and time-off fixtures. |
-| Company onboarding | Acceptance target met | Getting Started links Owner/Admin to the optional access setup path. |
-| Identity vs membership vs resource model | Acceptance target met | Explained side by side; records remain deliberately independent. |
-| Demo testability | Acceptance target met | Demo is honestly labelled; the password-auth access lab exercises real enforcement. |
+| Area                                      | State                 | Evidence                                                                                                      |
+| ----------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Tenant isolation and action authorization | Acceptance target met | Shared policy and server enforcement remain the boundary.                                                     |
+| Four-role policy                          | Acceptance target met | Plain-language role copy plus an exactly-one-Owner boot assertion and definition-checked index.               |
+| Invitation and member administration      | Acceptance target met | First-class destination, safe preview and explicit signed-in acceptance.                                      |
+| Viewer/edit affordance gating             | Acceptance target met | Every role is visible, capability status is accessible, and membership mutations invalidate live projections. |
+| Confidential field projection             | Acceptance target met | Auth-backed tests plus human-visible private-name and time-off fixtures.                                      |
+| Company onboarding                        | Acceptance target met | Getting Started links Owner/Admin to the optional access setup path.                                          |
+| Identity vs membership vs resource model  | Acceptance target met | Explained side by side; records remain deliberately independent.                                              |
+| Demo testability                          | Acceptance target met | Demo is honestly labelled; the password-auth access lab exercises real enforcement.                           |
 
 “100%” here means the agreed alpha acceptance target, not a claim that access control can never need
 more testing or iteration. The agreed mechanics, information architecture, explanations, invite
@@ -198,10 +204,11 @@ testing can therefore refine the product without first inventing the missing flo
 ## Alpha access lab
 
 The lab is destructive only to the fixed local file `server/.access-lab.db`, which is recreated on
-every run. Its launcher removes inherited `CAPACITYLENS_*`, `BETTER_AUTH_*` and
-`VITE_CAPACITYLENS_*` configuration, then pins the API to `127.0.0.1`, password auth, the lab
-database and the local Vite origin. Its setup script also refuses every path except that exact
-repository fixture, including a same-named database in another directory.
+every run. Its launcher and setup boundary remove inherited `SMALLSASS_ACCOUNT_*`,
+`CAPACITYLENS_*`, `BETTER_AUTH_*` and `VITE_CAPACITYLENS_*` configuration, then pin the API to
+`127.0.0.1`, password auth, the lab database and the local Vite origin. The setup script also refuses
+every path except that exact non-symlink repository fixture, including a same-named database in
+another directory.
 Never use these fictional credentials on a real installation.
 
 1. Start the complete lab:
@@ -213,12 +220,12 @@ Never use these fictional credentials on a real installation.
 2. Open <http://127.0.0.1:5473>. Studio North, a private client/project and a time-off note are
    already present. Sign in with any persona; every persona uses `access-lab-password-2026`:
 
-   | Persona | Email | Role |
-   | --- | --- | --- |
-   | Olivia Owner | `owner@capacitylens.dev` | Owner |
-   | Alex Admin | `alex.admin@capacitylens.dev` | Admin |
-   | Erin Editor | `erin.editor@capacitylens.dev` | Editor |
-   | Vic Viewer | `vic.viewer@capacitylens.dev` | Viewer |
+   | Persona      | Email                          | Role   |
+   | ------------ | ------------------------------ | ------ |
+   | Olivia Owner | `owner@capacitylens.dev`       | Owner  |
+   | Alex Admin   | `alex.admin@capacitylens.dev`  | Admin  |
+   | Erin Editor  | `erin.editor@capacitylens.dev` | Editor |
+   | Vic Viewer   | `vic.viewer@capacitylens.dev`  | Viewer |
 
 3. Compare the sidebar role badge, **Team & access**, edit affordances, private names and time-off
    note against the matrix above. Stop the command with Ctrl-C before running auth-backed Playwright;

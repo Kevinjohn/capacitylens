@@ -1,11 +1,37 @@
 // The backend's base URL, read once from the build-time env. Empty (the default) now means the
 // SAME-ORIGIN server (relative `/api`), NOT "local" — server persistence is the default. Set it to
 // point at a different origin (e.g. http://localhost:8787). The zero-setup browser demo is an
-// explicit opt-in (VITE_CAPACITYLENS_DEMO=1) and keeps its editable seed in memory only. Trailing slash
-// trimmed so `${API_BASE}/api/...` is clean. Kept in its own module (mirrors schedule/diary) so the
-// single env read isn't scattered across the adapter wiring.
+// explicit opt-in (VITE_CAPACITYLENS_DEMO=1) and keeps its editable seed in memory only. The optional
+// override must be one HTTP(S) origin; normalize it once so every `${API_BASE}/api/...` caller and
+// offline-cache namespace uses the same canonical value. Kept in its own module so the env read and
+// validation aren't scattered across the adapter wiring.
 
-export const API_BASE = (import.meta.env.VITE_CAPACITYLENS_API ?? '').replace(/\/+$/, '')
+export function apiBaseFromEnv(value: string | undefined): string {
+  const raw = (value ?? '').trim().replace(/\/+$/, '')
+  if (raw === '') return ''
+
+  let parsed: URL
+  try {
+    parsed = new URL(raw)
+  } catch (cause) {
+    throw new Error('VITE_CAPACITYLENS_API must be an absolute HTTP(S) origin.', { cause })
+  }
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    parsed.pathname !== '/' ||
+    parsed.search !== '' ||
+    parsed.hash !== ''
+  ) {
+    throw new Error(
+      'VITE_CAPACITYLENS_API must be an HTTP(S) origin without credentials, path, query or fragment.',
+    )
+  }
+  return parsed.origin
+}
+
+export const API_BASE = isDemoMode() ? '' : apiBaseFromEnv(import.meta.env.VITE_CAPACITYLENS_API)
 
 /** Demo mode: an editable, in-memory seed that resets on refresh.
  *  NOTE: this is the persistence demo — distinct from the cosmetic auth persona

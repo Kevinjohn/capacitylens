@@ -4,7 +4,7 @@
 
 > **Flag-gated:** the link only exists in builds made with `VITE_CAPACITYLENS_FEEDBACK_MAILTO`
 > set (the deploy script sets it to the owner's address). The default dev/local build
-> renders nothing, so the only part runnable against `npm run dev` is the *absence*
+> renders nothing, so the only part runnable against `pnpm run dev` is the *absence*
 > check — which is what the linked E2E asserts. Pairs with [US-SET-03](US-SET-03-build-stamp.md).
 
 ## Goal
@@ -26,15 +26,18 @@ on arrival.
    `CapacityLens feedback — build <sha> · server`.
 3. Describe the problem and send.
 
-**Precondition (default local build):** run `npm run dev`, open Settings.
+**Precondition (default local build):** run `pnpm run dev`, open Settings.
 
 4. Confirm there is **no** Send feedback link (and no footer at all).
 
 ## Acceptance criteria
 - With `VITE_CAPACITYLENS_FEEDBACK_MAILTO=<addr>` baked into the build, Settings shows a
-  **Send feedback** `mailto:` link beside the build stamp.
+  **Send feedback** `mailto:` link beside the build stamp when `<addr>` is one valid email address;
+  the recipient is URI-encoded so reserved characters remain part of the mailbox.
+- An invalid feedback address is rejected during client build/startup rather than producing a
+  malformed mail action.
 - The mailto subject contains the build stamp when `VITE_CAPACITYLENS_BUILD_SHA` is also set
   (the demo deploy sets both), and a plain `CapacityLens feedback` subject otherwise.
-- Without the variable (dev server, plain `npm run build`), the link is absent —
+- Without the variable (dev server, plain `pnpm run build`), the link is absent —
   today's Settings, unchanged.
 - The link is plain text-styled, keyboard-focusable, and does not affect the axe audit.

@@ -19,6 +19,22 @@ describe('readStoredTheme', () => {
     expect(readStoredTheme()).toBe('system')
   })
 
+  it.each(['light', 'dark', 'system'] as const)('migrates a legacy %s preference once', (preference) => {
+    localStorage.setItem('floaty/theme', preference)
+
+    expect(readStoredTheme()).toBe(preference)
+    expect(localStorage.getItem('capacitylens/theme')).toBe(preference)
+    expect(localStorage.getItem('floaty/theme')).toBeNull()
+  })
+
+  it('does not let a legacy preference override an explicit current value', () => {
+    localStorage.setItem('capacitylens/theme', 'neon')
+    localStorage.setItem('floaty/theme', 'dark')
+
+    expect(readStoredTheme()).toBe('light')
+    expect(localStorage.getItem('floaty/theme')).toBe('dark')
+  })
+
   it('falls back to light for an unrecognised stored value', () => {
     localStorage.setItem('capacitylens/theme', 'neon')
     expect(readStoredTheme()).toBe('light')

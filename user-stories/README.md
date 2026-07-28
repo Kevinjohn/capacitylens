@@ -53,7 +53,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-RES-01](resources/US-RES-01-add-person.md) | Add a person | `e2e/resources.spec.ts` |
 | [US-RES-02](resources/US-RES-02-add-placeholder.md) | Add a placeholder bound to a project | `e2e/resources.spec.ts` |
 | [US-RES-03](resources/US-RES-03-edit-resource.md) | Edit a resource | `e2e/resources.spec.ts` |
-| [US-RES-04](resources/US-RES-04-delete-resource-cascade.md) | Delete a resource (cascade + undo) | `e2e/resources.spec.ts` |
+| [US-RES-04](resources/US-RES-04-archive-resource.md) | Archive a resource (retain children + undo) | `e2e/resources.spec.ts` |
 | [US-RES-05](resources/US-RES-05-working-days.md) | Set working days | unit (`capacity.test.ts`) + manual |
 | [US-RES-06](resources/US-RES-06-working-hours.md) | Set working hours (> 0) | `e2e/resources.spec.ts` |
 | [US-RES-07](resources/US-RES-07-employment-temp-tag.md) | Employment type (Temp tag parked) | `e2e/resources.spec.ts` |
@@ -74,7 +74,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 |---|---|---|
 | [US-CLI-01](clients/US-CLI-01-add-client.md) | Add a client | `e2e/clients.spec.ts` |
 | [US-CLI-02](clients/US-CLI-02-edit-client.md) | Edit a client | `e2e/clients.spec.ts` |
-| [US-CLI-03](clients/US-CLI-03-delete-client-cascade.md) | Delete a client (cascade) | `e2e/clients.spec.ts` + unit (`integrity.test.ts`) |
+| [US-CLI-03](clients/US-CLI-03-archive-client.md) | Archive a client (retain children + undo) | `e2e/clients.spec.ts` + unit (`integrity.test.ts`) |
 | [US-CLI-04](clients/US-CLI-04-internal-client.md) | Built-in Internal client | `e2e/internal-client.spec.ts` |
 | [US-CLI-05](clients/US-CLI-05-private-client-code-name.md) | Mark a client private with a code name | `e2e/clients.spec.ts` + unit (`ClientForm.test.tsx`) |
 
@@ -83,7 +83,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 |---|---|---|
 | [US-PRJ-01](projects/US-PRJ-01-add-project.md) | Add a project (needs a client) | `e2e/projects.spec.ts` + `e2e/crud.spec.ts` |
 | [US-PRJ-02](projects/US-PRJ-02-edit-project.md) | Edit a project | `e2e/projects.spec.ts` |
-| [US-PRJ-03](projects/US-PRJ-03-delete-project-cascade.md) | Delete a project (cascade) | `e2e/projects.spec.ts` + unit (`integrity.test.ts`) |
+| [US-PRJ-03](projects/US-PRJ-03-archive-project.md) | Archive a project (retain children + undo) | `e2e/projects.spec.ts` + unit (`integrity.test.ts`) |
 | [US-PRJ-04](projects/US-PRJ-04-manage-phases.md) | Manage phases in a project | manual — n/a (Phase UI hidden) |
 | [US-PRJ-05](projects/US-PRJ-05-private-project-code-name.md) | Mark a project private with a code name | unit (`ProjectForm.test.tsx`) + manual |
 
@@ -124,7 +124,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md) | Unavailable days greyed | `e2e/scheduler.spec.ts` |
 | [US-SCH-11](scheduler/US-SCH-11-time-off-block.md) | Time off as a labelled block | `e2e/features.spec.ts` + `e2e/timeoff.spec.ts` |
 | [US-SCH-12](scheduler/US-SCH-12-today-line.md) | Today line | `e2e/scheduler.spec.ts` |
-| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md) | Per-resource load %, red when over | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`) |
+| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md) | Per-resource utilisation %, red when over | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`) |
 | [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md) | Overall + per-discipline summary | `e2e/scheduler.spec.ts` |
 | [US-SCH-15](scheduler/US-SCH-15-bar-popover.md) | Bar detail popover | `e2e/scheduler.spec.ts` + unit (`AllocationBar.interaction.test.tsx`) |
 | [US-SCH-16](scheduler/US-SCH-16-collapse-group.md) | Collapse/expand a discipline group | `e2e/features.spec.ts` |

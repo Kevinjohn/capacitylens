@@ -26,6 +26,7 @@ const ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer']
 const ACTIONS = [
   'read',
   'write',
+  'manageInternalClient',
   'manageMembers',
   'manageInvites',
   'purge',
@@ -33,9 +34,10 @@ const ACTIONS = [
   'transferOwnership',
 ] as const satisfies readonly Action[]
 
-// The full 4×7 expected matrix, written out explicitly from the Decisions table:
+// The full 4×8 expected matrix, written out explicitly from the Decisions table:
 //   read              — any member (owner, admin, editor, viewer)
 //   write             — editor and up (owner, admin, editor); NOT viewer
+//   manageInternalClient — admin and up (owner, admin)
 //   manageMembers     — admin and up (owner, admin)
 //   manageInvites     — admin and up (owner, admin)
 //   purge             — admin and up (owner, admin)
@@ -45,6 +47,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
   owner: {
     read: true,
     write: true,
+    manageInternalClient: true,
     manageMembers: true,
     manageInvites: true,
     purge: true,
@@ -54,6 +57,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
   admin: {
     read: true,
     write: true,
+    manageInternalClient: true,
     manageMembers: true,
     manageInvites: true,
     purge: true,
@@ -63,6 +67,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
   editor: {
     read: true,
     write: true,
+    manageInternalClient: false,
     manageMembers: false,
     manageInvites: false,
     purge: false,
@@ -72,6 +77,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
   viewer: {
     read: true,
     write: false,
+    manageInternalClient: false,
     manageMembers: false,
     manageInvites: false,
     purge: false,
@@ -84,8 +90,8 @@ describe('can(role, action) — the pure access matrix', () => {
   // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
   // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an EXTRA/typo
   // member at compile time; this asserts none was DROPPED — keep this count in step with `Action`.)
-  it('iterates exactly the Action union (7 actions, no more, no fewer)', () => {
-    expect(ACTIONS.length).toBe(7)
+  it('iterates exactly the Action union (8 actions, no more, no fewer)', () => {
+    expect(ACTIONS.length).toBe(8)
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length) // no duplicates
   })
 
@@ -94,7 +100,7 @@ describe('can(role, action) — the pure access matrix', () => {
     expect(new Set(ROLES).size).toBe(ROLES.length)
   })
 
-  // The exhaustive sweep: all 4 roles × all 6 actions = 24 pairs, each against the hard-coded oracle.
+  // The exhaustive sweep: all 4 roles × all 8 actions = 32 pairs, each against the hard-coded oracle.
   for (const role of ROLES) {
     for (const action of ACTIONS) {
       const expected = EXPECTED[role][action]

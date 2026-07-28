@@ -86,10 +86,24 @@ describe('volumePreservingHoursClamped', () => {
 describe('computeGesture', () => {
   const current = range('2026-06-01', '2026-06-04') // span 4 days
 
-  it('returns the range and hours unchanged when deltaDays is 0', () => {
+  it('returns equivalent dates and unchanged hours for a zero-delta calendar move', () => {
     const { dates, hours } = computeGesture('move', current, 0, IGNORE, 6, true)
-    expect(dates).toBe(current) // returns `current` by reference — no gesture applied
+    expect(dates).toEqual(current)
     expect(hours).toBe(6)
+  })
+
+  it('normalises a zero-horizontal move against the target working week', () => {
+    const { dates, hours } = computeGesture(
+      'move',
+      range('2026-06-05', '2026-06-07'),
+      0,
+      { workingDays: [1, 2, 3, 4, 5] },
+      8,
+      false,
+    )
+
+    expect(dates).toEqual(range('2026-06-05', '2026-06-05'))
+    expect(hours).toBe(8)
   })
 
   it('keeps hours unchanged for a move (only a resize rescales)', () => {
@@ -191,12 +205,16 @@ describe('reconcileReassignedHours', () => {
     employmentType: 'permanent', workingHoursPerDay, workingDays: [1, 2, 3, 4, 5], color: '#000000',
   })
   it('forces 0 hours when reassigning onto an external (a capacity-free row carries no load)', () => {
-    expect(reconcileReassignedHours(8, res('external'))).toBe(0)
+    expect(reconcileReassignedHours(8, res('external'), false)).toBe(0)
+    expect(reconcileReassignedHours(8, res('external'), true)).toBe(0)
   })
   it('keeps a real resource positive hours on a real-to-real reassign', () => {
-    expect(reconcileReassignedHours(6, res('person'))).toBe(6)
+    expect(reconcileReassignedHours(6, res('person'), false)).toBe(6)
   })
   it('promotes a 0-hour booking (dragged off an external) to the target working day', () => {
-    expect(reconcileReassignedHours(0, res('person', 7))).toBe(7)
+    expect(reconcileReassignedHours(0, res('person', 7), false)).toBe(7)
+  })
+  it('keeps a zero-hour block at zero when reassigning it off an external', () => {
+    expect(reconcileReassignedHours(0, res('person', 7), true)).toBe(0)
   })
 })

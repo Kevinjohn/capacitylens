@@ -1,17 +1,31 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { placeholdersEnabledFor } from '../../store/selectors'
+import { placeholdersEnabledFor, timeZoneFor } from '../../store/selectors'
 import { useActiveScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
+import { errorMessage } from '../../lib/errorMessage'
 import { m } from '@/i18n'
-import { DateField, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
+import {
+  DateField,
+  Modal,
+  RequiredLegend,
+  SelectField,
+  TextAreaField,
+  type Option,
+} from '../common/ui'
 import { Button } from '../ui/button'
 import { FieldError } from '../ui/field'
 import { timeOffTypeOptions, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
-import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities'
+import type {
+  ISODate,
+  TimeOff,
+  TimeOffType,
+} from '@capacitylens/shared/types/entities'
+import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
+import { useRole } from '../../auth/permissionContext'
 
 export function TimeOffForm({
   timeOff,
@@ -25,15 +39,28 @@ export function TimeOffForm({
 }) {
   const add = useStore((s) => s.addTimeOff)
   const update = useStore((s) => s.updateTimeOff)
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
-  const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
+  const placeholdersEnabled = useStore((s) =>
+    placeholdersEnabledFor(s.data, s.activeAccountId),
+  )
+  const calendarTimeZone = useStore((s) =>
+    timeZoneFor(s.data, s.activeAccountId),
+  )
   const resources = useActiveScopedData().resources
+  const role = useRole()
+  // Null is the OFF/demo/no-provider mode, where there is no server field projection to enforce.
+  const canEditNote = role === null || canSeeTimeOffNote(role)
 
-  const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? '')
-  const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO(calendarTimeZone))
-  const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone))
+  const [resourceId, setResourceId] = useState(
+    timeOff?.resourceId ?? defaults?.resourceId ?? '',
+  )
+  const [startDate, setStartDate] = useState(
+    timeOff?.startDate ?? defaults?.startDate ?? todayISO(calendarTimeZone),
+  )
+  const [endDate, setEndDate] = useState(
+    timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone),
+  )
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? 'holiday')
-  const [note, setNote] = useState(timeOff?.note ?? '')
+  const [note, setNote] = useState(canEditNote ? (timeOff?.note ?? '') : '')
   const { error, errorField, errorId, fail } = useFieldError()
 
   // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
@@ -43,7 +70,10 @@ export function TimeOffForm({
   // instead of silently reassigning the time off to someone else on save.
   const resourceOptions: Option[] = resources
     .filter((r) => !isExternalResource(r))
-    .filter((r) => placeholdersEnabled || r.kind !== 'placeholder' || r.id === resourceId)
+    .filter(
+      (r) =>
+        placeholdersEnabled || r.kind !== 'placeholder' || r.id === resourceId,
+    )
     .map((r) => ({ value: r.id, label: resourceDisplayName(r) }))
 
   const submit = () => {
@@ -63,15 +93,27 @@ export function TimeOffForm({
       fail('dates', m.form_timeoff_err_end_before_start())
       return
     }
-    const cleanNote = validateText(note, fail, { field: 'note', required: false, multiline: true })
-    if (cleanNote === null) return
-    const patch = { resourceId, startDate, endDate, type, note: cleanNote ? cleanNote : undefined }
+    const basePatch = { resourceId, startDate, endDate, type }
+    let cleanNote: string | undefined
+    if (canEditNote) {
+      const validatedNote = validateText(note, fail, {
+        field: 'note',
+        required: false,
+        multiline: true,
+      })
+      if (validatedNote === null) return
+      cleanNote = validatedNote || undefined
+    }
+    const patch = canEditNote ? { ...basePatch, note: cleanNote } : basePatch
     try {
       if (timeOff) update(timeOff.id, patch)
       else add(patch)
       onClose()
     } catch (e) {
-      fail(null, e instanceof Error ? e.message : m.form_timeoff_err_save_failed())
+      fail(
+        null,
+        e instanceof Error ? errorMessage(e) : m.form_timeoff_err_save_failed(),
+      )
     }
   }
 
@@ -85,15 +127,53 @@ export function TimeOffForm({
           <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button size="sm" type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">
+            {m.form_save()}
+          </Button>
         </>
       }
     >
-      <SelectField label={m.form_timeoff_resource_label()} value={resourceId} onChange={setResourceId} options={resourceOptions} placeholder={m.form_timeoff_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
-      <DateField label={m.form_timeoff_start_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
-      <DateField label={m.form_timeoff_end_label()} value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
-      <SelectField label={m.form_timeoff_type_label()} value={type} onChange={(v) => setType(v as TimeOffType)} options={timeOffTypeOptions()} />
-      <TextAreaField label={m.form_timeoff_note_label()} value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
+      <SelectField
+        label={m.form_timeoff_resource_label()}
+        value={resourceId}
+        onChange={setResourceId}
+        options={resourceOptions}
+        placeholder={m.form_timeoff_select_resource_placeholder()}
+        required
+        invalid={errorField === 'resource'}
+        describedById={errorId}
+      />
+      <DateField
+        label={m.form_timeoff_start_label()}
+        value={startDate}
+        onChange={setStartDate}
+        required
+        invalid={errorField === 'dates'}
+        describedById={errorId}
+      />
+      <DateField
+        label={m.form_timeoff_end_label()}
+        value={endDate}
+        onChange={setEndDate}
+        required
+        invalid={errorField === 'dates'}
+        describedById={errorId}
+      />
+      <SelectField
+        label={m.form_timeoff_type_label()}
+        value={type}
+        onChange={(v) => setType(v as TimeOffType)}
+        options={timeOffTypeOptions()}
+      />
+      {canEditNote && (
+        <TextAreaField
+          label={m.form_timeoff_note_label()}
+          value={note}
+          onChange={setNote}
+          invalid={errorField === 'note'}
+          describedById={errorId}
+        />
+      )}
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </Modal>

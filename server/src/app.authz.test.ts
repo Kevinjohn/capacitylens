@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { constants as sqliteConstants } from 'node:sqlite'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, getRow, type Db } from './db'
@@ -7,6 +8,8 @@ import { authFromEnv, runAuthMigrations } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { can, type Role } from '@capacitylens/shared/domain/access'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
+import { seed } from '@capacitylens/shared/data/seed'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 
 // P1.5 requirePermission — the auth-on 403 matrix for the authorize() route gate, plus the #1
 // invariant that OFF mode stays allow-all/no-op (cross-account ids included). The gate maps each
@@ -124,6 +127,27 @@ const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?:
     headers: cookie ? { cookie } : {},
   })
 
+const replaceGeneratedInternal = (
+  app: FastifyInstance,
+  cookie: string,
+  batched: boolean,
+) => {
+  const row = { ...buildInternalClient('a1', TS), id: 'legacy-internal' }
+  return call(app, batched
+    ? {
+        method: 'POST',
+        url: '/api/batch',
+        payload: { ops: [{ method: 'PUT', table: 'clients', id: row.id, row }] },
+        headers: { cookie },
+      }
+    : {
+        method: 'PUT',
+        url: `/api/clients/${row.id}`,
+        payload: row,
+        headers: { cookie },
+      })
+}
+
 /** Import a single-client slice into `accountId`. */
 const importInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) => {
   const data = { ...emptyAppData(), clients: [client(id, accountId)] }
@@ -131,7 +155,7 @@ const importInto = (app: FastifyInstance, accountId: string, id: string, cookie?
 }
 
 describe('P1.5 authorize — auth-on 403 matrix', () => {
-  it('non-member (signed in, no membership): every scoped read/write to a1 → 403', async () => {
+  it('non-member: account-asserted operations are 403 while row-addressed PATCH conceals as 404', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie } = await signUp(app, 'stranger@capacitylens.dev') // NO membership upserted
@@ -139,13 +163,13 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await getState(app, 'a1', cookie)).statusCode).toBe(403)
     expect((await postClient(app, 'a1', 'nc1', cookie)).statusCode).toBe(403)
     expect((await putClient(app, 'a1', 'nc2', cookie)).statusCode).toBe(403)
-    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(403)
+    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(404)
     expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(403)
     expect((await batchInto(app, 'a1', 'nc3', cookie)).statusCode).toBe(403)
     expect((await importInto(app, 'a1', 'nc4', cookie)).statusCode).toBe(403)
   })
 
-  it('cross-account: a member of a1 only → any read/write targeting a2 → 403', async () => {
+  it('cross-account: asserted a2 operations are 403 while row-addressed PATCH conceals as 404', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie, userId } = await signUp(app, 'a1member@capacitylens.dev')
@@ -154,7 +178,7 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await getState(app, 'a2', cookie)).statusCode).toBe(403)
     expect((await postClient(app, 'a2', 'x1', cookie)).statusCode).toBe(403)
     expect((await putClient(app, 'a2', 'x2', cookie)).statusCode).toBe(403)
-    expect((await patchClient(app, 'c2', cookie)).statusCode).toBe(403) // c2 belongs to a2
+    expect((await patchClient(app, 'c2', cookie)).statusCode).toBe(404) // c2 belongs to a2
     expect((await deleteProject(app, 'a2', 'p2', cookie)).statusCode).toBe(403)
     expect((await batchInto(app, 'a2', 'x3', cookie)).statusCode).toBe(403)
     expect((await importInto(app, 'a2', 'x4', cookie)).statusCode).toBe(403)
@@ -218,6 +242,107 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await importInto(app, 'a1', 'ec4', cookie)).statusCode).toBe(403)
   })
 
+  it.each([
+    ['direct PUT', false],
+    ['atomic batch', true],
+  ] as const)(
+    'requires admin authority to replace the generated Internal client through %s',
+    async (_path, batched) => {
+      const { app, db } = await appWithAuth()
+      insertAll(db, {
+        ...emptyAppData(),
+        accounts: [account('a1')],
+        clients: [buildInternalClient('a1', TS)],
+        projects: [project('internal-project', 'a1', 'internal:a1')],
+      })
+      const editor = await signUp(app, `internal-editor-${batched}@capacitylens.dev`)
+      upsertMember(db, {
+        accountId: 'a1',
+        userId: editor.userId,
+        role: 'editor',
+        status: 'active',
+        createdAt: TS,
+      })
+
+      expect((await replaceGeneratedInternal(app, editor.cookie, batched)).statusCode).toBe(403)
+      expect(getRow(db, 'clients', 'internal:a1')?.builtin).toBe(true)
+      expect(getRow(db, 'clients', 'legacy-internal')).toBeUndefined()
+      expect(getRow(db, 'projects', 'internal-project')?.clientId).toBe('internal:a1')
+
+      const admin = await signUp(app, `internal-admin-${batched}@capacitylens.dev`)
+      upsertMember(db, {
+        accountId: 'a1',
+        userId: admin.userId,
+        role: 'admin',
+        status: 'active',
+        createdAt: TS,
+      })
+
+      db.prepare('UPDATE session SET createdAt = ? WHERE userId = ?')
+        .run(new Date(Date.now() - 16 * 60 * 1000).toISOString(), admin.userId)
+      const stale = await replaceGeneratedInternal(app, admin.cookie, batched)
+      expect(stale.statusCode).toBe(403)
+      expect(stale.json()).toMatchObject({ code: 'SESSION_NOT_FRESH' })
+      expect(getRow(db, 'clients', 'internal:a1')?.builtin).toBe(true)
+      expect(getRow(db, 'clients', 'legacy-internal')).toBeUndefined()
+
+      db.prepare('UPDATE session SET createdAt = ? WHERE userId = ?')
+        .run(new Date().toISOString(), admin.userId)
+      expect((await replaceGeneratedInternal(app, admin.cookie, batched)).statusCode).toBe(200)
+      expect(getRow(db, 'clients', 'internal:a1')).toBeUndefined()
+      expect(getRow(db, 'clients', 'legacy-internal')?.builtin).toBe(true)
+      expect(getRow(db, 'projects', 'internal-project')?.clientId).toBe('legacy-internal')
+    },
+  )
+
+  it('resolves one membership role per account/action in each batch authorization pass', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, 'batch-role-cache@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+
+    let membershipRoleReads = 0
+    db.setAuthorizer((actionCode, tableName, columnName) => {
+      if (
+        actionCode === sqliteConstants.SQLITE_READ &&
+        tableName === 'account_members' &&
+        columnName === 'role'
+      ) {
+        membershipRoleReads += 1
+      }
+      return sqliteConstants.SQLITE_OK
+    })
+
+    try {
+      const res = await call(app, {
+        method: 'POST',
+        url: '/api/batch',
+        payload: {
+          ops: Array.from({ length: 25 }, (_, index) => ({
+            method: 'PUT',
+            table: 'activities',
+            id: `batch-activity-${index}`,
+            row: {
+              id: `batch-activity-${index}`,
+              accountId: 'a1',
+              name: `Batch activity ${index}`,
+              kind: 'repeatable',
+              ...meta(),
+            },
+          })),
+        },
+        headers: { cookie },
+      })
+
+      expect(res.statusCode).toBe(200)
+    } finally {
+      db.setAuthorizer(null)
+    }
+
+    // The two reads are deliberately independent: one before lock acquisition and one after it.
+    expect(membershipRoleReads).toBe(2)
+  })
+
   it.each(['admin', 'owner'] as const)('%s of a1: row writes succeed; only owner may import', async (role) => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
@@ -252,6 +377,153 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     // …and /api/orgs DOES let the same user bootstrap their first company (201 + owner membership).
     const orgs = await call(app, { method: 'POST', url: '/api/orgs', payload: account('newAcct'), headers: { cookie } })
     expect(orgs.statusCode).toBe(201)
+  })
+})
+
+describe('scoped generic writes conceal foreign row existence', () => {
+  const foreignIds = {
+    disciplines: 'd-loft-design',
+    resources: 'r-jo',
+    clients: 'c-internal-loft',
+    projects: 'p-loft-app',
+    phases: 'ph-loft',
+    activities: 't-loft-screens',
+    allocations: 'a-jo-1',
+    timeOff: 'to-loft',
+  } as const
+
+  type ScopedEntity = keyof typeof foreignIds
+  const scopedEntities = Object.keys(foreignIds) as ScopedEntity[]
+
+  function seedOracleRows(db: Db): void {
+    const data = seed()
+    data.phases.push({
+      id: foreignIds.phases,
+      accountId: 'a-loft',
+      name: 'Loft discovery',
+      projectId: 'p-loft-app',
+      ...meta(),
+    })
+    data.timeOff.push({
+      id: foreignIds.timeOff,
+      accountId: 'a-loft',
+      resourceId: 'r-jo',
+      startDate: '2026-06-08',
+      endDate: '2026-06-09',
+      type: 'holiday',
+      ...meta(),
+    })
+    insertAll(db, data)
+  }
+
+  const responseShape = (response: LightMyRequestResponse) => ({
+    statusCode: response.statusCode,
+    body: response.body,
+  })
+
+  const patch = (app: FastifyInstance, entity: ScopedEntity, id: string, cookie: string) =>
+    call(app, {
+      method: 'PATCH',
+      url: `/api/${entity}/${id}`,
+      payload: { updatedAt: TS },
+      headers: { cookie },
+    })
+
+  const put = (
+    app: FastifyInstance,
+    db: Db,
+    entity: ScopedEntity,
+    sourceId: string,
+    id: string,
+    cookie: string,
+  ) => call(app, {
+    method: 'PUT',
+    url: `/api/${entity}/${id}`,
+    payload: { ...getRow(db, entity, sourceId), id, accountId: 'a-studio' },
+    headers: { cookie },
+  })
+
+  const remove = (app: FastifyInstance, entity: ScopedEntity, id: string, cookie: string) =>
+    call(app, {
+      method: 'DELETE',
+      url: `/api/${entity}/${id}?accountId=a-studio`,
+      headers: { cookie },
+    })
+
+  it('gives a membership-less principal byte-identical absent/foreign responses for every scoped verb and entity', async () => {
+    const { app, db } = await appWithAuth()
+    seedOracleRows(db)
+    const { cookie } = await signUp(app, 'row-oracle-stranger@capacitylens.dev')
+
+    for (const entity of scopedEntities) {
+      const foreignId = foreignIds[entity]
+      const absentId = `absent-${entity}`
+      expect(
+        responseShape(await patch(app, entity, foreignId, cookie)),
+        `PATCH ${entity}`,
+      ).toEqual(responseShape(await patch(app, entity, absentId, cookie)))
+      expect(
+        responseShape(await put(app, db, entity, foreignId, foreignId, cookie)),
+        `PUT ${entity}`,
+      ).toEqual(responseShape(await put(app, db, entity, foreignId, absentId, cookie)))
+      expect(
+        responseShape(await remove(app, entity, foreignId, cookie)),
+        `DELETE ${entity}`,
+      ).toEqual(responseShape(await remove(app, entity, absentId, cookie)))
+    }
+  })
+
+  it('conceals a foreign account whose built-in client has its deterministic account-derived id', async () => {
+    const { app, db } = await appWithAuth()
+    const accountId = 'derived-account'
+    insertAll(db, {
+      ...emptyAppData(),
+      accounts: [account(accountId)],
+      clients: [buildInternalClient(accountId, TS)],
+    })
+    const { cookie } = await signUp(app, 'derived-internal-oracle@capacitylens.dev')
+    const existingId = `internal:${accountId}`
+    const absentId = 'internal:absent-account'
+
+    expect(responseShape(await patch(app, 'clients', existingId, cookie)))
+      .toEqual(responseShape(await patch(app, 'clients', absentId, cookie)))
+    expect(responseShape(await call(app, {
+      method: 'PUT',
+      url: `/api/clients/${existingId}`,
+      payload: client(existingId, accountId),
+      headers: { cookie },
+    }))).toEqual(responseShape(await call(app, {
+      method: 'PUT',
+      url: `/api/clients/${absentId}`,
+      payload: client(absentId, accountId),
+      headers: { cookie },
+    })))
+  })
+
+  it('gives a member byte-identical absent/foreign PATCH and DELETE responses across every scoped entity', async () => {
+    const { app, db } = await appWithAuth()
+    seedOracleRows(db)
+    const { cookie, userId } = await signUp(app, 'row-oracle-member@capacitylens.dev')
+    upsertMember(db, {
+      accountId: 'a-studio',
+      userId,
+      role: 'editor',
+      status: 'active',
+      createdAt: TS,
+    })
+
+    for (const entity of scopedEntities) {
+      const foreignId = foreignIds[entity]
+      const absentId = `absent-${entity}`
+      expect(
+        responseShape(await patch(app, entity, foreignId, cookie)),
+        `PATCH ${entity}`,
+      ).toEqual(responseShape(await patch(app, entity, absentId, cookie)))
+      expect(
+        responseShape(await remove(app, entity, foreignId, cookie)),
+        `DELETE ${entity}`,
+      ).toEqual(responseShape(await remove(app, entity, absentId, cookie)))
+    }
   })
 })
 
@@ -436,12 +708,12 @@ describe('P1.6 time-off note preservation on WRITE — a note-blind writer canno
   })
 })
 
-describe('P1.5 authorize — account hard-delete is owner-only, both vectors gated', () => {
+describe('P1.5 authorize — account hard-delete is owner-only and dedicated-route-only', () => {
   // Account hard-delete CASCADES (FK ON DELETE CASCADE wipes all the account's scoped data), so in
-  // auth-on it must NOT be reachable by an arbitrary signed-in user. Two vectors: the direct
-  // DELETE /api/accounts/:id route, and a POST /api/batch op {method:'DELETE',table:'accounts',id}
-  // (the client's real delete-company path). Both gate the dedicated owner-only `deleteAccount`
-  // capability against the account's OWN id; admin-tier record purge remains a separate action.
+  // auth-on it must NOT be reachable by an arbitrary signed-in user. Only the direct
+  // DELETE /api/accounts/:id route may invoke it; generic sync rejects account DELETE operations
+  // before authorization. The route gates the owner-only `deleteAccount` capability against the
+  // account's own id; admin-tier record purge remains a separate action.
 
   const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
     call(app, { method: 'DELETE', url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} })
@@ -460,7 +732,7 @@ describe('P1.5 authorize — account hard-delete is owner-only, both vectors gat
     return res.statusCode === 200 && Array.isArray(res.json().accounts) && res.json().accounts.length === 1
   }
 
-  it('non-member: direct DELETE /api/accounts/a1 → 403, and batch accounts-DELETE → 403; a1 survives', async () => {
+  it('non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie } = await signUp(app, 'stranger-del@capacitylens.dev') // NO membership
@@ -471,12 +743,12 @@ describe('P1.5 authorize — account hard-delete is owner-only, both vectors gat
     expect((await deleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
     expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
 
-    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(400)
     // Pre-scan rejected the batch before the tx opened — a1 left wholly intact.
     expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
   })
 
-  it.each(['viewer', 'editor', 'admin'] as const)('%s of a1: both account-delete vectors → 403 (owner-only)', async (role) => {
+  it.each(['viewer', 'editor', 'admin'] as const)('%s of a1: route is 403 and generic batch DELETE is 400', async (role) => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie, userId } = await signUp(app, `${role}-del@capacitylens.dev`)
@@ -486,7 +758,7 @@ describe('P1.5 authorize — account hard-delete is owner-only, both vectors gat
     upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
 
     expect((await deleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
-    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(400)
     expect(await accountExists(app, 'a1', owner.cookie)).toBe(true)
   })
 
@@ -507,20 +779,18 @@ describe('P1.5 authorize — account hard-delete is owner-only, both vectors gat
     expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0)
   })
 
-  it('owner of an account: batch accounts-DELETE op → 200 (account gone)', async () => {
+  it('owner of an account: generic batch DELETE is rejected without erasing account or identity', async () => {
     const { app, db } = await appWithAuth()
     insertAll(db, { ...emptyAppData(), accounts: [account('purgeBatch')] } as unknown as AppData)
     const { cookie, userId } = await signUp(app, 'owner-delete-batch@capacitylens.dev')
     upsertMember(db, { accountId: 'purgeBatch', userId, role: 'owner', status: 'active', createdAt: TS })
 
     const res = await batchDeleteAccount(app, 'purgeBatch', cookie)
-    expect(res.statusCode).toBe(200)
-    // P2.6b: the batch accounts-DELETE is the SAME tenant erasure as the direct route — the sole
-    // member's session is killed, so a read-back as them no longer authenticates. Assert "account gone"
-    // on observable DB state directly (the erasure is fully exercised by app.erasure.test.ts).
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeBatch'`).get() as { n: number }).n).toBe(0)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeBatch'`).get() as { n: number }).n).toBe(0)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0)
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'Use the dedicated company deletion endpoint.' })
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeBatch'`).get() as { n: number }).n).toBe(1)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeBatch'`).get() as { n: number }).n).toBe(1)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(1)
   })
 })
 
@@ -881,22 +1151,24 @@ describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)',
     expect((await importInto(app, 'a2', 'off5')).statusCode).toBe(200)
   })
 
-  it('account hard-delete still works (no-op gate): direct DELETE + batch accounts-DELETE → 2xx', async () => {
-    // Pins the default deploy can still delete companies — the 'purge' gate short-circuits to allow
-    // in OFF, so neither vector is blocked by the new auth-on guard.
+  it('account hard-delete uses only the dedicated endpoint in trusted-local mode', async () => {
+    // The default deploy can still delete companies through the coordinated erasure route, while
+    // a generic sync diff can never become a tenant-erasure command.
     const app = offApp()
     // Direct route: DELETE /api/accounts/a1 (no cookie, no membership) → 204.
     const direct = await call(app, { method: 'DELETE', url: '/api/accounts/a1' })
     expect(direct.statusCode).toBe(204)
     // The trusted-local contract remains idempotent after the coordinator extraction.
     expect((await call(app, { method: 'DELETE', url: '/api/accounts/a1' })).statusCode).toBe(204)
-    // Batch op: {method:'DELETE',table:'accounts',id:'a2'} → 200.
+    // Batch op: {method:'DELETE',table:'accounts',id:'a2'} is rejected and leaves a2 intact.
     const batch = await call(app, {
       method: 'POST',
       url: '/api/batch',
       payload: { ops: [{ method: 'DELETE', table: 'accounts', id: 'a2' }] },
     })
-    expect(batch.statusCode).toBe(200)
+    expect(batch.statusCode).toBe(400)
+    expect(batch.json()).toEqual({ error: 'Use the dedicated company deletion endpoint.' })
+    expect((await getState(app, 'a2')).statusCode).toBe(200)
   })
 })
 

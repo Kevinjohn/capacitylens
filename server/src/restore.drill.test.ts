@@ -1,10 +1,33 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect } from 'vitest'
+import { DatabaseSync } from 'node:sqlite'
 import { mkdtempSync, writeFileSync, copyFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { startBackups } from './backup'
-import { openDb, loadState, insertAll } from './db'
+import { openDb as openDbRaw, loadState, insertAll } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
+
+const temporaryDirectories = new Set<string>()
+const openDatabases = new Set<DatabaseSync>()
+const openDb = (...args: Parameters<typeof openDbRaw>) => {
+  const db = openDbRaw(...args)
+  openDatabases.add(db)
+  return db
+}
+const tempDir = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'capacitylens-restore-drill-'))
+  temporaryDirectories.add(dir)
+  return dir
+}
+
+afterEach(() => {
+  for (const db of openDatabases) {
+    if (db.isOpen) db.close()
+  }
+  openDatabases.clear()
+  for (const dir of temporaryDirectories) rmSync(dir, { recursive: true, force: true })
+  temporaryDirectories.clear()
+})
 
 // P3.3 — the RESTORE DRILL, codified. A backup that has never been restored is a hope, not a
 // backup: this exercises the WHOLE recovery path end to end so the restore SEQUENCE itself is
@@ -29,7 +52,7 @@ function tickingClock(start = new Date('2026-06-13T00:00:00')) {
 
 describe('P3.3 restore drill', () => {
   it('backup → simulate loss → restore from snapshot recovers seeded data and discards the post-snapshot edit', async () => {
-    const work = mkdtempSync(join(tmpdir(), 'capacitylens-restore-drill-'))
+    const work = tempDir()
     const livePath = join(work, 'capacitylens.db')
     const backupsDir = join(work, 'backups')
 
@@ -74,8 +97,12 @@ describe('P3.3 restore drill', () => {
     //    RPO behaviour, i.e. the live file was genuinely replaced by the snapshot.
     const restored = openDb(livePath)
     const names = loadState(restored).accounts.map((a) => a.name)
+    const quickCheck = restored.prepare('PRAGMA quick_check').all()
+    const foreignKeyViolations = restored.prepare('PRAGMA foreign_key_check').all()
     restored.close() // on-disk handle — close it to be tidy (unlike the :memory: handles in backup.test.ts)
     expect(names).toContain('Studio North')
     expect(names).not.toContain('POST-SNAPSHOT-EDIT')
+    expect(quickCheck).toEqual([{ quick_check: 'ok' }])
+    expect(foreignKeyViolations).toEqual([])
   })
 })

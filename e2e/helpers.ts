@@ -67,14 +67,6 @@ export async function selectShadOption(
   }
 }
 
-// KNOWN HARNESS GAP (deliberate, low priority): the suite has no global `page.on('pageerror')` /
-// `console.error` gate, so a route that throws but still renders the element a spec asserts on could
-// pass silently. Most specs assert specific post-navigation content and Vite forwards browser
-// errors to the runner, so hard crashes are already visible. Closing the remaining narrow gap needs
-// a shared `test.extend` fixture (all spec files currently import directly from Playwright), which is
-// broader churn than this helper warrants. Do not allowlist WebKit module-import failures: they can
-// reveal a real test race, such as navigating away before a lazy route has finished loading.
-
 /** Click through the once-per-device "What CapacityLens is" intro page if this load shows it
  *  (`capacitylens/introSeen` — skipped once dismissed). Waits for the intro's Continue button OR
  *  `landedOn`, whichever renders first, and clicks Continue only when the intro is up, so neither

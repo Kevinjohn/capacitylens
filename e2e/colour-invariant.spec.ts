@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from '@playwright/test'
+import { test, expect, type Locator } from './fixtures'
 import { openApp } from './helpers'
 
 // The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be

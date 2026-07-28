@@ -26,7 +26,9 @@ describe('SettingsView — company name', () => {
     await user.type(input, 'Renamed Co')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
+    const account = useStore
+      .getState()
+      .data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
     expect(account?.name).toBe('Renamed Co')
     expect(useStore.getState().notice?.message).toMatch(/updated/i)
   })
@@ -74,7 +76,9 @@ describe('SettingsView — scheduling mode', () => {
 
     await user.click(days)
 
-    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
+    const account = useStore
+      .getState()
+      .data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
     expect(account?.schedulingMode).toBe('days')
     expect(days).toHaveAttribute('aria-checked', 'true')
   })
@@ -88,7 +92,9 @@ describe('SettingsView — scheduling mode', () => {
 
     await user.click(blocks)
 
-    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
+    const account = useStore
+      .getState()
+      .data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
     expect(account?.schedulingMode).toBe('blocks')
     expect(blocks).toHaveAttribute('aria-checked', 'true')
   })
@@ -106,7 +112,9 @@ describe('SettingsView — Internal work colours', () => {
 
     await user.click(palette)
 
-    const account = useStore.getState().data.accounts.find((candidate) => candidate.id === DEFAULT_ACCOUNT_ID)
+    const account = useStore
+      .getState()
+      .data.accounts.find((candidate) => candidate.id === DEFAULT_ACCOUNT_ID)
     expect(account?.internalColourMode).toBe('palette')
     expect(palette).toHaveAttribute('aria-checked', 'true')
   })
@@ -137,7 +145,7 @@ describe('SettingsView — build stamp', () => {
   // Server is the default mode now (no demo flag), so the stamp reads `· server`.
   afterEach(() => vi.unstubAllEnvs())
 
-  it('renders nothing when VITE_CAPACITYLENS_BUILD_SHA is unset (today\'s Settings)', () => {
+  it("renders nothing when VITE_CAPACITYLENS_BUILD_SHA is unset (today's Settings)", () => {
     render(<SettingsView />)
     expect(screen.queryByTestId('build-stamp')).not.toBeInTheDocument()
   })
@@ -145,7 +153,9 @@ describe('SettingsView — build stamp', () => {
   it('renders the muted footer when the build is stamped', () => {
     vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d')
     render(<SettingsView />)
-    expect(screen.getByTestId('build-stamp')).toHaveTextContent('build a1b2c3d · server')
+    expect(screen.getByTestId('build-stamp')).toHaveTextContent(
+      'build a1b2c3d · server',
+    )
   })
 
   it('renders no Send feedback link by default, and a stamped mailto when configured', () => {
@@ -166,10 +176,14 @@ describe('SettingsView — build stamp', () => {
 })
 
 describe('SettingsView — Account section (auth)', () => {
-  it('renders no Account section by default (auth off / demo build — today\'s Settings)', () => {
+  it("renders no Account section by default (auth off / demo build — today's Settings)", () => {
     render(<SettingsView />)
-    expect(screen.queryByRole('heading', { name: 'Account' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Account' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Sign out' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows who is signed in plus Sign out when the server reports an auth mode', async () => {
@@ -190,7 +204,9 @@ describe('SettingsView — Account section (auth)', () => {
       </AuthContext.Provider>,
     )
     expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument()
-    expect(screen.getByText(/Signed in as tester@capacitylens\.dev/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Signed in as tester@capacitylens\.dev/),
+    ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(signOut).toHaveBeenCalled()
   })
@@ -212,6 +228,70 @@ describe('SettingsView — Schedule (minimise weekends)', () => {
     await user.click(sw)
     expect(useStore.getState().minimiseWeekends).toBe(true)
     expect(sw).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
+describe('SettingsView — account toggle wiring', () => {
+  it.each([
+    ['Use disciplines', 'disciplinesEnabled'],
+    ['Show placeholders', 'placeholdersEnabled'],
+    ['Show external resources', 'externalEnabled'],
+    ['Show internal projects', 'showInternalProjects'],
+    ['Show internal activities', 'showInternalActivities'],
+    ['Inline activity creation', 'inlineActivityCreateEnabled'],
+  ] as const)('wires %s to account.%s', async (label, key) => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+    const before = useStore
+      .getState()
+      .data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key]
+
+    await user.click(screen.getByRole('switch', { name: label }))
+
+    const after = useStore
+      .getState()
+      .data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key]
+    expect(after).toBe(
+      !(
+        before ??
+        (key === 'disciplinesEnabled' ||
+          key.startsWith('showInternal') ||
+          key === 'inlineActivityCreateEnabled')
+      ),
+    )
+  })
+})
+
+describe('SettingsView — device preference toggle wiring', () => {
+  it('wires Snap to week start to its own preference', async () => {
+    const user = userEvent.setup()
+    const before = useStore.getState().snapToWeekStart
+    render(<SettingsView />)
+    await user.click(screen.getByRole('switch', { name: 'Snap to week start' }))
+    expect(useStore.getState().snapToWeekStart).toBe(!before)
+  })
+
+  it.each([
+    ['Show client name', 'showClient'],
+    ['Show project name', 'showProject'],
+  ] as const)('wires %s to barLabelPrefs.%s', async (label, key) => {
+    const user = userEvent.setup()
+    const before = useStore.getState().barLabelPrefs[key]
+    render(<SettingsView />)
+    await user.click(screen.getByRole('switch', { name: label }))
+    expect(useStore.getState().barLabelPrefs[key]).toBe(!before)
+  })
+
+  it.each([
+    ['Show Total Utilisation', 'showTotal'],
+    ['Show Discipline Utilisation', 'showDiscipline'],
+    ['Show Personal Utilisation', 'showPersonal'],
+  ] as const)('wires %s to utilizationPrefs.%s', async (label, key) => {
+    const user = userEvent.setup()
+    const before = useStore.getState().utilizationPrefs[key]
+    render(<SettingsView />)
+    await user.click(screen.getByRole('switch', { name: label }))
+    expect(useStore.getState().utilizationPrefs[key]).toBe(!before)
   })
 })
 
@@ -242,7 +322,10 @@ describe('SettingsView — Clear local storage', () => {
   })
 
   afterEach(() => {
-    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: realLocation,
+    })
     localStorage.clear()
   })
 
@@ -285,7 +368,11 @@ describe('SettingsView — Clear local storage', () => {
 
     await user.click(screen.getByTestId('clear-local-storage'))
     // Scope to the alert dialog — the section button and confirm action share the label.
-    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Clear device data' }))
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'Clear device data',
+      }),
+    )
 
     expect(localStorage.getItem('capacitylens/offlineRead')).toBeNull()
     expect(localStorage.getItem('capacitylens/theme')).toBeNull()
@@ -297,9 +384,16 @@ describe('SettingsView — Clear local storage', () => {
 describe('SettingsView — Calendar section (frozen after creation, P1.14)', () => {
   it('still shows the chosen week-start / timezone, plus a frozen Language row', () => {
     render(<SettingsView />)
-    expect(screen.getByRole('radiogroup', { name: 'Week starts on' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('combobox', { name: 'Timezone' })).toHaveTextContent('GMT')
+    expect(
+      screen.getByRole('radiogroup', { name: 'Week starts on' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(
+      screen.getByRole('combobox', { name: 'Timezone' }),
+    ).toHaveTextContent('GMT')
     expect(screen.getByTestId('settings-language')).toHaveTextContent('English')
   })
 
@@ -309,7 +403,11 @@ describe('SettingsView — Calendar section (frozen after creation, P1.14)', () 
     expect(screen.getByRole('radio', { name: 'Sunday' })).toBeDisabled()
     expect(screen.getByLabelText('Timezone')).toBeDisabled()
     // An explainer states why they can't change.
-    expect(screen.getByText(/Set when the company was created and can't be changed/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Set when the company was created and can't be changed/i,
+      ),
+    ).toBeInTheDocument()
   })
 
   it('clicking a disabled week-start segment does NOT mutate the account', async () => {

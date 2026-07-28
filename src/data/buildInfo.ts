@@ -6,6 +6,7 @@
 
 import { isServerConfigured } from './apiConfig'
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { isAccountEmail } from '@capacitylens/shared/account/validation'
 
 /** The muted Settings footer line, e.g. `build a1b2c3d · server`, or null when the build
  *  carries no sha (render nothing — today's Settings exactly). */
@@ -20,8 +21,10 @@ export function buildStamp(): string | null {
  *  stamp when there is one, so tester reports arrive pinned to a build. */
 export function feedbackMailto(): string | null {
   const addr = (import.meta.env.VITE_CAPACITYLENS_FEEDBACK_MAILTO ?? '').trim()
-  if (!addr) return null
+  if (!isAccountEmail(addr)) return null
+  const at = addr.indexOf('@')
+  const recipient = `${encodeURIComponent(addr.slice(0, at))}@${encodeURIComponent(addr.slice(at + 1))}`
   const stamp = buildStamp()
   const subject = stamp ? `${APP_NAME} feedback — ${stamp}` : `${APP_NAME} feedback`
-  return `mailto:${addr}?subject=${encodeURIComponent(subject)}`
+  return `mailto:${recipient}?subject=${encodeURIComponent(subject)}`
 }

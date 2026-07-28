@@ -16,12 +16,19 @@ export interface DaysModeOpts {
   ignoreWeekends?: boolean
 }
 
-/** Upper bound for a (days-over) span. ~100 years — far beyond any real allocation, but
- *  low enough that the derived end date can never overflow the 4-digit-year range that
- *  `parseDate`/date-fns can round-trip (a 5-digit year throws `RangeError` in `format`).
- *  Capping the SPAN at its one domain function protects every consumer (the modal hint,
- *  submit, drag) at once. */
+/** Upper bound for a (days-over) span. ~100 working/calendar years — far beyond any real
+ * allocation. endDateForSpan also clamps this against the days remaining in the four-digit ISO
+ * date domain because the fixed cap alone cannot protect a start close to 9999-12-31. */
 export const MAX_SPAN_DAYS = 36500
+const MAX_ISO_DATE: ISODate = '9999-12-31'
+
+/** Maximum days-over value that can be derived from this start without leaving YYYY-MM-DD. */
+export function maxSpanDaysForStart(start: ISODate, opts: DaysModeOpts): number {
+  if (isWeekendAware(opts.workingDays, opts.ignoreWeekends)) {
+    return countWorkingDays(start, MAX_ISO_DATE, opts.workingDays!)
+  }
+  return daysInclusive(start, MAX_ISO_DATE)
+}
 
 /** The "days over" span of [start, end]: working days when weekend-aware, else
  *  inclusive calendar days. Always >= 1 for a non-reversed range. */
@@ -36,13 +43,17 @@ export function spanDays(start: ISODate, end: ISODate, opts: DaysModeOpts): numb
  *  `daysOver` days under the same working-day rule. Interactive callers validate a whole-number
  *  domain value first; the clamp remains a defensive boundary for imported/programmatic input. */
 export function endDateForSpan(start: ISODate, daysOver: number, opts: DaysModeOpts): ISODate {
-  // Clamp to [1, MAX_SPAN_DAYS]: a NaN/huge daysOver would otherwise derive a date past the
-  // 4-digit-year range and make the consumer's format() throw a RangeError mid-render.
+  // Clamp first to the product span, then to the days actually available before 9999-12-31. A
+  // partial working week may expand 36,500 work days across far more calendar days, so the second
+  // bound must use the same weekend-awareness as the derivation.
   const n = Math.min(Math.max(1, Math.round(daysOver) || 1), MAX_SPAN_DAYS)
+  const available = maxSpanDaysForStart(start, opts)
+  if (available < 1) return MAX_ISO_DATE
+  const safeCount = Math.min(n, available)
   if (isWeekendAware(opts.workingDays, opts.ignoreWeekends)) {
-    return endDateForWorkingDays(start, n, opts.workingDays!)
+    return endDateForWorkingDays(start, safeCount, opts.workingDays!)
   }
-  return addDaysISO(start, n - 1)
+  return addDaysISO(start, safeCount - 1)
 }
 
 /** Hours/day needed to fit `daysOfWork` of effort into a `daysOver` span. */

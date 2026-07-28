@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
+import { parseISOTimestamp } from '@capacitylens/shared/lib/integrity'
 import { revokeResetTokensForUser } from './auth'
 import { bumpSecurityRevision } from './accounts/state'
 import type { Db } from './db'
@@ -186,59 +187,109 @@ export function ensureControlTables(db: Db): void {
  * AppData/TABLES, so schema.ts cannot cover them; without this companion assertion a missed future
  * control-table migration would otherwise surface only when an account or invite route is used. */
 export function assertControlTablesCurrent(db: Db): void {
-  const expectedColumns: Record<string, Record<string, boolean>> = {
+  const expectedColumns: Record<string, Record<string, { notNull: boolean; primaryKey: number }>> = {
     account_members: {
-      accountId: true,
-      userId: true,
-      role: true,
-      status: true,
-      createdAt: true,
+      accountId: { notNull: true, primaryKey: 1 },
+      userId: { notNull: true, primaryKey: 2 },
+      role: { notNull: true, primaryKey: 0 },
+      status: { notNull: true, primaryKey: 0 },
+      createdAt: { notNull: true, primaryKey: 0 },
     },
     invites: {
-      tokenHash: true,
-      id: true,
-      accountId: true,
-      role: true,
-      preauthEmail: false,
-      expiresAt: true,
-      usedAt: false,
-      createdAt: true,
+      tokenHash: { notNull: true, primaryKey: 1 },
+      id: { notNull: true, primaryKey: 0 },
+      accountId: { notNull: true, primaryKey: 0 },
+      role: { notNull: true, primaryKey: 0 },
+      preauthEmail: { notNull: false, primaryKey: 0 },
+      expiresAt: { notNull: true, primaryKey: 0 },
+      usedAt: { notNull: false, primaryKey: 0 },
+      createdAt: { notNull: true, primaryKey: 0 },
     },
   }
   const problems: string[] = []
   for (const [table, expected] of Object.entries(expectedColumns)) {
-    const live = new Map(
-      (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string; notnull: number }>).map(
-        (column) => [column.name, column.notnull === 1],
-      ),
-    )
-    for (const [name, required] of Object.entries(expected)) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+      name: string
+      notnull: number
+      pk: number
+      type: string
+    }>
+    const live = new Map(columns.map((column) => [column.name, column]))
+    for (const [name, definition] of Object.entries(expected)) {
       if (!live.has(name)) problems.push(`missing ${table}.${name}`)
-      else if (live.get(name) !== required) {
-        problems.push(`${table}.${name} is ${live.get(name) ? 'NOT NULL' : 'nullable'} (expected ${required ? 'NOT NULL' : 'nullable'})`)
+      else {
+        const column = live.get(name)!
+        if ((column.notnull === 1) !== definition.notNull) {
+          problems.push(`${table}.${name} is ${column.notnull === 1 ? 'NOT NULL' : 'nullable'} (expected ${definition.notNull ? 'NOT NULL' : 'nullable'})`)
+        }
+        if (column.type.toUpperCase() !== 'TEXT') {
+          problems.push(`${table}.${name} declared type is ${column.type || '(empty)'} (expected TEXT)`)
+        }
       }
+    }
+    const actualPrimaryKey = columns
+      .filter((column) => column.pk > 0)
+      .sort((left, right) => left.pk - right.pk)
+      .map((column) => column.name)
+    const expectedPrimaryKey = Object.entries(expected)
+      .filter(([, definition]) => definition.primaryKey > 0)
+      .sort((left, right) => left[1].primaryKey - right[1].primaryKey)
+      .map(([name]) => name)
+    if (actualPrimaryKey.join(',') !== expectedPrimaryKey.join(',')) {
+      problems.push(
+        `${table} primary-key mismatch: got (${actualPrimaryKey.join(', ')}), expected (${expectedPrimaryKey.join(', ')})`,
+      )
     }
   }
 
-  const expectedIndexes: Record<string, Record<string, boolean>> = {
+  const expectedIndexes: Record<string, Record<string, { unique: boolean; columns: string[] }>> = {
     account_members: {
-      idx_account_members_userId: false,
-      idx_account_members_accountId: false,
+      idx_account_members_userId: { unique: false, columns: ['userId'] },
+      idx_account_members_accountId: { unique: false, columns: ['accountId'] },
     },
     invites: {
-      idx_invites_id: true,
-      idx_invites_accountId: false,
+      idx_invites_id: { unique: true, columns: ['id'] },
+      idx_invites_accountId: { unique: false, columns: ['accountId'] },
     },
   }
   for (const [table, expected] of Object.entries(expectedIndexes)) {
     const live = new Map(
-      (db.prepare(`PRAGMA index_list(${table})`).all() as Array<{ name: string; unique: number }>).map(
-        (index) => [index.name, index.unique === 1],
+      (db.prepare(`PRAGMA index_list(${table})`).all() as Array<{
+        name: string
+        unique: number
+        origin: string
+        partial: number
+      }>).map(
+        (index) => [index.name, index],
       ),
     )
-    for (const [name, unique] of Object.entries(expected)) {
+    for (const [name, definition] of Object.entries(expected)) {
       if (!live.has(name)) problems.push(`missing index ${name}`)
-      else if (live.get(name) !== unique) problems.push(`index ${name} uniqueness mismatch`)
+      else {
+        const index = live.get(name)!
+        if (
+          (index.unique === 1) !== definition.unique ||
+          index.origin !== 'c' ||
+          index.partial !== 0
+        ) {
+          problems.push(`index ${name} metadata mismatch`)
+        }
+        const keys = (db.prepare(`PRAGMA index_xinfo("${name}")`).all() as Array<{
+          name: string | null
+          desc: number
+          coll: string
+          key: number
+        }>).filter((column) => column.key === 1)
+        if (
+          keys.length !== definition.columns.length ||
+          keys.some((column, index) =>
+            column.name !== definition.columns[index] ||
+            column.desc !== 0 ||
+            column.coll !== 'BINARY')
+        ) {
+          problems.push(`index ${name} does not cover exactly ${table}(${definition.columns.join(', ')})`)
+        }
+      }
     }
   }
 
@@ -530,6 +581,19 @@ function reportOwnerlessPromotion(accountId: string, userId: string, promotedFro
   }
 }
 
+export interface OwnerlessPromotionV11 {
+  accountId: string
+  userId: string
+  promotedFrom: Role
+}
+
+/** Emit v11's security outcomes only after the migration runner has committed their writes. */
+export function reportOwnerlessPromotionsV11(promotions: readonly OwnerlessPromotionV11[]): void {
+  for (const promotion of promotions) {
+    reportOwnerlessPromotion(promotion.accountId, promotion.userId, promotion.promotedFrom)
+  }
+}
+
 /**
  * Migration v11 completes the exactly-one-Owner rule for databases that had active members but no
  * Owner. The single HIGHEST-role-tier active member is promoted (`owner > admin > editor > viewer`),
@@ -544,7 +608,7 @@ function reportOwnerlessPromotion(accountId: string, userId: string, promotedFro
  * exists. The single-Owner invariant (assertSingleOwnerControlPlaneCurrent) requires exactly one
  * active Owner per member-bearing account, so an ownerless account CANNOT simply be left un-promoted —
  * that would brick startup. The last-resort viewer promotion (an account of viewers only) is therefore
- * retained but made LOUD (see {@link reportOwnerlessPromotion}) rather than refused. This was chosen
+ * retained but made LOUD (see {@link reportOwnerlessPromotionsV11}) rather than refused. This was chosen
  * over refuse-and-halt precisely to avoid bricking upgrades; revisit if a safer path (e.g. an operator
  * repair step) becomes available.
  *
@@ -553,8 +617,8 @@ function reportOwnerlessPromotion(accountId: string, userId: string, promotedFro
  * afterwards (that ordering is asserted by controlTables.test.ts). IDEMPOTENT: once every account has
  * an Owner there is nothing left to promote, so a second run is a no-op.
  */
-export function migrateOwnerlessControlPlaneV11(db: Db): void {
-  tx(db, () => {
+export function migrateOwnerlessControlPlaneV11(db: Db): OwnerlessPromotionV11[] {
+  return tx(db, () => {
     // One promotion target per ownerless account: the active member no OTHER active member outranks,
     // where "outranks" = strictly higher role tier, OR the same tier but an earlier membership. This
     // extends the previous earliest-membership NOT EXISTS with the tier comparison, so exactly one row
@@ -591,6 +655,7 @@ export function migrateOwnerlessControlPlaneV11(db: Db): void {
     const promote = db.prepare(
       `UPDATE account_members SET role = 'owner' WHERE accountId = ? AND userId = ? AND status = 'active'`,
     )
+    const promotions: OwnerlessPromotionV11[] = []
     for (const target of targets) {
       promote.run(target.accountId, target.userId)
       // A stored role that is not a known Role is control-table corruption (every write goes through
@@ -600,8 +665,9 @@ export function migrateOwnerlessControlPlaneV11(db: Db): void {
           `migrateOwnerlessControlPlaneV11: stored role ${JSON.stringify(target.role)} for (${target.accountId}, ${target.userId}) is not a known role — control table corrupted.`,
         )
       }
-      reportOwnerlessPromotion(target.accountId, target.userId, target.role)
+      promotions.push({ accountId: target.accountId, userId: target.userId, promotedFrom: target.role })
     }
+    return promotions
   })
 }
 
@@ -979,6 +1045,13 @@ export interface InviteSummary {
   createdAt: string
 }
 
+/** Interpret invitation expiry consistently for admission, preview, redemption and pruning.
+ * Malformed stored values fail closed as expired. */
+export function inviteIsExpired(expiresAt: string, now = Date.now()): boolean {
+  const parsed = parseISOTimestamp(expiresAt)
+  return parsed === null || now >= parsed
+}
+
 /**
  * List an account's invites for the member-management UI (P1.11) — ordered newest-first by
  * `createdAt`. CRITICAL: this NEVER selects or returns the token digest. The token is a write-once
@@ -1048,6 +1121,16 @@ export function revokeInvite(db: Db, accountId: string, id: string): number {
  *  expiry); called on invite create/list traffic. USED invites are deliberately KEPT so the members
  *  list can still show who consumed an invite (the `usedAt` "used" badge); a used row is only removed
  *  by an explicit revoke or when its account is erased. */
-export function pruneInvites(db: Db, now = new Date().toISOString()): number {
-  return Number(db.prepare(`DELETE FROM invites WHERE usedAt IS NULL AND expiresAt <= ?`).run(now).changes)
+export function pruneInvites(db: Db, now = Date.now()): number {
+  const candidates = db.prepare(
+    `SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL`,
+  ).all() as Array<{ tokenHash: string; expiresAt: string }>
+  const remove = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`)
+  let deleted = 0
+  for (const candidate of candidates) {
+    if (inviteIsExpired(candidate.expiresAt, now)) {
+      deleted += Number(remove.run(candidate.tokenHash).changes)
+    }
+  }
+  return deleted
 }

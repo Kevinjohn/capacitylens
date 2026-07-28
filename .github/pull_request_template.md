@@ -4,6 +4,9 @@
 
 ## Checklist
 
+<!-- “if … changed” selects extra local preflight work. Required PR CI still runs the complete
+account-conformance, migration-rehearsal, cross-browser and strict-OIDC jobs on every change. -->
+
 - [ ] `pnpm run gate` passes locally (typecheck, lint, unit tests, build)
 - [ ] `pnpm run gate:server` passes if `server/` or `shared/` changed (needs Node 24)
 - [ ] `pnpm run test:account-conformance` passes if authentication, accounts, invitations, membership, authorization, session or erasure behavior changed

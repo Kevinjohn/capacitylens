@@ -2,6 +2,7 @@
 export default {
   test: {
     environment: 'node',
+    env: { TZ: 'UTC' },
     include: ['src/**/*.test.ts'],
   },
 }

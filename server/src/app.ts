@@ -1,10 +1,14 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
-import type { ServerOptions as HttpsServerOptions } from 'node:https'
-import Fastify from 'fastify'
-import rateLimitPlugin from '@fastify/rate-limit'
-import helmetPlugin from '@fastify/helmet'
-import { MAX_RATE_LIMIT, normalizeRateLimit, parseRateLimit } from './rateLimit'
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { createHash, timingSafeEqual } from "node:crypto";
+import type { ServerOptions as HttpsServerOptions } from "node:https";
+import Fastify from "fastify";
+import rateLimitPlugin from "@fastify/rate-limit";
+import helmetPlugin from "@fastify/helmet";
+import {
+  MAX_RATE_LIMIT,
+  normalizeRateLimit,
+  parseRateLimit,
+} from "./rateLimit";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   DEMO_USER,
   DEFAULT_ACCOUNT_APPLICATION,
@@ -12,65 +16,76 @@ import {
   type Auth,
   type AuthMode,
   type SessionUser,
-} from './auth'
+} from "./auth";
 import {
   type ActorContext,
   type ApplicationSession,
   type BoundApplication,
   type CommandIdentity,
-} from '@capacitylens/shared/account/types'
-import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from '@capacitylens/shared/account/sessionPolicy'
-import { AccountContractError, statusForAccountFailure } from '@capacitylens/shared/account/errors'
-import { boundApplicationFailure } from '@capacitylens/shared/account/validation'
-import type { AccountAdminPort } from '@capacitylens/shared/account/ports'
-import { betterAuthIdentityPort } from './accounts/betterAuthIdentityPort'
-import { sqliteAccountAdminPort } from './accounts/sqliteAccountAdminPort'
-import { actorContextFromSession, localAccountFlows } from './accounts/localAccountFlows'
-import { KeyedOperationLock } from './accounts/operationLock'
-import { trustedLocalIdentityPort } from './accounts/trustedLocalIdentityPort'
-import { registerAccountRoutes } from './accounts/accountRoutes'
-import { registerLifecycleRoutes } from './routes/lifecycleRoutes'
-import { eraseWorkspaceProductDataInTx } from './erasure'
+} from "@capacitylens/shared/account/types";
+import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
+import {
+  AccountContractError,
+  statusForAccountFailure,
+} from "@capacitylens/shared/account/errors";
+import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
+import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
+import { betterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
+import { sqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
+import {
+  actorContextFromSession,
+  localAccountFlows,
+} from "./accounts/localAccountFlows";
+import { KeyedOperationLock } from "./accounts/operationLock";
+import { trustedLocalIdentityPort } from "./accounts/trustedLocalIdentityPort";
+import { registerAccountRoutes } from "./accounts/accountRoutes";
+import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
+import { eraseWorkspaceProductDataInTx } from "./erasure";
+import { internalTlsHealth } from "./internalTls";
+import { runWithRequestAbortSignal } from "./requestAbort";
 
 // The identity requireUser attaches to every gated request. Session/identity
 // plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
 // this is the seam Stage C will later use to derive accountId server-side.
-declare module 'fastify' {
+declare module "fastify" {
   interface FastifyRequest {
-    user: SessionUser | null
-    accountActor: ActorContext | null
+    user: SessionUser | null;
+    accountActor: ActorContext | null;
+    authenticationUserId: string | null;
   }
 }
-import { parseData, MAX_IMPORT_RECORDS } from '@capacitylens/shared/data/transfer'
-import type { AppData } from '@capacitylens/shared/types/entities'
-import { remapAndValidateImport, deleteAccountCascade } from '@capacitylens/shared/domain/mutations'
+import {
+  parseData,
+  MAX_IMPORT_RECORDS,
+} from "@capacitylens/shared/data/transfer";
+import {
+  APP_DATA_KEYS,
+  emptyAppData,
+  isScopedEntityKey,
+  type AppData,
+  type AppDataKey,
+} from "@capacitylens/shared/types/entities";
+import { remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
 // Shared lifecycle allow-list also protects the generic entity routes; the dedicated transition
 // pipeline is registered through routes/lifecycleRoutes below.
-import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
-import {
-  deleteResourceCascade,
-  deleteActivityCascade,
-  deletePhaseCascade,
-  deleteProjectCascade,
-  deleteClientCascade,
-  deleteDisciplineCascade,
-} from '@capacitylens/shared/lib/integrity'
-import { seed } from '@capacitylens/shared/data/seed'
-import { TABLES } from './tables'
+import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import { seed } from "@capacitylens/shared/data/seed";
+import { TABLES } from "./tables";
 import {
   acceptedFieldNames,
+  appliedRequestedFieldNames,
+  IMMUTABLE_ACCOUNT_FIELDS,
   validateWrite,
   sanitizeWrite,
   ValidationError,
-} from './validate'
+} from "./validate";
 import {
   redactGatedEcho,
   tableHasGatedFields,
   visibilityForRole,
   type SanitizeWriteOptions,
-} from './fieldPolicy'
+} from "./fieldPolicy";
 import {
-  applyGeneratedBuiltinReplacement,
   builtinInternalWriteGuard,
   checkEntityWriteBody,
   FULL_SLICE_READ,
@@ -78,7 +93,7 @@ import {
   prepareScopedWrite,
   replaceGeneratedBuiltin,
   stampServerRevision,
-} from './writePipeline'
+} from "./writePipeline";
 import {
   type Db,
   deleteRow,
@@ -90,46 +105,116 @@ import {
   replaceAccountSlice,
   upsertRow,
   wipe,
-} from './db'
-import { sqliteTenantStore } from './tenantStore'
+} from "./db";
+import { sqliteTenantStore } from "./tenantStore";
 // P2.6b tenant erasure is composed below through AccountFlows: product data, account administration
 // and local identity state retain separate owners while the local coordinator preserves one SQLite
-// transaction for both direct and already-transactional batch paths.
+// transaction for the dedicated deletion endpoint.
 import {
   can,
   canSeePrivateNames,
   type Action,
-} from '@capacitylens/shared/domain/access'
-import { tx } from './txn'
-import { newId } from '@capacitylens/shared/lib/id'
-import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
-import { type AuditRecord, type AuditSink, noopAuditSink } from './audit'
+} from "@capacitylens/shared/domain/access";
+import { tx } from "./txn";
+import { newId } from "@capacitylens/shared/lib/id";
+import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { type AuditRecord, type AuditSink, noopAuditSink } from "./audit";
+import { drainAuditOutbox, enqueueAudit } from "./auditOutbox";
+import {
+  isSameSessionSuccessor,
+  isSupersededSyncBatch,
+  recordAppliedSyncBatch,
+  type SyncOrder,
+} from "./syncOrdering";
+import { BatchStateProjection } from "./batchProjection";
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
-const BODY_LIMIT = 5 * 1024 * 1024
+const BODY_LIMIT = 5 * 1024 * 1024;
 
 // Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
 // path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
-// authorized, validated and applied to the in-memory projection, so op COUNT is still a real cost
-// driver; a small-bodied but op-dense batch could otherwise pin the single-writer SQLite file for
-// the whole tx. 5 000 is generous headroom over the largest realistic full-slice diff the client sync
-// adapter produces (a whole busy agency's slice is low-thousands of rows) while bounding a
-// crafted/looping flood. Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
+// authorized, validated and applied to the in-memory projection. The transaction reads each
+// affected account slice once, then indexed point/reverse lookups keep per-op validation and
+// projection updates proportional to each operation's referenced/affected rows rather than the
+// whole tenant. Op COUNT is therefore the remaining request-controlled multiplier. 5 000 is
+// generous headroom over the largest realistic full-slice diff the client sync adapter produces
+// (a whole busy agency's slice is low-thousands of rows) while bounding a crafted/looping flood.
+// The inclusive boundary integration test applies 5 000 real existing-row updates and enforces a
+// four-second handler budget under the supported Node 24 gate, leaving headroom below the packaged
+// five-second container healthcheck timeout. Keep that budget, this cap and the client's matching
+// MAX_OPS_PER_BATCH in lockstep; an in-process queue cannot shorten one synchronous SQLite turn.
+// Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
 // Exported for the test that pins the boundary.
-export const MAX_BATCH_OPS = 5000
+export const MAX_BATCH_OPS = 5000;
 
 // Fastify defaults BOTH to 0 (disabled). The documented deploy fronts this server with Nginx,
 // which buffers/queues the client connection — 30s is generous headroom for that hop, and it's
 // the guard that protects the documented DIRECT-EXPOSURE mode (no reverse proxy) from a
 // slowloris-style slow-body/slow-read socket exhaustion attack that an unbounded timeout permits.
-const REQUEST_TIMEOUT_MS = 30_000
-const CONNECTION_TIMEOUT_MS = 30_000
-export const MAX_SERVER_CONNECTIONS = 512
-const CSP_REPORT_BODY_LIMIT = 64 * 1024
-const MAX_CSP_REPORTS_PER_REQUEST = 20
+const REQUEST_TIMEOUT_MS = 30_000;
+const CONNECTION_TIMEOUT_MS = 30_000;
+export const MAX_SERVER_CONNECTIONS = 512;
+const CSP_REPORT_BODY_LIMIT = 64 * 1024;
+const MAX_CSP_REPORTS_PER_REQUEST = 20;
 
-const MIN_BOOTSTRAP_TOKEN_BYTES = 32
+// Only these parsing errors have messages we intentionally preserve for clients. Return canonical
+// text rather than trusting even an allow-listed error object's message to remain harmless.
+const SAFE_CLIENT_ERRORS = new Map<string, { status: number; message: string }>(
+  [
+    [
+      "FST_ERR_CTP_BODY_TOO_LARGE",
+      { status: 413, message: "Request body is too large" },
+    ],
+    [
+      "FST_ERR_CTP_INVALID_MEDIA_TYPE",
+      { status: 415, message: "Unsupported Media Type" },
+    ],
+    [
+      "FST_ERR_CTP_INVALID_CONTENT_LENGTH",
+      {
+        status: 400,
+        message: "Request body size did not match Content-Length",
+      },
+    ],
+    [
+      "FST_ERR_CTP_EMPTY_JSON_BODY",
+      {
+        status: 400,
+        message:
+          "Body cannot be empty when content-type is set to 'application/json'",
+      },
+    ],
+    [
+      "FST_ERR_CTP_INVALID_JSON_BODY",
+      {
+        status: 400,
+        message:
+          "Body is not valid JSON but content-type is set to 'application/json'",
+      },
+    ],
+    [
+      "CAPACITYLENS_MALFORMED_CSP_REPORT",
+      { status: 400, message: "Malformed CSP report" },
+    ],
+    [
+      "CAPACITYLENS_RATE_LIMITED",
+      { status: 429, message: "Rate limit exceeded" },
+    ],
+  ],
+);
+
+function safeClientError(
+  error: unknown,
+): { status: number; message: string } | null {
+  if (!(error instanceof Error)) return null;
+  const candidate = error as Error & { code?: unknown; statusCode?: unknown };
+  if (typeof candidate.code !== "string") return null;
+  const safe = SAFE_CLIENT_ERRORS.get(candidate.code);
+  return safe && candidate.statusCode === safe.status ? safe : null;
+}
+
+const MIN_BOOTSTRAP_TOKEN_BYTES = 32;
 
 // Fail-CLOSED CORS default: only the local Vite dev/e2e origins may make cross-origin
 // browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
@@ -137,59 +222,71 @@ const MIN_BOOTSTRAP_TOKEN_BYTES = 32
 // EXPLICIT '*'. The entrypoint (index.ts) imports this same default and lets
 // CAPACITYLENS_CORS_ORIGIN override it for a deliberate deploy.
 export const DEFAULT_CORS =
-  'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273'
+  "http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273";
 
 export interface AppOptions {
   /** Stable identity and display branding for this product installation's account boundary. */
-  application?: BoundApplication
+  application?: BoundApplication;
   /** Optional internal HTTPS identity for a reverse-proxy/service hop. The default Compose
    * topology provisions and verifies it; a trusted same-host loopback proxy may omit it. */
-  internalTls?: Pick<HttpsServerOptions, 'key' | 'cert' | 'minVersion'>
-  /** Gate POST /api/test/reset — only enabled for tests / explicit dev opt-in. */
-  allowReset?: boolean
+  internalTls?: Pick<HttpsServerOptions, "key" | "cert" | "minVersion">;
+  /** Parsed once from the configured internal certificate; deep health projects its remaining
+   * validity without rereading tenant data or certificate files on every public probe. */
+  internalTlsExpiresAt?: string;
+  /** Gate POST /api/test/reset — only enabled for auth-off tests / explicit local dev opt-in. */
+  allowReset?: boolean;
   /** CAPACITYLENS_LOG=1 — structured per-request logging (Fastify's bundled pino, JSON on
    *  stdout: method/path/status/latency), and the 500-path error log routed through the
    *  request-scoped logger. Default OFF = exactly today's behaviour (startup line +
    *  console.error on 500s). */
-  log?: boolean
+  log?: boolean;
   /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
-  logStream?: { write(msg: string): void }
+  logStream?: { write(msg: string): void };
   /** Structured security-event destination. The entrypoint emits JSONL to stdout for forwarding;
    * tests/factory consumers default to a no-op. Must never throw into a request. */
-  securityLog?: (event: Record<string, unknown>) => void
+  securityLog?: (event: Record<string, unknown>) => void;
   /** CAPACITYLENS_HEALTH_DEEP=1 — /api/health also proves the DB answers a constant-work read:
    *  200 { ok, db: true }, or 503 { ok: false } when the read throws. Default OFF =
    *  today's unconditional { ok: true } (Playwright's webServer probe depends on it). */
-  healthDeep?: boolean
+  healthDeep?: boolean;
+  /** Optional scheduled-backup health provider. Present only when backups are configured; kept as
+   * a callback because the entrypoint starts the scheduler after Fastify construction. */
+  backupHealth?: () => Readonly<{
+    degraded: boolean;
+    lastSuccessAt: string | null;
+  }>;
   /** CAPACITYLENS_RATE_LIMIT=<n> — n requests/minute per IP across /api/* (a guard against an
    *  accidental client loop hammering the single-writer SQLite file and remote resource
    *  exhaustion). Health is exempt so liveness probes cannot be starved by application traffic.
-   *  <= 0 / omitted ⇒ the plugin is not registered at all — see parseRateLimit for the fail-closed env parse. */
-  rateLimit?: number
-  /** Key the rate limit on the first X-Forwarded-For hop instead of the socket address.
-   *  Set ONLY when the listen host is loopback (i.e. behind the Nginx proxy, where every
-   *  socket is 127.0.0.1); on a directly-exposed host the header is client-spoofable. */
-  rateLimitTrustForwarded?: boolean
+   *  0 / omitted ⇒ the plugin is not registered at all. Any other value must be an integer in the
+   *  shared supported range; invalid programmatic configuration is rejected at construction. */
+  rateLimit?: number;
+  /** Trust the immediate reverse proxy's sanitized forwarding headers. This keys rate limits on
+   *  X-Forwarded-For and reconstructs the browser-visible scheme for the CSRF same-origin check
+   *  from X-Forwarded-Proto. Set ONLY when the API is unreachable directly and the proxy overwrites
+   *  both headers; on a directly exposed host either header is client-spoofable. */
+  trustProxyHeaders?: boolean;
   /** CAPACITYLENS_AUTH: 'off' (the default) means Better Auth does not exist here —
    *  the only auth surface is GET /api/auth/me reporting the demo identity, and
    *  requireUser attaches that identity and continues, so NO request that succeeds
    *  today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and
    *  401 every other /api/* route (except /api/health) without a valid session. */
-  authMode?: AuthMode
+  authMode?: AuthMode;
   /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
-  auth?: Auth | null
+  auth?: Auth | null;
   /** Require an enrolled and completed TOTP second factor before password users may access tenant
    * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */
-  requireMfa?: boolean
+  requireMfa?: boolean;
   /** CORS allow-list: a comma-separated list of explicit origins. Wildcards are rejected because
    *  the browser client always uses cookie credentials. Defaults to the localhost allow-list when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
    *  entrypoint (index.ts) passes the CAPACITYLENS_CORS_ORIGIN override. */
-  corsOrigin?: string
+  corsOrigin?: string;
   /** PUT rejects a write whose row is older than the stored row (updatedAt compare) with 409.
    *  Enabled by default because membership makes every server deployment multi-writer. Pass false
-   *  only as an explicit legacy escape hatch. */
-  optimisticConcurrency?: boolean
+   *  only as an explicit legacy escape hatch. Ordered browser-sync batches still enforce their
+   *  revision preconditions so overlapping requests cannot overwrite a newer sequence. */
+  optimisticConcurrency?: boolean;
   /** CAPACITYLENS_MULTI_ACCOUNT=1 — allow more than one company (`accounts` row) to exist on this
    *  instance. Default false: CapacityLens is deliberately single-company-per-instance (see
    *  CLAUDE.md's product positioning) — once the `accounts` table holds ≥1 row, every vector that
@@ -201,7 +298,7 @@ export interface AppOptions {
    *  create an account, not WHETHER one may exist. UPDATE/PATCH/DELETE of an EXISTING account are
    *  never affected: the cap is create-time only, so a genuinely multi-company instance (this flag
    *  on, or a DB seeded before the cap existed) keeps serving normally. */
-  multiAccount?: boolean
+  multiAccount?: boolean;
   /** CAPACITYLENS_BOOTSTRAP_TOKEN (P1.8) — a shared secret that, when sent as the
    *  `x-capacitylens-bootstrap-token` request header on `POST /api/orgs`, authorises
    *  constrained org-creation even for a caller who is NOT yet an Owner/Admin of any
@@ -213,7 +310,7 @@ export interface AppOptions {
    *  PRESUMES a multi-account instance — it only ever matters once opts.multiAccount is
    *  also true, since the single-company cap above denies EVERY create (token or not)
    *  while the instance is capped to one company. */
-  bootstrapToken?: string
+  bootstrapToken?: string;
   /** CAPACITYLENS_HTTPS=1 — the API is reached over HTTPS, so HSTS is safe to emit.
    *  Default false: HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is
    *  actively HARMFUL over plain HTTP — a browser that caches an HSTS directive received
@@ -222,14 +319,14 @@ export interface AppOptions {
    *  OPT IN once TLS truly fronts the public origin. Off ⇒ helmet emits no HSTS header;
    *  all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
    *  are on regardless, as they are pure improvements with no HTTPS precondition. */
-  https?: boolean
+  https?: boolean;
   /** CAPACITYLENS_AUDIT (P1.15) — the append-only JSONL audit sink. ON-by-default is decided at
    *  the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); THIS factory
    *  defaults to noopAuditSink() so tests AND the default local/no-server deploy are byte-identical
    *  unless a real sink is explicitly injected. NEVER pass a row/body into the sink — only typed
    *  product or normalized account entries whose changedFields are field NAMES (the #1 no-PII
    *  invariant). */
-  audit?: AuditSink
+  audit?: AuditSink;
 }
 
 // P0.5.5: NEVER let a secret reach the logs. pino strips these exact paths from every record
@@ -240,90 +337,182 @@ export interface AppOptions {
 // this is the backstop that keeps Authorization / Cookie / Set-Cookie out of stdout. If such a
 // serializer is ever added, extend this list to cover any new path it surfaces.
 const LOG_REDACT_PATHS = [
-  'req.headers.authorization',
-  'req.headers.cookie',
+  "req.headers.authorization",
+  "req.headers.cookie",
   'res.headers["set-cookie"]',
-]
+];
 
 // Mask the bearer token in every token-scoped invite URL before it reaches the access log. The token
 // is the ONLY path-borne secret in the API; every other URL passes through unchanged. Anchored to
 // the exact `/api/invites/<token>/accept` shape (optionally with a query string) so a normal path
 // is never mangled. The match is on the path-with-query string pino logs (req.url).
-const INVITE_OPERATION_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup|preview))(.*)$/
+const INVITE_OPERATION_URL_RE =
+  /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup|preview))(.*)$/;
 // `url` is typed unknown because the serializer may also run over a hand-built `{ req: {...} }`
 // record (e.g. app.log.info(...)) whose url is absent; a non-string passes through untouched.
 const redactSecretUrl = (url: unknown): string | undefined => {
-  if (typeof url !== 'string') return undefined
-  const inviteSafe = url.replace(INVITE_OPERATION_URL_RE, '$1[redacted]$2$3')
+  if (typeof url !== "string") return undefined;
+  const inviteSafe = url.replace(INVITE_OPERATION_URL_RE, "$1[redacted]$2$3");
   try {
-    const parsed = new URL(inviteSafe, 'http://capacitylens.invalid')
-    for (const key of ['token', 'code', 'state']) {
-      if (parsed.searchParams.has(key)) parsed.searchParams.set(key, '[redacted]')
+    const parsed = new URL(inviteSafe, "http://capacitylens.invalid");
+    for (const key of ["token", "code", "state"]) {
+      if (parsed.searchParams.has(key))
+        parsed.searchParams.set(key, "[redacted]");
     }
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    return inviteSafe
+    return inviteSafe;
   }
+};
+
+/** Build the exact structured logger policy consumed by Fastify.
+ *  Exported so tests can pin redaction before req/res serializers discard header objects. */
+export function requestLoggerOptions(stream?: AppOptions["logStream"]) {
+  return {
+    ...(stream ? { stream } : {}),
+    redact: { paths: LOG_REDACT_PATHS, remove: true as const },
+    serializers: {
+      req(req: FastifyRequest) {
+        return {
+          method: req.method,
+          url: redactSecretUrl(req.url),
+          hostname: req.hostname,
+          remoteAddress: req.ip,
+          remotePort: req.socket?.remotePort,
+        };
+      },
+    },
+  };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const safeCspDirective = (value: unknown): string | undefined =>
-  typeof value === 'string' && /^[a-z][a-z0-9-]{0,63}$/i.test(value) ? value : undefined
+  typeof value === "string" && /^[a-z][a-z0-9-]{0,63}$/i.test(value)
+    ? value
+    : undefined;
 
 // CSP fields can contain full URLs, including query/fragment secrets. Security telemetry needs only
 // the origin; special browser values such as "inline" are retained as a bounded classification.
 const safeCspOrigin = (value: unknown): string | undefined => {
-  if (typeof value !== 'string' || value.length > 2048) return undefined
-  if (['inline', 'eval', 'self', 'data', 'blob'].includes(value)) return value
+  if (typeof value !== "string" || value.length > 2048) return undefined;
+  if (["inline", "eval", "self", "data", "blob"].includes(value)) return value;
   try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : `scheme:${url.protocol}`
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.origin
+      : `scheme:${url.protocol}`;
   } catch {
-    return undefined
+    return undefined;
   }
-}
+};
 
 function normalizedCspReports(payload: unknown): Record<string, unknown>[] {
-  const candidates = Array.isArray(payload) ? payload.slice(0, MAX_CSP_REPORTS_PER_REQUEST) : [payload]
-  const reports: Record<string, unknown>[] = []
+  const candidates = Array.isArray(payload)
+    ? payload.slice(0, MAX_CSP_REPORTS_PER_REQUEST)
+    : [payload];
+  const reports: Record<string, unknown>[] = [];
   for (const candidate of candidates) {
-    if (!isRecord(candidate)) continue
-    const legacy = isRecord(candidate['csp-report']) ? candidate['csp-report'] : undefined
-    const modern = candidate.type === 'csp-violation' && isRecord(candidate.body) ? candidate.body : undefined
-    const body = legacy ?? modern
-    if (!body) continue
+    if (!isRecord(candidate)) continue;
+    const legacy = isRecord(candidate["csp-report"])
+      ? candidate["csp-report"]
+      : undefined;
+    const modern =
+      candidate.type === "csp-violation" && isRecord(candidate.body)
+        ? candidate.body
+        : undefined;
+    const body = legacy ?? modern;
+    if (!body) continue;
     reports.push({
-      event: 'csp_violation',
-      outcome: 'reported',
-      documentOrigin: safeCspOrigin(body['document-uri'] ?? body.documentURL),
-      blockedOrigin: safeCspOrigin(body['blocked-uri'] ?? body.blockedURL),
-      effectiveDirective: safeCspDirective(body['effective-directive'] ?? body.effectiveDirective),
-      violatedDirective: safeCspDirective(body['violated-directive']),
-      disposition: body.disposition === 'report' || body.disposition === 'enforce' ? body.disposition : undefined,
-    })
+      event: "csp_violation",
+      outcome: "reported",
+      documentOrigin: safeCspOrigin(body["document-uri"] ?? body.documentURL),
+      blockedOrigin: safeCspOrigin(body["blocked-uri"] ?? body.blockedURL),
+      effectiveDirective: safeCspDirective(
+        body["effective-directive"] ?? body.effectiveDirective,
+      ),
+      violatedDirective: safeCspDirective(body["violated-directive"]),
+      disposition:
+        body.disposition === "report" || body.disposition === "enforce"
+          ? body.disposition
+          : undefined,
+    });
   }
-  return reports
+  return reports;
 }
 
 // parseRateLimit / MAX_RATE_LIMIT now live in ./rateLimit so productionGuard.ts can share the ONE
 // true parser without importing the whole app (import-cycle-safe). Re-exported here to preserve the
 // existing './app' public surface that index.ts and the rate-limit tests already import from.
-export { MAX_RATE_LIMIT, parseRateLimit }
+export { MAX_RATE_LIMIT, parseRateLimit };
 
 /** Node's IncomingHttpHeaders → web Headers, for Better Auth's web-standard API
  *  (getSession reads the cookie; the mounted handler gets the full set). */
-function toWebHeaders(raw: FastifyRequest['headers']): Headers {
-  const headers = new Headers()
+function toWebHeaders(raw: FastifyRequest["headers"]): Headers {
+  const headers = new Headers();
   for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === 'string') headers.append(key, value)
-    else if (Array.isArray(value)) for (const item of value) headers.append(key, item)
+    if (typeof value === "string") headers.append(key, value);
+    else if (Array.isArray(value))
+      for (const item of value) headers.append(key, item);
   }
-  return headers
+  return headers;
 }
 
-function sessionUserFromApplicationSession(session: ApplicationSession): SessionUser {
+/** Resolve only an already-issued, verified session for security-event attribution. Submitted
+ * identifiers are intentionally never used: a failed sign-in must not be able to claim a user. */
+async function resolveAuthenticationUserId(
+  auth: Auth,
+  headers: Headers,
+  req: FastifyRequest,
+  logOn: boolean,
+): Promise<string | null> {
+  try {
+    return (await auth.api.getSession({ headers }))?.user.id ?? null;
+  } catch (error) {
+    if (logOn)
+      req.log.error(error, "authentication security-event attribution failed");
+    else
+      console.error(
+        "capacitylens-server: authentication security-event attribution failed",
+        error,
+      );
+    return null;
+  }
+}
+
+/** Turn Set-Cookie response fields into the Cookie header used to verify a newly issued session.
+ * Response values replace request values with the same name (for example an MFA challenge cookie
+ * replaced by the final session cookie); attributes never cross into the request header. */
+function withResponseCookies(
+  requestHeaders: Headers,
+  setCookies: readonly string[],
+): Headers {
+  const cookies = new Map<string, string>();
+  for (const pair of (requestHeaders.get("cookie") ?? "").split(";")) {
+    const separator = pair.indexOf("=");
+    if (separator < 1) continue;
+    const name = pair.slice(0, separator).trim();
+    if (name) cookies.set(name, pair.slice(separator + 1).trim());
+  }
+  for (const setCookie of setCookies) {
+    const pair = setCookie.split(";", 1)[0];
+    const separator = pair.indexOf("=");
+    if (separator < 1) continue;
+    const name = pair.slice(0, separator).trim();
+    if (name) cookies.set(name, pair.slice(separator + 1).trim());
+  }
+  const headers = new Headers(requestHeaders);
+  headers.set(
+    "cookie",
+    [...cookies].map(([name, value]) => `${name}=${value}`).join("; "),
+  );
+  return headers;
+}
+
+function sessionUserFromApplicationSession(
+  session: ApplicationSession,
+): SessionUser {
   return {
     id: session.principal.id,
     email: session.principal.email,
@@ -331,60 +520,78 @@ function sessionUserFromApplicationSession(session: ApplicationSession): Session
     name: session.principal.displayName,
     image: session.principal.image ?? null,
     twoFactorEnabled:
-      session.assurance === 'mfa' ||
-      session.assurance === 'federated' ||
-      session.assurance === 'trusted-local',
+      session.assurance === "mfa" ||
+      session.assurance === "federated" ||
+      session.assurance === "trusted-local",
     sessionCreatedAt: session.createdAt,
-  }
+  };
+}
+
+const validAccountCommandHeader = (value: unknown): value is string =>
+  typeof value === "string" && /^[A-Za-z0-9_-]{16,128}$/.test(value);
+
+function replayAccountCommand(req: FastifyRequest): CommandIdentity | null {
+  const idempotencyKey = req.headers["idempotency-key"];
+  const commandId = req.headers["x-account-command-id"];
+  return validAccountCommandHeader(idempotencyKey) &&
+    validAccountCommandHeader(commandId)
+    ? { commandId, idempotencyKey }
+    : null;
 }
 
 function accountCommand(req: FastifyRequest): CommandIdentity {
-  const rawIdempotency = req.headers['idempotency-key']
-  const rawCommand = req.headers['x-account-command-id']
-  const valid = (value: unknown): value is string =>
-    typeof value === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value)
-  if (rawIdempotency !== undefined && !valid(rawIdempotency)) {
+  const rawIdempotency = req.headers["idempotency-key"];
+  const rawCommand = req.headers["x-account-command-id"];
+  if (
+    rawIdempotency !== undefined &&
+    !validAccountCommandHeader(rawIdempotency)
+  ) {
     throw new AccountContractError({
-      code: 'VALIDATION_FAILED',
-      message: 'Idempotency-Key must be a 16–128 character opaque base64url-style identifier.',
+      code: "VALIDATION_FAILED",
+      message:
+        "Idempotency-Key must be a 16–128 character opaque base64url-style identifier.",
       retryable: false,
-    })
+    });
   }
-  if (rawCommand !== undefined && !valid(rawCommand)) {
+  if (rawCommand !== undefined && !validAccountCommandHeader(rawCommand)) {
     throw new AccountContractError({
-      code: 'VALIDATION_FAILED',
-      message: 'X-Account-Command-Id must be a 16–128 character opaque base64url-style identifier.',
+      code: "VALIDATION_FAILED",
+      message:
+        "X-Account-Command-Id must be a 16–128 character independently generated, unguessable base64url-style identifier.",
       retryable: false,
-    })
+    });
   }
-  const idempotencyKey = valid(rawIdempotency) ? rawIdempotency : newId()
+  const idempotencyKey = validAccountCommandHeader(rawIdempotency)
+    ? rawIdempotency
+    : newId();
   // They serve different purposes and remain independent even for compatibility callers that do
   // not yet send either header: the command id is the reconciliation handle, while the
   // idempotency key identifies one semantic retry ceremony.
-  const commandId = valid(rawCommand) ? rawCommand : newId()
-  return { commandId, idempotencyKey }
+  const commandId = validAccountCommandHeader(rawCommand)
+    ? rawCommand
+    : newId();
+  return { commandId, idempotencyKey };
 }
 
 /** Stable server-owned id for an omitted workspace id. A retry carrying the same command must
  * address the same workspace rather than minting a new id and conflicting with its own ledger. */
 function generatedWorkspaceId(commandId: string): string {
-  return `w_${createHash('sha256')
-    .update('capacitylens-workspace-command\0')
+  return `w_${createHash("sha256")
+    .update("capacitylens-workspace-command\0")
     .update(commandId)
-    .digest('base64url')
-    .slice(0, 21)}`
+    .digest("base64url")
+    .slice(0, 21)}`;
 }
 
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
-  Object.prototype.hasOwnProperty.call(TABLES, entity)
+  Object.prototype.hasOwnProperty.call(TABLES, entity);
 
 // Request-validation guard for the invite-create role (P1.9). A bad/missing role is a CALLER fault
 // (400), distinct from createInvite's loud throw (a 500-tier integrity backstop for a role that
 // somehow slipped past here). Mirrors the closed Role vocabulary in shared/domain/access.
-// A table is "scoped" (tenant-owned) when it carries an accountId column — every table
-// except top-level `accounts`. Scoped deletes must assert ownership via accountId.
-const isScopedTable = (entity: keyof typeof TABLES): boolean =>
-  TABLES[entity].columns.some((c) => c.name === 'accountId')
+// Scoped membership is shared with the import/write sanitizer. Scoped deletes must assert
+// ownership via accountId, so this must not be inferred independently from the SQLite codec.
+const isScopedTable = isScopedEntityKey;
 
 // The ONLY three entities that carry the lifecycle tombstones (archivedAt/deletedAt, P2.1) and so can
 // run the archive/unarchive/soft-delete/purge routes (P2.5a). A guard, not a free string compare, so a
@@ -392,15 +599,24 @@ const isScopedTable = (entity: keyof typeof TABLES): boolean =>
 // other table (phases/activities/allocations/timeOff/disciplines/accounts) is a 404 on these routes.
 // Single-sourced in shared (LIFECYCLE_ENTITY_KEYS) so this route allow-list and validate.ts's
 // sanitizeWrite tombstone-pin can't drift; aliased to the local names the handlers below already use.
-const isLifecycleEntity = isLifecycleEntityKey
+const isLifecycleEntity = isLifecycleEntityKey;
 
 // The wire shape of one op in a POST /api/batch body (mirrors the client's syncOps.Op).
 interface BatchOp {
-  method: 'PUT' | 'DELETE'
-  table: string
-  id: string
-  row?: Record<string, unknown>
-  accountId?: string
+  method: "PUT" | "DELETE";
+  table: string;
+  id: string;
+  row?: Record<string, unknown>;
+  accountId?: string;
+  updatedAt?: string;
+}
+
+/** Append one complete account slice to a request-local validation projection. */
+function appendAppDataSlice(target: AppData, slice: AppData): void {
+  for (const key of APP_DATA_KEYS) {
+    const targetRows = target[key] as unknown[];
+    targetRows.push(...slice[key]);
+  }
 }
 
 // Tenant-ownership predicate shared by every mutating route. A row is "owned" by
@@ -409,37 +625,53 @@ interface BatchOp {
 // a row across the tenant boundary); DELETE uses it to scope a delete to its owner (404 on
 // a cross-account target — the server analog of the client's findOwned guard). One
 // predicate, so a future write path can't silently skip the check.
-const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
-  !existing || existing.accountId === accountId
+const ownsRow = (
+  existing: { accountId?: unknown } | undefined,
+  accountId: unknown,
+): boolean => !existing || existing.accountId === accountId;
 
-// The three Account fields that are SET once, at company creation, and FROZEN thereafter (P1.14):
-// language, week-start and time zone are calendar/locale facts the whole team relies on, so the
-// app captures them in the create-company form and disables them in Settings. The server is the
-// real boundary — the disabled UI is only UX.
-const IMMUTABLE_ACCOUNT_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const
+/** A client may echo the deterministic Internal row immediately after creating its account in the
+ * same batch. Accept that protected duplicate only when every stored client field is already the
+ * exact server-generated value. Persistence timestamps are server-owned, so compare them after
+ * pinning the no-op candidate to the generated revision returned in the receipt. */
+function matchesMintedInternalClient(
+  existing: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+): boolean {
+  const normalized: Record<string, unknown> = {
+    ...incoming,
+    createdAt: existing.createdAt,
+    updatedAt: existing.updatedAt,
+  };
+  return TABLES.clients.columns.every(
+    ({ name }) => normalized[name] === existing[name],
+  );
+}
 
 /**
- * True when an accounts write would CHANGE a frozen field (P1.14) — the violation signal the
- * PUT/PATCH/batch handlers turn into a 409 (per-route) / 400 (batch).
+ * True when a sanitised accounts write would CHANGE an already-set frozen field (P1.14) — the
+ * violation signal the PUT/PATCH/batch handlers turn into a 409 (per-route) / 400 (batch).
  *
- * Reports a violation ONLY when `existing` is defined AND, for some frozen field, the field is
- * PRESENT in `incoming` AND its incoming value differs from the stored one. Two deliberate rules:
+ * Reports a violation ONLY when `existing` has a stored value AND the sanitised incoming value
+ * differs. Four deliberate rules:
  *  - Change, not presence: the sync adapter re-sends the WHOLE row on any edit (e.g. a rename),
  *    so an unchanged frozen value MUST pass — only a real change is a violation.
+ *  - A missing stored value may be set once, preserving legacy/minimal API-created accounts.
+ *  - sanitizeWrite pins an existing value when malformed input is dropped, making it a no-op.
  *  - No existing row → creation, when these values are legitimately SET → never a violation.
  *
  * @param existing the stored row (undefined on a create — always passes)
- * @param incoming the wire body whose frozen fields are checked (the PUT body / PATCH req.body —
- *   NOT a merged row, which would already have overwritten `existing` and so never detect a change)
+ * @param incoming the sanitised candidate row, before it is persisted
  */
 function accountFieldsFrozen(
   existing: Record<string, unknown> | undefined,
   incoming: Record<string, unknown>,
 ): boolean {
-  if (!existing) return false
+  if (!existing) return false;
   return IMMUTABLE_ACCOUNT_FIELDS.some(
-    (field) => field in incoming && incoming[field] !== existing[field],
-  )
+    (field) =>
+      existing[field] !== undefined && incoming[field] !== existing[field],
+  );
 }
 
 // Resolve the Access-Control-Allow-Origin value for a request. '*' echoes the
@@ -447,20 +679,30 @@ function accountFieldsFrozen(
 // (and otherwise sends no ACAO header, so the browser blocks the cross-origin call).
 // Requests with no Origin (curl, server-to-server, Playwright's APIRequestContext)
 // are unaffected — CORS only governs browser cross-origin reads.
-function resolveCorsOrigin(reqOrigin: string | undefined, allow: ReadonlySet<string>): string | null {
-  return reqOrigin && allow.has(reqOrigin) ? reqOrigin : null
+function resolveCorsOrigin(
+  reqOrigin: string | undefined,
+  allow: ReadonlySet<string>,
+): string | null {
+  return reqOrigin && allow.has(reqOrigin) ? reqOrigin : null;
 }
 
-function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trustForwarded: boolean): boolean {
-  const host = req.headers.host
-  if (!host) return false
-  const forwardedProto = req.headers['x-forwarded-proto']
-  const candidate = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
-  const protocol = trustForwarded && (candidate === 'http' || candidate === 'https')
-    ? candidate
-    : req.protocol
-  let origin: URL
-  let reconstructed: URL
+function requestOriginIsSameOrigin(
+  req: FastifyRequest,
+  reqOrigin: string,
+  trustForwarded: boolean,
+): boolean {
+  const host = req.headers.host;
+  if (!host) return false;
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const candidate = Array.isArray(forwardedProto)
+    ? forwardedProto[0]
+    : forwardedProto;
+  const protocol =
+    trustForwarded && (candidate === "http" || candidate === "https")
+      ? candidate
+      : req.protocol;
+  let origin: URL;
+  let reconstructed: URL;
   // Total function: BOTH the browser-set Origin AND the reconstructed `${protocol}://${host}` are
   // untrusted, attacker-/proxy-influenced strings. A broken reverse proxy (or a hand-forged request)
   // can present a Host that `new URL` rejects — 'exa mple.com', '[', 'host:port:port' — so the
@@ -469,12 +711,12 @@ function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trust
   // means "cannot prove same-origin", which fails CLOSED: return false so the CSRF gate answers a
   // clean 403, never a 500.
   try {
-    origin = new URL(reqOrigin)
-    reconstructed = new URL(`${protocol}://${host}`)
+    origin = new URL(reqOrigin);
+    reconstructed = new URL(`${protocol}://${host}`);
   } catch {
-    return false
+    return false;
   }
-  if (origin.origin === reconstructed.origin) return true
+  if (origin.origin === reconstructed.origin) return true;
   // TLS-termination fallback (no Fetch Metadata, forwarded-proto not trusted). The standard
   // reverse-proxy pattern terminates HTTPS at the edge and forwards CLEARTEXT to this process, so
   // the browser-set Origin claims `https://<host>` while req.protocol only ever sees `http`. When
@@ -485,7 +727,21 @@ function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trust
   // HTTP on the same host:port it advertises as HTTPS would be treated as same-origin — an operator
   // error, not an attacker-reachable one. We deliberately do NOT accept the reverse (Origin http
   // while we are https) and never accept any host:port mismatch.
-  return origin.protocol === 'https:' && reconstructed.protocol === 'http:' && origin.host === reconstructed.host
+  return (
+    origin.protocol === "https:" &&
+    reconstructed.protocol === "http:" &&
+    origin.host === reconstructed.host
+  );
+}
+
+/** Build the absolute URL Better Auth requires from Fastify's relative request URL. Host is
+ * proxy/client input, so malformed authority syntax is a bounded caller error, not an exception. */
+function authenticationRequestUrl(req: FastifyRequest): URL | null {
+  try {
+    return new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
+  } catch {
+    return null;
+  }
 }
 
 // Constant-time secret compare for the P1.8 bootstrap token. Returns false UNLESS the
@@ -494,21 +750,25 @@ function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trust
 // the token path, and the length-equality short-circuit doesn't reveal the secret's length by
 // timing (timingSafeEqual itself requires equal-length buffers). The header arrives as
 // string | string[] | undefined from Fastify; only a single string can match.
-function bootstrapTokenMatches(configured: string | undefined, presented: unknown): boolean {
-  if (!configured || typeof presented !== 'string' || presented.length === 0) return false
-  const a = Buffer.from(configured, 'utf8')
-  const b = Buffer.from(presented, 'utf8')
+function bootstrapTokenMatches(
+  configured: string | undefined,
+  presented: unknown,
+): boolean {
+  if (!configured || typeof presented !== "string" || presented.length === 0)
+    return false;
+  const a = Buffer.from(configured, "utf8");
+  const b = Buffer.from(presented, "utf8");
   // timingSafeEqual throws on a length mismatch — guard first; an attacker learns only "wrong
   // length" (already observable from the response), not the secret's bytes.
-  if (a.length !== b.length) return false
-  return timingSafeEqual(a, b)
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 // Single-company-per-instance cap (owner policy — see AppOptions.multiAccount / CLAUDE.md). The
 // deployment defaults to hosting exactly ONE company; every route that could add a SECOND
 // `accounts` row shares this one predicate so the rule can't drift between POST/PUT/batch/orgs.
 const SINGLE_COMPANY_CAP_MESSAGE =
-  'This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.'
+  "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
 
 // Auth-on closure of the generic account-create paths. Now that POST /api/orgs exists (P1.8 — the
 // ATOMIC account + built-in Internal client + owner-membership create), the old "onboarding
@@ -521,7 +781,7 @@ const SINGLE_COMPANY_CAP_MESSAGE =
 // bootstrap-token caller under multiAccount). authMode 'off' keeps the open generic create —
 // trusted-local parity: the demo/local/e2e client syncs new companies through the entity routes.
 const ACCOUNT_CREATE_CLOSED_MESSAGE =
-  'Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.'
+  "Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.";
 
 /** Batch-internal stale-write signal (optimistic concurrency, fix parity with the direct PUT
  *  route). Carries the STORED row so the batch handler can send the direct route's exact 409
@@ -531,8 +791,8 @@ const ACCOUNT_CREATE_CLOSED_MESSAGE =
  *  malformed request (400), and it must never be re-classified by statusFor. */
 class StaleWriteError extends Error {
   constructor(readonly current: Record<string, unknown>) {
-    super('The record was modified more recently on the server.')
-    this.name = 'StaleWriteError'
+    super("The record was modified more recently on the server.");
+    this.name = "StaleWriteError";
   }
 }
 
@@ -543,8 +803,8 @@ class BatchAuthorizationResponseSent extends Error {}
  * The stale-write predicate (optimistic concurrency), shared by the direct PUT route and the batch
  * PUT loop so the two paths can never drift: a write is stale ONLY when a stored row exists, BOTH
  * `updatedAt` values are strings, and the stored one is STRICTLY newer — a missing/non-string
- * `updatedAt` on either side is never a conflict. The explicit concurrency opt-out stays at the
- * call sites (it is app config, not row data — keeping it visible where the 409 is produced).
+ * `updatedAt` on either side is never a conflict. The concurrency policy stays at the call sites:
+ * direct and unordered API writes honor the explicit opt-out, while ordered browser sync does not.
  */
 function isStaleWrite(
   existing: Record<string, unknown> | undefined,
@@ -552,7 +812,7 @@ function isStaleWrite(
 ): existing is Record<string, unknown> {
   // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactWriteEcho inside
   // the 409 branch, which needs the `existing`-is-present narrowing the old inline check gave.)
-  if (existing === undefined) return false
+  if (existing === undefined) return false;
   // Never a conflict unless BOTH sides carry a parseable timestamp to compare (the documented
   // policy above). A missing/non-string/unparseable updatedAt on either side means we have no
   // basis for an ordering, so we do NOT invent a 409: a normal partial PATCH that omits updatedAt
@@ -560,59 +820,23 @@ function isStaleWrite(
   // (never write-bricked). The accepted trade-off is that such a write falls back to
   // last-writer-wins rather than optimistic rejection — a lost precondition, not lost data.
   if (
-    typeof existing.updatedAt !== 'string' ||
-    typeof row.updatedAt !== 'string' ||
+    typeof existing.updatedAt !== "string" ||
+    typeof row.updatedAt !== "string" ||
     !Number.isFinite(Date.parse(existing.updatedAt)) ||
     !Number.isFinite(Date.parse(row.updatedAt))
-  ) return false
-  return Date.parse(existing.updatedAt) > Date.parse(row.updatedAt)
+  )
+    return false;
+  return Date.parse(existing.updatedAt) > Date.parse(row.updatedAt);
 }
 
 /** Server-owned revision fields are result metadata, not semantic account-command input. */
-function canonicalAccountProductPayload(row: Record<string, unknown>): Record<string, unknown> {
-  const canonical = { ...row }
-  delete canonical.createdAt
-  delete canonical.updatedAt
-  return canonical
-}
-
-/** Upsert one row into an in-memory AppData projection by id — the state-mirror of upsertRow,
- *  kept in lockstep inside the batch loop so op N's validateWrite sees exactly what ops 1..N-1
- *  wrote, without re-querying the DB for every op (Finding 82). */
-function upsertInState(state: AppData, table: string, row: Record<string, unknown>): AppData {
-  const data = state as unknown as Record<string, Array<Record<string, unknown>>>
-  const rows = data[table]
-  const idx = rows.findIndex((r) => r.id === row.id)
-  const next = idx === -1 ? [...rows, row] : rows.map((r, i) => (i === idx ? row : r))
-  return { ...state, [table]: next }
-}
-
-/** Delete-cascade an in-memory AppData projection to match the DB's ON DELETE CASCADE / SET NULL
- *  rules (see the FK comment in server/src/tables.ts), reusing the SAME pure shared cascade
- *  functions the purge routes already run against a real AppData slice — so this mirror can
- *  never drift from the schema's actual cascade behaviour. `allocations`/`timeOff` have no
- *  dependents, so a plain filter is the whole cascade for those two. */
-function deleteFromState(state: AppData, table: string, id: string): AppData {
-  switch (table) {
-    case 'resources':
-      return deleteResourceCascade(state, id)
-    case 'activities':
-      return deleteActivityCascade(state, id)
-    case 'phases':
-      return deletePhaseCascade(state, id)
-    case 'projects':
-      return deleteProjectCascade(state, id)
-    case 'clients':
-      return deleteClientCascade(state, id)
-    case 'disciplines':
-      return deleteDisciplineCascade(state, id)
-    case 'allocations':
-      return { ...state, allocations: state.allocations.filter((a) => a.id !== id) }
-    case 'timeOff':
-      return { ...state, timeOff: state.timeOff.filter((t) => t.id !== id) }
-    default:
-      return state
-  }
+function canonicalAccountProductPayload(
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  const canonical = { ...row };
+  delete canonical.createdAt;
+  delete canonical.updatedAt;
+  return canonical;
 }
 
 /** Fully visible writer context (unaffected tables, auth OFF, or an owner). One frozen module-level
@@ -620,13 +844,42 @@ function deleteFromState(state: AppData, table: string, id: string): AppData {
 const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
   canSeeTimeOffNote: true,
   canSeePrivateNames: true,
-})
+});
 
 /** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
  *  before the cap existed; kept as one function so every enforcement point reads the identical
  *  number (never re-derived ad hoc at each call site). */
 function countAccounts(db: Db): number {
-  return (db.prepare('SELECT COUNT(*) AS n FROM accounts').get() as { n: number }).n
+  return (
+    db.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number }
+  ).n;
+}
+
+/** Project the final top-level account count for an already shape-validated batch. */
+function projectBatchAccounts(
+  db: Db,
+  ops: BatchOp[],
+): { count: number; createsFinalAccount: boolean } {
+  let count = countAccounts(db);
+  const originalExistence = new Map<string, boolean>();
+  const projectedExistence = new Map<string, boolean>();
+  for (const op of ops) {
+    if (op.table !== "accounts") continue;
+    let exists = projectedExistence.get(op.id);
+    if (exists === undefined) {
+      exists = Boolean(getRow(db, "accounts", op.id));
+      originalExistence.set(op.id, exists);
+    }
+    if (op.method === "PUT" && !exists) count += 1;
+    if (op.method === "DELETE" && exists) count -= 1;
+    projectedExistence.set(op.id, op.method === "PUT");
+  }
+  return {
+    count,
+    createsFinalAccount: [...projectedExistence].some(
+      ([id, exists]) => exists && originalExistence.get(id) === false,
+    ),
+  };
 }
 
 /**
@@ -636,7 +889,7 @@ function countAccounts(db: Db): number {
  * is never capped; enforcement is create-time only, per AppOptions.multiAccount.
  */
 function accountCreateCapped(db: Db, opts: AppOptions): boolean {
-  return !opts.multiAccount && countAccounts(db) > 0
+  return !opts.multiAccount && countAccounts(db) > 0;
 }
 
 /**
@@ -665,11 +918,39 @@ async function userMayCreateAccount(
 ): Promise<boolean> {
   return (
     countAccounts(db) === 0 || // (1) first-run bootstrap
-    authMode === 'off' || // (2) trusted-local — the caller is DEMO_USER
+    authMode === "off" || // (2) trusted-local — the caller is DEMO_USER
     // (3) an ACTIVE owner/admin of ANY existing account (admin-tier = can manageMembers).
-    (await administration.listWorkspacesForPrincipal({ principalId: userId }))
-      .some((membership) => can(membership.role, 'manageMembers'))
-  )
+    (
+      await administration.listWorkspacesForPrincipal({ principalId: userId })
+    ).some((membership) => can(membership.role, "manageMembers"))
+  );
+}
+
+// SQLite extended constraint codes that describe caller-supplied row data. Deliberately exclude
+// TRIGGER (1811), FUNCTION (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
+// sources: those are server/storage failures and must remain logged 500s.
+const SQLITE_CALLER_DATA_CONSTRAINT_CODES = new Set([
+  275, // SQLITE_CONSTRAINT_CHECK
+  787, // SQLITE_CONSTRAINT_FOREIGNKEY
+  1299, // SQLITE_CONSTRAINT_NOTNULL
+  1555, // SQLITE_CONSTRAINT_PRIMARYKEY
+  2067, // SQLITE_CONSTRAINT_UNIQUE
+  2579, // SQLITE_CONSTRAINT_ROWID
+  3091, // SQLITE_CONSTRAINT_DATATYPE
+]);
+
+/** node:sqlite exposes SQLite's extended numeric result in `errcode`. Require both its error code
+ * and one recognized row-data constraint subtype so unrelated prose and internal trigger aborts
+ * can never be hidden as caller faults. */
+function isSqliteConstraintError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const sqlite = err as Error & { code?: unknown; errcode?: unknown };
+  return (
+    sqlite.code === "ERR_SQLITE_ERROR" &&
+    typeof sqlite.errcode === "number" &&
+    Number.isInteger(sqlite.errcode) &&
+    SQLITE_CALLER_DATA_CONSTRAINT_CODES.has(sqlite.errcode)
+  );
 }
 
 // Map a thrown error to an HTTP status. Caller-fault errors — domain validation
@@ -677,87 +958,122 @@ async function userMayCreateAccount(
 // unexpected server/db bug and must surface as 500 (not be hidden as a 400).
 // Exported for unit testing the classification.
 export function statusFor(err: unknown): number {
-  if (err instanceof ValidationError) return 400
-  const msg = err instanceof Error ? err.message : String(err)
-  // SQLite spells EVERY constraint error "<kind> constraint failed" (FOREIGN KEY / NOT NULL
-  // / UNIQUE / CHECK), so match the full phrase only. The old loose alternation on bare
-  // tokens (NOT NULL / UNIQUE / FOREIGN KEY) could misclassify an unrelated 500 whose
-  // message merely contained one of those words as a caller-fault 400 — and then leak its
-  // raw message. (Matches the whole-state siblings' tightened classifier.)
-  //
-  // FRAGILE BY NATURE: this rests on node:sqlite's EXACT wording. A library/locale change to the
-  // phrase would silently misclassify — a real 500 → 400 (losing its server-side log) or a 400 →
-  // 500 — so it's pinned by a unit test that triggers each real constraint kind and asserts the
-  // message still contains "constraint failed" (see the statusFor test in app.test.ts).
-  if (/constraint failed/i.test(msg)) return 400
-  return 500
+  if (err instanceof ValidationError) return 400;
+  if (isSqliteConstraintError(err)) return 400;
+  return 500;
 }
 
-function fail(reply: FastifyReply, err: unknown, logError: (e: unknown) => void = console.error) {
-  const status = statusFor(err)
+/** Resolve the client identity consistently for rate limiting and security telemetry. */
+export function requestClientIp(
+  request: Pick<FastifyRequest, "headers" | "ip">,
+  trustProxyHeaders: boolean,
+): string {
+  if (trustProxyHeaders) {
+    const forwarded = request.headers["x-forwarded-for"];
+    const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)
+      ?.split(",")[0]
+      ?.trim();
+    if (first) return first;
+  }
+  return request.ip;
+}
+
+function fail(
+  reply: FastifyReply,
+  err: unknown,
+  logError: (e: unknown) => void = console.error,
+) {
+  const status = statusFor(err);
   // A 500 is an unexpected server/db bug: log the real error server-side but return a
   // GENERIC body so we never leak internals (stack-ish messages, SQL, paths).
   if (status === 500) {
-    logError(err)
-    return reply.code(500).send({ error: 'Internal server error' })
+    logError(err);
+    return reply.code(500).send({ error: "Internal server error" });
   }
   // 400s: a curated ValidationError message is safe AND useful (it's a friendly sentence we
   // authored). A raw DB-constraint message (e.g. "NOT NULL constraint failed: clients.color")
   // leaks schema internals — genericise it, mirroring the 500 redaction one tier down.
-  const message = err instanceof ValidationError
-    ? err.message
-    : 'That change references missing data or conflicts with an existing record.'
-  return reply.code(status).send({ error: message })
+  const message =
+    err instanceof ValidationError
+      ? err.message
+      : "That change references missing data or conflicts with an existing record.";
+  return reply.code(status).send({
+    error: message,
+    ...(err instanceof ValidationError && err.code ? { code: err.code } : {}),
+  });
 }
 
 export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
-  const authMode = opts.authMode ?? 'off'
-  const auth = opts.auth ?? null
+  const authMode = opts.authMode ?? "off";
+  const auth = opts.auth ?? null;
+  const configuredRateLimit = opts.rateLimit ?? 0;
+  const rateLimitMax = normalizeRateLimit(configuredRateLimit);
+  if (configuredRateLimit !== 0 && rateLimitMax === 0) {
+    throw new RangeError(
+      `rateLimit must be 0 (disabled) or a positive integer no greater than ${MAX_RATE_LIMIT.toLocaleString("en-US")}.`,
+    );
+  }
   // Misconfiguration, not a request-time condition: fail at construction, loudly.
-  if (authMode !== 'off' && !auth) {
-    throw new Error(`buildApp: authMode '${authMode}' requires a Better Auth instance (opts.auth)`)
+  if (authMode !== "off" && !auth) {
+    throw new Error(
+      `buildApp: authMode '${authMode}' requires a Better Auth instance (opts.auth)`,
+    );
   }
   if (
     opts.bootstrapToken &&
-    Buffer.byteLength(opts.bootstrapToken, 'utf8') < MIN_BOOTSTRAP_TOKEN_BYTES
+    Buffer.byteLength(opts.bootstrapToken, "utf8") < MIN_BOOTSTRAP_TOKEN_BYTES
   ) {
-    throw new Error(`CAPACITYLENS_BOOTSTRAP_TOKEN must be at least ${MIN_BOOTSTRAP_TOKEN_BYTES} bytes.`)
+    throw new Error(
+      `CAPACITYLENS_BOOTSTRAP_TOKEN must be at least ${MIN_BOOTSTRAP_TOKEN_BYTES} bytes.`,
+    );
   }
-  const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION
-  const applicationFailure = boundApplicationFailure(application)
-  if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`)
+  const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION;
+  const applicationFailure = boundApplicationFailure(application);
+  if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`);
   // One fail-never sink receives both legacy product mutation records and normalized account-flow
   // events. Construct it before the account boundary so the coordinator—not its HTTP caller—owns
   // audit correlation for cross-port commands.
-  const auditSink = opts.audit ?? noopAuditSink()
-  const accountLock = new KeyedOperationLock()
-  const identityPort = auth && authMode !== 'off'
-    ? betterAuthIdentityPort({ applicationId: application.applicationId, auth, authMode, db })
-    : trustedLocalIdentityPort({
-        id: DEMO_USER.id,
-        displayName: DEMO_USER.name,
-        email: DEMO_USER.email,
-        emailVerified: true,
-        linkedSubject: null,
-      })
+  const auditSink = opts.audit ?? noopAuditSink();
+  // Recover records committed before a prior process stopped between SQLite COMMIT and delivery.
+  // A sink failure remains a soft health signal and leaves the oldest row queued for the next
+  // request/restart; malformed durable rows throw because silently skipping one would break the
+  // completeness contract the outbox exists to provide.
+  drainAuditOutbox(db, auditSink);
+  const accountLock = new KeyedOperationLock();
+  const identityPort =
+    auth && authMode !== "off"
+      ? betterAuthIdentityPort({
+          applicationId: application.applicationId,
+          auth,
+          authMode,
+          db,
+        })
+      : trustedLocalIdentityPort({
+          id: DEMO_USER.id,
+          displayName: DEMO_USER.name,
+          email: DEMO_USER.email,
+          emailVerified: true,
+          linkedSubject: null,
+        });
   const accountAdminPort = sqliteAccountAdminPort({
     applicationId: application.applicationId,
     db,
     lock: accountLock,
-    trustedLocal: authMode === 'off',
-    requireMfa: authMode === 'password' && opts.requireMfa === true,
+    trustedLocal: authMode === "off",
+    requireMfa: authMode === "password" && opts.requireMfa === true,
     audit: { append: (event) => auditSink.append(event) },
-  })
+  });
   const accountFlows = localAccountFlows({
     applicationId: application.applicationId,
     db,
     identity: identityPort,
     administration: accountAdminPort,
     lock: accountLock,
-    eraseProductWorkspaceInTx: (workspaceId) => eraseWorkspaceProductDataInTx(db, workspaceId),
+    eraseProductWorkspaceInTx: (workspaceId) =>
+      eraseWorkspaceProductDataInTx(db, workspaceId),
     audit: { append: (event) => auditSink.append(event) },
-  })
-  const logOn = opts.log === true
+  });
+  const logOn = opts.log === true;
   const app = Fastify({
     ...(opts.internalTls ? { https: opts.internalTls } : {}),
     bodyLimit: BODY_LIMIT,
@@ -766,111 +1082,162 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
     // ON always attaches the redact config (both branches) so a secret can never reach the
     // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
-    logger: logOn
-      ? {
-          ...(opts.logStream ? { stream: opts.logStream } : {}),
-          redact: { paths: LOG_REDACT_PATHS, remove: true },
-          // Access-log hygiene: token-scoped invite URLs carry the bearer token in the path,
-          // and pino logs req.url VERBATIM (only headers are
-          // redacted via redact above). Rewrite just that one URL shape to mask the :token segment
-          // so the live token never reaches stdout under CAPACITYLENS_LOG. All other URLs pass
-          // through untouched. This is REQUEST-log hygiene — entirely separate from the P1.15 audit
-          // sink. The default Fastify req serializer is reconstructed so method/hostname/remote
-          // address keep logging exactly as before.
-          serializers: {
-            req(req: FastifyRequest) {
-              return {
-                method: req.method,
-                url: redactSecretUrl(req.url),
-                hostname: req.hostname,
-                remoteAddress: req.ip,
-                remotePort: req.socket?.remotePort,
-              }
-            },
-          },
-        }
-      : false,
-  })
+    // requestLoggerOptions also owns invite/query URL masking and reconstructs Fastify's request
+    // serializer so method/hostname/remote address remain available without emitting headers.
+    logger: logOn ? requestLoggerOptions(opts.logStream) : false,
+  });
+  app.addHook("onRequest", (request, reply, done) => {
+    const controller = new AbortController();
+    request.raw.once("aborted", () =>
+      controller.abort(new Error("The request was aborted.")),
+    );
+    reply.raw.once("close", () => {
+      if (!reply.raw.writableFinished)
+        controller.abort(new Error("The client disconnected."));
+    });
+    runWithRequestAbortSignal(controller.signal, done, (queue, reason) => {
+      securityEvent({
+        event: "password_security_queue_saturated",
+        outcome: "blocked",
+        queue,
+        reason,
+        method: request.method,
+        path: request.url.split("?", 1)[0],
+        remoteIp: requestClientIp(request, opts.trustProxyHeaders === true),
+      });
+    });
+  });
   // A finite process-wide socket ceiling gives the reverse proxy a deterministic overload signal
   // instead of allowing unbounded accepted connections to consume memory/file descriptors.
-  app.server.maxConnections = MAX_SERVER_CONNECTIONS
+  app.server.maxConnections = MAX_SERVER_CONNECTIONS;
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
-  const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
-  const corsOrigins = new Set(corsOrigin.split(',').map((origin) => origin.trim()).filter(Boolean))
-  if (corsOrigins.has('*')) {
-    throw new Error('CORS requires explicit origins when cookie authentication is enabled.')
-  }
+  const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS;
+  const corsOrigins = new Set(
+    corsOrigin
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+      .map((configuredOrigin) => {
+        if (configuredOrigin === "*") {
+          throw new Error(
+            "CORS requires explicit origins when cookie authentication is enabled.",
+          );
+        }
+        let parsed: URL;
+        try {
+          parsed = new URL(configuredOrigin);
+        } catch (cause) {
+          throw new Error(
+            `Invalid CORS origin ${JSON.stringify(configuredOrigin)}: expected a bare HTTP(S) origin.`,
+            { cause },
+          );
+        }
+        if (
+          (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+          parsed.username !== "" ||
+          parsed.password !== "" ||
+          parsed.pathname !== "/" ||
+          parsed.search !== "" ||
+          parsed.hash !== ""
+        ) {
+          throw new Error(
+            `Invalid CORS origin ${JSON.stringify(configuredOrigin)}: expected a bare HTTP(S) origin without credentials, a path, query, or fragment.`,
+          );
+        }
+        return parsed.origin;
+      }),
+  );
   // 500s with logging ON go through the request-scoped logger (one parseable JSON line,
   // correlated with the request); OFF keeps today's bare console.error.
   const sendFail = (reply: FastifyReply, err: unknown) =>
-    fail(reply, err, logOn ? (e: unknown) => reply.log.error(e) : undefined)
+    fail(reply, err, logOn ? (e: unknown) => reply.log.error(e) : undefined);
   const accountFail = (reply: FastifyReply, err: unknown) => {
-    if (!(err instanceof AccountContractError)) return sendFail(reply, err)
-    const retryAfterSeconds = (
-      typeof err.failure.retryAfterSeconds === 'number' &&
+    if (!(err instanceof AccountContractError)) return sendFail(reply, err);
+    const retryAfterSeconds =
+      typeof err.failure.retryAfterSeconds === "number" &&
       Number.isFinite(err.failure.retryAfterSeconds) &&
       err.failure.retryAfterSeconds >= 0
-    ) ? err.failure.retryAfterSeconds : undefined
-    if (retryAfterSeconds !== undefined) reply.header('retry-after', String(Math.ceil(retryAfterSeconds)))
+        ? err.failure.retryAfterSeconds
+        : undefined;
+    if (retryAfterSeconds !== undefined)
+      reply.header("retry-after", String(Math.ceil(retryAfterSeconds)));
     return reply.code(statusForAccountFailure(err.failure)).send({
       error: err.failure.message,
       code: err.failure.code,
       retryable: err.failure.retryable,
       ...(err.failure.commandId ? { commandId: err.failure.commandId } : {}),
       ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
-    })
-  }
+    });
+  };
   const securityEvent = (event: Record<string, unknown>): void => {
     try {
       // Central path-secret boundary: every security event passes here, including early auth/MFA/
       // rate-limit refusals. A caller cannot accidentally bypass invite-token redaction by logging
       // the raw request path instead of remembering to sanitize it at each event site.
-      const safeEvent = typeof event.path === 'string'
-        ? { ...event, path: redactSecretUrl(event.path) }
-        : event
-      opts.securityLog?.(safeEvent)
+      const safeEvent =
+        typeof event.path === "string"
+          ? { ...event, path: redactSecretUrl(event.path) }
+          : event;
+      opts.securityLog?.(safeEvent);
     } catch (error) {
       // A monitoring transport must never turn a safe refusal into an application outage.
-      if (logOn) app.log.error(error, 'security event logging failed')
-      else console.error('capacitylens-server: security event logging failed')
+      if (logOn) app.log.error(error, "security event logging failed");
+      else console.error("capacitylens-server: security event logging failed");
     }
-  }
-
+  };
 
   // Single redaction funnel for any UNCAUGHT throw (a route that forgot a try/catch, a
-  // SQLITE_BUSY thrown mid-statement). Fastify framework errors (413 payload-too-large,
-  // 400 malformed JSON) carry their own statusCode + a safe generic message — preserve
-  // them; everything else routes through fail() so a 500 stays generic and a 400
-  // DB-constraint message can't leak SQLite internals.
+  // SQLITE_BUSY thrown mid-statement). Positively identified parsing errors carry safe messages.
+  // A duck-typed statusCode alone proves nothing about message safety; unknown errors route through
+  // fail() so a 500 stays generic and a 400 DB-constraint message cannot leak schema internals.
   app.setErrorHandler((err, req, reply) => {
-    const fwStatus = (err as { statusCode?: number }).statusCode
-    if (typeof fwStatus === 'number') {
-      if (fwStatus >= 500) {
-        securityEvent({ event: 'unexpected_error', outcome: 'failure', method: req.method, path: req.url, status: fwStatus })
-        if (logOn) req.log.error(err)
-        else console.error(err)
-        return reply.code(fwStatus).send({ error: 'Internal server error' })
-      }
-      return reply.code(fwStatus).send({ error: err instanceof Error ? err.message : 'Bad request' })
+    const errorStatus = (err as { statusCode?: unknown }).statusCode;
+    if (
+      typeof errorStatus === "number" &&
+      Number.isInteger(errorStatus) &&
+      errorStatus >= 500 &&
+      errorStatus <= 599
+    ) {
+      securityEvent({
+        event: "unexpected_error",
+        outcome: "failure",
+        method: req.method,
+        path: req.url,
+        status: errorStatus,
+      });
+      if (logOn) req.log.error(err);
+      else console.error(err);
+      return reply.code(errorStatus).send({ error: "Internal server error" });
     }
-    return sendFail(reply, err)
-  })
+    const safe = safeClientError(err);
+    if (safe) {
+      return reply.code(safe.status).send({ error: safe.message });
+    }
+    return sendFail(reply, err);
+  });
 
   // Browsers use non-JSON media types for CSP reports. Parse them as bounded JSON so malformed or
   // oversized telemetry is rejected before the handler and can never become a logging DoS path.
   app.addContentTypeParser(
-    ['application/csp-report', 'application/reports+json'],
-    { parseAs: 'string', bodyLimit: CSP_REPORT_BODY_LIMIT },
+    ["application/csp-report", "application/reports+json"],
+    { parseAs: "string", bodyLimit: CSP_REPORT_BODY_LIMIT },
     (_req, body, done) => {
       try {
-        done(null, JSON.parse(typeof body === 'string' ? body : body.toString('utf8')))
+        done(
+          null,
+          JSON.parse(typeof body === "string" ? body : body.toString("utf8")),
+        );
       } catch {
-        const error = new Error('Malformed CSP report') as Error & { statusCode: number }
-        error.statusCode = 400
-        done(error, undefined)
+        const error = new Error("Malformed CSP report") as Error & {
+          code: string;
+          statusCode: number;
+        };
+        error.code = "CAPACITYLENS_MALFORMED_CSP_REPORT";
+        error.statusCode = 400;
+        done(error, undefined);
       }
     },
-  )
+  );
 
   // Baseline security headers (P0.5.3, @fastify/helmet): ON by default — these are pure
   // hardening with no precondition, for an API server that returns JSON only (the SPA is
@@ -894,75 +1261,101 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // insecure-requests — past the explicit set below; this pins the wire CSP to the minimal set.
       useDefaults: false,
       directives: {
-        'default-src': ["'self'"],
-        'connect-src': ["'self'"],
-        'frame-ancestors': ["'none'"],
-        'base-uri': ["'self'"],
-        'object-src': ["'none'"],
-        'report-uri': ['/api/security/csp-report'],
-        'report-to': ['csp-endpoint'],
+        "default-src": ["'self'"],
+        "connect-src": ["'self'"],
+        "frame-ancestors": ["'none'"],
+        "base-uri": ["'self'"],
+        "object-src": ["'none'"],
+        "report-uri": ["/api/security/csp-report"],
+        "report-to": ["csp-endpoint"],
       },
     },
-    referrerPolicy: { policy: 'no-referrer' },
+    referrerPolicy: { policy: "no-referrer" },
     // X-Frame-Options: DENY for legacy browsers (helmet's default is SAMEORIGIN); the modern
     // equivalent is the CSP frame-ancestors 'none' above. This API is never framed, so DENY.
-    frameguard: { action: 'deny' },
+    frameguard: { action: "deny" },
     // OFF over HTTP (the default deploy: HTTP behind a TLS-terminating proxy); only emitted
     // when the operator asserts real HTTPS fronts the origin (opts.https / CAPACITYLENS_HTTPS=1).
-    hsts: opts.https === true ? { maxAge: 63072000, includeSubDomains: true } : false,
-  })
+    hsts:
+      opts.https === true
+        ? { maxAge: 63072000, includeSubDomains: true }
+        : false,
+  });
 
   // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
   // was configured — off means the plugin doesn't exist in the app at all. Keyed per IP;
-  // behind the Nginx proxy every socket is loopback, so rateLimitTrustForwarded swaps the
+  // behind the Nginx proxy every socket is loopback, so trustProxyHeaders swaps the
   // key to the first X-Forwarded-For hop there (and only there). 429s flow through the
   // setErrorHandler above, so the refusal is the API's usual { error } JSON shape.
-  const rateLimitMax = normalizeRateLimit(opts.rateLimit ?? 0)
   if (rateLimitMax > 0) {
     void app.register(rateLimitPlugin, {
       max: rateLimitMax,
-      timeWindow: '1 minute',
+      timeWindow: "1 minute",
+      // Give the global redaction funnel positive provenance and let it return canonical text.
+      // @fastify/rate-limit's default error has only a duck-typed statusCode, indistinguishable
+      // from an arbitrary thrown object whose message could contain internal details.
+      errorResponseBuilder: (_req, context) =>
+        Object.assign(new Error("Rate limit exceeded"), {
+          code: "CAPACITYLENS_RATE_LIMITED",
+          statusCode: context.statusCode,
+        }),
       keyGenerator: (req: FastifyRequest) => {
-        if (opts.rateLimitTrustForwarded === true) {
-          const xff = req.headers['x-forwarded-for']
-          const first = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim()
-          if (first) return first
-        }
-        return req.ip
+        return requestClientIp(req, opts.trustProxyHeaders === true);
       },
-    })
+    });
   }
 
   // ASVS v5.0.0 V14.3.2: authenticated/API data must never be retained by a browser,
   // intermediary, or shared cache. Apply this at the root so Better Auth responses, errors,
   // health, and every custom route share one invariant. `no-store` is the normative control;
   // the legacy Pragma header protects older HTTP/1.0 intermediaries.
-  app.addHook('onSend', async (req: FastifyRequest, reply: FastifyReply, payload) => {
-    if (req.url.split('?', 1)[0].startsWith('/api/')) {
-      reply.header('Cache-Control', 'no-store')
-      reply.header('Pragma', 'no-cache')
-      reply.header('Reporting-Endpoints', 'csp-endpoint="/api/security/csp-report"')
-    }
-    return payload
-  })
+  app.addHook(
+    "onSend",
+    async (req: FastifyRequest, reply: FastifyReply, payload) => {
+      if (req.url.split("?", 1)[0].startsWith("/api/")) {
+        reply.header("Cache-Control", "no-store");
+        reply.header("Pragma", "no-cache");
+        reply.header(
+          "Reporting-Endpoints",
+          'csp-endpoint="/api/security/csp-report"',
+        );
+      }
+      return payload;
+    },
+  );
 
-  app.addHook('onResponse', async (req: FastifyRequest, reply: FastifyReply) => {
-    const path = req.url.split('?', 1)[0]
-    const authOperation = /^\/api\/auth\/(sign-in|sign-out|callback|oauth2\/callback|two-factor|change-password|reset-password)/.test(path)
-    if (authOperation) {
-      securityEvent({
-        event: 'authentication',
-        outcome: reply.statusCode < 400 ? 'success' : 'failure',
-        method: req.method,
-        path,
-        status: reply.statusCode,
-        remoteIp: req.ip,
-        userId: req.user?.id,
-      })
-    } else if (reply.statusCode === 429) {
-      securityEvent({ event: 'rate_limit', outcome: 'blocked', method: req.method, path, status: 429, remoteIp: req.ip })
-    }
-  })
+  app.addHook(
+    "onResponse",
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const path = req.url.split("?", 1)[0];
+      const authOperation =
+        /^\/api\/auth\/(sign-in|sign-out|callback|oauth2\/callback|two-factor|change-password|reset-password)/.test(
+          path,
+        );
+      if (authOperation) {
+        securityEvent({
+          event: "authentication",
+          outcome: reply.statusCode < 400 ? "success" : "failure",
+          method: req.method,
+          path,
+          status: reply.statusCode,
+          remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
+          ...(req.authenticationUserId === null
+            ? {}
+            : { userId: req.authenticationUserId }),
+        });
+      } else if (reply.statusCode === 429) {
+        securityEvent({
+          event: "rate_limit",
+          outcome: "blocked",
+          method: req.method,
+          path,
+          status: 429,
+          remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
+        });
+      }
+    },
+  );
 
   // requireUser — ONE gate for everything under /api/ except /api/health (the
   // uptime monitor has no session) and /api/auth/* (the login machinery itself; our
@@ -970,82 +1363,127 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // only fires for MATCHED routes, so 404s and the CORS preflight 204 are unaffected.
   // 'off' attaches the synthetic demo identity and continues — no request that succeeds
   // today may fail. Other modes resolve the Better Auth session or 401.
-  app.decorateRequest('user', null)
-  app.decorateRequest('accountActor', null)
-  app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
-    const path = req.url.split('?', 1)[0]
-    if (
-      !path.startsWith('/api/') ||
-      path === '/api/health' ||
-      path === '/api/security/csp-report' ||
-      path.startsWith('/api/auth/')
-    ) return
-    // A genuinely new password user has no session yet. Signup is authorized by the unexpired
-    // single-use invite bearer token. Preview is also bearer-authorized and returns only the company
-    // display name, proposed role and expiry — never tenant rows, members or identity facts.
-    if (/^\/api\/invites\/[^/]+\/signup$/.test(path)) return
-    if (req.method === 'GET' && /^\/api\/invites\/[^/]+\/preview$/.test(path)) return
-    if (req.method === 'POST' && path === '/api/account-commands/reconcile') return
-    if (authMode === 'off') {
-      req.user = DEMO_USER
-      req.accountActor = {
-        principalId: DEMO_USER.id,
-        sessionId: 'trusted-local',
-        assurance: 'trusted-local',
-        fresh: true,
-        mfaSatisfied: true,
+  app.decorateRequest("user", null);
+  app.decorateRequest("accountActor", null);
+  app.decorateRequest("authenticationUserId", null);
+  app.addHook(
+    "preHandler",
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const path = req.url.split("?", 1)[0];
+      if (
+        !path.startsWith("/api/") ||
+        path === "/api/health" ||
+        path === "/api/security/csp-report" ||
+        path.startsWith("/api/auth/")
+      )
+        return;
+      // A genuinely new password user has no session yet. Signup is authorized by the unexpired
+      // single-use invite bearer token. Preview is also bearer-authorized and returns only the company
+      // display name, proposed role and expiry — never tenant rows, members or identity facts.
+      if (/^\/api\/invites\/[^/]+\/signup$/.test(path)) return;
+      if (req.method === "GET" && /^\/api\/invites\/[^/]+\/preview$/.test(path))
+        return;
+      if (req.method === "POST" && path === "/api/account-commands/reconcile")
+        return;
+      if (authMode === "off") {
+        req.user = DEMO_USER;
+        req.accountActor = {
+          principalId: DEMO_USER.id,
+          sessionId: "trusted-local",
+          assurance: "trusted-local",
+          fresh: true,
+          mfaSatisfied: true,
+        };
+        return;
       }
-      return
-    }
-    try {
-      const session = await identityPort!.verifyApplicationSession({ headers: toWebHeaders(req.headers) })
-      if (!session) {
-        securityEvent({ event: 'authentication_required', outcome: 'blocked', method: req.method, path, remoteIp: req.ip })
-        return reply.code(401).send({ error: 'Sign in to continue.' })
+      try {
+        const session = await identityPort!.verifyApplicationSession({
+          headers: toWebHeaders(req.headers),
+        });
+        if (!session) {
+          securityEvent({
+            event: "authentication_required",
+            outcome: "blocked",
+            method: req.method,
+            path,
+            remoteIp: requestClientIp(req, opts.trustProxyHeaders === true),
+          });
+          return reply.code(401).send({ error: "Sign in to continue." });
+        }
+        const user = sessionUserFromApplicationSession(session);
+        req.user = user;
+        req.accountActor = actorContextFromSession(session);
+        if (
+          authMode === "password" &&
+          opts.requireMfa === true &&
+          user.twoFactorEnabled !== true
+        ) {
+          securityEvent({
+            event: "mfa_required",
+            outcome: "blocked",
+            method: req.method,
+            path,
+            userId: user.id,
+          });
+          return reply.code(403).send({
+            error: "Multi-factor authentication enrollment is required.",
+            code: "MFA_ENROLLMENT_REQUIRED",
+          });
+        }
+      } catch (e) {
+        // The auth backend (Better Auth / its DB) FAILED — this is NOT "no session". CRITICAL: do
+        // not fall through leaving req.user null while letting the handler run (that would serve an
+        // UNAUTHENTICATED request). Reject with a 503 (distinct from a credentials-style 401);
+        // returning a reply from a preHandler short-circuits the route, so the handler never executes.
+        req.log.error(e);
+        return reply
+          .code(503)
+          .send({ error: "Sign-in is temporarily unavailable." });
       }
-      const user = sessionUserFromApplicationSession(session)
-      req.user = user
-      req.accountActor = actorContextFromSession(session)
-      if (authMode === 'password' && opts.requireMfa === true && user.twoFactorEnabled !== true) {
-        securityEvent({ event: 'mfa_required', outcome: 'blocked', method: req.method, path, userId: user.id })
-        return reply.code(403).send({
-          error: 'Multi-factor authentication enrollment is required.',
-          code: 'MFA_ENROLLMENT_REQUIRED',
-        })
-      }
-    } catch (e) {
-      // The auth backend (Better Auth / its DB) FAILED — this is NOT "no session". CRITICAL: do
-      // not fall through leaving req.user null while letting the handler run (that would serve an
-      // UNAUTHENTICATED request). Reject with a 503 (distinct from a credentials-style 401);
-      // returning a reply from a preHandler short-circuits the route, so the handler never executes.
-      req.log.error(e)
-      return reply.code(503).send({ error: 'Sign-in is temporarily unavailable.' })
-    }
-  })
+    },
+  );
 
   // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
   // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
   // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
   // a server whose DB is broken is a lie).
-  const healthStmt = opts.healthDeep === true ? db.prepare('SELECT 1') : null
+  const healthStmt = opts.healthDeep === true ? db.prepare("SELECT 1") : null;
 
-  // Record one audit line and, ONLY on a write failure, set the uniform warning header. The header
-  // (not a body field) is the warning mechanism on ALL six routes — it keeps entity row payloads
-  // pure and works for the bodyless 204 DELETE. append() never throws (see audit.ts), so this can't
-  // fail a request: a degraded audit is a soft signal (deep-health latches it), not a 5xx.
+  // Forward coordinator-owned account/control events that do not represent AppData mutations.
+  // Product mutations use commitProductAudit below so their audit row shares the data transaction.
+  // append() never throws (see audit.ts); a degraded direct sink remains a soft health signal.
   const audit = (reply: FastifyReply, record: AuditRecord): void => {
-    if (!auditSink.append(record)) reply.header('x-capacitylens-audit-warning', 'true')
-  }
+    if (!auditSink.append(record))
+      reply.header("x-capacitylens-audit-warning", "true");
+  };
+
+  const drainProductAudit = (reply: FastifyReply): boolean => {
+    const ok = drainAuditOutbox(db, auditSink);
+    if (!ok) reply.header("x-capacitylens-audit-warning", "true");
+    return ok;
+  };
+
+  const commitProductAudit = (
+    reply: FastifyReply,
+    record: AuditRecord,
+    mutation: () => void,
+  ): boolean => {
+    tx(db, () => {
+      mutation();
+      enqueueAudit(db, record);
+    });
+    return drainProductAudit(reply);
+  };
 
   // The tenancy swap point (P1.4): the per-account scoped read/write seam every permissioned route
   // goes through. Built ONCE here (factory state, like healthStmt) so the same instance backs every
   // request. Today it wraps the shared SQLite file; a future per-agency-DB / Postgres backend swaps
   // inside tenantStore.ts with no route change. See tenantStore.ts for the no-cross-tenant contract.
-  const store = sqliteTenantStore(db)
+  const store = sqliteTenantStore(db);
 
   /**
    * The authorization seam (P1.5 requirePermission): "may THIS request perform `action` on
-   * `accountId`?". Returns `true` to proceed; otherwise it has already sent a 403 and returns
+   * `accountId`?". Returns `true` to proceed; otherwise it has already sent the route's denial and returns
    * `false`, so a caller guards with `if (!authorize(...)) return`.
    *
    * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns `true` on the FIRST line,
@@ -1064,27 +1502,47 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
    * @param reply      The reply, used to send the 403 on denial.
    * @param accountId  The account the action targets (each route derives this as it does today).
    * @param action     The coarse capability being attempted (see {@link Action}).
-   * @returns `true` if allowed; `false` after sending a 403 if denied.
+   * @param options    Row-addressed routes may conceal non-membership as the same 404 as an absent id.
+   * @returns `true` if allowed; `false` after sending the route's denial response.
    */
   function authorize(
     req: FastifyRequest,
     reply: FastifyReply,
     accountId: string,
     action: Action,
+    options: { concealNonMembership?: boolean } = {},
   ): boolean {
-    if (authMode === 'off') return true // OFF = allow-all; the account port / can NEVER run.
-    const role = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
+    if (authMode === "off") return true; // OFF = allow-all; the account port / can NEVER run.
+    const role = accountAdminPort.roleForPrincipalInWorkspace(
+      req.user!.id,
+      accountId,
+    );
     if (role === null) {
-      securityEvent({ event: 'authorization', outcome: 'denied', action, accountId, userId: req.user?.id })
-      reply.code(403).send({ error: 'Forbidden.' }) // not a member of this account
-      return false
+      securityEvent({
+        event: "authorization",
+        outcome: "denied",
+        action,
+        accountId,
+        userId: req.user?.id,
+      });
+      if (options.concealNonMembership)
+        reply.code(404).send({ error: "Not found" });
+      else reply.code(403).send({ error: "Forbidden." });
+      return false;
     }
     if (!can(role, action)) {
-      securityEvent({ event: 'authorization', outcome: 'denied', action, accountId, userId: req.user?.id, role })
-      reply.code(403).send({ error: 'Forbidden.' }) // member, but role tier too low for action
-      return false
+      securityEvent({
+        event: "authorization",
+        outcome: "denied",
+        action,
+        accountId,
+        userId: req.user?.id,
+        role,
+      });
+      reply.code(403).send({ error: "Forbidden." }); // member, but role tier too low for action
+      return false;
     }
-    if (action !== 'read' && action !== 'write') {
+    if (action !== "read" && action !== "write") {
       // Freshness gate for privileged (above-write) actions — FAIL CLOSED (mirrors the CSRF-parse
       // and needsSetup posture): a session whose creation time is missing or unparseable cannot be
       // proven fresh, so it counts as stale. The old `sessionCreatedAt !== undefined &&` guard
@@ -1092,31 +1550,33 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // client's re-auth dialog: a fresh sign-in always mints a session with a timestamp
       // (auth.api.getSession derives sessionCreatedAt from the session row), so no one is hard-stuck.
       // Date.parse(undefined ?? '') is NaN, and NaN fails Number.isFinite → stale.
-      const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? '')
-      const timestampMissing = !Number.isFinite(sessionCreatedAtMs)
+      const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? "");
+      const timestampMissing = !Number.isFinite(sessionCreatedAtMs);
       if (
         timestampMissing ||
-        Date.now() - sessionCreatedAtMs > ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000
+        Date.now() - sessionCreatedAtMs >
+          ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000
       ) {
         securityEvent({
-          event: 'step_up_required',
-          outcome: 'blocked',
+          event: "step_up_required",
+          outcome: "blocked",
           action,
           accountId,
           userId: req.user?.id,
           // Distinguish "we could not date this session" from an ordinarily aged-out one — an
           // operator seeing this on real sessions has a session-record integrity problem, not users
           // idling past the freshness window.
-          ...(timestampMissing ? { reason: 'missing_session_timestamp' } : {}),
-        })
+          ...(timestampMissing ? { reason: "missing_session_timestamp" } : {}),
+        });
         reply.code(403).send({
-          error: 'Sign in again before performing this security-sensitive action.',
-          code: 'SESSION_NOT_FRESH',
-        })
-        return false
+          error:
+            "Sign in again before performing this security-sensitive action.",
+          code: "SESSION_NOT_FRESH",
+        });
+        return false;
       }
     }
-    return true
+    return true;
   }
 
   /** Writer visibility for the two field-level confidentiality policies. Only time off and
@@ -1127,13 +1587,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     accountId: unknown,
   ): SanitizeWriteOptions {
     // No gated fields on this table (or trusted-local OFF) ⇒ fully visible, no membership lookup.
-    if (!tableHasGatedFields(table) || authMode === 'off') {
-      return ALL_FIELDS_VISIBLE
+    if (!tableHasGatedFields(table) || authMode === "off") {
+      return ALL_FIELDS_VISIBLE;
     }
-    const role = typeof accountId === 'string'
-      ? accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
-      : null // a non-string account id fails closed (every gated field hidden)
-    return visibilityForRole(role)
+    const role =
+      typeof accountId === "string"
+        ? accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
+        : null; // a non-string account id fails closed (every gated field hidden)
+    return visibilityForRole(role);
   }
 
   /** Apply every field-level confidentiality projection (GATED_FIELD_POLICIES) to write/conflict/
@@ -1144,7 +1605,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     row: Record<string, unknown>,
     vis: SanitizeWriteOptions,
   ): Record<string, unknown> {
-    return redactGatedEcho(table, row, vis)
+    return redactGatedEcho(table, row, vis);
   }
 
   // CORS response headers are not a CSRF control: browsers can still SEND a simple form request
@@ -1155,22 +1616,25 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
   // only root-level hooks run there — a child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
-  app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
-    const listedOrigin = resolveCorsOrigin(req.headers.origin, corsOrigins)
-    const fetchSite = req.headers['sec-fetch-site']
+  app.addHook("onRequest", async (req: FastifyRequest, reply: FastifyReply) => {
+    const listedOrigin = resolveCorsOrigin(req.headers.origin, corsOrigins);
+    const fetchSite = req.headers["sec-fetch-site"];
     // Sec-Fetch-Site is a forbidden browser-controlled header and therefore the most direct signal
     // for the packaged proxy path (where an outer TLS edge or non-default port can make server-side
     // origin reconstruction ambiguous). Exact scheme/Host comparison remains the fallback for
-    // older clients that do not send Fetch Metadata.
-    const sameOrigin = fetchSite === 'same-origin' || (
-      req.headers.origin !== undefined && requestOriginIsSameOrigin(
-        req,
-        req.headers.origin,
-        opts.rateLimitTrustForwarded === true,
-      )
-    )
-    const origin = listedOrigin ?? (sameOrigin ? req.headers.origin! : null)
-    const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+    // older clients that do not send Fetch Metadata. trustProxyHeaders is the shared deployment
+    // posture: it also controls X-Forwarded-For rate-limit identity above, and only trusted proxies
+    // that overwrite both headers may enable it.
+    const sameOrigin =
+      fetchSite === "same-origin" ||
+      (req.headers.origin !== undefined &&
+        requestOriginIsSameOrigin(
+          req,
+          req.headers.origin,
+          opts.trustProxyHeaders === true,
+        ));
+    const origin = listedOrigin ?? (sameOrigin ? req.headers.origin! : null);
+    const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
     // above) is the operator's EXPLICIT cross-site contract, so it passes the gate regardless of
     // Fetch Metadata — a `Sec-Fetch-Site: cross-site` on an allow-listed Origin is exactly the
@@ -1181,29 +1645,39 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (
       unsafe &&
       origin === null &&
-      (req.headers.origin !== undefined || fetchSite === 'cross-site')
+      (req.headers.origin !== undefined || fetchSite === "cross-site")
     ) {
       securityEvent({
-        event: 'cross_site_request', outcome: 'blocked', method: req.method,
-        path: req.url, origin: req.headers.origin, fetchSite,
-      })
-      return reply.code(403).send({ error: 'Cross-site request rejected.' })
+        event: "cross_site_request",
+        outcome: "blocked",
+        method: req.method,
+        path: req.url,
+        origin: req.headers.origin,
+        fetchSite,
+      });
+      return reply.code(403).send({ error: "Cross-site request rejected." });
     }
     if (origin) {
-      reply.header('Access-Control-Allow-Origin', origin)
-      reply.header('Vary', 'Origin')
-      reply.header('Access-Control-Allow-Credentials', 'true')
+      reply.header("Access-Control-Allow-Origin", origin);
+      reply.header("Vary", "Origin");
+      reply.header("Access-Control-Allow-Credentials", "true");
     }
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-    reply.header('Access-Control-Expose-Headers', 'x-capacitylens-audit-warning')
+    reply.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    );
+    reply.header(
+      "Access-Control-Expose-Headers",
+      "x-capacitylens-audit-warning",
+    );
     // Static allow-list: Content-Type plus the explicit account-bootstrap and first-owner setup
     // secret headers. Never reflect arbitrary requested headers on credentialed origins.
     reply.header(
-      'Access-Control-Allow-Headers',
-      'Content-Type, Idempotency-Key, x-account-command-id, x-capacitylens-bootstrap-token, x-capacitylens-setup-token',
-    )
-    if (req.method === 'OPTIONS') reply.code(204).send()
-  })
+      "Access-Control-Allow-Headers",
+      "Content-Type, Idempotency-Key, x-account-command-id, x-capacitylens-bootstrap-token, x-capacitylens-setup-token, x-capacitylens-sync-session, x-capacitylens-sync-sequence",
+    );
+    if (req.method === "OPTIONS") reply.code(204).send();
+  });
 
   // Every route below registers through a child plugin, NOT directly on the root:
   // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
@@ -1216,10 +1690,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // is covered by the normal IP rate limit, and logs a strict origin/directive projection rather
     // than attacker-controlled full URLs. Authentication cannot be required because a CSP failure
     // can occur before a session exists.
-    app.post('/api/security/csp-report', { bodyLimit: CSP_REPORT_BODY_LIMIT }, (req, reply) => {
-      for (const report of normalizedCspReports(req.body)) securityEvent(report)
-      return reply.code(204).send()
-    })
+    app.post(
+      "/api/security/csp-report",
+      { bodyLimit: CSP_REPORT_BODY_LIMIT },
+      (req, reply) => {
+        for (const report of normalizedCspReports(req.body))
+          securityEvent(report);
+        return reply.code(204).send();
+      },
+    );
 
     // Health is deliberately constant-work AND exempt from the rate limiter (`config.rateLimit:
     // false`): an uptime monitor polls it continuously and must NEVER be told 429. Behind a proxy
@@ -1227,28 +1706,44 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // route would let ordinary API traffic starve the monitor's probe (and vice versa). Exempting
     // it adds no amplification surface: the expensive full row-codec + foreign-key integrity
     // verification runs once during openDb(), and this handler is only a cached SELECT 1.
-    app.get('/api/health', { config: { rateLimit: false } }, (_req, reply) => {
-      if (!healthStmt) return { ok: true }
+    app.get("/api/health", { config: { rateLimit: false } }, (_req, reply) => {
+      if (!healthStmt) return { ok: true };
       try {
-        healthStmt.get()
+        healthStmt.get();
+        const backupHealth = opts.backupHealth?.();
         // P1.15: audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
         // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
         // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
         // the Playwright webServer probe contract — so the audit field appears ONLY in deep mode.
-        return { ok: true, db: true, audit: auditSink.degraded ? 'degraded' : 'ok' }
+        return {
+          ok: true,
+          db: true,
+          audit: auditSink.degraded ? "degraded" : "ok",
+          ...(backupHealth
+            ? {
+                backup: {
+                  status: backupHealth.degraded ? "degraded" : "ok",
+                  lastSuccessAt: backupHealth.lastSuccessAt,
+                },
+              }
+            : {}),
+          ...(opts.internalTlsExpiresAt
+            ? { internalTls: internalTlsHealth(opts.internalTlsExpiresAt) }
+            : {}),
+        };
       } catch {
         // INTENTIONAL empty catch: the 503 IS the surfacing. A broken DB must make the uptime
         // monitor see 503 — not a lying { ok: true } 200, and not a thrown 500. Do NOT "fix" this
         // by logging-and-rethrowing; the status code is the signal the monitor needs.
-        return reply.code(503).send({ ok: false })
+        return reply.code(503).send({ ok: false });
       }
-    })
+    });
 
     // Thin identity route — exists in EVERY mode so the client never forks on a
     // flag: { authMode, user }. 'off' reports the demo identity unconditionally; other
     // modes report the Better Auth session user, or 401 (with authMode, so the login
     // screen knows which form to show) when there is no session.
-    app.get('/api/auth/me', async (req, reply) => {
+    app.get("/api/auth/me", async (req, reply) => {
       // Company-creation capability flags: the client's create-company entry point uses these to
       // hide/disable itself instead of discovering the answer via a failed POST. `canCreateAccount`
       // mirrors POST /api/orgs' full gate — (cap allows) AND userMayCreateAccount, the SAME shared
@@ -1258,46 +1753,66 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // neither mode forks the client. The 401/503 shapes below are deliberately unchanged (no
       // account facts for a caller who isn't authenticated / whose session state is unknown) — an
       // anon caller on an auth-on instance is never told it can create.
-      const multiAccount = opts.multiAccount === true
+      const multiAccount = opts.multiAccount === true;
       // The cap arm (WHETHER a new company may exist at all) — POST /api/orgs' GATE 0.
-      const capAllows = multiAccount || countAccounts(db) === 0
-      if (authMode === 'off') {
+      const capAllows = !accountCreateCapped(db, opts);
+      if (authMode === "off") {
         // OFF mode: userMayCreateAccount is trivially true (its authMode arm), so the cap decides.
-        return { authMode, user: DEMO_USER, providers: [], multiAccount, canCreateAccount: capAllows }
+        return {
+          authMode,
+          user: DEMO_USER,
+          providers: [],
+          multiAccount,
+          canCreateAccount: capAllows,
+        };
       }
       try {
-        const session = await identityPort!.verifyApplicationSession({ headers: toWebHeaders(req.headers) })
+        const session = await identityPort!.verifyApplicationSession({
+          headers: toWebHeaders(req.headers),
+        });
         if (!session) {
           // First-run signal: password mode + an EMPTY user table means the setup-token-guarded
           // bootstrap is available (the live gate in auth.ts), so the login screen offers
           // "Create the owner account" instead of a dead-end sign-in. "The user count is zero" is
           // NOT tenant data — the 401 shape still deliberately excludes account facts (the
           // capability flags stay off this branch); it reveals no setup secret or account data.
-          const needsSetup = authMode === 'password' && countUsers(db) === 0
+          const needsSetup = authMode === "password" && countUsers(db) === 0;
           return reply.code(401).send({
             authMode,
             providers: auth?.providers ?? [],
-            error: 'Sign in to continue.',
+            error: "Sign in to continue.",
             ...(needsSetup ? { needsSetup: true } : {}),
-          })
+          });
         }
-        const user = sessionUserFromApplicationSession(session)
+        const user = sessionUserFromApplicationSession(session);
         return {
           authMode,
           user,
-          mfaRequired: authMode === 'password' && opts.requireMfa === true && user.twoFactorEnabled !== true,
+          mfaRequired:
+            authMode === "password" &&
+            opts.requireMfa === true &&
+            user.twoFactorEnabled !== true,
           providers: auth?.providers ?? [],
           multiAccount,
-          canCreateAccount: capAllows && await userMayCreateAccount(db, accountAdminPort, authMode, user.id),
-        }
+          canCreateAccount:
+            capAllows &&
+            (await userMayCreateAccount(
+              db,
+              accountAdminPort,
+              authMode,
+              user.id,
+            )),
+        };
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
         // (the client can tell "temporarily unavailable" from a 401 "bad/again credentials") rather
         // than letting it fall through to the generic 500 redaction.
-        req.log.error(e)
-        return reply.code(503).send({ authMode, error: 'Sign-in is temporarily unavailable.' })
+        req.log.error(e);
+        return reply
+          .code(503)
+          .send({ authMode, error: "Sign-in is temporarily unavailable." });
       }
-    })
+    });
 
     // Better Auth's own endpoints (sign-up/sign-in/sign-out/session/OAuth callbacks),
     // mounted ONLY when auth is on — in 'off' mode this route does not exist (the OFF
@@ -1305,7 +1820,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // wildcard in Fastify's router. Translation layer: Fastify req → web Request,
     // web Response → Fastify reply (set-cookie kept as separate headers; content-length
     // recomputed by Fastify).
-    if (authMode !== 'off' && auth) {
+    if (authMode !== "off" && auth) {
       // P1.18: SHADOW Better Auth's PUBLIC `request-password-reset` endpoint with a 404. Configuring
       // `emailAndPassword.sendResetPassword` (so admins can mint reset links server-side) is what
       // makes Better Auth expose this unauthenticated POST — but we NEVER want it reachable over
@@ -1317,55 +1832,97 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // as /api/auth/me), so this 404 wins. Registered for every auth-on mode (in 'sso' the endpoint
       // is inert anyway — sendResetPassword isn't set there — but a uniform 404 keeps the surface
       // identical across modes).
-      app.post('/api/auth/request-password-reset', (_req, reply) =>
-        reply.code(404).send({ error: 'Not found.' }),
-      )
+      app.post("/api/auth/request-password-reset", (_req, reply) =>
+        reply.code(404).send({ error: "Not found." }),
+      );
       app.route({
-        method: ['GET', 'POST'],
-        url: '/api/auth/*',
+        method: ["GET", "POST"],
+        url: "/api/auth/*",
         handler: async (req, reply) => {
-          const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
+          const url = authenticationRequestUrl(req);
+          if (!url)
+            return reply
+              .code(400)
+              .send({ error: "Invalid request authority." });
+          const requestHeaders = toWebHeaders(req.headers);
+          if (
+            requestHeaders.has("cookie") ||
+            requestHeaders.has("authorization")
+          ) {
+            req.authenticationUserId = await resolveAuthenticationUserId(
+              auth,
+              requestHeaders,
+              req,
+              logOn,
+            );
+          }
           const response = await auth.handler(
             new Request(url, {
               method: req.method,
-              headers: toWebHeaders(req.headers),
-              body: req.body === undefined || req.body === null ? undefined : JSON.stringify(req.body),
+              headers: requestHeaders,
+              body:
+                req.body === undefined || req.body === null
+                  ? undefined
+                  : JSON.stringify(req.body),
             }),
-          )
-          reply.status(response.status)
+          );
+          reply.status(response.status);
           response.headers.forEach((value, key) => {
-            if (key === 'set-cookie' || key === 'content-length' || key === 'transfer-encoding') return
-            reply.header(key, value)
-          })
-          const cookies = response.headers.getSetCookie()
-          if (cookies.length > 0) reply.header('set-cookie', cookies)
-          return reply.send(response.body ? Buffer.from(await response.arrayBuffer()) : null)
+            if (
+              key === "set-cookie" ||
+              key === "content-length" ||
+              key === "transfer-encoding"
+            )
+              return;
+            reply.header(key, value);
+          });
+          const cookies = response.headers.getSetCookie();
+          if (cookies.length > 0) reply.header("set-cookie", cookies);
+          if (
+            req.authenticationUserId === null &&
+            response.status < 400 &&
+            cookies.length > 0
+          ) {
+            req.authenticationUserId = await resolveAuthenticationUserId(
+              auth,
+              withResponseCookies(requestHeaders, cookies),
+              req,
+              logOn,
+            );
+          }
+          return reply.send(
+            response.body ? Buffer.from(await response.arrayBuffer()) : null,
+          );
         },
-      })
+      });
     }
 
     // The login → account list that drives the AccountPicker (P1.13). OFF mode is trusted-local:
     // EVERY account is accessible, so return all summaries with NO membership gate — branch on
     // authMode === 'off' BEFORE touching membership (the OFF guarantee). Auth-on returns ONLY the
     // caller's memberships through AccountAdminPort. Returns AccountSummary[] = [{ id, name, role }].
-    app.get('/api/accounts', async (req) => {
-      if (authMode === 'off') {
+    app.get("/api/accounts", async (req) => {
+      if (authMode === "off") {
         // No membership in off mode: every account is visible. Map to the same AccountSummary shape
         // The account port maps to ({ id, name, role }) so the auth-on / auth-off shapes are identical on
         // the wire. The role is 'owner' — the trusted-local full-access sentinel: OFF is byte-identical
         // to today's no-login deploy, so the client's pure `can('owner', …)` keeps OFF fully editable
         // (and a Viewer read-only mode is reachable ONLY auth-on, where a real membership role exists).
-        return loadState(db).accounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const }))
+        return loadState(db).accounts.map((a) => ({
+          id: a.id,
+          name: a.name,
+          role: "owner" as const,
+        }));
       }
       const memberships = await accountAdminPort.listWorkspacesForPrincipal({
         principalId: req.accountActor!.principalId,
-      })
+      });
       return memberships.map((membership) => ({
         id: membership.workspaceId,
         name: membership.workspaceName,
         role: membership.role,
-      }))
-    })
+      }));
+    });
 
     // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES are entity-level;
     // reads stay whole-tree so hydration is one round-trip.
@@ -1373,36 +1930,42 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // P1.4: when `?accountId=` is PRESENT, return that account's scoped slice via the TenantStore
     // (OFF mode: no gate — trusted-local; auth-on: a thin membership-existence guard — a null role
     // null ⇒ 403, so auth-on can't cross-tenant-read; the richer per-action can() gate is P1.5).
-    app.get('/api/state', (req, reply) => {
-      const { accountId } = req.query as { accountId?: string }
+    app.get("/api/state", (req, reply) => {
+      const { accountId } = req.query as { accountId?: string };
       if (accountId !== undefined) {
-        if (typeof accountId !== 'string' || accountId.length === 0) {
-          return reply.code(400).send({ error: 'accountId must be a non-empty string.' })
+        if (typeof accountId !== "string" || accountId.length === 0) {
+          return reply
+            .code(400)
+            .send({ error: "accountId must be a non-empty string." });
         }
         // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the
         // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
         // requires membership (read = any member, via can()) and 403s a non-member.
-        if (!authorize(req, reply, accountId, 'read')) return
+        if (!authorize(req, reply, accountId, "read")) return;
         // P1.6 field-level redaction: the time-off `note` is owner/admin-only. Decide visibility from
         // the caller's role and redact it SERVER-SIDE so it never serializes for an Editor/Viewer.
         // OFF mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
         // The port role is non-null here (authorize('read') already proved membership); the `role !==
         // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
-        const role = authMode === 'off'
-          ? null
-          : accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
+        const role =
+          authMode === "off"
+            ? null
+            : accountAdminPort.roleForPrincipalInWorkspace(
+                req.user!.id,
+                accountId,
+              );
         // Derive the export/read include flags from the SAME GATED_FIELD_POLICIES predicates that
         // drive the write-pin and read-echo, so the three can never disagree. OFF is trusted-local ⇒
         // include everything; otherwise each gated field is included iff the role may see it.
-        const vis = authMode === 'off' ? ALL_FIELDS_VISIBLE : visibilityForRole(role)
-        const includeTimeOffNote = vis.canSeeTimeOffNote !== false
-        const includePrivateNames = vis.canSeePrivateNames !== false
+        const vis =
+          authMode === "off" ? ALL_FIELDS_VISIBLE : visibilityForRole(role);
+        const includeTimeOffNote = vis.canSeeTimeOffNote !== false;
+        const includePrivateNames = vis.canSeePrivateNames !== false;
         // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
         // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
-        // purge (admin+, `can(role, 'purge')`) — the lifecycle-management tier — so an editor/viewer
-        // cannot pull tombstones. OFF mode is trusted-local ⇒ always allowed. A non-admin who asks for
-        // the flag gets 403 (not a silent fall-back to the active-only read — surface the refusal so the
-        // client knows the admin view is off-limits, mirroring authorize's explicit 403).
+        // purge (admin+ with a fresh session) — the lifecycle-management tier — so an editor/viewer or
+        // stale privileged session cannot pull tombstones. OFF mode is trusted-local ⇒ always allowed.
+        // A refusal is explicit rather than silently falling back to the active-only read.
         //
         // P2.6 COMPLETE PER-TENANT EXPORT. This same admin/'purge'-gated `?includeInactive=1` read IS
         // the roadmap's "complete per-tenant backup": exactly ONE account's slice (the accountId guard
@@ -1411,15 +1974,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // omits tombstones. The server-control tables (account_members / invites / Better Auth user|
         // session|account) are STRUCTURALLY excluded: readSlice only ever reads `accounts` + the scoped
         // tables, never the control plane, so membership/invite secrets/PII can never ride the export.
-        // Locked by app.export.test.ts. Doc-only note — no behaviour change to this route.
-        const wantsInactive = (req.query as { includeInactive?: string }).includeInactive === '1'
-        if (wantsInactive && authMode !== 'off' && !(role !== null && can(role, 'purge'))) {
-          return reply.code(403).send({ error: 'Forbidden.' })
-        }
+        // The slice composition is locked by app.export.test.ts.
+        const wantsInactive =
+          (req.query as { includeInactive?: string }).includeInactive === "1";
+        if (wantsInactive && !authorize(req, reply, accountId, "purge")) return;
         // P2.4: the NORMAL app read HIDES archived/soft-deleted resources/clients/projects — pass
         // includeInactive:false so readSlice drops them server-side (the same rule the client views
         // apply via useActiveScopedData). The P2.5a admin read passes true to retain them.
-        return store.readSlice(accountId, { includeTimeOffNote, includeInactive: wantsInactive, includePrivateNames })
+        return store.readSlice(accountId, {
+          includeTimeOffNote,
+          includeInactive: wantsInactive,
+          includePrivateNames,
+        });
       }
       // No ?accountId=. The auth-on cross-tenant whole-read is now CLOSED (P1.13 — the P1.4
       // carry-forward): a logged-in user must hydrate PER ACCOUNT via ?accountId= (the client picker
@@ -1428,18 +1994,22 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // (db-helpers, the OFF db-backed e2e, and the OFF app.accounts tests all rely on it). The client
       // adapter treats this 400 on the NO-ARG read as "hydrate empty, show the picker" (see
       // ServerSyncAdapter.loadAll), so a no-arg bootstrap in auth-on lands on the picker, not an error.
-      if (authMode !== 'off') {
-        return reply.code(400).send({ error: 'accountId is required.' })
+      if (authMode !== "off") {
+        return reply.code(400).send({ error: "accountId is required." });
       }
       // OFF: trusted-local whole read RETAINED. (P1.6 note: this whole read does NOT redact the
       // time-off `note` — fine, OFF is trusted-local and includes it everywhere.)
-      return loadState(db)
-    })
+      return loadState(db);
+    });
 
     // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
     // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
     // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
-    app.get('/api/meta', () => ({ hasData: isInitialized(db) }))
+    // This authenticated probe is deliberately not membership-gated: initialization is an
+    // instance-level bootstrap sentinel, not tenant data, and reveals no account, identity or row
+    // count. A membership-less principal therefore receives the same single boolean needed by the
+    // startup adapter without gaining access to any scoped state.
+    app.get("/api/meta", () => ({ hasData: isInitialized(db) }));
 
     // Constrained org-creation (P1.8): the ATOMIC "create a usable account" path, and — with auth
     // on — the ONLY account-create path: the generic vectors (POST /api/accounts, PUT-as-create,
@@ -1463,37 +2033,40 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     //       is also the only case GATE 0 lets through by default, so it's the common path).
     //   (2) OFF mode (trusted-local) — mirrors the authorize() OFF no-op; req.user is DEMO_USER.
     //   (3) auth-on: the caller is an ACTIVE Owner/Admin of SOME existing account (can(role,
-    //       'manageMembers') = admin-tier) — an existing operator may provision more orgs.
+    //       'manageMembers') = admin-tier) with fresh administrative assurance — an existing
+    //       operator may provision more orgs after the same step-up required for other Owner grants.
     //   (4) a valid bootstrap token in the `x-capacitylens-bootstrap-token` header (opts.bootstrapToken,
     //       env CAPACITYLENS_BOOTSTRAP_TOKEN, OFF by default — disabled when unset/empty).
     // Otherwise 403 — the acceptance criterion: a STRANGER cannot create an org once any account
     // exists, absent a bootstrap token. The gate runs in auth-on AND off; in off mode (1)/(2) already
     // allow, so the token/membership branches are moot there.
-    app.post('/api/orgs', async (req, reply) => {
+    app.post("/api/orgs", async (req, reply) => {
       // Build a VALID account row from the body (name required; colour repaired; junk schedulingMode
       // dropped) via the SAME sanitize/validate the generic account create uses — so /api/orgs can't
       // persist a row the generic path would reject. The id is generated server-side when the body
       // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
       // is accepted and validated like any other write.
       try {
-        const command = accountCommand(req)
+        const command = accountCommand(req);
         const bootstrapAuthorized = bootstrapTokenMatches(
           opts.bootstrapToken,
-          req.headers['x-capacitylens-bootstrap-token'],
-        )
-        const now = new Date().toISOString()
-        const id = typeof (req.body as { id?: unknown })?.id === 'string' && (req.body as { id: string }).id.trim() !== ''
-          ? (req.body as { id: string }).id
-          : generatedWorkspaceId(command.commandId)
-        const accountRow = sanitizeWrite('accounts', {
+          req.headers["x-capacitylens-bootstrap-token"],
+        );
+        const now = new Date().toISOString();
+        const id =
+          typeof (req.body as { id?: unknown })?.id === "string" &&
+          (req.body as { id: string }).id.trim() !== ""
+            ? (req.body as { id: string }).id
+            : generatedWorkspaceId(command.commandId);
+        const accountRow = sanitizeWrite("accounts", {
           ...(req.body as Record<string, unknown>),
           id,
           createdAt: now,
           updatedAt: now,
-        })
+        });
         // Server timestamps are result data, not caller intent. Excluding them from the command
         // digest lets an identical retry replay the first committed row after wall time advances.
-        const canonicalAccountRow = canonicalAccountProductPayload(accountRow)
+        const canonicalAccountRow = canonicalAccountProductPayload(accountRow);
         const provisioned = await accountFlows.provisionWorkspace({
           actor: req.accountActor!,
           workspaceId: id,
@@ -1505,26 +2078,42 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           provisionProductData: () => {
             // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
             // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
-            validateWrite(store.readSlice(id, FULL_SLICE_READ), 'accounts', accountRow)
-            insertRow(db, 'accounts', accountRow)
-            insertRow(db, 'clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
-            return accountRow
+            validateWrite(
+              store.readSlice(id, FULL_SLICE_READ),
+              "accounts",
+              accountRow,
+            );
+            insertRow(db, "accounts", accountRow);
+            insertRow(
+              db,
+              "clients",
+              buildInternalClient(id, now) as unknown as Record<
+                string,
+                unknown
+              >,
+            );
+            enqueueAudit(db, {
+              ts: String(accountRow.createdAt),
+              userId: req.user!.id,
+              accountId: id,
+              action: "create",
+              entity: "accounts",
+              id,
+              changedFields: acceptedFieldNames("accounts", accountRow),
+            });
+            return accountRow;
           },
-        })
-        const created = provisioned.product as Record<string, unknown>
-        const createdId = String(created.id)
+        });
         if (!provisioned.replayed) {
-          audit(reply, {
-            ts: String(created.createdAt), userId: req.user!.id, accountId: createdId,
-            action: 'create', entity: 'accounts', id: createdId,
-            changedFields: acceptedFieldNames('accounts', created),
-          })
+          drainProductAudit(reply);
         }
-        return reply.code(201).send(provisioned.product)
+        return reply.code(201).send(provisioned.product);
       } catch (err) {
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
+        return err instanceof AccountContractError
+          ? accountFail(reply, err)
+          : sendFail(reply, err);
       }
-    })
+    });
 
     registerAccountRoutes(app, {
       authMode,
@@ -1536,32 +2125,54 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       command: accountCommand,
       audit,
       fail: accountFail,
-    })
+    });
 
     registerLifecycleRoutes(app, {
       store,
       authorize,
-      audit,
+      commit: (reply, record, mutation) => {
+        commitProductAudit(reply, record, mutation);
+      },
       fail: sendFail,
       redact: (req, entity, row, accountId) =>
-        redactWriteEcho(entity, row, fieldVisibilityFor(req, entity, accountId)),
-    })
+        redactWriteEcho(
+          entity,
+          row,
+          fieldVisibilityFor(req, entity, accountId),
+        ),
+    });
 
-    // Account creation mints its built-in Internal in the same transaction below. A later client
-    // write carrying its own deterministic Internal is handled as a generated-row replacement.
-    app.post('/api/:entity', async (req, reply) => {
-      const { entity } = req.params as { entity: string }
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+    // Account creation mints its built-in Internal in the same transaction below. The privileged
+    // legacy-id adoption flow is intentionally PUT-only.
+    app.post("/api/:entity", async (req, reply) => {
+      const { entity } = req.params as { entity: string };
+      if (!isKnownTable(entity))
+        return reply.code(404).send({ error: `Unknown entity: ${entity}` });
       // Shared body-shape + builtin-Internal guard (Finding 7 funnel). A missing/non-object body
       // would otherwise null-deref below (accountId! / sanitizeWrite's assertIdPresent) BEFORE the
       // try block could classify it — a misclassified 500. checkEntityWriteBody rejects it with the
       // same shape /api/batch and /api/import use.
-      const scoped = isScopedTable(entity)
-      const bodyCheck = checkEntityWriteBody('create', req.body, undefined, scoped)
-      if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error })
-      const requestRow = req.body as Record<string, unknown>
-      const builtinCheck = builtinInternalWriteGuard('create', entity, undefined, requestRow)
-      if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error })
+      const scoped = isScopedTable(entity);
+      const bodyCheck = checkEntityWriteBody(
+        "create",
+        entity,
+        req.body,
+        undefined,
+        scoped,
+      );
+      if (bodyCheck)
+        return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
+      const requestRow = req.body as Record<string, unknown>;
+      const builtinCheck = builtinInternalWriteGuard(
+        "create",
+        entity,
+        undefined,
+        requestRow,
+      );
+      if (builtinCheck)
+        return reply
+          .code(builtinCheck.status)
+          .send({ error: builtinCheck.error });
       // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is CLOSED when auth is
       // on: the old "onboarding exemption" (a freshly-signed-up user holds no membership yet, so
       // this create was left ungated) became an authz bypass once POST /api/orgs landed — see
@@ -1573,29 +2184,45 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // account exists it requires opts.multiAccount, same as every other create vector. Account DELETE is
       // separately gated 'purge' (admin+) on BOTH vectors — the direct DELETE /api/accounts/:id
       // route AND the batch accounts-DELETE op (see both below).
-      if (entity === 'accounts' && authMode !== 'off') {
-        return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
+      if (entity === "accounts" && authMode !== "off") {
+        return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
       }
       if (scoped) {
-        if (!authorize(req, reply, requestRow.accountId as string, 'write')) return
+        if (!authorize(req, reply, requestRow.accountId as string, "write"))
+          return;
       }
       try {
         // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
         // to preserve; they could never read back a note they authored) — see sanitizeWrite.
-        const vis = fieldVisibilityFor(req, entity, requestRow.accountId)
+        const vis = fieldVisibilityFor(req, entity, requestRow.accountId);
         // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
         // inline sanitize/stamp + a full-DB loadState here).
-        const { row, generatedReplacement, scopedState } = prepareScopedWrite({
-          store, entity, body: requestRow, existing: undefined, vis, verb: 'create',
-        })
-        if (generatedReplacement) {
-          tx(db, () => {
-            replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row)
-          })
-        }
-        let responseRow = row
-        let replayed = false
-        if (entity === 'accounts') {
+        const { row, scopedState } = prepareScopedWrite({
+          store,
+          entity,
+          body: requestRow,
+          existing: undefined,
+          vis,
+          verb: "create",
+        });
+        let responseRow = row;
+        let replayed = false;
+        const auditRecord: AuditRecord = {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId:
+            (row.accountId as string | undefined) ?? (row.id as string),
+          action: "create",
+          entity,
+          id: row.id as string,
+          changedFields: appliedRequestedFieldNames(
+            entity,
+            requestRow,
+            undefined,
+            row,
+          ),
+        };
+        if (entity === "accounts") {
           const provisioned = await accountFlows.provisionWorkspace({
             actor: req.accountActor!,
             workspaceId: row.id as string,
@@ -1610,65 +2237,105 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               // exists or the single-company cap became full after its original success. Reuses the
               // funnel's scoped slice (Finding 9 — accounts validation is name-only, so the second
               // full-DB loadState the old code ran here was pure waste).
-              validateWrite(scopedState, entity, row)
-              insertRow(db, entity, row)
-              insertRow(db, 'clients', buildInternalClient(row.id as string, row.createdAt as string) as unknown as Record<string, unknown>)
-              return row
+              validateWrite(scopedState, entity, row);
+              insertRow(db, entity, row);
+              insertRow(
+                db,
+                "clients",
+                buildInternalClient(
+                  row.id as string,
+                  row.createdAt as string,
+                ) as unknown as Record<string, unknown>,
+              );
+              enqueueAudit(db, auditRecord);
+              return row;
             },
-          })
-          responseRow = provisioned.product as Record<string, unknown>
-          replayed = provisioned.replayed
-        } else if (!generatedReplacement) insertRow(db, entity, row)
-        // P1.15 audit (post-commit). changedFields = the row's field NAMES (never values).
-        if (!replayed) {
-          audit(reply, {
-            ts: new Date().toISOString(),
-            userId: req.user!.id,
-            accountId: (responseRow.accountId as string | undefined) ?? responseRow.id as string,
-            action: 'create',
-            entity,
-            id: responseRow.id as string,
-            changedFields: acceptedFieldNames(entity, responseRow),
-          })
+          });
+          responseRow = provisioned.product as Record<string, unknown>;
+          replayed = provisioned.replayed;
+          if (!replayed) drainProductAudit(reply);
+        } else {
+          commitProductAudit(reply, auditRecord, () =>
+            insertRow(db, entity, row),
+          );
         }
-        return reply.code(201).send(responseRow)
+        return reply.code(201).send(responseRow);
       } catch (err) {
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
+        return err instanceof AccountContractError
+          ? accountFail(reply, err)
+          : sendFail(reply, err);
       }
-    })
+    });
 
     // Idempotent upsert by id — the verb the client sync adapter uses for every
     // create AND update, so a replayed batch (after a partial failure) is safe. The
     // body's id must match the URL id.
-    app.put('/api/:entity/:id', async (req, reply) => {
-      const { entity, id } = req.params as { entity: string; id: string }
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-      const scoped = isScopedTable(entity)
-      const bodyCheck = checkEntityWriteBody('replace', req.body, id, scoped)
-      if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error })
-      const body = req.body as Record<string, unknown>
+    app.put("/api/:entity/:id", async (req, reply) => {
+      const { entity, id } = req.params as { entity: string; id: string };
+      if (!isKnownTable(entity))
+        return reply.code(404).send({ error: `Unknown entity: ${entity}` });
+      const scoped = isScopedTable(entity);
+      const bodyCheck = checkEntityWriteBody(
+        "replace",
+        entity,
+        req.body,
+        id,
+        scoped,
+      );
+      if (bodyCheck)
+        return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
+      const body = req.body as Record<string, unknown>;
       // P1.5 write gate (scoped tables): membership + write tier for the body's accountId. The
       // ownsRow immutability guard below still runs — authorize gates WHO may write, ownsRow keeps
       // accountId immutable.
-      if (scoped && !authorize(req, reply, body.accountId as string, 'write')) return
+      if (scoped && !authorize(req, reply, body.accountId as string, "write"))
+        return;
       try {
-        const workspaceCommand = entity === 'accounts' ? accountCommand(req) : null
-        const existing = getRow(db, entity, id)
-        const builtinCheck = builtinInternalWriteGuard('replace', entity, existing, body)
-        if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error })
+        const workspaceCommand =
+          entity === "accounts" ? accountCommand(req) : null;
+        const existing = getRow(db, entity, id);
+        const builtinCheck = builtinInternalWriteGuard(
+          "replace",
+          entity,
+          existing,
+          body,
+        );
+        if (builtinCheck)
+          return reply
+            .code(builtinCheck.status)
+            .send({ error: builtinCheck.error });
+        // Ordinary Editors may manage clients, but changing the server-owned Internal singleton's
+        // identity also rewrites every referencing project. Preserve the documented legacy-id
+        // adoption path while requiring a fresh Admin/Owner session for that privileged migration.
+        if (
+          entity === "clients" &&
+          body.builtin === true &&
+          existing?.builtin !== true &&
+          !authorize(
+            req,
+            reply,
+            body.accountId as string,
+            "manageInternalClient",
+          )
+        )
+          return;
         // Account CREATE via upsert (`entity === 'accounts' && !existing` — no row at this id yet)
         // is CLOSED when auth is on, same as the generic POST: the old onboarding exemption is an
         // authz bypass now that POST /api/orgs exists (see ACCOUNT_CREATE_CLOSED_MESSAGE). Checked
         // FIRST so the auth-on caller always gets the actionable "use /api/orgs" direction.
-        if (entity === 'accounts' && !existing && authMode !== 'off') {
-          return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
+        if (entity === "accounts" && !existing && authMode !== "off") {
+          return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
         }
         // Single-company cap (create-time only, see accountCreateCapped; OFF mode only here — the
         // auth-on create was already refused just above). Checked BEFORE the account-write gate
         // below (which only ever fires for the UPDATE case, `existing` truthy) so the two never
         // overlap. An UPDATE of an existing account is NEVER capped, regardless of multiAccount.
-        if (entity === 'accounts' && !existing && accountCreateCapped(db, opts)) {
-          return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
+        if (
+          entity === "accounts" &&
+          !existing &&
+          accountCreateCapped(db, opts)
+        ) {
+          return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
         }
         // P1.5 account-write gate. `accounts` is NOT a scoped table (no accountId column), so the
         // isScopedTable() gate above never runs for it — leaving a bare account UPDATE (rename / colour /
@@ -1677,62 +2344,104 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // account's OWN id, mirroring the DELETE route's accounts branch; a CREATE (no existing row) is
         // OPEN only in OFF mode (auth-on → 403 → /api/orgs, and the single-company cap, both just
         // above). OFF mode: authorize no-ops to allow by design.
-        if (entity === 'accounts' && existing && !authorize(req, reply, id, 'write')) return
+        if (
+          entity === "accounts" &&
+          existing &&
+          !authorize(req, reply, id, "write")
+        )
+          return;
         // accountId is immutable: a write must not move an EXISTING row to another account
         // (see ownsRow). The web store enforces this via findOwned; without the same guard a
         // crafted request could re-home a row and orphan its children across the tenant boundary.
         if (!ownsRow(existing, body.accountId)) {
-          return reply.code(409).send({ error: 'That record belongs to a different company.' })
+          return reply
+            .code(409)
+            .send({ error: "That record belongs to a different company." });
         }
-        // language/weekStartsOn/timezone are FROZEN after creation (P1.14). Compare the PUT body
-        // (NOT a merged row) against the stored row: a changed frozen field is a 409; an unchanged
-        // one passes (the sync adapter re-sends the whole row on any edit). accounts-only.
-        if (entity === 'accounts' && accountFieldsFrozen(existing, body)) {
+        // Compare the sanitised account candidate so malformed frozen values are ignored and an
+        // absent legacy value may be set once. A different valid value remains a 409.
+        if (
+          entity === "accounts" &&
+          accountFieldsFrozen(existing, sanitizeWrite(entity, body, existing))
+        ) {
           return reply.code(409).send({
-            error: 'Language, week start and time zone are set when the company is created and cannot be changed.',
-          })
+            error:
+              "Language, week start and time zone are set when the company is created and cannot be changed.",
+          });
         }
         // P1.6: the note-visibility fact for this writer — used to PIN the time-off `note` on the
         // write (their round-tripped row was redacted, so a bare upsert would NULL a note they
         // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
         // the 409 conflict payload included.
-        const vis = fieldVisibilityFor(req, entity, body.accountId)
+        const vis = fieldVisibilityFor(req, entity, body.accountId);
         // Only trusted-local compatibility creates can arrive here as a completed provisioning
         // replay. Authenticated account creation is closed on this route, so awaiting the
         // coordinator during an ordinary authenticated update would introduce a yield between the
         // role decision above and the write below (allowing a concurrent removal to stale-authorize
         // the update for no replay benefit).
-        if (authMode === 'off' && entity === 'accounts' && existing && workspaceCommand) {
-          const replay = await accountFlows.replayWorkspaceProvisioning<Record<string, unknown>>({
+        if (
+          authMode === "off" &&
+          entity === "accounts" &&
+          existing &&
+          workspaceCommand
+        ) {
+          const replay = await accountFlows.replayWorkspaceProvisioning<
+            Record<string, unknown>
+          >({
             actor: req.accountActor!,
             workspaceId: id,
             command: workspaceCommand,
             canonicalProductPayload: canonicalAccountProductPayload(
               sanitizeWrite(entity, body, existing, vis),
             ),
-          })
-          if (replay) return reply.code(200).send(redactWriteEcho(entity, replay.product, vis))
+          });
+          if (replay)
+            return reply
+              .code(200)
+              .send(redactWriteEcho(entity, replay.product, vis));
         }
         // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the
         // predicate is isStaleWrite, SHARED with the batch loop so the two paths can't drift.
         // The 409's `current` payload is a READ of the stored row, so it gets the same note
         // redaction as the write echo — the conflict path must not hand a note-blind writer
         // the redacted field.
-        if (opts.optimisticConcurrency !== false && isStaleWrite(existing, body)) {
+        if (
+          opts.optimisticConcurrency !== false &&
+          isStaleWrite(existing, body)
+        ) {
           return reply.code(409).send({
-            error: 'The record was modified more recently on the server.',
+            error: "The record was modified more recently on the server.",
             current: redactWriteEcho(entity, existing, vis),
-          })
+          });
         }
         // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
         // inline sanitize/stamp + a full-DB loadState here). An accounts CREATE and a generated-builtin
         // replacement defer their validation (see prepareScopedWrite); every other write validated here.
         const { row, generatedReplacement, scopedState } = prepareScopedWrite({
-          store, entity, body, existing, vis, verb: 'replace',
-        })
-        let responseRow = row
-        let replayed = false
-        if (entity === 'accounts' && !existing) {
+          store,
+          entity,
+          body,
+          existing,
+          vis,
+          verb: "replace",
+        });
+        let responseRow = row;
+        let replayed = false;
+        const auditRecord: AuditRecord = {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: (body.accountId as string | undefined) ?? id,
+          action: existing ? "update" : "create",
+          entity,
+          id,
+          changedFields: appliedRequestedFieldNames(
+            entity,
+            body,
+            existing,
+            row,
+          ),
+        };
+        if (entity === "accounts" && !existing) {
           // A company is not usable without its singleton Internal client. Commit both rows as
           // one unit so a constraint/storage failure cannot leave a degraded company behind.
           const provisioned = await accountFlows.provisionWorkspace({
@@ -1744,62 +2453,95 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             bootstrapAuthorized: false,
             canonicalProductPayload: canonicalAccountProductPayload(row),
             provisionProductData: () => {
-              validateWrite(scopedState, entity, row, existing)
-              upsertRow(db, entity, row)
-              upsertRow(db, 'clients', buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>)
-              return row
+              validateWrite(scopedState, entity, row, existing);
+              upsertRow(db, entity, row);
+              upsertRow(
+                db,
+                "clients",
+                buildInternalClient(
+                  id,
+                  row.createdAt as string,
+                ) as unknown as Record<string, unknown>,
+              );
+              enqueueAudit(db, auditRecord);
+              return row;
             },
-          })
-          responseRow = provisioned.product as Record<string, unknown>
-          replayed = provisioned.replayed
-        } else if (generatedReplacement) {
-          tx(db, () => {
-            replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row)
-          })
+          });
+          responseRow = provisioned.product as Record<string, unknown>;
+          replayed = provisioned.replayed;
+          if (!replayed) drainProductAudit(reply);
         } else {
-          // Validation already ran in the funnel above (accounts UPDATE + every scoped write).
-          upsertRow(db, entity, row)
-        }
-        // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
-        if (!replayed) {
-          audit(reply, {
-            ts: new Date().toISOString(),
-            userId: req.user!.id,
-            accountId: (body.accountId as string | undefined) ?? id,
-            action: existing ? 'update' : 'create',
-            entity,
-            id,
-            changedFields: acceptedFieldNames(entity, body),
-          })
+          commitProductAudit(reply, auditRecord, () => {
+            if (generatedReplacement) {
+              replaceGeneratedBuiltin(
+                db,
+                scopedState,
+                generatedReplacement,
+                row,
+              );
+            } else {
+              // Validation already ran in the funnel above (accounts UPDATE + every scoped write).
+              upsertRow(db, entity, row);
+            }
+          });
         }
         // A write response is a read: apply the same note/private-name projections as /api/state.
-        return reply.code(200).send(redactWriteEcho(entity, responseRow, vis))
+        return reply.code(200).send(redactWriteEcho(entity, responseRow, vis));
       } catch (err) {
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
+        return err instanceof AccountContractError
+          ? accountFail(reply, err)
+          : sendFail(reply, err);
       }
-    })
+    });
 
     // True partial patch: merge the body over the stored row, then sanitize + validate
     // the MERGED entity before writing. (A blind column-wise update would null every
     // field the body omits.) 404 when the row doesn't exist.
-    app.patch('/api/:entity/:id', (req, reply) => {
-      const { entity, id } = req.params as { entity: string; id: string }
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+    app.patch("/api/:entity/:id", (req, reply) => {
+      const { entity, id } = req.params as { entity: string; id: string };
+      if (!isKnownTable(entity))
+        return reply.code(404).send({ error: `Unknown entity: ${entity}` });
       // Shared body-shape check (Finding 7 funnel). A missing/non-object body would otherwise
       // null-deref inside accountFieldsFrozen's `field in incoming` check (accounts), a misclassified
       // 500. For PATCH accountId is OPTIONAL — only a PRESENT non-string is rejected.
-      const scoped = isScopedTable(entity)
-      const bodyCheck = checkEntityWriteBody('patch', req.body, id, scoped)
-      if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error })
+      const scoped = isScopedTable(entity);
+      const bodyCheck = checkEntityWriteBody(
+        "patch",
+        entity,
+        req.body,
+        id,
+        scoped,
+      );
+      if (bodyCheck)
+        return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
       try {
-        const existing = getRow(db, entity, id)
-        if (!existing) return reply.code(404).send({ error: 'Not found' })
-        const builtinCheck = builtinInternalWriteGuard('patch', entity, existing, req.body as Record<string, unknown>)
-        if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error })
+        const existing = getRow(db, entity, id);
+        if (!existing) return reply.code(404).send({ error: "Not found" });
+        // A scoped PATCH has no required account assertion in its partial body. Authorize against
+        // the stored owner, but conceal non-membership as the same 404 used for an absent id. Run
+        // row-specific guards only after that boundary so a foreign built-in row is not an oracle.
+        if (
+          scoped &&
+          !authorize(req, reply, existing.accountId as string, "write", {
+            concealNonMembership: true,
+          })
+        )
+          return;
+        const builtinCheck = builtinInternalWriteGuard(
+          "patch",
+          entity,
+          existing,
+          req.body as Record<string, unknown>,
+        );
+        if (builtinCheck)
+          return reply
+            .code(builtinCheck.status)
+            .send({ error: builtinCheck.error });
         // P1.5 account-write gate (see the PUT route): `accounts` isn't scoped, so the merged-accountId
         // authorize below never runs for it. A PATCH always targets an EXISTING row (404 above), so this
         // is always an UPDATE → require membership + write tier for the account's own id. OFF: no-op allow.
-        if (entity === 'accounts' && !authorize(req, reply, id, 'write')) return
+        if (entity === "accounts" && !authorize(req, reply, id, "write"))
+          return;
         // P1.6 note pin (see sanitizeWrite): the merge already carries the STORED note (a note-blind
         // caller's PATCH body can't include one they never received), but the pin also stops a
         // crafted note change/clear riding a patch. accountId for the role lookup = the body's
@@ -1808,132 +2550,176 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           req,
           entity,
           (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
-        )
+        );
         const merged = sanitizeWrite(
           entity,
           { ...existing, ...(req.body as Record<string, unknown>), id },
           existing,
           vis,
-        )
-        // P1.5 write gate (scoped tables): membership + write tier for the MERGED row's accountId
-        // (the merge inherits the stored accountId unless the body overrides it — and an override is
-        // then refused by the ownsRow immutability guard just below). After the 404 so a missing row
-        // is a 404, not a 403.
-        if (scoped && !authorize(req, reply, merged.accountId as string, 'write')) return
+        );
         // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
         if (!ownsRow(existing, merged.accountId)) {
-          return reply.code(409).send({ error: 'That record belongs to a different company.' })
+          return reply
+            .code(409)
+            .send({ error: "That record belongs to a different company." });
         }
-        // language/weekStartsOn/timezone are FROZEN after creation (P1.14). Compare the INCOMING
-        // req.body against the stored row — NOT `merged`, which already overwrote `existing` with
-        // the patch and would therefore never detect a change. accounts-only.
-        if (entity === 'accounts' && accountFieldsFrozen(existing, req.body as Record<string, unknown>)) {
+        // `merged` is already sanitised and pins stored frozen values when malformed input is
+        // dropped. Missing legacy values may be set once; different valid stored values stay frozen.
+        if (entity === "accounts" && accountFieldsFrozen(existing, merged)) {
           return reply.code(409).send({
-            error: 'Language, week start and time zone are set when the company is created and cannot be changed.',
-          })
+            error:
+              "Language, week start and time zone are set when the company is created and cannot be changed.",
+          });
         }
         if (
           opts.optimisticConcurrency !== false &&
           isStaleWrite(existing, req.body as Record<string, unknown>)
         ) {
           return reply.code(409).send({
-            error: 'The record was modified more recently on the server.',
+            error: "The record was modified more recently on the server.",
             current: redactWriteEcho(entity, existing, vis),
-          })
+          });
         }
-        const stamped = stampServerRevision(merged, existing)
+        const stamped = stampServerRevision(merged, existing);
         // Finding 9: validate against the write's OWN account slice, not a full-DB loadState. ownsRow
         // above already proved merged.accountId === existing.accountId, so this is the writing account
-        // (accounts key on id). PATCH keeps its own sanitize/authz ordering — its authz gate needs the
-        // merged accountId BEFORE the read — so it uses the shared scoped read rather than
-        // prepareScopedWrite (which reads+validates in one step).
-        const scopeId = entity === 'accounts' ? id : String(merged.accountId)
-        validateWrite(store.readSlice(scopeId, FULL_SLICE_READ), entity, stamped, existing)
-        upsertRow(db, entity, stamped)
-        // P1.15 audit (post-commit). changedFields = the PATCH req.body keys (the fields the caller
-        // actually sent), NOT the merged row's keys — a patch's intent is the keys it touched.
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: (merged.accountId as string | undefined) ?? id,
-          action: 'patch',
+        // (accounts key on id). PATCH already authorized the stored owner and proved accountId
+        // immutable above, so it uses the shared scoped read directly rather than prepareScopedWrite
+        // (which owns the PUT/POST read-and-validate funnel).
+        const scopeId = entity === "accounts" ? id : String(merged.accountId);
+        validateWrite(
+          store.readSlice(scopeId, FULL_SLICE_READ),
           entity,
-          id,
-          changedFields: acceptedFieldNames(entity, req.body),
-        })
+          stamped,
+          existing,
+        );
+        // Record only requested keys whose sanitized, pinned result actually differs from storage.
+        commitProductAudit(
+          reply,
+          {
+            ts: new Date().toISOString(),
+            userId: req.user!.id,
+            accountId: (merged.accountId as string | undefined) ?? id,
+            action: "patch",
+            entity,
+            id,
+            changedFields: appliedRequestedFieldNames(
+              entity,
+              req.body,
+              existing,
+              stamped,
+            ),
+          },
+          () => upsertRow(db, entity, stamped),
+        );
         // The merge carries stored protected fields into `merged`; apply the normal read projection.
-        return reply.code(200).send(redactWriteEcho(entity, stamped, vis))
+        return reply.code(200).send(redactWriteEcho(entity, stamped, vis));
       } catch (err) {
-        return sendFail(reply, err)
+        return sendFail(reply, err);
       }
-    })
+    });
 
-    app.delete('/api/:entity/:id', async (req, reply) => {
-      const { entity, id } = req.params as { entity: string; id: string }
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+    app.delete("/api/:entity/:id", async (req, reply) => {
+      const { entity, id } = req.params as { entity: string; id: string };
+      if (!isKnownTable(entity))
+        return reply.code(404).send({ error: `Unknown entity: ${entity}` });
       if (isLifecycleEntity(entity)) {
-        return reply.code(400).send({ error: 'Use the dedicated lifecycle endpoints for this entity.' })
+        return reply.code(400).send({
+          error: "Use the dedicated lifecycle endpoints for this entity.",
+        });
       }
       // Scope a scoped-table delete to its owning account — the server analog of the
       // client's MANDATORY findOwned guard. A scoped delete MUST assert an owning account:
       // omitting it can't prove ownership, so we refuse with 400 (rather than deleting by id,
       // which was a tenant-guard bypass). A wrong owner is 404. Accounts are top-level and
       // carry no accountId, so they delete by id.
-      const { accountId } = req.query as { accountId?: string }
+      const { accountId } = req.query as { accountId?: string };
       try {
-        const targetExisted = Boolean(getRow(db, entity, id))
+        let targetExisted = false;
         if (isScopedTable(entity)) {
           if (accountId === undefined) {
-            return reply.code(400).send({ error: 'accountId is required to delete a scoped record.' })
+            return reply.code(400).send({
+              error: "accountId is required to delete a scoped record.",
+            });
           }
-          if (!ownsRow(getRow(db, entity, id), accountId)) {
-            return reply.code(404).send({ error: 'Not found' })
+          // Resolve authority from the caller-asserted tenant before reading the candidate row. A
+          // non-member therefore receives the same 403 for absent and foreign ids; an authorized
+          // member receives the same 404 for either. OFF mode retains its historical idempotent 204.
+          if (!authorize(req, reply, accountId, "write")) return;
+          const existing = getRow(db, entity, id);
+          if (
+            !ownsRow(existing, accountId) ||
+            (!existing && authMode !== "off")
+          ) {
+            return reply.code(404).send({ error: "Not found" });
           }
-          // P1.5 write gate: membership + write tier for the owning account. After the 400/404
-          // ownership checks (a missing/cross-account row stays a 404; a real owned row that the
-          // caller lacks write access to is the 403).
-          if (!authorize(req, reply, accountId, 'write')) return
-        } else if (entity === 'accounts') {
+          targetExisted = Boolean(existing);
+        } else if (entity === "accounts") {
+          targetExisted = Boolean(getRow(db, entity, id));
+          // The completed erasure receipt is deliberately retained after membership removal. An
+          // exact authenticated retry may replay that receipt before the ordinary live-membership
+          // gate; absent, malformed, pending or unrelated commands still take the Owner path.
+          const replayCommand = replayAccountCommand(req);
+          if (replayCommand) {
+            const replay = await accountFlows.replayWorkspaceErasure({
+              actor: req.accountActor!,
+              workspaceId: id,
+              command: replayCommand,
+            });
+            if (replay) return reply.code(204).send();
+          }
           // P1.5 account hard-delete gate. The account-lifecycle CREATE exemption (a new auth-on user
           // must mint their first account before any membership exists) does NOT extend to DELETE:
           // dropping an `accounts` row CASCADES (FK ON DELETE CASCADE) and wipes ALL the account's
           // scoped data — total tenant destruction. This is intentionally stricter than purging one
           // tombstoned record: only an owner may erase the tenant and orphaned member identities.
           // OFF mode short-circuits to allow so the default deploy can still delete companies.
-          if (!authorize(req, reply, id, 'deleteAccount')) return
+          if (!authorize(req, reply, id, "deleteAccount")) return;
           // Preserve the auth-off API's established idempotent-delete contract. The coordinated
           // erasure path deliberately requires a real workspace so authenticated callers cannot
           // use it as an existence oracle, but trusted-local deletion historically returned 204
           // for an already absent account.
-          if (!targetExisted && authMode === 'off') return reply.code(204).send()
+          if (!targetExisted && authMode === "off")
+            return reply.code(204).send();
+        } else {
+          return reply.code(403).send({
+            error: "No deletion policy is defined for this entity.",
+          });
         }
         // P2.6b: an account hard-delete is a TENANT ERASURE, not a bare row delete. AccountFlows
         // coordinates the product cascade, administration sweep and orphaned local-identity erasure
         // in one transaction. A scoped delete stays the plain idempotent deleteRow.
-        if (entity === 'accounts') {
+        const auditRecord: AuditRecord = {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: accountId ?? id,
+          action: "delete",
+          entity,
+          id,
+          changedFields: [],
+        };
+        if (entity === "accounts") {
           await accountFlows.eraseWorkspace({
             actor: req.accountActor!,
             workspaceId: id,
             command: accountCommand(req),
-          })
+            auditProductMutationInTx: targetExisted
+              ? () => enqueueAudit(db, auditRecord)
+              : undefined,
+          });
+          if (targetExisted) drainProductAudit(reply);
+        } else if (targetExisted) {
+          commitProductAudit(reply, auditRecord, () =>
+            deleteRow(db, entity, id),
+          );
         }
-        else deleteRow(db, entity, id) // idempotent
-        // P1.15 audit (post-commit). A delete carries no field set → changedFields = []. accountId
-        // is the asserted owner for a scoped table, else the (accounts) row's own id.
-        if (targetExisted) audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: accountId ?? id,
-          action: 'delete',
-          entity,
-          id,
-          changedFields: [],
-        })
-        return reply.code(204).send()
+        return reply.code(204).send();
       } catch (err) {
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
+        return err instanceof AccountContractError
+          ? accountFail(reply, err)
+          : sendFail(reply, err);
       }
-    })
+    });
 
     // Transactional batch write — the verb the client sync adapter uses for every save.
     // Body: { ops: BatchOp[] }, already ordered (upserts parent-first, then deletes
@@ -1942,131 +2728,209 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // re-binding upsert commits before the old parent's DELETE cascades, so the cascade
     // finds nothing to take — and guarantees a mid-batch failure rolls back, leaving the
     // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
-    // per-entity routes use; one in-memory state projection is loaded inside the transaction and
-    // advanced after each op, so a child validates against a parent a sibling op just upserted.
-    app.post('/api/batch', async (req, reply) => {
-      const body = req.body as { ops?: unknown }
+    // per-entity routes use; one request-scoped state projection is loaded inside the transaction
+    // and advanced after each op, so a child validates against a parent a sibling op just upserted.
+    app.post("/api/batch", async (req, reply) => {
+      const body = req.body as { ops?: unknown };
       if (!body || !Array.isArray(body.ops)) {
-        return reply.code(400).send({ error: 'ops array is required' })
+        return reply.code(400).send({ error: "ops array is required" });
       }
-      const ops = body.ops as BatchOp[]
-      // MAX_BATCH_OPS (see its doc comment): op COUNT — not just body bytes — bounds request work.
+      const ops = body.ops as BatchOp[];
+      const rawSyncSession = req.headers["x-capacitylens-sync-session"];
+      const rawSyncSequence = req.headers["x-capacitylens-sync-sequence"];
+      let syncOrder: SyncOrder | null = null;
+      if (rawSyncSession !== undefined || rawSyncSequence !== undefined) {
+        const sequence =
+          typeof rawSyncSequence === "string" &&
+          /^[1-9]\d{0,15}$/.test(rawSyncSequence)
+            ? Number(rawSyncSequence)
+            : Number.NaN;
+        if (
+          typeof rawSyncSession !== "string" ||
+          !/^[A-Za-z0-9_-]{16,128}$/.test(rawSyncSession) ||
+          !Number.isSafeInteger(sequence)
+        ) {
+          return reply
+            .code(400)
+            .send({ error: "Invalid browser sync ordering headers." });
+        }
+        syncOrder = { sessionId: rawSyncSession, sequence };
+      }
+      // MAX_BATCH_OPS (see its doc comment) bounds the per-operation multiplier; the initial
+      // projection read still scales once with each affected account's slice.
       // Rejected before the pre-scan and transaction, so an over-cap batch does no per-op work.
       if (ops.length > MAX_BATCH_OPS) {
-        return reply
-          .code(400)
-          .send({ error: `A batch may contain at most ${MAX_BATCH_OPS} operations.` })
+        return reply.code(400).send({
+          error: `A batch may contain at most ${MAX_BATCH_OPS} operations.`,
+        });
       }
-      const deletedAccountIds = new Set<string>()
       for (const rawOp of ops as unknown[]) {
-        if (!rawOp || typeof rawOp !== 'object' || Array.isArray(rawOp)) {
-          return reply.code(400).send({ error: 'Each op must be an object.' })
+        if (!rawOp || typeof rawOp !== "object" || Array.isArray(rawOp)) {
+          return reply.code(400).send({ error: "Each op must be an object." });
         }
-        const op = rawOp as Partial<BatchOp>
-        if (op.method !== 'PUT' && op.method !== 'DELETE') {
-          return reply.code(400).send({ error: `Unknown op method: ${String(op.method)}` })
+        const op = rawOp as Partial<BatchOp>;
+        if (op.method !== "PUT" && op.method !== "DELETE") {
+          return reply
+            .code(400)
+            .send({ error: `Unknown op method: ${String(op.method)}` });
         }
-        if (typeof op.table !== 'string' || !isKnownTable(op.table) || typeof op.id !== 'string') {
-          return reply.code(400).send({ error: 'Each op needs a known table and string id.' })
+        if (
+          typeof op.table !== "string" ||
+          !isKnownTable(op.table) ||
+          typeof op.id !== "string"
+        ) {
+          return reply
+            .code(400)
+            .send({ error: "Each op needs a known table and string id." });
         }
-        if (op.method === 'PUT') {
-          if (!op.row || typeof op.row !== 'object' || Array.isArray(op.row) || op.row.id !== op.id) {
-            return reply.code(400).send({ error: 'Each PUT op needs a row whose id matches the op id.' })
+        if (op.method === "PUT") {
+          if (
+            !op.row ||
+            typeof op.row !== "object" ||
+            Array.isArray(op.row) ||
+            op.row.id !== op.id
+          ) {
+            return reply.code(400).send({
+              error: "Each PUT op needs a row whose id matches the op id.",
+            });
           }
-          if (isScopedTable(op.table) && typeof op.row.accountId !== 'string') {
-            return reply.code(400).send({ error: 'A scoped PUT op needs a string accountId.' })
+          if (syncOrder && typeof op.row.updatedAt !== "string") {
+            return reply.code(400).send({
+              error: "An ordered PUT op needs a string updatedAt revision.",
+            });
           }
-          if (op.table === 'accounts' && deletedAccountIds.has(op.id)) {
-            return reply.code(400).send({ error: 'An account cannot be deleted and recreated with the same id in one batch.' })
+          if (isScopedTable(op.table) && typeof op.row.accountId !== "string") {
+            return reply
+              .code(400)
+              .send({ error: "A scoped PUT op needs a string accountId." });
           }
         } else {
           if (isLifecycleEntity(op.table)) {
-            return reply.code(400).send({ error: 'Use the dedicated lifecycle endpoints for lifecycle entities.' })
+            return reply.code(400).send({
+              error:
+                "Use the dedicated lifecycle endpoints for lifecycle entities.",
+            });
           }
-          if (isScopedTable(op.table) && typeof op.accountId !== 'string') {
-            return reply.code(400).send({ error: 'A scoped DELETE op needs a string accountId.' })
+          if (op.table === "accounts") {
+            return reply
+              .code(400)
+              .send({ error: "Use the dedicated company deletion endpoint." });
           }
-          if (op.table === 'accounts') deletedAccountIds.add(op.id)
+          if (isScopedTable(op.table) && typeof op.accountId !== "string") {
+            return reply
+              .code(400)
+              .send({ error: "A scoped DELETE op needs a string accountId." });
+          }
+          if (syncOrder && typeof op.updatedAt !== "string") {
+            return reply.code(400).send({
+              error: "An ordered DELETE op needs a string updatedAt revision.",
+            });
+          }
+        }
+      }
+      if (ops.length === 0 && syncOrder === null) {
+        return reply.code(200).send({
+          ok: true,
+          applied: 0,
+          changed: 0,
+          revisions: [],
+          auditWarning: false,
+        });
+      }
+      // Shape validation above established every source. This set bounds validation reads to the
+      // account slices the request can actually touch; an ordered empty batch deliberately has no
+      // slice but still reaches the lightweight sync-sequence transaction below.
+      const affectedAccountIds = new Set<string>();
+      for (const op of ops) {
+        if (op.table === "accounts") {
+          affectedAccountIds.add(op.id);
+        } else if (isScopedTable(op.table as keyof typeof TABLES)) {
+          affectedAccountIds.add(
+            op.method === "PUT" ? (op.row!.accountId as string) : op.accountId!,
+          );
         }
       }
       // P1.5 write gate — PRE-SCAN before the tx opens so the batch is rejected WHOLE (one 403, no
       // partial write) if ANY op targets an account the caller may not write. A scoped PUT derives
       // its accountId from op.row.accountId, a scoped DELETE from op.accountId. The unscoped
-      // `accounts` table is the SECOND attack vector for tenant destruction: a batch DELETE on
-      // `accounts` is the client's real delete-company path, and it CASCADES (wipes all the account's
-      // scoped data), so it is gated 'deleteAccount' (owner-only) against the account's own id BEFORE the
-      // non-scoped skip — the same gate as the direct DELETE /api/accounts/:id route. An accounts
+      // Account deletion is accepted only by the dedicated erasure route and was rejected during
+      // shape validation above, so the generic sync path can never turn a bad diff into tenant
+      // destruction. An accounts
       // PUT that is an UPDATE gates 'write'; an accounts PUT that is a CREATE is refused outright
       // when auth is on (→ POST /api/orgs, see ACCOUNT_CREATE_CLOSED_MESSAGE) and stays open ONLY
       // in OFF mode, where the single-company cap (accountCreateCapped) can still deny it — either
       // refusal fails the whole batch, see below. In OFF mode authorize
-      // short-circuits true, so the whole loop is a no-op pass for authz (the default deploy can
-      // still delete companies via batch); the cap check is NOT part of that no-op — it runs
+      // short-circuits true, so the whole loop is a no-op pass for authz; the cap check is NOT part of that no-op — it runs
       // regardless of authMode.
       // Evaluate the single-company cap against the batch's PROJECTED state, not once per op
       // against the same pre-transaction snapshot. Two distinct account creates in an empty DB
       // must be rejected together rather than both passing and committing.
-      const initialAccountCount = countAccounts(db)
-      let projectedAccountCount = initialAccountCount
-      const initialExistence = new Map<string, boolean>()
-      const projectedExistence = new Map<string, boolean>()
-      for (const op of ops) {
-        if (op?.table !== 'accounts' || typeof op.id !== 'string') continue
-        let exists = projectedExistence.get(op.id)
-        if (exists === undefined) {
-          exists = Boolean(getRow(db, 'accounts', op.id))
-          initialExistence.set(op.id, exists)
-        }
-        if (op.method === 'PUT' && !exists) {
-          projectedAccountCount += 1
-          projectedExistence.set(op.id, true)
-        } else if (op.method === 'DELETE' && exists) {
-          projectedAccountCount -= 1
-          projectedExistence.set(op.id, false)
-        }
-      }
-      const createsFinalAccount = [...projectedExistence].some(
-        ([id, exists]) => exists && initialExistence.get(id) === false,
-      )
+      const hasAccountOperations = ops.some((op) => op.table === "accounts");
+      const accountProjection = hasAccountOperations
+        ? projectBatchAccounts(db, ops)
+        : { count: 0, createsFinalAccount: false };
       // Authenticated account creation is closed on this generic sync route (the loop below
       // returns ACCOUNT_CREATE_CLOSED_MESSAGE). In trusted-local mode, project the *whole* batch
       // before starting the transaction so two creates cannot both pass against the same empty DB.
       if (
-        authMode === 'off' &&
-        createsFinalAccount &&
+        authMode === "off" &&
+        accountProjection.createsFinalAccount &&
         !opts.multiAccount &&
-        projectedAccountCount > 1
+        accountProjection.count > 1
       ) {
-        return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
+        return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
       }
 
       const authorizeBatchOperations = (): boolean => {
+        // This function is invoked once before waiting for workspace locks and again after lock
+        // acquisition. Keep the cache local so those remain independent authorization snapshots,
+        // while repeated operations for the same account/action do not repeat the identical
+        // membership query within either snapshot. Only successful checks are cached; a denial
+        // sends its response and ends the pass immediately.
+        const authorizedActions = new Map<string, Set<Action>>();
+        const authorizeOnce = (accountId: string, action: Action): boolean => {
+          const actions = authorizedActions.get(accountId);
+          if (actions?.has(action)) return true;
+          if (!authorize(req, reply, accountId, action)) return false;
+          if (actions) actions.add(action);
+          else authorizedActions.set(accountId, new Set([action]));
+          return true;
+        };
+
         for (const op of ops) {
-          if (op?.table === 'accounts' && op.method === 'DELETE') {
-            if (!authorize(req, reply, op.id, 'deleteAccount')) return false
-            continue
-          }
-          if (op?.table === 'accounts' && op.method === 'PUT') {
-            const existingAccount = getRow(db, 'accounts', op.id)
+          if (op?.table === "accounts" && op.method === "PUT") {
+            const existingAccount = getRow(db, "accounts", op.id);
             if (existingAccount) {
-              if (!authorize(req, reply, op.id, 'write')) return false
-            } else if (authMode !== 'off') {
-              reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
-              return false
+              if (!authorizeOnce(op.id, "write")) return false;
+            } else if (authMode !== "off") {
+              reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
+              return false;
             }
             // OFF-mode creates are checked against the projected final set and rechecked by the
             // provisioning policy inside the transaction.
-            continue
+            continue;
           }
-          if (!isScopedTable(op.table)) continue
-          const accountId = op.method === 'PUT'
-            ? (op.row as { accountId?: string } | undefined)?.accountId
-            : op.accountId
-          if (!authorize(req, reply, accountId as string, 'write')) return false
+          if (!isScopedTable(op.table)) {
+            reply.code(403).send({
+              error: "No batch-write policy is defined for this entity.",
+            });
+            return false;
+          }
+          const accountId =
+            op.method === "PUT"
+              ? (op.row as { accountId?: string } | undefined)?.accountId
+              : op.accountId;
+          const action: Action =
+            op.method === "PUT" &&
+            op.table === "clients" &&
+            (op.row as { builtin?: unknown } | undefined)?.builtin === true
+              ? "manageInternalClient"
+              : "write";
+          if (!authorizeOnce(accountId as string, action)) return false;
         }
-        return true
-      }
-      if (!authorizeBatchOperations()) return
+        return true;
+      };
+      if (!authorizeBatchOperations()) return;
       // Field visibility, memoized PER REQUEST: fieldVisibilityFor pays an account-port membership
       // query for every timeOff/client/project row, and a batch may carry up to MAX_BATCH_OPS of them
       // — each op would otherwise re-run the identical lookup inside the write tx. Memoizing by
@@ -2076,241 +2940,389 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // runs). Unaffected tables short-circuit to the frozen ALL_FIELDS_VISIBLE constant — no
       // lookup, no allocation — so only distinct protected-field accountIds
       // (in practice: one) ever populate the cache.
-      const fieldVisCache = new Map<string, SanitizeWriteOptions>()
-      const fieldVisFor = (table: string, accountId: unknown): SanitizeWriteOptions => {
-        if (!tableHasGatedFields(table) || typeof accountId !== 'string') {
-          return fieldVisibilityFor(req, table, accountId) // no-lookup short-circuits; nothing to cache
+      const fieldVisCache = new Map<string, SanitizeWriteOptions>();
+      const fieldVisFor = (
+        table: string,
+        accountId: unknown,
+      ): SanitizeWriteOptions => {
+        if (!tableHasGatedFields(table) || typeof accountId !== "string") {
+          return fieldVisibilityFor(req, table, accountId); // no-lookup short-circuits; nothing to cache
         }
-        const cached = fieldVisCache.get(accountId)
-        if (cached) return cached
-        const vis = fieldVisibilityFor(req, table, accountId)
-        fieldVisCache.set(accountId, vis)
-        return vis
-      }
-      // Classify each op against the projected sequence, not merely the final/pre-batch DB. This
-      // makes create-vs-update audit semantics honest even when one batch touches an id twice.
-      const projectedRows = new Map<string, boolean>()
-      const auditActions = ops.map((op): 'create' | 'update' | 'delete' | null => {
-        if (typeof op?.table !== 'string' || typeof op.id !== 'string' || !isKnownTable(op.table)) return null
-        const key = `${op.table}\0${op.id}`
-        const existed = projectedRows.has(key) ? projectedRows.get(key)! : Boolean(getRow(db, op.table, op.id))
-        if (op.method === 'PUT') {
-          projectedRows.set(key, true)
-          return existed ? 'update' : 'create'
-        }
-        if (op.method === 'DELETE') {
-          projectedRows.set(key, false)
-          return existed ? 'delete' : null
-        }
-        return null
-      })
-      const revisions: Array<{ table: string; id: string; createdAt: string; updatedAt: string }> = []
+        const cached = fieldVisCache.get(accountId);
+        if (cached) return cached;
+        const vis = fieldVisibilityFor(req, table, accountId);
+        fieldVisCache.set(accountId, vis);
+        return vis;
+      };
+      const revisions: Array<{
+        table: string;
+        id: string;
+        createdAt: string;
+        updatedAt: string;
+      }> = [];
+      let supersededSyncBatch = false;
+      let changedOperations = 0;
       try {
-        const erasedWorkspaceIds = ops.flatMap((op) =>
-          op?.method === 'DELETE' && op.table === 'accounts' && typeof op.id === 'string'
-            ? [op.id]
-            : [])
-        await accountFlows.withWorkspaceErasureLocks(erasedWorkspaceIds, () => {
-          // Lock acquisition may yield behind another membership/ownership mutation. Re-evaluate
-          // every permission after the wait and immediately before the synchronous transaction so
-          // the pre-scan can never become stale authorization for a destructive or cross-tenant op.
-          if (!authorizeBatchOperations()) throw new BatchAuthorizationResponseSent()
-          return tx(db, () => {
-          // Finding 82: loadState(db) is a SELECT * across every table — hoisted ONCE here
-          // instead of once PER OP (a batch of MAX_BATCH_OPS could otherwise force 5 000 full-DB
-          // scans in one transaction). `state` is then advanced in lockstep with every write
-          // below (upsertInState / applyGeneratedBuiltinReplacement / deleteFromState /
-          // deleteAccountCascade) so op N still validates against EXACTLY the state ops 1..N-1
-          // produced — validateWrite reads cross-table refs (assertScopedRefs,
-          // assertAllocationRefs, assertResourceExists), so the projection must track every
-          // scoped table, not just the one each op touches.
-          let state = loadState(db)
-          const projectedWorkspaceIds = new Set(state.accounts.map((account) => account.id))
-          for (const op of ops) {
-            if (op?.table !== 'accounts' || typeof op.id !== 'string') continue
-            if (op.method === 'PUT') projectedWorkspaceIds.add(op.id)
-            else if (op.method === 'DELETE') projectedWorkspaceIds.delete(op.id)
-          }
-          const projectedWorkspaceCount = projectedWorkspaceIds.size
-          const mintedInternalIds = new Set<string>()
-          for (const op of ops) {
-            const { method, table, id } = op
-            // Shape, method, known-table and id validation completed before authorization and before
-            // opening this transaction. This loop owns only state-dependent validation and mutation.
-            if (method === 'PUT') {
-              const row = op.row
-              if (!row || typeof row !== 'object' || (row as { id?: unknown }).id !== id) {
-                throw new ValidationError('Each PUT op needs a row whose id matches the op id.')
-              }
-              // accountId is immutable (ownsRow): a write must not re-home an existing row.
-              const existing = getRow(db, table, id)
-              // Built-in Internal guard (Finding 7 — ONE implementation). The batch's own minted-
-              // Internal exception (an account's freshly-minted Internal is re-upserted in the SAME
-              // batch) is handled FIRST, then the shared guard supplies the rejection message.
-              if (table === 'clients' && existing?.builtin === true && mintedInternalIds.has(id)) {
-                revisions.push({
-                  table,
-                  id,
-                  createdAt: existing.createdAt as string,
-                  updatedAt: existing.updatedAt as string,
-                })
-                continue
-              }
-              const builtinRejection = builtinInternalWriteGuard('replace', table, existing, row as Record<string, unknown>)
-              if (builtinRejection) throw new ValidationError(builtinRejection.error)
-              if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
-                throw new ValidationError('That record belongs to a different company.')
-              }
-              // language/weekStartsOn/timezone are FROZEN after creation (P1.14). DOCUMENTED
-              // ASYMMETRY: the per-route PUT/PATCH return 409 (what the acceptance asserts), but a
-              // ValidationError in the batch maps to 400 — the batch is the INTERNAL sync path, and
-              // the disabled Settings UI never sends a changed frozen field, so a violation here is
-              // a malformed client, not a user action. accounts-only.
-              if (table === 'accounts' && accountFieldsFrozen(existing, row as Record<string, unknown>)) {
-                throw new ValidationError(
-                  'Language, week start and time zone are set when the company is created and cannot be changed.',
-                )
-              }
-              // Optimistic concurrency (opt-in) — the stale-write refusal is isStaleWrite, the
-              // SAME predicate the direct PUT route runs, so the two paths can't drift. Thrown
-              // (not replied) because we are inside tx(): the throw aborts the transaction, so
-              // the WHOLE batch rolls back, and the catch below maps it to the direct route's
-              // 409 + { current } shape.
-              if (
-                opts.optimisticConcurrency !== false &&
-                isStaleWrite(existing, row as Record<string, unknown>)
-              ) {
-                // The 409's `current` payload is a READ of the stored row: redact the time-off
-                // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
-                // path must not hand an editor the very field readSlice redacts.
-                throw new StaleWriteError(
-                  redactWriteEcho(table, existing, fieldVisFor(table, (row as { accountId?: unknown }).accountId)),
-                )
-              }
-              // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
-              // REAL save path, so an editor's redacted round-trip lands here (see sanitizeWrite).
-              const clean = stampServerRevision(
-                sanitizeWrite(
-                  table,
-                  row as Record<string, unknown>,
-                  existing,
-                  fieldVisFor(table, (row as { accountId?: unknown }).accountId),
-                ),
-                existing,
-              )
-              const generatedReplacement = generatedBuiltinReplacement(state, table, clean)
-              if (table === 'accounts' && !existing) {
-                // Evaluate provisioning policy before inserting the account, against the final
-                // count of the whole atomic batch. The surrounding application-wide lock is shared
-                // with /api/orgs; any later storage failure rolls this membership write back.
-                accountFlows.provisionWorkspaceInExistingTransaction({
-                  workspaceId: id,
-                  principalId: req.accountActor!.principalId,
-                  joinedAt: clean.createdAt as string,
-                  multiWorkspace: opts.multiAccount === true,
-                  projectedWorkspaceCount,
-                })
-              }
-              if (generatedReplacement) {
-                replaceGeneratedBuiltin(db, state, generatedReplacement, clean)
-                state = applyGeneratedBuiltinReplacement(state, generatedReplacement, clean)
-              } else {
-                validateWrite(state, table, clean, existing)
-                upsertRow(db, table, clean)
-                state = upsertInState(state, table, clean)
-              }
-              if (table === 'accounts' && !existing) {
-                const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<string, unknown>
-                upsertRow(db, 'clients', internalClient)
-                state = upsertInState(state, 'clients', internalClient)
-                mintedInternalIds.add(internalClient.id as string)
-              }
-              revisions.push({
-                table,
-                id,
-                createdAt: clean.createdAt as string,
-                updatedAt: clean.updatedAt as string,
-              })
-            } else if (method === 'DELETE') {
-              // Scoped deletes assert ownership (same rule as the DELETE route).
-              if (isScopedTable(table)) {
-                if (typeof op.accountId !== 'string') {
-                  throw new ValidationError('accountId is required to delete a scoped record.')
+        await accountFlows.withWorkspaceErasureLocks(
+          [],
+          () => {
+            // Lock acquisition may yield behind another membership/ownership mutation. Re-evaluate
+            // every permission after the wait and immediately before the synchronous transaction so
+            // the pre-scan can never become stale authorization for a destructive or cross-tenant op.
+            if (!authorizeBatchOperations())
+              throw new BatchAuthorizationResponseSent();
+            // Lock acquisition may also have waited behind workspace provisioning. Classify against
+            // the now-current database and project each preceding op so the audit verb describes the
+            // same state the immediately following synchronous transaction will observe.
+            const projectedRows = new Map<string, boolean>();
+            const auditActions = ops.map(
+              (op): "create" | "update" | "delete" | null => {
+                const key = `${op.table}\0${op.id}`;
+                const existed = projectedRows.has(key)
+                  ? projectedRows.get(key)!
+                  : Boolean(getRow(db, op.table, op.id));
+                if (op.method === "PUT") {
+                  projectedRows.set(key, true);
+                  return existed ? "update" : "create";
                 }
-                if (!ownsRow(getRow(db, table, id), op.accountId)) {
-                  throw new ValidationError('That record belongs to a different company.')
+                projectedRows.set(key, false);
+                return existed ? "delete" : null;
+              },
+            );
+            changedOperations = auditActions.filter(
+              (action) => action !== null,
+            ).length;
+            const auditTs = new Date().toISOString();
+            const auditRecords = ops.map((op, opIndex): AuditRecord | null => {
+              const action = auditActions[opIndex];
+              if (action === null) return null;
+              return op.method === "PUT"
+                ? {
+                    ts: auditTs,
+                    userId: req.user!.id,
+                    accountId:
+                      (op.row as { accountId?: string } | undefined)
+                        ?.accountId ?? op.id,
+                    action,
+                    entity: op.table,
+                    id: op.id,
+                    changedFields: acceptedFieldNames(op.table, op.row),
+                  }
+                : {
+                    ts: auditTs,
+                    userId: req.user!.id,
+                    accountId: op.accountId ?? op.id,
+                    action: "delete",
+                    entity: op.table,
+                    id: op.id,
+                    changedFields: [],
+                  };
+            });
+            return tx(db, () => {
+              if (syncOrder && isSupersededSyncBatch(db, syncOrder)) {
+                supersededSyncBatch = true;
+                return;
+              }
+              // Read every relationship table, but only for accounts this request targets. `state` is
+              // then advanced in lockstep with each write (upsert/cascade helpers) so op N validates
+              // against exactly the state ops 1..N-1 produced without scanning unrelated tenants.
+              const state = emptyAppData();
+              for (const accountId of affectedAccountIds) {
+                appendAppDataSlice(
+                  state,
+                  store.readSlice(accountId, FULL_SLICE_READ),
+                );
+              }
+              const projection = new BatchStateProjection(state);
+              // Recompute under the provisioning lock: the earlier cap projection may have waited
+              // behind another top-level account mutation. A scalar COUNT is sufficient; validation's
+              // account rows are already present in the affected slices above.
+              const projectedWorkspaceCount = hasAccountOperations
+                ? projectBatchAccounts(db, ops).count
+                : 0;
+              const mintedInternalIds = new Set<string>();
+              for (const [opIndex, op] of ops.entries()) {
+                const { method, table, id } = op;
+                // Shape, method, known-table and id validation completed before authorization and before
+                // opening this transaction. This loop owns only state-dependent validation and mutation.
+                if (method === "PUT") {
+                  const row = op.row;
+                  if (
+                    !row ||
+                    typeof row !== "object" ||
+                    (row as { id?: unknown }).id !== id
+                  ) {
+                    throw new ValidationError(
+                      "Each PUT op needs a row whose id matches the op id.",
+                    );
+                  }
+                  // accountId is immutable (ownsRow): a write must not re-home an existing row.
+                  const existing = getRow(db, table, id);
+                  // Built-in Internal guard (Finding 7 — ONE implementation). The batch's own minted-
+                  // Internal exception accepts only the canonical duplicate a client emitted alongside
+                  // the account create; malformed or re-homed bodies roll the whole batch back.
+                  if (
+                    table === "clients" &&
+                    existing?.builtin === true &&
+                    mintedInternalIds.has(id)
+                  ) {
+                    if (
+                      !matchesMintedInternalClient(
+                        existing,
+                        row as Record<string, unknown>,
+                      )
+                    ) {
+                      throw new ValidationError(
+                        "The same-batch built-in Internal client must match the generated server row.",
+                      );
+                    }
+                    revisions.push({
+                      table,
+                      id,
+                      createdAt: existing.createdAt as string,
+                      updatedAt: existing.updatedAt as string,
+                    });
+                    const auditRecord = auditRecords[opIndex];
+                    if (auditRecord) auditRecord.changedFields = [];
+                    continue;
+                  }
+                  const builtinRejection = builtinInternalWriteGuard(
+                    "replace",
+                    table,
+                    existing,
+                    row as Record<string, unknown>,
+                  );
+                  if (builtinRejection)
+                    throw new ValidationError(builtinRejection.error);
+                  if (
+                    !ownsRow(
+                      existing,
+                      (row as { accountId?: unknown }).accountId,
+                    )
+                  ) {
+                    throw new ValidationError(
+                      "That record belongs to a different company.",
+                    );
+                  }
+                  const sanitizedRow = sanitizeWrite(
+                    table,
+                    row as Record<string, unknown>,
+                    existing,
+                    fieldVisFor(
+                      table,
+                      (row as { accountId?: unknown }).accountId,
+                    ),
+                  );
+                  // language/weekStartsOn/timezone are FROZEN after creation (P1.14). DOCUMENTED
+                  // ASYMMETRY: the per-route PUT/PATCH return 409 (what the acceptance asserts), but a
+                  // ValidationError in the batch maps to 400 — the batch is the INTERNAL sync path, and
+                  // the disabled Settings UI never sends a changed frozen field, so a violation here is
+                  // a malformed client, not a user action. accounts-only.
+                  if (
+                    table === "accounts" &&
+                    accountFieldsFrozen(existing, sanitizedRow)
+                  ) {
+                    throw new ValidationError(
+                      "Language, week start and time zone are set when the company is created and cannot be changed.",
+                    );
+                  }
+                  // Optimistic concurrency is default-on for generic writes and mandatory for an
+                  // ordered browser batch. The stale-write refusal is isStaleWrite, the SAME predicate
+                  // the direct PUT route runs, so the two paths can't drift. Thrown
+                  // (not replied) because we are inside tx(): the throw aborts the transaction, so
+                  // the WHOLE batch rolls back, and the catch below maps it to the direct route's
+                  // 409 + { current } shape.
+                  if (
+                    (opts.optimisticConcurrency !== false ||
+                      syncOrder !== null) &&
+                    isStaleWrite(existing, row as Record<string, unknown>) &&
+                    !(
+                      syncOrder &&
+                      isSameSessionSuccessor(db, syncOrder, table, id, existing)
+                    )
+                  ) {
+                    // The 409's `current` payload is a READ of the stored row: redact the time-off
+                    // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
+                    // path must not hand an editor the very field readSlice redacts.
+                    throw new StaleWriteError(
+                      redactWriteEcho(
+                        table,
+                        existing,
+                        fieldVisFor(
+                          table,
+                          (row as { accountId?: unknown }).accountId,
+                        ),
+                      ),
+                    );
+                  }
+                  // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
+                  // REAL save path, so an editor's redacted round-trip lands here (see sanitizeWrite).
+                  const clean = stampServerRevision(sanitizedRow, existing);
+                  const auditRecord = auditRecords[opIndex];
+                  if (auditRecord) {
+                    auditRecord.changedFields = appliedRequestedFieldNames(
+                      table,
+                      row,
+                      existing,
+                      clean,
+                    );
+                  }
+                  const generatedReplacement = generatedBuiltinReplacement(
+                    state,
+                    table,
+                    clean,
+                  );
+                  if (table === "accounts" && !existing) {
+                    // Evaluate provisioning policy before inserting the account, against the final
+                    // count of the whole atomic batch. The surrounding application-wide lock is shared
+                    // with /api/orgs; any later storage failure rolls this membership write back.
+                    accountFlows.provisionWorkspaceInExistingTransaction({
+                      workspaceId: id,
+                      principalId: req.accountActor!.principalId,
+                      joinedAt: clean.createdAt as string,
+                      multiWorkspace: opts.multiAccount === true,
+                      projectedWorkspaceCount,
+                    });
+                  }
+                  if (generatedReplacement) {
+                    replaceGeneratedBuiltin(
+                      db,
+                      state,
+                      generatedReplacement,
+                      clean,
+                    );
+                    projection.replaceGeneratedBuiltin(
+                      generatedReplacement,
+                      clean,
+                    );
+                  } else {
+                    validateWrite(state, table, clean, existing, projection);
+                    upsertRow(db, table, clean);
+                    projection.upsert(table as AppDataKey, clean);
+                  }
+                  if (table === "accounts" && !existing) {
+                    const internalClient = buildInternalClient(
+                      id,
+                      clean.createdAt as string,
+                    ) as unknown as Record<string, unknown>;
+                    upsertRow(db, "clients", internalClient);
+                    projection.upsert("clients", internalClient);
+                    mintedInternalIds.add(internalClient.id as string);
+                  }
+                  revisions.push({
+                    table,
+                    id,
+                    createdAt: clean.createdAt as string,
+                    updatedAt: clean.updatedAt as string,
+                  });
+                } else if (method === "DELETE") {
+                  if (table === "accounts") {
+                    throw new ValidationError(
+                      "Use the dedicated company deletion endpoint.",
+                    );
+                  }
+                  const existing = getRow(db, table, id);
+                  // Scoped deletes assert ownership (same rule as the DELETE route).
+                  if (isScopedTable(table)) {
+                    if (typeof op.accountId !== "string") {
+                      throw new ValidationError(
+                        "accountId is required to delete a scoped record.",
+                      );
+                    }
+                    if (!ownsRow(existing, op.accountId)) {
+                      throw new ValidationError(
+                        "That record belongs to a different company.",
+                      );
+                    }
+                  }
+                  if (
+                    syncOrder &&
+                    isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
+                    !isSameSessionSuccessor(db, syncOrder, table, id, existing)
+                  ) {
+                    throw new StaleWriteError(
+                      redactWriteEcho(
+                        table,
+                        existing,
+                        fieldVisFor(table, op.accountId ?? id),
+                      ),
+                    );
+                  }
+                  deleteRow(db, table, id);
+                  projection.delete(table as AppDataKey, id);
+                } else {
+                  throw new ValidationError(
+                    `Unknown op method: ${String(method)}`,
+                  );
                 }
               }
-              // P2.6b: an account DELETE in the batch is a TENANT ERASURE (account administration +
-              // local identity PII), same as the direct route. This batch already owns tx(), so use
-              // the coordinator's existing-transaction variant. Scoped deletes stay plain deleteRow.
-              // Either way, mirror the DB's FK cascade into `state` (deleteAccountCascade /
-              // deleteFromState) so a later op in the SAME batch validates against the post-cascade
-              // truth, not a stale pre-delete snapshot (Finding 82).
-              if (table === 'accounts') {
-                accountFlows.eraseWorkspaceInExistingTransaction(id)
-                state = deleteAccountCascade(state, id)
-              } else {
-                deleteRow(db, table, id)
-                state = deleteFromState(state, table, id)
+              for (const record of auditRecords) {
+                if (record) enqueueAudit(db, record);
               }
-            } else {
-              throw new ValidationError(`Unknown op method: ${String(method)}`)
-            }
-          }
-          })
-        }, {
-          // Serialize every top-level account mutation with /api/orgs. The batch re-evaluates its
-          // projected final count inside this lock and transaction, so concurrent first-company
-          // batches cannot both commit against the same empty snapshot.
-          serializeWorkspaceProvisioning: ops.some((op) => op?.table === 'accounts'),
-        })
-        // P1.15 audit (POST-COMMIT — outside the tx). The whole batch is all-or-nothing, so we
-        // only get here once it committed; a rolled-back batch threw above and logs NOTHING. One
-        // line PER op (action mirrors the op verb); the per-op append results OR-reduce into ONE
-        // warning so a single failed write still flags x-capacitylens-audit-warning. changedFields
-        // for a PUT = op.row's field NAMES (never values); a DELETE carries none.
-        const ts = new Date().toISOString()
-        let auditFailed = false
-        for (const [opIndex, op] of ops.entries()) {
-          const auditedAction = auditActions[opIndex]
-          if (auditedAction === null) continue
-          const record: AuditRecord =
-            op.method === 'PUT'
-              ? {
-                  ts,
-                  userId: req.user!.id,
-                  accountId: (op.row as { accountId?: string } | undefined)?.accountId ?? op.id,
-                  action: auditedAction,
-                  entity: op.table,
-                  id: op.id,
-                  changedFields: acceptedFieldNames(op.table, op.row),
-                }
-              : {
-                  ts,
-                  userId: req.user!.id,
-                  accountId: op.accountId ?? op.id,
-                  action: 'delete',
-                  entity: op.table,
-                  id: op.id,
-                  changedFields: [],
-                }
-          if (!auditSink.append(record)) auditFailed = true
+              if (syncOrder) {
+                recordAppliedSyncBatch(
+                  db,
+                  syncOrder,
+                  ops.map((op) => ({
+                    table: op.table,
+                    id: op.id,
+                    accountId:
+                      op.table === "accounts"
+                        ? op.id
+                        : op.method === "PUT"
+                          ? (op.row!.accountId as string)
+                          : op.accountId!,
+                    row: getRow(db, op.table, op.id),
+                  })),
+                );
+              }
+            });
+          },
+          {
+            // Serialize every top-level account mutation with /api/orgs. The batch re-evaluates its
+            // projected final count inside this lock and transaction, so concurrent first-company
+            // batches cannot both commit against the same empty snapshot.
+            serializeWorkspaceProvisioning: hasAccountOperations,
+          },
+        );
+        if (supersededSyncBatch) {
+          return reply.code(200).send({
+            ok: true,
+            applied: ops.length,
+            changed: 0,
+            revisions: [],
+            superseded: true,
+            auditWarning: false,
+          });
         }
-        if (auditFailed) reply.header('x-capacitylens-audit-warning', 'true')
-        return reply.code(200).send({ ok: true, applied: ops.length, revisions, auditWarning: auditFailed })
+        const auditFailed = !drainProductAudit(reply);
+        if (auditFailed) reply.header("x-capacitylens-audit-warning", "true");
+        // `applied` is the atomic receipt count: every submitted op was accepted and processed, so
+        // the sync client can require equality with ops.length. `changed` excludes idempotent
+        // deletes of absent rows and therefore matches the projected audit/revision mutation count.
+        return reply.code(200).send({
+          ok: true,
+          applied: ops.length,
+          changed: changedOperations,
+          revisions,
+          auditWarning: auditFailed,
+        });
       } catch (err) {
-        if (err instanceof BatchAuthorizationResponseSent) return
+        if (err instanceof BatchAuthorizationResponseSent) return;
         // Stale-write conflict (optimistic concurrency): mirror the direct PUT route's 409 +
         // `current` payload. tx() has already rolled the WHOLE batch back by the time this runs
         // (all-or-nothing), so no op from the conflicted batch persisted — the client re-syncs
         // from `current`. Checked BEFORE sendFail, which would misclassify it as a 500.
         if (err instanceof StaleWriteError) {
-          return reply.code(409).send({ error: err.message, current: err.current })
+          return reply
+            .code(409)
+            .send({ error: err.message, current: err.current });
         }
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
+        return err instanceof AccountContractError
+          ? accountFail(reply, err)
+          : sendFail(reply, err);
       }
-    })
+    });
 
     // Bulk import into one account, reusing the SAME remap+validate+sanitize the store
     // runs (shared/domain/mutations.remapAndValidateImport). Body: { accountId, data }.
@@ -2321,10 +3333,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // (accountId-carrying), never `accounts` itself — an import can only replace an EXISTING
     // account's data, never insert a new top-level accounts row. So there is no create vector here
     // for accountCreateCapped to gate.
-    app.post('/api/import', (req, reply) => {
-      const body = req.body as { accountId?: string; data?: unknown }
-      if (!body || typeof body.accountId !== 'string') {
-        return reply.code(400).send({ error: 'accountId is required' })
+    app.post("/api/import", (req, reply) => {
+      const body = req.body as { accountId?: string; data?: unknown };
+      if (!body || typeof body.accountId !== "string") {
+        return reply.code(400).send({ error: "accountId is required" });
       }
       // Import first requires 'purge', NOT 'write' (editor), because:
       //   (1) it is DESTRUCTIVE slice replacement — replaceAccountSlice deletes the account's
@@ -2339,66 +3351,87 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // used as a replacement — it would turn the cover name into the persisted real name and repair
       // the missing code name to "Confidential", destroying the owner-only identity. OFF mode keeps
       // the open behaviour (demo/e2e parity — authorize no-ops there).
-      if (!authorize(req, reply, body.accountId, 'purge')) return
-      if (authMode !== 'off') {
-        const role = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, body.accountId)
+      if (!authorize(req, reply, body.accountId, "purge")) return;
+      if (authMode !== "off") {
+        const role = accountAdminPort.roleForPrincipalInWorkspace(
+          req.user!.id,
+          body.accountId,
+        );
         if (role === null || !canSeePrivateNames(role)) {
-          return reply.code(403).send({ error: 'Only the account owner can import data.' })
+          return reply
+            .code(403)
+            .send({ error: "Only the account owner can import data." });
         }
       }
-      let incoming
+      let incoming;
       try {
-        incoming = parseData(JSON.stringify(body.data ?? {}))
+        incoming = parseData(JSON.stringify(body.data ?? {}));
       } catch (err) {
-        return reply.code(400).send({ error: err instanceof Error ? err.message : 'Invalid import data' })
+        return reply.code(400).send({
+          error: err instanceof Error ? err.message : "Invalid import data",
+        });
       }
       // remapAndValidateImport drops/repairs dangling refs so the slice is FK-clean
       // before it hits SQLite; the try/catch is defence-in-depth so any residual DB
       // constraint failure becomes a 400 (via fail's classification) rather than an
       // uncaught 500.
       try {
-        const result = remapAndValidateImport(loadState(db), body.accountId, incoming, new Date().toISOString())
+        const currentSlice = store.readSlice(body.accountId, FULL_SLICE_READ);
+        const result = remapAndValidateImport(
+          currentSlice,
+          body.accountId,
+          incoming,
+          new Date().toISOString(),
+        );
         // Refuse a zero-record import rather than wiping the account's slice (mirrors the
         // client store guard — replacing a company's data with nothing is never intended).
-        if (result.imported > 0) replaceAccountSlice(db, body.accountId, result.data)
-        // P1.15 audit (post-commit). ONE 'import' line: a slice replace, not a per-field edit, so
-        // changedFields = [] (no individual fields to name) and id = the target accountId.
-        // Gated on the SAME imported > 0 condition as the replace: a refused zero-record import
-        // changed nothing, and an audit line claiming an import happened would be a false record.
-        let auditOk = true
+        let auditOk = true;
         if (result.imported > 0) {
-          auditOk = auditSink.append({
+          const auditRecord: AuditRecord = {
             ts: new Date().toISOString(),
             userId: req.user!.id,
             accountId: body.accountId,
-            action: 'import',
-            entity: 'account',
+            action: "import",
+            entity: "account",
             id: body.accountId,
             changedFields: [],
-          })
-          if (!auditOk) reply.header('x-capacitylens-audit-warning', 'true')
+          };
+          auditOk = commitProductAudit(reply, auditRecord, () => {
+            replaceAccountSlice(db, body.accountId!, result.data);
+          });
         }
-        return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS, auditWarning: !auditOk }
+        return {
+          imported: result.imported,
+          skipped: result.skipped,
+          maxRecords: MAX_IMPORT_RECORDS,
+          auditWarning: !auditOk,
+        };
       } catch (err) {
-        return sendFail(reply, err)
+        return sendFail(reply, err);
       }
-    })
+    });
 
-    // Test-only: wipe (and optionally re-seed) so E2E/integration runs start clean.
+    // Test-only, trusted-local only: wipe (and optionally re-seed) so E2E/integration runs start
+    // clean. An authenticated browser identity has tenant-scoped memberships, never installation-
+    // wide erasure authority, so auth-on modes refuse this route even when allowReset was set.
     //
     // EXEMPT from the single-company cap: this is the raw insertAll test-only path (itself
     // production-forbidden — see bootGuard/resetForbidden, and opts.allowReset just below), not an
     // HTTP create vector the cap is meant to police. It's how e2e fixtures reach a known
     // multi-company state (the demo seed ships TWO companies) without threading multiAccount
     // through every spec.
-    app.post('/api/test/reset', (req, reply) => {
-      if (!opts.allowReset) return reply.code(403).send({ error: 'reset disabled' })
-      const body = (req.body ?? {}) as { seed?: boolean }
-      wipe(db)
-      if (body.seed) insertAll(db, seed())
-      return { ok: true }
-    })
-  })
+    app.post("/api/test/reset", (req, reply) => {
+      if (!opts.allowReset || authMode !== "off") {
+        return reply.code(403).send({ error: "reset disabled" });
+      }
+      const body = (req.body ?? {}) as { seed?: boolean };
+      tx(db, () => {
+        wipe(db);
+        if (body.seed) insertAll(db, seed());
+      });
+      return { ok: true };
+    });
+  });
 
-  return app
+  return app;
 }

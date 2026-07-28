@@ -3,12 +3,14 @@
 **Area:** Access / whole-app · **Persona:** A Viewer member (read-only) · **Linked E2E:** `e2e/viewer.auth.spec.ts` → "a viewer sees no edit affordances; an editor does; a direct viewer write is 403"
 
 ## Goal
+
 A member whose account role is **Viewer** sees the whole app **read-only**: no create / edit / delete
 affordances anywhere, no scheduler drawing / dragging / resizing, no Draw-mode toggle and no
 Undo/Redo, and a small **"View only"** indicator. Every access level has a persistent role badge
 beside the company name; Owner/Admin/Editor keep their permitted edit affordances.
 
 ## Why
+
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login).
 A Viewer is read-only by definition, so showing them edit buttons they can't use is misleading — and
 worse, an optimistic local edit that the server then rejects (403) would desync what they see from
@@ -25,11 +27,14 @@ online membership-driven Viewer mode is reachable only on a server + auth-on dep
 `viewer` membership exists; offline snapshots are the explicit posture-independent exception.
 
 ## How (end-to-end)
-**Precondition:** The app runs in server mode (`VITE_CAPACITYLENS_API` set) against a server with
-`CAPACITYLENS_AUTH=password`. Owner A has created a company and invited **Viewer V** and **Editor E**
-(both accepted).
+
+**Precondition:** The app runs in its default server mode against a server with
+`CAPACITYLENS_AUTH=password`. Same-origin `/api` needs no frontend API setting; set
+`VITE_CAPACITYLENS_API` only when the API uses a different origin. Owner A has created a company and
+invited **Viewer V** and **Editor E** (both accepted).
 
 **As V (viewer):** sign in, pick the company, dismiss the intro.
+
 1. The sidebar footer shows a subtle **"View only"** badge (`data-testid="view-only"`) beside the
    company name.
 2. Open **Clients** (sidebar). There is **no "Add client"** button, and no client row carries an
@@ -39,27 +44,30 @@ online membership-driven Viewer mode is reachable only on a server + auth-on dep
    group) and the filters, but **no Draw-mode toggle** and **no Undo/Redo** buttons. Each resource
    row has **no "+"**; hovering a lane shows **no "+"** hint; a click or drag on a lane **creates
    nothing**; allocation bars have **no resize grips** and can't be dragged, resized, or opened for
-   editing (they still show their hover/focus detail popover — a read).
+   editing (they remain Tab-reachable and show their hover/focus detail popover — a read). That
+   Viewer popover says **Read-only allocation details**, and the bar's assistive label includes the
+   complete project/client and note detail without offering edit gestures.
 
-**As E (editor) for contrast:** sign in, pick the same company.
-4. The footer badge says **Editor** without the **View only** qualifier; **Clients** shows **Add
-   client**; the Schedule toolbar shows the **Draw mode** toggle and **Undo**/**Redo**; bars are fully
-   draggable/resizable.
+**As E (editor) for contrast:** sign in, pick the same company. 4. The footer badge says **Editor** without the **View only** qualifier; **Clients** shows **Add
+client**; the Schedule toolbar shows the **Draw mode** toggle and **Undo**/**Redo**; bars are fully
+draggable/resizable.
 
 ## Acceptance criteria
+
 - The role drives the UI ONLY on a server + auth-on deploy. `GET /api/accounts` returns
   `{ id, name, role }` per account (the caller's role; **OFF mode** tags every entry `'owner'`).
 - For a **Viewer**: no top **Add X** on any list; no row **Edit**/**Delete**; no empty-state create
   CTA; no scheduler per-row **+**, lane draw, or hover **+** hint; allocation bars have **no resize
-  grips**, no drag/resize, no edit modal (a viewer bar is `role="img"`, not `button`); the toolbar
-  hides the **Draw-mode** toggle and **Undo/Redo**; a **"View only"** badge (`data-testid="view-only"`)
-  shows in the sidebar footer.
+  grips**, no drag/resize, no edit modal (a viewer bar is a Tab-reachable `role="img"`, not
+  `button`, with complete read-only detail and no edit instructions); the toolbar hides the
+  **Draw-mode** toggle and **Undo/Redo**; a **"View only"** badge (`data-testid="view-only"`) shows
+  in the sidebar footer.
 - For an **Owner/Admin/Editor**: every permitted affordance is shown and the company footer displays
   the effective role badge; only Viewer adds the **View only** qualifier.
 - The **server 403** is the authoritative backstop: a direct scheduling write as a Viewer
   (`PUT /api/<entity>/<id>` with the account's `accountId`, write tier = editor+) is **403** even if
   the UI is bypassed. As a second local guard, the store no-ops a viewer's `add*`/`update*`/`delete*`/
-  `importData` and surfaces *"Read-only — you don't have edit access."*
+  `importData` and surfaces _"Read-only — you don't have edit access."_
 - **Default-editable invariant:** with **auth off** or in the in-memory demo the role is `null` and
   the online app is fully editable. An offline snapshot remains the explicit read-only exception.
   The persistent badge says **Open access** for the persisted auth-off

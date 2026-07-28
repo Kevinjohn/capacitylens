@@ -27,6 +27,11 @@ ENV VITE_CAPACITYLENS_BUILD_SHA=${VITE_CAPACITYLENS_BUILD_SHA}
 ENV VITE_CAPACITYLENS_FEEDBACK_MAILTO=${VITE_CAPACITYLENS_FEEDBACK_MAILTO}
 RUN pnpm run build
 
+FROM web-build AS web-client-build
+# The client-only runtime has no same-origin proxy. Bake its validated remote API origin (if any)
+# into the CSP rather than weakening connect-src or templating mutable runtime configuration.
+RUN node scripts/render-client-nginx.mjs nginx.client.conf.template /tmp/nginx.client.conf
+
 # The server intentionally executes TypeScript because @capacitylens/shared exports its source.
 # `tsx` is therefore a pinned runtime dependency. This deploy omits Vite, Playwright, Vitest,
 # TypeScript, ESLint and every other development-only package from the API image.
@@ -62,16 +67,23 @@ RUN apk add --no-cache openssl
 COPY scripts/internal-tls.sh /usr/local/bin/capacitylens-internal-tls
 ENTRYPOINT ["/usr/local/bin/capacitylens-internal-tls"]
 
-FROM nginxinc/nginx-unprivileged:1.31.2-alpine@sha256:6320020c7da8714feab524e02c08c5a1958675c4e68700e93a2fd8970b065786 AS web
+FROM nginxinc/nginx-unprivileged:1.31.2-alpine@sha256:6320020c7da8714feab524e02c08c5a1958675c4e68700e93a2fd8970b065786 AS web-runtime
 USER root
 # The base installs curl for its generic entrypoint, which this image deliberately does not use.
 # Remove curl/libcurl rather than retaining an unnecessary network client and its CVE surface.
 RUN apk del --no-cache curl libcurl
 USER 101
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx-security-headers.conf /etc/nginx/capacitylens-security-headers.conf
 COPY --from=web-build /app/dist /usr/share/nginx/html
 # The inherited entrypoint mutates nginx config for optional templating/IPv6 behavior. CapacityLens
 # ships a complete immutable config, so run nginx directly and keep the read-only root noise-free.
 ENTRYPOINT []
 CMD ["nginx", "-g", "daemon off;"]
 EXPOSE 8080
+
+FROM web-runtime AS web-client
+COPY --from=web-client-build /tmp/nginx.client.conf /etc/nginx/conf.d/default.conf
+
+# Keep the local-API image as the Dockerfile's final/default target for existing direct builds.
+FROM web-runtime AS web
+COPY nginx.conf /etc/nginx/conf.d/default.conf

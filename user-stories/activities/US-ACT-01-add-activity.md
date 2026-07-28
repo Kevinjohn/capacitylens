@@ -14,7 +14,7 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 2. Fill **Name** = `Internal sync`, click the **Internal** kind. The **Project** field disappears. Click **Save**.
 3. Click **Add activity**; **Name** = `Discovery workshop`, click **Cross-project**, **Save**.
 4. Click **Add activity**; **Name** = `Spec review`, leave kind **Project-specific**, choose **Project** = *Project Lightning*, **Save**.
-5. Open the **Schedule** (`/`), start an allocation against a resource, choose *Project Lightning*, and open the **Activity** picker.
+5. Open the **Schedule** (`/`) and start an allocation against a resource. Choose *Project Lightning* and open the **Activity** picker; it offers that project's activities, including **Spec review**. Then choose **No project (internal / cross-project)**; the **Activity** picker offers **Internal sync** and **Discovery workshop**.
 
 ## Acceptance criteria
 - ✅ **Internal sync** saves into the **Internal activities** section (testid `internal-activities`), with **no** project label.
@@ -22,4 +22,5 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 - ✅ **Spec review** saves into the **Project-specific activities** section (testid `project-specific-activities`), its row labelled with the client · project.
 - ✅ Saving an empty **Name** is rejected (required-field error; the dialog stays open).
 - ✅ Saving a **Project-specific**-kind activity with **no project chosen** is rejected ("A project-specific activity must be assigned to a project."); the dialog stays open.
-- ✅ When allocating with *Project Lightning* chosen, project-specific activities **plus** internal/cross-project activities are selectable in the **Activity** picker.
+- ✅ With *Project Lightning* chosen, the **Activity** picker offers only that project's project-specific activities, including **Spec review**.
+- ✅ With **No project (internal / cross-project)** chosen, the **Activity** picker offers project-less internal and cross-project activities, including **Internal sync** and **Discovery workshop**.

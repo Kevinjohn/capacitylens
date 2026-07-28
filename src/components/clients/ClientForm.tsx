@@ -45,8 +45,16 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
             codeName: isPrivate ? cleanCodeName ?? undefined : undefined,
           }
         : {}
-      if (client) updateClient(client.id, { name: trimmed, color, ...privacy })
-      else addClient({ name: trimmed, color, ...privacy })
+      if (client) {
+        const current = useStore.getState().data.clients.find((candidate) => candidate.id === client.id)
+        if (!current || current.updatedAt !== client.updatedAt) {
+          fail(null, m.form_client_err_changed())
+          return
+        }
+        updateClient(client.id, { name: trimmed, color, ...privacy })
+      } else {
+        addClient({ name: trimmed, color, ...privacy })
+      }
       onClose()
     } catch (e) {
       fail(null, errorMessage(e))

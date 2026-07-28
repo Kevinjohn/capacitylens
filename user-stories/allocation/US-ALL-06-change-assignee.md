@@ -9,13 +9,13 @@ Reassign an existing allocation to a different resource from the edit dialog, mo
 Work gets handed over — someone goes on leave, a freelancer takes an activity, or a placeholder is filled by a real hire. The manager needs to reassign a booking without recreating it, preserving its dates, hours, status and note.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a *Brand System* bar on the **Nike Spiros** row.
-1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = *Nike Spiros*.
-2. Change **Assignee** to *Alex Rivera*.
+**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a *Brand System* bar on the **Pam Gonzalez** row.
+1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = *Pam Gonzalez*.
+2. Change **Assignee** to *Nike Spiros*.
 3. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
-- ✅ After Save, the **Brand System** bar no longer appears on the **Nike Spiros** row and now appears on the **Alex Rivera** row (`data-resource-id="r-alex"`).
+- ✅ After Save, the **Brand System** bar no longer appears on the **Pam Gonzalez** row and now appears on the **Nike Spiros** row (`data-resource-id="r-nike"`).
 - ✅ The bar keeps its activity, dates, hours/day, status and note — only the resource changed.
-- ✅ Pressing **⌘Z** moves the bar back to **Nike Spiros**.
+- ✅ Pressing **⌘Z** moves the bar back to **Pam Gonzalez**.
 - ✅ Selecting a placeholder as the new Assignee locks Project to its bound project and clears Activity — you must pick one of that project's activities before Save (see US-ALL-07).

@@ -1,5 +1,10 @@
-import { expect } from 'vitest'
-import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import { afterEach, expect } from "vitest";
+import type {
+  FastifyInstance,
+  InjectOptions,
+  LightMyRequestResponse,
+} from "fastify";
+import type { Db } from "./db";
 
 // Shared scaffolding for the auth-backed server test suites (app.*.test.ts). The inject wrapper,
 // Set-Cookie collapse, sign-up-and-resolve-userId flow, and the password-mode env were duplicated
@@ -10,33 +15,105 @@ import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fas
  *  fixtures create users via sign-up/email, so it is re-opened here until the invite flow is the only
  *  path. A suite that asserts the default-closed posture builds its own env WITHOUT this flag. */
 export const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: 'password',
-  BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
-  BETTER_AUTH_URL: 'http://localhost:8787',
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+  CAPACITYLENS_AUTH: "password",
+  BETTER_AUTH_SECRET: "unit-test-secret-0123456789abcdef-0123",
+  BETTER_AUTH_URL: "http://localhost:8787",
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+};
+
+/** Own every Fastify/SQLite fixture created by one test file and close it after each test. */
+export function registerServerFixtureCleanup(): {
+  trackApp: <T extends FastifyInstance>(app: T) => T;
+  trackDb: <T extends Db>(db: T) => T;
+} {
+  const apps = new Set<FastifyInstance>();
+  const databases = new Set<Db>();
+
+  afterEach(async () => {
+    const errors: unknown[] = [];
+    for (const app of apps) {
+      try {
+        await app.close();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    for (const db of databases) {
+      if (!db.isOpen) continue;
+      try {
+        db.close();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    apps.clear();
+    databases.clear();
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "Server fixture cleanup failed.");
+    }
+  });
+
+  return {
+    trackApp: <T extends FastifyInstance>(app: T): T => {
+      apps.add(app);
+      return app;
+    },
+    trackDb: <T extends Db>(db: T): T => {
+      databases.add(db);
+      return db;
+    },
+  };
 }
 
 /** `app.inject` typed as the light response the suites assert against. */
-export const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>
+export const call = (
+  app: FastifyInstance,
+  opts: InjectOptions,
+): Promise<LightMyRequestResponse> =>
+  app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
 export function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers['set-cookie']
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : []
-  return list.map((c) => String(c).split(';')[0]).join('; ')
+  const raw = res.headers["set-cookie"];
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const cookies = new Map<string, string>();
+  for (const header of list) {
+    const [pair, ...attributes] = String(header).split(";");
+    const separator = pair.indexOf("=");
+    if (separator < 1) continue;
+    const name = pair.slice(0, separator).trim();
+    const expired = attributes.some((attribute) => {
+      const [rawName, ...rawValue] = attribute.trim().split("=");
+      const attributeName = rawName.toLowerCase();
+      const value = rawValue.join("=").trim();
+      if (attributeName === "max-age") return Number(value) <= 0;
+      if (attributeName !== "expires") return false;
+      const expiresAt = Date.parse(value);
+      return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+    });
+    if (expired) cookies.delete(name);
+    else cookies.set(name, pair.trim());
+  }
+  return [...cookies.values()].join("; ");
 }
 
 /** Sign up a user, returning its session cookie + the resolved user id (from /api/auth/me). */
-export async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
+export async function signUp(
+  app: FastifyInstance,
+  email: string,
+): Promise<{ cookie: string; userId: string }> {
   const res = await call(app, {
-    method: 'POST',
-    url: '/api/auth/sign-up/email',
-    payload: { email, password: 'password-123456', name: 'Tester' },
-  })
-  expect(res.statusCode).toBe(200)
-  const cookie = cookiesOf(res)
-  const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
-  expect(me.statusCode).toBe(200)
-  return { cookie, userId: me.json().user.id as string }
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    payload: { email, password: "password-123456", name: "Tester" },
+  });
+  expect(res.statusCode).toBe(200);
+  const cookie = cookiesOf(res);
+  const me = await call(app, {
+    method: "GET",
+    url: "/api/auth/me",
+    headers: { cookie },
+  });
+  expect(me.statusCode).toBe(200);
+  return { cookie, userId: me.json().user.id as string };
 }

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser as signUp } from './auth-helpers'
 
 test.use({ reducedMotion: 'reduce' })
@@ -52,6 +52,42 @@ test.describe('viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)', () => {
     })
     expect(orgRes.status()).toBe(201)
     const accountId = (await orgRes.json()).id as string
+
+    // Seed real rows before exercising Viewer affordances. Empty-state assertions can pass even if
+    // row actions or ResourceLane.onDraw accidentally become editable.
+    const seededAt = new Date().toISOString()
+    const clientId = `viewer-client-${STAMP}`
+    const clientWrite = await request.put(`${API}/api/clients/${clientId}`, {
+      headers: { cookie: owner.cookie, 'content-type': 'application/json' },
+      data: {
+        id: clientId,
+        accountId,
+        name: 'Viewer-visible client',
+        color: '#3b82f6',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      },
+    })
+    expect(clientWrite.status()).toBe(200)
+
+    const resourceId = `viewer-resource-${STAMP}`
+    const resourceWrite = await request.put(`${API}/api/resources/${resourceId}`, {
+      headers: { cookie: owner.cookie, 'content-type': 'application/json' },
+      data: {
+        id: resourceId,
+        accountId,
+        kind: 'person',
+        name: 'Viewer-visible person',
+        role: 'Designer',
+        employmentType: 'permanent',
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        color: '#3b82f6',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      },
+    })
+    expect(resourceWrite.status()).toBe(200)
 
     for (const [who, role] of [
       [viewer, 'viewer'],
@@ -107,8 +143,9 @@ test.describe('viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)', () => {
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add client' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0)
+    const viewerClientRow = page.getByTestId('client-row').filter({ hasText: 'Viewer-visible client' })
+    await expect(viewerClientRow).toBeVisible()
+    await expect(viewerClientRow.getByRole('button')).toHaveCount(0)
 
     // Scheduler: the draw-mode toggle + Undo/Redo are hidden.
     await page.getByRole('link', { name: 'Schedule' }).click()
@@ -117,17 +154,19 @@ test.describe('viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)', () => {
     await expect(page.getByTestId('undo-button')).toHaveCount(0)
     await expect(page.getByTestId('redo-button')).toHaveCount(0)
 
-    // A draw gesture on a lane creates nothing (the lane bails — no onDraw). The fresh org has no
-    // resources/lanes seeded, so assert the schedule has no allocation bars before AND after a drag.
+    // A draw gesture on a REAL lane creates nothing (the lane bails — no onDraw).
     await expect(page.getByTestId('allocation-bar')).toHaveCount(0)
-    const grid = page.getByTestId('scheduler-grid')
-    const box = await grid.boundingBox()
+    const lane = page.locator(`[data-testid="resource-lane"][data-resource-id="${resourceId}"]`)
+    await expect(lane).toBeVisible()
+    const box = await lane.boundingBox()
+    expect(box).not.toBeNull()
     if (box) {
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.move(box.x + 30, box.y + box.height / 2)
       await page.mouse.down()
-      await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2)
+      await page.mouse.move(box.x + 150, box.y + box.height / 2)
       await page.mouse.up()
     }
+    await expect(page.getByRole('dialog', { name: 'Add allocation' })).toHaveCount(0)
     await expect(page.getByTestId('allocation-bar')).toHaveCount(0)
 
     // ── Browser as EDITOR (contrast): the same surfaces SHOW the affordances. ────────────────────────
@@ -142,6 +181,9 @@ test.describe('viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)', () => {
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add client' })).toBeVisible()
+    const editorClientRow = page.getByTestId('client-row').filter({ hasText: 'Viewer-visible client' })
+    await expect(editorClientRow.getByRole('button', { name: 'Edit' })).toBeVisible()
+    await expect(editorClientRow.getByRole('button', { name: 'Archive Viewer-visible client' })).toBeVisible()
 
     await page.getByRole('link', { name: 'Schedule' }).click()
     await expect(page.getByRole('radiogroup', { name: 'Draw mode' })).toBeVisible()

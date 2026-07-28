@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,

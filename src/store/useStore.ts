@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import { newId } from '@capacitylens/shared/lib/id'
-import { addDaysISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
+import {
+  addDaysISO,
+  startOfWeekISO,
+  todayISO,
+} from '@capacitylens/shared/lib/dateMath'
 import { PAST_BUFFER_DAYS, type WeeksZoom } from '../lib/schedulerConfig'
 import {
   deleteClientCascade,
@@ -11,26 +15,43 @@ import {
   deleteActivityCascade,
 } from '@capacitylens/shared/lib/integrity'
 import {
+  assertActivityProjectAllowsDependents,
   assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
+  assertResourceProjectAllowsDependents,
   assertScopedRefs,
   deleteAccountCascade,
   findOwned as findOwnedIn,
   remapAndValidateImport,
 } from '@capacitylens/shared/domain/mutations'
-import { archive, canPurge, obfuscateResource, PURGE_MIN_AGE_DAYS, softDelete, unarchive } from '@capacitylens/shared/domain/lifecycle'
-import { m } from '@/i18n'
 import {
-  type BarLabelPrefs,
-  type UtilizationPrefs,
-} from '../lib/displayPrefs'
+  archive,
+  canPurge,
+  obfuscateResource,
+  PURGE_MIN_AGE_DAYS,
+  softDelete,
+  unarchive,
+} from '@capacitylens/shared/domain/lifecycle'
+import { m } from '@/i18n'
+import { type BarLabelPrefs, type UtilizationPrefs } from '../lib/displayPrefs'
 import type { ThemePref } from '../lib/theme'
 import type { Role } from '@capacitylens/shared/domain/access'
-import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
-import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@capacitylens/shared/types/entities'
-import { NEUTRAL_COLOR, snapToPresetColor } from '@capacitylens/shared/lib/color'
+import {
+  buildInternalClient,
+  isBuiltinClient,
+} from '@capacitylens/shared/data/internalClient'
+import {
+  clampHoursPerDay,
+  clampWorkingHoursPerDay,
+  emptyAppData,
+} from '@capacitylens/shared/types/entities'
+import {
+  NEUTRAL_COLOR,
+  snapToPresetColor,
+} from '@capacitylens/shared/lib/color'
+import { timeZoneFor, weekStartsOnFor } from './selectors'
 import type {
   Account,
   Allocation,
@@ -61,7 +82,10 @@ import { createSchedulerSlice } from './slices/schedulerSlice'
 // would break the "exactly one Internal per account" invariant the scheduler / migrate / import all
 // rely on. Excluding the field at the type level is the guard; the store also strips it defensively at
 // runtime (see addClient/updateClient).
-export type Draft<T extends Entity> = Omit<T, 'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin'>
+export type Draft<T extends Entity> = Omit<
+  T,
+  'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin'
+>
 export type Patch<T extends Entity> = Partial<Draft<T>>
 
 // The three entity tables that carry the lifecycle tombstones (`archivedAt`/`deletedAt`, P2.1) and so
@@ -175,10 +199,11 @@ export interface SchedulerUI {
   filters: Filters
   collapsedGroups: string[] // discipline group keys that are collapsed
   recenterToken: number // bumped to ask the grid to scroll focusDate back into view
-  /** Transient: when set, SchedulerGrid scrolls the given resource row into view.
-   *  Token-per-request (like recenterToken) so the effect re-fires even for the
-   *  same resource id. Never persisted; never on the undo stack. */
-  scrollToResource: { id: ID; token: number } | null
+  /** Transient resource-row jump. Each request starts unconsumed; SchedulerGrid consumes it only
+   *  after finding and scrolling the row, so a temporarily hidden row can retry without replaying
+   *  after success. Token-per-request supports repeated jumps to the same id. Never persisted or
+   *  placed on the undo stack. */
+  scrollToResource: { id: ID; token: number; consumed: boolean } | null
 }
 
 export interface StoreState {
@@ -196,6 +221,9 @@ export interface StoreState {
    *  server mode `data` holds only the ACTIVE account's slice, so it can't list the other tenants.
    *  Never persisted. */
   accountSummaries: AccountSummary[]
+  /** Latest issued server-directory read. Direct list mutations advance this too, so an older
+   *  response cannot overwrite a create/delete/join result. Transient and never persisted. */
+  accountSummariesRequestId: number
   past: AppData[]
   future: AppData[]
   persistError: boolean
@@ -224,9 +252,11 @@ export interface StoreState {
    *  re-reads only on a content change). Transient: never persisted, never on the undo stack. POINTER
    *  drags do NOT set this — they give sighted feedback and would be noise for everyone. Null = none yet. */
   srAnnouncement: { text: string; seq: number } | null
-  /** True while an open form has unsaved edits — drives the unsaved-changes guards
-   *  (modal backdrop/Escape, beforeunload). Set by the Modal, never persisted. */
+  /** True while any registered form/operation has unsaved work — drives the unsaved-changes guards
+   *  (modal backdrop/Escape, beforeunload). Derived from source ownership, never persisted. */
   dirtyForm: boolean
+  /** Internal owner set from which dirtyForm is derived. Transient and never persisted. */
+  dirtyFormSources: ReadonlySet<symbol>
   /** The allocation currently being dragged/resized, or null. Transient UI (like
    *  dirtyForm) — never persisted, never on the undo stack. Lets the scheduler PIN the
    *  dragged row so a mid-gesture vertical scroll can't virtualise it out and orphan the
@@ -279,17 +309,19 @@ export interface StoreState {
    *  the access boundary, which is why ANY non-'viewer' value (incl. null = OFF/local) stays editable. */
   activeRole: Role | null
   /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
-   *  PermissionProvider and useAccountSummaries re-read the caller's effective role/list without an
+   *  the current directory-request owner re-reads the caller's effective role/list without an
    *  account switch or page reload. Transient: never persisted or included in undo history. */
   membershipRevision: number
 
-  addAccount: (input: Draft<Account>) => Account
+  addAccount: (input: Draft<Account>) => Account | null
   updateAccount: (id: ID, patch: Patch<Account>) => void
   deleteAccount: (id: ID) => void
   setActiveAccount: (id: ID | null) => void
-  /** Replace the picker's server-sourced account list (P1.13). Called by useAccountSummaries with the
-   *  result of `GET /api/accounts` (server mode) or the local derivation. Plain transient state. */
-  setAccountSummaries: (list: AccountSummary[]) => void
+  /** Start one server-directory read and return its monotonic identity. */
+  beginAccountSummariesRequest: () => number
+  /** Replace the picker list. A request-bound result applies only while it is still the latest;
+   *  an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
+  setAccountSummaries: (list: AccountSummary[], requestId?: number) => boolean
 
   replaceAll: (data: AppData) => void
   /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
@@ -299,13 +331,18 @@ export interface StoreState {
   setPersistError: (v: boolean) => void
   setLoadError: (v: boolean) => void
   setConnectionError: (v: boolean) => void
-  setNotice: (message: string | null, tone?: 'info' | 'warning' | 'error') => void
+  setNotice: (
+    message: string | null,
+    tone?: 'info' | 'warning' | 'error',
+  ) => void
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
    *  so the SAME text re-announces (an aria-live region re-reads only on a content change). Call
    *  ONLY after a successful KEYBOARD-committed allocation edit — pointer drags give sighted
    *  feedback and must not announce. Transient, never persisted/undone. */
   announceCapacity: (text: string) => void
   setDirtyForm: (v: boolean) => void
+  /** Publish or clear one component's dirty contribution without disturbing another owner. */
+  setDirtyFormSource: (source: symbol, dirty: boolean) => void
   /** Mark/clear the allocation being dragged (drives the grid's drag-pin). */
   setDraggingAllocation: (id: ID | null) => void
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
@@ -373,7 +410,9 @@ export interface StoreState {
   deleteActivity: (id: ID) => void
 
   addAllocation: (input: Draft<Allocation>) => Allocation
-  updateAllocation: (id: ID, patch: Patch<Allocation>) => void
+  /** Apply an allocation patch. False means the write was deliberately refused as a Viewer or the
+   * target disappeared before commit; validation/tenancy violations still throw. */
+  updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean
   deleteAllocation: (id: ID) => void
 
   addTimeOff: (input: Draft<TimeOff>) => TimeOff
@@ -420,6 +459,9 @@ export interface StoreState {
    *  scrollToResource — SchedulerGrid watches this to scroll the row into view.
    *  Transient UI: NOT persisted, NOT on the undo stack. */
   jumpToResource: (id: ID) => void
+  /** Mark one exact resource-jump token consumed after its row was scrolled into view. A stale
+   *  acknowledgement never consumes a newer request. */
+  consumeResourceJump: (token: number) => void
 }
 
 const stamp = () => {
@@ -427,6 +469,7 @@ const stamp = () => {
   return { createdAt: now, updatedAt: now }
 }
 const touch = () => new Date().toISOString()
+const MAX_DATE_MS = 8_640_000_000_000_000
 // Take an ARRAY, not rest args: the whole-tenant callers (nextDataRevision, prepareHistoryTarget)
 // pass one timestamp per row, and spreading tens of thousands of rows as function arguments can
 // overflow the engine's argument limit (RangeError), failing an undo/redo or cascade-delete
@@ -437,13 +480,19 @@ const touchAfterAll = (timestamps: Array<string | undefined>): string => {
   for (const value of timestamps) {
     if (!value) continue
     const parsed = Date.parse(value)
-    if (Number.isFinite(parsed) && parsed >= next) next = parsed + 1
+    // The maximum representable Date is valid ISO input but has no representable successor.
+    // Treat that boundary as an unsupported revision floor instead of constructing Invalid Date.
+    if (Number.isFinite(parsed) && parsed >= next && parsed < MAX_DATE_MS)
+      next = parsed + 1
   }
   return new Date(next).toISOString()
 }
-const touchAfter = (...timestamps: Array<string | undefined>): string => touchAfterAll(timestamps)
+const touchAfter = (...timestamps: Array<string | undefined>): string =>
+  touchAfterAll(timestamps)
 const dataTimestamps = (data: AppData): string[] =>
-  (Object.values(data) as Entity[][]).flatMap((rows) => rows.map((row) => row.updatedAt))
+  (Object.values(data) as Entity[][]).flatMap((rows) =>
+    rows.map((row) => row.updatedAt),
+  )
 const nextDataRevision = (data: AppData): string =>
   touchAfterAll(dataTimestamps(data))
 
@@ -454,13 +503,22 @@ const nextDataRevision = (data: AppData): string =>
  * stale. Rows recreated from deletion need no stamp because the server has no current row to beat.
  */
 function prepareHistoryTarget(current: AppData, target: AppData): AppData {
-  const now = touchAfterAll(dataTimestamps(current).concat(dataTimestamps(target)))
+  const now = touchAfterAll(
+    dataTimestamps(current).concat(dataTimestamps(target)),
+  )
   const retime = <T extends Entity>(beforeRows: T[], targetRows: T[]): T[] => {
+    // Immutable mutations structurally share every untouched table. Preserve that array wholesale;
+    // even within a changed table, untouched rows retain object identity and need no serialization.
+    if (beforeRows === targetRows) return targetRows
     const beforeById = new Map(beforeRows.map((row) => [row.id, row]))
-    const content = (row: T): string => JSON.stringify({ ...row, updatedAt: undefined })
+    const content = (row: T): string =>
+      JSON.stringify({ ...row, updatedAt: undefined })
     return targetRows.map((row) => {
       const before = beforeById.get(row.id)
-      return before && content(before) !== content(row) ? { ...row, updatedAt: now } : row
+      if (before === row) return row
+      return before && content(before) !== content(row)
+        ? { ...row, updatedAt: now }
+        : row
     })
   }
   return {
@@ -476,6 +534,29 @@ function prepareHistoryTarget(current: AppData, target: AppData): AppData {
   }
 }
 
+/** True when a server refresh republishes the same authoritative entity revisions. */
+function hasSameEntityRevisions(
+  current: AppData,
+  replacement: AppData,
+): boolean {
+  for (const key of Object.keys(current) as Array<keyof AppData>) {
+    const currentRows = current[key]
+    const replacementRows = replacement[key]
+    if (currentRows.length !== replacementRows.length) return false
+    const replacementRevisions = new Map(
+      replacementRows.map((row) => [row.id, row.updatedAt]),
+    )
+    if (
+      currentRows.some(
+        (row) => replacementRevisions.get(row.id) !== row.updatedAt,
+      )
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
 const HISTORY_LIMIT = 50
 
 export const useStore = create<StoreState>()((set, get, store) => {
@@ -488,21 +569,42 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // rejection into SILENT data corruption (the explicit anti-goal; see DEFENSIVE-CODING.md §4). If
   // a producer throws, `set` never runs, so state is left untouched — a clean, atomic failure.
   const mutate = (producer: (d: AppData) => AppData) =>
-    set((s) => ({ data: producer(s.data), past: [...s.past, s.data].slice(-HISTORY_LIMIT), future: [] }))
+    set((s) => ({
+      data: producer(s.data),
+      past: [...s.past, s.data].slice(-HISTORY_LIMIT),
+      future: [],
+    }))
 
   // Erasure/purge actions must not leave a recoverable pre-erasure snapshot in memory. They also
   // cannot honestly be undoable, so clear both history directions as part of the same state write.
   const mutateIrreversible = (producer: (d: AppData) => AppData) =>
     set((s) => ({ data: producer(s.data), past: [], future: [] }))
 
-  const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
-    list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x))
+  const updateById = <T extends Entity>(
+    list: T[],
+    id: ID,
+    patch: Partial<Omit<T, keyof Entity>>,
+  ): T[] =>
+    list.map((x) =>
+      x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x,
+    )
 
-  // Every scoped add* stamps the active account. With no account chosen there's
-  // nowhere to file the entity, so we fail loudly rather than create an orphan.
+  // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
+  // account must either exist in the published data or in the server-authorised summaries while a
+  // switch is loading its slice (mid-switch edits are deliberately rebased by persist.ts). An id in
+  // neither source is dead, so fail loudly rather than stamp an orphan accountId into the slice.
   const requireAccount = (): ID => {
-    const id = get().activeAccountId
+    const state = get()
+    const id = state.activeAccountId
     if (!id) throw new Error('No active account — cannot mutate scoped data.')
+    if (
+      !state.data.accounts.some((account) => account.id === id) &&
+      !state.accountSummaries.some((account) => account.id === id)
+    ) {
+      throw new Error(
+        'The active account is not loaded — cannot mutate scoped data.',
+      )
+    }
     return id
   }
 
@@ -524,8 +626,11 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // so the call sites stay terse; assertAllocation keeps its legacy name locally.
   // assertScopedRefs / assertDateRange / assertResourceExists are used directly
   // from the import above.
-  const findOwned = <K extends ScopedEntityKey>(d: AppData, key: K, id: ID): AppData[K][number] | null =>
-    findOwnedIn(d, requireAccount(), key, id)
+  const findOwned = <K extends ScopedEntityKey>(
+    d: AppData,
+    key: K,
+    id: ID,
+  ): AppData[K][number] | null => findOwnedIn(d, requireAccount(), key, id)
   const assertAllocation = assertAllocationRefs
 
   // Value-level integrity backstop: a resource with zero working days has no capacity
@@ -538,7 +643,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       new Set(days).size !== days.length ||
       days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
     ) {
-      throw new Error('At least one working day is required, using unique whole-number weekdays from 0 to 6.')
+      throw new Error(
+        'At least one working day is required, using unique whole-number weekdays from 0 to 6.',
+      )
     }
   }
   // Write-time colour guard: snaps a bad/legacy colour to its NEAREST palette preset via the
@@ -553,14 +660,21 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // an assert* throw). A rejected write must not silently substitute a colour the caller never
   // asked for onto an entity that was never saved; see the CRUD contract note on StoreState.
   const snapColor = (color: unknown, allowNeutral = false): string =>
-    allowNeutral && color === NEUTRAL_COLOR ? (color as string) : snapToPresetColor(color)
+    allowNeutral && color === NEUTRAL_COLOR
+      ? (color as string)
+      : snapToPresetColor(color)
 
   // Collapses the `patch.color === undefined ? patch : { ...patch, color: snapColor(...) }`
   // idiom that used to be copy-pasted across every update* action (P#: colour-repair
   // consolidation). Returns the SAME object reference when there's no colour to repair, so a
   // colourless edit doesn't pay for a needless clone.
-  const withSnappedColor = <T extends { color?: unknown }>(patch: T, allowNeutral = false): T =>
-    patch.color === undefined ? patch : { ...patch, color: snapColor(patch.color, allowNeutral) }
+  const withSnappedColor = <T extends { color?: unknown }>(
+    patch: T,
+    allowNeutral = false,
+  ): T =>
+    patch.color === undefined
+      ? patch
+      : { ...patch, color: snapColor(patch.color, allowNeutral) }
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
@@ -571,12 +685,14 @@ export const useStore = create<StoreState>()((set, get, store) => {
     activeAccountId: null,
     previousAccountId: null,
     accountSummaries: [],
+    accountSummariesRequestId: 0,
     past: [],
     future: [],
     ...createRuntimeSlice(set, get, store),
     ...createSchedulerSlice(emptyFilters)(set, get, store),
 
     addAccount: (input) => {
+      if (blockedByViewer()) return null
       const ts = stamp()
       // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
       // scheduling with disciplines OFF, placeholder + external features hidden, and Internal work
@@ -600,33 +716,56 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // internalClient.ts). Created atomically with the account so the one-per-account invariant
       // holds the instant the tenant exists — matching seed() and the v5→v6 migrate.
       const internal = buildInternalClient(e.id, ts.createdAt)
-      mutate((d) => ({ ...d, accounts: [...d.accounts, e], clients: [...d.clients, internal] }))
+      mutate((d) => ({
+        ...d,
+        accounts: [...d.accounts, e],
+        clients: [...d.clients, internal],
+      }))
       // Keep the picker's list in lockstep (P1.13). This action now runs only in the DEMO build —
       // server-mode create goes through the AccountPicker's dedicated POST /api/orgs path, not here —
       // so this append is the demo bookkeeping that keeps the picker synchronously fresh before the
       // useAccountSummaries derive effect flushes. Append only if absent so a derive that already
       // added it can't duplicate.
-      set((s) =>
-        s.accountSummaries.some((a) => a.id === e.id)
-          ? {}
-          : { accountSummaries: [...s.accountSummaries, { id: e.id, name: e.name, role: 'owner' as const }] },
-      )
+      set((s) => ({
+        accountSummariesRequestId: s.accountSummariesRequestId + 1,
+        accountSummaries: s.accountSummaries.some((a) => a.id === e.id)
+          ? s.accountSummaries
+          : [
+              ...s.accountSummaries,
+              { id: e.id, name: e.name, role: 'owner' as const },
+            ],
+      }))
       return e
     },
     updateAccount: (id, patch) => {
       if (blockedByViewer()) return
-      mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, withSnappedColor(patch)) }))
+      const state = get()
+      const existing = state.data.accounts.find((account) => account.id === id)
+      if (!existing) return
+      if (state.activeAccountId !== id) {
+        throw new Error(
+          'Cannot update a company other than the active company.',
+        )
+      }
+      mutate((d) => ({
+        ...d,
+        accounts: updateById(d.accounts, id, withSnappedColor(patch)),
+      }))
     },
     // Cascade-drop every scoped entity belonging to this account; if it was the
     // active one, fall back to the picker.
     deleteAccount: (id) => {
       if (blockedByViewer()) return
+      if (!get().data.accounts.some((account) => account.id === id)) return
       mutateIrreversible((d) => deleteAccountCascade(d, id))
       // Drop it from the picker's list too (P1.13). This action now runs only in the DEMO build —
       // server-mode delete goes through the AccountPicker's dedicated DELETE /api/accounts/:id route,
       // not here — so this filter is the demo bookkeeping that keeps the picker synchronously fresh
       // before the useAccountSummaries derive effect flushes.
-      set((s) => ({ accountSummaries: s.accountSummaries.filter((a) => a.id !== id) }))
+      set((s) => ({
+        accountSummaries: s.accountSummaries.filter((a) => a.id !== id),
+        accountSummariesRequestId: s.accountSummariesRequestId + 1,
+      }))
       if (get().activeAccountId === id) get().setActiveAccount(null)
     },
     // Switching tenant resets per-account view state and history — undo must never
@@ -643,37 +782,66 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // persist switch orchestrator then loads that account's slice into `data`; this validation only
       // proves the id is one the login may open, not that its data is loaded yet.
       let id = rawId
+      let unknownAccount = false
       if (
         id !== null &&
         !get().data.accounts.some((a) => a.id === id) &&
         !get().accountSummaries.some((a) => a.id === id)
       ) {
-        console.warn(`setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`)
-        get().setNotice(m.notice_company_not_found(), 'error')
+        console.warn(
+          `setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`,
+        )
+        unknownAccount = true
         id = null
       }
       set((s) => {
+        const switchingAccount = id !== s.activeAccountId
         // Open the switched-into company on the current week (mirrors defaultUI) rather
         // than inheriting the previous tenant's panned origin/focus. The account's tz/weekStartsOn
         // come from its slice when loaded; in server mode the slice loads a frame later (the switch
         // orchestrator awaits the fetch), so fall back to the existing defaults for that one frame
         // (an acceptable transient — the grid re-anchors when the slice arrives via replaceAll).
-        const account = id ? s.data.accounts.find((a) => a.id === id) : null
-        const tz = account?.timezone ?? 'Etc/GMT'
-        const wso = account?.weekStartsOn ?? 1
+        const tz = timeZoneFor(s.data, id)
+        const wso = weekStartsOnFor(s.data, id)
         const weekStart = startOfWeekISO(todayISO(tz), wso)
         return {
           activeAccountId: id,
+          // A concrete role means membership enforcement is active. Publish the new tenant with a
+          // conservative Viewer role in this SAME store transition so no imperative subscriber can
+          // observe it under the prior tenant's authority; PermissionProvider replaces it only
+          // after resolving this account. null is the deliberate OFF/demo mode and stays editable.
+          activeRole:
+            id !== s.activeAccountId && s.activeRole !== null
+              ? 'viewer'
+              : s.activeRole,
           // Remember where we came from when dropping to the picker (id === null) so it
           // can offer a "back" escape; clear it once a tenant is actually chosen.
           previousAccountId: id === null ? s.activeAccountId : null,
           past: [],
           future: [],
+          // These values describe work or UI owned by the account being left. Clear them in the
+          // same publication as activeAccountId so no subscriber can observe stale tenant ids,
+          // form guards or messages under the new account.
+          ...(switchingAccount
+            ? {
+                notice: unknownAccount
+                  ? {
+                      message: m.notice_company_not_found(),
+                      tone: 'error' as const,
+                    }
+                  : null,
+                srAnnouncement: null,
+                dirtyForm: false,
+                dirtyFormSources: new Set<symbol>(),
+                draggingAllocationId: null,
+              }
+            : {}),
           ui: {
             ...s.ui,
             filters: emptyFilters(),
             collapsedGroups: [],
             selectedAllocationId: null,
+            scrollToResource: null,
             originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
             focusDate: weekStart,
           },
@@ -681,33 +849,94 @@ export const useStore = create<StoreState>()((set, get, store) => {
       })
     },
 
-    // Plain set (NOT mutate): the picker's account list is transient, server-sourced, never on the
-    // undo/redo stack, never in AppData/export.
-    setAccountSummaries: (list) => set({ accountSummaries: list }),
-
-    replaceAll: (data) => set((state) => {
-      const previouslyHadActiveAccount = state.activeAccountId
-        ? state.data.accounts.some((candidate) => candidate.id === state.activeAccountId)
-        : false
-      const account = state.activeAccountId
-        ? data.accounts.find((candidate) => candidate.id === state.activeAccountId)
-        : undefined
-      // Same-account refreshes reconcile server state in the background and must preserve the
-      // week the user is viewing. Re-anchor only when setActiveAccount had to use its temporary
-      // GMT/Monday fallback because the selected account was absent from the previous slice.
-      if (!account || previouslyHadActiveAccount) return { data, past: [], future: [] }
-      const weekStart = startOfWeekISO(todayISO(account.timezone ?? 'Etc/GMT'), account.weekStartsOn ?? 1)
-      return {
-        data,
-        past: [],
-        future: [],
-        ui: {
-          ...state.ui,
-          originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-          focusDate: weekStart,
-        },
+    // Plain transient state (NOT mutate): never on the undo/redo stack or in AppData/export.
+    beginAccountSummariesRequest: () => {
+      const requestId = get().accountSummariesRequestId + 1
+      set({ accountSummariesRequestId: requestId })
+      return requestId
+    },
+    setAccountSummaries: (list, requestId) => {
+      if (requestId !== undefined) {
+        if (requestId !== get().accountSummariesRequestId) return false
+        set({ accountSummaries: list })
+        return true
       }
-    }),
+      // A direct mutation (optimistic create/delete, demo derivation or test setup) is newer than
+      // every response already in flight, so advance the same sequence before publishing it.
+      set((state) => ({
+        accountSummaries: list,
+        accountSummariesRequestId: state.accountSummariesRequestId + 1,
+      }))
+      return true
+    },
+
+    replaceAll: (data) =>
+      set((state) => {
+        const previouslyHadActiveAccount = state.activeAccountId
+          ? state.data.accounts.some(
+              (candidate) => candidate.id === state.activeAccountId,
+            )
+          : false
+        const account = state.activeAccountId
+          ? data.accounts.find(
+              (candidate) => candidate.id === state.activeAccountId,
+            )
+          : undefined
+        const unchangedActiveSlice =
+          previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data)
+        // A replacement is a publication boundary: never retain an active id that the newly
+        // published slice does not contain. This can happen after membership revocation, a malformed
+        // response, recovery, or a direct store call. Clear the selection in the SAME state write so
+        // observers cannot see the new data under the dead tenant even for one notification, and do
+        // not retain it as the picker's "back" target. requireAccount independently enforces the same
+        // invariant at every scoped mutation boundary.
+        if (state.activeAccountId && !account) {
+          return {
+            data,
+            activeAccountId: null,
+            previousAccountId: null,
+            activeRole: null,
+            notice: {
+              message: m.notice_company_not_found(),
+              tone: 'error' as const,
+            },
+            past: [],
+            future: [],
+            ui: {
+              ...state.ui,
+              filters: emptyFilters(),
+              collapsedGroups: [],
+              selectedAllocationId: null,
+            },
+          }
+        }
+        // Same-account refreshes reconcile server state in the background and must preserve the
+        // week the user is viewing. Re-anchor only when setActiveAccount had to use its temporary
+        // GMT/Monday fallback because the selected account was absent from the previous slice.
+        if (!account || previouslyHadActiveAccount) {
+          // A no-op server refresh may replace every object identity, but identical ids and
+          // authoritative revisions prove that no row changed. Preserve undo/redo only in that
+          // exact case. Any remote addition, deletion or revision change clears history because a
+          // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
+          return unchangedActiveSlice
+            ? { data }
+            : { data, past: [], future: [] }
+        }
+        const weekStart = startOfWeekISO(
+          todayISO(timeZoneFor(data, account.id)),
+          weekStartsOnFor(data, account.id),
+        )
+        return {
+          data,
+          past: [],
+          future: [],
+          ui: {
+            ...state.ui,
+            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
+            focusDate: weekStart,
+          },
+        }
+      }),
     // Replace only the active account's slice; other accounts and the account
     // list itself are untouched. Undoable via ⌘Z.
     //
@@ -721,33 +950,71 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // Viewer no-op (P1.12 defense-in-depth): a read-only user can't replace the account slice.
       // Return a zero-effect summary (nothing imported/skipped) so the caller reports honestly.
       if (blockedByViewer()) return { imported: 0, skipped: 0 }
-      const result = remapAndValidateImport(get().data, accountId, incoming, touch())
+      const result = remapAndValidateImport(
+        get().data,
+        accountId,
+        incoming,
+        touch(),
+      )
       // Refuse a zero-record import rather than wiping the account's existing slice.
       // Replacing a company's data with nothing is never the intent (delete is the
       // explicit path for that), and a truncated/empty file otherwise slips past the
       // shape-only file guard and silently clears the account.
       if (result.imported === 0) return { imported: 0, skipped: result.skipped }
-      mutate(() => result.data)
+      set((state) => ({
+        data: result.data,
+        past: [...state.past, state.data].slice(-HISTORY_LIMIT),
+        future: [],
+        ui: {
+          ...state.ui,
+          selectedAllocationId: null,
+          collapsedGroups: [],
+          scrollToResource: null,
+          filters: {
+            ...state.ui.filters,
+            disciplineId: null,
+            clientId: null,
+            projectId: null,
+            activityId: null,
+            activityKind: null,
+          },
+        },
+      }))
       return { imported: result.imported, skipped: result.skipped }
     },
 
-    undo: () =>
+    undo: () => {
+      if (blockedByViewer()) return
       set((s) => {
-        if (s.activeRole === 'viewer') return {}
         if (s.past.length === 0) return {}
         const previous = prepareHistoryTarget(s.data, s.past[s.past.length - 1])
-        return { data: previous, past: s.past.slice(0, -1), future: [s.data, ...s.future].slice(0, HISTORY_LIMIT) }
-      }),
-    redo: () =>
+        return {
+          data: previous,
+          past: s.past.slice(0, -1),
+          future: [s.data, ...s.future].slice(0, HISTORY_LIMIT),
+        }
+      })
+    },
+    redo: () => {
+      if (blockedByViewer()) return
       set((s) => {
-        if (s.activeRole === 'viewer') return {}
         if (s.future.length === 0) return {}
         const next = prepareHistoryTarget(s.data, s.future[0])
-        return { data: next, future: s.future.slice(1), past: [...s.past, s.data].slice(-HISTORY_LIMIT) }
-      }),
+        return {
+          data: next,
+          future: s.future.slice(1),
+          past: [...s.past, s.data].slice(-HISTORY_LIMIT),
+        }
+      })
+    },
 
     addDiscipline: (input) => {
-      const e: Discipline = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const e: Discipline = {
+        ...input,
+        id: newId(),
+        accountId: requireAccount(),
+        ...stamp(),
+      }
       // Viewer no-op (P1.12 defense-in-depth): return the entity so the return type holds, but skip
       // the persist AND the colour snap — nothing lands in state, so the caller gets back exactly
       // what they submitted, not a value we silently changed on their behalf. Server 403 is the
@@ -760,7 +1027,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
     updateDiscipline: (id, patch) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, 'disciplines', id)) return
-      mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, withSnappedColor(patch)) }))
+      mutate((d) => ({
+        ...d,
+        disciplines: updateById(d.disciplines, id, withSnappedColor(patch)),
+      }))
     },
     deleteDiscipline: (id) => {
       if (blockedByViewer()) return
@@ -773,7 +1043,13 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // Viewer no-op (P1.12 defense-in-depth): gate BEFORE the integrity asserts so a read-only user's
       // optimistic write neither validates nor persists. Build the (clamped) entity so the return type
       // holds; it never lands in state. Server 403 is the real backstop; see blockedByViewer.
-      const e: Resource = { ...input, workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
+      const e: Resource = {
+        ...input,
+        workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
+        id: newId(),
+        accountId,
+        ...stamp(),
+      }
       if (blockedByViewer()) return e
       assertScopedRefs(get().data, accountId, 'resources', input)
       assertWorkingDays(input.workingDays)
@@ -794,19 +1070,48 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
       // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
       // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
-      assertScopedRefs(get().data, existing.accountId, 'resources', patch, existing)
+      assertScopedRefs(
+        get().data,
+        existing.accountId,
+        'resources',
+        patch,
+        existing,
+      )
       // Flipping a resource to external while it still owns loaded work / time-off would orphan those
       // dependents (the scheduler hides external capacity + time-off). Reject the flip on the MERGED
       // kind, throw-before-mutate so the failure is atomic. A no-op when the resource isn't becoming
       // external. Mirrors the server's validateWrite resources branch — same shared assert, no drift.
-      assertResourceKindAllowsDependents(get().data, existing.accountId, id, patch.kind ?? existing.kind)
+      assertResourceProjectAllowsDependents(
+        get().data,
+        existing.accountId,
+        id,
+        { ...existing, ...patch },
+        existing,
+      )
+      assertResourceKindAllowsDependents(
+        get().data,
+        existing.accountId,
+        id,
+        patch.kind ?? existing.kind,
+      )
       if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays)
-      const colorPatch = withSnappedColor(patch, (patch.kind ?? existing.kind) === 'external')
+      const colorPatch = withSnappedColor(
+        patch,
+        (patch.kind ?? existing.kind) === 'external',
+      )
       const safePatch =
         patch.workingHoursPerDay !== undefined
-          ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
+          ? {
+              ...colorPatch,
+              workingHoursPerDay: clampWorkingHoursPerDay(
+                patch.workingHoursPerDay,
+              ),
+            }
           : colorPatch
-      mutate((d) => ({ ...d, resources: updateById(d.resources, id, safePatch) }))
+      mutate((d) => ({
+        ...d,
+        resources: updateById(d.resources, id, safePatch),
+      }))
     },
 
     addClient: (input) => {
@@ -818,7 +1123,12 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // break the "exactly one Internal per account" invariant. See Draft<Client>.
       const stripped: Record<string, unknown> = { ...input }
       delete stripped.builtin
-      const e: Client = { ...(stripped as Draft<Client>), id: newId(), accountId: requireAccount(), ...stamp() }
+      const e: Client = {
+        ...(stripped as Draft<Client>),
+        id: newId(),
+        accountId: requireAccount(),
+        ...stamp(),
+      }
       // Viewer no-op (P1.12 defense-in-depth): return the entity for the return type, skip the
       // persist AND the colour snap — a rejected write must not silently substitute a colour onto
       // an entity that was never saved.
@@ -834,13 +1144,23 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // The built-in Internal client is protected: it can't be renamed (or recoloured) — it's a
       // fixed bucket. Throw a display-safe message (the form catches + surfaces it; the UI also
       // hides the affordance). Surface, don't swallow — see DEFENSIVE-CODING.md.
-      if (isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be renamed.')
+      if (isBuiltinClient(existing))
+        throw new Error(
+          'The Internal client is built in and cannot be renamed.',
+        )
       // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
       // untyped/cast patch can't PROMOTE a normal client to a second builtin (same invariant as above —
       // store-strip enforcement point (1); canonical doc in shared/src/data/internalClient.ts).
       const stripped: Record<string, unknown> = { ...patch }
       delete stripped.builtin
-      mutate((d) => ({ ...d, clients: updateById(d.clients, id, withSnappedColor(stripped as Patch<Client>)) }))
+      mutate((d) => ({
+        ...d,
+        clients: updateById(
+          d.clients,
+          id,
+          withSnappedColor(stripped as Patch<Client>),
+        ),
+      }))
     },
 
     addProject: (input) => {
@@ -862,8 +1182,17 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
       // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
       // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
-      assertScopedRefs(get().data, existing.accountId, 'projects', patch, existing)
-      mutate((d) => ({ ...d, projects: updateById(d.projects, id, withSnappedColor(patch)) }))
+      assertScopedRefs(
+        get().data,
+        existing.accountId,
+        'projects',
+        patch,
+        existing,
+      )
+      mutate((d) => ({
+        ...d,
+        projects: updateById(d.projects, id, withSnappedColor(patch)),
+      }))
     },
 
     addPhase: (input) => {
@@ -881,7 +1210,13 @@ export const useStore = create<StoreState>()((set, get, store) => {
       if (!existing) return
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
       // archived-parent rationale as updateProject above.
-      assertScopedRefs(get().data, existing.accountId, 'phases', patch, existing)
+      assertScopedRefs(
+        get().data,
+        existing.accountId,
+        'phases',
+        patch,
+        existing,
+      )
       mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) }))
     },
     deletePhase: (id) => {
@@ -910,7 +1245,21 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
       // projectId whose project is ARCHIVED (absent from the server-mode active-only slice) must
       // not block an unrelated edit; a CHANGED projectId is still validated strictly.
-      assertScopedRefs(get().data, existing.accountId, 'activities', { ...existing, ...patch }, existing)
+      const merged = { ...existing, ...patch }
+      assertScopedRefs(
+        get().data,
+        existing.accountId,
+        'activities',
+        merged,
+        existing,
+      )
+      assertActivityProjectAllowsDependents(
+        get().data,
+        existing.accountId,
+        id,
+        merged,
+        existing,
+      )
       mutate((d) => ({ ...d, activities: updateById(d.activities, id, patch) }))
     },
     deleteActivity: (id) => {
@@ -921,18 +1270,30 @@ export const useStore = create<StoreState>()((set, get, store) => {
 
     addAllocation: (input) => {
       const accountId = requireAccount()
-      const e: Allocation = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay), id: newId(), accountId, ...stamp() }
+      const e: Allocation = {
+        ...input,
+        hoursPerDay: clampHoursPerDay(input.hoursPerDay),
+        id: newId(),
+        accountId,
+        ...stamp(),
+      }
       // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
       if (blockedByViewer()) return e
-      assertAllocation(get().data, accountId, input.resourceId, input.activityId, input.hoursPerDay)
+      assertAllocation(
+        get().data,
+        accountId,
+        input.resourceId,
+        input.activityId,
+        input.hoursPerDay,
+      )
       assertDateRange(input.startDate, input.endDate)
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
       return e
     },
     updateAllocation: (id, patch) => {
-      if (blockedByViewer()) return
+      if (blockedByViewer()) return false
       const existing = findOwned(get().data, 'allocations', id)
-      if (!existing) return // stale id (e.g. drag committed after an undo) → no-op
+      if (!existing) return false // stale id (e.g. drag committed after an undo) → no-op
       // Always re-validate the EFFECTIVE MERGED row (patch ?? existing), not just when one of the
       // ref/load fields is in the patch. The server re-runs assertAllocationRefs on the full merged
       // row on EVERY write (PATCH/PUT merge {...existing, ...patch}), so a note/status/date-only edit
@@ -950,15 +1311,28 @@ export const useStore = create<StoreState>()((set, get, store) => {
       )
       // Validate the EFFECTIVE range (merged with the existing row), so a
       // note/status/reassign-only patch isn't rejected for omitting dates.
-      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
+      assertDateRange(
+        patch.startDate ?? existing.startDate,
+        patch.endDate ?? existing.endDate,
+      )
       // Clamp hours/day on the way in (a drag-resize rescale can exceed a real day).
-      const safePatch = patch.hoursPerDay !== undefined ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch
-      mutate((d) => ({ ...d, allocations: updateById(d.allocations, id, safePatch) }))
+      const safePatch =
+        patch.hoursPerDay !== undefined
+          ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
+          : patch
+      mutate((d) => ({
+        ...d,
+        allocations: updateById(d.allocations, id, safePatch),
+      }))
+      return true
     },
     deleteAllocation: (id) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, 'allocations', id)) return
-      mutate((d) => ({ ...d, allocations: d.allocations.filter((a) => a.id !== id) }))
+      mutate((d) => ({
+        ...d,
+        allocations: d.allocations.filter((a) => a.id !== id),
+      }))
     },
 
     addTimeOff: (input) => {
@@ -981,8 +1355,16 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // after a resource kind-flip) would 400 on the server while succeeding here — diverging local and
       // synced state. Matching the merged-row check makes the store reject exactly what the server does.
       // It's a pure read — a date-only patch on a valid (non-external) resource still passes.
-      assertResourceExists(get().data, existing.accountId, patch.resourceId ?? existing.resourceId, existing)
-      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
+      assertResourceExists(
+        get().data,
+        existing.accountId,
+        patch.resourceId ?? existing.resourceId,
+        existing,
+      )
+      assertDateRange(
+        patch.startDate ?? existing.startDate,
+        patch.endDate ?? existing.endDate,
+      )
       mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }))
     },
     deleteTimeOff: (id) => {
@@ -1006,22 +1388,35 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // builtin guard in updateClient/purgeEntity). Throw a display-safe message; the caller surfaces.
       if (entity === 'clients') {
         const existing = findOwned(get().data, 'clients', id)
-        if (existing && isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be archived.')
+        if (existing && isBuiltinClient(existing))
+          throw new Error(
+            'The Internal client is built in and cannot be archived.',
+          )
       }
       // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
       // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
-      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => {
-        if (e.id !== id) return e
-        const now = touchAfter(e.updatedAt)
-        return { ...archive(e, now), updatedAt: now }
-      }) }))
+      mutate((d) => ({
+        ...d,
+        [entity]: d[entity].map((e) => {
+          if (e.id !== id) return e
+          const now = touchAfter(e.updatedAt)
+          return { ...archive(e, now), updatedAt: now }
+        }),
+      }))
     },
     unarchiveEntity: (entity, id) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, entity, id)) return
       // No builtin guard: the Internal client can never reach 'archived' (archiveEntity rejects it), so
       // unarchive() would throw 'not archived' anyway. unarchive() THROWS if the row isn't archived.
-      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => (e.id === id ? { ...unarchive(e), updatedAt: touchAfter(e.updatedAt) } : e)) }))
+      mutate((d) => ({
+        ...d,
+        [entity]: d[entity].map((e) =>
+          e.id === id
+            ? { ...unarchive(e), updatedAt: touchAfter(e.updatedAt) }
+            : e,
+        ),
+      }))
     },
     softDeleteEntity: (entity, id) => {
       if (blockedByViewer()) return
@@ -1030,7 +1425,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // for a display-safe message and parity with the delete path.
       if (entity === 'clients') {
         const existing = findOwned(get().data, 'clients', id)
-        if (existing && isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be deleted.')
+        if (existing && isBuiltinClient(existing))
+          throw new Error(
+            'The Internal client is built in and cannot be deleted.',
+          )
       }
       // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
       // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
@@ -1041,14 +1439,31 @@ export const useStore = create<StoreState>()((set, get, store) => {
           if (e.id !== id) return e
           const now = touchAfter(e.updatedAt)
           const t = softDelete(e, now)
+          const revision = t.deletedAt ?? now
           return entity === 'resources'
-            ? { ...obfuscateResource(t as Resource), updatedAt: now }
-            : { ...t, updatedAt: now }
+            ? { ...obfuscateResource(t as Resource), updatedAt: revision }
+            : { ...t, updatedAt: revision }
         }),
         ...(entity === 'resources'
           ? {
-              allocations: d.allocations.map((a) => a.resourceId === id ? { ...a, note: undefined, updatedAt: touchAfter(a.updatedAt) } : a),
-              timeOff: d.timeOff.map((t) => t.resourceId === id ? { ...t, note: undefined, updatedAt: touchAfter(t.updatedAt) } : t),
+              allocations: d.allocations.map((a) =>
+                a.resourceId === id
+                  ? {
+                      ...a,
+                      note: undefined,
+                      updatedAt: touchAfter(a.updatedAt),
+                    }
+                  : a,
+              ),
+              timeOff: d.timeOff.map((t) =>
+                t.resourceId === id
+                  ? {
+                      ...t,
+                      note: undefined,
+                      updatedAt: touchAfter(t.updatedAt),
+                    }
+                  : t,
+              ),
             }
           : {}),
       }))
@@ -1062,7 +1477,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // archiveEntity/softDeleteEntity).
       if (entity === 'clients') {
         const client = findOwned(get().data, 'clients', id)
-        if (client && isBuiltinClient(client)) throw new Error('The Internal client is built in and cannot be deleted.')
+        if (client && isBuiltinClient(client))
+          throw new Error(
+            'The Internal client is built in and cannot be deleted.',
+          )
       }
       // Enforce the grace window: canPurge is false unless this is a soft-deleted tombstone aged at
       // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
@@ -1070,7 +1488,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would let
       // the client stay up to ~24h more conservative than the server's own boundary check.
       if (!canPurge(existing, new Date().toISOString())) {
-        get().setNotice(m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }), 'error')
+        get().setNotice(
+          m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }),
+          'error',
+        )
         return
       }
       // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the
@@ -1083,6 +1504,5 @@ export const useStore = create<StoreState>()((set, get, store) => {
           : deleteProjectCascade(d, id, now)
       })
     },
-
   }
 })

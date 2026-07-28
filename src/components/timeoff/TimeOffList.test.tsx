@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TimeOffList } from './TimeOffList'
 import { TimeOffForm } from './TimeOffForm'
 import { useStore } from '../../store/useStore'
 import { WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from '../../test/fixtures'
+import { PermissionContext } from '../../auth/permissionContext'
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -33,6 +34,10 @@ beforeEach(() => {
   // The placeholder-hiding behaviour is the system under test in some cases; default the device
   // pref ON here so the pre-existing tests are unaffected, and flip it OFF in the dedicated tests.
   setPlaceholdersEnabled(true)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('TimeOffList', () => {
@@ -198,6 +203,44 @@ describe('TimeOffList', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]).toHaveTextContent('Alice')
     expect(screen.queryByText('Placeholder')).not.toBeInTheDocument()
+  })
+})
+
+describe('TimeOffForm note visibility', () => {
+  it.each([null, 'owner', 'admin'] as const)('shows Note for role %s', (role) => {
+    render(
+      <PermissionContext.Provider value={{ role }}>
+        <TimeOffForm onClose={() => {}} />
+      </PermissionContext.Provider>,
+    )
+
+    expect(screen.getByLabelText('Note')).toBeInTheDocument()
+  })
+
+  it.each(['editor', 'viewer'] as const)('hides and omits Note for role %s', (role) => {
+    const resource = useStore.getState().addResource(resourceDraft)
+    const entry = useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: '2026-09-01',
+      endDate: '2026-09-05',
+      type: 'holiday',
+      note: 'Protected note',
+    })
+    const update = vi.spyOn(useStore.getState(), 'updateTimeOff').mockImplementation(() => {})
+    render(
+      <PermissionContext.Provider value={{ role }}>
+        <TimeOffForm timeOff={entry} onClose={() => {}} />
+      </PermissionContext.Provider>,
+    )
+
+    expect(screen.queryByLabelText('Note')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(update).toHaveBeenCalledWith(entry.id, {
+      resourceId: resource.id,
+      startDate: '2026-09-01',
+      endDate: '2026-09-05',
+      type: 'holiday',
+    })
   })
 })
 

@@ -11,6 +11,16 @@ import { announceAuditWarning } from '../lib/auditWarning'
 export const API_REQUEST_TIMEOUT_MS = 15_000
 export const API_BULK_TIMEOUT_MS = 120_000
 
+/** Browser fetch failures that mean the service was unreachable rather than semantically invalid. */
+export function isTransportFailure(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (typeof DOMException !== 'undefined' &&
+      error instanceof DOMException &&
+      (error.name === 'AbortError' || error.name === 'TimeoutError'))
+  )
+}
+
 // Combine abort signals with a fallback for engines that ship `AbortSignal.timeout` but not the
 // newer `AbortSignal.any` (e.g. Safari 17.0–17.3): without this guard the FIRST API call throws
 // `AbortSignal.any is not a function` and the whole app can neither hydrate nor save. The fallback

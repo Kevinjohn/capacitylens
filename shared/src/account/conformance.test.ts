@@ -7,6 +7,12 @@ import {
   MINIMUM_ACCOUNT_SECURITY_VERSION,
 } from './conformance'
 
+const assertCapabilityMetadataIsReadonlyAtCompileTime = (): void => {
+  // @ts-expect-error Published capability objects are readonly at compile time as well as runtime.
+  ACCOUNT_PROFILE_CAPABILITIES['hosted-oidc-only'].passwordSignIn = true
+}
+void assertCapabilityMetadataIsReadonlyAtCompileTime
+
 describe('account conformance metadata', () => {
   it('publishes independent semantic versions and the complete named profile matrix', () => {
     for (const version of [
@@ -27,5 +33,7 @@ describe('account conformance metadata', () => {
       strictOidc: true,
       hosted: true,
     })
+    expect(Object.isFrozen(ACCOUNT_PROFILE_CAPABILITIES)).toBe(true)
+    expect(Object.isFrozen(ACCOUNT_PROFILE_CAPABILITIES['hosted-oidc-only'])).toBe(true)
   })
 })

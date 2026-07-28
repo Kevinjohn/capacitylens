@@ -37,13 +37,15 @@ export function parseData(json: string): AppData {
     // message (ESLint preserve-caught-error enforces this for re-thrown native errors).
     throw new Error("That file isn't valid JSON.", { cause: e })
   }
-  if (!looksLikeCapacityLens(raw)) {
-    throw new Error('This file is not CapacityLens data.')
-  }
   // Reject a structurally damaged file (a known table present but not a list) rather than
-  // letting migrate() silently coerce it to [] and under-report the loss. See above.
+  // letting migrate() silently coerce it to [] and under-report the loss. This must run before
+  // the recognisable-shape guard: a file whose only known table is damaged has no array with which
+  // to satisfy looksLikeCapacityLens(), but it is still recognisably damaged CapacityLens data.
   if (hasNonArrayKnownTable(raw)) {
     throw new Error('This file is damaged: a data table is not a list. Nothing was imported.')
+  }
+  if (!looksLikeCapacityLens(raw)) {
+    throw new Error('This file is not CapacityLens data.')
   }
   const candidate = importCandidate(raw)!
   const rawTotal = [...KNOWN_KEYS, 'tasks'].reduce(
@@ -52,6 +54,17 @@ export function parseData(json: string): AppData {
   )
   if (rawTotal > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${rawTotal.toLocaleString()}).`)
+  }
+  // parseData's public return type is AppData, so every present table element must at least be a
+  // record before migrations/repairs may inspect it. Field-level sanitisation remains the import
+  // remapper's job; this guard prevents null/primitives from escaping as typed rows or triggering
+  // native property-access errors inside migration helpers.
+  for (const key of [...KNOWN_KEYS, 'tasks'] as const) {
+    const rows = candidate[key]
+    if (!Array.isArray(rows)) continue
+    if (rows.some((row) => row === null || typeof row !== 'object' || Array.isArray(row))) {
+      throw new Error(`This file is damaged: the ${key} table contains an invalid record. Nothing was imported.`)
+    }
   }
   const data = migrate(raw)
   // NOTE: this `total` counts EVERY table on AppData (it includes `accounts`), because here we're

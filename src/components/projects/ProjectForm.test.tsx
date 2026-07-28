@@ -161,4 +161,46 @@ describe('ProjectForm', () => {
     expect(useStore.getState().data.projects[0].name).toBe('Alpha Renamed')
     expect(useStore.getState().data.projects[0].clientId).toBe(client.id) // unchanged, round-tripped
   })
+
+  it('rejects a stale edit instead of overwriting a concurrently changed project', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#2d75da' })
+    const project = useStore.getState().addProject({
+      name: 'Launch', clientId: client.id, color: '#da2d92',
+    })
+    render(<ProjectForm project={project} onClose={onClose} />)
+
+    useStore.getState().updateProject(project.id, { color: '#e02727' })
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Launch renamed')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/project changed while you were editing/i)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.projects[0]).toMatchObject({ name: 'Launch', color: '#e02727' })
+  })
+
+  it('keeps the form open when the project vanished during editing', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#2d75da' })
+    const project = useStore.getState().addProject({
+      name: 'Launch', clientId: client.id, color: '#da2d92',
+    })
+    render(<ProjectForm project={project} onClose={onClose} />)
+
+    const data = useStore.getState().data
+    useStore.getState().replaceAll({
+      ...data,
+      projects: data.projects.filter((candidate) => candidate.id !== project.id),
+    })
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Launch renamed')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/project changed while you were editing/i)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.projects.some((candidate) => candidate.id === project.id)).toBe(false)
+  })
 })

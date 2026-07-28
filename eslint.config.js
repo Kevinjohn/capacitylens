@@ -20,7 +20,7 @@ export default defineConfig([
     'to-my-siblings/reference-kit/**',
     // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.
     'src/paraglide',
-    // Stryker mutation-testing sandbox + report (`npm run mutation`) — copies of the whole repo;
+    // Stryker mutation-testing sandbox + report (`pnpm run mutation`) — copies of the whole repo;
     // linting them double-parses every file and confuses the typed parser's tsconfig-root lookup.
     '.stryker-tmp',
     'reports',

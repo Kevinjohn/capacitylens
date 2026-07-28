@@ -24,7 +24,8 @@ for disposable tests.
 - Unsafe browser requests enforce same-origin CSRF signals and all API responses are non-cacheable.
 - Internal TLS is optional for a trusted same-host loopback proxy; Compose enables it automatically
   and nginx verifies the API service name without a plaintext fallback.
-- Accepted sockets, scrypt and breached-password calls have finite documented queues/limits.
+- Accepted sockets, scrypt and breached-password calls have finite process-wide queues/limits;
+  multi-company deployments do not receive separate password-work reservations.
 
 The authoritative environment register is `.env.example`. Production deployment and operations
 are documented in `docs/self-hosting.md`, `docs/authentication.md` and `docs/runbook.md`.

@@ -26,13 +26,16 @@
   /* Lighter still: the per-day hairlines inside scheduler lanes. A step below the
      Monday week line in BOTH themes (line-soft collapses to full line in dark). */
   --color-line-faint: var(--c-line-faint);
+  /* Switch-specific non-text colours keep the OFF-state thumb boundary above WCAG 1.4.11's
+     3:1 threshold without darkening the shared input/divider token used elsewhere. */
+  --color-switch-track: var(--c-switch-track);
+  --color-switch-thumb: var(--c-switch-thumb);
   /* Recessed non-working-day band (weekends + unavailable days) — a calm COOL tint,
      deliberately distinct from the page canvas, the over-cell red, and the time-off amber,
      so a non-working day never reads as an alert. Shared by the lane tint AND the date-header
      weekend cell, so Sat/Sun reads as one continuous band header-to-lane. */
   --color-weekend: var(--c-weekend);
   --color-ink: var(--c-ink);
-  --color-muted: var(--c-muted);
   --color-faint: var(--c-faint);
   --color-brand: var(--c-brand);
   --color-brand-strong: var(--c-brand-strong);
@@ -42,6 +45,7 @@
      coloured ink on it, both per-theme so the pairing clears WCAG AA in dark too. */
   --color-brand-soft-ink: var(--c-brand-soft-ink);
   --color-danger-soft: var(--c-danger-soft);
+  --color-danger-soft-hover: var(--c-danger-soft-hover);
   --color-danger-soft-ink: var(--c-danger-soft-ink);
   /* Over-capacity day CELL fill. Far stronger than `danger-soft` (a button tint): the
      over-marker cell carries NO text — allocation bars paint their own opaque WCAG-tuned
@@ -67,10 +71,12 @@
   /* Small named z-index scale for the few elements that need to sit above ordinary
      document flow outside a local stacking context (see the getting-started popover
      below). Named for role, not raw layer count, so new call sites pick a tier by intent:
-     sticky chrome < an in-progress drag < a floating popover/overlay. */
+     sticky chrome < an in-progress drag < a floating popover/overlay < the focused
+     skip link, which must remain discoverable above every application layer. */
   --z-index-sticky: 40;
   --z-index-drag: 50;
   --z-index-popover: 60;
+  --z-index-skip-link: 70;
 }
 
 :root {
@@ -80,7 +86,13 @@
   --c-line: #e6e8ee;
   --c-line-soft: #eef0f5;
   --c-line-faint: #ebedf2; /* nudged darker from #eff1f6 so intra-week day hairlines register at fine zoom; still lighter than --c-line so the Monday week line stays dominant */
-  --c-weekend: color-mix(in oklab, var(--c-ink) 8%, var(--c-surface)); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
+  --c-switch-track: #858d9b; /* 3.07:1 against --c-switch-thumb and 3.34:1 against white surfaces */
+  --c-switch-thumb: var(--c-base);
+  --c-weekend: color-mix(
+    in oklab,
+    var(--c-ink) 8%,
+    var(--c-surface)
+  ); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
   --c-ink: #1c2230;
   --c-muted: #5b6472;
   --c-faint: #677080; /* darkened one step from #6b7280 (which was 4.43:1 on --c-base, sub-AA): now 4.58:1 on the canvas, 4.99:1 on --c-surface — clears WCAG AA (4.5:1) for small text on BOTH grounds */
@@ -96,10 +108,15 @@
      so at least one edge clears 3:1 against every adjacency in both themes. Pinned in color.test.ts. */
   --c-focus-ink: #1c2230; /* near-black edge — wins on pale grounds (light over-cell, pale swatches, light canvas) */
   --c-focus-halo: #ffffff; /* near-white edge — wins on dark grounds (dark over-cell, dark swatches, dark canvas) */
-  --c-danger: #e11d48;
+  --c-danger: #e11d48; /* 4.70:1 on --c-surface; keep opaque for normal-size destructive Alert copy */
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 13%, white);
+  --c-danger-soft-hover: #f8d5de;
   --c-danger-soft-ink: #be123c; /* a step darker than --c-danger to clear AA on the tint */
-  --c-danger-cell: color-mix(in oklab, var(--c-danger) 50%, white); /* clear rose-red → ~rgb(251,158,161); empty cell, no AA bound */
+  --c-danger-cell: color-mix(
+    in oklab,
+    var(--c-danger) 50%,
+    white
+  ); /* clear rose-red → ~rgb(251,158,161); empty cell, no AA bound */
   --c-warn: #d97706;
   --c-ok: #047857;
   --c-ok-strong: #047857;
@@ -148,9 +165,17 @@
   --c-surface: #161922;
   --c-elevated: #1d212c;
   --c-line: #2a2f3c;
-  --c-line-soft: var(--c-line); /* no lightening in dark — only light mode read heavy */
+  --c-line-soft: var(
+    --c-line
+  ); /* no lightening in dark — only light mode read heavy */
   --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
-  --c-weekend: color-mix(in oklab, var(--c-ink) 7%, var(--c-surface)); /* ink is near-white in dark, so this lightens the surface into the surface↔elevated range — a clearly non-working band that carries NO card affordances (shadow/border/radius), so it never reads as an elevated/popover surface despite the similar luminance */
+  --c-switch-track: var(--c-line);
+  --c-switch-thumb: var(--c-ink);
+  --c-weekend: color-mix(
+    in oklab,
+    var(--c-ink) 7%,
+    var(--c-surface)
+  ); /* ink is near-white in dark, so this lightens the surface into the surface↔elevated range — a clearly non-working band that carries NO card affordances (shadow/border/radius), so it never reads as an elevated/popover surface despite the similar luminance */
   --c-ink: #e7eaf0;
   --c-muted: #a3acbd;
   --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
@@ -158,10 +183,15 @@
   --c-brand-strong: #2563eb; /* deep enough that white control text clears AA on dark too */
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
   --c-brand-soft-ink: #bfdbfe; /* pale blue — brand-strong would vanish on the dark tint */
-  --c-danger: #fb7185;
+  --c-danger: #fb7185; /* AA on --c-surface; keep opaque for normal-size destructive Alert copy */
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 22%, #0e1016);
+  --c-danger-soft-hover: #49252e;
   --c-danger-soft-ink: #fda4af;
-  --c-danger-cell: color-mix(in oklab, var(--c-danger) 60%, #0e1016); /* unmistakable dark red → ~rgb(147,73,86); empty cell, no AA bound */
+  --c-danger-cell: color-mix(
+    in oklab,
+    var(--c-danger) 60%,
+    #0e1016
+  ); /* unmistakable dark red → ~rgb(147,73,86); empty cell, no AA bound */
   --c-warn: #fbbf24;
   --c-ok: #34d399;
   --c-ok-strong: #047857;
@@ -205,11 +235,13 @@
   --color-sidebar: var(--sidebar);
 }
 
-/* Default border colour for the bare `border` utility. */
-*,
-*::before,
-*::after {
-  border-color: var(--color-line);
+@layer base {
+  /* Default border colour for the bare `border` utility. */
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-line);
+  }
 }
 
 html,
@@ -220,7 +252,14 @@ body,
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   background: var(--color-canvas);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
@@ -233,7 +272,22 @@ h3 {
   text-wrap: balance;
 }
 
-:where(a, button, input, select, textarea):focus-visible {
+/* One focus treatment for native controls AND composed primitives. `[tabindex]` is load-bearing:
+   Item/Sidebar/Radix primitives can render a div or content surface with their local outline
+   suppressed, and their 50%-alpha utility ring is only ~2.07:1 on the light canvas. The opaque
+   brand outline clears WCAG 1.4.11 (3:1) on every normal light/dark app surface; its token pairs
+   are pinned in src/lib/color.test.ts. Include programmatic tabindex=-1 targets too: when keyboard
+   navigation deliberately moves focus to one, the destination must remain visible. */
+:where(
+  :any-link,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex],
+  [contenteditable]:not([contenteditable="false"])
+):focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
   border-radius: 4px;
@@ -288,21 +342,17 @@ input[type="radio"] {
 }
 
 /* First-run guidance floats over the scheduler chrome so it is useful without stealing vertical
-   space from the grid. The panel is intentionally non-modal: the schedule remains visible behind
-   it, and its links/buttons are the only controls that need to be reached before dismissing it. */
+   space from the grid. The panel is intentionally non-modal: the schedule remains interactive
+   outside its opaque card, while the card itself receives pointer input so short viewports can
+   wheel- or touch-scroll its bounded content. */
 .getting-started-popover {
   position: absolute;
   z-index: var(--z-index-sticky);
   top: 0.75rem;
   right: 0.75rem;
   width: min(28rem, calc(100% - 1.5rem));
-  max-height: calc(100% - 1.5rem);
+  max-height: min(24rem, calc(100% - 1.5rem), calc(100dvh - 5rem));
   overflow-y: auto;
-  pointer-events: none;
-}
-
-.getting-started-popover button,
-.getting-started-popover a {
   pointer-events: auto;
 }
 
@@ -347,16 +397,16 @@ input[type="radio"] {
   outline: 2px solid var(--color-brand); /* identity layer (blue) — NOT relied on for contrast */
   outline-offset: 2px;
   box-shadow:
-    0 0 0 1px var(--c-focus-ink), /* near-black edge — wins on pale grounds */
-    0 0 0 3px var(--c-focus-halo); /* near-white edge — wins on dark grounds */
+    0 0 0 1px var(--c-focus-ink),
+    /* near-black edge — wins on pale grounds */ 0 0 0 3px var(--c-focus-halo); /* near-white edge — wins on dark grounds */
 }
 
 [data-draw-mode="timeoff"] .scheduler-bar {
   opacity: 0.2;
   /* Drop the discipline colour to a flat neutral so backgrounded work reads as inert filler,
-     not a faded tint of its real colour. The `--color-muted` token keeps it theme-aware (light
-     vs dark). !important beats the bar's inline background-color. */
-  background-color: var(--color-muted) !important;
+     not a faded tint of its real colour. Muted foreground is the theme-aware neutral ink;
+     `--color-muted` is deliberately the shadcn muted SURFACE. !important beats the inline fill. */
+  background-color: var(--color-muted-foreground) !important;
   transition:
     opacity 0.15s ease,
     background-color 0.15s ease;
@@ -371,7 +421,11 @@ input[type="radio"] {
   /* !important: the block sets its hatch gradient via an inline `style`, which an
      un-flagged rule can't beat. The solid amber fill intentionally REPLACES the block's
      diagonal-hatch texture in draw mode, so the glow reads cleanly without the hatch fighting it. */
-  background: color-mix(in oklab, var(--color-warn) 34%, var(--color-surface)) !important;
+  background: color-mix(
+    in oklab,
+    var(--color-warn) 34%,
+    var(--color-surface)
+  ) !important;
   box-shadow:
     0 0 0 1.5px var(--color-warn),
     0 0 14px 2px color-mix(in oklab, var(--color-warn) 55%, transparent);
@@ -429,7 +483,7 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
 
 .driver-popover-description,
 .driver-popover-progress-text {
-  color: var(--color-muted);
+  color: var(--color-muted-foreground);
 }
 
 .driver-popover-arrow-side-left.driver-popover-arrow {
@@ -463,7 +517,7 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   /* The close "×" is a borderless icon button in driver.css; keep it that way, just tinted. */
   background-color: transparent;
   border: none;
-  color: var(--color-muted);
+  color: var(--color-muted-foreground);
 }
 
 .driver-popover-close-btn:hover {
@@ -476,6 +530,7 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

@@ -1,11 +1,29 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
-import type { Allocation, AppData, Resource, TimeOff } from '@capacitylens/shared/types/entities'
+import type {
+  Allocation,
+  AppData,
+  Resource,
+  TimeOff,
+} from '@capacitylens/shared/types/entities'
 import { PRESET_COLORS } from '@capacitylens/shared/lib/color'
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../test/fixtures'
+import {
+  DEFAULT_ACCOUNT_ID,
+  makeAppData,
+  resetStoreWithAccount,
+} from '../test/fixtures'
 
 const s = () => useStore.getState()
+
+function expectRevisionAdvanced(
+  before: { updatedAt: string },
+  after: { updatedAt: string },
+): void {
+  expect(Date.parse(after.updatedAt)).toBeGreaterThan(
+    Date.parse(before.updatedAt),
+  )
+}
 
 beforeEach(() => {
   resetStoreWithAccount()
@@ -23,10 +41,18 @@ const personDraft = {
 }
 
 describe('store CRUD covers every entity', () => {
+  it('accounts: update', () => {
+    const account = s().data.accounts[0]
+    s().updateAccount(account.id, { name: 'Renamed company' })
+    expect(s().data.accounts[0].name).toBe('Renamed company')
+    expectRevisionAdvanced(account, s().data.accounts[0])
+  })
+
   it('disciplines: add / update / delete', () => {
     const d = s().addDiscipline({ name: 'Design', color: '#1', sortOrder: 0 })
     s().updateDiscipline(d.id, { name: 'Design 2' })
     expect(s().data.disciplines[0].name).toBe('Design 2')
+    expectRevisionAdvanced(d, s().data.disciplines[0])
     s().deleteDiscipline(d.id)
     expect(s().data.disciplines).toHaveLength(0)
   })
@@ -38,6 +64,7 @@ describe('store CRUD covers every entity', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     s().updateClient(c.id, { name: 'Acme 2' })
     expect(s().data.clients[0].name).toBe('Acme 2')
+    expectRevisionAdvanced(c, s().data.clients[0])
   })
 
   it('projects: add / update', () => {
@@ -45,18 +72,27 @@ describe('store CRUD covers every entity', () => {
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     s().updateProject(p.id, { name: 'P2' })
     expect(s().data.projects[0].name).toBe('P2')
+    expectRevisionAdvanced(p, s().data.projects[0])
   })
 
   it('phases: add / update / delete (activities survive)', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const ph = s().addPhase({ name: 'Discovery', projectId: p.id })
-    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id, phaseId: ph.id })
+    const t = s().addActivity({
+      name: 'T',
+      kind: 'project',
+      projectId: p.id,
+      phaseId: ph.id,
+    })
     s().updatePhase(ph.id, { name: 'Disco' })
     expect(s().data.phases[0].name).toBe('Disco')
+    expectRevisionAdvanced(ph, s().data.phases[0])
     s().deletePhase(ph.id)
     expect(s().data.phases).toHaveLength(0)
-    expect(s().data.activities.find((x) => x.id === t.id)!.phaseId).toBeUndefined()
+    expect(
+      s().data.activities.find((x) => x.id === t.id)!.phaseId,
+    ).toBeUndefined()
   })
 
   it('activities: add / update / delete', () => {
@@ -65,6 +101,7 @@ describe('store CRUD covers every entity', () => {
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     s().updateActivity(t.id, { name: 'T2' })
     expect(s().data.activities[0].name).toBe('T2')
+    expectRevisionAdvanced(t, s().data.activities[0])
     s().deleteActivity(t.id)
     expect(s().data.activities).toHaveLength(0)
   })
@@ -90,9 +127,13 @@ describe('store CRUD covers every entity', () => {
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     // Leaving kind='project' while removing the project is incoherent — rejected at the store boundary.
-    expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(/project-specific activity must be assigned/i)
+    expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(
+      /project-specific activity must be assigned/i,
+    )
     // And an internal/cross-project activity may not carry a project.
-    expect(() => s().addActivity({ name: 'X', kind: 'internal', projectId: p.id })).toThrow(/cannot belong to a project/i)
+    expect(() =>
+      s().addActivity({ name: 'X', kind: 'internal', projectId: p.id }),
+    ).toThrow(/cannot belong to a project/i)
   })
 
   it('updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)', () => {
@@ -100,7 +141,12 @@ describe('store CRUD covers every entity', () => {
     const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
     const ph1 = s().addPhase({ name: 'Disco', projectId: p1.id }) // a phase OF p1
-    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p1.id, phaseId: ph1.id })
+    const t = s().addActivity({
+      name: 'T',
+      kind: 'project',
+      projectId: p1.id,
+      phaseId: ph1.id,
+    })
 
     // A phaseId-ONLY patch (re-setting the same phase) must NOT be wrongly rejected: the
     // merged row still carries projectId from the existing activity, so coherence holds.
@@ -109,7 +155,9 @@ describe('store CRUD covers every entity', () => {
     // A projectId-ONLY patch that would leave a STALE cross-project phaseId IS rejected
     // (merged row: projectId=p2 but phaseId=ph1-of-p1) instead of silently persisting an
     // incoherent activity the server would later 400 on sync.
-    expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i)
+    expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(
+      /phase/i,
+    )
     expect(s().data.activities[0].projectId).toBe(p1.id) // unchanged — the bad patch didn't land
   })
 
@@ -117,6 +165,7 @@ describe('store CRUD covers every entity', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     s().updateResource(r.id, { role: 'Lead' })
     expect(s().data.resources[0].role).toBe('Lead')
+    expectRevisionAdvanced(r, s().data.resources[0])
   })
 
   it('allocations: add / update / delete', () => {
@@ -124,18 +173,37 @@ describe('store CRUD covers every entity', () => {
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
-    s().updateAllocation(a.id, { hoursPerDay: 4, status: 'tentative' })
-    expect(s().data.allocations[0]).toMatchObject({ hoursPerDay: 4, status: 'tentative' })
+    const a = s().addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
+    expect(
+      s().updateAllocation(a.id, { hoursPerDay: 4, status: 'tentative' }),
+    ).toBe(true)
+    expect(s().data.allocations[0]).toMatchObject({
+      hoursPerDay: 4,
+      status: 'tentative',
+    })
+    expectRevisionAdvanced(a, s().data.allocations[0])
     s().deleteAllocation(a.id)
     expect(s().data.allocations).toHaveLength(0)
   })
 
   it('time off: add / update / delete', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    const to = s().addTimeOff({ resourceId: r.id, startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' })
+    const to = s().addTimeOff({
+      resourceId: r.id,
+      startDate: '2026-06-10',
+      endDate: '2026-06-11',
+      type: 'holiday',
+    })
     s().updateTimeOff(to.id, { type: 'sick' })
     expect(s().data.timeOff[0].type).toBe('sick')
+    expectRevisionAdvanced(to, s().data.timeOff[0])
     s().deleteTimeOff(to.id)
     expect(s().data.timeOff).toHaveLength(0)
   })
@@ -164,6 +232,44 @@ describe('store UI + history extras', () => {
     s().addClient({ name: 'B', color: '#2' })
     expect(s().future).toHaveLength(0)
   })
+
+  it('bounds full-state history at 50 entries and drops the oldest snapshots', () => {
+    for (let index = 0; index < 60; index += 1) {
+      s().addClient({ name: `Client ${index}`, color: '#1' })
+    }
+
+    expect(s().past).toHaveLength(50)
+    for (let index = 0; index < 50; index += 1) s().undo()
+    expect(s().data.clients).toHaveLength(10)
+    expect(s().past).toHaveLength(0)
+
+    s().undo()
+    expect(s().data.clients).toHaveLength(10)
+  })
+
+  it('informs a viewer when undo and redo are refused', () => {
+    s().addClient({ name: 'A', color: '#1' })
+    s().undo()
+    const afterUndo = s().data
+    const futureAfterUndo = s().future
+
+    s().setActiveRole('viewer')
+    s().redo()
+    expect(s().data).toBe(afterUndo)
+    expect(s().future).toBe(futureAfterUndo)
+    expect(s().notice).toMatchObject({ tone: 'error' })
+
+    s().setActiveRole('editor')
+    s().redo()
+    const afterRedo = s().data
+    const pastAfterRedo = s().past
+    s().setNotice(null)
+    s().setActiveRole('viewer')
+    s().undo()
+    expect(s().data).toBe(afterRedo)
+    expect(s().past).toBe(pastAfterRedo)
+    expect(s().notice).toMatchObject({ tone: 'error' })
+  })
 })
 
 describe('allocation integrity at the store boundary', () => {
@@ -171,20 +277,52 @@ describe('allocation integrity at the store boundary', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
-    const t1 = s().addActivity({ name: 'T1', kind: 'project', projectId: p1.id })
-    const t2 = s().addActivity({ name: 'T2', kind: 'project', projectId: p2.id })
-    const ph = s().addResource({
-      kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#1', projectId: p1.id,
+    const t1 = s().addActivity({
+      name: 'T1',
+      kind: 'project',
+      projectId: p1.id,
     })
-    const a = s().addAllocation({ resourceId: ph.id, activityId: t1.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
-    expect(() => s().updateAllocation(a.id, { activityId: t2.id })).toThrow()
-    expect(s().data.allocations.find((x) => x.id === a.id)!.activityId).toBe(t1.id)
+    const t2 = s().addActivity({
+      name: 'T2',
+      kind: 'project',
+      projectId: p2.id,
+    })
+    const ph = s().addResource({
+      kind: 'placeholder',
+      role: 'Designer',
+      employmentType: 'permanent',
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      color: '#1',
+      projectId: p1.id,
+    })
+    const a = s().addAllocation({
+      resourceId: ph.id,
+      activityId: t1.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
+    expect(() => s().updateAllocation(a.id, { activityId: t2.id })).toThrow(
+      /placeholder.*bound project/i,
+    )
+    expect(s().data.allocations.find((x) => x.id === a.id)!.activityId).toBe(
+      t1.id,
+    )
   })
 
   it('addAllocation rejects dangling resource/activity references', () => {
     expect(() =>
-      s().addAllocation({ resourceId: 'nope', activityId: 'nope', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' }),
-    ).toThrow()
+      s().addAllocation({
+        resourceId: 'nope',
+        activityId: 'nope',
+        startDate: '2026-06-01',
+        endDate: '2026-06-01',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    ).toThrow(/allocation must reference an existing resource and activity/i)
     expect(s().data.allocations).toHaveLength(0)
   })
 })
@@ -200,14 +338,39 @@ describe('date-range + reference guards at the store boundary', () => {
 
   it('addAllocation rejects an empty or reversed date range', () => {
     const { r, t } = seedAlloc()
-    expect(() => s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '', endDate: '', hoursPerDay: 8, status: 'confirmed' })).toThrow()
-    expect(() => s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-05', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' })).toThrow()
+    expect(() =>
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: '',
+        endDate: '',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    ).toThrow(/start and end dates are required/i)
+    expect(() =>
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: '2026-06-05',
+        endDate: '2026-06-01',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    ).toThrow(/end date cannot be before the start date/i)
     expect(s().data.allocations).toHaveLength(0)
   })
 
   it('clamps allocation hoursPerDay to a real working day (<= 24) on add and update', () => {
     const { r, t } = seedAlloc()
-    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 200, status: 'confirmed' })
+    const a = s().addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 200,
+      status: 'confirmed',
+    })
     expect(a.hoursPerDay).toBe(24) // inflated value clamped on add
     s().updateAllocation(a.id, { hoursPerDay: 99 })
     expect(s().data.allocations[0].hoursPerDay).toBe(24) // and on update (e.g. a drag-resize rescale)
@@ -215,25 +378,54 @@ describe('date-range + reference guards at the store boundary', () => {
 
   it('updateAllocation allows a note/status-only patch (validates the effective range, not the patch)', () => {
     const { r, t } = seedAlloc()
-    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
-    expect(() => s().updateAllocation(a.id, { status: 'tentative' })).not.toThrow()
+    const a = s().addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
+    expect(() =>
+      s().updateAllocation(a.id, { status: 'tentative' }),
+    ).not.toThrow()
     expect(s().data.allocations[0].status).toBe('tentative')
     // …but a patch that would reverse the range is rejected.
-    expect(() => s().updateAllocation(a.id, { endDate: '2026-05-01' })).toThrow()
+    expect(() => s().updateAllocation(a.id, { endDate: '2026-05-01' })).toThrow(
+      /end date cannot be before the start date/i,
+    )
     expect(s().data.allocations[0].endDate).toBe('2026-06-03')
   })
 
   it('addTimeOff rejects a dangling resource and a reversed range', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    expect(() => s().addTimeOff({ resourceId: 'nope', startDate: '2026-06-01', endDate: '2026-06-02', type: 'holiday' })).toThrow()
-    expect(() => s().addTimeOff({ resourceId: r.id, startDate: '2026-06-05', endDate: '2026-06-01', type: 'holiday' })).toThrow()
+    expect(() =>
+      s().addTimeOff({
+        resourceId: 'nope',
+        startDate: '2026-06-01',
+        endDate: '2026-06-02',
+        type: 'holiday',
+      }),
+    ).toThrow(/time off must reference an existing resource/i)
+    expect(() =>
+      s().addTimeOff({
+        resourceId: r.id,
+        startDate: '2026-06-05',
+        endDate: '2026-06-01',
+        type: 'holiday',
+      }),
+    ).toThrow(/end date cannot be before the start date/i)
     expect(s().data.timeOff).toHaveLength(0)
   })
 
   it('addResource / updateResource reject an empty working-days set', () => {
-    expect(() => s().addResource({ ...personDraft, workingDays: [] })).toThrow(/at least one working day/i)
+    expect(() => s().addResource({ ...personDraft, workingDays: [] })).toThrow(
+      /at least one working day/i,
+    )
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    expect(() => s().updateResource(r.id, { workingDays: [] })).toThrow(/at least one working day/i)
+    expect(() => s().updateResource(r.id, { workingDays: [] })).toThrow(
+      /at least one working day/i,
+    )
     // A patch that doesn't touch workingDays is unaffected.
     expect(() => s().updateResource(r.id, { name: 'Renamed' })).not.toThrow()
   })
@@ -242,25 +434,68 @@ describe('date-range + reference guards at the store boundary', () => {
     // The store is the last line for the resource path too (the form caps it, but a non-form
     // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is NOT legal for a
     // resource — no working day — so it falls back to 8 (distinct from an allocation, where 0 is fine).
-    const over = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], workingHoursPerDay: 1000 })
+    const over = s().addResource({
+      ...personDraft,
+      workingDays: [1, 2, 3, 4, 5],
+      workingHoursPerDay: 1000,
+    })
     expect(over.workingHoursPerDay).toBe(24)
-    const zero = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], workingHoursPerDay: 0 })
+    const zero = s().addResource({
+      ...personDraft,
+      workingDays: [1, 2, 3, 4, 5],
+      workingHoursPerDay: 0,
+    })
     expect(zero.workingHoursPerDay).toBe(8)
     s().updateResource(over.id, { workingHoursPerDay: NaN })
-    expect(s().data.resources.find((r) => r.id === over.id)!.workingHoursPerDay).toBe(8) // junk → 8
+    expect(
+      s().data.resources.find((r) => r.id === over.id)!.workingHoursPerDay,
+    ).toBe(8) // junk → 8
   })
 
   it('importData replaces the active account slice and is undoable via ⌘Z', () => {
     s().addClient({ name: 'Keep', color: '#111111' })
+    s().setFilters({
+      clientId: 'stale-client',
+      search: 'retained search',
+      hideTentative: true,
+      showUnmatched: true,
+    })
+    s().selectAllocation('stale-allocation')
+    s().toggleGroup('discipline:stale-discipline')
     // A non-empty import replaces the slice (a zero-record import is refused — see below).
     const incoming = {
       ...emptyAppData(),
-      clients: [{ id: 'imp', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Imported', color: '#222222' }],
+      clients: [
+        {
+          id: 'imp',
+          accountId: 'X',
+          createdAt: 't',
+          updatedAt: 't',
+          name: 'Imported',
+          color: '#222222',
+        },
+      ],
     }
     s().importData(incoming)
     // 'Keep' replaced by the imported client; import also guarantees one built-in Internal client.
-    expect(s().data.clients.filter((c) => !c.builtin).map((c) => c.name)).toEqual(['Imported'])
+    expect(
+      s()
+        .data.clients.filter((c) => !c.builtin)
+        .map((c) => c.name),
+    ).toEqual(['Imported'])
     expect(s().data.clients.filter((c) => c.builtin)).toHaveLength(1)
+    expect(s().ui.selectedAllocationId).toBeNull()
+    expect(s().ui.collapsedGroups).toEqual([])
+    expect(s().ui.filters).toMatchObject({
+      disciplineId: null,
+      clientId: null,
+      projectId: null,
+      activityId: null,
+      activityKind: null,
+      search: 'retained search',
+      hideTentative: true,
+      showUnmatched: true,
+    })
     s().undo()
     expect(s().data.clients.map((c) => c.name)).toEqual(['Keep']) // undo restores the pre-import slice
   })
@@ -302,17 +537,33 @@ describe('update* re-validates the merged row so the store + server agree', () =
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+    const a = s().addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
     // A note/date-only patch on a VALID (non-external) allocation must NOT be rejected even though
     // the merged-row check now runs unconditionally — assertAllocationRefs is pure & idempotent.
     expect(() => s().updateAllocation(a.id, { note: 'ping' })).not.toThrow()
-    expect(() => s().updateAllocation(a.id, { startDate: '2026-06-02' })).not.toThrow()
+    expect(() =>
+      s().updateAllocation(a.id, { startDate: '2026-06-02' }),
+    ).not.toThrow()
     expect(s().data.allocations[0].note).toBe('ping')
     expect(s().data.allocations[0].startDate).toBe('2026-06-02')
 
-    const to = s().addTimeOff({ resourceId: r.id, startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' })
+    const to = s().addTimeOff({
+      resourceId: r.id,
+      startDate: '2026-06-10',
+      endDate: '2026-06-11',
+      type: 'holiday',
+    })
     expect(() => s().updateTimeOff(to.id, { type: 'sick' })).not.toThrow()
-    expect(() => s().updateTimeOff(to.id, { startDate: '2026-06-09' })).not.toThrow()
+    expect(() =>
+      s().updateTimeOff(to.id, { startDate: '2026-06-09' }),
+    ).not.toThrow()
     expect(s().data.timeOff[0].type).toBe('sick')
   })
 
@@ -334,7 +585,16 @@ describe('update* re-validates the merged row so the store + server agree', () =
     }
     const data: AppData = makeAppData({
       resources: [ext],
-      activities: [{ id: 'act-1', accountId: DEFAULT_ACCOUNT_ID, createdAt: TS, updatedAt: TS, name: 'Repeatable', kind: 'repeatable' }],
+      activities: [
+        {
+          id: 'act-1',
+          accountId: DEFAULT_ACCOUNT_ID,
+          createdAt: TS,
+          updatedAt: TS,
+          name: 'Repeatable',
+          kind: 'repeatable',
+        },
+      ],
       allocations: [alloc],
     })
     s().replaceAll(data)
@@ -342,7 +602,9 @@ describe('update* re-validates the merged row so the store + server agree', () =
 
     // A note-only patch touches none of resourceId/activityId/hoursPerDay, yet the merged row still
     // references an external resource with a non-zero load — the server 400s, so the store must too.
-    expect(() => s().updateAllocation(alloc.id, { note: 'just a note' })).toThrow(/external.*can.t carry hours/i)
+    expect(() =>
+      s().updateAllocation(alloc.id, { note: 'just a note' }),
+    ).toThrow(/external.*can.t carry hours/i)
     // Atomic failure: the bad patch did NOT land (the producer threw before `set`).
     expect(s().data.allocations[0].note).toBeUndefined()
   })
@@ -365,7 +627,9 @@ describe('update* re-validates the merged row so the store + server agree', () =
 
     // A date-only patch doesn't touch resourceId, yet time-off on an external resource is meaningless
     // (no capacity) — the server rejects it on every write, so the store now matches.
-    expect(() => s().updateTimeOff(timeOff.id, { startDate: '2026-06-11' })).toThrow(/external.*3rd-party/i)
+    expect(() =>
+      s().updateTimeOff(timeOff.id, { startDate: '2026-06-11' }),
+    ).toThrow(/external.*3rd-party/i)
     expect(s().data.timeOff[0].startDate).toBe('2026-06-10') // unchanged — atomic failure
   })
 })
@@ -390,42 +654,82 @@ describe('colour snapping: shared helper, nearest-preset (not fixed fallback), n
   it('addClient / addProject / addDiscipline / addResource snap a non-preset colour to its nearest preset', () => {
     const client = s().addClient({ name: 'Acme', color: NON_PRESET })
     expect(client.color).toBe(NEAREST_PRESET)
-    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(
+      NEAREST_PRESET,
+    )
 
-    const project = s().addProject({ name: 'P', clientId: client.id, color: NON_PRESET })
+    const project = s().addProject({
+      name: 'P',
+      clientId: client.id,
+      color: NON_PRESET,
+    })
     expect(project.color).toBe(NEAREST_PRESET)
 
-    const discipline = s().addDiscipline({ name: 'Design', color: NON_PRESET, sortOrder: 0 })
+    const discipline = s().addDiscipline({
+      name: 'Design',
+      color: NON_PRESET,
+      sortOrder: 0,
+    })
     expect(discipline.color).toBe(NEAREST_PRESET)
 
-    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], color: NON_PRESET })
+    const resource = s().addResource({
+      ...personDraft,
+      workingDays: [1, 2, 3, 4, 5],
+      color: NON_PRESET,
+    })
     expect(resource.color).toBe(NEAREST_PRESET)
   })
 
   it('updateClient / updateProject / updateDiscipline / updateResource / updateAccount snap a non-preset colour on patch', () => {
     const client = s().addClient({ name: 'Acme', color: '#1' })
     s().updateClient(client.id, { color: NON_PRESET })
-    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(
+      NEAREST_PRESET,
+    )
 
-    const project = s().addProject({ name: 'P', clientId: client.id, color: '#1' })
+    const project = s().addProject({
+      name: 'P',
+      clientId: client.id,
+      color: '#1',
+    })
     s().updateProject(project.id, { color: NON_PRESET })
-    expect(s().data.projects.find((p) => p.id === project.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().data.projects.find((p) => p.id === project.id)?.color).toBe(
+      NEAREST_PRESET,
+    )
 
-    const discipline = s().addDiscipline({ name: 'Design', color: '#1', sortOrder: 0 })
+    const discipline = s().addDiscipline({
+      name: 'Design',
+      color: '#1',
+      sortOrder: 0,
+    })
     s().updateDiscipline(discipline.id, { color: NON_PRESET })
-    expect(s().data.disciplines.find((d) => d.id === discipline.id)?.color).toBe(NEAREST_PRESET)
+    expect(
+      s().data.disciplines.find((d) => d.id === discipline.id)?.color,
+    ).toBe(NEAREST_PRESET)
 
-    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    const resource = s().addResource({
+      ...personDraft,
+      workingDays: [1, 2, 3, 4, 5],
+    })
     s().updateResource(resource.id, { color: NON_PRESET })
-    expect(s().data.resources.find((r) => r.id === resource.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().data.resources.find((r) => r.id === resource.id)?.color).toBe(
+      NEAREST_PRESET,
+    )
 
     s().updateAccount(DEFAULT_ACCOUNT_ID, { color: NON_PRESET })
-    expect(s().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)?.color).toBe(NEAREST_PRESET)
+    expect(
+      s().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)?.color,
+    ).toBe(NEAREST_PRESET)
   })
 
   it('an external resource keeps NEUTRAL_COLOR (the one deliberate non-preset exception) instead of snapping', () => {
     const NEUTRAL_COLOR = '#9ca3af'
-    const ext = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], kind: 'external', color: NEUTRAL_COLOR })
+    const ext = s().addResource({
+      ...personDraft,
+      workingDays: [1, 2, 3, 4, 5],
+      kind: 'external',
+      color: NEUTRAL_COLOR,
+    })
     expect(ext.color).toBe(NEUTRAL_COLOR)
   })
 
@@ -451,7 +755,9 @@ describe('colour snapping: shared helper, nearest-preset (not fixed fallback), n
   it('a colourless patch leaves the stored colour untouched', () => {
     const client = s().addClient({ name: 'Acme', color: NON_PRESET })
     s().updateClient(client.id, { name: 'Acme 2' })
-    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(
+      NEAREST_PRESET,
+    )
   })
 
   it('a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair', () => {
@@ -468,11 +774,15 @@ describe('colour snapping: shared helper, nearest-preset (not fixed fallback), n
 
   it('a REJECTED update (viewer no-op) does not touch the stored colour', () => {
     const client = s().addClient({ name: 'Acme', color: NON_PRESET })
-    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(
+      NEAREST_PRESET,
+    )
     s().setActiveRole('viewer')
     s().updateClient(client.id, { color: '#123456' })
     // No-op: the previously-snapped colour is unchanged, not overwritten by ANY value.
-    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(
+      NEAREST_PRESET,
+    )
     expect(s().notice).toMatchObject({ tone: 'error' })
   })
 })
@@ -483,17 +793,33 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+    s().addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
 
-    expect(() => s().updateResource(r.id, { kind: 'external' })).toThrow(/work and time off before making it external/i)
+    expect(() => s().updateResource(r.id, { kind: 'external' })).toThrow(
+      /work and time off before making it external/i,
+    )
     expect(s().data.resources[0].kind).toBe('person') // atomic failure — the flip did NOT land
   })
 
   it('flipping a person with time off to external THROWS', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    s().addTimeOff({ resourceId: r.id, startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' })
+    s().addTimeOff({
+      resourceId: r.id,
+      startDate: '2026-06-10',
+      endDate: '2026-06-11',
+      type: 'holiday',
+    })
 
-    expect(() => s().updateResource(r.id, { kind: 'external' })).toThrow(/work and time off before making it external/i)
+    expect(() => s().updateResource(r.id, { kind: 'external' })).toThrow(
+      /work and time off before making it external/i,
+    )
     expect(s().data.resources[0].kind).toBe('person')
   })
 
@@ -501,20 +827,107 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
-    const free = s().addResource({ ...personDraft, name: 'Free', workingDays: [1, 2, 3, 4, 5] })
-    expect(() => s().updateResource(free.id, { kind: 'external' })).not.toThrow()
-    expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe('external')
+    const free = s().addResource({
+      ...personDraft,
+      name: 'Free',
+      workingDays: [1, 2, 3, 4, 5],
+    })
+    expect(() =>
+      s().updateResource(free.id, { kind: 'external' }),
+    ).not.toThrow()
+    expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe(
+      'external',
+    )
 
     // A zero-load allocation is already valid for an external, so it must NOT block the flip.
-    const z = s().addResource({ ...personDraft, name: 'Zero', workingDays: [1, 2, 3, 4, 5] })
-    s().addAllocation({ resourceId: z.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 0, status: 'confirmed' })
+    const z = s().addResource({
+      ...personDraft,
+      name: 'Zero',
+      workingDays: [1, 2, 3, 4, 5],
+    })
+    s().addAllocation({
+      resourceId: z.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 0,
+      status: 'confirmed',
+    })
     expect(() => s().updateResource(z.id, { kind: 'external' })).not.toThrow()
     expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe('external')
   })
 
   it('editing an external resource’s OTHER fields (name) with no dependents still SUCCEEDS', () => {
-    const ext = s().addResource({ ...personDraft, name: 'Outsource', kind: 'external', workingDays: [1, 2, 3, 4, 5] })
-    expect(() => s().updateResource(ext.id, { name: 'Outsource Co' })).not.toThrow()
-    expect(s().data.resources.find((r) => r.id === ext.id)?.name).toBe('Outsource Co')
+    const ext = s().addResource({
+      ...personDraft,
+      name: 'Outsource',
+      kind: 'external',
+      workingDays: [1, 2, 3, 4, 5],
+    })
+    expect(() =>
+      s().updateResource(ext.id, { name: 'Outsource Co' }),
+    ).not.toThrow()
+    expect(s().data.resources.find((r) => r.id === ext.id)?.name).toBe(
+      'Outsource Co',
+    )
+  })
+})
+
+describe('parent edits cannot invalidate existing placeholder allocations', () => {
+  it('rejects a placeholder project rebind atomically', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
+    const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p1.id })
+    const ph = s().addResource({
+      ...personDraft,
+      kind: 'placeholder',
+      projectId: p1.id,
+      workingDays: [1, 2, 3, 4, 5],
+    })
+    s().addAllocation({
+      resourceId: ph.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
+
+    expect(() => s().updateResource(ph.id, { projectId: p2.id })).toThrow(
+      /placeholder’s work/i,
+    )
+    expect(
+      s().data.resources.find((resource) => resource.id === ph.id)?.projectId,
+    ).toBe(p1.id)
+  })
+
+  it('rejects an activity project change atomically', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
+    const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p1.id })
+    const ph = s().addResource({
+      ...personDraft,
+      kind: 'placeholder',
+      projectId: p1.id,
+      workingDays: [1, 2, 3, 4, 5],
+    })
+    s().addAllocation({
+      resourceId: ph.id,
+      activityId: t.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
+
+    expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(
+      /placeholder work/i,
+    )
+    expect(
+      s().data.activities.find((activityRow) => activityRow.id === t.id)
+        ?.projectId,
+    ).toBe(p1.id)
   })
 })

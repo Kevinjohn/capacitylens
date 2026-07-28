@@ -6,10 +6,10 @@ import { upsertMember, createInvite } from './controlTables'
 import { authFromEnv, countUsers, runAuthMigrations } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
-import { reserveAccountCommand } from './accounts/state'
+import { finishAccountCommand, reserveAccountCommand } from './accounts/state'
 
-// P2.6b — per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete (both
-// the direct DELETE /api/accounts/:id route AND the batch accounts/DELETE op) used to drop ONLY the
+// P2.6b — per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
+// to drop ONLY the
 // `accounts` row: the FK cascade wiped the account's scoped AppData, but `account_members` + `invites`
 // LEAKED (no FK to accounts) and Better Auth's user/account/session PII was left fully intact. This
 // suite proves the erasure now closes all three surfaces, AND keeps two hard invariants: it touches
@@ -31,16 +31,22 @@ async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   return { app: buildApp(db, { authMode: mode, auth }), db }
 }
 
-const deleteAccountRoute = (app: FastifyInstance, id: string, cookie: string) =>
-  call(app, { method: 'DELETE', url: `/api/accounts/${id}`, headers: { cookie } })
-
-const batchDeleteAccount = (app: FastifyInstance, id: string, cookie: string) =>
-  call(app, {
-    method: 'POST',
-    url: '/api/batch',
-    payload: { ops: [{ method: 'DELETE', table: 'accounts', id }] },
-    headers: { cookie },
-  })
+const deleteAccountRoute = (
+  app: FastifyInstance,
+  id: string,
+  cookie: string,
+  command?: { commandId: string; idempotencyKey: string },
+) => call(app, {
+  method: 'DELETE',
+  url: `/api/accounts/${id}`,
+  headers: {
+    cookie,
+    ...(command ? {
+      'x-account-command-id': command.commandId,
+      'idempotency-key': command.idempotencyKey,
+    } : {}),
+  },
+})
 
 // ---- Raw observable-state probes (the assertion vocabulary; never trust a helper) ----
 
@@ -48,6 +54,8 @@ const accountCount = (db: Db, id: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = ?`).get(id) as { n: number }).n
 const scopedClientCount = (db: Db, accountId: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE accountId = ?`).get(accountId) as { n: number }).n
+const scopedProjectCount = (db: Db, accountId: string): number =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM projects WHERE accountId = ?`).get(accountId) as { n: number }).n
 const memberCount = (db: Db, accountId: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = ?`).get(accountId) as { n: number }).n
 const inviteCount = (db: Db, accountId: string): number =>
@@ -109,7 +117,7 @@ function seedMembershipAndInvite(db: Db, accountId: string, userId: string, role
 }
 
 describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-tenant)', () => {
-  it.each(['route', 'batch'] as const)('via the %s vector: a1 wiped whole, a2 wholly intact', async (vector) => {
+  it('via the dedicated route: a1 is wiped whole and a2 stays wholly intact', async () => {
     const { app, db } = await appWithAuth()
     insertAll(db, {
       ...emptyAppData(),
@@ -132,6 +140,13 @@ describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
       workspaceId: 'a1',
       payloadHash: 'c'.repeat(64),
     })
+    finishAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'prior-workspace-command',
+      idempotencyKey: 'prior-workspace-idempotency',
+      status: 'completed',
+      resultJson: '{}',
+    })
     reserveAccountCommand(db, {
       applicationId: 'capacitylens',
       operation: 'retained-workspace-command',
@@ -148,8 +163,8 @@ describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     expect(memberCount(db, 'a1')).toBe(1)
     expect(inviteCount(db, 'a1')).toBe(1)
 
-    const res = vector === 'route' ? await deleteAccountRoute(app, 'a1', u1.cookie) : await batchDeleteAccount(app, 'a1', u1.cookie)
-    expect(res.statusCode).toBe(vector === 'route' ? 204 : 200)
+    const res = await deleteAccountRoute(app, 'a1', u1.cookie)
+    expect(res.statusCode).toBe(204)
 
     // a1 is GONE everywhere: account row, scoped clients, membership row, invite.
     expect(accountCount(db, 'a1')).toBe(0)
@@ -166,6 +181,48 @@ describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     expect(commandExists(db, 'retained-workspace-command')).toBe(true)
     expect(userRow(db, u2.userId)?.email).toBe('a-owner2@capacitylens.dev')
   })
+
+  it(
+    'via the dedicated route: refuses a corrupt FK edge that would mutate another account',
+    async () => {
+      const { app, db } = await appWithAuth()
+      insertAll(db, {
+        ...emptyAppData(),
+        accounts: [account('a1'), account('a2')],
+        clients: [client('c1', 'a1')],
+      } as unknown as AppData)
+      // This relationship is valid to SQLite because the physical FK is id-only, but its cascade
+      // would delete an a2-labelled project while erasing a1. Current v19 triggers and boot checks
+      // reject it; dropping this one trigger models post-start operator tampering and preserves the
+      // independent erasure-containment regression.
+      db.exec('DROP TRIGGER capacitylens_tenant_projects_clientId_insert')
+      db.prepare(`
+        INSERT INTO projects (id, accountId, name, clientId, color, createdAt, updatedAt)
+        VALUES ('p2', 'a2', 'Cross-tenant project', 'c1', '#3b82f6', ?, ?)
+      `).run(TS, TS)
+      expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+
+      const u1 = await signUp(app, 'boundary-route-owner1@capacitylens.dev')
+      const u2 = await signUp(app, 'boundary-route-owner2@capacitylens.dev')
+      seedMembershipAndInvite(db, 'a1', u1.userId, 'owner')
+      seedMembershipAndInvite(db, 'a2', u2.userId, 'owner')
+
+      const res = await deleteAccountRoute(app, 'a1', u1.cookie)
+      expect(res.statusCode).toBe(500)
+      expect(res.json()).toEqual({ error: 'Internal server error' })
+
+      // Fail closed and atomically: neither product account, either membership nor either local
+      // identity is altered when erasure containment cannot be proved.
+      expect(accountCount(db, 'a1')).toBe(1)
+      expect(accountCount(db, 'a2')).toBe(1)
+      expect(scopedClientCount(db, 'a1')).toBe(1)
+      expect(scopedProjectCount(db, 'a2')).toBe(1)
+      expect(memberCount(db, 'a1')).toBe(1)
+      expect(memberCount(db, 'a2')).toBe(1)
+      expect(userRow(db, u1.userId)?.email).toBe('boundary-route-owner1@capacitylens.dev')
+      expect(userRow(db, u2.userId)?.email).toBe('boundary-route-owner2@capacitylens.dev')
+    },
+  )
 })
 
 describe('P2.6b erasure — (b) last-company identity removal reopens password setup', () => {
@@ -175,6 +232,7 @@ describe('P2.6b erasure — (b) last-company identity removal reopens password s
     const u = await signUp(app, 'sole-owner@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
     seedResetToken(db, u.userId)
+    seedResetToken(db, 'unrelated-user', 'verification-unrelated-scalar')
     reserveAccountCommand(db, {
       applicationId: 'capacitylens',
       operation: 'password-reset:actor:prior-admin',
@@ -211,6 +269,7 @@ describe('P2.6b erasure — (b) last-company identity removal reopens password s
     expect(verificationCount(db, u.userId)).toBe(0)
     expect(verificationExists(db, 'link-sole-owner')).toBe(false)
     expect(verificationExists(db, 'link-unrelated')).toBe(true)
+    expect(verificationExists(db, 'verification-unrelated-scalar')).toBe(true)
     expect(countUsers(db)).toBe(0)
     expect(db.prepare(`SELECT 1 FROM account_commands WHERE commandId = 'prior-reset-command'`).get())
       .toBeUndefined()
@@ -237,6 +296,32 @@ describe('P2.6b erasure — (b) last-company identity removal reopens password s
 })
 
 describe('P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)', () => {
+  it('replays a completed erasure through the authenticated route after membership is gone', async () => {
+    const { app, db } = await appWithAuth()
+    insertAll(db, { ...emptyAppData(), accounts: [account('a1'), account('a2')] } as unknown as AppData)
+    const actor = await signUp(app, 'erasure-replay@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: actor.userId, role: 'owner', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a2', userId: actor.userId, role: 'editor', status: 'active', createdAt: TS })
+    const command = {
+      commandId: 'workspace-erasure-command-replay-01',
+      idempotencyKey: 'workspace-erasure-idempotency-replay-01',
+    }
+
+    expect((await deleteAccountRoute(app, 'a1', actor.cookie, command)).statusCode).toBe(204)
+    expect(accountCount(db, 'a1')).toBe(0)
+    expect((await deleteAccountRoute(app, 'a1', actor.cookie, command)).statusCode).toBe(204)
+    expect((db.prepare(`
+      SELECT COUNT(*) AS n FROM account_commands
+       WHERE operation = 'workspace-erasure' AND commandId = ? AND status = 'completed'
+    `).get(command.commandId) as { n: number }).n).toBe(1)
+
+    const unrelated = await deleteAccountRoute(app, 'a1', actor.cookie, {
+      commandId: 'workspace-erasure-unrelated-command-01',
+      idempotencyKey: 'workspace-erasure-unrelated-key-0001',
+    })
+    expect(unrelated.statusCode).toBe(403)
+  })
+
   it('M owns a1 AND is a member of a2: deleting a1 drops M\'s a1 membership but NEVER erases M', async () => {
     const { app, db } = await appWithAuth()
     insertAll(db, { ...emptyAppData(), accounts: [account('a1'), account('a2')] } as unknown as AppData)
@@ -337,6 +422,35 @@ describe('P2.6b erasure — (e) atomic rollback (fail-closed)', () => {
     expect(scopedClientCount(db, 'a1')).toBe(1)
     expect(memberCount(db, 'a1')).toBe(1)
     expect(userRow(db, u.userId)?.email).toBe('rollback-owner@capacitylens.dev')
+  })
+
+  it('refuses malformed structured verification state instead of reporting partial identity erasure', async () => {
+    const { app, db } = await appWithAuth()
+    insertAll(db, { ...emptyAppData(), accounts: [account('a1')] } as unknown as AppData)
+    const u = await signUp(app, 'malformed-link-owner@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
+    db.prepare(
+      `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'malformed-link',
+      'malformed-link',
+      `{"link":{"userId":"${u.userId}"`,
+      TS,
+      TS,
+      TS,
+    )
+    seedAccountLinkState(db, 'unrelated-user', 'unrelated@capacitylens.dev', 'link-unrelated-malformed-control')
+
+    expect((await deleteAccountRoute(app, 'a1', u.cookie)).statusCode).toBe(500)
+
+    // The uninterpretable structured row blocks the whole transaction. A successful erasure may
+    // never leave principal-correlated bytes behind, and an unrelated well-formed row stays intact.
+    expect(accountCount(db, 'a1')).toBe(1)
+    expect(memberCount(db, 'a1')).toBe(1)
+    expect(userRow(db, u.userId)?.email).toBe('malformed-link-owner@capacitylens.dev')
+    expect(verificationExists(db, 'malformed-link')).toBe(true)
+    expect(verificationExists(db, 'link-unrelated-malformed-control')).toBe(true)
   })
 })
 

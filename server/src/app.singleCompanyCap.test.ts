@@ -173,7 +173,7 @@ describe('single-company cap — POST /api/batch (accounts-PUT pre-scan)', () =>
     expect(state.json().accounts).toEqual([])
   })
 
-  it('allows an atomic one-for-one account replacement whose projected final count is one', async () => {
+  it('rejects delete-then-create account replacement through the generic batch', async () => {
     const db = atCapDb()
     const app = buildApp(db)
     const res = await call(app, {
@@ -186,12 +186,12 @@ describe('single-company cap — POST /api/batch (accounts-PUT pre-scan)', () =>
         ],
       },
     })
-    expect(res.statusCode).toBe(200)
+    expect(res.statusCode).toBe(400)
     const state = await call(app, { method: 'GET', url: '/api/state' })
-    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(['replacement'])
+    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(['a1'])
   })
 
-  it('applies the cap to final batch state even when replacement creation precedes deletion', async () => {
+  it('rejects create-then-delete account replacement through the generic batch', async () => {
     const db = atCapDb()
     const app = buildApp(db)
     const res = await call(app, {
@@ -205,9 +205,9 @@ describe('single-company cap — POST /api/batch (accounts-PUT pre-scan)', () =>
       },
     })
 
-    expect(res.statusCode).toBe(200)
+    expect(res.statusCode).toBe(400)
     const state = await call(app, { method: 'GET', url: '/api/state' })
-    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(['replacement'])
+    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(['a1'])
   })
 
   it('at-cap: a batch PUT-accounts UPDATE of the EXISTING account still succeeds', async () => {

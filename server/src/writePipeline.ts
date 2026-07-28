@@ -1,6 +1,6 @@
 import type { AppData, Client } from '@capacitylens/shared/types/entities'
 import { type Db, deleteRow, getRow, upsertRow } from './db'
-import { sanitizeWrite, validateWrite } from './validate'
+import { acceptedWriteFields, sanitizeWrite, validateWrite } from './validate'
 import type { SanitizeWriteOptions } from './fieldPolicy'
 import type { TenantStore } from './tenantStore'
 
@@ -49,6 +49,7 @@ export const FULL_SLICE_READ = Object.freeze({
  */
 export function checkEntityWriteBody(
   verb: WriteVerb,
+  entity: string,
   body: unknown,
   urlId: string | undefined,
   scoped: boolean,
@@ -72,6 +73,9 @@ export function checkEntityWriteBody(
       return { status: 400, error: 'A string accountId is required.' }
     }
   }
+  if (Object.keys(acceptedWriteFields(entity, row)).length === 0) {
+    return { status: 400, error: 'The request body contains no recognized fields.' }
+  }
   return null
 }
 
@@ -82,10 +86,11 @@ export function checkEntityWriteBody(
  *    lifecycle is server-owned. Applies to PUT/PATCH and the batch loop.
  *  - a CREATE (POST) may not hand-craft a builtin client ('managed by the server') — it is minted
  *    only by account provisioning or the deterministic replacement path. PUT-as-create keeps
- *    verb `replace`, so its legitimate builtin flows through generatedBuiltinReplacement untouched.
- * Returns the rejection, or `null` when the write is allowed. The batch loop handles its
- * minted-Internal exception BEFORE calling this (an account's freshly-minted Internal is re-upserted
- * in the same batch), then defers to this single message for the real rejection.
+ *    verb `replace`, so its authorized legacy adoption flows through
+ *    generatedBuiltinReplacement untouched.
+ * Returns the rejection, or `null` when the write is allowed. The batch loop first validates its
+ * minted-Internal exception against the canonical generated row (an account's freshly-minted
+ * Internal can be echoed in the same batch), then defers to this single message for other writes.
  */
 export function builtinInternalWriteGuard(
   verb: WriteVerb,
@@ -106,7 +111,7 @@ export function builtinInternalWriteGuard(
 export interface PreparedWrite {
   /** The sanitized + revision-stamped row ready to persist. */
   row: Record<string, unknown>
-  /** The generated Internal-client id this write REPLACES (POST/PUT builtin-replacement path), or
+  /** The generated Internal-client id this write REPLACES (PUT legacy-id adoption path), or
    *  null. When non-null the caller runs replaceGeneratedBuiltin inside its transaction. */
   generatedReplacement: string | null
   /** The account-scoped slice validateWrite ran against — reused by the builtin-replacement path
@@ -141,11 +146,10 @@ export function prepareScopedWrite(params: {
   // tables on accountId) instead of loadState(db)'s SELECT * over every tenant.
   const scopeId = entity === 'accounts' ? String(row.id) : String(row.accountId)
   const scopedState = store.readSlice(scopeId, FULL_SLICE_READ)
-  // Builtin-client replacement is a POST/PUT affordance only. PATCH never rewrites the generated
-  // Internal client — a builtin PATCH is rejected by validateWrite's singleton guard, preserving the
-  // pre-funnel behaviour where the PATCH route had no replacement branch.
+  // Builtin-client replacement is a PUT affordance only. POST cannot hand-craft builtin rows, and
+  // PATCH never rewrites the generated Internal client.
   const generatedReplacement =
-    verb === 'patch' ? null : generatedBuiltinReplacement(scopedState, entity, row)
+    verb === 'replace' ? generatedBuiltinReplacement(scopedState, entity, row) : null
   // Defer ONLY an accounts CREATE (provisioning validates it inside its replay-safe closure) and a
   // generated-builtin replacement (replaceGeneratedBuiltin validates its own projection). An accounts
   // UPDATE, and every scoped write, validates here.
@@ -201,6 +205,9 @@ export function replaceGeneratedBuiltin(
   generatedId: string,
   row: Record<string, unknown>,
 ): void {
+  if (!db.isTransaction) {
+    throw new Error('Internal-client replacement must run inside an existing transaction.')
+  }
   const accountId = row.accountId
   if (typeof accountId !== 'string') {
     throw new Error('Internal-client replacement requires a string accountId.')
@@ -212,7 +219,10 @@ export function replaceGeneratedBuiltin(
       project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
     ),
   }
-  validateWrite(projected, 'clients', row)
+  const existing = typeof row.id === 'string'
+    ? state.clients.find((client) => client.id === row.id)
+    : undefined
+  validateWrite(projected, 'clients', row, existing as unknown as Record<string, unknown> | undefined)
 
   // Temporarily unflag the old row before inserting the replacement so the partial unique index is
   // never violated. The old FK target remains present until every dependent project has moved.

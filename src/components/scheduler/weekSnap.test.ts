@@ -82,6 +82,11 @@ describe('weekStartSnapTarget — degenerate inputs stay finite', () => {
     expect(Number.isFinite(hi as number)).toBe(true)
     expect(hi).toBe(geom.xForDateInGeom('2026-06-15'))
   })
+
+  it('returns a no-op for an empty day window instead of throwing', () => {
+    const empty = buildColumnGeometry([], DAY_W, OFF)
+    expect(weekStartSnapTarget(empty, [], 0, 1)).toBeNull()
+  })
 })
 
 // Regression for the HiDPI Firefox sub-pixel bug: a fractional scrollLeft a hair BELOW an integer

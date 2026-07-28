@@ -1,13 +1,32 @@
 import { newId } from '../lib/id'
-import { validateAllocationAssignment, validateDateRange } from '../lib/integrity'
+import {
+  validateAllocationAssignment,
+  validateDateRange,
+} from '../lib/integrity'
 import { sanitizeImportedRecord } from '../lib/sanitizeImport'
-import { buildInternalClient, internalClientFor, INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from '../data/internalClient'
+import {
+  buildInternalClient,
+  internalClientFor,
+  INTERNAL_CLIENT_COLOR,
+  INTERNAL_CLIENT_NAME,
+} from '../data/internalClient'
 import { belongsToAccount, notInAccount } from './tenancy'
-import { lifecycleStatus, obfuscateResource } from './lifecycle'
-import { isExternalResource, SCOPED_KEYS, scopedTables } from '../types/entities'
+import { domainError } from './errors'
+import {
+  inspectLifecycleAncestry,
+  lifecycleStatus,
+  obfuscateResource,
+  type LifecycleAncestryRow,
+} from './lifecycle'
+import {
+  isExternalResource,
+  SCOPED_KEYS,
+  scopedTables,
+} from '../types/entities'
 import type {
   Allocation,
   AppData,
+  AppDataKey,
   ID,
   ISODate,
   ISOTimestamp,
@@ -17,6 +36,54 @@ import type {
   Activity,
   TimeOff,
 } from '../types/entities'
+
+/**
+ * Optional indexed view used by server batch validation. The browser/store callers keep using the
+ * AppData arrays directly; a large transaction can supply these point/reverse lookups so applying
+ * many operations does not repeatedly scan the same account slice.
+ */
+export interface ValidationDataLookup {
+  row(
+    table: AppDataKey,
+    id: ID,
+  ): (Record<string, unknown> & { id: ID }) | undefined
+  allocationsForResource(accountId: ID, resourceId: ID): readonly Allocation[]
+  allocationsForActivity(accountId: ID, activityId: ID): readonly Allocation[]
+  resourceHasLoadedAllocation(accountId: ID, resourceId: ID): boolean
+  resourceHasTimeOff(accountId: ID, resourceId: ID): boolean
+}
+
+const validationRow = (
+  data: AppData,
+  table: AppDataKey,
+  id: ID,
+  lookup?: ValidationDataLookup,
+): (Record<string, unknown> & { id: ID }) | undefined => {
+  if (lookup) return lookup.row(table, id)
+  return (
+    data[table] as unknown as (Record<string, unknown> & { id: ID })[]
+  ).find((row) => row.id === id)
+}
+
+/** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
+ * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
+ * their local arrays. Missing/cross-account parents return false and keep each caller's existing
+ * domain-specific validation message. */
+const isEffectivelyActive = (
+  data: AppData,
+  table: AppDataKey,
+  row: LifecycleAncestryRow,
+  lookup?: ValidationDataLookup,
+): boolean =>
+  lifecycleStatus(row) === 'active' &&
+  inspectLifecycleAncestry(
+    table,
+    row,
+    (parentTable, id) =>
+      validationRow(data, parentTable, id, lookup) as
+        | LifecycleAncestryRow
+        | undefined,
+  ).visible
 
 // Pure, environment-agnostic domain mutations + integrity assertions extracted
 // from the Zustand store so the SAME logic can run on a future server (and be
@@ -45,15 +112,18 @@ export function findOwned<K extends ScopedEntityKey>(
   const row = (data[key] as ScopedEntity[]).find((e) => e.id === id)
   if (!row) return null
   if (!belongsToAccount(row, accountId)) {
-    throw new Error('That record does not belong to the active company.')
+    domainError(
+      'record_wrong_account',
+      'That record does not belong to the active company.',
+    )
   }
   return row as AppData[K][number]
 }
 
 /**
  * Every foreign key on a new/updated scoped record must point at a row in the
- * SAME account. Only the FK fields actually PRESENT on `rec` are checked, so it
- * works for both a full add and a partial update patch.
+ * SAME account. Optional FKs are checked only when present. A project/phase create or full row must
+ * carry its required parent; a partial update may omit that field but may not explicitly clear it.
  *
  * `existing` (updates only) is the currently-stored row the write targets — pass the
  * `findOwned` result so its tenancy is already proven. When a checked FK field equals
@@ -72,29 +142,72 @@ export function assertScopedRefs(
   key: ScopedEntityKey,
   rec: Record<string, unknown>,
   existing?: ScopedEntity | Record<string, unknown>,
+  lookup?: ValidationDataLookup,
+  options: { fullRow?: boolean } = {},
 ): void {
-  const present = (field: string) => rec[field] !== undefined && rec[field] !== null
+  const present = (field: string) =>
+    rec[field] !== undefined && rec[field] !== null
+  const supplied = (field: string) =>
+    Object.prototype.hasOwnProperty.call(rec, field)
   // Reading loose field names off the stored row is safe — an absent field is undefined, which can
   // only ever equal an equally-absent patch field (a no-op skip). The widened accepted type lets
   // call sites pass a typed entity (interfaces lack the implicit index signature) without a copy.
   const prev = existing as Record<string, unknown> | undefined
   // Unchanged-on-update: see the doc comment — an id identical to the stored row's was
   // already proven in-account at its own write time.
-  const unchanged = (field: string) => prev !== undefined && rec[field] === prev[field]
-  const inAccount = (table: ScopedEntity[], id: unknown): boolean =>
-    typeof id === 'string' && table.some((e) =>
-      e.id === id && belongsToAccount(e, accountId) &&
-      lifecycleStatus(e as unknown as { archivedAt?: ISOTimestamp; deletedAt?: ISOTimestamp }) === 'active'
+  const unchanged = (field: string) =>
+    prev !== undefined && rec[field] === prev[field]
+  const inAccount = (table: ScopedEntityKey, id: unknown): boolean => {
+    if (typeof id !== 'string') return false
+    const entity = validationRow(data, table, id, lookup) as
+      | ScopedEntity
+      | undefined
+    return (
+      entity !== undefined &&
+      belongsToAccount(entity, accountId) &&
+      isEffectivelyActive(
+        data,
+        table,
+        entity as unknown as LifecycleAncestryRow,
+        lookup,
+      )
     )
-  const need = (field: string, table: ScopedEntity[], msg: string) => {
-    if (present(field) && !unchanged(field) && !inAccount(table, rec[field])) throw new Error(msg)
+  }
+  const need = (field: string, table: ScopedEntityKey, msg: string) => {
+    if (present(field) && !unchanged(field) && !inAccount(table, rec[field])) {
+      domainError('reference_wrong_account', msg)
+    }
+  }
+  const needRequired = (field: string, table: ScopedEntityKey, msg: string) => {
+    if (!present(field)) {
+      // Only an omitted field on a genuine partial update inherits its stored parent. Creates and
+      // full server rows must be self-contained; an explicitly supplied null/undefined is a clear
+      // attempt and must not flow down to a database NOT NULL diagnostic.
+      if (
+        existing === undefined ||
+        options.fullRow === true ||
+        supplied(field)
+      ) {
+        domainError('reference_wrong_account', msg)
+      }
+      return
+    }
+    need(field, table, msg)
   }
   switch (key) {
     case 'projects':
-      need('clientId', data.clients, 'Project must reference a client in this company.')
+      needRequired(
+        'clientId',
+        'clients',
+        'Project must reference a client in this company.',
+      )
       break
     case 'phases':
-      need('projectId', data.projects, 'Phase must reference a project in this company.')
+      needRequired(
+        'projectId',
+        'projects',
+        'Phase must reference a project in this company.',
+      )
       break
     case 'activities': {
       // Activity.kind coherence, checked first: a project-specific ('project') activity MUST carry a project; an
@@ -104,13 +217,32 @@ export function assertScopedRefs(
       if (present('kind')) {
         const kind = rec.kind
         if (kind === 'project') {
-          if (!present('projectId')) throw new Error('A project-specific activity must be assigned to a project.')
+          if (!present('projectId')) {
+            domainError(
+              'activity_project_required',
+              'A project-specific activity must be assigned to a project.',
+            )
+          }
         } else if (kind === 'internal' || kind === 'repeatable') {
-          if (present('projectId')) throw new Error('An internal or cross-project activity cannot belong to a project.')
-          if (present('phaseId')) throw new Error('An internal or cross-project activity cannot belong to a phase.')
+          if (present('projectId')) {
+            domainError(
+              'activity_project_forbidden',
+              'An internal or cross-project activity cannot belong to a project.',
+            )
+          }
+          if (present('phaseId')) {
+            domainError(
+              'activity_phase_forbidden',
+              'An internal or cross-project activity cannot belong to a phase.',
+            )
+          }
         }
       }
-      need('projectId', data.projects, 'Activity must reference a project in this company.')
+      need(
+        'projectId',
+        'projects',
+        'Activity must reference a project in this company.',
+      )
       // A phase belongs to exactly one project, so an activity's phase must be a phase OF
       // the activity's own project — otherwise the activity is silently double-bound to two
       // projects, and deleting the phase's project orphans the activity's phaseId.
@@ -118,27 +250,54 @@ export function assertScopedRefs(
       // at its own write time, and in server mode a phase under an archived project may be
       // absent from the active-only slice (same rationale as `unchanged` above). Touching
       // EITHER id re-runs the full coherence check.
-      if (present('phaseId') && !(unchanged('phaseId') && unchanged('projectId'))) {
+      if (
+        present('phaseId') &&
+        !(unchanged('phaseId') && unchanged('projectId'))
+      ) {
         // Resolve the in-account phase ONCE: its absence is the "belong to this company"
         // failure (same check `need` would do), and its projectId feeds the coherence
         // check below — no second scan of data.phases.
-        const phase = data.phases.find(
-          (p) => p.id === rec.phaseId && belongsToAccount(p, accountId),
-        )
-        if (!phase) throw new Error('Activity phase must belong to this company.')
-        if (!present('projectId')) {
-          throw new Error('An activity with a phase must also belong to that phase’s project.')
+        const phase =
+          typeof rec.phaseId === 'string'
+            ? (validationRow(data, 'phases', rec.phaseId, lookup) as
+                | AppData['phases'][number]
+                | undefined)
+            : undefined
+        const ownedPhase =
+          phase && belongsToAccount(phase, accountId) ? phase : undefined
+        if (!ownedPhase) {
+          domainError(
+            'activity_phase_wrong_account',
+            'Activity phase must belong to this company.',
+          )
         }
-        if (phase.projectId !== rec.projectId) {
-          throw new Error('Activity phase must belong to the activity’s project.')
+        if (!present('projectId')) {
+          domainError(
+            'activity_phase_project_required',
+            'An activity with a phase must also belong to that phase’s project.',
+          )
+        }
+        if (ownedPhase.projectId !== rec.projectId) {
+          domainError(
+            'activity_phase_project_mismatch',
+            'Activity phase must belong to the activity’s project.',
+          )
         }
       }
       break
     }
     case 'resources':
       // disciplineId applies to any resource; projectId is the placeholder-only binding FK (see Resource.projectId) — both optional, so need() only fires when present.
-      need('disciplineId', data.disciplines, 'Resource discipline must belong to this company.')
-      need('projectId', data.projects, 'Placeholder project must belong to this company.')
+      need(
+        'disciplineId',
+        'disciplines',
+        'Resource discipline must belong to this company.',
+      )
+      need(
+        'projectId',
+        'projects',
+        'Placeholder project must belong to this company.',
+      )
       break
     // allocations / timeOff: their refs are checked by assertAllocationRefs /
     // assertResourceExists (scoped to the active account), below.
@@ -161,37 +320,80 @@ export function assertAllocationRefs(
   activityId: ID,
   hoursPerDay: number,
   existing?: Pick<Allocation, 'resourceId' | 'activityId'>,
+  lookup?: ValidationDataLookup,
 ): void {
-  const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
-  const activity = data.activities.find((act) => act.id === activityId && belongsToAccount(act, accountId))
+  const resourceRow = validationRow(data, 'resources', resourceId, lookup) as
+    | Resource
+    | undefined
+  const activityRow = validationRow(data, 'activities', activityId, lookup) as
+    | Activity
+    | undefined
+  const resource =
+    resourceRow && belongsToAccount(resourceRow, accountId)
+      ? resourceRow
+      : undefined
+  const activity =
+    activityRow && belongsToAccount(activityRow, accountId)
+      ? activityRow
+      : undefined
   if (!resource || !activity) {
-    throw new Error('Allocation must reference an existing resource and activity in this company.')
+    domainError(
+      'allocation_references_invalid',
+      'Allocation must reference an existing resource and activity in this company.',
+    )
   }
-  if (existing?.resourceId !== resourceId && lifecycleStatus(resource) !== 'active') {
-    throw new Error('Allocation must reference an active resource in this company.')
+  if (
+    existing?.resourceId !== resourceId &&
+    !isEffectivelyActive(
+      data,
+      'resources',
+      resource as unknown as LifecycleAncestryRow,
+      lookup,
+    )
+  ) {
+    domainError(
+      'allocation_resource_inactive',
+      'Allocation must reference an active resource in this company.',
+    )
   }
-  const project = activity.projectId
-    ? data.projects.find((candidate) => candidate.id === activity.projectId && belongsToAccount(candidate, accountId))
+  const projectRow = activity.projectId
+    ? (validationRow(data, 'projects', activity.projectId, lookup) as
+        | AppData['projects'][number]
+        | undefined)
     : undefined
+  const project =
+    projectRow && belongsToAccount(projectRow, accountId)
+      ? projectRow
+      : undefined
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
   if (activity.projectId !== undefined && project === undefined) {
-    throw new Error('Allocation must reference an activity under an active project in this company.')
+    domainError(
+      'allocation_project_inactive',
+      'Allocation must reference an activity under an active project in this company.',
+    )
   }
   if (
     existing?.activityId !== activityId &&
-    project &&
-    lifecycleStatus(project) !== 'active'
+    !isEffectivelyActive(
+      data,
+      'activities',
+      activity as unknown as LifecycleAncestryRow,
+      lookup,
+    )
   ) {
-    throw new Error('Allocation must reference an activity under an active project.')
+    domainError(
+      'allocation_activity_inactive',
+      'Allocation must reference an activity under an active project.',
+    )
   }
   const v = validateAllocationAssignment(resource, activity.projectId)
   // `errors[0]` is guaranteed present: every validator sets ok=false and pushes a message in the
   // same step, so `!v.ok` always implies a non-empty `errors` array. (Documented coupling between
   // ValidationResult.ok and errors — don't split the two without revisiting this read.)
-  if (!v.ok) throw new Error(v.errors[0])
+  if (!v.ok) domainError(v.codes[0], v.errors[0])
   // External / 3rd parties have NO capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only — enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
@@ -199,7 +401,10 @@ export function assertAllocationRefs(
   // to 0 instead of dropping the booking, which is still valid. Always checked: `hoursPerDay` is a
   // required parameter, so no caller can opt out of the rule.
   if (hoursPerDay !== 0 && isExternalResource(resource)) {
-    throw new Error('An external / 3rd-party resource’s allocation can’t carry hours.')
+    domainError(
+      'external_allocation_hours',
+      'An external / 3rd-party resource’s allocation can’t carry hours.',
+    )
   }
 }
 
@@ -226,16 +431,132 @@ export function assertResourceKindAllowsDependents(
   accountId: ID,
   resourceId: ID,
   mergedKind: unknown,
+  lookup?: ValidationDataLookup,
 ): void {
   if (!isExternalResource({ kind: mergedKind as Resource['kind'] })) return
-  const owns = (e: Allocation | TimeOff) => e.resourceId === resourceId && belongsToAccount(e, accountId)
   // A loaded allocation OR any time-off both vanish from the scheduler once the resource is external.
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
-  const hasLoadedAllocation = data.allocations.some((a) => owns(a) && a.hoursPerDay !== 0)
-  const hasTimeOff = data.timeOff.some((t) => owns(t))
+  const owns = (e: Allocation | TimeOff) =>
+    e.resourceId === resourceId && belongsToAccount(e, accountId)
+  const hasLoadedAllocation = lookup
+    ? lookup.resourceHasLoadedAllocation(accountId, resourceId)
+    : data.allocations.some((a) => owns(a) && a.hoursPerDay !== 0)
+  const hasTimeOff = lookup
+    ? lookup.resourceHasTimeOff(accountId, resourceId)
+    : data.timeOff.some((t) => owns(t))
   if (hasLoadedAllocation || hasTimeOff) {
-    throw new Error('Reassign or remove this resource’s work and time off before making it external.')
+    domainError(
+      'resource_external_dependents',
+      'Reassign or remove this resource’s work and time off before making it external.',
+    )
+  }
+}
+
+/**
+ * A resource edit must not turn an allocation that is valid for the stored resource into one that
+ * violates the placeholder project rule. This covers both rebinding an existing placeholder and
+ * converting another resource kind into a placeholder after work has already been assigned.
+ *
+ * Only newly introduced invalidity is rejected. Legacy/corrupt assignments therefore do not make
+ * an unrelated edit the repair boundary, while a project/kind edit that repairs them remains
+ * available. Import retains its separate reconciling contract.
+ */
+export function assertResourceProjectAllowsDependents(
+  data: AppData,
+  accountId: ID,
+  resourceId: ID,
+  merged: Resource,
+  existing?: Resource,
+  lookup?: ValidationDataLookup,
+): void {
+  if (
+    existing !== undefined &&
+    merged.kind === existing.kind &&
+    merged.projectId === existing.projectId
+  )
+    return
+
+  const allocations = lookup
+    ? lookup.allocationsForResource(accountId, resourceId)
+    : data.allocations.filter(
+        (allocation) =>
+          allocation.accountId === accountId &&
+          allocation.resourceId === resourceId,
+      )
+  for (const allocation of allocations) {
+    const activityRow = validationRow(
+      data,
+      'activities',
+      allocation.activityId,
+      lookup,
+    ) as Activity | undefined
+    const activity =
+      activityRow && belongsToAccount(activityRow, accountId)
+        ? activityRow
+        : undefined
+    if (!activity) continue
+    const wasValid =
+      existing === undefined ||
+      validateAllocationAssignment(existing, activity.projectId).ok
+    if (
+      wasValid &&
+      !validateAllocationAssignment(merged, activity.projectId).ok
+    ) {
+      domainError(
+        'placeholder_project_dependents',
+        'Reassign or remove this placeholder’s work before changing its bound project.',
+      )
+    }
+  }
+}
+
+/**
+ * The mirror of assertResourceProjectAllowsDependents for activity project edits: moving a project
+ * activity (or turning project-less work into project work) must not retroactively invalidate a
+ * placeholder allocation. Existing corrupt rows do not block unrelated activity edits.
+ */
+export function assertActivityProjectAllowsDependents(
+  data: AppData,
+  accountId: ID,
+  activityId: ID,
+  merged: Activity,
+  existing?: Activity,
+  lookup?: ValidationDataLookup,
+): void {
+  if (existing !== undefined && merged.projectId === existing.projectId) return
+
+  const allocations = lookup
+    ? lookup.allocationsForActivity(accountId, activityId)
+    : data.allocations.filter(
+        (allocation) =>
+          allocation.accountId === accountId &&
+          allocation.activityId === activityId,
+      )
+  for (const allocation of allocations) {
+    const resourceRow = validationRow(
+      data,
+      'resources',
+      allocation.resourceId,
+      lookup,
+    ) as Resource | undefined
+    const resource =
+      resourceRow && belongsToAccount(resourceRow, accountId)
+        ? resourceRow
+        : undefined
+    if (!resource) continue
+    const wasValid =
+      existing === undefined ||
+      validateAllocationAssignment(resource, existing.projectId).ok
+    if (
+      wasValid &&
+      !validateAllocationAssignment(resource, merged.projectId).ok
+    ) {
+      domainError(
+        'activity_project_dependents',
+        'Reassign placeholder work before changing this activity’s project.',
+      )
+    }
   }
 }
 
@@ -243,7 +564,7 @@ export function assertResourceKindAllowsDependents(
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
   const v = validateDateRange(startDate, endDate)
   // errors[0] is safe — see assertAllocationRefs: !ok always implies at least one pushed message.
-  if (!v.ok) throw new Error(v.errors[0])
+  if (!v.ok) domainError(v.codes[0], v.errors[0])
 }
 
 /**
@@ -258,16 +579,35 @@ export function assertResourceExists(
   accountId: ID,
   resourceId: ID,
   existing?: Pick<TimeOff, 'resourceId'>,
+  lookup?: ValidationDataLookup,
 ): void {
-  const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
+  const resourceRow = validationRow(data, 'resources', resourceId, lookup) as
+    | Resource
+    | undefined
+  const resource =
+    resourceRow && belongsToAccount(resourceRow, accountId)
+      ? resourceRow
+      : undefined
   if (!resource) {
-    throw new Error('Time off must reference an existing resource in this company.')
+    domainError(
+      'time_off_resource_invalid',
+      'Time off must reference an existing resource in this company.',
+    )
   }
-  if (existing?.resourceId !== resourceId && lifecycleStatus(resource) !== 'active') {
-    throw new Error('Time off must reference an active resource in this company.')
+  if (
+    existing?.resourceId !== resourceId &&
+    lifecycleStatus(resource) !== 'active'
+  ) {
+    domainError(
+      'time_off_resource_inactive',
+      'Time off must reference an active resource in this company.',
+    )
   }
   if (isExternalResource(resource)) {
-    throw new Error('Time off can’t be recorded for an external / 3rd-party resource.')
+    domainError(
+      'time_off_external_resource',
+      'Time off can’t be recorded for an external / 3rd-party resource.',
+    )
   }
 }
 
@@ -276,7 +616,10 @@ export function assertResourceExists(
  * AppData (mutating a fresh copy in place — scopedTables returns the same ref).
  */
 export function deleteAccountCascade(data: AppData, accountId: ID): AppData {
-  const next: AppData = { ...data, accounts: data.accounts.filter((a) => a.id !== accountId) }
+  const next: AppData = {
+    ...data,
+    accounts: data.accounts.filter((a) => a.id !== accountId),
+  }
   const src = scopedTables(data)
   const dst = scopedTables(next)
   for (const key of SCOPED_KEYS) {
@@ -306,12 +649,23 @@ export function remapAndValidateImport(
 ): { data: AppData; imported: number; skipped: number } {
   const incomingRows = Object.fromEntries(
     SCOPED_KEYS.map((key) => {
-      const rows = Array.isArray(incoming[key]) ? (incoming[key] as unknown[]) : []
-      return [key, rows.filter((row): row is Record<string, unknown> => !!row && typeof row === 'object' && !Array.isArray(row))]
+      const rows = Array.isArray(incoming[key])
+        ? (incoming[key] as unknown[])
+        : []
+      return [
+        key,
+        rows.filter(
+          (row): row is Record<string, unknown> =>
+            !!row && typeof row === 'object' && !Array.isArray(row),
+        ),
+      ]
     }),
   ) as Record<ScopedEntityKey, Array<Record<string, unknown>>>
   const malformedIncoming = SCOPED_KEYS.reduce(
-    (count, key) => count + ((Array.isArray(incoming[key]) ? incoming[key].length : 0) - incomingRows[key].length),
+    (count, key) =>
+      count +
+      ((Array.isArray(incoming[key]) ? incoming[key].length : 0) -
+        incomingRows[key].length),
     0,
   )
   // FK remap tables, ONE PER ENTITY TYPE. A source id is only meaningful within its own
@@ -321,13 +675,13 @@ export function remapAndValidateImport(
   // Per-table maps resolve each FK against the table it actually references. FIRST
   // occurrence within a table wins; a record with a missing/non-string id is NOT keyed
   // (keying on `undefined` would collapse them all) — it gets a fresh id below.
-  const idMaps = Object.fromEntries(SCOPED_KEYS.map((k) => [k, new Map<ID, ID>()])) as Record<
-    ScopedEntityKey,
-    Map<ID, ID>
-  >
+  const idMaps = Object.fromEntries(
+    SCOPED_KEYS.map((k) => [k, new Map<ID, ID>()]),
+  ) as Record<ScopedEntityKey, Map<ID, ID>>
   for (const key of SCOPED_KEYS) {
     for (const e of incomingRows[key]) {
-      if (typeof e.id === 'string' && !idMaps[key].has(e.id)) idMaps[key].set(e.id, newId())
+      if (typeof e.id === 'string' && !idMaps[key].has(e.id))
+        idMaps[key].set(e.id, newId())
     }
   }
   // Each foreign-key field points at exactly one table, so a ref is remapped via THAT
@@ -364,28 +718,41 @@ export function remapAndValidateImport(
       // `ownIds.get(e.id) as ID` is sound: the FIRST loop above seeded this table's map with a
       // fresh id for EVERY record bearing a string id, so any record reaching here with a string
       // id is guaranteed to have an entry. A missing/non-string id falls to a fresh newId().
-      const mapped = typeof e.id === 'string' ? (ownIds.get(e.id) as ID) : newId()
+      const mapped =
+        typeof e.id === 'string' ? (ownIds.get(e.id) as ID) : newId()
       const newRecordId = usedIds.has(mapped) ? newId() : mapped
       usedIds.add(newRecordId)
-      const copy: Record<string, unknown> = { ...e, id: newRecordId, accountId, createdAt: now, updatedAt: now }
+      const copy: Record<string, unknown> = {
+        ...e,
+        id: newRecordId,
+        accountId,
+        createdAt: now,
+        updatedAt: now,
+      }
       for (const f of FK_FIELDS) {
         if (copy[f] !== undefined) copy[f] = remap(f, copy[f])
       }
       const sanitized = sanitizeImportedRecord(key, copy)
       if (key === 'resources' && sanitized.deletedAt !== undefined) {
-        return obfuscateResource(sanitized as unknown as Resource) as unknown as Record<string, unknown>
+        return obfuscateResource(
+          sanitized as unknown as Resource,
+        ) as unknown as Record<string, unknown>
       }
       return sanitized
     })
   }
 
   // Referential repair, parent-before-child so a child sees the SURVIVING parent set
-  // (a parent dropped here drops its now-orphaned children too). A required FK that
-  // dangles drops the record; an optional FK that dangles is unbound so the record
-  // survives. Mirrors the DB's own ON DELETE rules (CASCADE for required, SET NULL
-  // for optional) and keeps a hand-edited file from reaching SQLite with a bad ref.
-  const idSet = (rows: Array<Record<string, unknown>>) => new Set(rows.map((r) => r.id as string))
-  const has = (set: Set<string>, v: unknown): boolean => typeof v === 'string' && set.has(v)
+  // (a parent dropped here drops its now-orphaned children too). Generally, a required FK that
+  // dangles drops the record and an optional FK is unbound so the record survives. Import is a
+  // recovery boundary rather than a database delete, so one deliberate exception preserves more
+  // user data than the schema's CASCADE: a project activity whose project is absent survives as a
+  // project-less repeatable activity (and loses its phase), as documented again in that pass below.
+  // Every repair keeps a hand-edited file from reaching SQLite with an invalid reference.
+  const idSet = (rows: Array<Record<string, unknown>>) =>
+    new Set(rows.map((r) => r.id as string))
+  const has = (set: Set<string>, v: unknown): boolean =>
+    typeof v === 'string' && set.has(v)
 
   // Built-in "Internal" client: every account must have EXACTLY ONE (seed / addAccount / migrate
   // guarantee it). This is the IMPORT-FOLD enforcement point (2) of the single-Internal invariant —
@@ -396,9 +763,9 @@ export function remapAndValidateImport(
   // then `ensureInternalClients` (a post-step, after counting)
   // synthesises one if the file carried none — so an auto-added Internal is never counted toward
   // `imported`. The normalisation:
-  //   • keep the FIRST imported builtin (re-stamping its name/colour to the reserved pair so a
-  //     hand-edited file can't smuggle a junk "Internal"), and remap every OTHER imported builtin's
-  //     id to that kept one (so anything they owned re-points at the single Internal).
+  //   • keep the FIRST imported builtin (the per-record sanitizer re-stamps its name/colour and
+  //     clears impossible lifecycle tombstones), and remap every OTHER imported builtin's id to
+  //     that kept one (so anything they owned re-points at the single Internal).
   const remappedBuiltinId = new Map<string, string>()
   let keptInternalId: string | undefined
   brought.clients = brought.clients.filter((c) => {
@@ -416,7 +783,9 @@ export function remapAndValidateImport(
   // (projects.clientId is the only client FK). Done before the required-FK drop so the project keeps a
   // valid client and survives.
   const rewireBuiltin = (v: unknown): unknown =>
-    typeof v === 'string' && remappedBuiltinId.has(v) ? remappedBuiltinId.get(v) : v
+    typeof v === 'string' && remappedBuiltinId.has(v)
+      ? remappedBuiltinId.get(v)
+      : v
   for (const p of brought.projects) p.clientId = rewireBuiltin(p.clientId)
 
   const clientIds = idSet(brought.clients)
@@ -432,8 +801,10 @@ export function remapAndValidateImport(
 
   // resources: disciplineId / placeholder projectId are OPTIONAL → unbind if dangling.
   for (const r of brought.resources) {
-    if (r.disciplineId !== undefined && !has(disciplineIds, r.disciplineId)) r.disciplineId = undefined
-    if (r.projectId !== undefined && !has(projectIds, r.projectId)) r.projectId = undefined
+    if (r.disciplineId !== undefined && !has(disciplineIds, r.disciplineId))
+      r.disciplineId = undefined
+    if (r.projectId !== undefined && !has(projectIds, r.projectId))
+      r.projectId = undefined
   }
 
   // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
@@ -441,20 +812,24 @@ export function remapAndValidateImport(
   // carries. A project-specific activity whose project didn't survive can no longer BE project-specific, so it
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
   // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.
-  const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]))
+  const phaseProject = new Map(
+    brought.phases.map((p) => [p.id as string, p.projectId]),
+  )
   for (const act of brought.activities) {
     if (act.kind === 'internal' || act.kind === 'repeatable') {
       act.projectId = undefined
       act.phaseId = undefined
       continue
     }
-    if (act.projectId !== undefined && !has(projectIds, act.projectId)) act.projectId = undefined
+    if (act.projectId !== undefined && !has(projectIds, act.projectId))
+      act.projectId = undefined
     if (act.projectId === undefined) {
       act.phaseId = undefined
       act.kind = 'repeatable'
     } else if (
       act.phaseId !== undefined &&
-      (!has(phaseIds, act.phaseId) || phaseProject.get(act.phaseId as string) !== act.projectId)
+      (!has(phaseIds, act.phaseId) ||
+        phaseProject.get(act.phaseId as string) !== act.projectId)
     ) {
       act.phaseId = undefined
     }
@@ -469,34 +844,64 @@ export function remapAndValidateImport(
   // stamped with id/accountId/timestamps, so reading them as typed entities for the referential
   // checks below is safe. Results are cast back to loose records afterwards so a dangling optional
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
-  const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]))
-  const activities = new Map((brought.activities as unknown as Activity[]).map((act) => [act.id, act]))
+  const resources = new Map(
+    (brought.resources as unknown as Resource[]).map((r) => [r.id, r]),
+  )
+  const activities = new Map(
+    (brought.activities as unknown as Activity[]).map((act) => [act.id, act]),
+  )
   // Single pass: resolve the owning resource ONCE per allocation and use it for BOTH the keep/drop
   // decision (date range + resource/activity existence + placeholder rule) AND the external-load
   // coercion below, so the two can never diverge.
-  brought.allocations = (brought.allocations as unknown as Allocation[]).reduce<Allocation[]>(
-    (kept, a) => {
-      if (!validateDateRange(a.startDate, a.endDate).ok) return kept
-      const resource = resources.get(a.resourceId)
-      const activity = activities.get(a.activityId)
-      if (!resource || !activity) return kept
-      if (!validateAllocationAssignment(resource, activity.projectId).ok) return kept
-      // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
-      // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it
-      // can't see the owning resource's kind — coerce it here, where the whole resource set is in
-      // scope, so a hand-edited/legacy file can't land a non-zero load on a capacity-free resource.
-      kept.push(isExternalResource(resource) && a.hoursPerDay !== 0 ? { ...a, hoursPerDay: 0 } : a)
+  brought.allocations = (brought.allocations as unknown as Allocation[]).reduce<
+    Allocation[]
+  >((kept, a) => {
+    if (!validateDateRange(a.startDate, a.endDate).ok) return kept
+    const resource = resources.get(a.resourceId)
+    const activity = activities.get(a.activityId)
+    if (!resource || !activity) return kept
+    if (!validateAllocationAssignment(resource, activity.projectId).ok)
+      return kept
+    // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
+    // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it
+    // can't see the owning resource's kind — coerce it here, where the whole resource set is in
+    // scope, so a hand-edited/legacy file can't land a non-zero load on a capacity-free resource.
+    let repaired =
+      isExternalResource(resource) && a.hoursPerDay !== 0
+        ? { ...a, hoursPerDay: 0 }
+        : a
+    // Resource deletion is an erasure boundary, not only a display-name transition. The normal
+    // lifecycle route clears dependent free text; apply the same repair to legacy, restored or
+    // hand-edited imports so a tombstone cannot reintroduce private project context.
+    if (resource.deletedAt !== undefined && repaired.note !== undefined) {
+      repaired = { ...repaired, note: undefined }
+    }
+    kept.push(repaired)
+    return kept
+  }, []) as unknown as Array<Record<string, unknown>>
+  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).reduce<TimeOff[]>(
+    (kept, t) => {
+      // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
+      // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
+      // same rule here keeps import from landing an invisible orphan a hand-edited file could carry.
+      const resource = resources.get(t.resourceId)
+      if (
+        resource === undefined ||
+        isExternalResource(resource) ||
+        !validateDateRange(t.startDate, t.endDate).ok
+      )
+        return kept
+      // Medical/absence detail is the most sensitive dependent free text. Match the lifecycle delete
+      // path by retaining the valid scheduling record while removing its note for a deleted person.
+      kept.push(
+        resource.deletedAt !== undefined && t.note !== undefined
+          ? { ...t, note: undefined }
+          : t,
+      )
       return kept
     },
     [],
   ) as unknown as Array<Record<string, unknown>>
-  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).filter((t) => {
-    // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
-    // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
-    // same rule here keeps import from landing an invisible orphan a hand-edited file could carry.
-    const resource = resources.get(t.resourceId)
-    return resource !== undefined && !isExternalResource(resource) && validateDateRange(t.startDate, t.endDate).ok
-  }) as unknown as Array<Record<string, unknown>>
 
   const next: AppData = { ...data }
   const srcKept = scopedTables(data)
@@ -506,8 +911,13 @@ export function remapAndValidateImport(
   // inflate "imported N". This also fixes the over-report when a pre-v6 FULL export was given a builtin
   // by migrate (run before this import) — that auto-added row reaches here as a kept builtin, and must
   // still not count. The matching `totalIncoming` below excludes incoming builtins for the same reason.
-  const countable = (key: ScopedEntityKey, rows: ReadonlyArray<Record<string, unknown>>): number =>
-    key === 'clients' ? rows.filter((c) => c.builtin !== true).length : rows.length
+  const countable = (
+    key: ScopedEntityKey,
+    rows: ReadonlyArray<Record<string, unknown>>,
+  ): number =>
+    key === 'clients'
+      ? rows.filter((c) => c.builtin !== true).length
+      : rows.length
   let imported = 0
   for (const key of SCOPED_KEYS) {
     const kept = srcKept[key].filter(notInAccount(accountId))
@@ -523,7 +933,10 @@ export function remapAndValidateImport(
   // Internal per account" algorithm) narrowed to a single account.
   const result = internalClientFor(next.clients, accountId)
     ? next
-    : { ...next, clients: [...next.clients, buildInternalClient(accountId, now)] }
+    : {
+        ...next,
+        clients: [...next.clients, buildInternalClient(accountId, now)],
+      }
   // Everything that didn't land — a dropped parent, child, allocation or time-off — counts as skipped
   // (records merely unbound from a dangling optional FK still land). Incoming builtins are excluded
   // from BOTH sides so the auto-added Internal never shows up as imported or skipped.

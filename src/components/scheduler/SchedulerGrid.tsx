@@ -1,33 +1,72 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Plus, SlidersHorizontal, Users } from 'lucide-react'
-import { m } from '@/i18n'
-import { hasActiveFilters, useStore } from '../../store/useStore'
-import { useCanEdit } from '../../auth/permissionContext'
-import { useActiveScopedData } from '../../store/useScopedData'
-import { disciplinesEnabledFor, externalEnabledFor, internalColourModeFor, placeholdersEnabledFor, schedulingModeFor, showInternalActivitiesFor, showInternalProjectsFor } from '../../store/selectors'
-import { addDaysISO, todayISO } from '@capacitylens/shared/lib/dateMath'
-import { UTILIZATION_WINDOW_DAYS } from '../../lib/schedulerConfig'
-import { Avatar, EmptyState } from '../common/ui'
-import { resourceDisplayName } from '../../lib/metadata'
-import { LAYOUT } from './layout'
-import { DateHeader } from './DateHeader'
-import { ResourceLane } from './ResourceLane'
-import { AllocationModal } from './AllocationModal'
-import { TimeOffForm } from '../timeoff/TimeOffForm'
-import { buildSchedulerModel } from './schedulerModel'
-import { buildLayout, windowFromLayout } from './virtualWindow'
-import { useSchedulerViewport } from './useSchedulerViewport'
-import type { GroupModel, RowModel } from './schedulerModel'
-import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
-import type { ID, ISODate } from '@capacitylens/shared/types/entities'
-import { Button } from '../ui/button'
-import { TooltipProvider } from '../ui/tooltip'
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  SlidersHorizontal,
+  Users,
+} from "lucide-react";
+import { m } from "@/i18n";
+import { hasActiveFilters, useStore } from "../../store/useStore";
+import { useCanEdit } from "../../auth/permissionContext";
+import { useActiveScopedData } from "../../store/useScopedData";
+import {
+  disciplinesEnabledFor,
+  externalEnabledFor,
+  internalColourModeFor,
+  placeholdersEnabledFor,
+  schedulingModeFor,
+  showInternalActivitiesFor,
+  showInternalProjectsFor,
+  timeZoneFor,
+  weekStartsOnFor,
+} from "../../store/selectors";
+import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
+import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
+import { Avatar, EmptyState } from "../common/ui";
+import { resourceDisplayName } from "../../lib/metadata";
+import { LAYOUT } from "./layout";
+import { DateHeader } from "./DateHeader";
+import { ResourceLane } from "./ResourceLane";
+import { buildSchedulerModel } from "./schedulerModel";
+import { buildLayout, windowFromLayout } from "./virtualWindow";
+import { useSchedulerViewport } from "./useSchedulerViewport";
+import type { GroupModel, RowModel } from "./schedulerModel";
+import {
+  isCapacityTracked,
+  isExternalResource,
+} from "@capacitylens/shared/types/entities";
+import type { ID, ISODate } from "@capacitylens/shared/types/entities";
+import { Button } from "../ui/button";
+import { TooltipProvider } from "../ui/tooltip";
+import { useCalendarToday } from "./useCalendarToday";
+
+// Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
+// interaction so their validation and picker dependencies do not consume the initial entry budget.
+const AllocationModal = lazy(() =>
+  import("./AllocationModal").then((module) => ({
+    default: module.AllocationModal,
+  })),
+);
+const TimeOffForm = lazy(() =>
+  import("../timeoff/TimeOffForm").then((module) => ({
+    default: module.TimeOffForm,
+  })),
+);
 
 type ModalState =
-  | { kind: 'edit'; allocationId: ID }
-  | { kind: 'create'; resourceId: ID; startDate: ISODate; endDate: ISODate }
-  | { kind: 'timeoff'; resourceId: ID; startDate: ISODate; endDate: ISODate }
+  | { kind: "edit"; allocationId: ID }
+  | { kind: "create"; resourceId: ID; startDate: ISODate; endDate: ISODate }
+  | { kind: "timeoff"; resourceId: ID; startDate: ISODate; endDate: ISODate };
 
 /**
  * The week-grid scheduler: the helicopter view of who's busy/free. Two non-obvious
@@ -42,59 +81,76 @@ type ModalState =
  * thumb and every offset would be wrong). `heights`/`layout` are memoised on the item set, so a
  * scroll frame only runs the cheap edge-scan, not a full re-measure.
  *
- * **2. The drag-freeze (load-bearing).** While a bar is being dragged, `onScroll` SKIPS
- * `setScrollTop` (it reads `draggingAllocationId` live via `getState` to dodge a stale closure),
- * so the visible window does not re-window mid-gesture. This is not a perf nicety: re-windowing
- * could unmount the dragged `AllocationBar` and tear down its document pointer listeners,
- * orphaning the live cross-row drag so the drop never commits. When the drag ENDS, a one-shot
- * effect (keyed on `dragging`) catches the window up to whatever scrolling happened while frozen.
+ * **2. Drag pinning.** Vertical windowing continues to follow scrolling during a drag so newly
+ * visible rows become drop targets. If the source row leaves that window, it is rendered as one
+ * additional disjoint item at its real layout offset; this keeps the AllocationBar's document
+ * pointer listeners mounted without rendering every intervening row. Horizontal date geometry
+ * remains frozen until the gesture ends.
  */
 export function SchedulerGrid() {
-  const navigate = useNavigate()
-  const data = useActiveScopedData()
+  const navigate = useNavigate();
+  const data = useActiveScopedData();
   // Viewer read-only (P1.12): when the active account's role is a viewer, the grid is display-only —
   // no row "+" create, no lane draw-to-create, no bar edit/drag/resize (the bar gating lives in
   // AllocationBar; the draw/create gating is the conditional onDraw/onEdit + the hidden "+" below).
   // null/owner/admin/editor (incl. OFF/local) → fully editable, byte-identical to today. The server
   // 403 backstops a write regardless; this is the UX read-only surface.
-  const canEdit = useCanEdit()
-  const ui = useStore((s) => s.ui)
+  const canEdit = useCanEdit();
+  const ui = useStore((s) => s.ui);
   // Utilisation display toggles (Settings → Utilisation). Each gates one of the three
   // utilisation figures: total (header), discipline (group header), personal (per row).
-  const utilizationPrefs = useStore((s) => s.utilizationPrefs)
+  const utilizationPrefs = useStore((s) => s.utilizationPrefs);
   // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
-  const minimiseWeekends = useStore((s) => s.minimiseWeekends)
+  const minimiseWeekends = useStore((s) => s.minimiseWeekends);
   // Device-global display pref (default on): after a FREE scroll settles, floor the left edge back
   // to the current week's first day (the scroll-idle snap in onScroll below). FREE SCROLL ONLY —
   // the navigation snap (zoom / Prev-Next / date-picker, Feature 1) is always on, independent of this.
-  const snapToWeekStart = useStore((s) => s.snapToWeekStart)
+  const snapToWeekStart = useStore((s) => s.snapToWeekStart);
   // Per-account display pref (default OFF): when off, placeholder ("slot") rows are hidden from
   // the schedule (and dropped from utilisation) by buildSchedulerModel's resourceVisible filter.
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
+  const placeholdersEnabled = useStore((s) =>
+    placeholdersEnabledFor(s.data, s.activeAccountId),
+  );
   // Per-account display pref (default OFF): when off, external / 3rd-party rows are hidden from the
   // schedule (and their now-empty band header is dropped) by buildSchedulerModel's resourceVisible filter.
-  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
+  const externalEnabled = useStore((s) =>
+    externalEnabledFor(s.data, s.activeAccountId),
+  );
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
+  const disciplinesEnabled = useStore((s) =>
+    disciplinesEnabledFor(s.data, s.activeAccountId),
+  );
   // Per-account Internal work colour preference. Grey is the absent/default mode; palette restores
   // saved project colours without changing the underlying project records.
-  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId))
+  const internalColourMode = useStore((s) =>
+    internalColourModeFor(s.data, s.activeAccountId),
+  );
   // Per-account BAR-ONLY hide prefs for internal work (both default ON). They remove only the bars —
   // capacity/utilisation stay truthful (see buildSchedulerModel's barVisibleByInternalPref).
-  const showInternalProjects = useStore((s) => showInternalProjectsFor(s.data, s.activeAccountId))
-  const showInternalActivities = useStore((s) => showInternalActivitiesFor(s.data, s.activeAccountId))
-  const toggleGroup = useStore((s) => s.toggleGroup)
-  const clearFilters = useStore((s) => s.clearFilters)
+  const showInternalProjects = useStore((s) =>
+    showInternalProjectsFor(s.data, s.activeAccountId),
+  );
+  const showInternalActivities = useStore((s) =>
+    showInternalActivitiesFor(s.data, s.activeAccountId),
+  );
+  const toggleGroup = useStore((s) => s.toggleGroup);
+  const clearFilters = useStore((s) => s.clearFilters);
+  const consumeResourceJump = useStore((s) => s.consumeResourceJump);
   // WCAG 4.1.3: the latest screen-reader capacity announcement, set by AllocationBar after a
   // KEYBOARD-committed move/resize. Rendered ONCE below in a polite aria-live region. It changes
   // only on a keyboard edit (not a scroll/zoom/modal/render), so subscribing here adds no hot-path
   // re-render; pointer drags never set it, so they stay silent for screen readers (sighted feedback).
-  const srAnnouncement = useStore((s) => s.srAnnouncement)
-  const [modal, setModal] = useState<ModalState | null>(null)
+  const srAnnouncement = useStore((s) => s.srAnnouncement);
+  const draggingAllocationId = useStore((s) => s.draggingAllocationId);
+  const [modal, setModal] = useState<ModalState | null>(null);
 
-  const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
-  const calendarWeekStartsOn = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.weekStartsOn ?? 1)
+  const calendarTimeZone = useStore((s) =>
+    timeZoneFor(s.data, s.activeAccountId),
+  );
+  const calendarWeekStartsOn = useStore((s) =>
+    weekStartsOnFor(s.data, s.activeAccountId),
+  );
   const {
     scrollRef,
     headerRef,
@@ -111,13 +167,18 @@ export function SchedulerGrid() {
     totalWidth,
     onScroll,
     visibleStartDate,
-  } = useSchedulerViewport({ ui, minimiseWeekends, snapToWeekStart, calendarWeekStartsOn })
-  const today = todayISO(calendarTimeZone)
+  } = useSchedulerViewport({
+    ui,
+    minimiseWeekends,
+    snapToWeekStart,
+    calendarWeekStartsOn,
+  });
+  const today = useCalendarToday(calendarTimeZone);
   // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag — a
   // near-term, zoom/pan-INDEPENDENT "over soon" radar, so the per-resource overbooked warning fires
   // regardless of the visible range. Kept separate from the displayed % (which follows the view).
-  const overStart = today
-  const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
+  const overStart = today;
+  const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1);
 
   // VISIBLE window [visStart, visEnd]: drives the DISPLAYED utilisation % (per-person, per-discipline
   // avg, overall). The visible span is `ui.zoom * 7` calendar days anchored at the scroll left-edge
@@ -128,52 +189,77 @@ export function SchedulerGrid() {
     // Before the first scroll settles (leftEdgeIdx === -1), anchor at the focus date (today by
     // default) — NOT days[0], which is the PAST_BUFFER_DAYS origin behind today, so the initial
     // numbers stay sensible (anchored at/after today). Clamp the index into the day array.
-    const lastIdx = days.length - 1
-    const focusIdx = days.indexOf(ui.focusDate)
-    const rawIdx = leftEdgeIdx >= 0 ? leftEdgeIdx : focusIdx >= 0 ? focusIdx : 0
-    const startIdx = Math.min(Math.max(rawIdx, 0), Math.max(lastIdx, 0))
-    const start = days[startIdx] ?? ui.focusDate
+    const lastIdx = days.length - 1;
+    const focusIdx = days.indexOf(ui.focusDate);
+    const rawIdx =
+      leftEdgeIdx >= 0 ? leftEdgeIdx : focusIdx >= 0 ? focusIdx : 0;
+    const startIdx = Math.min(Math.max(rawIdx, 0), Math.max(lastIdx, 0));
+    const start = days[startIdx] ?? ui.focusDate;
     // Inclusive end = start + (zoom*7 - 1), clamped to the last timeline day.
-    const endIdx = Math.min(startIdx + ui.zoom * 7 - 1, lastIdx)
-    const end = days[Math.max(endIdx, startIdx)] ?? start
-    return { visStart: start, visEnd: end }
-  }, [days, leftEdgeIdx, ui.zoom, ui.focusDate])
+    const endIdx = Math.min(startIdx + ui.zoom * 7 - 1, lastIdx);
+    const end = days[Math.max(endIdx, startIdx)] ?? start;
+    return { visStart: start, visEnd: end };
+  }, [days, leftEdgeIdx, ui.zoom, ui.focusDate]);
 
   // Human label for the visible span, used in the utilisation titles ("over the visible N week(s)").
   const visibleWeeksLabel =
-    ui.zoom === 1 ? m.scheduler_visible_weeks_label_one({ count: ui.zoom }) : m.scheduler_visible_weeks_label_other({ count: ui.zoom })
+    ui.zoom === 1
+      ? m.scheduler_visible_weeks_label_one({ count: ui.zoom })
+      : m.scheduler_visible_weeks_label_other({ count: ui.zoom });
 
-  const blocksMode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === 'blocks')
+  const blocksMode = useStore(
+    (s) => schedulingModeFor(s.data, s.activeAccountId) === "blocks",
+  );
 
   const model = useMemo(
     () =>
-      buildSchedulerModel(
+      buildSchedulerModel({
         data,
         geom,
         days,
-        visStart,
-        visEnd,
-        overStart,
-        overEnd,
-        ui.filters,
-        disciplinesEnabled,
-        placeholdersEnabled,
-        externalEnabled,
-        blocksMode,
-        internalColourMode,
-        showInternalProjects,
-        showInternalActivities,
-      ),
-    [data, geom, days, visStart, visEnd, overStart, overEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled, blocksMode, internalColourMode, showInternalProjects, showInternalActivities],
-  )
+        visibleWindow: { start: visStart, end: visEnd },
+        overSoonWindow: { start: overStart, end: overEnd },
+        filters: ui.filters,
+        preferences: {
+          disciplinesEnabled,
+          placeholdersEnabled,
+          externalEnabled,
+          blocksMode,
+          internalColourMode,
+          showInternalProjects,
+          showInternalActivities,
+        },
+      }),
+    [
+      data,
+      geom,
+      days,
+      visStart,
+      visEnd,
+      overStart,
+      overEnd,
+      ui.filters,
+      disciplinesEnabled,
+      placeholdersEnabled,
+      externalEnabled,
+      blocksMode,
+      internalColourMode,
+      showInternalProjects,
+      showInternalActivities,
+    ],
+  );
 
-  const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null
+  const todayX =
+    today >= start && today <= end ? geom.xForDateInGeom(today) : null;
 
-  const filtersActive = hasActiveFilters(ui.filters)
+  const filtersActive = hasActiveFilters(ui.filters);
 
   // Stable callbacks so the memoised ResourceLane can skip re-rendering on
   // grid-level UI changes (e.g. opening a modal). setModal is referentially stable.
-  const handleEdit = useCallback((allocationId: ID) => setModal({ kind: 'edit', allocationId }), [])
+  const handleEdit = useCallback(
+    (allocationId: ID) => setModal({ kind: "edit", allocationId }),
+    [],
+  );
   const handleDraw = useCallback(
     (resourceId: ID, startDate: ISODate, endDate: ISODate) => {
       // Read the draw mode LIVE (getState) when the gesture FIRES, not via a closure over
@@ -184,72 +270,125 @@ export function SchedulerGrid() {
       // an EMPTY dep array keeps this callback referentially stable across a toggle. Time off is
       // meaningless for externals (no capacity), so a draw on their lane is a no-op rather than
       // opening a time-off form seeded with a resource the picker itself excludes.
-      const drawMode = useStore.getState().ui.drawMode
-      if (drawMode === 'timeoff') {
-        const r = useStore.getState().data.resources.find((x) => x.id === resourceId)
-        if (r && isExternalResource(r)) return
+      const drawMode = useStore.getState().ui.drawMode;
+      if (drawMode === "timeoff") {
+        const r = useStore
+          .getState()
+          .data.resources.find((x) => x.id === resourceId);
+        if (r && isExternalResource(r)) return;
       }
-      setModal({ kind: drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate })
+      setModal({
+        kind: drawMode === "timeoff" ? "timeoff" : "create",
+        resourceId,
+        startDate,
+        endDate,
+      });
     },
     [],
-  )
+  );
 
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(() => {
     // Exclude external / 3rd-party rows: they carry no capacity (utilisation 0) and would
     // otherwise drag the headline average down.
-    const rows = model.flatMap((g) => g.rows).filter((r) => isCapacityTracked(r.resource))
-    return rows.length ? Math.round((rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100) : 0
-  }, [model])
+    const rows = model
+      .flatMap((g) => g.rows)
+      .filter((r) => isCapacityTracked(r.resource));
+    return rows.length
+      ? Math.round(
+          (rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100,
+        )
+      : 0;
+  }, [model]);
 
   // Flatten the visible model into one ordered list of renderable items (group
   // headers + the rows of expanded groups) so the grid can window them vertically:
   // at small scale everything renders; past a viewport's worth, only the on-screen
   // slice is in the DOM (the rest is reserved by top/bottom spacers).
-  type Item = { kind: 'group'; group: GroupModel } | { kind: 'row'; group: GroupModel; row: RowModel }
+  type Item =
+    | { kind: "group"; group: GroupModel }
+    | { kind: "row"; group: GroupModel; row: RowModel };
   const items = useMemo(() => {
-    const out: Item[] = []
+    const out: Item[] = [];
     for (const group of model) {
       // Disciplines off → render the rows flat (no group-header band, no collapse) — EXCEPT the
       // external band, which always keeps its header so it reads as a distinct band at the bottom
       // regardless of disciplines being on/off.
       if (!disciplinesEnabled && !group.external) {
-        for (const row of group.rows) out.push({ kind: 'row', group, row })
-        continue
+        for (const row of group.rows) out.push({ kind: "row", group, row });
+        continue;
       }
-      out.push({ kind: 'group', group })
-      if (!ui.collapsedGroups.includes(group.key)) for (const row of group.rows) out.push({ kind: 'row', group, row })
+      out.push({ kind: "group", group });
+      if (!ui.collapsedGroups.includes(group.key))
+        for (const row of group.rows) out.push({ kind: "row", group, row });
     }
-    return out
-  }, [model, ui.collapsedGroups, disciplinesEnabled])
+    return out;
+  }, [model, ui.collapsedGroups, disciplinesEnabled]);
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
   // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
   const heights = useMemo(
-    () => items.map((it) => (it.kind === 'group' ? LAYOUT.groupHeaderHeight : it.row.rowHeight)),
+    () =>
+      items.map((it) =>
+        it.kind === "group" ? LAYOUT.groupHeaderHeight : it.row.rowHeight,
+      ),
     [items],
-  )
-  const layout = useMemo(() => buildLayout(heights), [heights])
+  );
+  const layout = useMemo(() => buildLayout(heights), [heights]);
 
   // Scroll a specific resource row into view when jumpToResource fires (command
   // palette "jump to person"). Mirrors the recenterToken pattern. Uses layout.tops
   // (prefix-sum of row heights) to find the vertical offset.
-  const scrollToResource = ui.scrollToResource
+  const scrollToResource = ui.scrollToResource;
   useEffect(() => {
-    if (!scrollToResource || !scrollRef.current) return
+    if (!scrollToResource || scrollToResource.consumed || !scrollRef.current)
+      return;
     const idx = items.findIndex(
-      (it) => it.kind === 'row' && it.row.resource.id === scrollToResource.id,
-    )
-    if (idx === -1) return
-    const top = layout.tops[idx] ?? 0
-    scrollRef.current.scrollTop = top
-  }, [scrollToResource, items, layout, scrollRef])
+      (it) => it.kind === "row" && it.row.resource.id === scrollToResource.id,
+    );
+    if (idx === -1) return;
+    const top = layout.tops[idx] ?? 0;
+    scrollRef.current.scrollTop = top;
+    consumeResourceJump(scrollToResource.token);
+  }, [scrollToResource, items, layout, scrollRef, consumeResourceJump]);
 
-  const { first, last, topPad, bottomPad } = windowFromLayout(layout, heights, scrollTop, timelineHeight)
-  const visible = items.slice(first, last + 1)
+  const { first, last } = windowFromLayout(
+    layout,
+    heights,
+    scrollTop,
+    timelineHeight,
+  );
+  const draggedItemIndex =
+    draggingAllocationId === null
+      ? -1
+      : items.findIndex(
+          (item) =>
+            item.kind === "row" &&
+            item.row.bars.some(
+              (bar) => bar.allocation.id === draggingAllocationId,
+            ),
+        );
+  const renderedIndices = useMemo(() => {
+    const indices = Array.from(
+      { length: Math.max(0, last - first + 1) },
+      (_, offset) => first + offset,
+    );
+    if (
+      draggedItemIndex >= 0 &&
+      (draggedItemIndex < first || draggedItemIndex > last)
+    ) {
+      indices.push(draggedItemIndex);
+      indices.sort((a, b) => a - b);
+    }
+    return indices;
+  }, [first, last, draggedItemIndex]);
 
-  const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => (
+  const renderGroupHeader = (
+    group: GroupModel,
+    rowIndex: number,
+    key: string,
+  ) => (
     <div
       key={key}
       role="row"
@@ -258,39 +397,71 @@ export function SchedulerGrid() {
       className="flex border-y border-line-soft bg-surface"
       style={{ height: LAYOUT.groupHeaderHeight }}
     >
-      <div role="rowheader" aria-colindex={1} className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
+      <div
+        role="rowheader"
+        aria-colindex={1}
+        className="sticky left-0 z-10 shrink-0"
+        style={{ width: LAYOUT.leftColWidth }}
+      >
         <Button
           variant="ghost"
           onClick={() => toggleGroup(group.key)}
           aria-expanded={!ui.collapsedGroups.includes(group.key)}
           className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
         >
-          {ui.collapsedGroups.includes(group.key)
-            ? <ChevronRight data-icon="inline-start" className="text-faint" />
-            : <ChevronDown data-icon="inline-start" className="text-faint" />}
+          {ui.collapsedGroups.includes(group.key) ? (
+            <ChevronRight data-icon="inline-start" className="text-faint" />
+          ) : (
+            <ChevronDown data-icon="inline-start" className="text-faint" />
+          )}
           <span
             className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
-            style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
+            style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
           />
           <span className="truncate text-ink">{group.title}</span>
         </Button>
       </div>
-      <div role="gridcell" aria-colindex={2} className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
+      <div
+        role="gridcell"
+        aria-colindex={2}
+        className="flex shrink-0 items-center px-3 text-xs text-faint"
+        style={{ width: totalWidth }}
+      >
         {ui.collapsedGroups.includes(group.key)
           ? m.scheduler_group_hidden({ count: group.rows.length })
           : group.external
-            ? '' /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
+            ? "" /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
             : utilizationPrefs.showDiscipline
               ? m.scheduler_group_avg_utilisation({
-                  percent: group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0,
+                  percent: group.rows.length
+                    ? Math.round(
+                        (group.rows.reduce((sum, r) => sum + r.utilization, 0) /
+                          group.rows.length) *
+                          100,
+                      )
+                    : 0,
                 })
-              : ''}
+              : ""}
       </div>
     </div>
-  )
+  );
 
-  const renderRow = (group: GroupModel, row: RowModel, rowIndex: number, key: string) => {
-    const { resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon, dimmed } = row
+  const renderRow = (
+    group: GroupModel,
+    row: RowModel,
+    rowIndex: number,
+    key: string,
+  ) => {
+    const {
+      resource,
+      rowHeight,
+      bars,
+      dayStates,
+      timeOff,
+      utilization: util,
+      overSoon,
+      dimmed,
+    } = row;
     return (
       /* bg-surface on the whole row (not just the sticky header) so the row divider
          sits on ONE background — without it the border crosses the surface left column
@@ -302,14 +473,14 @@ export function SchedulerGrid() {
         data-testid="scheduler-row"
         data-dimmed={dimmed || undefined}
         title={dimmed ? m.scheduler_row_dimmed_title() : undefined}
-        className={`flex border-b border-line-soft bg-surface ${dimmed ? 'opacity-45' : ''}`}
+        className={`flex border-b border-line-soft bg-surface ${dimmed ? "opacity-45" : ""}`}
         style={{ height: rowHeight }}
       >
         <div
           role="rowheader"
           aria-colindex={1}
           className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-surface ps-3 ${
-            resource.kind === 'placeholder' ? 'hatch-lines' : ''
+            resource.kind === "placeholder" ? "hatch-lines" : ""
           }`}
           style={{ width: LAYOUT.leftColWidth }}
         >
@@ -318,29 +489,34 @@ export function SchedulerGrid() {
               1.1.1/1.3.1), so count the over-capacity days (allocated > available) and surface them
               here — the non-colour pair to the red background. */}
           <span className="sr-only">
-            {overSoon ? m.scheduler_sr_overbooked_two_weeks() : ''}
+            {overSoon ? m.scheduler_sr_overbooked_two_weeks() : ""}
             {(() => {
-              const overDays = dayStates.filter((d) => d.over).length
+              const overDays = dayStates.filter((d) => d.over).length;
               return overDays
                 ? overDays > 1
                   ? m.scheduler_sr_over_capacity_other({ count: overDays })
                   : m.scheduler_sr_over_capacity_one({ count: overDays })
-                : ''
+                : "";
             })()}
             {timeOff.length
               ? timeOff.length > 1
                 ? m.scheduler_sr_timeoff_other({ count: timeOff.length })
                 : m.scheduler_sr_timeoff_one({ count: timeOff.length })
-              : ''}
+              : ""}
             {/* The visible utilisation % (right column) conveys its meaning only via a `title` on a
                 non-interactive span, which AT may not expose — fold it into this summary so a SR hears
                 it (WCAG 1.3.1). This is the per-PERSON, visible-window utilisation signal — kept
                 separate from the over-marker count above and the `overSoon` flag; mirrors exactly the
                 visible figure's gate (showPersonal + capacity-tracked). */}
             {utilizationPrefs.showPersonal && isCapacityTracked(resource)
-              ? m.scheduler_sr_utilisation({ percent: Math.round(util * 100), span: visibleWeeksLabel })
-              : ''}
-            {bars.length === 1 ? m.scheduler_sr_allocations_one({ count: bars.length }) : m.scheduler_sr_allocations_other({ count: bars.length })}
+              ? m.scheduler_sr_utilisation({
+                  percent: Math.round(util * 100),
+                  span: visibleWeeksLabel,
+                })
+              : ""}
+            {bars.length === 1
+              ? m.scheduler_sr_allocations_one({ count: bars.length })
+              : m.scheduler_sr_allocations_other({ count: bars.length })}
           </span>
           {/* Avatar + identity, vertically centred within the FIRST lane band
               (rowPadding + barHeight + rowPadding = a single-lane row height) and pinned to
@@ -358,7 +534,7 @@ export function SchedulerGrid() {
             <Avatar
               name={resource.name ?? resource.role}
               color={group.color ?? resource.color}
-              placeholder={resource.kind === 'placeholder'}
+              placeholder={resource.kind === "placeholder"}
             />
             {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
             <div className="ms-1.5 min-w-0 flex-1">
@@ -367,7 +543,9 @@ export function SchedulerGrid() {
                     slot — with its role/discipline shown as secondary text below. */}
                 {resourceDisplayName(resource)}
               </span>
-              <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {resource.role}
+              </span>
             </div>
           </div>
           {/* Right column: the add button and (optionally) the allocation %, stacked.
@@ -380,36 +558,46 @@ export function SchedulerGrid() {
             {/* Viewer (P1.12): no per-row create affordance. Hidden, not disabled — a viewer schedule
                 is display-only. The utilisation % below still renders (a read, not an edit). */}
             {canEdit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                const d = visibleStartDate()
-                setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
-              }}
-              aria-label={m.scheduler_add_allocation_for({ name: resourceDisplayName(resource) })}
-              title={m.scheduler_add_allocation()}
-              className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
-            >
-              <Plus />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  const d = visibleStartDate();
+                  setModal({
+                    kind: "create",
+                    resourceId: resource.id,
+                    startDate: d,
+                    endDate: d,
+                  });
+                }}
+                aria-label={m.scheduler_add_allocation_for({
+                  name: resourceDisplayName(resource),
+                })}
+                title={m.scheduler_add_allocation()}
+                className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
+              >
+                <Plus />
+              </Button>
             )}
             {utilizationPrefs.showPersonal && isCapacityTracked(resource) && (
-            <span
-              data-testid="utilization"
-              title={
-                // The % itself is over the VISIBLE range; the overSoon red flag is the separate
-                // fixed-window "over soon" warning (next UTILIZATION_WINDOW_DAYS days).
-                overSoon
-                  ? m.scheduler_util_title_oversoon({ days: UTILIZATION_WINDOW_DAYS, span: visibleWeeksLabel })
-                  : m.scheduler_util_title({ span: visibleWeeksLabel })
-              }
-              className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
-                overSoon ? 'font-semibold text-danger' : 'text-faint'
-              }`}
-            >
-              {Math.round(util * 100)}%
-            </span>
+              <span
+                data-testid="utilization"
+                title={
+                  // The % itself is over the VISIBLE range; the overSoon red flag is the separate
+                  // fixed-window "over soon" warning (next UTILIZATION_WINDOW_DAYS days).
+                  overSoon
+                    ? m.scheduler_util_title_oversoon({
+                        days: UTILIZATION_WINDOW_DAYS,
+                        span: visibleWeeksLabel,
+                      })
+                    : m.scheduler_util_title({ span: visibleWeeksLabel })
+                }
+                className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
+                  overSoon ? "font-semibold text-danger" : "text-faint"
+                }`}
+              >
+                {Math.round(util * 100)}%
+              </span>
             )}
           </div>
         </div>
@@ -419,7 +607,9 @@ export function SchedulerGrid() {
           // Accessible name for the lane's role="gridcell" (col 2): the timeline cell was
           // previously unnamed. "<name> timeline" names it without duplicating the rowheader's
           // sr-only capacity summary, so the cell reads honestly in the column structure (WCAG 1.3.1).
-          ariaLabel={m.scheduler_lane_aria({ name: resourceDisplayName(resource) })}
+          ariaLabel={m.scheduler_lane_aria({
+            name: resourceDisplayName(resource),
+          })}
           days={days}
           dayStates={dayStates}
           timeOff={timeOff}
@@ -429,7 +619,7 @@ export function SchedulerGrid() {
           origin={ui.originDate}
           rowHeight={rowHeight}
           bars={bars}
-          placeholder={resource.kind === 'placeholder'}
+          placeholder={resource.kind === "placeholder"}
           weekStartsOn={calendarWeekStartsOn}
           // Viewer (P1.12): pass NO edit/draw callbacks — the lane then bails its draw gesture and
           // drops the hover "+" hint (display-only). Editable (null/owner/admin/editor, incl.
@@ -438,27 +628,27 @@ export function SchedulerGrid() {
           onDraw={canEdit ? handleDraw : undefined}
         />
       </div>
-    )
-  }
+    );
+  };
 
   return (
     // A SINGLE shared TooltipProvider for the whole grid: every AllocationBar's popover is a
     // provider-less TooltipRoot, so the provider machinery is paid once here instead of per bar
     // across the virtualised grid (the same hoist pattern as ui/sidebar.tsx).
     <TooltipProvider>
-    {/* h-full passthrough wrapper: holds the scrolling role="grid" plus its sibling live region.
+      {/* h-full passthrough wrapper: holds the scrolling role="grid" plus its sibling live region.
         The grid must own ONLY row/rowgroup children (WCAG aria-required-children), so the polite
         status region lives HERE, a sibling of the grid — not inside it. It's sr-only (position:
         absolute, zero layout), so this wrapper adds no visual change and the grid's h-full still
         resolves against the same definite height it did before. */}
-    <div className="h-full">
-      <div
-        ref={scrollRef}
-        /* overscroll-x-contain: hitting the timeline's left edge must NOT chain into the
+      <div className="h-full">
+        <div
+          ref={scrollRef}
+          /* overscroll-x-contain: hitting the timeline's left edge must NOT chain into the
            page — on macOS that overscroll is the browser's back-swipe, which nukes the app. */
-        className="relative flex h-full flex-col overflow-auto overscroll-x-contain"
-        data-testid="scheduler-grid"
-        /* Signals the active draw mode to CSS: in "timeoff" mode the stylesheet fades the
+          className="relative flex h-full flex-col overflow-auto overscroll-x-contain"
+          data-testid="scheduler-grid"
+          /* Signals the active draw mode to CSS: in "timeoff" mode the stylesheet fades the
            work bars back and makes booked time-off glow, so the toolbar toggle gives an
            immediate, whole-grid response (it otherwise read as a dead button). This VISUAL
            re-skin is a single attribute toggle — purely a CSS reflow, no React re-render of any
@@ -470,125 +660,207 @@ export function SchedulerGrid() {
            ResourceLane's BarsLayer. That layer DOES re-render on toggle — it's the one component that
            subscribes to the mode — but it's a single thin DOM write that hands its bars unchanged
            refs, so the memoised bars bail too.) */
-        data-draw-mode={ui.drawMode}
-        role="grid"
-        aria-label={m.scheduler_grid_aria()}
-        // Two-column grid (WCAG 1.3.1): col 1 = the sticky left resource/utilisation column
-        // (every row's rowheader / the header's columnheader), col 2 = the timeline lane
-        // (the gridcell / the DateHeader columnheader). aria-colcount declares that structure so
-        // the grid honestly exposes the columns it implies; every left cell carries aria-colindex=1
-        // and every right cell aria-colindex=2 below. (Keyboard nav is on the bars — role="button",
-        // not the cells — so these indices are pure structure, not a focus model.)
-        aria-colcount={2}
-        aria-rowcount={items.length + 1}
-        onScroll={onScroll}
-        // Publish the measured sticky-header height so each AllocationBar's scroll-margin-top reserves
-        // the REAL chrome on focus (WCAG 2.4.11), tracking the two-tier header's actual rendered height
-        // (zoom/font-size dependent) instead of the LAYOUT.headerHeight floor. Cast: a CSS custom
-        // property isn't in React's CSSProperties type.
-        style={{ ['--sched-sticky-top' as string]: `${stickyHeaderHeight}px` }}
-      >
-        {/* min-w-max: this is a flex item of the flex-col scroll container, so the
+          data-draw-mode={ui.drawMode}
+          role="grid"
+          aria-label={m.scheduler_grid_aria()}
+          // Two-column grid (WCAG 1.3.1): col 1 = the sticky left resource/utilisation column
+          // (every row's rowheader / the header's columnheader), col 2 = the timeline lane
+          // (the gridcell / the DateHeader columnheader). aria-colcount declares that structure so
+          // the grid honestly exposes the columns it implies; every left cell carries aria-colindex=1
+          // and every right cell aria-colindex=2 below. (Keyboard nav is on the bars — role="button",
+          // not the cells — so these indices are pure structure, not a focus model.)
+          aria-colcount={2}
+          aria-rowcount={items.length + 1 + (model.length === 0 ? 1 : 0)}
+          onScroll={onScroll}
+          // Publish the measured sticky-header height so each AllocationBar's scroll-margin-top reserves
+          // the REAL chrome on focus (WCAG 2.4.11), tracking the two-tier header's actual rendered height
+          // (zoom/font-size dependent) instead of the LAYOUT.headerHeight floor. Cast: a CSS custom
+          // property isn't in React's CSSProperties type.
+          style={{
+            ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
+          }}
+        >
+          {/* min-w-max: this is a flex item of the flex-col scroll container, so the
             default align-items:stretch would clamp its width to the container's cross
             size (the viewport), leaving the wide DateHeader to overflow and only the
             first ~2 weeks painted. Sizing to content makes header + rows span the full
             timeline and scroll together. Same reason on the rowgroup below. */}
-        <div ref={headerRef} role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
           <div
-            role="columnheader"
-            aria-colindex={1}
-            className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
-            style={{ width: LAYOUT.leftColWidth }}
-          >
-            {utilizationPrefs.showTotal && (
-              <>
-                <span
-                  className="text-2xs font-medium uppercase tracking-wide text-faint"
-                  title={m.scheduler_total_util_title({ span: visibleWeeksLabel })}
-                >
-                  {/* The headline % follows the VISIBLE range, so the label tracks the selected zoom
-                      span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
-                  {m.scheduler_total_util_label({ count: ui.zoom })}
-                </span>
-                <span data-testid="overall-utilization" className="text-sm font-semibold">
-                  {overallUtil}%
-                </span>
-              </>
-            )}
-          </div>
-          <DateHeader days={days} dayWidth={dayWidth} geom={geom} weekStartsOn={calendarWeekStartsOn} today={today} />
-        </div>
-
-        {model.length === 0 && (
-          // Empty body, below the still-rendered toolbar + date header, centring the shared EmptyState
-          // (the same icon/heading/subtext/CTA pattern the entity lists use). The grid scrolls
-          // horizontally (its header is min-w-max), so this must be sticky left-0 + bounded to the
-          // measured viewport width (timelineWidth) or the centred card drifts off-screen with the
-          // scroll — and it must be a DIRECT child of the overflow-auto grid for sticky to pin (nested
-          // inside the wide row it did not). role=grid > row > gridcell keeps the a11y tree valid.
-          <div
+            ref={headerRef}
             role="row"
-            data-testid="scheduler-empty"
-            className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
-            style={{ width: timelineWidth || LAYOUT.leftColWidth }}
+            aria-rowindex={1}
+            className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface"
+            style={{ minHeight: LAYOUT.headerHeight }}
           >
-            <div role="gridcell" aria-colindex={1} aria-colspan={2} className="flex items-center justify-center">
-              {filtersActive ? (
-                // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
-                // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
-                // empty — without a focusable child, axe flags scrollable-region-focusable.
-                <EmptyState
-                  icon={SlidersHorizontal}
-                  description={m.scheduler_empty_filtered_desc()}
-                  action={{ label: m.scheduler_empty_clear_filters(), onClick: () => clearFilters() }}
-                >
-                  {m.scheduler_empty_filtered_title()}
-                </EmptyState>
-              ) : (
-                <EmptyState
-                  icon={Users}
-                  description={m.scheduler_empty_desc()}
-                  action={{ label: m.scheduler_empty_go_resources(), onClick: () => void navigate('/resources') }}
-                >
-                  {m.scheduler_empty_title()}
-                </EmptyState>
+            <div
+              role="columnheader"
+              aria-colindex={1}
+              aria-label={m.scheduler_resources_column()}
+              className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
+              style={{ width: LAYOUT.leftColWidth }}
+            >
+              {utilizationPrefs.showTotal && (
+                <>
+                  <span
+                    className="text-2xs font-medium uppercase tracking-wide text-faint"
+                    title={m.scheduler_total_util_title({
+                      span: visibleWeeksLabel,
+                    })}
+                  >
+                    {/* The headline % follows the VISIBLE range, so the label tracks the selected zoom
+                      span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
+                    {m.scheduler_total_util_label({ count: ui.zoom })}
+                  </span>
+                  <span
+                    data-testid="overall-utilization"
+                    className="text-sm font-semibold"
+                  >
+                    {overallUtil}%
+                  </span>
+                </>
               )}
             </div>
-          </div>
-        )}
-
-        {items.length > 0 && (
-          <div role="rowgroup" className="min-w-max shrink-0">
-            {/* Spacer reserving the scroll height of the rows above the rendered slice. */}
-            {topPad > 0 && <div aria-hidden style={{ height: topPad }} />}
-            {visible.map((item, i) => {
-              // aria-rowindex is 1-based and global: header is 1, so items start at 2.
-              const rowIndex = first + i + 2
-              return item.kind === 'group'
-                ? renderGroupHeader(item.group, rowIndex, `g-${item.group.key}`)
-                : renderRow(item.group, item.row, rowIndex, `r-${item.row.resource.id}`)
-            })}
-            {bottomPad > 0 && <div aria-hidden style={{ height: bottomPad }} />}
-          </div>
-        )}
-
-        {modal &&
-          (modal.kind === 'edit' ? (
-            <AllocationModal allocationId={modal.allocationId} onClose={() => setModal(null)} />
-          ) : modal.kind === 'timeoff' ? (
-            <TimeOffForm
-              defaults={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
-              onClose={() => setModal(null)}
+            <DateHeader
+              days={days}
+              dayWidth={dayWidth}
+              geom={geom}
+              weekStartsOn={calendarWeekStartsOn}
+              today={today}
             />
-          ) : (
-            <AllocationModal
-              create={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
-              onClose={() => setModal(null)}
-            />
-          ))}
-      </div>
+          </div>
 
-      {/* WCAG 4.1.3 (Status Messages): the SINGLE scheduler live region. A keyboard move/resize on a
+          {model.length === 0 && (
+            // Empty body, below the still-rendered toolbar + date header, centring the shared EmptyState
+            // (the same icon/heading/subtext/CTA pattern the entity lists use). The grid scrolls
+            // horizontally (its header is min-w-max), so this must be sticky left-0 + bounded to the
+            // measured viewport width (timelineWidth) or the centred card drifts off-screen with the
+            // scroll — and it must be a DIRECT child of the overflow-auto grid for sticky to pin (nested
+            // inside the wide row it did not). role=grid > row > gridcell keeps the a11y tree valid.
+            <div
+              role="row"
+              aria-rowindex={2}
+              data-testid="scheduler-empty"
+              className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
+              style={{ width: timelineWidth || LAYOUT.leftColWidth }}
+            >
+              <div
+                role="gridcell"
+                aria-colindex={1}
+                aria-colspan={2}
+                className="flex items-center justify-center"
+              >
+                {filtersActive ? (
+                  // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
+                  // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
+                  // empty — without a focusable child, axe flags scrollable-region-focusable.
+                  <EmptyState
+                    icon={SlidersHorizontal}
+                    description={m.scheduler_empty_filtered_desc()}
+                    action={{
+                      label: m.scheduler_empty_clear_filters(),
+                      onClick: () => clearFilters(),
+                    }}
+                  >
+                    {m.scheduler_empty_filtered_title()}
+                  </EmptyState>
+                ) : (
+                  <EmptyState
+                    icon={Users}
+                    description={m.scheduler_empty_desc()}
+                    action={{
+                      label: m.scheduler_empty_go_resources(),
+                      onClick: () => void navigate("/resources"),
+                    }}
+                  >
+                    {m.scheduler_empty_title()}
+                  </EmptyState>
+                )}
+              </div>
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div role="rowgroup" className="min-w-max shrink-0">
+              {renderedIndices.map((itemIndex, position) => {
+                const item = items[itemIndex];
+                if (!item) return null;
+                const previousIndex = renderedIndices[position - 1];
+                const previousBottom =
+                  previousIndex === undefined
+                    ? 0
+                    : (layout.tops[previousIndex] ?? 0) +
+                      (heights[previousIndex] ?? 0);
+                const gap = Math.max(
+                  0,
+                  (layout.tops[itemIndex] ?? 0) - previousBottom,
+                );
+                // aria-rowindex is 1-based and global: header is 1, so items start at 2.
+                const rowIndex = itemIndex + 2;
+                const rendered =
+                  item.kind === "group"
+                    ? renderGroupHeader(
+                        item.group,
+                        rowIndex,
+                        `g-${item.group.key}`,
+                      )
+                    : renderRow(
+                        item.group,
+                        item.row,
+                        rowIndex,
+                        `r-${item.row.resource.id}`,
+                      );
+                return (
+                  <Fragment key={`window-${itemIndex}`}>
+                    {gap > 0 && <div aria-hidden style={{ height: gap }} />}
+                    {rendered}
+                  </Fragment>
+                );
+              })}
+              {renderedIndices.length > 0 &&
+                (() => {
+                  const finalIndex =
+                    renderedIndices[renderedIndices.length - 1];
+                  const renderedBottom =
+                    (layout.tops[finalIndex] ?? 0) + (heights[finalIndex] ?? 0);
+                  const gap = Math.max(0, layout.total - renderedBottom);
+                  return gap > 0 ? (
+                    <div aria-hidden style={{ height: gap }} />
+                  ) : null;
+                })()}
+            </div>
+          )}
+
+          {modal && (
+            <Suspense fallback={null}>
+              {modal.kind === "edit" ? (
+                <AllocationModal
+                  allocationId={modal.allocationId}
+                  onClose={() => setModal(null)}
+                />
+              ) : modal.kind === "timeoff" ? (
+                <TimeOffForm
+                  defaults={{
+                    resourceId: modal.resourceId,
+                    startDate: modal.startDate,
+                    endDate: modal.endDate,
+                  }}
+                  onClose={() => setModal(null)}
+                />
+              ) : (
+                <AllocationModal
+                  create={{
+                    resourceId: modal.resourceId,
+                    startDate: modal.startDate,
+                    endDate: modal.endDate,
+                  }}
+                  onClose={() => setModal(null)}
+                />
+              )}
+            </Suspense>
+          )}
+        </div>
+
+        {/* WCAG 4.1.3 (Status Messages): the SINGLE scheduler live region. A keyboard move/resize on a
           bar recomputes over-capacity and silently mutates the per-row sr-only summary while focus
           stays on the bar — this polite region speaks the recomputed outcome for the affected
           resource so a screen-reader user gets feedback on their own edit. `polite` (not assertive)
@@ -599,10 +871,18 @@ export function SchedulerGrid() {
           It is a SIBLING of role="grid" (a grid may own only row/rowgroup children — WCAG
           aria-required-children — and role="status" is neither), kept mounted unconditionally
           alongside the grid so an announcement always lands. */}
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="scheduler-live-region">
-        {srAnnouncement && <span key={srAnnouncement.seq}>{srAnnouncement.text}</span>}
+        <div
+          className="sr-only"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="scheduler-live-region"
+        >
+          {srAnnouncement && (
+            <span key={srAnnouncement.seq}>{srAnnouncement.text}</span>
+          )}
+        </div>
       </div>
-    </div>
     </TooltipProvider>
-  )
+  );
 }

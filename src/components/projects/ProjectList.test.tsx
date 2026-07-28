@@ -68,7 +68,8 @@ describe('ProjectList', () => {
   it('shows the Archive ConfirmDialog when the archive button is clicked', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
-    useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
+    const project = useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
+    useStore.getState().addPhase({ name: 'Discovery', projectId: project.id })
 
     render(<ProjectList />)
 
@@ -78,6 +79,9 @@ describe('ProjectList', () => {
     expect(dialog).toBeInTheDocument()
     expect(dialog).toHaveTextContent(/Archive "Doomed Project"/)
     expect(dialog).toHaveTextContent(/Archived & deleted/)
+    expect(dialog).toHaveTextContent(
+      'This also hides 1 phase(s) and 0 allocation(s) from the schedule; restore the project to bring them back.',
+    )
   })
 
   it('keeps exactly one quote pair around a redacted private code name in confirmation copy', async () => {

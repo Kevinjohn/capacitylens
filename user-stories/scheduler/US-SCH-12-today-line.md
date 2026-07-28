@@ -19,3 +19,5 @@ A vertical line marks today's date on the timeline whenever today falls within t
 - ✅ When today is within the visible range, a vertical **today line** is drawn at today's column.
 - ✅ When the visible range does **not** include today, the today line is **absent** (not drawn).
 - ✅ Returning to a range that includes today (e.g. **Today**) brings the line back.
+- ✅ A mounted schedule advances the marker at the company's local midnight and refreshes it
+  immediately when a backgrounded or cached page resumes.

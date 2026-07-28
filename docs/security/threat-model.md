@@ -51,9 +51,9 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 
 | Threat | Principal controls | Verification |
 |---|---|---|
-| BOLA/IDOR or cross-tenant mutation | Membership fetched server-side for each operation; every scoped entity has `accountId`; row/reference validation fails closed when a project-bound allocation cannot resolve its project in the same account; cross-account tests | `app.authz`, `app.members`, tenant-store, route and shared mutation tests |
+| BOLA/IDOR or cross-tenant mutation | Membership fetched server-side for each operation; every scoped entity has `accountId`; row-addressed generic writes make absent and foreign ids response-indistinguishable; row/reference validation fails closed when a project-bound allocation cannot resolve its project in the same account; cross-account tests | `app.authz`, `app.members`, tenant-store, route and shared mutation tests |
 | Function/field privilege escalation | Central action matrix; protected-name projection/preservation; owner-only import; fresh session for privileged actions | access, privacy and route tests |
-| Credential stuffing/password cracking | Positive global/API throttling; five-attempt MFA lock; 15–128 characters; HIBP range check; scrypt `N=2^17,r=8,p=1`; no default password | password/auth/rate-limit tests |
+| Credential stuffing/password cracking | Positive global/API throttling; five-attempt MFA lock; 15–128 Unicode code points; HIBP range check; scrypt `N=2^17,r=8,p=1`; no default password | password/auth/rate-limit tests |
 | Password-only account takeover | Opt-in required TOTP wall before tenant data; otherwise long passwords, HIBP by default, scrypt, throttling and bounded/revocable sessions; one-time MFA recovery codes | real auth integration and UI tests |
 | Session theft/fixation | Secure HttpOnly SameSite `__Host-` cookies; new token on auth; fixed 12-hour and 30-minute idle limits; revocation/reset invalidation; session inventory | auth and member revocation tests |
 | CSRF and cross-origin data use | Unsafe-method Origin/Sec-Fetch-Site rejection; exact configured or trusted-proxy-derived same origin; SameSite cookie; safe HTTP methods | CSRF/CORS and packaged-proxy tests |

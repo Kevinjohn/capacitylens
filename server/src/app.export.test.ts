@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
-import { buildApp } from './app'
-import { openDb, insertAll, type Db } from './db'
+import { buildApp as buildAppRaw } from './app'
+import { openDb as openDbRaw, insertAll, type Db } from './db'
 import { upsertMember, createInvite, newInviteId } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
-import { PASSWORD_ENV, signUp } from './testHelpers'
+import { PASSWORD_ENV, signUp, registerServerFixtureCleanup } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 // P2.6a — TEST-LOCK for the COMPLETE PER-TENANT EXPORT.
@@ -23,6 +23,11 @@ import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 // the export's privilege boundary is asserted alongside its payload guarantees.
 
 const TS = '2026-01-01T00:00:00.000Z'
+const fixtures = registerServerFixtureCleanup()
+const openDb = (...args: Parameters<typeof openDbRaw>) =>
+  fixtures.trackDb(openDbRaw(...args))
+const buildApp = (...args: Parameters<typeof buildAppRaw>) =>
+  fixtures.trackApp(buildAppRaw(...args))
 const meta = () => ({ createdAt: TS, updatedAt: TS })
 const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
 const person = (id: string, accountId: string, extra: Record<string, unknown> = {}) => ({

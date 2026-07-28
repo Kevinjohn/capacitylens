@@ -11,10 +11,12 @@ import {
   obfuscateResource,
   activeOnly,
   archiveImpact,
+  inspectLifecycleAncestry,
   isLifecycleEntityKey,
   PURGE_MIN_AGE_DAYS,
+  LifecycleTransitionError,
 } from './lifecycle'
-import type { LifecycleState, LifecycleFields } from './lifecycle'
+import type { LifecycleAncestryLookup, LifecycleAncestryRow, LifecycleState, LifecycleFields } from './lifecycle'
 import { emptyAppData } from '../types/entities'
 import type { AppData, Resource } from '../types/entities'
 
@@ -59,6 +61,10 @@ describe('lifecycleStatus — derive state from tombstones (deletedAt wins)', ()
       'active',
     )
   })
+  it('derives the nearest valid state from malformed legacy tombstones', () => {
+    expect(lifecycleStatus({ archivedAt: T_ARCH, deletedAt: 'not-a-date' })).toBe('archived')
+    expect(lifecycleStatus({ archivedAt: '', deletedAt: 'not-a-date' })).toBe('active')
+  })
 })
 
 describe('can* predicates — full truth table over active/archived/deleted', () => {
@@ -102,11 +108,29 @@ describe('archive — active → archived (immutable, fail-loud)', () => {
     expect(input.archivedAt).toBeUndefined()
     expect(lifecycleStatus(input)).toBe('active')
   })
+  it('replaces malformed legacy tombstones when archiving the recovered active state', () => {
+    const result = archive({ ...makeActive(), archivedAt: '', deletedAt: 'not-a-date' }, NOW)
+    expect(result.archivedAt).toBe(NOW)
+    expect(result).not.toHaveProperty('deletedAt')
+    expect(lifecycleStatus(result)).toBe('archived')
+  })
   it('from archived: throws (no re-archive)', () => {
-    expect(() => archive(makeArchived(), NOW)).toThrow(/already archived/)
+    expect(() => archive(makeArchived(), NOW)).toThrow(expect.objectContaining({
+      name: 'LifecycleTransitionError',
+      code: 'already_inactive',
+      message: expect.stringMatching(/already archived/),
+    }) as LifecycleTransitionError)
   })
   it('from deleted: throws', () => {
-    expect(() => archive(makeDeleted(), NOW)).toThrow(/already deleted/)
+    expect(() => archive(makeDeleted(), NOW)).toThrow(expect.objectContaining({
+      name: 'LifecycleTransitionError',
+      code: 'invalid_transition',
+      message: expect.stringMatching(/already deleted/),
+    }) as LifecycleTransitionError)
+  })
+  it('rejects an invalid archive timestamp and canonicalizes an explicit offset', () => {
+    expect(() => archive(makeActive(), 'not-a-timestamp')).toThrow(/valid ISO timestamp/)
+    expect(archive(makeActive(), '2026-06-01T01:00:00+01:00').archivedAt).toBe(NOW)
   })
 })
 
@@ -135,6 +159,12 @@ describe('unarchive — archived → active (clears archivedAt as ABSENT, immuta
   it('from deleted: throws (cannot unarchive a tombstone)', () => {
     expect(() => unarchive(makeDeleted())).toThrow(/not archived/)
   })
+  it('recovers an archived row carrying a malformed deletion tombstone', () => {
+    const result = unarchive({ ...makeArchived(), deletedAt: 'not-a-date' })
+    expect(result).not.toHaveProperty('archivedAt')
+    expect(result).not.toHaveProperty('deletedAt')
+    expect(lifecycleStatus(result)).toBe('active')
+  })
 })
 
 describe('softDelete — archived → deleted (preserves archivedAt, immutable, fail-loud)', () => {
@@ -158,6 +188,20 @@ describe('softDelete — archived → deleted (preserves archivedAt, immutable, 
   it('from deleted: throws (no re-delete)', () => {
     expect(() => softDelete(makeDeleted(), NOW)).toThrow(/archived first/)
   })
+
+  it('never records deletion before a future archive when the caller clock moves backward', () => {
+    const futureArchive = '2099-01-01T00:00:00.000Z'
+    const result = softDelete({ ...makeArchived(), archivedAt: futureArchive }, NOW)
+
+    expect(result.archivedAt).toBe(futureArchive)
+    expect(result.deletedAt).toBe(futureArchive)
+  })
+
+  it('rejects malformed transition and archive timestamps', () => {
+    expect(() => softDelete(makeArchived(), 'not-a-timestamp')).toThrow(/valid ISO timestamp/)
+    expect(() => softDelete({ ...makeArchived(), archivedAt: 'not-a-timestamp' }, NOW))
+      .toThrow(/archived first/)
+  })
 })
 
 describe('canPurge — deleted + age ≥ 30d, fail-closed', () => {
@@ -179,6 +223,12 @@ describe('canPurge — deleted + age ≥ 30d, fail-closed', () => {
   it('deleted but deletedAt is unparseable garbage → false (fail-closed)', () => {
     expect(canPurge({ deletedAt: 'not-a-date' }, nowAfterDelete(365))).toBe(false)
   })
+  it.each(['0', '01/01/2000', '2026-02-29T00:00:00Z'])(
+    'deleted but deletedAt is Date.parse-compatible non-ISO %s → false (fail-closed)',
+    (deletedAt) => {
+      expect(canPurge({ deletedAt }, NOW)).toBe(false)
+    },
+  )
   it('deleted but nowISO is garbage → false (fail-closed)', () => {
     expect(canPurge(makeDeleted(), 'not-a-date')).toBe(false)
   })
@@ -397,6 +447,37 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.accounts).toBe(input.accounts)
   })
 
+  it('identifies the exact inactive ancestor inherited through every projection edge', () => {
+    const input = mixedData()
+    const lookup: LifecycleAncestryLookup = (table, id) =>
+      (input[table] as unknown as LifecycleAncestryRow[]).find((row) => row.id === id)
+    const inspect = (table: Parameters<typeof inspectLifecycleAncestry>[0], id: string) => {
+      const row = lookup(table, id)
+      if (!row) throw new Error(`Missing lifecycle test row ${table}.${id}`)
+      return inspectLifecycleAncestry(table, row, lookup)
+    }
+
+    expect(inspect('projects', 'p-hidden-parent').inactiveAncestor).toMatchObject({
+      table: 'clients', id: 'c-archived', state: 'archived',
+    })
+    expect(inspect('phases', 'ph-hidden').inactiveAncestor).toMatchObject({
+      table: 'clients', id: 'c-archived', state: 'archived',
+    })
+    expect(inspect('activities', 'act-hidden').inactiveAncestor).toMatchObject({
+      table: 'clients', id: 'c-archived', state: 'archived',
+    })
+    expect(inspect('allocations', 'al-hidden-activity').inactiveAncestor).toMatchObject({
+      table: 'clients', id: 'c-archived', state: 'archived',
+    })
+    expect(inspect('allocations', 'al-hidden-resource').inactiveAncestor).toMatchObject({
+      table: 'resources', id: 'r-archived', state: 'archived',
+    })
+    expect(inspect('timeOff', 'to-hidden').inactiveAncestor).toMatchObject({
+      table: 'resources', id: 'r-archived', state: 'archived',
+    })
+    expect(inspect('allocations', 'al1')).toEqual({ visible: true })
+  })
+
   it('does NOT mutate the input (deep-equal the original) and returns a NEW object', () => {
     const input = mixedData()
     const snapshot = structuredClone(input)
@@ -448,6 +529,9 @@ describe('archiveImpact', () => {
       projects: [
         { id: 'p1', accountId: A, name: 'P1', clientId: 'c1', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
       ],
+      phases: [
+        { id: 'ph1', accountId: A, name: 'Discovery', projectId: 'p1', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
       activities: [
         { id: 'a1', accountId: A, name: 'A1', kind: 'project', projectId: 'p1', createdAt: T_ARCH, updatedAt: T_ARCH },
         { id: 'internal', accountId: A, name: 'Admin', kind: 'internal', createdAt: T_ARCH, updatedAt: T_ARCH },
@@ -464,19 +548,19 @@ describe('archiveImpact', () => {
 
   it('counts a client’s active descendants: its projects + their project-activities + allocations', () => {
     // al-internal stays (its activity is internal, not under c1); to1 is a resource descendant.
-    expect(archiveImpact(base(), 'clients', 'c1')).toEqual({ projects: 1, activities: 1, allocations: 1, timeOff: 0 })
+    expect(archiveImpact(base(), 'clients', 'c1')).toEqual({ projects: 1, phases: 1, activities: 1, allocations: 1, timeOff: 0 })
   })
 
   it('reports zero descendants for an empty client', () => {
-    expect(archiveImpact(base(), 'clients', 'c-empty')).toEqual({ projects: 0, activities: 0, allocations: 0, timeOff: 0 })
+    expect(archiveImpact(base(), 'clients', 'c-empty')).toEqual({ projects: 0, phases: 0, activities: 0, allocations: 0, timeOff: 0 })
   })
 
   it('for a project: activities + allocations, and NEVER a self project count', () => {
-    expect(archiveImpact(base(), 'projects', 'p1')).toEqual({ projects: 0, activities: 1, allocations: 1, timeOff: 0 })
+    expect(archiveImpact(base(), 'projects', 'p1')).toEqual({ projects: 0, phases: 1, activities: 1, allocations: 1, timeOff: 0 })
   })
 
   it('for a resource: all its allocations (incl. the internal-activity one) + its time off', () => {
-    expect(archiveImpact(base(), 'resources', 'r1')).toEqual({ projects: 0, activities: 0, allocations: 2, timeOff: 1 })
+    expect(archiveImpact(base(), 'resources', 'r1')).toEqual({ projects: 0, phases: 0, activities: 0, allocations: 2, timeOff: 1 })
   })
 
   it('does NOT mutate the input', () => {

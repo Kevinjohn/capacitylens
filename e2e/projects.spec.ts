@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openApp, selectShadOption } from './helpers'
 
 // Covers US-PRJ-01..04.

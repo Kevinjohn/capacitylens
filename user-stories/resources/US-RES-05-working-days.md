@@ -26,7 +26,8 @@ them, so nobody plans work into a day the person never works.
   `aria-pressed` (Mon–Wed on; Thu/Fri/Sat/Sun off).
 - ✅ On the timeline at fine zoom, Alex's **Thu** and **Fri** columns are greyed as
   unavailable days (`data-testid="unavailable-day"`).
-- ✅ A non-working day carries **0** capacity: any work landing on Alex's Thu/Fri reads as
-  over-allocated (a red `over-marker` on that day / a red `utilization` value), because
-  available hours there are 0.
+- ✅ A non-working day carries **0** capacity. A normal allocation that merely spans Alex's
+  Thu/Fri contributes **0 allocated hours** there, so those days stay grey but are not red.
+  An allocation that explicitly enables **Include weekends as working days** does place its hours
+  on those zero-capacity days, which then show a red `over-marker` / `utilization` value.
 - ✅ Toggling, e.g., **Thu** on and saving makes that column available (no longer greyed).

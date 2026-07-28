@@ -58,10 +58,12 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Icon-only buttons and simple hover hints use the native `title=` attribute by default. Reserve the
   Radix-based `Tooltip` in `ui/tooltip.tsx` for cases needing styled, delayed, or keyboard-accessible
   rich content (e.g. the collapsed sidebar rail in `AppSidebar`). This split is deliberate.
-- `src/components/ui/button.tsx` and `ui/badge.tsx` carry deliberate local extensions over upstream
-  shadcn (button: `danger-soft` variant, `xs`/`icon-xs`/`icon-sm`/`icon-lg` sizes, a retinted
-  `default` variant onto project ok-strong tokens; badge: AA-tuned `danger`/`warn` variants).
-  Re-pulling either via `npx shadcn add` must diff and re-merge, never overwrite.
+- The checked-in `src/components/ui/*` primitives are source-owned and may deliberately differ from
+  the current shadcn registry in tokens, composition or exported surface. Every local deviation must
+  carry an adjacent comment explaining why. Before re-pulling any installed primitive with
+  `pnpm dlx shadcn add`, use the CLI dry-run/diff workflow and re-merge local behavior; never
+  overwrite blindly. In particular, `button.tsx` adds `danger-soft`, custom icon sizes and retints
+  `default`, while `badge.tsx` carries AA-tuned `danger`/`warn` variants.
 - Use the z-index tokens in `src/index.css` rather than ad hoc `z-[N]` values for global layers.
 
 ## Documentation

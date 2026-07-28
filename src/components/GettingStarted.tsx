@@ -69,9 +69,19 @@ export function GettingStarted() {
  *  seeded/established account never sees it). Kept out of the exported gate above — see there. */
 function GettingStartedCard() {
   const setDismissed = useStore((s) => s.setGettingStartedDismissed)
+  const setNotice = useStore((s) => s.setNotice)
   const activeRole = useRole()
   const data = useActiveScopedData()
   const steps = deriveGettingStartedSteps(data)
+
+  const showTour = async (): Promise<void> => {
+    try {
+      await startTour()
+    } catch (error) {
+      console.error('GettingStarted: tour failed to start', error)
+      setNotice(m.gs_tour_failed(), 'error')
+    }
+  }
 
   if (allStepsDone(steps)) return null
 
@@ -102,7 +112,7 @@ function GettingStartedCard() {
         )}
       </CardContent>
       <CardFooter className="gap-2 px-4">
-        <Button size="sm" onClick={() => void startTour()} data-testid="getting-started-tour">
+        <Button size="sm" onClick={() => void showTour()} data-testid="getting-started-tour">
           {m.gs_show_me_around()}
         </Button>
         <Button size="sm" variant="outline" onClick={() => setDismissed(true)} data-testid="getting-started-dismiss">

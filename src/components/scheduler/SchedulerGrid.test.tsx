@@ -20,6 +20,7 @@ function dataset(): AppData {
     disciplines: [{ id: 'd1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 }],
     resources: [
       { id: 'r1', accountId: ACC, createdAt: 't', updatedAt: 't', kind: 'person', name: 'Tyler', role: 'Designer', disciplineId: 'd1', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111' },
+      { id: 'r-ext', accountId: ACC, createdAt: 't', updatedAt: 't', kind: 'external', name: 'Northstar Partners', role: 'Partner studio', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#999' },
     ],
     clients: [{ id: 'c1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Acme', color: '#222' }],
     projects: [{ id: 'p1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' }],
@@ -37,11 +38,21 @@ beforeEach(() => {
   useStore.getState().setActiveAccount(ACC)
   useStore.getState().setOriginDate('2026-06-01')
   useStore.getState().setZoom(1) // widest columns
+  useStore.getState().setUtilizationPref('showTotal', true)
   useStore.getState().clearFilters()
-  useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [] } }))
+  useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }))
 })
 
 describe('SchedulerGrid', () => {
+  it('names the resource column when the optional total utilisation is hidden', () => {
+    useStore.getState().setUtilizationPref('showTotal', false)
+
+    renderGrid()
+
+    expect(screen.getByRole('columnheader', { name: 'Resources' })).toHaveAttribute('aria-colindex', '1')
+    expect(screen.queryByTestId('overall-utilization')).not.toBeInTheDocument()
+  })
+
   it('positions a bar by start date with inclusive width', () => {
     renderGrid()
     const bar = screen.getByTestId('allocation-bar')
@@ -57,6 +68,49 @@ describe('SchedulerGrid', () => {
     expect(screen.getByText('Design')).toBeInTheDocument()
     expect(screen.getByText('Tyler')).toBeInTheDocument()
     expect(screen.getByText(/Wireframes/)).toBeInTheDocument()
+  })
+
+  it('keeps the dragged source mounted while vertical windowing exposes a distant target', () => {
+    const base = dataset()
+    const resources = Array.from({ length: 100 }, (_, index) => ({
+      ...base.resources[0],
+      id: `r${index}`,
+      name: `Person ${index}`,
+    }))
+    useStore.getState().replaceAll({
+      ...base,
+      resources,
+      allocations: [{ ...base.allocations[0], resourceId: 'r0' }],
+    })
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 })
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 180 })
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 1
+    })
+
+    const view = renderGrid()
+    try {
+      expect(document.querySelector('[data-resource-id="r0"]')).not.toBeNull()
+      expect(document.querySelector('[data-resource-id="r99"]')).toBeNull()
+
+      act(() => useStore.setState({ draggingAllocationId: 'a1' }))
+      const grid = screen.getByTestId('scheduler-grid')
+      act(() => {
+        grid.scrollTop = 100_000
+        grid.dispatchEvent(new Event('scroll'))
+      })
+
+      expect(document.querySelector('[data-resource-id="r99"]')).not.toBeNull()
+      expect(document.querySelector('[data-resource-id="r0"]')).not.toBeNull()
+      expect(screen.getByTestId('allocation-bar')).toBeInTheDocument()
+    } finally {
+      view.unmount()
+      rafSpy.mockRestore()
+      delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth
+      delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight
+      useStore.setState({ draggingAllocationId: null })
+    }
   })
 
   it('exposes grid semantics + an sr-only capacity summary for screen readers', () => {
@@ -82,6 +136,55 @@ describe('SchedulerGrid', () => {
     renderGrid()
     expect(screen.getAllByTestId('over-marker').length).toBeGreaterThan(0)
     expect(screen.getAllByTestId('utilization').length).toBeGreaterThan(0)
+  })
+
+  it('does not replay a handled resource jump after a later model change', () => {
+    renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+
+    act(() => useStore.getState().jumpToResource('r1'))
+    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight)
+    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true)
+
+    act(() => {
+      grid.scrollTop = 777
+      useStore.getState().addAllocation({
+        resourceId: 'r1',
+        activityId: 't1',
+        startDate: '2026-06-03',
+        endDate: '2026-06-03',
+        hoursPerDay: 1,
+        status: 'confirmed',
+      })
+    })
+
+    expect(grid.scrollTop).toBe(777)
+  })
+
+  it('expands a collapsed discipline before scrolling to its resource', () => {
+    useStore.getState().toggleGroup('d1')
+    renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+    grid.scrollTop = 444
+
+    act(() => useStore.getState().jumpToResource('r1'))
+    expect(useStore.getState().ui.collapsedGroups).not.toContain('d1')
+    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight)
+    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true)
+  })
+
+  it('expands the collapsed External band before scrolling to its resource', () => {
+    useStore.getState().updateAccount(ACC, { externalEnabled: true })
+    useStore.getState().toggleGroup('external')
+    renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+    grid.scrollTop = 444
+
+    act(() => useStore.getState().jumpToResource('r-ext'))
+    expect(useStore.getState().ui.collapsedGroups).not.toContain('external')
+    expect(screen.getByText('Northstar Partners')).toBeInTheDocument()
+    expect(grid.scrollTop).not.toBe(444)
+    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true)
   })
 })
 
@@ -134,6 +237,76 @@ describe('SchedulerGrid visible-window utilisation', () => {
   })
 })
 
+describe('SchedulerGrid account-local day rollover', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    const data = dataset()
+    data.accounts = data.accounts.map((account) => ({ ...account, timezone: 'Pacific/Kiritimati' }))
+    data.allocations.push({
+      id: 'boundary-over',
+      accountId: ACC,
+      createdAt: 't',
+      updatedAt: 't',
+      resourceId: 'r1',
+      activityId: 't1',
+      startDate: '2026-06-15',
+      endDate: '2026-06-15',
+      hoursPerDay: 9,
+      status: 'confirmed',
+    })
+    useStore.getState().replaceAll(data)
+    useStore.getState().setActiveAccount(ACC)
+    useStore.setState((state) => ({
+      ui: { ...state.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1 },
+    }))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('advances the today marker and fixed over-soon window at company-local midnight', () => {
+    // Pacific/Kiritimati is UTC+14: this instant is 23:59:59 on 1 June for the account even when
+    // the test host is in another timezone.
+    vi.setSystemTime(new Date('2026-06-01T09:59:59.000Z'))
+    const view = renderGrid()
+    const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft')
+    expect(currentHeader()).toHaveTextContent('1')
+    const lineBefore = screen.getByTestId('today-line').style.left
+    expect(screen.queryByText(/Overbooked in the next two weeks/)).not.toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(2_000)
+    })
+
+    expect(currentHeader()).toHaveTextContent('2')
+    expect(screen.getByTestId('today-line').style.left).not.toBe(lineBefore)
+    expect(screen.getByText(/Overbooked in the next two weeks/)).toBeInTheDocument()
+  })
+
+  it('refreshes immediately when a visible page resumes without its timer firing', () => {
+    vi.setSystemTime(new Date('2026-06-01T00:00:00.000Z'))
+    useStore.getState().updateAccount(ACC, { timezone: 'Etc/GMT' })
+    const view = renderGrid()
+    const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft')
+    expect(currentHeader()).toHaveTextContent('1')
+
+    vi.setSystemTime(new Date('2026-06-02T12:00:00.000Z'))
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(currentHeader()).toHaveTextContent('2')
+
+    vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'))
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow'))
+    })
+    expect(currentHeader()).toHaveTextContent('3')
+    visibility.mockRestore()
+  })
+})
+
 describe('SchedulerGrid filters', () => {
   it('hides tentative allocations when "hide tentative" is on', () => {
     useStore.getState().addAllocation({
@@ -151,7 +324,11 @@ describe('SchedulerGrid filters', () => {
   it('shows an empty state when the search matches nobody', () => {
     useStore.getState().setFilters({ search: 'no-such-person' })
     renderGrid()
-    expect(screen.getByTestId('scheduler-empty')).toBeInTheDocument()
+    const emptyRow = screen.getByTestId('scheduler-empty')
+    const grid = screen.getByRole('grid', { name: 'Resource schedule' })
+    expect(emptyRow).toBeInTheDocument()
+    expect(emptyRow).toHaveAttribute('aria-rowindex', '2')
+    expect(grid).toHaveAttribute('aria-rowcount', String(screen.getAllByRole('row').length))
   })
 
   it('collapsing a discipline hides its rows but keeps the header', () => {

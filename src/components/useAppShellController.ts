@@ -7,12 +7,18 @@ import { useAccountSummaries } from '../auth/useAccountSummaries'
 import { AUDIT_WARNING_EVENT } from '../lib/auditWarning'
 import { readJoinedAccountHandoff } from '../lib/joinedAccountHandoff'
 import { LINKS } from '../lib/navLinks'
+import { hasOpenModal, textEntryOwnsShortcut } from '../lib/shortcutGuards'
 import { hasUnsavedPersistenceWrites } from '../data/persist'
 import { useStore } from '../store/useStore'
+import { useAuth } from '../auth/authContext'
 
 /** Owns AppShell's bootstrap handoff, global effects, shortcuts and notice bridge. */
 export function useAppShellController() {
-  useAccountSummaries()
+  const { authMode } = useAuth()
+  // In auth-on mode PermissionProvider owns the active-account refresh and publishes the same
+  // validated list to the store. The shell hook still owns picker reads; auth-off has no permission
+  // lookup, so it continues refreshing the active directory itself.
+  useAccountSummaries({ refreshActiveAccount: authMode === 'off' })
   const notice = useStore((state) => state.notice)
   const setNotice = useStore((state) => state.setNotice)
   const dirtyForm = useStore((state) => state.dirtyForm)
@@ -20,6 +26,7 @@ export function useAppShellController() {
   const redo = useStore((state) => state.redo)
   const accounts = useStore((state) => state.data.accounts)
   const accountSummaries = useStore((state) => state.accountSummaries)
+  const hydrated = useStore((state) => state.hydrated)
   const activeAccountId = useStore((state) => state.activeAccountId)
   const setActiveAccount = useStore((state) => state.setActiveAccount)
   const { pathname, search, hash } = useLocation()
@@ -27,6 +34,7 @@ export function useAppShellController() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [joinedAccountHandoff] = useState(() => readJoinedAccountHandoff(search))
   const joinedAccountUrlCleaned = useRef(false)
+  const joinedAccountHandoffConsumed = useRef(false)
   const activeLanguage = accounts.find((account) => account.id === activeAccountId)?.language
 
   useEffect(() => {
@@ -36,11 +44,19 @@ export function useAppShellController() {
   }, [hash, joinedAccountHandoff, navigate, pathname])
 
   useEffect(() => {
-    if (!joinedAccountHandoff) return
+    // Initial persistence hydration may still publish an empty slice. Activating before that
+    // boundary lets replaceAll correctly reject the not-yet-loaded account as missing and drops the
+    // caller back onto the picker. Consume the handoff only after hydration has settled; the switch
+    // orchestrator can then load the selected account slice without an older bootstrap replacing it.
+    if (!hydrated || !joinedAccountHandoff || joinedAccountHandoffConsumed.current) return
     if (accountSummaries.some((account) => account.id === joinedAccountHandoff)) {
+      // Account-summary refreshes are expected throughout the shell lifetime. Consume this
+      // bootstrap destination before switching so a later refresh cannot pull the user back after
+      // they deliberately move to another company.
+      joinedAccountHandoffConsumed.current = true
       setActiveAccount(joinedAccountHandoff)
     }
-  }, [accountSummaries, joinedAccountHandoff, setActiveAccount])
+  }, [accountSummaries, hydrated, joinedAccountHandoff, setActiveAccount])
 
   useEffect(() => {
     syncLocaleFromAccount(activeLanguage)
@@ -95,13 +111,7 @@ export function useAppShellController() {
       }
 
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return
-      const target = event.target as HTMLElement | null
-      if (
-        target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-      ) {
-        return
-      }
+      if (event.isComposing || textEntryOwnsShortcut(event.target) || hasOpenModal()) return
       if (useStore.getState().dirtyForm) return
       event.preventDefault()
       if (event.shiftKey) redo()
@@ -113,10 +123,7 @@ export function useAppShellController() {
 
   useEffect(() => {
     const warn = () =>
-      setNotice(
-        'Your change was saved, but the audit log could not be written. Contact the server administrator.',
-        'warning',
-      )
+      setNotice(m.app_audit_log_warning(), 'warning')
     globalThis.addEventListener(AUDIT_WARNING_EVENT, warn)
     return () => globalThis.removeEventListener(AUDIT_WARNING_EVENT, warn)
   }, [setNotice])

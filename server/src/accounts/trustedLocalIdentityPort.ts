@@ -11,14 +11,15 @@ function unsupported(commandId?: string): never {
   })
 }
 
-function receipt(commandId: string): OperationReceipt {
-  return { commandId, completedAt: new Date().toISOString() }
+function receipt(commandId: string, changed?: boolean): OperationReceipt {
+  return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) }
 }
 
 /** Zero-provider identity implementation for the open-source trusted-local profile. */
 export function trustedLocalIdentityPort(principal: LocalPrincipal): LocalIdentityPort {
   return {
     deprovisionLocalPrincipalInTx: () => {},
+    deprovisionLocalPrincipalsInTx: () => {},
     async verifyApplicationSession() {
       return {
         id: 'trusted-local',
@@ -44,8 +45,9 @@ export function trustedLocalIdentityPort(principal: LocalPrincipal): LocalIdenti
     async findPrincipalByFederatedSubject() { return null },
     async signOut() { return { setCookies: [] } },
     async listSessions() { return [] },
-    async revokeOwnSession({ command }) { return receipt(command.commandId) },
+    async revokeOwnSession({ command }) { return receipt(command.commandId, false) },
     async createProvisionalCredentialPrincipal({ command }) { return unsupported(command.commandId) },
+    async createCorrelatedProvisionalCredentialPrincipal({ command }) { return unsupported(command.commandId) },
     async compensateProvisionalPrincipal({ command }) { return unsupported(command.commandId) },
     async deprovisionLocalPrincipal({ command }) { return receipt(command.commandId) },
     async issuePasswordReset({ command }) { return unsupported(command.commandId) },

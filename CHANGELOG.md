@@ -10,6 +10,555 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.0-alpha.1] — 2026-07-28
+
+This minor release consolidates verified product-review fixes across the application. It strengthens
+tenant isolation, account and identity durability, atomic scheduling writes, migration integrity,
+offline and teardown recovery, accessibility, operational hardening, and regression coverage across
+the browser, shared domain and SQLite server.
+
+### Fixed
+
+- Oversized page-closing saves now explain that the page must remain open until saving recovers.
+- Missing member mutations now return the same structured not-found response across account routes.
+- Exact-capacity fractional allocations no longer produce order-dependent over-capacity warnings.
+- Fatal post-migration server boot failures now use the operator-facing startup-refusal diagnostic.
+- Account-flow failure audits now cover compensated and dependency-failure outcomes and classify
+  policy refusals as denials.
+- Security events now use the same trusted client IP as reverse-proxy rate limiting.
+- Background refreshes no longer discard undo history when company data is unchanged.
+- Focused Playwright runs that name only core specs no longer boot unused database and auth stacks.
+- Lifecycle actions now update only their target row and affected cascade set instead of rewriting
+  an account's complete scheduling dataset.
+- Domain validation rejections now carry stable codes through browser and server paths and resolve
+  their user-facing text through the translation layer.
+- Identity names and labels now apply character limits in Unicode code points, while email length
+  uses its documented UTF-8 byte ceiling.
+- Offline settings now warn when an opted-in device cannot save recent snapshots and recover the
+  health indication after the next successful write.
+- Password-security queues now expire stale waiters and emit saturation security events.
+- Scheduler edit forms now load on demand, restoring measured first-load bundle headroom.
+- Application boot now validates its mount point before side effects and detaches cleanly on HMR.
+- Oversized sync failures now stay quiet across focus and online events until data changes again.
+- Deep health now reports scheduled-backup degradation and last-success freshness.
+- Authentication failure walls now expose a descriptive page title and announce their detail.
+- Lifecycle responses now finish fallible redaction before their mutation transaction commits.
+- Product audit records now name only requested fields that the write pipeline actually changed.
+- Client and project archive warnings now include phases hidden by the archive.
+- Malformed legacy lifecycle tombstones now recover through the nearest valid state instead of becoming permanently stranded.
+- Invalid programmatic rate-limit values now fail server construction instead of silently disabling protection.
+- Team-access member actions now expose their in-progress state to assistive technology.
+- Unavailable password-reset endpoints now provide terminal administrator guidance instead of retry advice.
+- Account configuration aliases now normalize surrounding whitespace consistently without altering secrets.
+- Viewer sessions no longer show resource-section create actions they cannot use.
+- Activity-row delete controls now include the activity name for assistive technology.
+- Invite acceptance now announces every asynchronous flow state and preserves keyboard focus through completion.
+- Successful company erasure now confirms that the named company was permanently deleted.
+- The command palette now exposes its initial and changing highlighted option to assistive technology.
+- New demo, access-lab and opt-in seeded deployments now place their schedule scenarios in the current week.
+- Forced shutdown logs now distinguish repeated operator signals from concurrent process failures.
+- Direct access-lab setup now applies the same isolated authentication environment as its launcher.
+- Destructive access-lab setup now refuses a symlinked database fixture path.
+- Team directories now tolerate absent additive fields and isolate unsupported version-skew rows.
+- Migration rehearsal now refuses unclassified columns before retaining anonymised snapshots.
+- Abandoned requests now withdraw their queued password-security work before it consumes capacity.
+- External sign-in callback details are removed from the address bar before app hydration.
+- One-time invitation and password-reset links now preserve URL-significant token characters.
+- Offline database connections now yield promptly to future encrypted-cache upgrades.
+- Pending scheduler search text now survives changes to the other toolbar filters.
+- Scheduler selectors now distinguish same-named projects and activities with context.
+- Encrypted offline directory writes now preserve the newest accepted company list.
+- Dependabot pull requests retain their DCO exemption when a maintainer re-runs the workflow.
+- Coverage reporting outages no longer fail the otherwise-complete application gate.
+- Archived settings never render rows fetched for a previous company or reload generation.
+- Persistent forms now clear stale field errors after edits, resets, and successful submissions.
+- SQLite open failures now preserve the original permission error during connection cleanup.
+- The onboarding guide now accurately documents ownerless-company migration promotion order.
+- Lifecycle conflicts now use typed classifications instead of matching error-message prose.
+- Authentication environment-alias documentation now consistently uses the 0.26/0.28 window.
+- Calendar timezone and week-start defaults now come from primitive shared selectors.
+- Step-up authentication now safely replays `Request` bodies after confirmation.
+- SQLite write acknowledgements now use an explicitly verified `synchronous=FULL` policy.
+- Client wire decoders now reject duplicate account, provider, member and invitation identities.
+- Viewer authorization E2E checks now exercise populated client rows and a real resource lane.
+- Undo and redo now skip serialization for structurally shared unchanged tenant rows.
+- The build-stamp story now documents the actual `demo` persistence suffix.
+- The resource-archive story filename and index no longer imply destructive cascade deletion.
+- The project-archive story filename and index no longer imply destructive cascade deletion.
+- The mobile-navigation story now distinguishes portrait off-canvas and landscape icon modes.
+- The client-archive story filename and index no longer imply destructive cascade deletion.
+- The add-activity acceptance story now matches the allocation picker's project filtering.
+- Server shutdown now force-exits non-zero when request or backup draining exceeds ten seconds.
+- The scheduler resource column keeps an accessible name when total utilisation is hidden.
+- The shared account API barrel now resolves from `@capacitylens/shared/account`.
+- JavaScript-disabled loads now show one structured terminal explanation instead of loading copy.
+- Company switches now clear stale resource navigation, drag, form-guard and notice state.
+- Server startup now latches termination signals and stops at safe database checkpoints.
+- Authentication, MFA enrollment and password-reset states now consistently use the message catalogue.
+- UI mutation boundaries now surface store integrity failures without closing their dialogs.
+- Select fields now round-trip every opaque option value without empty-sentinel collisions.
+- Sectioned lists now reserve global first-item onboarding for wholly empty visible pages.
+- SQLite foreign-key child lookups now use verified indexes for bounded cascade planning.
+- Scheduler stories now use the required Utilisation terminology and current zoom-aware label.
+- Import sanitisation now preserves intentionally blank optional resource roles.
+- Resource soft-delete audits now name the allocation and time-off note fields they scrub.
+- Repository tooling and contributor instructions now use pnpm consistently.
+- Reconciliation-required command outcomes now carry a required command-correlated observation receipt.
+- The public bug-report form now warns contributors to redact sensitive log content.
+- Allocation gesture feedback failures no longer masquerade as rejected mutations.
+- Pending command reconciliation now reports an observation time instead of a completion time.
+- Authenticated session responses without a usable email now fail at the client protocol boundary.
+- The parallel tenant-isolation login test now creates its own known-existing control company.
+- Batch receipts now distinguish accepted operations from operations that actually changed state.
+- Non-square profile photos now preserve their aspect ratio inside circular avatars.
+- Migration rehearsal now preserves the original anonymisation error if rollback also fails.
+- Malformed identity-provider session timestamps now fail as permanent contract errors instead of outages.
+- MFA enrollment now moves keyboard focus into the newly revealed verification step.
+- Local imports now clear remapped entity filters and selections while preserving display preferences.
+- Lifecycle transitions now reject invalid archive times and preserve monotonic archive/delete history.
+- Pre-rebrand theme preferences now migrate without flashing or resetting on the first CapacityLens load.
+- Account-port timestamps now have an executable canonical UTC ISO-instant contract.
+- Invitation acceptance and recovery copy now consistently uses the localisation catalogue.
+- Invitation and password validation errors now identify and describe their offending form fields
+  for assistive technology.
+- Interrupting the strict-OIDC E2E harness now closes its fault proxy and removes its Dex container.
+- Imports now supply safe names for nameless people and external companies while retaining
+  deliberately nameless placeholder resources.
+- Failed database migrations now restore foreign-key enforcement on the retained SQLite handle.
+- Completed invitation commands with explicit expiries now replay their stable result after the
+  invitation expires instead of being reclassified as invalid input.
+- Email validation now applies its length limit after case normalization too, preventing Unicode
+  case expansion from creating an oversized invitation or identity address.
+- Allocation drags can now scroll to and reassign work onto resource rows outside the initially
+  rendered virtual window while retaining the active source gesture.
+- Shared date geometry helpers now safely reject invalid pixel widths and non-integer working-day
+  counts instead of returning negative geometry or a plausible wrong date.
+- Discipline delete controls now include their row name for screen-reader and voice-control users.
+- Undo and redo integrity failures now appear as persistent scheduler errors instead of escaping
+  the toolbar event handler without user-visible feedback.
+- Session checks and lazily loaded sign-in, MFA and confirmation screens now show accessible loading
+  status instead of leaving the page or action blank.
+- Invalid production authentication modes now use the server's concise framed startup refusal
+  instead of escaping as an unhandled configuration exception.
+- Damaged imports containing null or primitive table rows now show a stable file-validation error
+  instead of leaking an internal property-access failure.
+- Authentication requests with malformed proxy authority headers now receive a bounded client
+  error instead of generating an internal-server-error response.
+- Refusing a SQLite file owned by another application no longer changes that unrelated file's
+  permissions before CapacityLens establishes its identity.
+- Keep scheduler scrolling responsive for large teams by locating the visible row window without
+  scanning from the first row on every frame.
+- Empty schedules now expose an ARIA row count and row index that include the rendered empty-state
+  row, keeping screen-reader grid metadata consistent with the DOM.
+- Lifecycle archive syncing now treats only an explicit already-inactive conflict as convergence;
+  protected-row and other HTTP 409 responses remain visible and retryable.
+- Database startup now rejects unlabelled SQLite files unless they match the distinctive legacy
+  CapacityLens table, column and foreign-key chain, avoiding claims on unrelated databases.
+- Allocation drops now refresh row hit-testing after viewport or lane resizes, preventing a
+  mid-drag layout change from assigning work to the wrong person or no person.
+- Scheduler model rebuilds now compute each resource-day capacity once even when the visible
+  utilisation, fixed over-soon and timeline windows overlap.
+- Client builds now canonicalise configured API origins, reject non-origin endpoint values and
+  safely validate and encode feedback mailboxes instead of emitting malformed links.
+- Trusted application branding now rejects oversized labels and excessive or oversized password
+  context words before they reach identity configuration and password screening.
+- Schedule filters now treat only matching work in the displayed timeline as a match, avoiding
+  full-opacity rows with no matching bar.
+- A new edit made during a company switch no longer hides the sticky loss notice for an older
+  failed write; the new edit is preserved while the discarded one remains visible for re-entry.
+- Drops exactly between adjacent schedule rows now select the following row instead of resolving to
+  the preceding row through overlapping hit regions.
+- Blocks dragged from an External row to a person now remain zero-hour blocks instead of gaining a
+  hidden full working day of stored load.
+- Company erasure now stops after bounded membership re-snapshot attempts and returns a retryable
+  conflict instead of looping while membership keeps changing.
+- Unmatched and stale URLs now open a branded Page not found screen with a route back to the
+  schedule instead of a reload-only 404 recovery loop.
+- Command-palette Internal projects now follow their schedule visibility preference, while Internal
+  activities remain searchable because they open the complete management list.
+- Mandatory-MFA enrollment now explains why an invitation or password-reset link is being held,
+  including the sign-out path that reopens a reset link without the current session.
+- Server-mode startup now verifies the session and any mandatory MFA gate before loading company
+  data, avoiding doomed signed-out requests and misleading save-failure banners on login walls.
+- Legacy Internal-client id adoption now requires a fresh Admin/Owner session for both direct and
+  atomic batch writes, preventing Editors from replacing the server-managed singleton.
+- Offline identity, company-directory and snapshot keys now include the canonical configured API
+  origin, preventing a repointed frontend from restoring another backend's cached data.
+- Failed lazy loads or startup errors in the getting-started tour now produce a persistent,
+  localised error instead of an unhandled promise rejection.
+- Invitation admission, preview, redemption and pruning now share fail-closed instant-based expiry
+  semantics instead of comparing stored timestamp text.
+- Leaving an invitation route while its post-acceptance company refresh is pending no longer lets
+  the late completion replace the company selected on the destination route.
+- Own-session revocation receipts now distinguish a deleted session from an idempotent no-op.
+- Soft-deletes now remain chronologically ordered when an imported archive timestamp is ahead of
+  the local clock, so later import repair cannot silently restore the deleted record to archived.
+- Pending “Confirm it's you” actions now cancel when their authenticated host disappears and have a
+  bounded fallback, preventing session expiry from leaving administrative controls busy forever.
+- Invalid invitation pre-authorisation emails now mark and describe the offending field for
+  assistive technology instead of relying only on the one-shot error announcement.
+- Sign-in and mandatory MFA enrollment walls now replace stale in-app browser-tab titles with their
+  own page purpose.
+- Allocation and time-off writes and imports now reject calendar spans beyond the finite scheduling
+  limit before capacity logic can expand them day by day.
+- The canonical colour palette is now runtime-immutable, preventing swatches and membership checks
+  from diverging after an unsafe consumer mutation.
+- Project and phase writes now reject absent required parents at the shared domain boundary instead
+  of relying on a later SQLite constraint error.
+- Security settings now expose their card title as a heading, and their labels, password feedback
+  and session-management notices use the translation catalogue.
+- Legacy Internal-client repair now removes duplicate builtin rows even when corrupt input gives
+  them the same primary id.
+- Principal erasure now deletes scalar verification ceremonies inside SQLite and parses only
+  structured candidates, avoiding a full verification-table transfer into JavaScript.
+- Authenticated account-directory and permission refreshes now share one request per membership
+  generation instead of issuing duplicate boot, company-switch and invalidation reads.
+- Unexpected server failures whose wording mentions a constraint now remain logged 500 responses;
+  only structured SQLite constraint errors are classified as caller-fault 400 responses.
+- Member-management session results, unknown-command guidance and invitation-list failures now use
+  the translation catalogue, and invite-read diagnostics name the list that is actually stale.
+- Team-directory reads now evaluate identity-administration authority for all members from one
+  company/actor snapshot instead of re-deriving the actor's full authority for every row.
+- Activity, project, resource and time-off management lists now index relationship labels once per
+  data change instead of scanning the complete related table again for every rendered row.
+- Days and Blocks scheduling now reject spans that would extend beyond 31 December 9999, while
+  defensive date derivation stays inside the supported four-digit-year domain.
+- Invitation account validation now marks and describes only the credential field that failed,
+  rather than announcing one field's error from every name, email and password control.
+- Legacy Internal-client repair now preserves an ordinary client that already owns the generated
+  id and selects a collision-free id for the protected singleton instead of failing migration.
+- Demo and SQLite imports now discard properties outside each declared entity schema, preventing
+  hand-edited fields from surviving only in the in-memory persistence mode.
+- Colour contrast, palette snapping and bar styling now reject trailing non-hex nibbles instead of
+  partially parsing malformed bytes into invalid CSS colours.
+- Audit, offline-setup and failed-download warnings now resolve through the translation catalogue
+  instead of leaking literal English into otherwise localised error surfaces.
+- Time-off forms now hide and omit protected notes for Editors and Viewers, matching the server's
+  role-based field projection instead of accepting input it would discard.
+- Legacy account-variable deprecation warnings now appear once for each independently resolved
+  environment instead of being suppressed globally after the first hosted instance warns.
+- Import file reads now preserve the latest selection when an older, slower read finishes last.
+- Atomic batches now reject a malformed duplicate of the Internal client generated during company
+  creation instead of reporting that its ignored fields were applied.
+- The mobile menu button now announces whether the sidebar sheet is open and whether activating it
+  will expand or collapse the menu.
+- The getting-started checklist now completes “Add your first person” only for an actual person,
+  rather than treating a placeholder or external company as a person.
+- Ambiguous company create and delete notices now use the translation catalog, keeping critical
+  verify-before-retry guidance localisable alongside the rest of the company picker.
+- Clearing device data now removes malformed or incompatible offline encryption keys as well as
+  cached records, so encrypted offline access can recover without manually deleting browser data.
+- Company-directory refreshes now share one monotonic sequence, preventing an older overlapping
+  response from hiding a newly created or joined company or restoring a removed one in the picker.
+- Sign-out now rejects blocked offline-cache upgrades and bounds browser-data cleanup, so a stale
+  tab cannot indefinitely prevent the server sign-out request and mandatory reload.
+- Legacy or direct-API companies missing language, week-start or time-zone settings can now set
+  each value once, while malformed replacement values are ignored instead of returning a
+  misleading immutable-field conflict.
+- Returning from an offline cached company now keeps permissions pending and read-only until a
+  fresh membership lookup resolves, rather than briefly restoring the pre-offline role.
+- A session-expiry sign-in wall now warns when server-backed changes were still unsaved, instead of
+  hiding that loss when it replaces the application and later reloads after sign-in.
+- Working-day counts during long allocation gestures now parse the range start once instead of
+  repeatedly parsing and formatting it for every day in the span.
+- Returning focus now retries a stranded server write before refreshing, and a skipped refresh no
+  longer suppresses the next visibility-based recovery attempt for 30 seconds.
+- The local access-lab launcher now resolves the pnpm command on Windows for setup, compilation and
+  both long-running development processes.
+- Page teardown now dispatches no lifecycle archives when the ordering-dependent batch exceeds its
+  operation or keepalive byte limit, preserving upserts-before-deletes as one dispatch decision.
+- Member-management role, security and ownership controls now include their target member in their
+  accessible names, and simultaneous reset/invitation copy buttons identify which link they copy.
+- Duplicating an allocation now uses and validates the values currently shown in the form, instead
+  of discarding unsaved edits or creating a zero-hour row that Save would reject.
+- Allocation gestures now suppress success, capacity and undo feedback when a mid-gesture Viewer
+  downgrade or vanished target causes the store to refuse the write.
+- A cached-identity miss can no longer revoke a concurrently verified live identity's offline-cache
+  scope and silently prevent account snapshots from being maintained for the rest of the session.
+- Continuously visible server sessions now refresh their active company once per minute, so changes
+  from other tabs or members appear without waiting for a focus event or a conflicting write.
+- IndexedDB aborts now settle invalid-record deletion and current-user offline cleanup promptly,
+  preventing cache reads or sign-out from waiting indefinitely on a transaction-only failure.
+- Activity and discipline edit forms now stay open and report a conflict if the record changed or
+  disappeared while it was being edited, instead of silently reporting a successful save.
+- Global undo and redo shortcuts now yield for the full lifetime of an open modal, including clean
+  forms whose focus is on a button, switch or other non-text control.
+- The operator variable register now warns that disabling audit is development-only and that
+  production refuses to start with `CAPACITYLENS_AUDIT=off`.
+- Placeholder project rebinds and activity project changes now reject edits that would
+  retroactively invalidate existing allocations, across local, direct-API and batch writes.
+- Deep health now warns throughout the internal API certificate's 30-day renewal window, and the
+  Compose smoke test plus upgrade guidance require coordinated renewal before expiry.
+- Docker Compose now pins a stable project identity so checkout-directory renames cannot silently
+  select fresh database, backup and internal-TLS volumes; upgrade guidance preserves legacy prefixes.
+- Built-in Internal clients can no longer inherit archive or deletion tombstones through a
+  legacy-id replacement; database v22 also reactivates any singleton damaged by an older server.
+- Overlapping focus refresh and company-switch recovery can no longer pair one company's rendered
+  data with another's sync snapshot, and generic sync batches can no longer request company erasure.
+- Today and jump-to-date navigation now recenter from the newly rendered timeline geometry instead
+  of using the previous view's horizontal offset for one commit.
+- A batch rejected because another editor archived one of its referenced records now reconciles
+  from server truth instead of retrying the permanently invalid edit on every recovery event.
+- Ownerless-company repair now publishes its security outcome only after the corresponding database
+  migration commits, avoiding successful-promotion logs for changes SQLite later rolls back.
+- Sign-out now disables offline acceptance when browser storage is temporarily unavailable, so a
+  stale cached identity cannot become eligible again merely because IndexedDB later returns.
+- Existing scheduled and pre-migration backup directories are now tightened to mode `0700` before
+  use, matching the documented privacy boundary instead of relying on creation-time permissions.
+- Allocation drops immediately after scrolling now use the lanes' latest screen positions instead
+  of committing against the pre-scroll layout.
+- Switching between a specific activity and an all-activities-of-a-kind schedule filter now clears
+  the previous activity lens, keeping the scheduler filter state unambiguous.
+- Password-verification overload now surfaces the scrypt capacity failure instead of reporting a
+  correct credential as a wrong password and obscuring the operational cause.
+- Trusted reverse-proxy configuration now explicitly names and documents both of its security
+  effects: forwarded client identity for rate limits and forwarded scheme for CSRF origin checks.
+- Reduced-motion mode now bounds infinite spinner, skeleton and future utility animations to one
+  near-instant iteration instead of repeatedly sampling them as a rapid flicker.
+- The responsive Sidebar now forwards its documented class, style, accessibility and data props to
+  the mobile sheet content just as it does to the desktop sidebar container.
+- The first-run checklist now accepts wheel and touch scrolling when its floating card overflows a
+  short viewport, while the schedule remains interactive outside the non-modal card.
+- Guided-tour copy and its close control now use the AA-contrast muted ink token in both themes,
+  while dimmed allocation bars retain the intended neutral-grey treatment in Time-off draw mode.
+- Plaintext invitation and password-reset replay values now leave process memory after a bounded
+  five-minute response-loss window instead of remaining cached for their full bearer lifetime;
+  replay pressure refuses new issuance with retryable backpressure instead of silently evicting a
+  completed response.
+- Demo and local writes now reject new descendants and allocations beneath transitively archived or
+  deleted parents, matching the scheduler's active-only visibility without blocking unrelated edits.
+- Workspace erasure now classifies installation-wide verification state once for the complete set
+  of orphaned principals instead of rescanning and reparsing it for every former member.
+- Viewer allocation details are now reachable with Tab and dismissible with Escape, expose complete
+  project/client and note context to assistive technology, and no longer advertise forbidden edits.
+- Tailwind border-colour utilities now override the shared bare-border default, restoring intended
+  transparent, warning, input, primary and destructive borders across the UI primitives.
+- Long-lived schedules now advance the company-local today marker and fixed 14-day over-capacity
+  warning at midnight and immediately after a backgrounded page resumes.
+- Recent-authentication prompts now accept a stored recovery code as well as an authenticator code,
+  preserving the user's in-progress work when their authenticator is unavailable.
+- Sign-in metadata now drops unsupported named social providers at the untrusted server boundary,
+  preventing version-skewed entries from rendering buttons that can only fail.
+- Breached-password concurrency limits now remain held through bounded response-body consumption,
+  preventing slow upstream streams from escaping the documented eight-active-call ceiling.
+- Authentication security events now attribute successful sign-ins and authenticated operations
+  to verified session principals, while failed credential submissions remain unattributed.
+- Tenant-scoped SQLite reads and slice replacements now use per-table company indexes instead of
+  scanning unrelated companies' rows, through the checksummed database-v21 migration.
+- Unchecked switches now retain a visible thumb boundary in the light theme, meeting the 3:1
+  non-text contrast threshold without changing their state or target size.
+- Server shutdown now stops accepting requests while an active backup drains, while keeping SQLite
+  open until both the request drain and backup stop have settled.
+- Identity and invitation boundaries now reject control, zero-width, bidi and other disallowed
+  Unicode characters before malformed or visually deceptive names and email addresses can persist.
+- Password-reset timeout and server-error responses now show unknown-outcome guidance and direct the
+  user to verify the new password, instead of reopening a consumed single-use token for retry.
+- Redo after a synced lifecycle undo now unarchives the retained client, project or person before
+  applying dependent edits, instead of issuing a generic write that leaves the row hidden.
+- Offline read-only mode now marks membership resolution unavailable instead of presenting its safe
+  Viewer projection as an authoritative role lookup.
+- Password length checks now count Unicode code points consistently across setup, invitations,
+  changes and resets, so astral characters no longer halve the documented 15–128-character range.
+- Disabling offline access now removes every encrypted identity and account snapshot from the
+  browser, and cache maintenance physically removes records older than seven days.
+- Offline opt-in now waits for the application-shell worker to activate successfully before saving
+  the device preference or reporting that offline access is ready.
+- Trusted-local member role, removal and ownership-transfer routes now report that member
+  management is unavailable instead of returning success for an inert request.
+- Failed Google, Microsoft and GitHub sign-ins now return through the same marked, scrubbed error
+  path as strict OIDC on both the login wall and recent-sign-in dialog.
+- Partially migrated imports that contain both legacy tasks and current activities now merge
+  distinct work and preserve dependent allocations, with current rows winning id conflicts.
+- Database migration v8 now derives its repair and assertion contract from its immutable DDL,
+  preventing fields owned by later schema versions from appearing before their ledger steps.
+- Concurrent same-version API boots now recheck and validate migration state after acquiring the
+  SQLite writer lock, so the process that waited treats the winner's committed step as a clean no-op.
+- Member removal, password-reset issuance and session revocation now require a named confirmation,
+  with explicit consequences when the operator targets their own access or current session.
+- Local identity erasure now fails atomically on malformed object-shaped verification state instead
+  of reporting success while retaining an uninterpretable principal link.
+- Mandatory MFA enrollment now rejects malformed successful setup responses without replacing the
+  recoverable password form or crashing while rendering recovery codes.
+- MFA enrollment and step-up credential errors now mark and describe the input that needs
+  correction, so assistive technology can rediscover the failure after its initial announcement.
+- Batch validation now reuses indexed entity and dependent lookups, preventing max-size updates
+  from rescanning a large tenant table once per operation while holding the SQLite transaction.
+- Scheduled backups now use UTC-sortable names and protect the just-published recovery point during
+  retention, preventing daylight-saving fall-back from deleting the snapshot reported as successful.
+- Lifecycle import and purge guards now reject implementation-defined date shorthand and rolled
+  calendar instants, preventing corrupt timestamps from unlocking destructive cleanup.
+- Confirmed lifecycle actions now run in order behind an in-flight transition and its authoritative
+  reload instead of silently dropping a second archive, restore, delete or purge.
+- Lifecycle writes now reconcile HTTP timeout and server-error responses against authoritative
+  company data before a destructive retry can proceed.
+- Command-palette jumps now expand the target person's scheduler group before scrolling, so people
+  inside collapsed disciplines no longer appear unreachable.
+- Post-invitation company handoffs are now consumed after their first verified activation, so a
+  later company-list refresh cannot pull the user away from their current company.
+- Invitation creation now rejects ISO-shaped nonexistent calendar instants instead of silently
+  rolling them into a different expiry date.
+- Outstanding invitation expiry dates now use the viewer's local calendar instead of a bare UTC
+  slice, avoiding an off-by-one displayed day near timezone boundaries.
+- Import and load repair now reactivate a tombstoned built-in Internal client, preserving the
+  visible singleton and its project-less work grouping after legacy or hand-edited data is read.
+- HTTP 408 account-command responses now retain the existing retry identity, including invitation
+  acceptance, preventing ambiguous timeouts from becoming duplicate semantic commands.
+- The global sidebar shortcut now yields to text entry, IME composition and open modals instead of
+  shifting page chrome and suppressing the active control's Cmd/Ctrl+B chord.
+- Allocation drag and keyboard feedback now excludes retained work hidden beneath archived or
+  deleted schedule parents, keeping capacity warnings aligned with the visible scheduler.
+- Fractional backup-retention values once again floor within the supported range, preventing a
+  configured `100.5` snapshots from silently reverting to 48 and pruning restore points early.
+- Keyboard-focusable composed primitives now receive the same opaque, WCAG-conforming focus
+  outline as native controls instead of relying on a faint half-alpha ring.
+- Server hydration now commits a missing built-in Internal client before exposing repaired data,
+  while duplicate-Internal repair gives every rewired project a fresh sync revision.
+- Generic entity writes now reject descendants of archived or soft-deleted clients, projects and
+  resources, preventing successful saves that immediately disappear from ordinary company views.
+- Current-version database startup now rejects entity-table drift that would make normal writes
+  fail, including unknown required columns, incompatible types, keys, constraints and table modes.
+- Scoped PATCH and DELETE routes now return indistinguishable responses for absent and foreign-row
+  ids, closing authenticated cross-company row-existence probes without changing auth-off deletes.
+- Command reconciliation now fails closed on malformed or incomplete durable repair metadata,
+  preserving the raw row instead of fabricating generic or null operator coordinates.
+- Compose now provides an explicit static-only web service for in-memory demos and remote-API
+  builds, with no local API dependency, certificate mount or API-based healthcheck.
+- Completed company erasures now replay through their authenticated DELETE route after membership
+  removal, while ambiguous post-delete 403 responses retain the browser's retry command.
+- Administrative retries now retain their idempotency identity in page memory when browser session
+  storage is blocked, preventing an unknown outcome from becoming a duplicate command.
+- Sign-out now clears retained administrative retry identities, and the server rejects command
+  replay across principals, preventing a shared tab from carrying one user's ceremony to another.
+- First-company setup no longer exposes a spurious empty company list to assistive technology.
+- Archived-item lifecycle controls now lock as a group while a mutation settles, preventing
+  duplicate restore requests and giving slow operations a visible busy state.
+- Lock-contended batches now classify create, update and delete audit records from the state that
+  their transaction observes, preventing stale verbs or omitted mutation lines.
+- Account-command integration guidance now requires independently generated, unguessable retry
+  identities and explains the globally unique 30-day reconciliation namespace.
+- Fresh mixed-auth deployments now show configured external providers beside first-owner password
+  setup, making the documented OIDC bootstrap path reachable without a temporary local identity.
+- Large atomic batches now maintain their validation mirror through indexed upserts and cascades,
+  eliminating quadratic full-array rebuilding at the supported 5,000-operation boundary.
+- Batch validation and account import now read only the tenant slices they mutate, preventing small
+  requests from synchronously materialising every company's scheduling data.
+- Scheduled backups now sync their completed file and published name before pruning older recovery
+  points, then sync retention deletions, making successful snapshots durable across power loss.
+- Avatar initials now preserve emoji and other astral-plane leading characters instead of
+  rendering a broken replacement glyph.
+- Authenticated batches now resolve repeated same-company permissions once per authorization
+  snapshot, avoiding thousands of duplicate membership reads while retaining the post-lock recheck.
+- Audit rotation now accounts for the next serialized line before writing and rejects an individual
+  over-cap entry into the durable outbox, enforcing the configured two-generation disk bound.
+- Unreadable or unrecognised account-command conflict responses now retain the original browser
+  retry identity, preventing an ambiguous response from minting a duplicate administrative command.
+- Rejected allocation deletions now keep the editor open and surface the safe failure reason instead
+  of throwing past the modal error boundary.
+- Destructive alert body text now uses the opaque danger token, clearing WCAG AA contrast on the
+  light card surface instead of becoming sub-AA through transparency.
+- Authenticated company switches now publish the new tenant with a fail-closed local role, closing
+  the interval in which an imperative write could inherit the previous company's authority.
+- Stalled state requests that reach their client deadline now use an eligible seven-day offline
+  snapshot instead of bypassing read-only recovery with a timeout error.
+- Unsaved-change guards now aggregate each open form independently, so a clean overlapping dialog
+  cannot disable reload, palette or undo protection for an editor that is still dirty.
+- Rejected cross-row allocation drags now leave their dates and hours unchanged instead of silently
+  committing the horizontal part of the gesture on the original row.
+- Batch sync now requires one authoritative server revision for every written row and reloads the
+  company before further writes when a successful receipt is absent, partial or mismatched.
+- Imports now reject a present malformed schema version instead of interpreting it as a legacy
+  file and potentially normalising away data from an incompatible format.
+- Server shutdown now attempts backup stop, request drain and database close independently, then
+  exits non-zero if any stage failed instead of abandoning all later cleanup.
+- Failed service-worker upgrades can no longer mix a new application entry point with missing
+  hashed assets; each shell is staged privately and promoted only after it is complete.
+- Detaching a persistence owner now suppresses its late save callbacks, conflict reloads and retry
+  timers, preventing an obsolete lifecycle from writing stale state over its replacement.
+- Scheduled-backup retention now excludes the open database by path and filesystem identity, so a
+  snapshot-shaped live filename in the backup directory can never be pruned as an old restore point.
+- SQLite now rejects cross-company parent references and immutable-tenant changes at the database
+  boundary, preventing otherwise valid foreign-key cascades from mutating the wrong company.
+- Sign-out and device-data cleanup now invalidate offline-cache writes that were already encrypting,
+  preventing a late identity, company list or company snapshot from recreating cleared data.
+- Pre-migration rollback snapshots now sync their completed file and published directory entry
+  before startup may begin forward-only schema changes.
+- Company-setting updates now reject a non-active company target and leave undo/redo untouched for
+  a stale missing id, closing a cross-company local-store seam.
+- The local store's viewer guard now covers company creation as well as scoped edits, preventing an
+  ungated caller from adding a company, built-in client or picker summary in read-only state.
+- Creating another company through an existing Owner/Admin role now requires a fresh administrative
+  session before granting the caller a new Owner membership.
+- Company erasure now preserves in-flight and repair-required command records, so a concurrent
+  password-invitation signup can still compensate or expose exact reconciliation state.
+- Invalid password-invitation signup requests now validate their bearer token before reserving a
+  durable command, preventing unauthenticated requests from amplifying SQLite writes.
+- Single-row SQLite writes now commit their entity and first-write marker atomically, so a marker
+  failure cannot persist a create or update while the API reports that it failed.
+- Scheduled SQLite snapshots are now integrity-checked before publication and retention, preventing
+  an invalid copy from replacing the last known-good restore point under a success log.
+- Replacing the active company slice can no longer retain a company id that the slice omits;
+  CapacityLens returns to the picker and rejects scoped edits instead of creating orphaned rows.
+- Command reconciliation now serializes with the command's live executor before aging stale pending
+  work, preventing a reset or session-revocation side effect from occurring after the ledger has
+  already declared that same execution abandoned.
+- Parallel background and page-teardown saves are now ordered per browser session, preserving the
+  newest edit or undo regardless of request arrival order while retaining conflicts for intervening
+  external writes.
+- Page-teardown sync now excludes unchanged rows whose server revisions were already acknowledged,
+  keeping the final keepalive delta focused on genuinely unsaved changes.
+- Editing an existing allocation in Blocks mode now preserves its historical hours, so switching
+  back to Hours or Days restores the prior capacity instead of leaving the allocation at zero.
+- Company-picker errors and warnings now render in the global notification host, including refused
+  or uncertain company deletions before a company has been opened.
+- Packaged Docker Compose deployments now resolve the default audit path to the persistent database
+  volume instead of passing an empty filename that degrades the local audit sink on its first write.
+- Invitation management no longer fails for upgraded companies that retain an already-used legacy
+  Owner invite; live and supported historical invitations remain visible and revocable.
+- Hashed browser assets in the packaged web image now retain their one-year immutable cache policy
+  instead of being captured by the generic file-extension location and served as `no-store`.
+- Password-reset and invitation links now follow the router's trailing-slash and case-insensitive
+  matching rules before sign-in, preventing valid link variants from falling back to the login wall.
+- Command-palette person jumps are now consumed after the target row is reached, preventing later
+  schedule edits or layout changes from scrolling back over the user's newer position.
+- Command-palette search now folds case and decomposable diacritics, so unaccented queries find
+  accented people, projects, clients, activities, pages and actions.
+- The operations runbook now provides an executable, ownership-preserving restore and rollback
+  procedure for the database and snapshot volumes created by Docker Compose.
+- Authentication request timeouts now use the documented offline read-only identity fallback when
+  available and otherwise report a connectivity failure instead of a malformed server response.
+- Repeated attempts at a failing database migration now atomically refresh one verified rollback
+  snapshot per version pair instead of accumulating a full database copy on every process restart.
+- The first-owner bootstrap-claim table now advances through checksummed database migration v20,
+  so upgrades are snapshotted and exact schema drift is refused before authentication starts.
+- Imported and direct-API entity colours now snap to their nearest preset through the same shared
+  mapping as interactive edits, preserving distinct legacy hues instead of flattening them to blue.
+- Database upgrades from every shipped v8–v15 schema now reach v16 in order, and the retained
+  auth-off/password fixture matrix verifies data preservation, schema convergence, integrity and
+  idempotent reopen for every released top-level version.
+- Allocation capacity advice is now memoised and bounded; Hours-mode and External date spans over
+  36,500 days are rejected before a render can enumerate millions of calendar days.
+- Migration rehearsals now preserve anonymised verification-to-user linkage and assert the exact
+  invite and verification rows that migrations are expected to revoke, so destructive repairs can
+  no longer become silent no-ops or false preservation failures in the release gate.
+- A cached company-directory fallback no longer marks an already-open live company read-only or
+  displays the directory cache timestamp as if it described the rendered company data.
+- Client and project edit forms now reject a stale Save when a background refresh has loaded a
+  newer copy, preventing unchanged form fields from silently overwriting concurrent edits.
+- Product mutations now commit a data-minimised audit event to a SQLite outbox in the same
+  transaction, then deliver ordered, fsynced and replay-idempotent JSONL records across restarts.
+- Password invitation onboarding now commits the local user, credential link and command-to-
+  principal correlation in one SQLite transaction, preventing crash-orphaned identities.
+- Archived-and-deleted exports now use the central purge-tier authorization gate, including its
+  fresh-session requirement and structured step-up refusal event.
+- Account erasure now fails closed when a corrupt id-only relationship would cascade a delete or
+  unbind into another company, preserving both tenants for explicit operator repair.
+- Imports now remove allocation and time-off notes attached to deleted people, matching the privacy
+  erasure performed by the interactive resource-deletion path.
+- Page-teardown persistence now waits for lifecycle archive receipts before marking deletions clean,
+  so a surviving page surfaces and retries a dropped keepalive request instead of losing the intent.
+- The installation-wide test reset route is now unavailable whenever authentication is enabled,
+  preventing any signed-in principal from wiping unrelated tenants on a staging or development host.
+
 ## [0.26.0-alpha.1] — 2026-07-21
 
 This minor release lands the fixes from a full-codebase review: multi-user sync correctness
@@ -782,7 +1331,7 @@ the server-sync save path and the bulk-operation timeout tier.
 - **An over-sized sync is now a clear terminal error, not a permanent retry loop.** A single
   change whose diff exceeds the atomic batch limit (5000 operations) previously retried the
   identical, never-landing diff forever behind a stuck "changes aren't saving" banner. It now
-  surfaces a plain-language notice — *change or delete fewer items at a time* — and stops
+  surfaces a plain-language notice — _change or delete fewer items at a time_ — and stops
   retrying; the pending change is preserved in the durable write journal and the banner clears
   once a smaller change syncs. The one-transaction atomicity guarantee is unchanged (the diff is
   never split into partially-committed pieces).
@@ -797,8 +1346,8 @@ the server-sync save path and the bulk-operation timeout tier.
 ### Notes
 
 - Two behaviours the review flagged were confirmed **deliberate** and left as-is: an edit made
-  during an in-flight import is intentionally *not* flushed on tab-close (flushing it would insert
-  stale pre-import rows into the freshly imported data), and data written by a *newer* app version
+  during an in-flight import is intentionally _not_ flushed on tab-close (flushing it would insert
+  stale pre-import rows into the freshly imported data), and data written by a _newer_ app version
   is intentionally refused rather than loaded with unknown fields silently dropped (which would
   lose them on the next save).
 
@@ -956,6 +1505,7 @@ without reading the maintainer's mind. Verified green across gate (1403 unit), g
 mutation round.
 
 ### Added
+
 - **First-run owner setup.** On a fresh password-auth instance (zero users) the login wall
   offers **Create the owner account**; sign-up is gated live per request and closes the
   moment the first user exists — the `ALLOW_OPEN_SIGNUP` first-login dance is retired.
@@ -979,6 +1529,7 @@ mutation round.
   the dev-facing detail the README used to carry.
 
 ### Changed
+
 - **Repository renamed** `floaty-v1` → `capacitylens` (GitHub redirects the old URL); all
   in-repo links updated.
 - **README rewritten human-first** — pitch, quickstart with prerequisites, self-hosting,
@@ -986,6 +1537,7 @@ mutation round.
   server-backed password-auth build.
 
 ### Fixed
+
 - **Docker api image crash-loop**: the runtime stage never copied `server/scripts/`, so the
   new preflight died on MODULE_NOT_FOUND before the server booted.
 - **Bootstrap lockout hazard**: a `linkAccount` failure after `createUser` used to strand a
@@ -999,6 +1551,7 @@ mutation round.
 _(Section backfilled at 0.15.0 — the tag shipped without a changelog entry.)_
 
 ### Added
+
 - **Admin-issued password-reset links (P1.18).** Owners/admins mint a single-use 24 h reset
   link per member (no email infrastructure needed); a sessionless `/reset-password/:token`
   page redeems it and revokes existing sessions. Hardened by a review round: cross-account
@@ -1013,6 +1566,7 @@ No behaviour change for existing flows — the focus is screen-reader, keyboard,
 reflow conformance, each shipped with a regression test.
 
 ### Fixed
+
 - **Modal containment (1.3.1).** The shared modal renders through a portal, so the allocation
   editor is no longer an invalid child of the schedule's `role="grid"` (the one axe-critical the
   audit found).
@@ -1034,6 +1588,7 @@ reflow conformance, each shipped with a regression test.
   controls (`aria-describedby` / `aria-invalid`).
 
 ### Added
+
 - A polite live region announces the resulting over-capacity after a keyboard-driven allocation
   move/resize (4.1.3).
 - A `warning` toast tone for data-mutating advisories (e.g. clamped hours) that persists until
@@ -1046,6 +1601,7 @@ behaviour change beyond three user-facing copy strings — the focus is making t
 true to the shipped v0.11.0 reality.
 
 ### Changed
+
 - **Finished the v0.11.0 persistence-flip doc sweep.** Contributor, privacy, deployment,
   server, planning, and user-story documentation now
   describe server-backed-by-default plus the explicit `VITE_CAPACITYLENS_DEMO=1` demo build,
@@ -1059,6 +1615,7 @@ true to the shipped v0.11.0 reality.
 - `TimeOffForm` now uses the shared `useFieldError()` hook like every other CRUD form.
 
 ### Fixed
+
 - Corrected drifted references: the README version line, the CHANGELOG release-link footer, the
   README/CLAUDE docs maps (now list the deploy & ops cluster), and the utilisation zoom set
   (1/2/4/6/8w).
@@ -1069,24 +1626,26 @@ Server-backed persistence is now the default everywhere; the in-browser localSto
 becomes an explicit, named demo.
 
 ### Changed
+
 - **Server-backed by default.** An unconfigured build now runs in server mode against a
   same-origin `/api` (the deployed product already did this). `VITE_CAPACITYLENS_API` now only
-  *overrides* the backend origin rather than switching the server on, and an empty value means
+  _overrides_ the backend origin rather than switching the server on, and an empty value means
   "same-origin", not "localStorage". The in-browser localStorage app is demoted to an explicit
   opt-in.
-- **`npm run dev` is now full-stack.** It boots the SQLite API (`:8787`) and the web app
+- **`pnpm run dev` is now full-stack.** It boots the SQLite API (`:8787`) and the web app
   (`:5173`) together through a dev proxy, and requires **Node 24** (`node:sqlite`).
-  `npm run dev:web` is the previous Vite-only, server-mode command.
+  `pnpm run dev:web` is the previous Vite-only, server-mode command.
 - **Docker / Compose default to a portable same-origin server build.** An empty
   `VITE_CAPACITYLENS_API` now builds an image that works on any host with no per-host rebuild
   (nginx proxies `/api` same-origin); the demo image is built with `VITE_CAPACITYLENS_DEMO=1`.
 
 ### Added
+
 - **`VITE_CAPACITYLENS_DEMO=1` demo build** — the only route to the zero-setup, no-backend,
   no-login in-browser localStorage app (the old default). It wins over `VITE_CAPACITYLENS_API`
   when both are set. A build served without a same-origin `/api` backend (a static host,
   `vite preview`) must use this flag, or it boots into a "can't reach the server" state.
-- **`npm run dev:demo`** — a Vite-only localStorage preview (no server, no Node 24) for a
+- **`pnpm run dev:demo`** — a Vite-only localStorage preview (no server, no Node 24) for a
   zero-setup look at the app.
 
 ## [0.10.2] — 2026-06-25
@@ -1094,6 +1653,7 @@ becomes an explicit, named demo.
 The Time off list reads at a glance — who's away, from when, and for how long.
 
 ### Changed
+
 - **Time-off list rows are terser.** Each row now reads the resource, a readable start date
   and a day count (e.g. **Wed 10th Jun · 3 days**) in place of the raw `start → end` range,
   type and note. Those details are still stored and still shown on the schedule's time-off
@@ -1105,6 +1665,7 @@ The Time off list reads at a glance — who's away, from when, and for how long.
 The list-management screens get a lighter touch: row actions become icons, and every "Add" button shows a +.
 
 ### Changed
+
 - **Edit and Delete on list rows are now icon buttons.** Each row across Resources, Clients,
   Projects, Disciplines, Activities, Time off (and the company picker) shows a **pencil** for Edit
   and a **trash** for Delete in place of the text buttons — quieter rows, same actions, with the
@@ -1118,6 +1679,7 @@ The list-management screens get a lighter touch: row actions become icons, and e
 New companies start lean, and the view settings that were once browser-wide now belong to each company.
 
 ### Changed
+
 - **Placeholders and External are per-company.** They used to be a single switch shared across
   every company on the browser; now each company has its own, toggled in **Settings** (like
   Disciplines). Turning them on in one company no longer turns them on everywhere. Both stay
@@ -1132,6 +1694,7 @@ New companies start lean, and the view settings that were once browser-wide now 
 Weekends stop counting against capacity unless you opt an allocation into them.
 
 ### Fixed
+
 - **A weekend a booking merely spans no longer reads as "over capacity".** An
   allocation that runs across a Saturday/Sunday (or any of a resource's non-working
   days) used to paint those days red, as if the person were overbooked. The work
@@ -1143,6 +1706,7 @@ Weekends stop counting against capacity unless you opt an allocation into them.
   advisory now agrees with what the schedule shows.
 
 ### Changed
+
 - **Faster over-capacity repaint (internal).** The per-day over-marker no longer
   re-derives a date's weekday once per allocation, keeping timeline zoom/pan smooth
   for heavily-booked resources. No behaviour change.
@@ -1153,6 +1717,7 @@ Correctness and integrity hardening from a deep code review, plus a smoother
 Time-off draw mode.
 
 ### Fixed
+
 - **Days-mode allocations never silently lose work.** Entering an allocation by
   "days of work" with the "Days over" field left blank no longer saves a silent
   0-hour allocation — it asks you to complete the field. And dragging or
@@ -1166,6 +1731,7 @@ Time-off draw mode.
   what the other rejects.
 
 ### Changed
+
 - **Switching Time-off draw mode is smoother.** Toggling the schedule's draw mode
   no longer re-renders every allocation bar.
 - **Write-boundary integrity hardening (internal).** A batch of code-review
@@ -1180,12 +1746,14 @@ Time-off draw mode.
 Clearer time-off planning, and tighter guards on bad data.
 
 ### Added
+
 - **Time-off draw mode now shows you the landscape.** When you switch the schedule toggle to
   **Time off**, booked allocations recede and existing time-off blocks glow amber — so you can
   see who's already away at a glance before drawing a new absence. (The toggle previously only
   changed its own pressed state.)
 
 ### Fixed
+
 - **Days-mode work volume is never silently trimmed.** When you enter an allocation as "days of
   work" over a span, a volume that would exceed a real working day now asks you to spread it over
   more days, instead of quietly capping it at 24h/day and losing the rest.
@@ -1200,6 +1768,7 @@ Clearer time-off planning, and tighter guards on bad data.
 Clearer capacity at a glance, and a tidier home for non-client work.
 
 ### Added
+
 - **A built-in "Internal" home for non-client work.** Activities that don't belong to a
   client project (internal admin, reusable activities) now group under a built-in
   **Internal** client on the schedule and in filters — so you can book project-less work
@@ -1216,6 +1785,7 @@ Clearer capacity at a glance, and a tidier home for non-client work.
   site your data lives in the database and reloads from there.
 
 ### Changed
+
 - **"Tasks" are now "Activities"** throughout the UI, routes, types, API fields, and database.
   Existing local data and JSON exports/imports migrate automatically (in-place schema
   migration; server tables renamed in place).
@@ -1235,25 +1805,28 @@ Clearer capacity at a glance, and a tidier home for non-client work.
 See who's doing what kind of work, across every project.
 
 ### Added
-- **Task kinds — Project, Internal, and Repeatable.** Every task now has a kind. *Project* tasks
-  belong to a project (as before); *Internal* tasks are your own non-client work (admin, internal
-  reviews); and *Repeatable* tasks are reusable across many projects (Design, Workshop, Meeting).
+
+- **Task kinds — Project, Internal, and Repeatable.** Every task now has a kind. _Project_ tasks
+  belong to a project (as before); _Internal_ tasks are your own non-client work (admin, internal
+  reviews); and _Repeatable_ tasks are reusable across many projects (Design, Workshop, Meeting).
   The Tasks page groups them into three sections, and the Add/Edit task form lets you pick the kind —
-  a project is required only for *Project* tasks.
+  a project is required only for _Project_ tasks.
 - **Filter the schedule by task.** A new **Filter by task** dropdown gives you a "task view" of the
-  schedule — see all of a repeatable or internal task's work (e.g. *all design*, *all internal time*)
+  schedule — see all of a repeatable or internal task's work (e.g. _all design_, _all internal time_)
   across every project at once. It's a standalone lens: picking a task clears the client/project
   filter and vice-versa, so you're always looking through exactly one.
 
 ### Changed
-- **"General tasks" are now "Repeatable tasks".** Existing project-less tasks become *Repeatable* on
-  upgrade — your data migrates in place. Reclassify any that are really *Internal* via the task form.
+
+- **"General tasks" are now "Repeatable tasks".** Existing project-less tasks become _Repeatable_ on
+  upgrade — your data migrates in place. Reclassify any that are really _Internal_ via the task form.
 
 ## [0.6.0] — 2026-06-19
 
 Track outsourced work without managing it.
 
 ### Added
+
 - **External / 3rd-party resources.** A new resource type for work you've outsourced to another
   company — managed on a dedicated **External** tab, separate from your own people. Book an external
   party onto any task as a simple **start–end span**: no hours, no capacity, no utilisation (you
@@ -1267,7 +1840,8 @@ Track outsourced work without managing it.
 A cosmetic preview of the planned sign-in step.
 
 ### Added
-- **Demo sign-in screen.** A Google-style *"Choose an account"* screen now appears before the
+
+- **Demo sign-in screen.** A Google-style _"Choose an account"_ screen now appears before the
   company picker in the default deploy, to preview the intended "sign in, then pick a company"
   flow. It is **not** real authentication — there's no password and no popup; clicking the
   account just continues. You stay "signed in" across reloads, with **Sign out** on the picker
@@ -1279,18 +1853,20 @@ A cosmetic preview of the planned sign-in step.
 Cross-browser end-to-end test coverage.
 
 ### Added
-- **Firefox/Gecko E2E coverage.** `npm run e2e:firefox` runs the core specs on Firefox
-  (mirroring the existing Safari/WebKit twin), and the new **`npm run e2e:browsers`** runs them
+
+- **Firefox/Gecko E2E coverage.** `pnpm run e2e:firefox` runs the core specs on Firefox
+  (mirroring the existing Safari/WebKit twin), and the new **`pnpm run e2e:browsers`** runs them
   on all three engines — Chromium + WebKit, then Firefox. Both stay opt-in, so Chromium remains
-  the default `npm run e2e` inner loop, and the multi-engine runs need only Vite (no SQLite/auth
+  the default `pnpm run e2e` inner loop, and the multi-engine runs need only Vite (no SQLite/auth
   server, no Node 24). Firefox always runs after WebKit and unconditionally; a run fails if any
-  engine fails. `npm run e2e:all` now adds Firefox on top of its WebKit + server-backed coverage.
+  engine fails. `pnpm run e2e:all` now adds Firefox on top of its WebKit + server-backed coverage.
 
 ## [0.3.0] — 2026-06-16
 
 A new display feature plus the scheduler-geometry work behind it.
 
 ### Added
+
 - **Minimise weekends** (Settings → **Schedule**, on by default, per-browser). Shrinks the
   Saturday and Sunday columns to a sliver — just wide enough for the date number, labelled a
   single **"S"** — so the working week dominates the schedule. Weekends aren't removed:
@@ -1298,12 +1874,14 @@ A new display feature plus the scheduler-geometry work behind it.
   drag across a weekend lands on the right date. Turn it off for full-width Sat/Sun columns.
 
 ### Changed
+
 - **The schedule fills the viewport more tightly at each zoom.** A "1-week" view now shows
   ~1 week and "2 weeks" ~2 weeks, accounting for the narrowed weekend columns; day columns
   can also grow wider on larger screens (the maximum column width was raised) so a one-week
   view fills the space instead of leaving slack on the right.
 
 ### Fixed
+
 - **The left-edge date no longer drifts when you change zoom.** Switching zoom levels used to
   nudge the visible start date back a day onto the weekend; the timeline now holds the same
   date across zoom changes.
@@ -1313,6 +1891,7 @@ A new display feature plus the scheduler-geometry work behind it.
 An Alpha-feedback round: four scheduler / sidebar refinements.
 
 ### Added
+
 - **Disciplines are now optional.** A per-company setting (Settings → **Disciplines →
   Use disciplines**, on by default). Turn it off and disciplines disappear from the
   whole app — the sidebar nav item and the `/disciplines` route, the Discipline field
@@ -1323,6 +1902,7 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   you switch it back on.
 
 ### Changed
+
 - **The month label stays visible while scrolling.** The month (e.g. "Jun 2026") now
   sticks to the left edge of the timeline as you move across it, instead of scrolling
   away with the 1st of the month.
@@ -1334,6 +1914,7 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   collapsed icon rail, so the nav icons don't jump when the sidebar collapses.
 
 ### Fixed
+
 - **Collapsed (mobile) sidebar alignment & polish.** The collapse toggle and the nav
   icons now share the same left column and the same row height in both the open menu
   and the collapsed rail, so nothing shifts horizontally or vertically when you collapse
@@ -1347,7 +1928,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.25.0-alpha.2...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.0-alpha.1...HEAD
+[0.27.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.26.0-alpha.1...v0.27.0-alpha.1
+[0.26.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.25.0-alpha.9...v0.26.0-alpha.1
 [0.25.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.1-alpha.2...v0.25.0-alpha.2
 [0.24.1-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.0-alpha.2...v0.24.1-alpha.2
 [0.24.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.4-alpha.0...v0.24.0-alpha.2

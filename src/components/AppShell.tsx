@@ -15,7 +15,17 @@ import { useOfflineState } from '../data/useOfflineState'
 import { AppEntryGate } from './AppEntryGate'
 import { useAppShellController } from './useAppShellController'
 import { AppSidebar } from './AppSidebar'
-import { SidebarProvider, SidebarTrigger } from './ui/sidebar'
+import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar'
+
+function MobileSidebarTrigger() {
+  const { openMobile } = useSidebar()
+  return (
+    <SidebarTrigger
+      aria-expanded={openMobile}
+      aria-label={openMobile ? m.nav_collapse_menu() : m.nav_expand_menu()}
+    />
+  )
+}
 
 export function AppShell() {
   const { paletteOpen, closePalette } = useAppShellController()
@@ -64,7 +74,27 @@ export function AppShell() {
     </div>
   )
 
-  return (
+  // Keep the global notice host outside AppEntryGate: the controller publishes account-picker,
+  // sign-in and connection notices before the main app body exists. Sonner does not replay a toast
+  // published before its host mounts. The AA-safe neutral palette is shared by every tone; errors
+  // gain their separate danger accent through the toast-error class instead of richColors.
+  const toaster = (
+    <Toaster
+      theme={themePref === 'system' ? 'system' : themePref}
+      position="bottom-center"
+      closeButton
+      toastOptions={{ classNames: { error: 'toast-error' } }}
+      style={
+        {
+          '--normal-bg': 'var(--color-elevated)',
+          '--normal-text': 'var(--color-ink)',
+          '--normal-border': 'var(--color-line)',
+        } as CSSProperties
+      }
+    />
+  )
+
+  const gatedApp = (
     <AppEntryGate
       hydrated={hydrated}
       connectionError={connectionError}
@@ -93,7 +123,7 @@ export function AppShell() {
           targets the <main> landmark (id="main", tabIndex=-1 so it can receive programmatic focus). */}
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow focus:ring-2 focus:ring-brand"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-(--z-index-skip-link) focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow focus:ring-2 focus:ring-brand"
       >
         {m.nav_skip_to_content()}
       </a>
@@ -107,7 +137,7 @@ export function AppShell() {
       />
       <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
         <div className="border-b border-line p-2 md:hidden">
-          <SidebarTrigger aria-label={m.nav_expand_menu()} />
+          <MobileSidebarTrigger />
         </div>
         {offline.readOnly && (
           <Alert role="status" data-testid="offline-read-only" className="rounded-none border-x-0 border-t-0">
@@ -129,41 +159,17 @@ export function AppShell() {
           loader
         )}
       </main>
-      {/* Sonner toaster — bottom-centre (matches the retired Toast's `bottom-4`). `theme`: an
-          explicit light|dark pref is passed through concrete; a 'system' pref delegates to Sonner
-          ('system'), which subscribes to prefers-color-scheme itself so an OS flip re-themes the
-          toasts live (this shell doesn't re-render on that). Explicit prefs still track capacitylens's
-          [data-theme] dark mode through the --normal-* vars below. `closeButton` gives every toast
-          a dismiss control (aria-label "Close toast"); the store `notice` is the source of truth,
-          the effect above feeds it.
-
-          NOT `richColors`: its light-mode error palette (red #e60000 on pink #fff0f0) is 4.34:1,
-          just under WCAG AA (the a11y gate is hard, not advisory). Instead we paint every toast
-          on capacitylens's already-AA-validated elevated/ink/line tokens (the old hand-rolled Toast was
-          likewise one neutral surface for both tones). Wired through Sonner's --normal-* CSS vars
-          so it tracks [data-theme] for free.
-
-          Error distinction is restored WITHOUT richColors: the `toast-error` class (styled in
-          index.css off capacitylens's --color-danger) gives error toasts a danger left-accent + ring +
-          icon tint over the same AA-safe neutral surface, so an error reads as an error at a
-          glance in both themes. */}
-      <Toaster
-        theme={themePref === 'system' ? 'system' : themePref}
-        position="bottom-center"
-        closeButton
-        toastOptions={{ classNames: { error: 'toast-error' } }}
-        style={
-          {
-            '--normal-bg': 'var(--color-elevated)',
-            '--normal-text': 'var(--color-ink)',
-            '--normal-border': 'var(--color-line)',
-          } as CSSProperties
-        }
-      />
       {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
       <RotateHint />
     </SidebarProvider>
     </PermissionProvider>
     </AppEntryGate>
+  )
+
+  return (
+    <>
+      {toaster}
+      {gatedApp}
+    </>
   )
 }

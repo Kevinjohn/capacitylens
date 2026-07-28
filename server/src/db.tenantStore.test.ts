@@ -1,8 +1,19 @@
 import { describe, it, expect } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
-import { openDb, insertAll, loadState, readSlice, type Db } from './db'
+import {
+  openDb,
+  insertAll,
+  insertRow,
+  loadState,
+  readSlice,
+  type Db,
+} from './db'
 import { sqliteTenantStore } from './tenantStore'
+import { tx } from './txn'
 
 // P1.4: prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
 // account's slice and NEVER leak another tenant's rows — the no-cross-tenant invariant the whole
@@ -12,11 +23,41 @@ import { sqliteTenantStore } from './tenantStore'
 const TS = '2026-01-01T00:00:00.000Z'
 const meta = () => ({ createdAt: TS, updatedAt: TS })
 
-const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
-const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
-const discipline = (id: string, accountId: string) => ({ id, accountId, name: 'Design', sortOrder: 0, ...meta() })
-const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
-const phase = (id: string, accountId: string, projectId: string) => ({ id, accountId, name: 'Build', projectId, ...meta() })
+const account = (id: string) => ({
+  id,
+  name: `Studio ${id}`,
+  color: '#3b82f6',
+  ...meta(),
+})
+const client = (id: string, accountId: string) => ({
+  id,
+  accountId,
+  name: 'Acme',
+  color: '#3b82f6',
+  ...meta(),
+})
+const discipline = (id: string, accountId: string) => ({
+  id,
+  accountId,
+  name: 'Design',
+  sortOrder: 0,
+  ...meta(),
+})
+const project = (id: string, accountId: string, clientId: string) => ({
+  id,
+  accountId,
+  name: 'Web',
+  clientId,
+  color: '#3b82f6',
+  ...meta(),
+})
+const phase = (id: string, accountId: string, projectId: string) => ({
+  id,
+  accountId,
+  name: 'Build',
+  projectId,
+  ...meta(),
+})
 const person = (id: string, accountId: string, disciplineId?: string) => ({
   id,
   accountId,
@@ -30,8 +71,20 @@ const person = (id: string, accountId: string, disciplineId?: string) => ({
   color: '#3b82f6',
   ...meta(),
 })
-const activity = (id: string, accountId: string, projectId: string) => ({ id, accountId, name: 'Activity', kind: 'project', projectId, ...meta() })
-const allocation = (id: string, accountId: string, resourceId: string, activityId: string) => ({
+const activity = (id: string, accountId: string, projectId: string) => ({
+  id,
+  accountId,
+  name: 'Activity',
+  kind: 'project',
+  projectId,
+  ...meta(),
+})
+const allocation = (
+  id: string,
+  accountId: string,
+  resourceId: string,
+  activityId: string,
+) => ({
   id,
   accountId,
   resourceId,
@@ -45,7 +98,12 @@ const allocation = (id: string, accountId: string, resourceId: string, activityI
   ignoreWeekends: true,
   ...meta(),
 })
-const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
+const timeOff = (
+  id: string,
+  accountId: string,
+  resourceId: string,
+  note?: string,
+) => ({
   id,
   accountId,
   resourceId,
@@ -61,7 +119,11 @@ const timeOff = (id: string, accountId: string, resourceId: string, note?: strin
  *  P2.4); the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
  *  archived/deleted row). The note redaction (P1.6) and the lifecycle projection (P2.4) each get their
  *  own describe block where the relevant flag is flipped. */
-const FULL = { includeTimeOffNote: true, includeInactive: true, includePrivateNames: true } as const
+const FULL = {
+  includeTimeOffNote: true,
+  includeInactive: true,
+  includePrivateNames: true,
+} as const
 
 /** A full two-account dataset: a1 and a2 each carry rows in every scoped table. */
 function seedTwoAccounts(): AppData {
@@ -73,12 +135,24 @@ function seedTwoAccounts(): AppData {
   d.phases = [phase('ph1', 'a1', 'p1'), phase('ph2', 'a2', 'p2')]
   d.resources = [person('r1', 'a1', 'd1'), person('r2', 'a2', 'd2')]
   d.activities = [activity('act1', 'a1', 'p1'), activity('act2', 'a2', 'p2')]
-  d.allocations = [allocation('al1', 'a1', 'r1', 'act1'), allocation('al2', 'a2', 'r2', 'act2')]
+  d.allocations = [
+    allocation('al1', 'a1', 'r1', 'act1'),
+    allocation('al2', 'a2', 'r2', 'act2'),
+  ]
   d.timeOff = [timeOff('to1', 'a1', 'r1'), timeOff('to2', 'a2', 'r2')]
   return d as unknown as AppData
 }
 
-const SCOPED_KEYS = ['clients', 'disciplines', 'projects', 'phases', 'resources', 'activities', 'allocations', 'timeOff'] as const
+const SCOPED_KEYS = [
+  'clients',
+  'disciplines',
+  'projects',
+  'phases',
+  'resources',
+  'activities',
+  'allocations',
+  'timeOff',
+] as const
 
 describe('readSlice — tenant isolation', () => {
   it('returns ONLY the requested account in every table (a1)', () => {
@@ -90,7 +164,9 @@ describe('readSlice — tenant isolation', () => {
       const rows = slice[key]
       expect(rows.length).toBe(1)
       // ZERO rows from a2 in any scoped table — the no-cross-tenant invariant.
-      expect(rows.every((r) => (r as { accountId: string }).accountId === 'a1')).toBe(true)
+      expect(
+        rows.every((r) => (r as { accountId: string }).accountId === 'a1'),
+      ).toBe(true)
     }
   })
 
@@ -100,8 +176,14 @@ describe('readSlice — tenant isolation', () => {
     const slice = readSlice(db, 'a2', FULL)
     expect(slice.accounts.map((a) => a.id)).toEqual(['a2'])
     for (const key of SCOPED_KEYS) {
-      expect(slice[key].every((r) => (r as { accountId: string }).accountId === 'a2')).toBe(true)
-      expect(slice[key].some((r) => (r as { accountId: string }).accountId === 'a1')).toBe(false)
+      expect(
+        slice[key].every(
+          (r) => (r as { accountId: string }).accountId === 'a2',
+        ),
+      ).toBe(true)
+      expect(
+        slice[key].some((r) => (r as { accountId: string }).accountId === 'a1'),
+      ).toBe(false)
     }
   })
 
@@ -112,7 +194,9 @@ describe('readSlice — tenant isolation', () => {
     expect(slice.accounts).toEqual([])
     for (const key of SCOPED_KEYS) expect(slice[key]).toEqual([])
     // Result has EVERY AppData key present (starts from emptyAppData), not a partial object.
-    expect(Object.keys(slice).sort()).toEqual(Object.keys(emptyAppData()).sort())
+    expect(Object.keys(slice).sort()).toEqual(
+      Object.keys(emptyAppData()).sort(),
+    )
   })
 
   it('round-trips optional + json columns through the codec', () => {
@@ -124,6 +208,88 @@ describe('readSlice — tenant isolation', () => {
     // optional note + json ignoreWeekends survive.
     expect(slice.allocations[0]).toEqual(allocation('al1', 'a1', 'r1', 'act1'))
   })
+
+  it('returns one WAL snapshot when another handle commits between scoped table reads', () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), 'capacitylens-slice-snapshot-'),
+    )
+    const path = join(directory, 'capacitylens.db')
+    const reader = openDb(path)
+    const writer = openDb(path)
+    const initial = emptyAppData() as unknown as Record<string, unknown[]>
+    initial.accounts = [account('a1')]
+    insertAll(reader, initial as unknown as AppData)
+    let injected = false
+    const observedReader = new Proxy(reader, {
+      get(target, property) {
+        if (property === 'prepare') {
+          return (sql: string) => {
+            const statement = target.prepare(sql)
+            if (/^SELECT \* FROM clients WHERE accountId = \?$/.test(sql)) {
+              return new Proxy(statement, {
+                get(statementTarget, statementProperty) {
+                  if (statementProperty === 'all') {
+                    return (
+                      ...args: Parameters<typeof statementTarget.all>
+                    ) => {
+                      const rows = statementTarget.all(...args)
+                      tx(writer, () => {
+                        insertRow(
+                          writer,
+                          'clients',
+                          client('committed-client', 'a1'),
+                        )
+                        insertRow(
+                          writer,
+                          'projects',
+                          project(
+                            'committed-project',
+                            'a1',
+                            'committed-client',
+                          ),
+                        )
+                      })
+                      injected = true
+                      return rows
+                    }
+                  }
+                  const value = Reflect.get(
+                    statementTarget,
+                    statementProperty,
+                    statementTarget,
+                  ) as unknown
+                  return typeof value === 'function'
+                    ? value.bind(statementTarget)
+                    : value
+                },
+              })
+            }
+            return statement
+          }
+        }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    }) as Db
+
+    try {
+      const slice = readSlice(observedReader, 'a1', FULL)
+
+      expect(injected).toBe(true)
+      expect(slice.clients).toEqual([])
+      expect(slice.projects).toEqual([])
+      expect(
+        readSlice(writer, 'a1', FULL).clients.map((row) => row.id),
+      ).toEqual(['committed-client'])
+      expect(
+        readSlice(writer, 'a1', FULL).projects.map((row) => row.id),
+      ).toEqual(['committed-project'])
+    } finally {
+      reader.close()
+      writer.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('sqliteTenantStore', () => {
@@ -132,6 +298,40 @@ describe('sqliteTenantStore', () => {
     insertAll(db, seedTwoAccounts())
     const storeSlice = sqliteTenantStore(db).readSlice('a1', FULL)
     expect(storeSlice).toEqual(readSlice(db, 'a1', FULL))
+  })
+
+  it('writes one lifecycle row without rewriting tenant siblings', () => {
+    const db = openDb(':memory:')
+    insertAll(db, seedTwoAccounts())
+    db.exec(
+      `CREATE TEMP TABLE lifecycle_writes (operation TEXT NOT NULL, tableName TEXT NOT NULL, rowId TEXT NOT NULL)`,
+    )
+    for (const table of SCOPED_KEYS) {
+      db.exec(`
+        CREATE TEMP TRIGGER lifecycle_${table}_insert AFTER INSERT ON ${table}
+        BEGIN INSERT INTO lifecycle_writes VALUES ('insert', '${table}', NEW.id); END;
+        CREATE TEMP TRIGGER lifecycle_${table}_update AFTER UPDATE ON ${table}
+        BEGIN INSERT INTO lifecycle_writes VALUES ('update', '${table}', NEW.id); END;
+        CREATE TEMP TRIGGER lifecycle_${table}_delete AFTER DELETE ON ${table}
+        BEGIN INSERT INTO lifecycle_writes VALUES ('delete', '${table}', OLD.id); END;
+      `)
+    }
+    const store = sqliteTenantStore(db)
+    const row = store.readLifecycleRow('a1', 'resources', 'r1')
+    expect(row).toBeDefined()
+
+    store.writeLifecycleRow('a1', 'resources', {
+      ...(row as AppData['resources'][number]),
+      archivedAt: '2026-02-01T00:00:00.000Z',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    })
+
+    expect(
+      db
+        .prepare(`SELECT operation, tableName, rowId FROM lifecycle_writes`)
+        .all(),
+    ).toEqual([{ operation: 'update', tableName: 'resources', rowId: 'r1' }])
+    expect(store.readSlice('a2', FULL)).toEqual(readSlice(db, 'a2', FULL))
   })
 
   it('write(id, slice) replaces ONLY that account; the other account is untouched', () => {
@@ -162,7 +362,60 @@ describe('sqliteTenantStore', () => {
       expect((a2[key][0] as { accountId: string }).accountId).toBe('a2')
     }
     // The global accounts row for a2 still loads from the whole tree.
-    expect(loadState(db).accounts.map((a) => a.id).sort()).toEqual(['a1', 'a2'])
+    expect(
+      loadState(db)
+        .accounts.map((a) => a.id)
+        .sort(),
+    ).toEqual(['a1', 'a2'])
+  })
+
+  it('transact reads and replaces the complete slice inside one synchronous transaction', () => {
+    const db = openDb(':memory:')
+    insertAll(db, seedTwoAccounts())
+    const store = sqliteTenantStore(db)
+    const otherTenantBefore = store.readSlice('a2', FULL)
+
+    const result = store.transact('a1', FULL, (current) => {
+      expect(db.isTransaction).toBe(true)
+      return {
+        next: {
+          ...current,
+          allocations: current.allocations.map((row) => ({
+            ...row,
+            note: 'Atomic update',
+          })),
+        },
+        result: 'committed',
+      }
+    })
+
+    expect(result).toBe('committed')
+    expect(store.readSlice('a1', FULL).allocations[0]?.note).toBe(
+      'Atomic update',
+    )
+    expect(store.readSlice('a2', FULL)).toEqual(otherTenantBefore)
+  })
+
+  it('transact rolls a destructive replacement back when reinsertion fails', () => {
+    const db = openDb(':memory:')
+    insertAll(db, seedTwoAccounts())
+    const store = sqliteTenantStore(db)
+    const before = store.readSlice('a1', FULL)
+
+    expect(() =>
+      store.transact('a1', FULL, (current) => ({
+        next: {
+          ...current,
+          allocations: current.allocations.map((row) => ({
+            ...row,
+            resourceId: 'missing-resource',
+          })),
+        },
+        result: undefined,
+      })),
+    ).toThrow()
+
+    expect(store.readSlice('a1', FULL)).toEqual(before)
   })
 })
 
@@ -203,11 +456,21 @@ describe('readSlice — private client/project name redaction', () => {
     const db = openDb(':memory:')
     const d = seedTwoAccounts() as unknown as Record<string, unknown[]>
     d.clients = [
-      { ...client('c1', 'a1'), name: 'Real Client', isPrivate: true, codeName: 'Northstar' },
+      {
+        ...client('c1', 'a1'),
+        name: 'Real Client',
+        isPrivate: true,
+        codeName: 'Northstar',
+      },
       client('c2', 'a2'),
     ]
     d.projects = [
-      { ...project('p1', 'a1', 'c1'), name: 'Real Project', isPrivate: true, codeName: 'Aurora' },
+      {
+        ...project('p1', 'a1', 'c1'),
+        name: 'Real Project',
+        isPrivate: true,
+        codeName: 'Aurora',
+      },
       project('p2', 'a2', 'c2'),
     ]
     insertAll(db, d as unknown as AppData)
@@ -216,14 +479,31 @@ describe('readSlice — private client/project name redaction', () => {
 
   it('includePrivateNames:true preserves owner-visible stored fields', () => {
     const slice = readSlice(seedPrivateNames(), 'a1', FULL)
-    expect(slice.clients[0]).toMatchObject({ name: 'Real Client', isPrivate: true, codeName: 'Northstar' })
-    expect(slice.projects[0]).toMatchObject({ name: 'Real Project', isPrivate: true, codeName: 'Aurora' })
+    expect(slice.clients[0]).toMatchObject({
+      name: 'Real Client',
+      isPrivate: true,
+      codeName: 'Northstar',
+    })
+    expect(slice.projects[0]).toMatchObject({
+      name: 'Real Project',
+      isPrivate: true,
+      codeName: 'Aurora',
+    })
   })
 
   it('includePrivateNames:false replaces both real names with quoted code names', () => {
-    const slice = readSlice(seedPrivateNames(), 'a1', { ...FULL, includePrivateNames: false })
-    expect(slice.clients[0]).toMatchObject({ name: '"Northstar"', isPrivate: true })
-    expect(slice.projects[0]).toMatchObject({ name: '"Aurora"', isPrivate: true })
+    const slice = readSlice(seedPrivateNames(), 'a1', {
+      ...FULL,
+      includePrivateNames: false,
+    })
+    expect(slice.clients[0]).toMatchObject({
+      name: '"Northstar"',
+      isPrivate: true,
+    })
+    expect(slice.projects[0]).toMatchObject({
+      name: '"Aurora"',
+      isPrivate: true,
+    })
     expect(slice.clients[0]).not.toHaveProperty('codeName')
     expect(slice.projects[0]).not.toHaveProperty('codeName')
   })
@@ -247,7 +527,11 @@ describe('readSlice — P2.4 lifecycle projection (includeInactive)', () => {
     ]
     d.projects = [
       project('p-active', 'a1', 'c-active'),
-      { ...project('p-deleted', 'a1', 'c-active'), archivedAt: ARCH, deletedAt: DEL }, // soft-deleted
+      {
+        ...project('p-deleted', 'a1', 'c-active'),
+        archivedAt: ARCH,
+        deletedAt: DEL,
+      }, // soft-deleted
     ]
     d.resources = [
       person('r-active', 'a1', 'd1'),
@@ -282,9 +566,18 @@ describe('readSlice — P2.4 lifecycle projection (includeInactive)', () => {
       includeInactive: true,
       includePrivateNames: true,
     })
-    expect(slice.resources.map((r) => r.id).sort()).toEqual(['r-active', 'r-archived'])
-    expect(slice.clients.map((c) => c.id).sort()).toEqual(['c-active', 'c-deleted'])
-    expect(slice.projects.map((p) => p.id).sort()).toEqual(['p-active', 'p-deleted'])
+    expect(slice.resources.map((r) => r.id).sort()).toEqual([
+      'r-active',
+      'r-archived',
+    ])
+    expect(slice.clients.map((c) => c.id).sort()).toEqual([
+      'c-active',
+      'c-deleted',
+    ])
+    expect(slice.projects.map((p) => p.id).sort()).toEqual([
+      'p-active',
+      'p-deleted',
+    ])
     // Children unaffected by the flag.
     expect(slice.phases.map((p) => p.id)).toEqual(['ph1'])
     expect(slice.activities.map((a) => a.id)).toEqual(['act1'])

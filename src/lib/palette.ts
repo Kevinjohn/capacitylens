@@ -24,7 +24,8 @@ export const DEFAULT_COLORS = {
 // matrix deliberately includes every DEFAULT_COLORS value (row 2, the medium-vivid
 // band) so a freshly-opened form's default highlights as the selected swatch. No greyscale.
 export const SWATCH_COLUMNS = 13
-export const SWATCHES = PRESET_COLORS
+// Alias the frozen canonical tuple rather than maintaining a second list or mutable copy.
+export const SWATCHES: readonly string[] = PRESET_COLORS
 
 // Human-readable names for the 13×4 swatch grid, derived from the column (hue) + row (shade) — so
 // the swatch buttons get an accessible NAME instead of an unreadable hex like "#e02727" (WCAG

@@ -19,9 +19,9 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/
 function clientArchiveMessage(data: AppData, client: Client): string {
   const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name
   const base = m.list_clients_archive_message({ name })
-  const { projects, allocations } = archiveImpact(data, 'clients', client.id)
-  return projects + allocations > 0
-    ? `${base} ${m.list_clients_archive_cascade({ projects, allocations })}`
+  const { projects, phases, allocations } = archiveImpact(data, 'clients', client.id)
+  return projects + phases + allocations > 0
+    ? `${base} ${m.list_clients_archive_cascade({ projects, phases, allocations })}`
     : base
 }
 

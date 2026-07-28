@@ -4,10 +4,8 @@ import { emptyAppData, isCapacityTracked, isExternalResource, scopedTables, SCOP
 import type { AppData, Discipline, ID, InternalColourMode, Resource, SchedulingMode } from '@capacitylens/shared/types/entities'
 import type { SchedulerUI } from './useStore'
 
-export interface CalendarConfig {
-  timeZone: string
-  weekStartsOn: 0 | 1
-}
+export const DEFAULT_CALENDAR_TIME_ZONE = 'Etc/GMT'
+export const DEFAULT_WEEK_STARTS_ON = 1 as const
 
 /** The active company's scheduling input mode. Absent on the account reads as the
  *  original 'hourly' behaviour. Single source so the modal and the bar can't drift. */
@@ -56,15 +54,12 @@ export const showInternalActivitiesFor = (data: AppData, activeAccountId: ID | n
 export const inlineActivityCreateEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
   data.accounts.find((a) => a.id === activeAccountId)?.inlineActivityCreateEnabled ?? true
 
-/** The active account's calendar config — timezone and week-start day.
- *  Absent fields fall back to the defaults (Etc/GMT, Monday). */
-export const calendarFor = (data: AppData, activeAccountId: ID | null): CalendarConfig => {
-  const account = data.accounts.find((a) => a.id === activeAccountId)
-  return {
-    timeZone: account?.timezone ?? 'Etc/GMT',
-    weekStartsOn: account?.weekStartsOn ?? 1,
-  }
-}
+/** Primitive calendar selectors avoid fresh-object Zustand snapshots while keeping defaults single-sourced. */
+export const timeZoneFor = (data: AppData, activeAccountId: ID | null): string =>
+  data.accounts.find((a) => a.id === activeAccountId)?.timezone ?? DEFAULT_CALENDAR_TIME_ZONE
+
+export const weekStartsOnFor = (data: AppData, activeAccountId: ID | null): 0 | 1 =>
+  data.accounts.find((a) => a.id === activeAccountId)?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON
 
 /** Narrow the full store data to a single account: every scoped array filtered to
  *  `accountId`, and `accounts` blanked (scoped views never read the tenant list).
@@ -73,7 +68,7 @@ export const calendarFor = (data: AppData, activeAccountId: ID | null): Calendar
  *  `SCOPED_KEYS` must be EXHAUSTIVE over AppData's scoped tables. `scoped` starts as emptyAppData()
  *  and only the SCOPED_KEYS are copied across — so a scoped table that AppData gains but SCOPED_KEYS
  *  omits would render EMPTY in every scoped view (the rows silently vanish). The exhaustiveness gate
- *  (see CLAUDE.md / DECISIONS.md) keeps SCOPED_KEYS complete; never add a scoped table without it. */
+ *  shared/types/entities.ts keeps SCOPED_KEYS complete; never add a scoped table without it. */
 export function scopeData(data: AppData, accountId: ID): AppData {
   const scoped = emptyAppData()
   const src = scopedTables(data)

@@ -465,6 +465,11 @@ export function reserveAccountCommand(
   `).run(new Date(nowMs - COMMAND_RETENTION_MS).toISOString())
   const existing = getAccountCommand(db, input.applicationId, input.operation, input.idempotencyKey)
   if (existing) {
+    // An idempotency key is authority-neutral, but its result is not. Never let a command retained
+    // by a shared browser replay, age, or otherwise mutate another principal's ledger ceremony.
+    if (existing.actorPrincipalId !== input.actorPrincipalId) {
+      return { kind: 'conflict', record: existing }
+    }
     const reconciled = transitionStalePending(db, existing, nowMs)
     if (reconciled !== existing) {
       return reconciled.payloadHash === input.payloadHash && reconciled.commandId === input.commandId
@@ -569,11 +574,22 @@ export function eraseWorkspaceCommandHistoryInTx(
   workspaceId: WorkspaceId,
   exceptCommandId?: CommandId,
 ): void {
+  // Closed successful/compensated rows are disposable history. Pending and repair-required rows
+  // are live coordination state: deleting either can strand an external side effect and erase its
+  // only recovery coordinates while the owning flow is still running or awaiting an operator.
   if (exceptCommandId === undefined) {
-    db.prepare(`DELETE FROM account_commands WHERE workspaceId = ?`).run(workspaceId)
+    db.prepare(`
+      DELETE FROM account_commands
+       WHERE workspaceId = ? AND status IN ('completed', 'compensated')
+    `).run(workspaceId)
     return
   }
-  db.prepare(`DELETE FROM account_commands WHERE workspaceId = ? AND commandId <> ?`)
+  db.prepare(`
+    DELETE FROM account_commands
+     WHERE workspaceId = ?
+       AND commandId <> ?
+       AND status IN ('completed', 'compensated')
+  `)
     .run(workspaceId, exceptCommandId)
   db.prepare(`UPDATE account_commands SET workspaceId = NULL WHERE commandId = ? AND workspaceId = ?`)
     .run(exceptCommandId, workspaceId)

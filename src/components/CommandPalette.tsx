@@ -1,61 +1,80 @@
-import { useMemo, useRef, useState, useLayoutEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useStore, emptyFilters } from '../store/useStore'
-import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../store/selectors'
-import { useActiveScopedData } from '../store/useScopedData'
-import { fuzzyFilter } from '../lib/fuzzy'
-import { resourceDisplayName } from '../lib/metadata'
-import { isValidISODate } from '@capacitylens/shared/lib/integrity'
-import { isExternalResource } from '@capacitylens/shared/types/entities'
-import { m } from '@/i18n'
+import { useMemo, useState, useLayoutEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useStore, emptyFilters } from "../store/useStore";
+import {
+  disciplinesEnabledFor,
+  externalEnabledFor,
+  placeholdersEnabledFor,
+  showInternalProjectsFor,
+} from "../store/selectors";
+import { useActiveScopedData } from "../store/useScopedData";
+import { fuzzyFilter } from "../lib/fuzzy";
+import { resourceDisplayName } from "../lib/metadata";
+import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import { m } from "@/i18n";
 import {
   Command,
   CommandInput,
   CommandList,
   CommandGroup,
   CommandItem,
-} from './ui/command'
-import type { Filters } from '../store/useStore'
-import { cn } from '@/lib/utils'
-import { LINKS } from '../lib/navLinks'
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
+} from "./ui/command";
+import type { Filters } from "../store/useStore";
+import { cn } from "@/lib/utils";
+import { LINKS } from "../lib/navLinks";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PaletteItem {
-  id: string
-  label: string
-  sublabel?: string
-  section: string
-  onSelect: () => void
+  id: string;
+  label: string;
+  sublabel?: string;
+  section: string;
+  onSelect: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate()
-  const goToToday = useStore((s) => s.goToToday)
-  const goToDate = useStore((s) => s.goToDate)
-  const jumpToResource = useStore((s) => s.jumpToResource)
-  const setFilters = useStore((s) => s.setFilters)
-  const data = useActiveScopedData()
+  const navigate = useNavigate();
+  const goToToday = useStore((s) => s.goToToday);
+  const goToDate = useStore((s) => s.goToDate);
+  const jumpToResource = useStore((s) => s.jumpToResource);
+  const setFilters = useStore((s) => s.setFilters);
+  const data = useActiveScopedData();
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
+  const disciplinesEnabled = useStore((s) =>
+    disciplinesEnabledFor(s.data, s.activeAccountId),
+  );
   // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
+  const placeholdersEnabled = useStore((s) =>
+    placeholdersEnabledFor(s.data, s.activeAccountId),
+  );
   // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
   // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
-  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
+  const externalEnabled = useStore((s) =>
+    externalEnabledFor(s.data, s.activeAccountId),
+  );
+  // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
+  // Internal ACTIVITIES deliberately remain below: they open the complete management list instead.
+  const showInternalProjects = useStore((s) =>
+    showInternalProjectsFor(s.data, s.activeAccountId),
+  );
 
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState("");
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
   // know which row is active so we can drive the input's `aria-activedescendant` (see below); cmdk
   // routes its own pointer/keyboard moves through onValueChange back into this state.
-  const [activeValue, setActiveValue] = useState('')
+  const [activeValue, setActiveValue] = useState("");
 
-  // Refs into cmdk's input + list so we can repair `aria-activedescendant` (below).
-  const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
+  // Portal-backed cmdk nodes arrive after this component's first commit. Callback-ref state makes
+  // their availability an explicit effect dependency for the active-descendant repair below.
+  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(
+    null,
+  );
+  const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
   // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
   // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
   // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
@@ -68,6 +87,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         disciplinesEnabled,
         placeholdersEnabled,
         externalEnabled,
+        showInternalProjects,
         navigate,
         goToToday,
         goToDate,
@@ -81,6 +101,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       disciplinesEnabled,
       placeholdersEnabled,
       externalEnabled,
+      showInternalProjects,
       navigate,
       goToToday,
       goToDate,
@@ -88,17 +109,17 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       setFilters,
       onClose,
     ],
-  )
+  );
 
   // Group items by section for rendering (one CommandGroup per section).
-  const sections: { title: string; items: PaletteItem[] }[] = []
+  const sections: { title: string; items: PaletteItem[] }[] = [];
   for (const item of items) {
-    let sec = sections.find((s) => s.title === item.section)
+    let sec = sections.find((s) => s.title === item.section);
     if (!sec) {
-      sec = { title: item.section, items: [] }
-      sections.push(sec)
+      sec = { title: item.section, items: [] };
+      sections.push(sec);
     }
-    sec.items.push(item)
+    sec.items.push(item);
   }
 
   // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its OWN `selectedItemId`,
@@ -109,38 +130,61 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // onto the input ourselves. cmdk marks exactly ONE option `aria-selected="true"` (the active row),
   // so we match that single option by its selected state — no need to also cross-check `data-value`
   // against our controlled `activeValue` (redundant, and it breaks the auto-selected first row whose
-  // value our state hasn't caught up to yet). This runs in a layout effect AFTER cmdk's render
-  // commits; React won't clobber it on cmdk's next render because cmdk keeps emitting the same `null`
-  // (null → null is a no-op diff), so our value survives until the active row actually changes.
+  // value our state hasn't caught up to yet). cmdk may establish its initial selection after our
+  // parent layout effect, and later changes its internal row without necessarily rendering this
+  // component. Observe only list selection/child mutations so the repair follows both paths. React
+  // won't clobber it because cmdk keeps emitting the same `null` (null → null is a no-op diff).
+  // Repair only the focused input: it is the element whose active descendant assistive technology
+  // reads. Do not mirror this relationship onto the non-focusable listbox.
   useLayoutEffect(() => {
-    const input = inputRef.current
-    const list = listRef.current
-    if (!input || !list) return
-    const activeOpt = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]')
-    const activeId = activeOpt?.id ?? null
-    if (activeId) {
-      input.setAttribute('aria-activedescendant', activeId)
-      // The listbox carries the same attribute; keep the two in sync for the full combobox pattern.
-      list.setAttribute('aria-activedescendant', activeId)
-    } else {
-      input.removeAttribute('aria-activedescendant')
-      list.removeAttribute('aria-activedescendant')
-    }
-  })
+    const input = inputElement;
+    const list = listElement;
+    if (!input || !list) return;
+    const syncActiveDescendant = () => {
+      const activeOpt = list.querySelector<HTMLElement>(
+        '[cmdk-item=""][aria-selected="true"]',
+      );
+      const activeId = activeOpt?.id ?? null;
+      if (activeId) {
+        input.setAttribute("aria-activedescendant", activeId);
+      } else {
+        input.removeAttribute("aria-activedescendant");
+      }
+    };
+    const observer = new MutationObserver(syncActiveDescendant);
+    observer.observe(list, {
+      attributes: true,
+      attributeFilter: ["aria-selected"],
+      childList: true,
+      subtree: true,
+    });
+    syncActiveDescendant();
+    return () => observer.disconnect();
+  }, [inputElement, listElement]);
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent
         data-testid="command-palette"
         overlayProps={{
-          'data-testid': 'command-palette-overlay',
-          onMouseDown: (event) => { event.preventDefault(); onClose() },
+          "data-testid": "command-palette-overlay",
+          onMouseDown: (event) => {
+            event.preventDefault();
+            onClose();
+          },
         }}
         showCloseButton={false}
         aria-describedby={undefined}
         className="top-[15svh] max-h-[60dvh] max-w-xl translate-y-0 gap-0 overflow-hidden p-0"
       >
-        <DialogTitle className="sr-only">{m.palette_dialog_label()}</DialogTitle>
+        <DialogTitle className="sr-only">
+          {m.palette_dialog_label()}
+        </DialogTitle>
         <Command
           shouldFilter={false}
           loop={false}
@@ -156,11 +200,22 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               fill="none"
               aria-hidden="true"
             >
-              <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle
+                cx="6.5"
+                cy="6.5"
+                r="4.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path
+                d="M10.5 10.5L14 14"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
             <CommandInput
-              ref={inputRef}
+              ref={setInputElement}
               autoFocus
               aria-label={m.palette_search_aria()}
               placeholder={m.palette_search_placeholder()}
@@ -168,15 +223,19 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               onValueChange={setQuery}
               data-testid="command-palette-input"
             />
-            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">{m.palette_esc()}</kbd>
+            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">
+              {m.palette_esc()}
+            </kbd>
           </div>
 
           {/* Results — cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}
-          <CommandList ref={listRef} label={m.palette_results_label()}>
+          <CommandList ref={setListElement} label={m.palette_results_label()}>
             {/* No-results: manual conditional (deterministic with shouldFilter=false) rather than
                 cmdk's CommandEmpty, which keys off its internal filtered-count. */}
             {items.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-faint">{m.palette_no_results({ query })}</div>
+              <div className="px-4 py-6 text-center text-sm text-faint">
+                {m.palette_no_results({ query })}
+              </div>
             )}
             {sections.map((section) => (
               <CommandGroup key={section.title} heading={section.title}>
@@ -198,7 +257,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                       /* text-muted-foreground on the active brand-soft tint (text-faint fails AA at 4.08:1);
                          text-muted-foreground clears 4.5:1 on brand-soft in both light and dark. */
                       <span
-                        className={cn('shrink-0 truncate text-xs', item.id === activeValue ? 'text-muted-foreground' : 'text-faint')}
+                        className={cn(
+                          "shrink-0 truncate text-xs",
+                          item.id === activeValue
+                            ? "text-muted-foreground"
+                            : "text-faint",
+                        )}
                       >
                         {item.sublabel}
                       </span>
@@ -211,12 +275,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         </Command>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 // ─── Item builder ─────────────────────────────────────────────────────────────
 
-const SECTION_LIMIT = 5 // max results per entity section
+const SECTION_LIMIT = 5; // max results per entity section
 
 function buildItems({
   query,
@@ -224,6 +288,7 @@ function buildItems({
   disciplinesEnabled,
   placeholdersEnabled,
   externalEnabled,
+  showInternalProjects,
   navigate,
   goToToday,
   goToDate,
@@ -231,35 +296,36 @@ function buildItems({
   setFilters,
   onClose,
 }: {
-  query: string
-  data: ReturnType<typeof useActiveScopedData>
-  disciplinesEnabled: boolean
-  placeholdersEnabled: boolean
-  externalEnabled: boolean
-  navigate: ReturnType<typeof useNavigate>
-  goToToday: () => void
-  goToDate: (iso: string) => void
-  jumpToResource: (id: string) => void
-  setFilters: (patch: Partial<Filters>) => void
-  onClose: () => void
+  query: string;
+  data: ReturnType<typeof useActiveScopedData>;
+  disciplinesEnabled: boolean;
+  placeholdersEnabled: boolean;
+  externalEnabled: boolean;
+  showInternalProjects: boolean;
+  navigate: ReturnType<typeof useNavigate>;
+  goToToday: () => void;
+  goToDate: (iso: string) => void;
+  jumpToResource: (id: string) => void;
+  setFilters: (patch: Partial<Filters>) => void;
+  onClose: () => void;
 }): PaletteItem[] {
-  const q = query.trim()
-  const items: PaletteItem[] = []
+  const q = query.trim();
+  const items: PaletteItem[] = [];
 
   // ── Actions ────────────────────────────────────────────────────────────────
-  const actions: PaletteItem[] = []
+  const actions: PaletteItem[] = [];
 
   // "Go to today" — always available in Actions
   actions.push({
-    id: 'action-today',
+    id: "action-today",
     label: m.palette_action_today(),
     section: m.palette_section_actions(),
     onSelect: () => {
-      void navigate('/')
-      goToToday()
-      onClose()
+      void navigate("/");
+      goToToday();
+      onClose();
     },
-  })
+  });
 
   // "Go to date YYYY-MM-DD" — appears only when query is a valid ISO date
   if (isValidISODate(q)) {
@@ -268,83 +334,92 @@ function buildItems({
       label: m.palette_action_date({ date: q }),
       section: m.palette_section_actions(),
       onSelect: () => {
-        void navigate('/')
-        goToDate(q)
-        onClose()
+        void navigate("/");
+        goToDate(q);
+        onClose();
       },
-    })
+    });
   }
 
   // Filter actions by query (fuzzy on label)
   const filteredActions = q
     ? fuzzyFilter(actions, q, (a) => a.label).slice(0, SECTION_LIMIT)
-    : actions
+    : actions;
 
   // ── Pages ──────────────────────────────────────────────────────────────────
   // Derive page destinations from the same source as the sidebar navigation. New first-class
   // routes therefore cannot silently appear in navigation while being absent from the palette.
-  const pages: PaletteItem[] = LINKS
-    .filter(([to]) => disciplinesEnabled || to !== '/disciplines')
-    .map(([to, label]) => ({
-      id: `page-${to === '/' ? 'schedule' : to.slice(1)}`,
-      label: label(),
-      sublabel: to,
-      section: m.palette_section_pages(),
-      onSelect: () => {
-        void navigate(to)
-        onClose()
-      },
-    }))
+  const pages: PaletteItem[] = LINKS.filter(
+    ([to]) => disciplinesEnabled || to !== "/disciplines",
+  ).map(([to, label]) => ({
+    id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
+    label: label(),
+    sublabel: to,
+    section: m.palette_section_pages(),
+    onSelect: () => {
+      void navigate(to);
+      onClose();
+    },
+  }));
 
   const filteredPages = q
     ? fuzzyFilter(pages, q, (p) => p.label).slice(0, SECTION_LIMIT)
-    : pages
+    : pages;
 
   // ── Resources ──────────────────────────────────────────────────────────────
   // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
   // off, drop them as jump targets — their schedule row is hidden, so jumping to it would scroll to
   // nothing.
   const resourceItems: PaletteItem[] = data.resources
-    .filter((r) => placeholdersEnabled || r.kind !== 'placeholder')
+    .filter((r) => placeholdersEnabled || r.kind !== "placeholder")
     .filter((r) => externalEnabled || !isExternalResource(r))
     .map((r) => ({
-    id: `res-${r.id}`,
-    // External / 3rd parties are jump targets too (they're schedule rows), but mark them so they
-    // don't read as one of our own people in the list — mirrors the assignee dropdown's " (external)".
-    // A placeholder reads as the literal "Placeholder" with its role as secondary text.
-    label: `${resourceDisplayName(r)}${isExternalResource(r) ? m.palette_resource_external_suffix() : ''}`,
-    sublabel: r.kind === 'placeholder' ? r.role : r.name ? r.role : undefined,
-    section: m.palette_section_people(),
-    onSelect: () => {
-      void navigate('/')
-      jumpToResource(r.id)
-      onClose()
-    },
-  }))
+      id: `res-${r.id}`,
+      // External / 3rd parties are jump targets too (they're schedule rows), but mark them so they
+      // don't read as one of our own people in the list — mirrors the assignee dropdown's " (external)".
+      // A placeholder reads as the literal "Placeholder" with its role as secondary text.
+      label: `${resourceDisplayName(r)}${isExternalResource(r) ? m.palette_resource_external_suffix() : ""}`,
+      sublabel: r.kind === "placeholder" ? r.role : r.name ? r.role : undefined,
+      section: m.palette_section_people(),
+      onSelect: () => {
+        void navigate("/");
+        jumpToResource(r.id);
+        onClose();
+      },
+    }));
 
   const filteredResources = q
     ? fuzzyFilter(resourceItems, q, (r) => r.label).slice(0, SECTION_LIMIT)
-    : resourceItems.slice(0, SECTION_LIMIT)
+    : resourceItems.slice(0, SECTION_LIMIT);
 
   // ── Projects ───────────────────────────────────────────────────────────────
-  const projectItems: PaletteItem[] = data.projects.map((p) => {
-    const client = data.clients.find((c) => c.id === p.clientId)
-    return {
-      id: `proj-${p.id}`,
-      label: p.name,
-      sublabel: client?.name,
-      section: m.palette_section_projects(),
-      onSelect: () => {
-        void navigate('/')
-        setFilters({ ...emptyFilters(), projectId: p.id })
-        onClose()
-      },
-    }
-  })
+  const clientsById = new Map(
+    data.clients.map((client) => [client.id, client]),
+  );
+  const projectItems: PaletteItem[] = data.projects
+    .filter(
+      (project) =>
+        showInternalProjects ||
+        clientsById.get(project.clientId)?.builtin !== true,
+    )
+    .map((project) => {
+      const client = clientsById.get(project.clientId);
+      return {
+        id: `proj-${project.id}`,
+        label: project.name,
+        sublabel: client?.name,
+        section: m.palette_section_projects(),
+        onSelect: () => {
+          void navigate("/");
+          setFilters({ ...emptyFilters(), projectId: project.id });
+          onClose();
+        },
+      };
+    });
 
   const filteredProjects = q
     ? fuzzyFilter(projectItems, q, (p) => p.label).slice(0, SECTION_LIMIT)
-    : projectItems.slice(0, SECTION_LIMIT)
+    : projectItems.slice(0, SECTION_LIMIT);
 
   // ── Clients ────────────────────────────────────────────────────────────────
   const clientItems: PaletteItem[] = data.clients.map((c) => ({
@@ -352,51 +427,57 @@ function buildItems({
     label: c.name,
     section: m.palette_section_clients(),
     onSelect: () => {
-      void navigate('/')
-      setFilters({ ...emptyFilters(), clientId: c.id })
-      onClose()
+      void navigate("/");
+      setFilters({ ...emptyFilters(), clientId: c.id });
+      onClose();
     },
-  }))
+  }));
 
   const filteredClients = q
     ? fuzzyFilter(clientItems, q, (c) => c.label).slice(0, SECTION_LIMIT)
-    : clientItems.slice(0, SECTION_LIMIT)
+    : clientItems.slice(0, SECTION_LIMIT);
 
-  // ── Activities ──────────────────────────────────────────────────────────────────
+  // Activities open the management list, not a schedule bar. Keep internal activities searchable
+  // even when their schedule-only visibility preference is off.
   const activityItems: PaletteItem[] = data.activities.map((a) => {
-    const project = data.projects.find((p) => p.id === a.projectId)
+    const project = data.projects.find((p) => p.id === a.projectId);
     return {
       id: `activity-${a.id}`,
       label: a.name,
       // Project-specific activities show their project; project-less activities show their kind so the two
       // aren't indistinguishable blank-sublabel rows.
-      sublabel: a.kind === 'project' ? project?.name : a.kind === 'internal' ? m.palette_activity_internal() : m.palette_activity_repeatable(),
+      sublabel:
+        a.kind === "project"
+          ? project?.name
+          : a.kind === "internal"
+            ? m.palette_activity_internal()
+            : m.palette_activity_repeatable(),
       section: m.palette_section_activities(),
       onSelect: () => {
-        void navigate('/activities')
-        onClose()
+        void navigate("/activities");
+        onClose();
       },
-    }
-  })
+    };
+  });
 
   const filteredActivities = q
     ? fuzzyFilter(activityItems, q, (a) => a.label).slice(0, SECTION_LIMIT)
-    : activityItems.slice(0, SECTION_LIMIT)
+    : activityItems.slice(0, SECTION_LIMIT);
 
   // ── Assemble ───────────────────────────────────────────────────────────────
   // When there's a query, only include sections that have results
   if (q) {
-    if (filteredActions.length) items.push(...filteredActions)
-    if (filteredPages.length) items.push(...filteredPages)
-    if (filteredResources.length) items.push(...filteredResources)
-    if (filteredProjects.length) items.push(...filteredProjects)
-    if (filteredClients.length) items.push(...filteredClients)
-    if (filteredActivities.length) items.push(...filteredActivities)
+    if (filteredActions.length) items.push(...filteredActions);
+    if (filteredPages.length) items.push(...filteredPages);
+    if (filteredResources.length) items.push(...filteredResources);
+    if (filteredProjects.length) items.push(...filteredProjects);
+    if (filteredClients.length) items.push(...filteredClients);
+    if (filteredActivities.length) items.push(...filteredActivities);
   } else {
     // No query: show Actions + Pages only
-    items.push(...filteredActions)
-    items.push(...filteredPages)
+    items.push(...filteredActions);
+    items.push(...filteredPages);
   }
 
-  return items
+  return items;
 }

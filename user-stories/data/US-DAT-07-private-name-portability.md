@@ -3,7 +3,7 @@
 **Area:** Data management / privacy · **Persona:** Account owner and account administrator ·
 **Coverage:** `server/src/app.authz.test.ts` → owner-only import + redacted re-import tests;
 `src/components/ImportExport.test.tsx`; `shared/src/lib/sanitizeImport.test.ts`; migration criterion
-`DAT-PRIV-01` is currently manual (the explicit v6→v7 regression assertion is still to add)
+`DAT-PRIV-01` → `shared/src/data/migrate.test.ts`
 
 ## Goal
 

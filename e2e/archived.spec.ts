@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openApp } from './helpers'
 
 // P2.5b — the DEFERRED P2.4 "archived vanishes" end-to-end story, now landable because the client

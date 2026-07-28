@@ -8,7 +8,7 @@ import { TooltipProvider } from '../components/ui/tooltip'
 // SchedulerGrid), so isolated bar renders here must supply their own provider.
 const render = (ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) =>
   rtlRender(ui, { wrapper: TooltipProvider, ...options })
-import { ListPage } from '../components/common/dialogs'
+import { AddButton, ListPage } from '../components/common/dialogs'
 import { AllocationBar } from '../components/scheduler/AllocationBar'
 import { buildColumnGeometry } from '../components/scheduler/columnGeometry'
 import type { BarLayout } from '../components/scheduler/schedulerModel'
@@ -61,6 +61,18 @@ describe('useCanEdit gates the ListPage create affordance', () => {
   it('REGRESSION GUARD: NO provider at all keeps the "Add" button (default-editable)', () => {
     render(<ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />)
     expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument()
+  })
+})
+
+describe('useCanEdit gates direct AddButton create affordances', () => {
+  it('hides a direct create action from a viewer by default', () => {
+    withRole('viewer', <AddButton label="Add placeholder" onClick={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Add placeholder' })).not.toBeInTheDocument()
+  })
+
+  it('supports a separately-authorized create action through an explicit opt-out', () => {
+    withRole('viewer', <AddButton label="New company" onClick={vi.fn()} requiresEdit={false} />)
+    expect(screen.getByRole('button', { name: 'New company' })).toBeInTheDocument()
   })
 })
 

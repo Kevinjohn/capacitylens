@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
-import { buildApp, parseRateLimit } from './app'
+import { buildApp, MAX_RATE_LIMIT, parseRateLimit } from './app'
 import { openDb } from './db'
 
 // P1.5 (flag CAPACITYLENS_RATE_LIMIT → opts.rateLimit): a guard against accidental client
@@ -29,13 +29,21 @@ describe('parseRateLimit (fail-closed)', () => {
 })
 
 describe('CAPACITYLENS_RATE_LIMIT on', () => {
+  it.each([MAX_RATE_LIMIT + 1, 12.5, Number.POSITIVE_INFINITY, -1])(
+    'refuses invalid programmatic rateLimit %s instead of silently disabling the limiter',
+    (rateLimit) => {
+      expect(() => buildApp(openDb(':memory:'), { rateLimit }))
+        .toThrow(`rateLimit must be 0 (disabled) or a positive integer no greater than ${MAX_RATE_LIMIT.toLocaleString('en-US')}`)
+    },
+  )
+
   it('429s the third request inside a minute with a JSON error', async () => {
     const app = buildApp(openDb(':memory:'), { rateLimit: 2 })
     expect((await stateReq(app)).statusCode).toBe(200)
     expect((await stateReq(app)).statusCode).toBe(200)
     const third = await stateReq(app)
     expect(third.statusCode).toBe(429)
-    expect(typeof third.json().error).toBe('string') // the API's usual { error } shape
+    expect(third.json()).toEqual({ error: 'Rate limit exceeded' }) // canonical API { error } shape
   })
 
   it('EXEMPTS /api/health from the limiter so the uptime monitor is never told 429', async () => {
@@ -49,7 +57,7 @@ describe('CAPACITYLENS_RATE_LIMIT on', () => {
 
   it('keys on X-Forwarded-For only when told the host is behind the proxy', async () => {
     // Behind the proxy: distinct forwarded clients get their own buckets.
-    const proxied = buildApp(openDb(':memory:'), { rateLimit: 2, rateLimitTrustForwarded: true })
+    const proxied = buildApp(openDb(':memory:'), { rateLimit: 2, trustProxyHeaders: true })
     for (const ip of ['10.0.0.1', '10.0.0.2', '10.0.0.3']) {
       expect((await stateReq(proxied, { 'x-forwarded-for': ip })).statusCode).toBe(200)
     }

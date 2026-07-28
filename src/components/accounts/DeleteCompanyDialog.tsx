@@ -46,9 +46,9 @@ export function DeleteCompanyDialog({
 }: {
   account: { id: ID; name: string }
   /** True while the caller's delete round-trip is in flight: disarms the confirm button so a
-   *  double-click can't fire a second DELETE (which 403s in auth-on mode — the membership is
-   *  already erased — raising a spurious error toast after a successful delete). Optional so the
-   *  demo build's synchronous delete path needn't thread it. */
+   *  double-click can't fire an overlapping DELETE that may still be in progress and raise a
+   *  spurious retry error after a successful delete. Optional so the demo build's synchronous
+   *  delete path needn't thread it. */
   busy?: boolean
   onConfirm: () => void
   onCancel: () => void

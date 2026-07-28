@@ -22,7 +22,9 @@ import { apiFetchReauth } from '../auth/apiFetchReauth'
 //     DB OUT-OF-BAND from the snapshot-diff sync, so without a reload the scheduler/lists wouldn't
 //     reflect the change AND the adapter's diff snapshot would desync (next ordinary edit would emit a
 //     spurious/garbage delta). On a non-OK response we surface `body.error` (a <30d purge → 409, a
-//     non-admin purge / non-member → 403) and never crash.
+//     non-admin purge / non-member → 403) and never crash. HTTP 408/5xx cannot prove whether an
+//     intermediary returned after commit, so those enter the same authoritative-reload recovery as
+//     a thrown transport failure before another destructive attempt is allowed.
 //   • DEMO build (`isServerConfigured()` false — VITE_CAPACITYLENS_DEMO=1): the UI calls the store action, which mutates the
 //     local `data` blob immediately through the same mutate()/undo machinery (no fetch, no reload).
 //     We wrap it in try/catch and surface the throw — these are the store's deliberate display-safe
@@ -31,6 +33,11 @@ import { apiFetchReauth } from '../auth/apiFetchReauth'
 
 /** A lifecycle transition verb. Mirrors the four dedicated server routes + the four store actions. */
 export type LifecycleVerb = 'archive' | 'unarchive' | 'delete' | 'purge'
+
+/** A timeout or server/intermediary failure cannot prove whether the dispatched write committed. */
+function lifecycleOutcomeUnknown(response: Response): boolean {
+  return response.status === 408 || response.status >= 500
+}
 
 /**
  * The dispatch surface returned by {@link useLifecycleActions}. Each method runs ONE lifecycle
@@ -97,7 +104,7 @@ async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutco
  *                     reload, so a caller maintaining its own inactive-row list can re-fetch it.
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
-  const mutationInFlight = useRef(false)
+  const mutationQueue = useRef<Promise<void>>(Promise.resolve())
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setNotice = useStore((s) => s.setNotice)
   const archiveEntity = useStore((s) => s.archiveEntity)
@@ -105,8 +112,9 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const softDeleteEntity = useStore((s) => s.softDeleteEntity)
   const purgeEntity = useStore((s) => s.purgeEntity)
 
-  // The single server-mode dispatch: POST the dedicated route with {accountId}, surface body.error on
-  // a non-OK reply, else reload the active slice + ping onReloaded. Mirrors MembersSection's fetches.
+  // The single server-mode dispatch: POST the dedicated route with {accountId}, reconcile an
+  // ambiguous timeout/5xx, surface body.error on a definitive non-OK reply, else reload the active
+  // slice + ping onReloaded. Mirrors MembersSection's fetches.
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return
@@ -124,6 +132,9 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accountId: activeAccountId }),
         })
+        if (lifecycleOutcomeUnknown(res)) {
+          throw new Error(`HTTP ${res.status} did not confirm whether the lifecycle mutation committed.`)
+        }
         if (!res.ok && res.status !== 204) {
           // A <30d / non-admin purge is a 409/403 with a server message — show it, never crash.
           setNotice((await readApiError(res)) ?? m.settings_archived_err_action({ status: res.status }), 'error')
@@ -133,6 +144,10 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         // REQUIRED to refresh the active views + re-seed the adapter snapshot (see reloadFromServer).
         if ((await reloadFromServer(activeAccountId)) === 'reloaded') onReloaded?.()
       } catch (e) {
+        // A route change during the request makes this reconciliation intentionally stale. The
+        // original company will hydrate its committed state when selected again; do not attach an
+        // alarming old-company notice to the picker or the newly active company.
+        if (useStore.getState().activeAccountId !== activeAccountId) return
         try {
           const outcome = await reloadFromServer(activeAccountId)
           if (outcome !== 'reloaded') {
@@ -182,20 +197,29 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   )
 
   const run = useCallback(
-    async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
-      if (mutationInFlight.current) return
-      mutationInFlight.current = true
-      try {
-        if (isServerConfigured()) {
-          await dispatchServer(verb, entity, id)
-        } else {
-          dispatchLocal(verb, entity, id)
+    (verb: LifecycleVerb, entity: LifecycleEntity, id: string): Promise<void> => {
+      const execute = async () => {
+        try {
+          if (isServerConfigured()) {
+            await dispatchServer(verb, entity, id)
+          } else {
+            dispatchLocal(verb, entity, id)
+          }
+        } catch (e) {
+          // Preserve the public never-reject contract even if a configuration seam or future
+          // dispatch branch throws outside the existing server/local error boundaries.
+          setNotice(errorMessage(e), 'error')
         }
-      } finally {
-        mutationInFlight.current = false
       }
+
+      // Lifecycle routes mutate outside snapshot-diff sync, and each operation must complete its
+      // authoritative reload before the next starts. Queue confirmed intent instead of silently
+      // discarding a second click while the first transition is still settling.
+      const scheduled = mutationQueue.current.then(execute, execute)
+      mutationQueue.current = scheduled
+      return scheduled
     },
-    [dispatchServer, dispatchLocal],
+    [dispatchServer, dispatchLocal, setNotice],
   )
 
   return {

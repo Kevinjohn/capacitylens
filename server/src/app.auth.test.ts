@@ -1,13 +1,16 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createHmac } from 'node:crypto'
-import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import type {
+  FastifyInstance,
+  InjectOptions,
+  LightMyRequestResponse,
+} from 'fastify'
 import { buildApp } from './app'
 import { openDb } from './db'
 import {
   authFromEnv,
   countUsers,
   createBootstrapAdmin,
-  createCredentialUserWith,
   parseAuthMode,
   runAuthMigrations,
   AuthConfigError,
@@ -17,7 +20,6 @@ import {
   normalizeSessionUser,
   SESSION_INACTIVITY_TTL_SECONDS,
 } from './auth'
-import type { Auth } from './auth'
 import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import { finishAccountCommand, reserveAccountCommand } from './accounts/state'
 import { applicationSessionHandle } from './accounts/sessionHandle'
@@ -29,9 +31,18 @@ import { applicationSessionHandle } from './accounts/sessionHandle'
 // provider redirect; any misconfiguration refuses to boot via AuthConfigError.
 
 const TS = '2026-01-01T00:00:00.000Z'
-const account = { id: 'a1', name: 'Studio', color: '#3b82f6', createdAt: TS, updatedAt: TS }
+const account = {
+  id: 'a1',
+  name: 'Studio',
+  color: '#3b82f6',
+  createdAt: TS,
+  updatedAt: TS,
+}
 
-const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
+const call = (
+  app: FastifyInstance,
+  opts: InjectOptions,
+): Promise<LightMyRequestResponse> =>
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
@@ -75,11 +86,14 @@ const SSO_ENV = {
   CAPACITYLENS_AUTH: 'sso',
   CAPACITYLENS_SSO_CLIENT_ID: 'client-id',
   CAPACITYLENS_SSO_CLIENT_SECRET: 'client-secret',
-  CAPACITYLENS_SSO_DISCOVERY_URL: 'https://idp.test/.well-known/openid-configuration',
+  CAPACITYLENS_SSO_DISCOVERY_URL:
+    'https://idp.test/.well-known/openid-configuration',
   CAPACITYLENS_SSO_ISSUER: 'https://idp.test',
 }
 
-async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
+async function appWithAuth(
+  env: Record<string, string>,
+): Promise<FastifyInstance> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, env)
   await runAuthMigrations(auth!)
@@ -93,11 +107,24 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
     expect(me.statusCode).toBe(200)
     // multiAccount/canCreateAccount (single-company cap capability flags): a fresh, empty DB and
     // default opts (multiAccount unset) reports the flag off but creation still open (zero accounts).
-    expect(me.json()).toEqual({ authMode: 'off', user: DEMO_USER, providers: [], multiAccount: false, canCreateAccount: true })
+    expect(me.json()).toEqual({
+      authMode: 'off',
+      user: DEMO_USER,
+      providers: [],
+      multiAccount: false,
+      canCreateAccount: true,
+    })
     // P1.7a: off is trusted-local, so the demo principal is verified with a clearly-local email.
-    expect(me.json().user).toMatchObject({ email: 'demo@capacitylens.local', emailVerified: true })
+    expect(me.json().user).toMatchObject({
+      email: 'demo@capacitylens.local',
+      emailVerified: true,
+    })
     // A cookie-less write succeeds — no request that succeeds today may fail in off mode.
-    const write = await call(app, { method: 'POST', url: '/api/accounts', payload: account })
+    const write = await call(app, {
+      method: 'POST',
+      url: '/api/accounts',
+      payload: account,
+    })
     expect(write.statusCode).toBe(201)
   })
 
@@ -119,13 +146,16 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
       method: 'POST',
       url: '/api/orgs',
       headers: {
-        'idempotency-key': 'short',
+        'idempotency-key': 'valid-idempotency-key',
         'x-account-command-id': 'also-short',
       },
       payload: { name: 'Studio' },
     })
     expect(res.statusCode).toBe(400)
-    expect(res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+    expect(res.json()).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      error: expect.stringMatching(/independently generated.*unguessable/i),
+    })
   })
 
   it('generates independent command and idempotency identities for compatibility callers', async () => {
@@ -137,9 +167,11 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
       payload: { name: 'Studio' },
     })
     expect(response.statusCode).toBe(201)
-    const recorded = db.prepare(
-      `SELECT commandId, idempotencyKey FROM account_commands WHERE operation LIKE 'workspace-provisioning:%'`,
-    ).get() as { commandId: string; idempotencyKey: string }
+    const recorded = db
+      .prepare(
+        `SELECT commandId, idempotencyKey FROM account_commands WHERE operation LIKE 'workspace-provisioning:%'`,
+      )
+      .get() as { commandId: string; idempotencyKey: string }
     expect(recorded.commandId).not.toBe(recorded.idempotencyKey)
   })
 
@@ -168,15 +200,30 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
     const found = await call(app, {
       method: 'POST',
       url: '/api/account-commands/reconcile',
-      payload: { commandId, operation: 'workspace-provisioning', idempotencyKey },
+      payload: {
+        commandId,
+        operation: 'workspace-provisioning',
+        idempotencyKey,
+      },
     })
     expect(found.statusCode).toBe(200)
-    expect(found.json()).toMatchObject({ status: 'completed', receipt: { commandId } })
-    expect((await call(app, {
-      method: 'POST',
-      url: '/api/account-commands/reconcile',
-      payload: { commandId, operation: 'workspace-provisioning', idempotencyKey: 'wrong-idempotency-1' },
-    })).statusCode).toBe(404)
+    expect(found.json()).toMatchObject({
+      status: 'completed',
+      receipt: { commandId },
+    })
+    expect(
+      (
+        await call(app, {
+          method: 'POST',
+          url: '/api/account-commands/reconcile',
+          payload: {
+            commandId,
+            operation: 'workspace-provisioning',
+            idempotencyKey: 'wrong-idempotency-1',
+          },
+        })
+      ).statusCode,
+    ).toBe(404)
   })
 
   it('redacts operator repair coordinates from the public command-status ceremony', async () => {
@@ -225,7 +272,87 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
         ceremonyId: null,
       },
     })
-    expect(response.body).not.toMatch(/workspace-secret|principal-target|principal-provisional|ceremony-secret/)
+    expect(response.body).not.toMatch(
+      /workspace-secret|principal-target|principal-provisional|ceremony-secret/,
+    )
+  })
+
+  it('returns a generic 500 and logs only the command coordinate for corrupt repair metadata', async () => {
+    const db = openDb(':memory:')
+    const commandId = 'command-000000000003'
+    const idempotencyKey = 'idempotency-0000003'
+    reserveAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'password-reset:actor:principal-actor',
+      idempotencyKey,
+      commandId,
+      actorPrincipalId: 'principal-actor',
+      targetPrincipalId: 'principal-target',
+      payloadHash: 'c'.repeat(64),
+    })
+    finishAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'password-reset:actor:principal-actor',
+      idempotencyKey,
+      status: 'reconciliation_required',
+      failureCode: 'DEPENDENCY_UNAVAILABLE',
+      resultJson: JSON.stringify({ kind: 'operator-review' }),
+    })
+    const corruptMetadata =
+      '{"kind":"password-reset-issued","ceremonyId":"do-not-log"'
+    db.exec('PRAGMA ignore_check_constraints = ON')
+    db.prepare(
+      `UPDATE account_commands SET resultJson = ? WHERE commandId = ?`,
+    ).run(corruptMetadata, commandId)
+    db.exec('PRAGMA ignore_check_constraints = OFF')
+    const app = buildApp(db)
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      const response = await call(app, {
+        method: 'POST',
+        url: '/api/account-commands/reconcile',
+        payload: { commandId, operation: 'password-reset', idempotencyKey },
+      })
+
+      expect(response.statusCode).toBe(500)
+      expect(response.json()).toEqual({ error: 'Internal server error' })
+      expect(logged).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'CorruptAccountCommandStateError',
+          code: 'ACCOUNT_COMMAND_STATE_CORRUPT',
+          commandId,
+        }),
+      )
+      expect(JSON.stringify(logged.mock.calls)).not.toContain('do-not-log')
+      expect(
+        db
+          .prepare(
+            `SELECT status, resultJson FROM account_commands WHERE commandId = ?`,
+          )
+          .get(commandId),
+      ).toEqual({
+        status: 'reconciliation_required',
+        resultJson: corruptMetadata,
+      })
+    } finally {
+      logged.mockRestore()
+    }
+  })
+})
+
+describe('authentication request authority', () => {
+  it('returns a bounded 400 for a malformed Host instead of throwing a 500', async () => {
+    const app = await appWithAuth(PASSWORD_ENV)
+
+    const res = await call(app, {
+      method: 'GET',
+      url: '/api/auth/get-session',
+      headers: { host: 'exa mple.com' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'Invalid request authority.' })
   })
 })
 
@@ -236,17 +363,25 @@ describe('normalizeSessionUser (P1.7a)', () => {
   const RAW = { id: 'u1', email: 'u1@capacitylens.dev', name: 'U One' }
 
   it('carries an explicit emailVerified: true', () => {
-    expect(normalizeSessionUser({ ...RAW, emailVerified: true }).emailVerified).toBe(true)
+    expect(
+      normalizeSessionUser({ ...RAW, emailVerified: true }).emailVerified,
+    ).toBe(true)
   })
 
   it('carries an explicit emailVerified: false', () => {
-    expect(normalizeSessionUser({ ...RAW, emailVerified: false }).emailVerified).toBe(false)
+    expect(
+      normalizeSessionUser({ ...RAW, emailVerified: false }).emailVerified,
+    ).toBe(false)
   })
 
   it('defaults emailVerified to false when the provider omits it (undefined or null)', () => {
     expect(normalizeSessionUser(RAW).emailVerified).toBe(false)
-    expect(normalizeSessionUser({ ...RAW, emailVerified: undefined }).emailVerified).toBe(false)
-    expect(normalizeSessionUser({ ...RAW, emailVerified: null }).emailVerified).toBe(false)
+    expect(
+      normalizeSessionUser({ ...RAW, emailVerified: undefined }).emailVerified,
+    ).toBe(false)
+    expect(
+      normalizeSessionUser({ ...RAW, emailVerified: null }).emailVerified,
+    ).toBe(false)
   })
 
   it('yields the approved public session fields and drops every other Better Auth field', () => {
@@ -259,28 +394,54 @@ describe('normalizeSessionUser (P1.7a)', () => {
       twoFactorEnabled: false,
       image: null,
     })
-    expect(Object.keys(out).sort()).toEqual(['email', 'emailVerified', 'id', 'image', 'name', 'twoFactorEnabled'])
+    expect(Object.keys(out).sort()).toEqual([
+      'email',
+      'emailVerified',
+      'id',
+      'image',
+      'name',
+      'twoFactorEnabled',
+    ])
   })
 
   it('carries a validated https avatar URL through as image', () => {
-    expect(normalizeSessionUser({ ...RAW, image: 'https://cdn.example/u1.png' }).image)
-      .toBe('https://cdn.example/u1.png')
+    expect(
+      normalizeSessionUser({ ...RAW, image: 'https://cdn.example/u1.png' })
+        .image,
+    ).toBe('https://cdn.example/u1.png')
   })
 
   it('nulls image when absent or non-https (the https backstop mirrors strictOidc)', () => {
     expect(normalizeSessionUser(RAW).image).toBeNull()
     expect(normalizeSessionUser({ ...RAW, image: null }).image).toBeNull()
-    expect(normalizeSessionUser({ ...RAW, image: 'http://cdn.example/u1.png' }).image).toBeNull()
-    expect(normalizeSessionUser({ ...RAW, image: 'javascript:alert(1)' }).image).toBeNull()
+    expect(
+      normalizeSessionUser({ ...RAW, image: 'http://cdn.example/u1.png' })
+        .image,
+    ).toBeNull()
+    expect(
+      normalizeSessionUser({ ...RAW, image: 'javascript:alert(1)' }).image,
+    ).toBeNull()
   })
 })
 
 describe('CAPACITYLENS_AUTH password', () => {
   it('401s data routes without a session; /api/health stays open', async () => {
     const app = await appWithAuth(PASSWORD_ENV)
-    expect((await call(app, { method: 'GET', url: '/api/state' })).statusCode).toBe(401)
-    expect((await call(app, { method: 'POST', url: '/api/accounts', payload: account })).statusCode).toBe(401)
-    expect((await call(app, { method: 'GET', url: '/api/health' })).statusCode).toBe(200)
+    expect(
+      (await call(app, { method: 'GET', url: '/api/state' })).statusCode,
+    ).toBe(401)
+    expect(
+      (
+        await call(app, {
+          method: 'POST',
+          url: '/api/accounts',
+          payload: account,
+        })
+      ).statusCode,
+    ).toBe(401)
+    expect(
+      (await call(app, { method: 'GET', url: '/api/health' })).statusCode,
+    ).toBe(200)
     const me = await call(app, { method: 'GET', url: '/api/auth/me' })
     expect(me.statusCode).toBe(401)
     expect(me.json().authMode).toBe('password') // the login screen needs the mode
@@ -290,7 +451,11 @@ describe('CAPACITYLENS_AUTH password', () => {
     const db = openDb(':memory:')
     const configured = authFromEnv(db, PASSWORD_ENV)
     await runAuthMigrations(configured.auth!)
-    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth, requireMfa: true })
+    const app = buildApp(db, {
+      authMode: configured.mode,
+      auth: configured.auth,
+      requireMfa: true,
+    })
     const email = 'mfa-user@capacitylens.dev'
     const password = 'password-123456'
 
@@ -301,13 +466,24 @@ describe('CAPACITYLENS_AUTH password', () => {
     })
     expect(signup.statusCode).toBe(200)
     const signupCookie = cookiesOf(signup)
-    const blocked = await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: signupCookie } })
+    const blocked = await call(app, {
+      method: 'GET',
+      url: '/api/accounts',
+      headers: { cookie: signupCookie },
+    })
     expect(blocked.statusCode).toBe(403)
     expect(blocked.json().code).toBe('MFA_ENROLLMENT_REQUIRED')
 
-    const before = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie: signupCookie } })
+    const before = await call(app, {
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie: signupCookie },
+    })
     expect(before.statusCode).toBe(200)
-    expect(before.json()).toMatchObject({ mfaRequired: true, user: { twoFactorEnabled: false } })
+    expect(before.json()).toMatchObject({
+      mfaRequired: true,
+      user: { twoFactorEnabled: false },
+    })
 
     const enabled = await call(app, {
       method: 'POST',
@@ -317,7 +493,9 @@ describe('CAPACITYLENS_AUTH password', () => {
     })
     expect(enabled.statusCode).toBe(200)
     expect(enabled.json().backupCodes).toHaveLength(10)
-    const secret = new URL(enabled.json().totpURI as string).searchParams.get('secret')
+    const secret = new URL(enabled.json().totpURI as string).searchParams.get(
+      'secret',
+    )
     expect(secret).toBeTruthy()
 
     const verified = await call(app, {
@@ -328,15 +506,35 @@ describe('CAPACITYLENS_AUTH password', () => {
     })
     expect(verified.statusCode).toBe(200)
     const enrolledCookie = cookiesOf(verified)
-    const after = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie: enrolledCookie } })
+    const after = await call(app, {
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie: enrolledCookie },
+    })
     expect(after.statusCode).toBe(200)
-    expect(after.json()).toMatchObject({ mfaRequired: false, user: { twoFactorEnabled: true } })
-    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: enrolledCookie } })).statusCode)
-      .toBe(200)
+    expect(after.json()).toMatchObject({
+      mfaRequired: false,
+      user: { twoFactorEnabled: true },
+    })
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/accounts',
+          headers: { cookie: enrolledCookie },
+        })
+      ).statusCode,
+    ).toBe(200)
 
-    expect((await call(app, {
-      method: 'POST', url: '/api/auth/sign-out', headers: { cookie: enrolledCookie },
-    })).statusCode).toBe(200)
+    expect(
+      (
+        await call(app, {
+          method: 'POST',
+          url: '/api/auth/sign-out',
+          headers: { cookie: enrolledCookie },
+        })
+      ).statusCode,
+    ).toBe(200)
     const signIn = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-in/email',
@@ -345,8 +543,15 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(signIn.statusCode).toBe(200)
     expect(signIn.json()).toMatchObject({ twoFactorRedirect: true })
     const challengeCookie = cookiesOf(signIn)
-    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: challengeCookie } })).statusCode)
-      .toBe(401)
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/accounts',
+          headers: { cookie: challengeCookie },
+        })
+      ).statusCode,
+    ).toBe(401)
 
     const completed = await call(app, {
       method: 'POST',
@@ -356,8 +561,15 @@ describe('CAPACITYLENS_AUTH password', () => {
     })
     expect(completed.statusCode).toBe(200)
     const finalCookie = cookiesOf(completed)
-    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: finalCookie } })).statusCode)
-      .toBe(200)
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/accounts',
+          headers: { cookie: finalCookie },
+        })
+      ).statusCode,
+    ).toBe(200)
   })
 
   it('sign-up → session cookie → the session authenticates and /api/auth/me reports the user', async () => {
@@ -365,13 +577,21 @@ describe('CAPACITYLENS_AUTH password', () => {
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'tester@capacitylens.dev', password: 'password-123456', name: 'Tester' },
+      payload: {
+        email: 'tester@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Tester',
+      },
     })
     expect(signUp.statusCode).toBe(200)
     const cookie = cookiesOf(signUp)
     expect(cookie).toContain('capacitylens.session_token')
 
-    const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
+    const me = await call(app, {
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie },
+    })
     expect(me.statusCode).toBe(200)
     expect(me.json().authMode).toBe('password')
     expect(me.json().user.email).toBe('tester@capacitylens.dev')
@@ -384,31 +604,53 @@ describe('CAPACITYLENS_AUTH password', () => {
     // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
     // minted a membership, so it could only produce orphan accounts — /api/orgs is the atomic path.
     // A session is still proven to authenticate (403, an authz refusal — not the session-less 401).
-    const write = await call(app, { method: 'POST', url: '/api/accounts', payload: account, headers: { cookie } })
+    const write = await call(app, {
+      method: 'POST',
+      url: '/api/accounts',
+      payload: account,
+      headers: { cookie },
+    })
     expect(write.statusCode).toBe(403)
     expect(write.json().error).toContain('/api/orgs')
     // P1.13: the no-arg whole read is CLOSED in auth-on (tenant isolation — the P1.4 carry-forward).
     // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
-    const noArg = await call(app, { method: 'GET', url: '/api/state', headers: { cookie } })
+    const noArg = await call(app, {
+      method: 'GET',
+      url: '/api/state',
+      headers: { cookie },
+    })
     expect(noArg.statusCode).toBe(400)
     // No membership exists for this fresh user, so the membership-existence guard 403s a scoped read
     // of 'a1' — the slice path itself is exercised in app.accounts.test.ts (member → 200). Here we
     // only pin that no-arg is closed.
-    const scoped = await call(app, { method: 'GET', url: '/api/state?accountId=a1', headers: { cookie } })
+    const scoped = await call(app, {
+      method: 'GET',
+      url: '/api/state?accountId=a1',
+      headers: { cookie },
+    })
     expect(scoped.statusCode).toBe(403)
   })
 
   it('emits a valid __Host session cookie for an HTTPS public origin', async () => {
-    const app = await appWithAuth({ ...PASSWORD_ENV, BETTER_AUTH_URL: 'https://capacity.example' })
+    const app = await appWithAuth({
+      ...PASSWORD_ENV,
+      BETTER_AUTH_URL: 'https://capacity.example',
+    })
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'host-cookie@capacitylens.dev', password: 'password-123456', name: 'Host Cookie' },
+      payload: {
+        email: 'host-cookie@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Host Cookie',
+      },
     })
     expect(signUp.statusCode).toBe(200)
     const raw = signUp.headers['set-cookie']
     const cookies = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String)
-    const session = cookies.find((cookie) => cookie.startsWith('__Host-capacitylens.session_token='))
+    const session = cookies.find((cookie) =>
+      cookie.startsWith('__Host-capacitylens.session_token='),
+    )
     expect(session).toBeDefined()
     expect(session).toMatch(/;\s*Path=\//i)
     expect(session).toMatch(/;\s*Secure/i)
@@ -416,60 +658,145 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(session).not.toMatch(/;\s*Domain=/i)
   })
 
-  it('expires an idle session before a direct authenticated auth operation can use it', async () => {
+  it.each([
+    ['ordinary cookie', PASSWORD_ENV],
+    [
+      'secure __Host- cookie',
+      { ...PASSWORD_ENV, BETTER_AUTH_URL: 'https://capacity.example' },
+    ],
+  ] as const)(
+    'expires an idle session carried by an %s before a direct authenticated auth operation can use it',
+    async (_label, env) => {
+      const db = openDb(':memory:')
+      const configured = authFromEnv(db, env)
+      await runAuthMigrations(configured.auth!)
+      const app = buildApp(db, {
+        authMode: configured.mode,
+        auth: configured.auth,
+      })
+      const signUp = await call(app, {
+        method: 'POST',
+        url: '/api/auth/sign-up/email',
+        payload: {
+          email: 'idle@capacitylens.dev',
+          password: 'password-123456',
+          name: 'Idle',
+        },
+      })
+      const cookie = cookiesOf(signUp)
+      db.prepare(`UPDATE session SET updatedAt = ?`).run(
+        Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000,
+      )
+
+      // This route is handled by Better Auth itself, so it proves the inactivity check is not only
+      // attached to CapacityLens data routes.
+      const changed = await call(app, {
+        method: 'POST',
+        url: '/api/auth/change-password',
+        headers: { cookie },
+        payload: {
+          currentPassword: 'password-123456',
+          newPassword: 'Seabird-lantern-47!',
+          revokeOtherSessions: true,
+        },
+      })
+      expect(changed.statusCode).toBe(401)
+      expect(
+        (db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number })
+          .n,
+      ).toBe(0)
+      expect(
+        (
+          await call(app, {
+            method: 'GET',
+            url: '/api/auth/me',
+            headers: { cookie },
+          })
+        ).statusCode,
+      ).toBe(401)
+    },
+  )
+
+  it('expires a session whose activity timestamp is in the future', async () => {
     const db = openDb(':memory:')
     const configured = authFromEnv(db, PASSWORD_ENV)
     await runAuthMigrations(configured.auth!)
-    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth })
+    const app = buildApp(db, {
+      authMode: configured.mode,
+      auth: configured.auth,
+    })
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'idle@capacitylens.dev', password: 'password-123456', name: 'Idle' },
+      payload: {
+        email: 'future-session@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Future',
+      },
     })
     const cookie = cookiesOf(signUp)
     db.prepare(`UPDATE session SET updatedAt = ?`).run(
-      Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000,
+      Date.now() + 24 * 60 * 60 * 1000,
     )
 
-    // This route is handled by Better Auth itself, so it proves the inactivity check is not only
-    // attached to CapacityLens data routes.
-    const changed = await call(app, {
-      method: 'POST',
-      url: '/api/auth/change-password',
-      headers: { cookie },
-      payload: {
-        currentPassword: 'password-123456',
-        newPassword: 'Seabird-lantern-47!',
-        revokeOtherSessions: true,
-      },
-    })
-    expect(changed.statusCode).toBe(401)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number }).n).toBe(0)
-    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(401)
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/auth/me',
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(401)
+    expect(
+      (db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number })
+        .n,
+    ).toBe(0)
   })
 
   it('touches active sessions without extending their absolute expiry', async () => {
     const db = openDb(':memory:')
     const configured = authFromEnv(db, PASSWORD_ENV)
     await runAuthMigrations(configured.auth!)
-    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth })
+    const app = buildApp(db, {
+      authMode: configured.mode,
+      auth: configured.auth,
+    })
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'active@capacitylens.dev', password: 'password-123456', name: 'Active' },
+      payload: {
+        email: 'active@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Active',
+      },
     })
     const cookie = cookiesOf(signUp)
-    const initial = db.prepare(`SELECT expiresAt FROM session`).get() as { expiresAt: string | number }
+    const initial = db.prepare(`SELECT expiresAt FROM session`).get() as {
+      expiresAt: string | number
+    }
     const twoMinutesAgo = Date.now() - 2 * 60 * 1000
     db.prepare(`UPDATE session SET updatedAt = ?`).run(twoMinutesAgo)
 
-    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(200)
-    const touched = db.prepare(`SELECT updatedAt, expiresAt FROM session`).get() as {
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/auth/me',
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(200)
+    const touched = db
+      .prepare(`SELECT updatedAt, expiresAt FROM session`)
+      .get() as {
       updatedAt: string | number
       expiresAt: string | number
     }
     expect(new Date(touched.updatedAt).getTime()).toBeGreaterThan(twoMinutesAgo)
-    expect(new Date(touched.expiresAt).getTime()).toBe(new Date(initial.expiresAt).getTime())
+    expect(new Date(touched.expiresAt).getTime()).toBe(
+      new Date(initial.expiresAt).getTime(),
+    )
   })
 
   it('sign-out invalidates the session again', async () => {
@@ -477,32 +804,61 @@ describe('CAPACITYLENS_AUTH password', () => {
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'out@capacitylens.dev', password: 'password-123456', name: 'Out' },
+      payload: {
+        email: 'out@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Out',
+      },
     })
     const cookie = cookiesOf(signUp)
-    const out = await call(app, { method: 'POST', url: '/api/auth/sign-out', payload: {}, headers: { cookie } })
+    const out = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-out',
+      payload: {},
+      headers: { cookie },
+    })
     expect(out.statusCode).toBe(200)
-    expect((await call(app, { method: 'GET', url: '/api/state', headers: { cookie } })).statusCode).toBe(401)
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/state',
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(401)
   })
 
   it('lists and revokes sessions through neutral opaque handles without exposing bearer tokens', async () => {
     const db = openDb(':memory:')
     const configured = authFromEnv(db, PASSWORD_ENV)
     await runAuthMigrations(configured.auth!)
-    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth })
+    const app = buildApp(db, {
+      authMode: configured.mode,
+      auth: configured.auth,
+    })
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'sessions@capacitylens.dev', password: 'password-123456', name: 'Sessions' },
+      payload: {
+        email: 'sessions@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Sessions',
+      },
     })
     const cookie = cookiesOf(signUp)
-    const raw = db.prepare(`SELECT token, userId FROM session`).get() as { token: string; userId: string }
+    const raw = db.prepare(`SELECT token, userId FROM session`).get() as {
+      token: string
+      userId: string
+    }
     const staleToken = 'stale-session-bearer-token'
     const staleHandle = applicationSessionHandle('capacitylens', staleToken)
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
-    `).run(
+    `,
+    ).run(
       'stale-session-row',
       '2026-01-01T12:00:00.000Z',
       staleToken,
@@ -510,20 +866,31 @@ describe('CAPACITYLENS_AUTH password', () => {
       '2026-01-01T00:00:00.000Z',
       raw.userId,
     )
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
       VALUES (?, ?, 'password', NULL, ?)
-    `).run(staleHandle, raw.userId, '2026-01-01T00:00:00.000Z')
+    `,
+    ).run(staleHandle, raw.userId, '2026-01-01T00:00:00.000Z')
 
-    const listed = await call(app, { method: 'GET', url: '/api/account/sessions', headers: { cookie } })
+    const listed = await call(app, {
+      method: 'GET',
+      url: '/api/account/sessions',
+      headers: { cookie },
+    })
     expect(listed.statusCode).toBe(200)
     const sessions = listed.json() as Array<{ id: string; current: boolean }>
     expect(sessions).toHaveLength(1)
     expect(sessions[0]).toMatchObject({ current: true })
     expect(JSON.stringify(sessions)).not.toContain(raw.token)
-    expect(db.prepare(`SELECT 1 FROM session WHERE id = 'stale-session-row'`).get()).toBeUndefined()
-    expect(db.prepare(`SELECT 1 FROM account_session_assurance WHERE sessionId = ?`).get(staleHandle))
-      .toBeUndefined()
+    expect(
+      db.prepare(`SELECT 1 FROM session WHERE id = 'stale-session-row'`).get(),
+    ).toBeUndefined()
+    expect(
+      db
+        .prepare(`SELECT 1 FROM account_session_assurance WHERE sessionId = ?`)
+        .get(staleHandle),
+    ).toBeUndefined()
 
     const revoked = await call(app, {
       method: 'DELETE',
@@ -535,7 +902,19 @@ describe('CAPACITYLENS_AUTH password', () => {
       },
     })
     expect(revoked.statusCode).toBe(200)
-    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(401)
+    expect(revoked.json()).toMatchObject({
+      commandId: 'session-command-0000001',
+      changed: true,
+    })
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/auth/me',
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(401)
   })
 
   it('propagates sign-out cookie clearing through the neutral account route', async () => {
@@ -543,36 +922,58 @@ describe('CAPACITYLENS_AUTH password', () => {
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'neutral-out@capacitylens.dev', password: 'password-123456', name: 'Out' },
+      payload: {
+        email: 'neutral-out@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Out',
+      },
     })
     const cookie = cookiesOf(signUp)
-    const out = await call(app, { method: 'POST', url: '/api/account/sign-out', headers: { cookie } })
+    const out = await call(app, {
+      method: 'POST',
+      url: '/api/account/sign-out',
+      headers: { cookie },
+    })
     expect(out.statusCode).toBe(200)
     expect(String(out.headers['set-cookie'])).toMatch(/Max-Age=0|Expires=/i)
-    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(401)
+    expect(
+      (
+        await call(app, {
+          method: 'GET',
+          url: '/api/auth/me',
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(401)
   })
 })
 
 describe('CAPACITYLENS_AUTH sso', () => {
   it('discovers strict OIDC and issues a stateful PKCE redirect', async () => {
     const originalFetch = globalThis.fetch
-    vi.stubGlobal('fetch', async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-      const url = input instanceof Request ? input.url : String(input)
-      if (url === SSO_ENV.CAPACITYLENS_SSO_DISCOVERY_URL) {
-        return new Response(JSON.stringify({
-          issuer: 'https://idp.test',
-          authorization_endpoint: 'https://idp.test/authorize',
-          token_endpoint: 'https://idp.test/token',
-          userinfo_endpoint: 'https://idp.test/userinfo',
-          jwks_uri: 'https://idp.test/jwks',
-          response_types_supported: ['code'],
-          subject_types_supported: ['public'],
-          id_token_signing_alg_values_supported: ['RS256'],
-          code_challenge_methods_supported: ['S256'],
-        }), { headers: { 'content-type': 'application/json' } })
-      }
-      return originalFetch(input, init)
-    })
+    vi.stubGlobal(
+      'fetch',
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const url = input instanceof Request ? input.url : String(input)
+        if (url === SSO_ENV.CAPACITYLENS_SSO_DISCOVERY_URL) {
+          return new Response(
+            JSON.stringify({
+              issuer: 'https://idp.test',
+              authorization_endpoint: 'https://idp.test/authorize',
+              token_endpoint: 'https://idp.test/token',
+              userinfo_endpoint: 'https://idp.test/userinfo',
+              jwks_uri: 'https://idp.test/jwks',
+              response_types_supported: ['code'],
+              subject_types_supported: ['public'],
+              id_token_signing_alg_values_supported: ['RS256'],
+              code_challenge_methods_supported: ['S256'],
+            }),
+            { headers: { 'content-type': 'application/json' } },
+          )
+        }
+        return originalFetch(input, init)
+      },
+    )
     try {
       const app = await appWithAuth(SSO_ENV)
       const res = await call(app, {
@@ -584,16 +985,22 @@ describe('CAPACITYLENS_AUTH sso', () => {
       const body = res.json() as { url: string; redirect: boolean }
       const proxy = new URL(body.url)
       expect(body.redirect).toBe(true)
-      expect(proxy.origin + proxy.pathname).toBe('http://localhost:8787/api/auth/oidc/authorize/sso')
+      expect(proxy.origin + proxy.pathname).toBe(
+        'http://localhost:8787/api/auth/oidc/authorize/sso',
+      )
       const resolved = await call(app, {
         method: 'GET',
         url: proxy.pathname + proxy.search,
       })
       expect(resolved.statusCode).toBe(302)
       const redirect = new URL(String(resolved.headers.location))
-      expect(redirect.origin + redirect.pathname).toBe('https://idp.test/authorize')
+      expect(redirect.origin + redirect.pathname).toBe(
+        'https://idp.test/authorize',
+      )
       expect(redirect.searchParams.get('response_type')).toBe('code')
-      expect(redirect.searchParams.get('scope')?.split(' ')).toEqual(expect.arrayContaining(['openid']))
+      expect(redirect.searchParams.get('scope')?.split(' ')).toEqual(
+        expect.arrayContaining(['openid']),
+      )
       expect(redirect.searchParams.get('state')).toBeTruthy()
       expect(redirect.searchParams.get('code_challenge')).toBeTruthy()
       expect(redirect.searchParams.get('code_challenge_method')).toBe('S256')
@@ -620,11 +1027,25 @@ describe('social providers (P1.7)', () => {
   it('inits all three (Google/Microsoft/GitHub) from env without throwing', () => {
     const { auth } = authFromEnv(openDb(':memory:'), SOCIAL_ENV)
     const social = auth!.options.socialProviders ?? {}
-    expect(Object.keys(social).sort()).toEqual(['github', 'google', 'microsoft'])
-    expect(social.google).toMatchObject({ clientId: 'google-id', clientSecret: 'google-secret' })
-    expect(social.github).toMatchObject({ clientId: 'gh-id', clientSecret: 'gh-secret' })
+    expect(Object.keys(social).sort()).toEqual([
+      'github',
+      'google',
+      'microsoft',
+    ])
+    expect(social.google).toMatchObject({
+      clientId: 'google-id',
+      clientSecret: 'google-secret',
+    })
+    expect(social.github).toMatchObject({
+      clientId: 'gh-id',
+      clientSecret: 'gh-secret',
+    })
     // Microsoft tenantId defaults to 'common' when not pinned.
-    expect(social.microsoft).toMatchObject({ clientId: 'ms-id', clientSecret: 'ms-secret', tenantId: 'common' })
+    expect(social.microsoft).toMatchObject({
+      clientId: 'ms-id',
+      clientSecret: 'ms-secret',
+      tenantId: 'common',
+    })
   })
 
   it('honours an explicit Microsoft tenant id', () => {
@@ -632,7 +1053,9 @@ describe('social providers (P1.7)', () => {
       ...SOCIAL_ENV,
       CAPACITYLENS_MICROSOFT_TENANT_ID: 'tenant-123',
     })
-    expect(auth!.options.socialProviders?.microsoft).toMatchObject({ tenantId: 'tenant-123' })
+    expect(auth!.options.socialProviders?.microsoft).toMatchObject({
+      tenantId: 'tenant-123',
+    })
   })
 
   it('refuses a half-configured provider instead of silently hiding it', () => {
@@ -657,7 +1080,10 @@ describe('social providers (P1.7)', () => {
 describe('closed self-registration (P1.7) + first-run bootstrap', () => {
   const SETUP_TOKEN = 'unit-test-owner-setup-token-0123456789abcdef'
   /** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
-  const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV, CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN }
+  const CLOSED_ENV: Record<string, string> = {
+    ...PASSWORD_ENV,
+    CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN,
+  }
   delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP
 
   const signUp = (app: FastifyInstance, email = 'late@capacitylens.dev') =>
@@ -696,11 +1122,52 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     const { mode, auth } = authFromEnv(db, CLOSED_ENV)
     await runAuthMigrations(auth!)
     const app = buildApp(db, { authMode: mode, auth })
-    expect((await signUp(app, 'first-owner@capacitylens.dev')).statusCode).toBe(200)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0)
+    expect((await signUp(app, 'first-owner@capacitylens.dev')).statusCode).toBe(
+      200,
+    )
+    expect(
+      (
+        db
+          .prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`)
+          .get() as { n: number }
+      ).n,
+    ).toBe(0)
 
     db.exec(`DELETE FROM session; DELETE FROM account; DELETE FROM user;`)
-    expect((await signUp(app, 'replacement-owner@capacitylens.dev')).statusCode).toBe(200)
+    expect(
+      (await signUp(app, 'replacement-owner@capacitylens.dev')).statusCode,
+    ).toBe(200)
+  })
+
+  it('releases the bootstrap claim when first-owner password policy rejects the endpoint', async () => {
+    const db = openDb(':memory:')
+    const { mode, auth } = authFromEnv(db, CLOSED_ENV)
+    await runAuthMigrations(auth!)
+    const app = buildApp(db, { authMode: mode, auth })
+
+    const rejected = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { 'x-capacitylens-setup-token': SETUP_TOKEN },
+      payload: {
+        email: 'first-owner@capacitylens.dev',
+        password: 'CapacityLens-password-123!',
+        name: 'First owner',
+      },
+    })
+    expect(rejected.statusCode).toBe(400)
+    expect(rejected.json()).toMatchObject({ code: 'PASSWORD_COMPROMISED' })
+    expect(
+      (
+        db
+          .prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`)
+          .get() as { n: number }
+      ).n,
+    ).toBe(0)
+
+    expect(
+      (await signUp(app, 'replacement-owner@capacitylens.dev')).statusCode,
+    ).toBe(200)
   })
 
   it('refuses a network visitor who lacks the fresh-instance setup token', async () => {
@@ -708,13 +1175,21 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     const missing = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'attacker@capacitylens.dev', password: 'password-123456', name: 'Attacker' },
+      payload: {
+        email: 'attacker@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Attacker',
+      },
     })
     const wrong = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
       headers: { 'x-capacitylens-setup-token': 'wrong-token' },
-      payload: { email: 'attacker@capacitylens.dev', password: 'password-123456', name: 'Attacker' },
+      payload: {
+        email: 'attacker@capacitylens.dev',
+        password: 'password-123456',
+        name: 'Attacker',
+      },
     })
     expect(missing.statusCode).toBe(400)
     expect(wrong.statusCode).toBe(400)
@@ -722,7 +1197,10 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
   })
 
   it('allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1', async () => {
-    const app = await appWithAuth({ ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    const app = await appWithAuth({
+      ...CLOSED_ENV,
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+    })
     // First user consumes the bootstrap exception; the second still succeeds because the flag
     // re-opens sign-up unconditionally.
     expect((await signUp(app, 'first@capacitylens.dev')).statusCode).toBe(200)
@@ -740,12 +1218,20 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     const invalid = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'invalid@capacitylens.dev', password: 'short', name: 'Invalid' },
+      payload: {
+        email: 'invalid@capacitylens.dev',
+        password: 'short',
+        name: 'Invalid',
+      },
     })
     expect(invalid.statusCode).toBeGreaterThanOrEqual(400)
     expect(invalid.statusCode).toBeLessThan(500)
     expect(
-      (db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n,
+      (
+        db
+          .prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`)
+          .get() as { n: number }
+      ).n,
     ).toBe(0)
   })
 
@@ -753,7 +1239,10 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     // Better Auth 1.6.23 enforces disableSignUp even for server-side auth.api.signUpEmail
     // (sign-up.mjs:143), so the static flag must stay false in BOTH postures — the closed
     // behaviour above comes from hooks.before, never from this option.
-    const open = authFromEnv(openDb(':memory:'), { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    const open = authFromEnv(openDb(':memory:'), {
+      ...CLOSED_ENV,
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+    })
     const closed = authFromEnv(openDb(':memory:'), CLOSED_ENV)
     expect(open.auth!.options.emailAndPassword?.disableSignUp).toBe(false)
     expect(closed.auth!.options.emailAndPassword?.disableSignUp).toBe(false)
@@ -766,7 +1255,12 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     expect(before.statusCode).toBe(401)
     expect(before.json().needsSetup).toBe(true)
     // The 401 shape still excludes account facts (only authMode/error/needsSetup — no capFields).
-    expect(Object.keys(before.json()).sort()).toEqual(['authMode', 'error', 'needsSetup', 'providers'])
+    expect(Object.keys(before.json()).sort()).toEqual([
+      'authMode',
+      'error',
+      'needsSetup',
+      'providers',
+    ])
     // One user later, the flag is GONE (absent, not false — the client fail-closes on absence).
     expect((await signUp(app, 'owner@capacitylens.dev')).statusCode).toBe(200)
     const after = await call(app, { method: 'GET', url: '/api/auth/me' })
@@ -793,7 +1287,9 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
   it('creates admin@admin.admin on an empty user table and prints the framed credential warning', async () => {
     const { db, mode, auth } = await bootstrapFixture()
     const lines: string[] = []
-    expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe('created')
+    expect(
+      await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l)),
+    ).toBe('created')
     expect(countUsers(db)).toBe(1)
     // The warning must name the EXACT credential — an operator who can't see what to change
     // can't change it.
@@ -812,7 +1308,9 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
     expect(password!.length).toBeGreaterThanOrEqual(MIN_PASSWORD_LENGTH)
     // "Restart": a fresh instance on the SAME DB, bootstrap flag absent → floor back at the min.
     const restarted = authFromEnv(db, CLOSED_ENV)
-    expect(restarted.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    expect(restarted.auth!.options.emailAndPassword?.minPasswordLength).toBe(
+      MIN_PASSWORD_LENGTH,
+    )
     const app = buildApp(db, { authMode: restarted.mode, auth: restarted.auth })
     const signIn = await call(app, {
       method: 'POST',
@@ -828,13 +1326,19 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
     // password is created through a DIFFERENT path (auth.createCredentialUser(), bypassing the sign-up route
     // entirely — see createBootstrapAdmin) instead of lowering this option.
     const { auth } = await bootstrapFixture()
-    expect(auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    expect(auth!.options.emailAndPassword?.minPasswordLength).toBe(
+      MIN_PASSWORD_LENGTH,
+    )
     const seeded = await bootstrapFixture()
     await createBootstrapAdmin(seeded.db, seeded.mode, seeded.auth, () => {})
     const populated = authFromEnv(seeded.db, CLOSED_ENV)
-    expect(populated.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    expect(populated.auth!.options.emailAndPassword?.minPasswordLength).toBe(
+      MIN_PASSWORD_LENGTH,
+    )
     const plain = authFromEnv(openDb(':memory:'), CLOSED_ENV)
-    expect(plain.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    expect(plain.auth!.options.emailAndPassword?.minPasswordLength).toBe(
+      MIN_PASSWORD_LENGTH,
+    )
   })
 
   it('REJECTS a 5-char sign-up password during a boot where the bootstrap just ran (the floor is never bent for anything else)', async () => {
@@ -843,93 +1347,131 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
     // Same DB, open self-registration so the sign-up ROUTE (not the bootstrap's internalAdapter
     // path) is reachable — this is exactly the "operator's own reset" / "sign-up that boot" case
     // the finding called out: it must NOT inherit any lowered floor.
-    const open = authFromEnv(db, { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    const open = authFromEnv(db, {
+      ...CLOSED_ENV,
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+    })
     const app = buildApp(db, { authMode: open.mode, auth: open.auth })
     const res = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { name: 'short', email: 'short@capacitylens.dev', password: 'admin' },
+      payload: {
+        name: 'short',
+        email: 'short@capacitylens.dev',
+        password: 'admin',
+      },
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('PASSWORD_TOO_SHORT')
+  })
+
+  it('enforces sign-up bounds in Unicode code points rather than UTF-16 code units', async () => {
+    const { db } = await bootstrapFixture()
+    const open = authFromEnv(db, {
+      ...CLOSED_ENV,
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+    })
+    const app = buildApp(db, { authMode: open.mode, auth: open.auth })
+    const signUpWith = (email: string, password: string) =>
+      call(app, {
+        method: 'POST',
+        url: '/api/auth/sign-up/email',
+        payload: { name: 'Unicode User', email, password },
+      })
+
+    const tooShort = await signUpWith(
+      'astral-short@capacitylens.dev',
+      '🔐'.repeat(14),
+    )
+    expect(tooShort.statusCode).toBe(400)
+    expect(tooShort.json().code).toBe('PASSWORD_TOO_SHORT')
+    expect(
+      (await signUpWith('astral-min@capacitylens.dev', '🔐'.repeat(15)))
+        .statusCode,
+    ).toBe(200)
+    expect(
+      (await signUpWith('astral-max@capacitylens.dev', '🔐'.repeat(128)))
+        .statusCode,
+    ).toBe(200)
+    const tooLong = await signUpWith(
+      'astral-long@capacitylens.dev',
+      '🔐'.repeat(129),
+    )
+    expect(tooLong.statusCode).toBe(400)
+    expect(tooLong.json().code).toBe('PASSWORD_TOO_LONG')
+  })
+
+  it('enforces the code-point policy on direct identity creation that bypasses HTTP routes', async () => {
+    const { auth } = await bootstrapFixture()
+    await expect(
+      auth!.createCredentialUser(
+        'direct-short@capacitylens.dev',
+        'Direct Short',
+        '🔐'.repeat(14),
+      ),
+    ).rejects.toThrow(`at least ${MIN_PASSWORD_LENGTH} characters`)
+    await expect(
+      auth!.createCredentialUser(
+        'direct-max@capacitylens.dev',
+        'Direct Max',
+        '🔐'.repeat(128),
+      ),
+    ).resolves.toEqual({ id: expect.any(String) })
   })
 
   it('skips with one line (not an error) when users already exist', async () => {
     const { db, mode, auth } = await bootstrapFixture()
     await createBootstrapAdmin(db, mode, auth, () => {})
     const lines: string[] = []
-    expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe('skipped')
-    expect(lines).toEqual(['capacitylens-server: --create-owner-admin-admin skipped: users already exist'])
+    expect(
+      await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l)),
+    ).toBe('skipped')
+    expect(lines).toEqual([
+      'capacitylens-server: --create-owner-admin-admin skipped: users already exist',
+    ])
     expect(countUsers(db)).toBe(1) // no second account, no throw
   })
 
   it('refuses loudly (AuthConfigError) when auth is off or sso — the flag is meaningless there', async () => {
-    await expect(createBootstrapAdmin(openDb(':memory:'), 'off', null)).rejects.toThrow(AuthConfigError)
+    await expect(
+      createBootstrapAdmin(openDb(':memory:'), 'off', null),
+    ).rejects.toThrow(AuthConfigError)
     const sso = authFromEnv(openDb(':memory:'), SSO_ENV)
-    await expect(createBootstrapAdmin(openDb(':memory:'), sso.mode, sso.auth)).rejects.toThrow(AuthConfigError)
+    await expect(
+      createBootstrapAdmin(openDb(':memory:'), sso.mode, sso.auth),
+    ).rejects.toThrow(AuthConfigError)
   })
 
-  // Finding 1 (review, 2026-07-11): a bare createUser+linkAccount would strand an orphaned,
-  // credential-less user forever if linkAccount ever throws — countUsers>0 with no sign-in-able
-  // account closes BOTH bootstrap paths permanently. Fixed by createCredentialUserWith's
-  // rollback (see auth.ts). This pins the contract end-to-end through createBootstrapAdmin, with
-  // ONLY the Better Auth internals faked (createUser/deleteUser hit the real `user` table so
-  // countUsers(db) — the real production signal — reflects the outcome truthfully).
-  it('rolls back the orphaned user row when linkAccount fails, so a retry bootstrap succeeds (Finding 1)', async () => {
+  // The user and credential link share one SQLite transaction. A provider-link constraint failure
+  // must therefore leave the first-run user count at zero, so the same process can retry safely.
+  it('rolls back user creation when the credential link fails, so a retry bootstrap succeeds', async () => {
     const { db, mode, auth } = await bootstrapFixture()
-    const boom = new Error('linkAccount boom')
+    db.exec(`
+      CREATE TRIGGER fail_credential_link
+      BEFORE INSERT ON account
+      WHEN NEW.providerId = 'credential'
+      BEGIN
+        SELECT RAISE(ABORT, 'simulated credential-link failure');
+      END;
+    `)
 
-    /** A fake Auth whose createCredentialUser drives the REAL createCredentialUserWith against a
-     *  fake internal adapter: createUser/deleteUser do real SQL against the migrated `user` table
-     *  (so countUsers(db) is meaningful), linkAccount always throws (simulating the failure). */
-    const failingAuth: Auth = {
-      handler: async () => new Response(null),
-      api: { getSession: async () => null, requestPasswordReset: async () => ({ status: true }) },
-      options: {},
-      providers: [],
-      federatedIssuers: new Map(),
-      ensureProviderBindings: () => {},
-      revokeUserSessions: async () => {},
-      createCredentialUser: (email, name, password) =>
-        createCredentialUserWith(
-          {
-            password: { hash: async (p) => p },
-            internalAdapter: {
-              createUser: async (input) => {
-                const id = 'orphan-candidate'
-                const now = new Date().toISOString()
-                db.prepare(
-                  `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`,
-                ).run(id, input.name, input.email, input.emailVerified ? 1 : 0, now, now)
-                return { id }
-              },
-              linkAccount: async () => {
-                throw boom
-              },
-              deleteUser: async (userId) => {
-                db.prepare(`DELETE FROM user WHERE id = ?`).run(userId)
-              },
-            },
-          },
-          email,
-          name,
-          password,
-        ),
-      deleteCredentialUser: async (userId) => {
-        db.prepare(`DELETE FROM user WHERE id = ?`).run(userId)
-      },
-    }
-
-    await expect(createBootstrapAdmin(db, mode, failingAuth, () => {})).rejects.toMatchObject({
-      message: expect.stringContaining('rolled back'),
-      cause: boom,
-    })
-    // The rollback worked: no orphan left behind, so the table reads truly empty.
+    await expect(
+      createBootstrapAdmin(db, mode, auth, () => {}),
+    ).rejects.toThrow('simulated credential-link failure')
     expect(countUsers(db)).toBe(0)
+    expect(
+      (
+        db.prepare(`SELECT COUNT(*) AS count FROM account`).get() as {
+          count: number
+        }
+      ).count,
+    ).toBe(0)
 
-    // Retry on the SAME db with the REAL auth: nothing about the failed attempt blocked it.
+    db.exec(`DROP TRIGGER fail_credential_link`)
     const lines: string[] = []
-    expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe('created')
+    expect(
+      await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l)),
+    ).toBe('created')
     expect(countUsers(db)).toBe(1)
   })
 })
@@ -941,18 +1483,25 @@ describe('boot refusal (AuthConfigError)', () => {
     expect(parseAuthMode('')).toBe('off')
   })
 
-  it("off mode reads no BETTER_AUTH_* env at all", () => {
-    const { mode, auth } = authFromEnv(openDb(':memory:'), { CAPACITYLENS_AUTH: 'off' })
+  it('off mode reads no BETTER_AUTH_* env at all', () => {
+    const { mode, auth } = authFromEnv(openDb(':memory:'), {
+      CAPACITYLENS_AUTH: 'off',
+    })
     expect(mode).toBe('off')
     expect(auth).toBeNull()
   })
 
   it('password mode without secret or URL refuses', () => {
     const db = openDb(':memory:')
-    expect(() => authFromEnv(db, { CAPACITYLENS_AUTH: 'password' })).toThrow(AuthConfigError)
-    expect(() => authFromEnv(db, { CAPACITYLENS_AUTH: 'password', BETTER_AUTH_SECRET: 'x'.repeat(32) })).toThrow(
+    expect(() => authFromEnv(db, { CAPACITYLENS_AUTH: 'password' })).toThrow(
       AuthConfigError,
     )
+    expect(() =>
+      authFromEnv(db, {
+        CAPACITYLENS_AUTH: 'password',
+        BETTER_AUTH_SECRET: 'x'.repeat(32),
+      }),
+    ).toThrow(AuthConfigError)
   })
 
   it('password mode with a too-short secret refuses (length is the cause, not the URL)', () => {
@@ -966,7 +1515,9 @@ describe('boot refusal (AuthConfigError)', () => {
     }
     expect(thrown).toBeInstanceOf(AuthConfigError)
     // Message names the requirement + actual length, and never leaks the secret value.
-    expect((thrown as Error).message).toContain(String(MIN_BETTER_AUTH_SECRET_LENGTH))
+    expect((thrown as Error).message).toContain(
+      String(MIN_BETTER_AUTH_SECRET_LENGTH),
+    )
     expect((thrown as Error).message).not.toContain(tooShort)
   })
 
@@ -974,7 +1525,10 @@ describe('boot refusal (AuthConfigError)', () => {
     const db = openDb(':memory:')
     // PASSWORD_ENV has a valid URL; a 32-char secret must NOT trip the length check.
     expect(() =>
-      authFromEnv(db, { ...PASSWORD_ENV, BETTER_AUTH_SECRET: 'x'.repeat(MIN_BETTER_AUTH_SECRET_LENGTH) }),
+      authFromEnv(db, {
+        ...PASSWORD_ENV,
+        BETTER_AUTH_SECRET: 'x'.repeat(MIN_BETTER_AUTH_SECRET_LENGTH),
+      }),
     ).not.toThrow()
   })
 
@@ -1001,14 +1555,18 @@ describe('boot refusal (AuthConfigError)', () => {
   })
 
   it('rejects explicit authorization or token endpoint overrides for strict OIDC', () => {
-    expect(() => authFromEnv(openDb(':memory:'), {
-      ...SSO_ENV,
-      CAPACITYLENS_SSO_AUTHORIZATION_URL: 'https://idp.test/authorize',
-    })).toThrow(/endpoints must come from discovery/i)
-    expect(() => authFromEnv(openDb(':memory:'), {
-      ...SSO_ENV,
-      CAPACITYLENS_SSO_TOKEN_URL: 'https://idp.test/token',
-    })).toThrow(/endpoints must come from discovery/i)
+    expect(() =>
+      authFromEnv(openDb(':memory:'), {
+        ...SSO_ENV,
+        CAPACITYLENS_SSO_AUTHORIZATION_URL: 'https://idp.test/authorize',
+      }),
+    ).toThrow(/endpoints must come from discovery/i)
+    expect(() =>
+      authFromEnv(openDb(':memory:'), {
+        ...SSO_ENV,
+        CAPACITYLENS_SSO_TOKEN_URL: 'https://idp.test/token',
+      }),
+    ).toThrow(/endpoints must come from discovery/i)
   })
 
   it('rejects plaintext, credential-bearing, and non-HTTP identity-provider endpoints', () => {
@@ -1017,32 +1575,41 @@ describe('boot refusal (AuthConfigError)', () => {
       'https://user:secret@identity.example/.well-known/openid-configuration',
       'javascript:alert(1)',
     ]) {
-      expect(() => authFromEnv(openDb(':memory:'), {
-        ...SSO_ENV,
-        CAPACITYLENS_SSO_AUTHORIZATION_URL: undefined,
-        CAPACITYLENS_SSO_TOKEN_URL: undefined,
-        CAPACITYLENS_SSO_DISCOVERY_URL: endpoint,
-      })).toThrow(/https|credentials|URL/i)
+      expect(() =>
+        authFromEnv(openDb(':memory:'), {
+          ...SSO_ENV,
+          CAPACITYLENS_SSO_AUTHORIZATION_URL: undefined,
+          CAPACITYLENS_SSO_TOKEN_URL: undefined,
+          CAPACITYLENS_SSO_DISCOVERY_URL: endpoint,
+        }),
+      ).toThrow(/https|credentials|URL/i)
     }
   })
 
   it('permits plaintext provider endpoints only on explicit loopback development hosts', () => {
-    expect(() => authFromEnv(openDb(':memory:'), {
-      ...SSO_ENV,
-      CAPACITYLENS_SSO_DISCOVERY_URL: 'http://localhost:9999/.well-known/openid-configuration',
-    })).not.toThrow()
+    expect(() =>
+      authFromEnv(openDb(':memory:'), {
+        ...SSO_ENV,
+        CAPACITYLENS_SSO_DISCOVERY_URL:
+          'http://localhost:9999/.well-known/openid-configuration',
+      }),
+    ).not.toThrow()
   })
 
   it('restricts provider ids to route-safe lowercase identifiers', () => {
     for (const providerId of ['UPPER', '../callback', 'sso space', '-sso']) {
-      expect(() => authFromEnv(openDb(':memory:'), {
-        ...SSO_ENV,
-        CAPACITYLENS_SSO_PROVIDER_ID: providerId,
-      })).toThrow(/PROVIDER_ID/)
+      expect(() =>
+        authFromEnv(openDb(':memory:'), {
+          ...SSO_ENV,
+          CAPACITYLENS_SSO_PROVIDER_ID: providerId,
+        }),
+      ).toThrow(/PROVIDER_ID/)
     }
   })
 
   it('buildApp refuses authMode ≠ off without an auth instance', () => {
-    expect(() => buildApp(openDb(':memory:'), { authMode: 'password' })).toThrow(/requires a Better Auth instance/)
+    expect(() =>
+      buildApp(openDb(':memory:'), { authMode: 'password' }),
+    ).toThrow(/requires a Better Auth instance/)
   })
 })

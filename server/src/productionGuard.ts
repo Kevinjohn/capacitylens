@@ -67,9 +67,8 @@ export interface ProductionPostureResult {
  * their own right (HSTS and signup posture matter whether auth is on, off, or deliberately open).
  *
  * `parseAuthMode` is reused (not a hardcoded string compare) so "off" means exactly what it
- * means everywhere else in the server — and an *invalid* CAPACITYLENS_AUTH value throws
- * `AuthConfigError` here, surfacing the misconfiguration through the same path index.ts already
- * frames, rather than being silently mistaken for "not off".
+ * means everywhere else in the server. Its invalid-value error is converted into a fatal posture
+ * refusal so this evaluator remains total and index.ts emits its standard framed startup message.
  *
  * @param env - The environment to evaluate. Only the listed keys are read; pass a plain object
  *   literal (the entrypoint passes `process.env`).
@@ -102,9 +101,14 @@ export function evaluateProductionPosture(env: {
   // this guard only engages once an operator declares NODE_ENV=production (same gate as bootGuard).
   if (env.NODE_ENV !== 'production') return { refusals, warnings }
 
-  // Reuse parseAuthMode so 'off' (incl. unset/'') is the canonical "no auth" notion the rest of
-  // the server agrees on, and an invalid value throws AuthConfigError instead of reading as "on".
-  const mode = parseAuthMode(env.CAPACITYLENS_AUTH)
+  // Reuse parseAuthMode so 'off' (incl. unset/'') is canonical. Convert its configuration throw
+  // into result data: index evaluates posture before opening storage and owns the framed refusal.
+  let mode: ReturnType<typeof parseAuthMode> | null = null
+  try {
+    mode = parseAuthMode(env.CAPACITYLENS_AUTH)
+  } catch (error) {
+    refusals.push(error instanceof Error ? error.message : String(error))
+  }
 
   if (mode === 'off') {
     if (env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1') {

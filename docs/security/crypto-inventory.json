@@ -74,12 +74,24 @@
       "purpose": "JOSE verification of asymmetric signed OIDC ID tokens with issuer, audience, timestamp and remotely rotated JWKS enforcement"
     },
     {
+      "path": "server/src/syncOrdering.ts",
+      "purpose": "Unkeyed SHA-256 digests of non-secret synchronised row state for exact same-session successor-write provenance checks"
+    },
+    {
       "path": "shared/src/lib/id.ts",
       "purpose": "Secure-context UUID generation"
     },
     {
       "path": "src/data/offlineCache.ts",
       "purpose": "Non-extractable AES-256-GCM offline snapshot encryption with random IV and AAD"
+    },
+    {
+      "path": "public/offline-worker.js",
+      "purpose": "CSPRNG installation identifiers that isolate staged service-worker shell caches until activation"
+    },
+    {
+      "path": "src/data/ServerSyncAdapter.ts",
+      "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
     },
     {
       "path": "src/account/accountClient.ts",
