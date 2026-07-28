@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterAll, describe, it, expect, vi } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import {
   ensureControlTables,
@@ -33,9 +33,22 @@ import type { Db } from './db'
 // app.controlTables.test.ts.)
 
 const TS = '2026-01-01T00:00:00.000Z'
+const databases = new Set<DatabaseSync>()
+
+const trackDatabase = <T extends DatabaseSync>(db: T): T => {
+  databases.add(db)
+  return db
+}
+
+afterAll(() => {
+  for (const db of databases) {
+    if (db.isOpen) db.close()
+  }
+  databases.clear()
+})
 
 const freshDb = (): Db => {
-  const db = new DatabaseSync(':memory:')
+  const db = trackDatabase(new DatabaseSync(':memory:'))
   ensureControlTables(db)
   ensureAccountBoundaryState(db)
   return db
@@ -52,13 +65,13 @@ const member = (over: Partial<AccountMember> = {}): AccountMember => ({
 
 describe('ensureControlTables', () => {
   it('is idempotent — running twice does not throw', () => {
-    const db = new DatabaseSync(':memory:')
+    const db = trackDatabase(new DatabaseSync(':memory:'))
     ensureControlTables(db)
     expect(() => ensureControlTables(db)).not.toThrow()
   })
 
   it('rolls back the entire plaintext-token rebuild when a legacy row cannot migrate', () => {
-    const db = new DatabaseSync(':memory:')
+    const db = trackDatabase(new DatabaseSync(':memory:'))
     db.exec(`CREATE TABLE invites (
       token TEXT PRIMARY KEY,
       accountId TEXT NOT NULL,
