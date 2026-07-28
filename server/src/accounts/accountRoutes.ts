@@ -5,17 +5,51 @@ import type {
   AccountFlowOperation,
   IdentityPort,
 } from '@capacitylens/shared/account/ports'
-import type { AccountMode, CommandIdentity } from '@capacitylens/shared/account/types'
+import type {
+  AccountMode,
+  CommandIdentity,
+} from '@capacitylens/shared/account/types'
 import { isAccountRole } from '@capacitylens/shared/account/types'
-import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
-import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import {
+  isAccountEmail,
+  normalizeAccountEmail,
+} from '@capacitylens/shared/account/validation'
+import {
+  MIN_PASSWORD_LENGTH,
+  MAX_PASSWORD_LENGTH,
+  passwordLengthFailure,
+} from '@capacitylens/shared/domain/password'
 import type { Action } from '@capacitylens/shared/domain/access'
+import { AccountContractError } from '@capacitylens/shared/account/errors'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import type { AuditRecord } from '../audit'
 import { wasAccountCommandReplayed } from './commands'
 
-const MAX_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000
-const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/
+const ISO_INSTANT_RE =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z$/
+
+/** Parse the route's narrow UTC-instant format without accepting Date.parse calendar rollover. */
+function parseStrictIsoInstant(value: string): number | null {
+  const match = ISO_INSTANT_RE.exec(value)
+  if (!match) return null
+  const parsed = Date.parse(value)
+  if (!Number.isFinite(parsed)) return null
+
+  const [, year, month, day, hour, minute, second, fraction] = match
+  const instant = new Date(parsed)
+  const milliseconds = Number((fraction ?? '').padEnd(3, '0') || '0')
+  if (
+    instant.getUTCFullYear() !== Number(year) ||
+    instant.getUTCMonth() + 1 !== Number(month) ||
+    instant.getUTCDate() !== Number(day) ||
+    instant.getUTCHours() !== Number(hour) ||
+    instant.getUTCMinutes() !== Number(minute) ||
+    instant.getUTCSeconds() !== Number(second) ||
+    instant.getUTCMilliseconds() !== milliseconds
+  )
+    return null
+  return parsed
+}
 
 export interface AccountRouteDependencies {
   authMode: AccountMode
@@ -56,6 +90,13 @@ export function registerAccountRoutes(
     fail: accountFail,
   } = dependencies
   const isKnownRole = isAccountRole
+  const memberNotFound = (command: CommandIdentity) =>
+    new AccountContractError({
+      code: 'NOT_FOUND',
+      message: 'Not a member of this account.',
+      retryable: false,
+      commandId: command.commandId,
+    })
   const isFlowOperation = (value: unknown): value is AccountFlowOperation =>
     value === 'invite-password-signup' ||
     value === 'password-reset' ||
@@ -77,28 +118,39 @@ export function registerAccountRoutes(
       typeof body.idempotencyKey !== 'string' ||
       !/^[A-Za-z0-9_-]{16,128}$/.test(body.idempotencyKey) ||
       !isFlowOperation(body.operation)
-    ) return reply.code(400).send({ error: 'A valid command, idempotency key, and operation are required.' })
+    )
+      return reply
+        .code(400)
+        .send({
+          error:
+            'A valid command, idempotency key, and operation are required.',
+        })
     try {
       const outcome = await accountFlows.reconcileCommand({
-        command: { commandId: body.commandId, idempotencyKey: body.idempotencyKey },
+        command: {
+          commandId: body.commandId,
+          idempotencyKey: body.idempotencyKey,
+        },
         operation: body.operation,
       })
       if (!outcome) return reply.code(404).send({ error: 'Command not found.' })
       // The public ceremony is intentionally only a status oracle. Full repair coordinates stay in
       // the operator-only database/CLI path; possession of browser reconciliation bearers must not
       // disclose workspace, principal, provisional-principal, or reset-ceremony identifiers.
-      return reply.code(200).send(outcome.status === 'reconciliation-required'
-        ? {
-            ...outcome,
-            repair: {
-              kind: outcome.repair.kind,
-              workspaceId: null,
-              targetPrincipalId: null,
-              provisionalPrincipalId: null,
-              ceremonyId: null,
-            },
-          }
-        : outcome)
+      return reply.code(200).send(
+        outcome.status === 'reconciliation-required'
+          ? {
+              ...outcome,
+              repair: {
+                kind: outcome.repair.kind,
+                workspaceId: null,
+                targetPrincipalId: null,
+                provisionalPrincipalId: null,
+                ceremonyId: null,
+              },
+            }
+          : outcome,
+      )
     } catch (error) {
       return accountFail(reply, error)
     }
@@ -106,12 +158,19 @@ export function registerAccountRoutes(
 
   app.post('/api/account/sign-out', async (req, reply) => {
     try {
-      const result = await identityPort.signOut({ headers: new Headers(
-        Object.entries(req.headers).flatMap(([key, value]) =>
-          Array.isArray(value) ? value.map((item) => [key, item] as [string, string]) :
-            value === undefined ? [] : [[key, String(value)] as [string, string]]),
-      ) })
-      if (result.setCookies.length > 0) reply.header('set-cookie', [...result.setCookies])
+      const result = await identityPort.signOut({
+        headers: new Headers(
+          Object.entries(req.headers).flatMap(([key, value]) =>
+            Array.isArray(value)
+              ? value.map((item) => [key, item] as [string, string])
+              : value === undefined
+                ? []
+                : [[key, String(value)] as [string, string]],
+          ),
+        ),
+      })
+      if (result.setCookies.length > 0)
+        reply.header('set-cookie', [...result.setCookies])
       return reply.code(200).send({ ok: true })
     } catch (error) {
       return accountFail(reply, error)
@@ -120,7 +179,9 @@ export function registerAccountRoutes(
 
   app.get('/api/account/sessions', async (req, reply) => {
     try {
-      return reply.code(200).send(await identityPort.listSessions({ actor: req.accountActor! }))
+      return reply
+        .code(200)
+        .send(await identityPort.listSessions({ actor: req.accountActor! }))
     } catch (error) {
       return accountFail(reply, error)
     }
@@ -132,11 +193,13 @@ export function registerAccountRoutes(
       return reply.code(400).send({ error: 'Invalid session id.' })
     }
     try {
-      return reply.code(200).send(await identityPort.revokeOwnSession({
-        actor: req.accountActor!,
-        sessionId,
-        command: accountCommand(req),
-      }))
+      return reply.code(200).send(
+        await identityPort.revokeOwnSession({
+          actor: req.accountActor!,
+          sessionId,
+          command: accountCommand(req),
+        }),
+      )
     } catch (error) {
       return accountFail(reply, error)
     }
@@ -163,56 +226,51 @@ export function registerAccountRoutes(
       preauthEmail?: unknown
     }
     if (typeof body.accountId !== 'string' || body.accountId.length === 0) {
-      return reply.code(400).send({ error: 'accountId must be a non-empty string.' })
+      return reply
+        .code(400)
+        .send({ error: 'accountId must be a non-empty string.' })
     }
     if (!isKnownRole(body.role)) {
-      return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
-    }
-    if (body.role === 'owner') {
-      return reply.code(400).send({
-        error: 'Owner access cannot be invited. Transfer ownership to an existing member instead.',
-      })
+      return reply
+        .code(400)
+        .send({ error: 'role must be one of owner, admin, editor, viewer.' })
     }
     // Shape-check preauthEmail here, BEFORE the authorize() gate below, so a malformed email is
     // rejected with 400 and never reaches the write. An absent value or a string that is empty
     // after trim means a link invite (null). Any present non-string is invalid: silently treating
     // it as absent would widen redemption beyond the admin's apparent intent.
     let preauthEmail: string | null = null
-    if (body.preauthEmail !== undefined && typeof body.preauthEmail !== 'string') {
-      return reply.code(400).send({ error: 'preauthEmail must be a valid email address.' })
+    if (
+      body.preauthEmail !== undefined &&
+      typeof body.preauthEmail !== 'string'
+    ) {
+      return reply
+        .code(400)
+        .send({ error: 'preauthEmail must be a valid email address.' })
     }
     if (typeof body.preauthEmail === 'string') {
       const trimmed = body.preauthEmail.trim()
       if (trimmed.length > 0) {
-        if (!isAccountEmail(trimmed)) {
-          return reply.code(400).send({ error: 'preauthEmail must be a valid email address.' })
-        }
         preauthEmail = normalizeAccountEmail(trimmed) // store normalized so accept compares normalized↔normalized
       }
     }
     // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
     if (!authorize(req, reply, body.accountId, 'manageInvites')) return
     const requestedExpiry = body.expiresAt
-    const nowMs = Date.now()
     let expiresAt: string | null
     if (requestedExpiry === undefined) {
       // Null is canonical across retries. The account-administration port chooses the standard
       // bounded expiry only on first execution, so an idempotent retry cannot drift with wall time.
       expiresAt = null
     } else {
-      if (
-        typeof requestedExpiry !== 'string' ||
-        !ISO_INSTANT_RE.test(requestedExpiry) ||
-        !Number.isFinite(Date.parse(requestedExpiry))
-      ) {
-        return reply.code(400).send({ error: 'expiresAt must be a valid ISO-8601 timestamp.' })
-      }
-      const parsed = Date.parse(requestedExpiry)
-      if (parsed <= nowMs) {
-        return reply.code(400).send({ error: 'expiresAt must be in the future.' })
-      }
-      if (parsed > nowMs + MAX_INVITE_TTL_MS) {
-        return reply.code(400).send({ error: 'Invites may be valid for at most 30 days.' })
+      const parsed =
+        typeof requestedExpiry === 'string'
+          ? parseStrictIsoInstant(requestedExpiry)
+          : null
+      if (parsed === null) {
+        return reply
+          .code(400)
+          .send({ error: 'expiresAt must be a valid ISO-8601 timestamp.' })
       }
       expiresAt = new Date(parsed).toISOString()
     }
@@ -227,24 +285,27 @@ export function registerAccountRoutes(
       })
       if (!wasAccountCommandReplayed(invite)) {
         audit(reply, {
-          ts: invite.createdAt, userId: req.user!.id, accountId: invite.workspaceId, action: 'inviteCreate',
-          entity: 'invite', id: invite.id, changedFields: ['role', 'preauthEmail', 'expiresAt'],
+          ts: invite.createdAt,
+          userId: req.user!.id,
+          accountId: invite.workspaceId,
+          action: 'inviteCreate',
+          entity: 'invite',
+          id: invite.id,
+          changedFields: ['role', 'preauthEmail', 'expiresAt'],
         })
       }
       // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
       // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
       // already-authorised admin. Later privileged invitation-list reads also expose it, but no
       // public preview or bearer-token read does.
-      return reply
-        .code(201)
-        .send({
-          id: invite.id,
-          token: invite.token,
-          accountId: invite.workspaceId,
-          role: invite.role,
-          expiresAt: invite.expiresAt,
-          preauthEmail: invite.preauthorizedEmail,
-        })
+      return reply.code(201).send({
+        id: invite.id,
+        token: invite.token,
+        accountId: invite.workspaceId,
+        role: invite.role,
+        expiresAt: invite.expiresAt,
+        preauthEmail: invite.preauthorizedEmail,
+      })
     } catch (err) {
       return accountFail(reply, err)
     }
@@ -280,30 +341,38 @@ export function registerAccountRoutes(
   app.post('/api/invites/:token/accept', async (req, reply) => {
     const { token } = req.params as { token: string }
     try {
-      const accepted = authMode === 'off'
-        ? await accountAdminPort.claimInvitationForPrincipal({
-            token,
-            principalId: req.accountActor!.principalId,
-            principalEmail: req.user!.email,
-            emailVerified: true,
-            passwordMode: false,
-            command: accountCommand(req),
-          })
-        : await accountAdminPort.acceptInvitation({
-          actor: req.accountActor!,
-          token,
-          principalEmail: req.user!.email,
-          emailVerified: req.user!.emailVerified,
-          command: accountCommand(req),
-        })
+      const accepted =
+        authMode === 'off'
+          ? await accountAdminPort.claimInvitationForPrincipal({
+              token,
+              principalId: req.accountActor!.principalId,
+              principalEmail: req.user!.email,
+              emailVerified: true,
+              passwordMode: false,
+              command: accountCommand(req),
+            })
+          : await accountAdminPort.acceptInvitation({
+              actor: req.accountActor!,
+              token,
+              principalEmail: req.user!.email,
+              emailVerified: req.user!.emailVerified,
+              command: accountCommand(req),
+            })
       const now = new Date().toISOString()
       if (!wasAccountCommandReplayed(accepted)) {
         audit(reply, {
-          ts: now, userId: req.user!.id, accountId: accepted.workspaceId, action: 'inviteAccept',
-          entity: 'membership', id: req.user!.id, changedFields: ['role'],
+          ts: now,
+          userId: req.user!.id,
+          accountId: accepted.workspaceId,
+          action: 'inviteAccept',
+          entity: 'membership',
+          id: req.user!.id,
+          changedFields: ['role'],
         })
       }
-      return reply.code(200).send({ accountId: accepted.workspaceId, role: accepted.role })
+      return reply
+        .code(200)
+        .send({ accountId: accepted.workspaceId, role: accepted.role })
     } catch (err) {
       return accountFail(reply, err)
     }
@@ -317,10 +386,17 @@ export function registerAccountRoutes(
       return reply.code(404).send({ error: 'Not found.' })
     }
     const { token } = req.params as { token: string }
-    const body = (req.body ?? {}) as { email?: unknown; name?: unknown; password?: unknown }
-    const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : ''
+    const body = (req.body ?? {}) as {
+      email?: unknown
+      name?: unknown
+      password?: unknown
+    }
+    const email =
+      typeof body.email === 'string' ? normalizeAccountEmail(body.email) : ''
     if (!isAccountEmail(email)) {
-      return reply.code(400).send({ error: 'A valid email address is required.' })
+      return reply
+        .code(400)
+        .send({ error: 'A valid email address is required.' })
     }
     const name = typeof body.name === 'string' ? cleanText(body.name) : ''
     if (name.length === 0) {
@@ -328,8 +404,7 @@ export function registerAccountRoutes(
     }
     if (
       typeof body.password !== 'string' ||
-      body.password.length < MIN_PASSWORD_LENGTH ||
-      body.password.length > MAX_PASSWORD_LENGTH
+      passwordLengthFailure(body.password)
     ) {
       return reply.code(400).send({
         error: `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.`,
@@ -345,8 +420,13 @@ export function registerAccountRoutes(
       })
       if (!wasAccountCommandReplayed(result)) {
         audit(reply, {
-          ts: new Date().toISOString(), userId: result.principalId, accountId: result.membership.workspaceId,
-          action: 'inviteAccept', entity: 'member', id: result.principalId, changedFields: ['role', 'status'],
+          ts: new Date().toISOString(),
+          userId: result.principalId,
+          accountId: result.membership.workspaceId,
+          action: 'inviteAccept',
+          entity: 'member',
+          id: result.principalId,
+          changedFields: ['role', 'status'],
         })
       }
       return reply.code(201).send({
@@ -367,8 +447,14 @@ export function registerAccountRoutes(
   // operations for every actor. Owner changes are not ordinary member mutations: the single
   // Owner moves only through the transactional transfer endpoint, while a partial unique index and
   // boot assertion enforce exactly one Owner for every member-bearing company. OFF mode
-  // (trusted-local) has no real member model, so the list routes return empty and the mutate routes
-  // are inert no-ops — the UI is hidden in OFF anyway, but the endpoints must not crash if called.
+  // (trusted-local) has no real member model, so the list routes return empty and mutation routes
+  // explicitly report the unavailable capability instead of claiming an inert request committed.
+  const rejectTrustedLocalMemberMutation = (reply: FastifyReply): unknown =>
+    reply
+      .code(400)
+      .send({
+        error: 'Member management is unavailable in trusted-local mode.',
+      })
 
   // LIST members. Joins the membership rows with Better Auth user identity (name/email, read ONLY
   // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
@@ -384,14 +470,20 @@ export function registerAccountRoutes(
         actor: req.accountActor!,
         workspaceId: accountId,
       })
-      const members = await Promise.all(directory.map(async ({ membership: member, principal }) => {
-        const identityAdministration = await accountAdminPort.evaluateIdentityAdminAuthorities({
+      const identityAdministration =
+        await accountAdminPort.evaluateIdentityAdminAuthoritiesForTargets({
           actor: req.accountActor!,
-          targetPrincipalId: member.principalId,
+          targetPrincipalIds: directory.map(
+            ({ membership }) => membership.principalId,
+          ),
           actions: ['issue-password-reset', 'revoke-sessions'],
         })
-        const reset = identityAdministration.get('issue-password-reset')!
-        const revoke = identityAdministration.get('revoke-sessions')!
+      const members = directory.map(({ membership: member, principal }) => {
+        const targetAdministration = identityAdministration.get(
+          member.principalId,
+        )!
+        const reset = targetAdministration.get('issue-password-reset')!
+        const revoke = targetAdministration.get('revoke-sessions')!
         return {
           userId: member.principalId,
           role: member.role,
@@ -403,7 +495,7 @@ export function registerAccountRoutes(
           mayResetPassword: authMode === 'password' && reset.allowed,
           mayRevokeSessions: revoke.allowed,
         }
-      }))
+      })
       return { members }
     } catch (err) {
       return accountFail(reply, err)
@@ -413,26 +505,20 @@ export function registerAccountRoutes(
   // CHANGE a non-owner member's ordinary role. Owner is rejected at shape/policy level for every
   // actor; the only ownership mutation is the explicit atomic transfer route below.
   app.patch('/api/accounts/:accountId/members/:userId', async (req, reply) => {
-    const { accountId, userId } = req.params as { accountId: string; userId: string }
+    const { accountId, userId } = req.params as {
+      accountId: string
+      userId: string
+    }
     const body = (req.body ?? {}) as { role?: unknown }
     if (!isKnownRole(body.role)) {
-      return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
-    }
-    if (body.role === 'owner') {
-      return reply.code(400).send({
-        error: 'Owner access cannot be assigned as a role change. Use transfer ownership instead.',
-      })
+      return reply
+        .code(400)
+        .send({ error: 'role must be one of owner, admin, editor, viewer.' })
     }
     const nextRole = body.role
     if (!authorize(req, reply, accountId, 'manageMembers')) return
+    if (authMode === 'off') return rejectTrustedLocalMemberMutation(reply)
     try {
-      if (!await accountAdminPort.getMembership({ principalId: userId, workspaceId: accountId })) {
-        return reply.code(404).send({ error: 'Not a member of this account.' })
-      }
-      // OFF mode short-circuited authorize to allow-all, so there is no account actor — but OFF has
-      // no real actor role to evaluate the pure guard against. The UI is hidden in OFF; treat a
-      // mutate call as a harmless no-op rather than crash on a null actor role.
-      if (authMode === 'off') return reply.code(200).send({ userId, role: nextRole })
       const changed = await accountAdminPort.changeMemberRole({
         actor: req.accountActor!,
         workspaceId: accountId,
@@ -442,11 +528,18 @@ export function registerAccountRoutes(
       })
       if (!wasAccountCommandReplayed(changed)) {
         audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'memberRole',
-          entity: 'membership', id: userId, changedFields: ['role'],
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId,
+          action: 'memberRole',
+          entity: 'membership',
+          id: userId,
+          changedFields: ['role'],
         })
       }
-      return reply.code(200).send({ userId: changed.principalId, role: changed.role })
+      return reply
+        .code(200)
+        .send({ userId: changed.principalId, role: changed.role })
     } catch (err) {
       return accountFail(reply, err)
     }
@@ -455,16 +548,13 @@ export function registerAccountRoutes(
   // REVOKE a member. 404 non-member; 403 by the pure guard (the Owner is never removable here).
   // 204 on success.
   app.delete('/api/accounts/:accountId/members/:userId', async (req, reply) => {
-    const { accountId, userId } = req.params as { accountId: string; userId: string }
+    const { accountId, userId } = req.params as {
+      accountId: string
+      userId: string
+    }
     if (!authorize(req, reply, accountId, 'manageMembers')) return
+    if (authMode === 'off') return rejectTrustedLocalMemberMutation(reply)
     try {
-      if (!await accountAdminPort.getMembership({ principalId: userId, workspaceId: accountId })) {
-        return reply.code(404).send({ error: 'Not a member of this account.' })
-      }
-      if (authMode === 'off') {
-        // OFF: no real actor role; the UI is hidden — a revoke is an inert no-op (don't crash).
-        return reply.code(204).send()
-      }
       const removed = await accountAdminPort.removeMember({
         actor: req.accountActor!,
         workspaceId: accountId,
@@ -473,8 +563,13 @@ export function registerAccountRoutes(
       })
       if (!wasAccountCommandReplayed(removed)) {
         audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'memberRemove',
-          entity: 'membership', id: userId, changedFields: [],
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId,
+          action: 'memberRemove',
+          entity: 'membership',
+          id: userId,
+          changedFields: [],
         })
       }
       return reply.code(204).send()
@@ -488,42 +583,46 @@ export function registerAccountRoutes(
   // mere admin is 403 (authorize resolves the caller's role for this account). Body { toUserId }. The
   // target must already be an active member (404 else) and not the caller (400 — you're already owner).
   // Demote-caller and promote-target commit in ONE tx, so no other request observes an ownerless
-  // account and the v10 unique index never permits co-owners. OFF mode
-  // (trusted-local) has no real owner model, so it is an inert no-op success (the UI is hidden in OFF).
-  app.post('/api/accounts/:accountId/transfer-ownership', async (req, reply) => {
-    const { accountId } = req.params as { accountId: string }
-    const body = (req.body ?? {}) as { toUserId?: unknown }
-    if (typeof body.toUserId !== 'string' || body.toUserId.length === 0) {
-      return reply.code(400).send({ error: 'toUserId must be a non-empty string.' })
-    }
-    const toUserId = body.toUserId
-    if (!authorize(req, reply, accountId, 'transferOwnership')) return
-    if (toUserId === req.user!.id) {
-      return reply.code(400).send({ error: 'You are already the owner of this account.' })
-    }
-    try {
-      if (authMode === 'off') {
-        // OFF: no real member model (req.user is DEMO_USER) — inert no-op, matching the member routes.
-        return reply.code(200).send({ toUserId, role: 'owner' })
+  // account and the v10 unique index never permits co-owners. OFF mode has no owner model and
+  // reports that member management is unavailable.
+  app.post(
+    '/api/accounts/:accountId/transfer-ownership',
+    async (req, reply) => {
+      const { accountId } = req.params as { accountId: string }
+      const body = (req.body ?? {}) as { toUserId?: unknown }
+      if (typeof body.toUserId !== 'string' || body.toUserId.length === 0) {
+        return reply
+          .code(400)
+          .send({ error: 'toUserId must be a non-empty string.' })
       }
-      const now = new Date().toISOString()
-      const transferred = await accountAdminPort.transferOwnership({
-        actor: req.accountActor!,
-        workspaceId: accountId,
-        targetPrincipalId: toUserId,
-        command: accountCommand(req),
-      })
-      if (!wasAccountCommandReplayed(transferred)) {
-        audit(reply, {
-          ts: now, userId: req.user!.id, accountId, action: 'ownershipTransfer',
-          entity: 'membership', id: toUserId, changedFields: ['role'],
+      const toUserId = body.toUserId
+      if (!authorize(req, reply, accountId, 'transferOwnership')) return
+      if (authMode === 'off') return rejectTrustedLocalMemberMutation(reply)
+      try {
+        const now = new Date().toISOString()
+        const transferred = await accountAdminPort.transferOwnership({
+          actor: req.accountActor!,
+          workspaceId: accountId,
+          targetPrincipalId: toUserId,
+          command: accountCommand(req),
         })
+        if (!wasAccountCommandReplayed(transferred)) {
+          audit(reply, {
+            ts: now,
+            userId: req.user!.id,
+            accountId,
+            action: 'ownershipTransfer',
+            entity: 'membership',
+            id: toUserId,
+            changedFields: ['role'],
+          })
+        }
+        return reply.code(200).send({ toUserId, role: 'owner' })
+      } catch (err) {
+        return accountFail(reply, err)
       }
-      return reply.code(200).send({ toUserId, role: 'owner' })
-    } catch (err) {
-      return accountFail(reply, err)
-    }
-  })
+    },
+  )
 
   // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
   // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,
@@ -533,72 +632,104 @@ export function registerAccountRoutes(
   // delegates credentials to the IdP (400, not a crash), and OFF has no credentials at all. The
   // token rides Better Auth's own verification store (single-use, expiring) and is WRITE-ONCE:
   // returned exactly here, never listed or read back — same posture as the invite token.
-  app.post('/api/accounts/:accountId/members/:userId/reset-password', async (req, reply) => {
-    const { accountId, userId } = req.params as { accountId: string; userId: string }
-    if (!authorize(req, reply, accountId, 'manageMembers')) return
-    if (authMode !== 'password') {
-      // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
-      // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
-      return reply
-        .code(400)
-        .send({ error: 'Password reset links require a deployment profile with password sign-in enabled.' })
-    }
-    try {
-      const targetMembership = await accountAdminPort.getMembership({
-        principalId: userId,
-        workspaceId: accountId,
-      })
-      if (!targetMembership) {
-        return reply.code(404).send({ error: 'Not a member of this account.' })
+  app.post(
+    '/api/accounts/:accountId/members/:userId/reset-password',
+    async (req, reply) => {
+      const { accountId, userId } = req.params as {
+        accountId: string
+        userId: string
       }
-      const ceremony = await accountFlows!.issuePasswordReset({
-        actor: req.accountActor!,
-        targetPrincipalId: userId,
-        command: accountCommand(req),
-      })
-      if (!wasAccountCommandReplayed(ceremony)) {
-        audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'passwordResetIssue',
-          entity: 'identity', id: userId, changedFields: ['credential'],
+      if (!authorize(req, reply, accountId, 'manageMembers')) return
+      if (authMode !== 'password') {
+        // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
+        // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
+        return reply
+          .code(400)
+          .send({
+            error:
+              'Password reset links require a deployment profile with password sign-in enabled.',
+          })
+      }
+      try {
+        const command = accountCommand(req)
+        const targetMembership = await accountAdminPort.getMembership({
+          principalId: userId,
+          workspaceId: accountId,
         })
+        if (!targetMembership) {
+          return accountFail(reply, memberNotFound(command))
+        }
+        const ceremony = await accountFlows!.issuePasswordReset({
+          actor: req.accountActor!,
+          targetPrincipalId: userId,
+          command,
+        })
+        if (!wasAccountCommandReplayed(ceremony)) {
+          audit(reply, {
+            ts: new Date().toISOString(),
+            userId: req.user!.id,
+            accountId,
+            action: 'passwordResetIssue',
+            entity: 'identity',
+            id: userId,
+            changedFields: ['credential'],
+          })
+        }
+        return reply
+          .code(201)
+          .send({ token: ceremony.token, expiresAt: ceremony.expiresAt })
+      } catch (err) {
+        return accountFail(reply, err)
       }
-      return reply.code(201).send({ token: ceremony.token, expiresAt: ceremony.expiresAt })
-    } catch (err) {
-      return accountFail(reply, err)
-    }
-  })
+    },
+  )
 
   // Revoke every active session for a member. Session state is identity-global, so the actor must
   // have reset-equivalent authority in every account the target belongs to; an admin of account X
   // cannot disrupt an owner of account Y merely because the identity is also present in X.
-  app.post('/api/accounts/:accountId/members/:userId/revoke-sessions', async (req, reply) => {
-    const { accountId, userId } = req.params as { accountId: string; userId: string }
-    if (!authorize(req, reply, accountId, 'manageMembers')) return
-    if (authMode === 'off' || !authenticationConfigured) {
-      return reply.code(400).send({ error: 'Sessions require authentication.' })
-    }
-    try {
-      const targetMembership = await accountAdminPort.getMembership({
-        principalId: userId,
-        workspaceId: accountId,
-      })
-      if (!targetMembership) return reply.code(404).send({ error: 'Not a member of this account.' })
-      const revoked = await accountFlows!.revokeMemberSessions({
-        actor: req.accountActor!,
-        targetPrincipalId: userId,
-        command: accountCommand(req),
-      })
-      if (!wasAccountCommandReplayed(revoked)) {
-        audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'sessionsRevoke',
-          entity: 'identity', id: userId, changedFields: ['sessions'],
-        })
+  app.post(
+    '/api/accounts/:accountId/members/:userId/revoke-sessions',
+    async (req, reply) => {
+      const { accountId, userId } = req.params as {
+        accountId: string
+        userId: string
       }
-      return reply.code(204).send()
-    } catch (err) {
-      return accountFail(reply, err)
-    }
-  })
+      if (!authorize(req, reply, accountId, 'manageMembers')) return
+      if (authMode === 'off' || !authenticationConfigured) {
+        return reply
+          .code(400)
+          .send({ error: 'Sessions require authentication.' })
+      }
+      try {
+        const command = accountCommand(req)
+        const targetMembership = await accountAdminPort.getMembership({
+          principalId: userId,
+          workspaceId: accountId,
+        })
+        if (!targetMembership)
+          return accountFail(reply, memberNotFound(command))
+        const revoked = await accountFlows!.revokeMemberSessions({
+          actor: req.accountActor!,
+          targetPrincipalId: userId,
+          command,
+        })
+        if (!wasAccountCommandReplayed(revoked)) {
+          audit(reply, {
+            ts: new Date().toISOString(),
+            userId: req.user!.id,
+            accountId,
+            action: 'sessionsRevoke',
+            entity: 'identity',
+            id: userId,
+            changedFields: ['sessions'],
+          })
+        }
+        return reply.code(204).send()
+      } catch (err) {
+        return accountFail(reply, err)
+      }
+    },
+  )
 
   // LIST outstanding invites — NO token in the response (it's a write-once bearer secret; see
   // listInvitesForAccount). Gated 'manageInvites'. OFF → empty.
@@ -641,8 +772,13 @@ export function registerAccountRoutes(
       })
       if (revoked.changed && !wasAccountCommandReplayed(revoked)) {
         audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'inviteRevoke',
-          entity: 'invite', id, changedFields: [],
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId,
+          action: 'inviteRevoke',
+          entity: 'invite',
+          id,
+          changedFields: [],
         })
       }
       return reply.code(204).send()

@@ -3,6 +3,7 @@ import { rmSync } from 'node:fs'
 import net from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { buildAccessLabEnv } from './access-lab-env.mjs'
+import { spawnPnpm } from './pnpm-spawn.mjs'
 
 const nodeMajor = Number(process.versions.node.split('.')[0])
 if (!Number.isInteger(nodeMajor) || nodeMajor < 24) {
@@ -45,15 +46,10 @@ for (const suffix of ['', '-wal', '-shm']) rmSync(`${dbPath}${suffix}`, { force:
 // reset route, demo seed, or Vite API override could expose it or make the browser talk elsewhere.
 const commonEnv = buildAccessLabEnv(process.env, { apiPort: API_PORT, webPort: WEB_PORT })
 
-function spawnPnpm(args, options = {}) {
-  return spawn('pnpm', args, {
-    stdio: ['ignore', 'inherit', 'inherit'],
-    env: commonEnv,
-    ...options,
-  })
-}
-
-const setup = spawnPnpm(['--filter', 'capacitylens-server', 'exec', 'tsx', 'scripts/setup-access-lab.ts'])
+const setup = spawnPnpm(
+  ['--filter', 'capacitylens-server', 'exec', 'tsx', 'scripts/setup-access-lab.ts'],
+  { stdio: ['ignore', 'inherit', 'inherit'], env: commonEnv },
+)
 const waitForExit = (child) => new Promise((resolve, reject) => {
   child.on('exit', (code) => resolve(code ?? 1))
   child.on('error', reject)
@@ -61,7 +57,10 @@ const waitForExit = (child) => new Promise((resolve, reject) => {
 const setupCode = await waitForExit(setup)
 if (setupCode !== 0) process.exit(setupCode)
 
-const compileCode = await waitForExit(spawnPnpm(['run', 'paraglide:compile']))
+const compileCode = await waitForExit(spawnPnpm(
+  ['run', 'paraglide:compile'],
+  { stdio: ['ignore', 'inherit', 'inherit'], env: commonEnv },
+))
 if (compileCode !== 0) process.exit(compileCode)
 
 const children = []
@@ -85,7 +84,7 @@ function shutdown(code) {
 }
 
 function start(label, args, env = {}) {
-  const child = spawn('pnpm', args, {
+  const child = spawnPnpm(args, {
     stdio: ['ignore', 'inherit', 'inherit'],
     detached: true,
     env: { ...commonEnv, ...env },

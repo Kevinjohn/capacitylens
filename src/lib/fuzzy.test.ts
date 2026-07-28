@@ -12,6 +12,11 @@ describe('fuzzyScore', () => {
     it('is case-insensitive', () => {
       expect(fuzzyScore('TY', 'tyler nix')).toBe(0)
     })
+    it('is diacritic-insensitive in either direction and across Unicode forms', () => {
+      expect(fuzzyScore('jose', 'José Alvarez')).toBe(0)
+      expect(fuzzyScore('MÜLLER', 'Muller')).toBe(0)
+      expect(fuzzyScore('Jose\u0301', 'José Alvarez')).toBe(0)
+    })
   })
 
   describe('Tier 1 — word-boundary prefix', () => {
@@ -105,6 +110,16 @@ describe('fuzzyFilter', () => {
   it('is case-insensitive in matching', () => {
     expect(fuzzyFilter(resources, 'TYLER', getText)).toHaveLength(1)
     expect(fuzzyFilter(resources, 'TYLER', getText)[0].id).toBe('r-tyler')
+  })
+
+  it('finds accented names from an unaccented query', () => {
+    const people = [
+      ...resources,
+      { id: 'r-jose', name: 'José Alvarez' },
+      { id: 'r-muller', name: 'Greta Müller' },
+    ]
+    expect(fuzzyFilter(people, 'jose', getText).map((person) => person.id)).toEqual(['r-jose'])
+    expect(fuzzyFilter(people, 'muller', getText).map((person) => person.id)).toEqual(['r-muller'])
   })
 
   it('returns items in original (unsorted) order for an empty or whitespace-only query', () => {

@@ -8,13 +8,14 @@ export const NEUTRAL_COLOR = '#9ca3af'
 /** Canonical user-selectable colour palette. Persisted user colours must belong to this set.
  * `NEUTRAL_COLOR` (external resources) and the Internal-client colour are deliberate system
  * exceptions and are therefore not included here. */
-export const PRESET_COLORS: readonly string[] = [
+export const PRESET_COLORS = Object.freeze([
   '#f5bcbc', '#f7caba', '#f9d9b8', '#f9e6b8', '#f9f1b8', '#d9f2c0', '#c2f0d1', '#c0edf2', '#bed4f4', '#ccc0f2', '#e0c2f0', '#f4bedd', '#d8b397',
   '#eb7272', '#ef906e', '#f3ae6a', '#f3ca6a', '#f3e16a', '#aee37a', '#7edf9e', '#7adae3', '#76a5e7', '#947ae3', '#be7edf', '#e776b8', '#c38c61',
   '#e02727', '#e65621', '#ed841b', '#edae1b', '#edd11b', '#84d434', '#3ace6b', '#34c7d4', '#2d75da', '#5c34d4', '#9c3ace', '#da2d92', '#9e663c',
   '#9c1616', '#a13812', '#a5590d', '#a5780d', '#a5910d', '#59931f', '#248f47', '#1f8a93', '#1b4f98', '#3c1f93', '#6b248f', '#981b64', '#684327',
-]
-const PRESET_COLOR_SET = new Set(PRESET_COLORS)
+] as const)
+const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS)
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 
 export function isPresetColor(value: unknown): value is string {
   return typeof value === 'string' && PRESET_COLOR_SET.has(value.trim().toLowerCase())
@@ -35,10 +36,9 @@ export const FALLBACK_PRESET_COLOR = '#5c34d4'
  *  - an unparseable value (wrong shape, non-string, `null`/`undefined`) returns
  *    {@link FALLBACK_PRESET_COLOR}.
  *
- * This is the SINGLE mapping the server (`sanitizeWrite('accounts')`, and the one-time
- * `snap-legacy-account-colors` DB migration) and the client (`src/store/useStore.ts`) both
- * import, so a given stored colour is always classified IDENTICALLY on both sides — the two
- * write-time guards can never disagree about what a legacy or hand-crafted colour snaps to.
+ * This is the SINGLE mapping used by server writes, import repair, the one-time
+ * `snap-legacy-account-colors` DB migration and the client store, so a given stored colour is
+ * always classified IDENTICALLY on every persistence path.
  * See DECISIONS.md for the policy this implements.
  */
 export function snapToPresetColor(value: unknown): string {
@@ -48,7 +48,7 @@ export function snapToPresetColor(value: unknown): string {
   const rgb = toRgb(normalized)
   if (!rgb) return FALLBACK_PRESET_COLOR
   const [r, g, b] = rgb
-  let nearest = PRESET_COLORS[0]
+  let nearest: string = PRESET_COLORS[0]
   let nearestDistance = Infinity
   for (const preset of PRESET_COLORS) {
     const presetRgb = toRgb(preset)
@@ -122,13 +122,21 @@ function channelLin(c: number): number {
   return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
 }
 
+function toRgb(hex: string): [number, number, number] | null {
+  const normalized = hex.trim()
+  if (!HEX_COLOR_RE.test(normalized)) return null
+  const body = normalized.slice(1)
+  return [
+    parseInt(body.slice(0, 2), 16),
+    parseInt(body.slice(2, 4), 16),
+    parseInt(body.slice(4, 6), 16),
+  ]
+}
+
 function relativeLuminance(hex: string): number | null {
-  const c = hex.replace('#', '')
-  if (c.length !== 6) return null // reject short AND overlong hex (the latter mis-slices)
-  const r = parseInt(c.slice(0, 2), 16)
-  const g = parseInt(c.slice(2, 4), 16)
-  const b = parseInt(c.slice(4, 6), 16)
-  if ([r, g, b].some(Number.isNaN)) return null
+  const rgb = toRgb(hex)
+  if (!rgb) return null
+  const [r, g, b] = rgb
   return 0.2126 * channelLin(r) + 0.7152 * channelLin(g) + 0.0722 * channelLin(b)
 }
 
@@ -153,15 +161,6 @@ export function readableTextColor(hex: string): string {
 }
 
 const AA_NORMAL = 4.5
-
-function toRgb(hex: string): [number, number, number] | null {
-  const c = hex.replace('#', '')
-  if (c.length !== 6) return null // reject short AND overlong hex (the latter mis-slices)
-  const r = parseInt(c.slice(0, 2), 16)
-  const g = parseInt(c.slice(2, 4), 16)
-  const b = parseInt(c.slice(4, 6), 16)
-  return [r, g, b].some(Number.isNaN) ? null : [r, g, b]
-}
 
 const toHex = (r: number, g: number, b: number) =>
   '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')
@@ -196,5 +195,5 @@ export function ensureBarColors(hex: string): { bg: string; ink: string } {
 
 /** True when 6-digit hex `#rrggbb`. Used to validate user colour input. */
 export function isHexColor(value: string): boolean {
-  return /^#[0-9a-fA-F]{6}$/.test(value.trim())
+  return HEX_COLOR_RE.test(value.trim())
 }

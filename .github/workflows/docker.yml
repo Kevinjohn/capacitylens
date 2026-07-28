@@ -32,6 +32,13 @@ jobs:
         with:
           persist-credentials: false
       # ubuntu-latest ships Docker and the Compose plugin.
+      - name: Verify stable Compose storage identity
+        run: |
+          config="$(docker compose config)"
+          echo "$config" | grep -q '^name: capacitylens$'
+          for volume in capacitylens-db capacitylens-backups capacitylens-internal-tls; do
+            echo "$config" | grep -q "name: capacitylens_${volume}$"
+          done
       - name: Build all Docker Compose targets
         run: docker compose build
       - name: Start the production stack
@@ -39,8 +46,9 @@ jobs:
       - name: Wait for API health through nginx
         run: |
           for _ in {1..30}; do
-            if curl -fsS http://localhost:8080/api/health; then
-              echo
+            if health="$(curl -fsS http://localhost:8080/api/health)"; then
+              echo "$health"
+              echo "$health" | grep -q '"internalTls":{"status":"ok"'
               exit 0
             fi
             sleep 2
@@ -55,12 +63,51 @@ jobs:
           echo "$headers" | grep -qi '^x-frame-options:'
           echo "$headers" | grep -qi '^x-content-type-options:'
           echo "$headers" | grep -qi '^referrer-policy:'
+      - name: Smoke test immutable asset caching
+        run: |
+          asset_path="$(curl -fsS http://localhost:8080/ | grep -oE '/assets/[^"[:space:]]+\.(js|css)' | head -n 1)"
+          test -n "$asset_path"
+          headers="$(curl -fsS -D - -o /dev/null "http://localhost:8080${asset_path}")"
+          echo "$headers"
+          echo "$headers" | grep -qi '^cache-control: public, max-age=31536000, immutable'
       - name: Smoke test request body limit
         run: |
           dd if=/dev/zero of=/tmp/oversize.bin bs=1M count=7
           status="$(curl -s -o /dev/null -w '%{http_code}' -X POST --data-binary @/tmp/oversize.bin http://localhost:8080/)"
           echo "status=$status"
           test "$status" = "413"
+      - name: Start the client-only demo without a local API
+        env:
+          COMPOSE_PROJECT_NAME: capacitylens-client-smoke
+          VITE_CAPACITYLENS_DEMO: '1'
+          WEB_PORT: '8081'
+        run: |
+          docker compose up --build -d web-client
+          test "$(docker compose ps --services --status running)" = "web-client"
+          for _ in {1..30}; do
+            if curl -fsS http://localhost:8081/ >/dev/null; then
+              status="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/api/health)"
+              test "$status" = "404"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "client-only SPA never became healthy" >&2
+          exit 1
+      - name: Show client-only Compose logs on failure
+        if: failure()
+        env:
+          COMPOSE_PROJECT_NAME: capacitylens-client-smoke
+          VITE_CAPACITYLENS_DEMO: '1'
+          WEB_PORT: '8081'
+        run: docker compose logs web-client
+      - name: Stop the client-only stack
+        if: always()
+        env:
+          COMPOSE_PROJECT_NAME: capacitylens-client-smoke
+          VITE_CAPACITYLENS_DEMO: '1'
+          WEB_PORT: '8081'
+        run: docker compose down --volumes
       - name: Show Compose logs on failure
         if: failure()
         run: docker compose logs

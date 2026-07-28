@@ -17,6 +17,15 @@ SQLite file, transaction manager and product migration ledger. It does not creat
 service, account database, shared runtime identity or common portal. Those would change deployment
 and failure semantics and remain behind their recorded triggers.
 
+All asynchronous port implementations must settle in bounded time. The embedded adapters satisfy
+that contract through bounded local database waits; network-facing password-screening and OIDC work
+has its own abort deadline. Request cancellation is intentionally not propagated into an accepted
+durable account command: after reservation, the coordinator must record a terminal or
+reconciliation-required outcome even when the client disconnects. Before adding any remote account
+adapter, extend the operation context with an `AbortSignal`/deadline, define how expiry interacts
+with compensation and reconciliation, and add conformance coverage proving held operation keys are
+released. A never-settling adapter is not a conforming implementation.
+
 ## Dependency direction
 
 ```text
@@ -63,6 +72,11 @@ idempotency headers, reauthentication behavior and the longer timeout used for b
 There is exactly one application per deployment today; keeping the application id in contracts
 prevents a future transport from allowing caller-selected authorization scope.
 
+Application display names, TOTP issuers and provider labels are limited to the shared single-line
+label length. Password screening accepts at most 32 application-specific context words, and no
+context word may exceed the maximum password length. Invalid composition fails during startup
+before the branding reaches an identity provider, QR payload or password-policy loop.
+
 A local principal belongs to one product installation. A federated identity is a distinct upstream
 fact keyed by exact `(issuer, subject)`. Email is used only for verified initial admission and
 preauthorized invitation matching. It is never an account-link or merge key. The same upstream
@@ -75,22 +89,51 @@ links and sessions. No adapter is permitted to delete or disable an upstream IdP
 ## Command and transaction invariants
 
 Every account-administration mutation that needs safe retry or crosses ownership boundaries carries
-an independently generated command id and idempotency key. Naturally idempotent local sign-out and
-provider-owned credential endpoints keep their narrower provider semantics. The server stores a
-canonical payload digest and terminal semantic result in `account_commands`. Replaying the same
-command pair/payload returns the original result; rebinding either identifier or reusing the key
-with different semantics returns
+an independently generated command id and idempotency key. Both values are bearer-grade protocol
+secrets: integrations must generate each one independently with a cryptographically secure random
+generator, retain it only for that retry ceremony and never derive it from a user, account,
+timestamp, sequence or business payload. CapacityLens uses independent RFC 4122 version-4 UUIDs;
+other 16–128 character base64url-style values are supported only when they provide equivalent
+unguessability. Deterministic or otherwise predictable command ids are unsupported.
+
+This entropy requirement is load-bearing because `commandId` is a globally unique reconciliation
+coordinate retained for up to 30 days. Global correlation lets the public status ceremony and the
+operator repair tool identify exactly one durable row even after membership or workspace erasure.
+It is not a caller-allocated business namespace. A predictable id could be occupied first by an
+unrelated request; an unguessable id cannot be targeted before its legitimate use. Callers that omit
+the headers receive independent server-generated UUIDs.
+
+Naturally idempotent local sign-out and provider-owned credential endpoints keep their narrower
+provider semantics. The server stores a canonical payload digest and terminal semantic result in
+`account_commands`. Replaying the same command pair/payload returns the original result; rebinding
+either identifier or reusing the key with different semantics returns
 `IDEMPOTENCY_CONFLICT`, while a genuinely concurrent retry returns the distinct retryable
 `COMMAND_IN_PROGRESS`. Invitation, reset, password and session bearer values are never stored in the
 command ledger. A write-once result that cannot safely be reconstructed after process restart
 returns a conflict rather than minting a second bearer.
 
-Password invitation signup is **all-or-compensated**, not a fictional cross-adapter transaction:
+For implicit browser commands, `accountClient` retains the command pair in memory and, when
+available, session storage across transport failures, 5xx responses, `COMMAND_IN_PROGRESS`, and any
+409 whose body is unreadable or does not carry a recognised terminal code. The in-memory copy keeps
+same-page retries idempotent when browser storage is blocked; session storage extends that ceremony
+across reloads for the tab. It clears both copies only after success or a definitive caller/policy
+rejection. This fail-closed classification prevents a storage policy or truncated proxy response
+from turning one unknown command into a second semantic mutation with fresh identifiers.
+
+Every live coordinator command holds a command-specific key in the shared process operation lock.
+The reconciliation read validates its bearer first, then acquires that same key before applying the
+15-minute abandoned-pending transition. It therefore waits for a live executor to record its actual
+outcome and can age only a stale row left without an executor, such as after a process restart. The
+command key sorts before principal and workspace keys so flows that discover those coordinates
+mid-execution retain the lock-order invariant.
+
+Password invitation signup is **locally atomic, then all-or-compensated**:
 
 1. Validate that the invitation is currently redeemable before identity creation.
-2. Create a provisional credential principal and receive an opaque compensation handle.
-3. Atomically claim the invitation and membership in the account adapter.
-4. If claim fails, delete the provisional local principal.
+2. In one shared-SQLite transaction, create the local user and credential link and correlate the
+   pending command to that principal. A restart therefore recovers all three facts or none.
+3. Return an opaque compensation handle, then atomically claim the invitation and membership.
+4. If the claim fails, delete the provisional local principal.
 5. If compensation also fails, persist `reconciliation_required`, retain both internal causes and
    return a retryable `COMPENSATION_FAILED` result.
 
@@ -101,15 +144,39 @@ Membership writes bump the revision and revoke outstanding ceremonies.
 
 Workspace provisioning commits product data and the Owner membership in one local transaction.
 Workspace erasure commits product deletion, memberships and orphaned local-principal removal in one
-local transaction. Command history scoped to the erased workspace or an erased local principal is
-removed in that transaction. The terminal erasure command is retained only for bounded safe replay,
-with workspace/principal correlation fields cleared. Upstream identities are untouched.
+local transaction. Before deletion, the product boundary audits every cascading or unbinding
+foreign-key edge whose parent belongs to the target workspace; if a child is labelled for another
+workspace, erasure fails closed and the transaction leaves both tenants intact for operator repair.
+Closed command history scoped to the erased workspace or an erased local principal is removed in
+that transaction. Pending and reconciliation-required workspace commands remain durable until they
+can record or reconcile their external outcome; they are coordination and recovery state, not
+history. The terminal erasure command is retained only for bounded safe replay, with
+workspace/principal correlation fields cleared. Its authenticated HTTP route checks that exact
+completed command before consulting the now-erased membership, so a lost success response can be
+retried without authorising any fresh deletion. Upstream identities are untouched.
 
 Cross-port terminal outcomes are emitted by `AccountFlows` as normalized `AccountAuditEvent`
 records. Their stable correlation contains application/workspace/principal/command identifiers,
 outcome and fixed field names only. Bearer inputs and field values never enter the event. The same
 fail-never sink retains the existing product mutation audit shape for operator compatibility and
 latches degradation for deep health.
+
+Database schema version 17 adds the product mutation audit outbox. Its record commits with the
+product write, then drains to the compatible sink with stable delivery correlation; normalized
+cross-port outcome events retain their coordinator-owned delivery semantics.
+
+Database schema version 18 adds durable per-browser sync ordering and exact row-result provenance.
+The sequence watermark and provenance update in the same transaction as the represented product
+batch. A late predecessor is a successful no-op; a successor may advance past its own predecessor's
+server revision only while the stored row still hashes to that exact result. An intervening write
+therefore remains a conflict rather than being mistaken for same-session progress.
+Provenance is account-scoped operational metadata and is deleted in the same transaction as tenant
+erasure; the device-session watermark contains no account data and expires after seven days.
+
+Database schema version 19 adds a database-enforced tenant relationship boundary. Every scoped
+parent reference must resolve to a row with the same `accountId`, and a scoped row's `accountId`
+cannot be changed in place. Startup verifies both the live relationship graph and the exact trigger
+bodies, so a corrupt restore or altered guard fails closed before the API starts.
 
 ## Persistence and migration
 

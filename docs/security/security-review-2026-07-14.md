@@ -42,7 +42,7 @@ deployment-specific verification.
 | ID | Original risk | Severity | Resolution |
 |---|---|---:|---|
 | CL-01 | Production password mode could operate without a second factor | Critical | Required TOTP remains implemented and integration-tested but is now opt-in; password-only community deployments explicitly accept this risk and do not meet ASVS V6.3.3 L2 |
-| CL-02 | Password policy/storage did not meet current full OWASP guidance | High | 15–128 characters, no composition rule, context-word rejection, HIBP k-anonymity check, versioned scrypt `N=2^17,r=8,p=1`, exact-byte verification and constant-time comparison |
+| CL-02 | Password policy/storage did not meet current full OWASP guidance | High | 15–128 Unicode code points, no composition rule, context-word rejection, HIBP k-anonymity check, versioned scrypt `N=2^17,r=8,p=1`, exact-byte verification and constant-time comparison |
 | CL-03 | Session lifetime, visibility and containment were incomplete | High | Fixed 12-hour and 30-minute idle limits, 15-minute freshness for privileged actions, `__Host-` cookies, user session inventory/revocation, admin identity-global revocation with cross-account authority checks, reset invalidation |
 | CL-04 | CORS alone was treated as the browser cross-site boundary | High | Root hook now rejects unsafe disallowed Origin or cross-site Fetch Metadata requests; exact origin CORS remains additive defense |
 | CL-05 | Offline tenant snapshots were plaintext in browser storage | High | AES-256-GCM, non-extractable device key, random IV/AAD, tamper/expiry deletion, legacy plaintext wipe and viewer-only behavior |

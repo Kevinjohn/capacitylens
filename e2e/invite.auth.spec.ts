@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from './auth-helpers'
 import { dismissIntroIfPresent } from './helpers'
 
@@ -26,9 +26,8 @@ test.describe('invite accept (SMALLSASS_ACCOUNT_MODE=password)', () => {
   test('a signed-in user opens a valid invite link and joins; reusing the token is 409', async ({
     page,
     request,
-    browser,
   }) => {
-    test.setTimeout(45_000)
+    test.setTimeout(60_000)
     // Owner A: sign up (auto-signed-in → session cookie), bootstrap an org, mint an invite. The
     // explicit `cookie` header (not the shared jar) carries A's session on each call.
     const ownerCookie = (await signUpUser(OWNER)).cookie
@@ -100,6 +99,21 @@ test.describe('invite accept (SMALLSASS_ACCOUNT_MODE=password)', () => {
       headers: { cookie: joinerCookie },
     })
     expect(reuse.status()).toBe(409)
+  })
+
+  test('a new pre-authorized identity signs up and enters the invited company', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(60_000)
+
+    const ownerCookie = (await signUpUser(`${OWNER}.signup`)).cookie
+    const orgRes = await request.post(`${API}/api/orgs`, {
+      headers: { cookie: ownerCookie, 'x-capacitylens-bootstrap-token': BOOTSTRAP_TOKEN },
+      data: { name: `Signup Invite Studio ${STAMP}` },
+    })
+    expect(orgRes.status()).toBe(201)
+    const accountId = (await orgRes.json()).id as string
 
     // A brand-new identity takes the atomic signup path. The consumed token cannot be re-opened, so
     // the live route refreshes /me + /api/accounts, activates the exact joined company, and replaces
@@ -110,19 +124,16 @@ test.describe('invite accept (SMALLSASS_ACCOUNT_MODE=password)', () => {
     })
     expect(signupInvite.status()).toBe(201)
     const signupToken = (await signupInvite.json()).token as string
-    const newContext = await browser.newContext({ reducedMotion: 'reduce' })
-    const newPage = await newContext.newPage()
-    await newPage.goto(`/invite/${signupToken}`)
-    await newPage.getByLabel('Name').fill('New Joiner')
-    await newPage.getByLabel('Email').fill(NEW_JOINER)
-    await newPage.getByLabel('Password').fill(PASSWORD)
-    await newPage.getByRole('button', { name: 'Create account and accept' }).click()
+    await page.goto(`/invite/${signupToken}`)
+    await page.getByLabel('Name').fill('New Joiner')
+    await page.getByLabel('Email').fill(NEW_JOINER)
+    await page.getByLabel('Password').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Create account and accept' }).click()
 
-    await expect(newPage).toHaveURL(/\/$/)
-    await dismissIntroIfPresent(newPage, newPage.locator('#main'))
-    await expect(newPage.getByTitle(`Invite Studio ${STAMP}`, { exact: true })).toBeVisible()
-    await expect(newPage.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
-    await expect(newPage.getByTestId('active-role')).toContainText('Viewer')
-    await newContext.close()
+    await expect(page).toHaveURL(/\/$/)
+    await dismissIntroIfPresent(page, page.locator('#main'))
+    await expect(page.getByTitle(`Signup Invite Studio ${STAMP}`, { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+    await expect(page.getByTestId('active-role')).toContainText('Viewer')
   })
 })

@@ -1,163 +1,444 @@
-import { describe, it, expect } from 'vitest'
-import { migrate, UnsupportedSchemaVersionError } from './migrate'
-import { emptyAppData, EXPORT_SCHEMA_VERSION } from '../types/entities'
+import { describe, it, expect } from "vitest";
+import {
+  InvalidSchemaVersionError,
+  migrate,
+  UnsupportedSchemaVersionError,
+} from "./migrate";
+import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
+import { sanitizeImportedRecord } from "../lib/sanitizeImport";
 
-describe('migrate', () => {
-  it('returns empty data for null/garbage', () => {
-    expect(migrate(null)).toEqual(emptyAppData())
-    expect(migrate('nope')).toEqual(emptyAppData())
-    expect(migrate(42)).toEqual(emptyAppData())
-    expect(migrate(undefined)).toEqual(emptyAppData())
-  })
+describe("migrate", () => {
+  it("returns empty data for null/garbage", () => {
+    expect(migrate(null)).toEqual(emptyAppData());
+    expect(migrate("nope")).toEqual(emptyAppData());
+    expect(migrate(42)).toEqual(emptyAppData());
+    expect(migrate(undefined)).toEqual(emptyAppData());
+  });
 
-  it('unwraps a { schemaVersion, data } wrapper', () => {
+  it("unwraps a { schemaVersion, data } wrapper", () => {
     const data = {
       ...emptyAppData(),
-      clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'A', color: '#1' }],
-    }
-    expect(migrate({ schemaVersion: 1, data })).toEqual(data)
-  })
+      clients: [
+        { id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" },
+      ],
+    };
+    expect(migrate({ schemaVersion: 1, data })).toEqual(data);
+  });
 
-  it('refuses a forward schema instead of normalizing and later overwriting it', () => {
+  it("refuses a forward schema instead of normalizing and later overwriting it", () => {
     expect(() =>
-      migrate({ schemaVersion: EXPORT_SCHEMA_VERSION + 1, data: { ...emptyAppData(), futureTable: [{ id: 'future' }] } }),
-    ).toThrow(UnsupportedSchemaVersionError)
-  })
+      migrate({
+        schemaVersion: EXPORT_SCHEMA_VERSION + 1,
+        data: { ...emptyAppData(), futureTable: [{ id: "future" }] },
+      }),
+    ).toThrow(UnsupportedSchemaVersionError);
+  });
 
-  it('accepts a bare AppData (legacy, no wrapper)', () => {
+  it.each([
+    ["string", "9"],
+    ["null", null],
+    ["undefined", undefined],
+    ["fractional", 1.5],
+    ["negative", -1],
+    ["NaN", Number.NaN],
+    ["infinite", Number.POSITIVE_INFINITY],
+    ["unsafe integer", Number.MAX_SAFE_INTEGER + 1],
+  ])(
+    "refuses a present %s schema version instead of treating it as legacy",
+    (_label, schemaVersion) => {
+      expect(() =>
+        migrate({
+          schemaVersion,
+          data: { resources: [{ id: "r1", isFreelancer: true }] },
+        }),
+      ).toThrow(InvalidSchemaVersionError);
+    },
+  );
+
+  it("accepts a bare AppData (legacy, no wrapper)", () => {
     const data = {
       ...emptyAppData(),
       resources: [
-        { id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#1' },
+        {
+          id: "r1",
+          createdAt: "t",
+          updatedAt: "t",
+          kind: "person",
+          role: "Dev",
+          employmentType: "permanent",
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5],
+          color: "#1",
+        },
       ],
-    }
-    expect(migrate(data)).toEqual(data)
-  })
+    };
+    expect(migrate(data)).toEqual(data);
+  });
 
-  it('migrates legacy isFreelancer resources to employmentType (v1 → v2)', () => {
+  it("migrates legacy isFreelancer resources to employmentType (v1 → v2)", () => {
     const legacy = {
       schemaVersion: 1,
       data: {
         resources: [
-          { id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#1', isFreelancer: true },
+          {
+            id: "r1",
+            createdAt: "t",
+            updatedAt: "t",
+            kind: "person",
+            role: "Dev",
+            workingHoursPerDay: 8,
+            workingDays: [1, 2, 3, 4, 5],
+            color: "#1",
+            isFreelancer: true,
+          },
         ],
       },
-    }
-    const out = migrate(legacy)
-    expect(out.resources[0]).toMatchObject({ employmentType: 'freelancer' })
-    expect('isFreelancer' in out.resources[0]).toBe(false)
-  })
+    };
+    const out = migrate(legacy);
+    expect(out.resources[0]).toMatchObject({ employmentType: "freelancer" });
+    expect("isFreelancer" in out.resources[0]).toBe(false);
+  });
 
-  it('treats a missing version as legacy and still migrates', () => {
+  it("treats a missing version as legacy and still migrates", () => {
     const out = migrate({
       resources: [
-        { id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', workingHoursPerDay: 8, workingDays: [1], color: '#1', isFreelancer: false },
+        {
+          id: "r1",
+          createdAt: "t",
+          updatedAt: "t",
+          kind: "person",
+          role: "Dev",
+          workingHoursPerDay: 8,
+          workingDays: [1],
+          color: "#1",
+          isFreelancer: false,
+        },
       ],
-    })
-    expect(out.resources[0]).toMatchObject({ employmentType: 'permanent' })
-  })
+    });
+    expect(out.resources[0]).toMatchObject({ employmentType: "permanent" });
+  });
 
-  it('leaves a v2 payload untouched (no v2→v3 transform needed)', () => {
+  it("retains a versionless wrapper as supported legacy data", () => {
+    const out = migrate({
+      data: {
+        resources: [
+          {
+            id: "r1",
+            createdAt: "t",
+            updatedAt: "t",
+            kind: "person",
+            role: "Dev",
+            workingHoursPerDay: 8,
+            workingDays: [1],
+            color: "#1",
+            isFreelancer: true,
+          },
+        ],
+      },
+    });
+    expect(out.resources[0]).toMatchObject({ employmentType: "freelancer" });
+  });
+
+  it("leaves a v2 payload untouched (no v2→v3 transform needed)", () => {
     const data = {
       ...emptyAppData(),
       resources: [
-        { id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', employmentType: 'contractor', workingHoursPerDay: 8, workingDays: [1], color: '#1' },
+        {
+          id: "r1",
+          createdAt: "t",
+          updatedAt: "t",
+          kind: "person",
+          role: "Dev",
+          employmentType: "contractor",
+          workingHoursPerDay: 8,
+          workingDays: [1],
+          color: "#1",
+        },
       ],
-    }
-    expect(migrate({ schemaVersion: 2, data })).toEqual(data)
-  })
+    };
+    expect(migrate({ schemaVersion: 2, data })).toEqual(data);
+  });
 
-  it('leaves a v7 account without internalColourMode absent so it reads as grey', () => {
+  it("leaves a v7 account without internalColourMode absent so it reads as grey", () => {
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#2d75da' }],
-    }
-    const out = migrate({ schemaVersion: 7, data })
-    expect(out.accounts[0].internalColourMode).toBeUndefined()
-  })
+      accounts: [
+        {
+          id: "a1",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Studio",
+          color: "#2d75da",
+        },
+      ],
+    };
+    const out = migrate({ schemaVersion: 7, data });
+    expect(out.accounts[0].internalColourMode).toBeUndefined();
+  });
 
-  it('leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)', () => {
+  it("keeps schema-v6 clients and projects without privacy fields public", () => {
+    const out = migrate({
+      schemaVersion: 6,
+      data: {
+        ...emptyAppData(),
+        clients: [
+          {
+            id: "c1",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Public client",
+            color: "#2d75da",
+          },
+        ],
+        projects: [
+          {
+            id: "p1",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Public project",
+            clientId: "c1",
+            color: "#2d75da",
+          },
+        ],
+      },
+    });
+
+    const client = sanitizeImportedRecord("clients", { ...out.clients[0] });
+    const project = sanitizeImportedRecord("projects", { ...out.projects[0] });
+    expect(client).toMatchObject({ name: "Public client" });
+    expect(project).toMatchObject({ name: "Public project" });
+    for (const row of [client, project]) {
+      expect(row).not.toHaveProperty("isPrivate");
+      expect(row).not.toHaveProperty("codeName");
+    }
+  });
+
+  it("leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)", () => {
     // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay ABSENT so the
     // client's `?? true` reads them as shown/enabled — the migration materialises no defaults.
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#2d75da' }],
-    }
-    const out = migrate({ schemaVersion: 8, data })
-    expect(out.accounts[0].showInternalProjects).toBeUndefined()
-    expect(out.accounts[0].showInternalActivities).toBeUndefined()
-    expect(out.accounts[0].inlineActivityCreateEnabled).toBeUndefined()
-  })
+      accounts: [
+        {
+          id: "a1",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Studio",
+          color: "#2d75da",
+        },
+      ],
+    };
+    const out = migrate({ schemaVersion: 8, data });
+    expect(out.accounts[0].showInternalProjects).toBeUndefined();
+    expect(out.accounts[0].showInternalActivities).toBeUndefined();
+    expect(out.accounts[0].inlineActivityCreateEnabled).toBeUndefined();
+  });
 
-  it('preserves explicit false schedule view prefs across migration (v8 → v9)', () => {
+  it("preserves explicit false schedule view prefs across migration (v8 → v9)", () => {
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#2d75da', showInternalProjects: false, showInternalActivities: false, inlineActivityCreateEnabled: false }],
-    }
-    const out = migrate({ schemaVersion: 8, data })
-    expect(out.accounts[0].showInternalProjects).toBe(false)
-    expect(out.accounts[0].showInternalActivities).toBe(false)
-    expect(out.accounts[0].inlineActivityCreateEnabled).toBe(false)
-  })
+      accounts: [
+        {
+          id: "a1",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Studio",
+          color: "#2d75da",
+          showInternalProjects: false,
+          showInternalActivities: false,
+          inlineActivityCreateEnabled: false,
+        },
+      ],
+    };
+    const out = migrate({ schemaVersion: 8, data });
+    expect(out.accounts[0].showInternalProjects).toBe(false);
+    expect(out.accounts[0].showInternalActivities).toBe(false);
+    expect(out.accounts[0].inlineActivityCreateEnabled).toBe(false);
+  });
 
-  it('backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable', () => {
+  it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {
     // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
     // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.
     const out = migrate({
       schemaVersion: 3,
       data: {
         tasks: [
-          { id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Wires', projectId: 'p1' },
-          { id: 't2', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Admin' },
+          {
+            id: "t1",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Wires",
+            projectId: "p1",
+          },
+          {
+            id: "t2",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Admin",
+          },
         ],
       },
-    })
-    expect(out.activities[0]).toMatchObject({ id: 't1', kind: 'project' })
-    expect(out.activities[1]).toMatchObject({ id: 't2', kind: 'repeatable' })
-  })
+    });
+    expect(out.activities[0]).toMatchObject({ id: "t1", kind: "project" });
+    expect(out.activities[1]).toMatchObject({ id: "t2", kind: "repeatable" });
+  });
 
-  it('preserves an already-set activity kind when backfilling (the v3→v4 guard is idempotent)', () => {
+  it("preserves an already-set activity kind when backfilling (the v3→v4 guard is idempotent)", () => {
     const out = migrate({
       schemaVersion: 3,
       data: {
-        tasks: [{ id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' }],
+        tasks: [
+          {
+            id: "t1",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Admin",
+            kind: "internal",
+          },
+        ],
       },
-    })
-    expect(out.activities[0]).toMatchObject({ kind: 'internal' })
-  })
+    });
+    expect(out.activities[0]).toMatchObject({ kind: "internal" });
+  });
 
-  it('renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)', () => {
+  it("renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)", () => {
     const out = migrate({
       schemaVersion: 4,
       data: {
-        tasks: [{ id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Wires', kind: 'project', projectId: 'p1' }],
+        tasks: [
+          {
+            id: "t1",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Wires",
+            kind: "project",
+            projectId: "p1",
+          },
+        ],
         allocations: [
-          { id: 'al1', accountId: 'a1', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-01-01', endDate: '2026-01-02', hoursPerDay: 8, status: 'confirmed' },
+          {
+            id: "al1",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            resourceId: "r1",
+            taskId: "t1",
+            startDate: "2026-01-01",
+            endDate: "2026-01-02",
+            hoursPerDay: 8,
+            status: "confirmed",
+          },
         ],
       },
-    })
+    });
     // The renamed table arrives as `activities`; the old key is gone.
-    expect(out.activities).toHaveLength(1)
-    expect(out.activities[0]).toMatchObject({ id: 't1', kind: 'project' })
-    expect('tasks' in out).toBe(false)
+    expect(out.activities).toHaveLength(1);
+    expect(out.activities[0]).toMatchObject({ id: "t1", kind: "project" });
+    expect("tasks" in out).toBe(false);
     // The allocation's FK is renamed; no `taskId` survives.
-    expect(out.allocations[0]).toMatchObject({ activityId: 't1' })
-    expect('taskId' in out.allocations[0]).toBe(false)
-  })
+    expect(out.allocations[0]).toMatchObject({ activityId: "t1" });
+    expect("taskId" in out.allocations[0]).toBe(false);
+  });
 
-  it('treats a bare (versionless) legacy `tasks` blob as pre-v5 and renames it', () => {
+  it("merges a mixed v4 rename state without losing legacy-only work or modern conflicts", () => {
     const out = migrate({
-      tasks: [{ id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' }],
-    })
-    expect(out.activities).toHaveLength(1)
-    expect('tasks' in out).toBe(false)
-  })
+      schemaVersion: 4,
+      data: {
+        tasks: [
+          {
+            id: "legacy-only",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Legacy",
+            kind: "repeatable",
+          },
+          {
+            id: "shared",
+            accountId: "a1",
+            createdAt: "old",
+            updatedAt: "old",
+            name: "Legacy conflict",
+            kind: "repeatable",
+          },
+        ],
+        activities: [
+          {
+            id: "shared",
+            accountId: "a1",
+            createdAt: "new",
+            updatedAt: "new",
+            name: "Modern conflict",
+            kind: "internal",
+          },
+          {
+            id: "modern-only",
+            accountId: "a1",
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Modern",
+            kind: "repeatable",
+          },
+        ],
+        allocations: [
+          { id: "legacy-allocation", taskId: "legacy-only" },
+          {
+            id: "mixed-allocation",
+            taskId: "legacy-only",
+            activityId: "modern-only",
+          },
+        ],
+      },
+    });
 
-  it('fills in any missing arrays so the shape is always complete', () => {
+    expect(out.activities.map(({ id }) => id)).toEqual([
+      "shared",
+      "modern-only",
+      "legacy-only",
+    ]);
+    expect(out.activities.find(({ id }) => id === "shared")).toMatchObject({
+      name: "Modern conflict",
+      kind: "internal",
+    });
+    expect(out.allocations[0]).toMatchObject({ activityId: "legacy-only" });
+    expect(out.allocations[1]).toMatchObject({ activityId: "modern-only" });
+    expect(
+      out.allocations.every((allocation) => !("taskId" in allocation)),
+    ).toBe(true);
+  });
+
+  it("treats a bare (versionless) legacy `tasks` blob as pre-v5 and renames it", () => {
+    const out = migrate({
+      tasks: [
+        {
+          id: "t1",
+          accountId: "a1",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Admin",
+          kind: "internal",
+        },
+      ],
+    });
+    expect(out.activities).toHaveLength(1);
+    expect("tasks" in out).toBe(false);
+  });
+
+  it("fills in any missing arrays so the shape is always complete", () => {
     const out = migrate({
       schemaVersion: 1,
-      data: { clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'A', color: '#1' }] },
-    })
+      data: {
+        clients: [
+          { id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" },
+        ],
+      },
+    });
     expect(out).toMatchObject({
       disciplines: [],
       resources: [],
@@ -166,7 +447,7 @@ describe('migrate', () => {
       activities: [],
       allocations: [],
       timeOff: [],
-    })
-    expect(out.clients).toHaveLength(1)
-  })
-})
+    });
+    expect(out.clients).toHaveLength(1);
+  });
+});

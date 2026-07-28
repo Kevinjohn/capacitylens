@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeWindow } from './virtualWindow'
+import { buildLayout, computeWindow, windowFromLayout } from './virtualWindow'
 
 describe('computeWindow', () => {
   it('renders everything when the content fits the viewport', () => {
@@ -26,6 +26,24 @@ describe('computeWindow', () => {
     expect(w.topPad + renderedHeight + w.bottomPad).toBe(10000)
     // Only a small slice is rendered, not all 200.
     expect(w.last - w.first + 1).toBeLessThan(40)
+  })
+
+  it('finds a deep window without scanning all preceding rows', () => {
+    const heights = Array.from({ length: 65_536 }, () => 50)
+    const layout = buildLayout(heights)
+    let offsetReads = 0
+    layout.tops = new Proxy(layout.tops, {
+      get(target, property, receiver) {
+        if (typeof property === 'string' && /^\d+$/.test(property)) offsetReads++
+        return Reflect.get(target, property, receiver)
+      },
+    })
+
+    const w = windowFromLayout(layout, heights, 3_000_000, 500, 300)
+
+    expect(w.first).toBe(59_994)
+    expect(w.last).toBe(60_015)
+    expect(offsetReads).toBeLessThan(100)
   })
 
   it('clamps at the top of the list', () => {

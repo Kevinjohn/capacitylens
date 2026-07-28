@@ -1,12 +1,14 @@
-import { isPresetColor, NEUTRAL_COLOR } from './color'
+import { NEUTRAL_COLOR, snapToPresetColor } from './color'
 import { INTERNAL_CLIENT_COLOR } from '../data/internalClient'
 import { cleanText } from './strings'
+import { parseISOTimestamp } from './integrity'
 import { normalizeCodeName, PRIVATE_CODE_NAME_FALLBACK } from '../domain/privateNames'
 import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
   externalCapacityDefaults,
   INTERNAL_COLOUR_MODES,
+  type AppData,
   type ScopedEntityKey,
   type Weekday,
 } from '../types/entities'
@@ -17,12 +19,84 @@ import {
 // would otherwise have guarded — so a negative/NaN hoursPerDay, a junk status enum, or
 // a non-hex colour can't land in the store and render as broken geometry.
 
-const FALLBACK_COLOR = '#2d75da'
 const VALID_STATUS = ['confirmed', 'tentative', 'completed'] as const
 const VALID_KIND = ['person', 'placeholder', 'external'] as const
 const VALID_ACTIVITY_KIND = ['project', 'internal', 'repeatable'] as const
 const VALID_EMPLOYMENT = ['permanent', 'freelancer', 'contractor'] as const
 const VALID_TIMEOFF = ['holiday', 'sick', 'unpaid', 'other'] as const
+
+const SCOPED_META_FIELDS = ['id', 'accountId', 'createdAt', 'updatedAt'] as const
+
+/** Exact portable fields accepted for each scoped entity. Import runs in both the in-memory demo
+ * and SQLite modes, so project onto the shared domain schema before value repair rather than rely
+ * on SQLite's column list to discard undeclared properties later. The type checks below make a
+ * domain-field addition fail compilation until this boundary is updated deliberately. */
+const IMPORTED_FIELDS = {
+  disciplines: [...SCOPED_META_FIELDS, 'name', 'color', 'sortOrder'],
+  resources: [
+    ...SCOPED_META_FIELDS,
+    'kind',
+    'name',
+    'role',
+    'disciplineId',
+    'employmentType',
+    'workingHoursPerDay',
+    'workingDays',
+    'projectId',
+    'color',
+    'archivedAt',
+    'deletedAt',
+  ],
+  clients: [
+    ...SCOPED_META_FIELDS,
+    'name',
+    'color',
+    'isPrivate',
+    'codeName',
+    'builtin',
+    'archivedAt',
+    'deletedAt',
+  ],
+  projects: [
+    ...SCOPED_META_FIELDS,
+    'name',
+    'clientId',
+    'color',
+    'isPrivate',
+    'codeName',
+    'archivedAt',
+    'deletedAt',
+  ],
+  phases: [...SCOPED_META_FIELDS, 'name', 'projectId'],
+  activities: [...SCOPED_META_FIELDS, 'name', 'kind', 'projectId', 'phaseId'],
+  allocations: [
+    ...SCOPED_META_FIELDS,
+    'resourceId',
+    'activityId',
+    'startDate',
+    'endDate',
+    'hoursPerDay',
+    'status',
+    'note',
+    'ignoreWeekends',
+  ],
+  timeOff: [...SCOPED_META_FIELDS, 'resourceId', 'startDate', 'endDate', 'type', 'note'],
+} as const satisfies {
+  [K in ScopedEntityKey]: readonly (keyof AppData[K][number])[]
+}
+
+type MissingImportedField = {
+  [K in ScopedEntityKey]: Exclude<keyof AppData[K][number], (typeof IMPORTED_FIELDS)[K][number]>
+}[ScopedEntityKey]
+const importedFieldsAreComplete: MissingImportedField extends never ? true : never = true
+void importedFieldsAreComplete
+
+const stripUnknownFields = (key: ScopedEntityKey, rec: Record<string, unknown>): void => {
+  const allowed: readonly string[] = IMPORTED_FIELDS[key]
+  for (const field of Object.keys(rec)) {
+    if (!allowed.includes(field)) delete rec[field]
+  }
+}
 
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
   typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : fallback
@@ -40,12 +114,6 @@ const clampHours = (v: unknown): number =>
 // non-numeric / NaN value falls back to a normal 8h day.
 const clampAllocHours = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? clampHoursPerDay(v) : fallback
-
-// isHexColor trims before testing, so return the TRIMMED value — otherwise a padded
-// '  #aabbcc  ' passes validation but is stored verbatim, and the colour math then
-// NaN-fails on it and the bar renders the fallback grey (with the junk persisted).
-const safeColor = (v: unknown, fallback = FALLBACK_COLOR): string =>
-  isPresetColor(v) ? v.trim().toLowerCase() : fallback
 
 const safeInt = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isSafeInteger(v) ? v : fallback
@@ -116,8 +184,8 @@ const normalizePrivateNameFields = (rec: Record<string, unknown>): void => {
 const normalizeLifecycleFields = (rec: Record<string, unknown>): void => {
   const timestamp = (value: unknown): string | null => {
     if (typeof value !== 'string' || value.trim() === '') return null
-    const milliseconds = Date.parse(value)
-    return Number.isNaN(milliseconds) ? null : new Date(milliseconds).toISOString()
+    const milliseconds = parseISOTimestamp(value)
+    return milliseconds === null ? null : new Date(milliseconds).toISOString()
   }
 
   const archivedAt = timestamp(rec.archivedAt)
@@ -189,13 +257,13 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   return rec
 }
 
-/** Repair the value-level fields of one imported scoped record in place. The record
- *  has already had its id remapped + accountId stamped; we only touch constrained
- *  fields, leaving names/notes/refs alone. */
+/** Project one imported scoped record onto its declared schema, then repair constrained values in
+ * place. The record has already had its id remapped + accountId stamped. */
 export function sanitizeImportedRecord(
   key: ScopedEntityKey,
   rec: Record<string, unknown>,
 ): Record<string, unknown> {
+  stripUnknownFields(key, rec)
   switch (key) {
     case 'resources':
       rec.kind = oneOf(rec.kind, VALID_KIND, 'person')
@@ -208,11 +276,19 @@ export function sanitizeImportedRecord(
         rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, 'permanent')
         rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay)
         rec.workingDays = safeWorkingDays(rec.workingDays)
-        rec.color = safeColor(rec.color)
+        rec.color = snapToPresetColor(rec.color)
         if (rec.kind !== 'placeholder') delete rec.projectId
       }
-      cleanField(rec, 'name') // resources.name is optional (nullable)
-      cleanRequiredField(rec, 'role', 'Team member') // resources.role is NOT NULL
+      if (rec.kind === 'placeholder') {
+        cleanField(rec, 'name')
+      } else {
+        cleanRequiredField(rec, 'name', rec.kind === 'external' ? 'Unnamed company' : 'Unnamed person')
+      }
+      // Role is optional in both resource forms, but the storage column is NOT NULL. Preserve an
+      // intentionally blank (or cleaning-to-blank) string; only synthesize a value when no string
+      // was supplied at all.
+      if (typeof rec.role === 'string') cleanField(rec, 'role')
+      else rec.role = 'Team member'
       normalizeLifecycleFields(rec)
       break
     case 'allocations':
@@ -231,11 +307,11 @@ export function sanitizeImportedRecord(
       break
     case 'disciplines':
       rec.sortOrder = safeInt(rec.sortOrder, 0)
-      if (rec.color !== undefined) rec.color = safeColor(rec.color)
+      if (rec.color !== undefined) rec.color = snapToPresetColor(rec.color)
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
     case 'clients':
-      rec.color = rec.builtin === true ? INTERNAL_CLIENT_COLOR : safeColor(rec.color)
+      rec.color = rec.builtin === true ? INTERNAL_CLIENT_COLOR : snapToPresetColor(rec.color)
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       // `builtin` is an OPTIONAL boolean (true only for the Internal pseudo-client). This is
       // DEFENSIVE NORMALISATION for a hand-edited / legacy file: drop anything that isn't strictly
@@ -251,11 +327,17 @@ export function sanitizeImportedRecord(
       if (rec.builtin === true) {
         delete rec.isPrivate
         delete rec.codeName
-      } else normalizePrivateNameFields(rec)
-      normalizeLifecycleFields(rec)
+        // Supported mutation paths never allow the protected singleton to enter the lifecycle
+        // state machine. Imports repair hand-edited or legacy tombstones back to active.
+        delete rec.archivedAt
+        delete rec.deletedAt
+      } else {
+        normalizePrivateNameFields(rec)
+        normalizeLifecycleFields(rec)
+      }
       break
     case 'projects':
-      rec.color = safeColor(rec.color)
+      rec.color = snapToPresetColor(rec.color)
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       normalizePrivateNameFields(rec)
       normalizeLifecycleFields(rec)

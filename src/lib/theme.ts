@@ -11,13 +11,27 @@ import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
 export type ThemePref = 'light' | 'dark' | 'system'
 
 const STORAGE_KEY = `${STORAGE_KEY_PREFIX}theme`
+const LEGACY_STORAGE_KEY = 'floaty/theme'
+
+const isThemePref = (value: unknown): value is ThemePref =>
+  value === 'light' || value === 'dark' || value === 'system'
 
 /** Read the saved preference. Defaults to 'light' (the product default) when
  *  nothing is stored or storage is unavailable. */
 export function readStoredTheme(): ThemePref {
   try {
     const v = localStorage.getItem(STORAGE_KEY)
-    if (v === 'light' || v === 'dark' || v === 'system') return v
+    if (isThemePref(v)) return v
+    // Migrate the pre-rebrand device preference only when the current key does not exist. An
+    // explicit but invalid current value remains invalid rather than being silently overridden.
+    if (v === null) {
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+      if (isThemePref(legacy)) {
+        localStorage.setItem(STORAGE_KEY, legacy)
+        localStorage.removeItem(LEGACY_STORAGE_KEY)
+        return legacy
+      }
+    }
   } catch {
     // storage blocked (private mode / quota) — fall through to the default
   }

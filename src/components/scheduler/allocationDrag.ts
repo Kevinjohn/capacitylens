@@ -9,14 +9,18 @@ import type { ColumnGeometry } from './columnGeometry'
 // hit-testing (snapshotLanes / laneAt / setDropTarget) and the store write + capacity
 // advisory stay in the component; this module is only the date/hours/geometry computation.
 
-/** Hours/day an allocation should carry after being REASSIGNED (dragged) to `target`. The TARGET's
- *  kind decides: an external / 3rd party carries no load (0); a real resource must carry > 0, so a
- *  0-hour booking dragged OFF an external is given the target's working day (else it persists an
- *  illegal 0-hour allocation the modal rejects). `current` (the source's hours) is kept for a
- *  real→real reassign. A same-resource move never calls this. */
-export function reconcileReassignedHours(current: number, target: Resource): number {
+/** Hours/day an allocation should carry after being REASSIGNED (dragged) to `target`. An external
+ *  / 3rd party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged OFF an
+ *  external is promoted to the target's working day because those forms require positive load.
+ *  Blocks mode deliberately permits and preserves zero; existing positive historical values are
+ *  also retained for a real→real reassign. A same-resource move never calls this. */
+export function reconcileReassignedHours(
+  current: number,
+  target: Resource,
+  zeroLoadMode: boolean,
+): number {
   if (isExternalResource(target)) return 0
-  return current > 0 ? current : target.workingHoursPerDay
+  return current > 0 || zeroLoadMode ? current : target.workingHoursPerDay
 }
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so
@@ -60,7 +64,9 @@ export function computeGesture(
   hoursPerDay: number,
   isDays: boolean,
 ): { dates: DateRange; hours: number; clamped: boolean } {
-  const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays, opts) : current
+  // A zero-column move can still be a cross-row reassign. Run move math so the unchanged start is
+  // reinterpreted against the target resource's working week; resize no-ops keep their reference.
+  const dates = deltaDays !== 0 || mode === 'move' ? applyGesture(mode, current, deltaDays, opts) : current
   if (isDays && mode !== 'move' && deltaDays !== 0) {
     const { hours, clamped } = volumePreservingHoursClamped(current, dates, opts, hoursPerDay)
     return { dates, hours, clamped }

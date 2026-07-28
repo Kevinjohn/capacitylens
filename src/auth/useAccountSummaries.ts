@@ -9,6 +9,9 @@ import {
   readCachedAccountSummaries,
   setOfflineReadState,
 } from '../data/offlineCache'
+import { isTransportFailure } from '../data/requestTimeout'
+import { hasDuplicateIdentity } from '../lib/arrayIdentity'
+import { m } from '@/i18n'
 
 // The AccountPicker's data source (production plan P1.13). It populates `store.accountSummaries` — the
 // list of accounts the login may OPEN — from the right source for the deploy:
@@ -71,7 +74,12 @@ export async function fetchAccountSummaries(init?: {
   const cachedFallback = async (): Promise<AccountSummary[] | null> => {
     const cached = await readCachedAccountSummaries()
     if (!cached) return null
-    if (acceptEffects()) setOfflineReadState(true, cached.savedAt)
+    if (acceptEffects() && useStore.getState().activeAccountId === null) {
+      // This snapshot proves only that the company DIRECTORY is cached. While a company is open,
+      // its slice may still be live, so the directory must not replace the slice loader's status
+      // with a global read-only marker or a timestamp belonging to a different cache record.
+      setOfflineReadState(true, cached.savedAt)
+    }
     return cached.value
   }
   const safeCachedFallback = async (): Promise<AccountSummary[] | null> => {
@@ -98,24 +106,32 @@ export async function fetchAccountSummaries(init?: {
       return null
     }
     const valid = body.map(toSummary).filter((s): s is AccountSummary => s !== null)
-    if (valid.length < body.length) {
+    const droppedCount = body.length - valid.length
+    if (droppedCount > 0) {
       // Partial corruption must not be silent (DEFENSIVE-CODING.md §5, handled-but-logged): every
       // dropped row is a server/proxy bug worth a breadcrumb even when the rest of the list is fine.
-      console.warn(`fetchAccountSummaries: dropped ${body.length - valid.length} malformed /api/accounts row(s)`, body)
+      console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`, body)
+      if (acceptEffects()) useStore.getState().setNotice(m.picker_accounts_incomplete(), 'warning')
     }
     // A NONEMPTY array where EVERY row is off-spec is MALFORMED, not "no accounts" — report null
     // (keep-what-you-have, same as the non-array case above) rather than an [] that would blank
     // the picker over what is really a broken response. Only a genuinely empty array means [].
     if (body.length > 0 && valid.length === 0) return null
+    if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
+      console.warn('fetchAccountSummaries: /api/accounts returned duplicate account identities; reporting null')
+      return null
+    }
     if (acceptEffects()) {
       // This read proves only the company DIRECTORY is online. When an active company is still
       // rendering a cached slice, clearing the global marker here would re-enable its edits and let
       // it masquerade as live data. The authoritative slice loader owns that transition; at the
       // picker (no active slice), a live directory read may clear an identity/list-only fallback.
       if (useStore.getState().activeAccountId === null) setOfflineReadState(false)
-      void cacheAccountSummaries(valid).catch((error) =>
-        console.warn('fetchAccountSummaries: the offline account list could not be updated', error),
-      )
+      if (droppedCount === 0) {
+        void cacheAccountSummaries(valid).catch((error) =>
+          console.warn('fetchAccountSummaries: the offline account list could not be updated', error),
+        )
+      }
     }
     return valid
   } catch (e) {
@@ -123,30 +139,56 @@ export async function fetchAccountSummaries(init?: {
     // throw — the callers treat a failed list read as "keep what you have", not an error surface of
     // its own. Breadcrumb per DEFENSIVE-CODING.md §5: handled-but-logged, never totally silent.
     console.warn('fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)', e)
-    const transportFailure = e instanceof TypeError ||
-      (e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError'))
-    if (!transportFailure) return null
+    if (!isTransportFailure(e)) return null
     return allowCachedFallback ? safeCachedFallback() : null
   }
 }
 
 /**
+ * Fetch and publish the company directory through the store's shared request sequence. Every
+ * server-mode caller uses this boundary: a newer read, or a direct create/delete mutation, makes an
+ * older response ineligible to replace the picker list. The fetched list is still returned to the
+ * caller for its local reconciliation flow; only the shared-store publication is sequenced.
+ */
+export async function refreshAccountSummaries(init?: {
+  signal?: AbortSignal
+  acceptEffects?: () => boolean
+  allowCachedFallback?: boolean
+}): Promise<AccountSummary[] | null> {
+  const callerAcceptsEffects = init?.acceptEffects ?? (() => true)
+  const requestId = useStore.getState().beginAccountSummariesRequest()
+  const requestIsCurrent = () =>
+    callerAcceptsEffects() && useStore.getState().accountSummariesRequestId === requestId
+  const list = await fetchAccountSummaries({ ...init, acceptEffects: requestIsCurrent })
+  if (list !== null && callerAcceptsEffects()) {
+    useStore.getState().setAccountSummaries(list, requestId)
+  }
+  return list
+}
+
+/**
  * Keep {@link useStore}.accountSummaries — the AccountPicker's account list — in sync (P1.13).
  *
- * - SERVER mode: fetch `GET /api/accounts` once on mount (re-keyed on the active account so a sign-in
- *   or account switch re-pulls a fresh list). On any failure — including a 200 whose body is not
- *   an array, or a nonempty array with zero valid rows — the existing list is LEFT AS-IS (a
- *   transient blip or a malformed body shouldn't blank the picker); only a genuine empty array
- *   empties it.
+ * - SERVER mode: own picker reads and auth-off active-account reads. Authenticated active-account
+ *   generations are yielded to PermissionProvider, which uses the same validated refresh and
+ *   publishes its result here. On any failure — including a 200 whose body is not an array, or a
+ *   nonempty array with zero valid rows — the existing list is LEFT AS-IS (a transient blip or a
+ *   malformed body shouldn't blank the picker); only a genuine empty array empties it.
  * - DEMO build: derive the list from `data.accounts` on every change (no fetch).
  *
  * Renders nothing — it's a side-effect hook mounted high in the tree (alongside the auth providers).
  */
-export function useAccountSummaries(): void {
+export function useAccountSummaries({
+  refreshActiveAccount = true,
+}: {
+  /** Authenticated app bodies delegate active-account refreshes to PermissionProvider so the
+   * directory and permission projection share one request. Auth-off has no active permission
+   * lookup, so its shell keeps this enabled. Picker reads always remain owned by this hook. */
+  refreshActiveAccount?: boolean
+} = {}): void {
   const serverMode = isServerConfigured()
-  const setAccountSummaries = useStore((s) => s.setAccountSummaries)
-  // Re-key the server fetch on the active account so a switch / sign-in re-pulls the list (a freshly
-  // accepted invite or a just-created org then appears). Harmless in the demo build (that branch ignores it).
+  // Re-key the server request owner on the active account so a switch / sign-in re-pulls the list
+  // (a freshly accepted invite or a just-created org then appears). Harmless in the demo build.
   const activeAccountId = useStore((s) => s.activeAccountId)
   const membershipRevision = useStore((s) => s.membershipRevision)
   // The demo build reads the accounts straight off the store; selecting the array keeps the derive effect
@@ -156,24 +198,25 @@ export function useAccountSummaries(): void {
 
   useEffect(() => {
     if (!serverMode) return // demo build handled by the derive effect below
+    if (activeAccountId !== null && !refreshActiveAccount) return
     let cancelled = false
     void (async () => {
       // A null list (non-OK / transport error) leaves the existing list untouched — a blip shouldn't
       // blank the picker (the server 403 backstops); a real read/write surfaces its own banner.
-      const list = await fetchAccountSummaries({ acceptEffects: () => !cancelled })
-      if (cancelled || list === null) return
-      setAccountSummaries(list)
+      await refreshAccountSummaries({ acceptEffects: () => !cancelled })
     })()
     return () => {
       cancelled = true
     }
-  }, [serverMode, activeAccountId, membershipRevision, setAccountSummaries])
+  }, [serverMode, activeAccountId, membershipRevision, refreshActiveAccount])
 
   useEffect(() => {
     if (serverMode) return // server mode is driven by the fetch above, not the local derive
     // DEMO build: the picker's list IS the store's accounts (tagged owner = full access, mirroring the
     // server's OFF wire shape so the pure `can` keeps local fully editable). Kept in lockstep on every
     // add/delete so the picker reflects changes without a fetch.
-    setAccountSummaries(localAccounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const })))
-  }, [serverMode, localAccounts, setAccountSummaries])
+    useStore.getState().setAccountSummaries(
+      localAccounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const })),
+    )
+  }, [serverMode, localAccounts])
 }

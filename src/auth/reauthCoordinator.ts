@@ -12,9 +12,16 @@
 
 type Resolver = (reauthenticated: boolean) => void
 
+/** Final liveness backstop when no React host survives to cancel the request immediately. */
+export const REAUTH_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
+
 // The ONE in-flight re-auth request, or null. Holds the promise every concurrent caller awaits plus
 // the resolver the dialog fulfils. Never two at once — see the de-dupe in requestReauth.
-let pending: { promise: Promise<boolean>; resolve: Resolver } | null = null
+let pending: {
+  promise: Promise<boolean>
+  resolve: Resolver
+  timeout: ReturnType<typeof setTimeout>
+} | null = null
 const listeners = new Set<() => void>()
 
 function emit(): void {
@@ -33,7 +40,8 @@ export function requestReauth(): Promise<boolean> {
   const promise = new Promise<boolean>((r) => {
     resolve = r
   })
-  pending = { promise, resolve }
+  const timeout = setTimeout(() => resolveReauth(false), REAUTH_REQUEST_TIMEOUT_MS)
+  pending = { promise, resolve, timeout }
   emit()
   return promise
 }
@@ -42,9 +50,11 @@ export function requestReauth(): Promise<boolean> {
  *  cancelled (callers surface the original error). No-op when nothing is pending. */
 export function resolveReauth(reauthenticated: boolean): void {
   const current = pending
+  if (!current) return
   pending = null
+  clearTimeout(current.timeout)
   emit()
-  current?.resolve(reauthenticated)
+  current.resolve(reauthenticated)
 }
 
 /** Snapshot for useSyncExternalStore — whether a step-up dialog should currently be shown. */

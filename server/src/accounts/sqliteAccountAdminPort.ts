@@ -1,5 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { AccountContractError, type AccountErrorCode } from '@capacitylens/shared/account/errors'
+import {
+  AccountContractError,
+  type AccountErrorCode,
+} from '@capacitylens/shared/account/errors'
 import {
   canAdministerAccount,
   canManageMemberRole,
@@ -8,7 +11,7 @@ import {
 } from '@capacitylens/shared/account/policy'
 import type { AccountAdminPort } from '@capacitylens/shared/account/ports'
 import type { AccountAuditPort } from '@capacitylens/shared/account/ports'
-import type { AccountAuditAction, AccountAuditEvent } from '@capacitylens/shared/account/audit'
+import type { AccountAuditAction } from '@capacitylens/shared/account/audit'
 import type {
   ActorContext,
   CommandIdentity,
@@ -21,11 +24,16 @@ import type {
   OwnershipTransfer,
   Role,
 } from '@capacitylens/shared/account/types'
-import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
+import {
+  isAccountEmail,
+  normalizeAccountEmail,
+} from '@capacitylens/shared/account/validation'
+import { parseISOTimestamp } from '@capacitylens/shared/lib/integrity'
 import {
   createInvite,
   getActiveMemberRole,
   getInvite,
+  inviteIsExpired,
   listInvitesForAccount,
   listMembersForAccount,
   listMembershipsForUser,
@@ -43,10 +51,17 @@ import {
 } from '../controlTables'
 import type { Db } from '../db'
 import { getRow } from '../db'
-import { tx } from '../txn'
-import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from './commands'
+import { tx, type SynchronousCallback } from '../txn'
+import {
+  beginCommand,
+  completeCommand,
+  markAccountCommandReplay,
+  terminateCommand,
+} from './commands'
 import { KeyedOperationLock } from './operationLock'
 import { getSecurityRevision } from './state'
+import { WriteOnceSecretReplay } from './writeOnceSecretReplay'
+import { accountAuditWriter, recordTerminalOutcome } from './accountFlowRuntime'
 
 export const ACCOUNT_POLICY_VERSION = 'account-policy-v1'
 export const MAX_INVITATION_TTL_MS = 30 * 24 * 60 * 60 * 1000
@@ -57,22 +72,27 @@ const MAX_SECRET_REPLAYS = 256
 export function hasLivePreauthorizedInvitation(
   db: Db,
   normalizedEmail: string,
-  now = new Date().toISOString(),
+  now = Date.now(),
 ): boolean {
-  const row = db.prepare(`
-    SELECT 1 AS allowed
+  const rows = db
+    .prepare(
+      `
+    SELECT invitation.expiresAt
       FROM invites AS invitation
       JOIN accounts AS workspace ON workspace.id = invitation.accountId
      WHERE lower(trim(invitation.preauthEmail)) = ?
        AND invitation.usedAt IS NULL
-       AND invitation.expiresAt > ?
-     LIMIT 1
-  `).get(normalizedEmail, now) as { allowed?: number } | undefined
-  return row?.allowed === 1
+  `,
+    )
+    .all(normalizedEmail) as Array<{ expiresAt: string }>
+  return rows.some((row) => !inviteIsExpired(row.expiresAt, now))
 }
 
 export interface LocalAccountAdminPort extends AccountAdminPort {
-  roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null
+  roleForPrincipalInWorkspace(
+    principalId: string,
+    workspaceId: string,
+  ): Role | null
   workspacePrincipalIds(workspaceId: string): readonly string[]
   evaluateWorkspaceProvisioningAuthorityInTx(input: {
     actor: ActorContext
@@ -80,16 +100,21 @@ export interface LocalAccountAdminPort extends AccountAdminPort {
     bootstrapAuthorized: boolean
     /** Final transaction-wide count for a trusted-local batch replacement. */
     projectedWorkspaceCount?: number
-  }): { allowed: true } | {
-    allowed: false
-    reason: 'single-workspace-cap' | 'insufficient-authority'
-  }
+  }):
+    | { allowed: true }
+    | {
+        allowed: false
+        reason: 'single-workspace-cap' | 'insufficient-authority'
+      }
   provisionOwnerMembershipInTx(input: {
     workspaceId: string
     principalId: string
     joinedAt: string
   }): Membership
-  assertWorkspaceErasureAuthorityInTx(actor: ActorContext, workspaceId: string): void
+  assertWorkspaceErasureAuthorityInTx(
+    actor: ActorContext,
+    workspaceId: string,
+  ): void
   eraseWorkspaceAdministrationInTx(workspaceId: string): readonly string[]
 }
 
@@ -98,7 +123,26 @@ function failure(
   message: string,
   commandId?: string,
 ): AccountContractError {
-  return new AccountContractError({ code, message, retryable: false, commandId })
+  return new AccountContractError({
+    code,
+    message,
+    retryable: false,
+    commandId,
+  })
+}
+
+function replayCapacityFailure(
+  commandId: string,
+  retryAfterMs: number,
+): AccountContractError {
+  return new AccountContractError({
+    code: 'RATE_LIMITED',
+    message:
+      'One-time link issuance is temporarily busy. Retry after the indicated interval.',
+    retryable: true,
+    retryAfterSeconds: Math.ceil(retryAfterMs / 1_000),
+    commandId,
+  })
 }
 
 function membership(db: Db, row: AccountMember): Membership {
@@ -114,20 +158,30 @@ function membership(db: Db, row: AccountMember): Membership {
 }
 
 function receipt(commandId: string, changed?: boolean): OperationReceipt {
-  return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) }
+  return {
+    commandId,
+    completedAt: new Date().toISOString(),
+    ...(changed === undefined ? {} : { changed }),
+  }
 }
 
-function assertInvitationRole(role: Role, commandId?: string): asserts role is InvitationRole {
+function assertInvitationRole(
+  role: Role,
+  commandId?: string,
+): asserts role is InvitationRole {
   if (role === 'owner') {
     throw failure(
       'OWNER_TRANSFER_REQUIRED',
-      'Owner access can only be assigned through ownership transfer.',
+      'Owner access cannot be assigned directly. Transfer ownership to an existing member instead.',
       commandId,
     )
   }
 }
 
-function assertRedeemableInvitationRole(role: Role, commandId?: string): asserts role is InvitationRole {
+function assertRedeemableInvitationRole(
+  role: Role,
+  commandId?: string,
+): asserts role is InvitationRole {
   if (role === 'owner') {
     throw failure(
       'INVITATION_EXPIRED',
@@ -137,7 +191,10 @@ function assertRedeemableInvitationRole(role: Role, commandId?: string): asserts
   }
 }
 
-function assertWorkspaceExists(db: Db, workspaceId: string): { id: string; name: string } {
+function assertWorkspaceExists(
+  db: Db,
+  workspaceId: string,
+): { id: string; name: string } {
   const row = getRow(db, 'accounts', workspaceId)
   if (!row) throw failure('NOT_FOUND', 'The workspace does not exist.')
   return { id: String(row.id), name: String(row.name) }
@@ -145,7 +202,8 @@ function assertWorkspaceExists(db: Db, workspaceId: string): { id: string; name:
 
 function actorRole(db: Db, actor: ActorContext, workspaceId: string): Role {
   const role = getActiveMemberRole(db, workspaceId, actor.principalId)
-  if (!role) throw failure('NOT_MEMBER', 'The actor is not a member of this workspace.')
+  if (!role)
+    throw failure('NOT_MEMBER', 'The actor is not a member of this workspace.')
   return role
 }
 
@@ -159,7 +217,8 @@ function assertAccountAuthority(
   assertWorkspaceExists(db, workspaceId)
   if (trustedLocal) return 'owner'
   const role = actorRole(db, actor, workspaceId)
-  if (!canAdministerAccount(role, action)) throw failure('FORBIDDEN', 'Forbidden.')
+  if (!canAdministerAccount(role, action))
+    throw failure('FORBIDDEN', 'Forbidden.')
   return role
 }
 
@@ -186,23 +245,114 @@ function assertAdministrativeAssurance(
   }
 }
 
-function inviteIsExpired(expiresAt: string, now = Date.now()): boolean {
-  const parsed = Date.parse(expiresAt)
-  return !Number.isFinite(parsed) || now >= parsed
+function existingWorkspaceIds(db: Db): ReadonlySet<string> {
+  return new Set(
+    (db.prepare(`SELECT id FROM accounts`).all() as Array<{ id: string }>).map(
+      ({ id }) => id,
+    ),
+  )
 }
 
-function roleMap(db: Db, principalId: string): Map<string, Role> {
+function roleMap(
+  db: Db,
+  principalId: string,
+  workspaceIds: ReadonlySet<string> = existingWorkspaceIds(db),
+): Map<string, Role> {
   return new Map(
     listMembershipsForUser(db, principalId)
       // account_members intentionally predates a foreign key to accounts. Never let a dangling
       // legacy/control-table row confer identity-global authority after its workspace is gone.
-      .filter((row) => row.status === 'active' && getRow(db, 'accounts', row.accountId) !== undefined)
+      .filter(
+        (row) => row.status === 'active' && workspaceIds.has(row.accountId),
+      )
       .map((row) => [row.accountId, row.role]),
   )
 }
 
-function authorityRevision(db: Db, actorId: string, targetId: string): string {
-  return `actor:${getSecurityRevision(db, actorId)};target:${getSecurityRevision(db, targetId)}`
+function authorityRevision(
+  actorRevision: number,
+  targetRevision: number,
+): string {
+  return `actor:${actorRevision};target:${targetRevision}`
+}
+
+function authorityDecisions(
+  db: Db,
+  actor: ActorContext,
+  targetPrincipalId: string,
+  actions: readonly IdentityAdminAction[],
+  actorRoles: ReadonlyMap<string, Role>,
+  targetRoles: ReadonlyMap<string, Role>,
+  actorRevision: number,
+): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
+  const decisions = new Map<
+    IdentityAdminAction,
+    IdentityAdminAuthorityDecision
+  >()
+  if (targetRoles.size === 0) {
+    for (const action of actions)
+      decisions.set(action, { allowed: false, reason: 'target-not-member' })
+    return decisions
+  }
+  if (actorRoles.size === 0) {
+    for (const action of actions)
+      decisions.set(action, { allowed: false, reason: 'no-standing' })
+    return decisions
+  }
+  const revision = authorityRevision(
+    actorRevision,
+    getSecurityRevision(db, targetPrincipalId),
+  )
+  for (const action of actions) {
+    const allowed = canPerformIdentityAdminAction(
+      action,
+      actorRoles,
+      targetRoles,
+      actor.principalId === targetPrincipalId,
+    )
+    decisions.set(
+      action,
+      allowed
+        ? { allowed: true, revision, policyVersion: ACCOUNT_POLICY_VERSION }
+        : { allowed: false, reason: 'insufficient-authority' },
+    )
+  }
+  return decisions
+}
+
+function evaluateAuthoritiesForTargets(
+  db: Db,
+  actor: ActorContext,
+  targetPrincipalIds: readonly string[],
+  actions: readonly IdentityAdminAction[],
+): ReadonlyMap<
+  string,
+  ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>
+> {
+  if (targetPrincipalIds.length === 0) return new Map()
+  const workspaceIds = existingWorkspaceIds(db)
+  const actorRoles = roleMap(db, actor.principalId, workspaceIds)
+  const actorRevision = getSecurityRevision(db, actor.principalId)
+  const results = new Map<
+    string,
+    ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>
+  >()
+  for (const targetPrincipalId of new Set(targetPrincipalIds)) {
+    const targetRoles = roleMap(db, targetPrincipalId, workspaceIds)
+    results.set(
+      targetPrincipalId,
+      authorityDecisions(
+        db,
+        actor,
+        targetPrincipalId,
+        actions,
+        actorRoles,
+        targetRoles,
+        actorRevision,
+      ),
+    )
+  }
+  return results
 }
 
 function evaluateAuthorities(
@@ -211,30 +361,12 @@ function evaluateAuthorities(
   targetPrincipalId: string,
   actions: readonly IdentityAdminAction[],
 ): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
-  const decisions = new Map<IdentityAdminAction, IdentityAdminAuthorityDecision>()
-  const targetRoles = roleMap(db, targetPrincipalId)
-  if (targetRoles.size === 0) {
-    for (const action of actions) decisions.set(action, { allowed: false, reason: 'target-not-member' })
-    return decisions
-  }
-  const actorRoles = roleMap(db, actor.principalId)
-  if (actorRoles.size === 0) {
-    for (const action of actions) decisions.set(action, { allowed: false, reason: 'no-standing' })
-    return decisions
-  }
-  const revision = authorityRevision(db, actor.principalId, targetPrincipalId)
-  for (const action of actions) {
-    const allowed = canPerformIdentityAdminAction(
-      action,
-      actorRoles,
-      targetRoles,
-      actor.principalId === targetPrincipalId,
-    )
-    decisions.set(action, allowed
-      ? { allowed: true, revision, policyVersion: ACCOUNT_POLICY_VERSION }
-      : { allowed: false, reason: 'insufficient-authority' })
-  }
-  return decisions
+  return evaluateAuthoritiesForTargets(
+    db,
+    actor,
+    [targetPrincipalId],
+    actions,
+  ).get(targetPrincipalId)!
 }
 
 function evaluateAuthority(
@@ -243,7 +375,9 @@ function evaluateAuthority(
   targetPrincipalId: string,
   action: IdentityAdminAction,
 ): IdentityAdminAuthorityDecision {
-  return evaluateAuthorities(db, actor, targetPrincipalId, [action]).get(action)!
+  return evaluateAuthorities(db, actor, targetPrincipalId, [action]).get(
+    action,
+  )!
 }
 
 export function sqliteAccountAdminPort(input: {
@@ -253,46 +387,22 @@ export function sqliteAccountAdminPort(input: {
   trustedLocal?: boolean
   requireMfa?: boolean
   audit?: AccountAuditPort
+  /** Test seam; production uses the bounded default. */
+  writeOnceReplayCapacity?: number
 }): LocalAccountAdminPort {
-  const { applicationId, db, lock, trustedLocal = false, requireMfa = false } = input
-  const accountAudit = input.audit ?? { append: () => true }
-  const invitationSecretReplay = new Map<string, CreatedInvitation>()
+  const {
+    applicationId,
+    db,
+    lock,
+    trustedLocal = false,
+    requireMfa = false,
+  } = input
+  const audit = accountAuditWriter(applicationId, input.audit)
+  const invitationSecretReplay = new WriteOnceSecretReplay<CreatedInvitation>(
+    input.writeOnceReplayCapacity ?? MAX_SECRET_REPLAYS,
+  )
 
-  function audit(event: {
-    action: AccountAuditAction
-    outcome: AccountAuditEvent['outcome']
-    workspaceId?: string | null
-    actorPrincipalId?: string | null
-    targetPrincipalId?: string | null
-    command: CommandIdentity
-    changedFields?: readonly string[]
-  }): void {
-    accountAudit.append({
-      id: `${event.command.commandId}:${event.action}:${event.outcome}`,
-      occurredAt: new Date().toISOString(),
-      applicationId,
-      workspaceId: event.workspaceId ?? null,
-      actorPrincipalId: event.actorPrincipalId ?? null,
-      targetPrincipalId: event.targetPrincipalId ?? null,
-      commandId: event.command.commandId,
-      action: event.action,
-      outcome: event.outcome,
-      changedFields: event.changedFields ?? [],
-    })
-  }
-
-  function pruneInvitationReplay(now = Date.now()): void {
-    for (const [commandId, invitation] of invitationSecretReplay) {
-      if (Date.parse(invitation.expiresAt) <= now) invitationSecretReplay.delete(commandId)
-    }
-    while (invitationSecretReplay.size >= MAX_SECRET_REPLAYS) {
-      const oldest = invitationSecretReplay.keys().next().value as string | undefined
-      if (!oldest) break
-      invitationSecretReplay.delete(oldest)
-    }
-  }
-
-  async function runMutation<T>(options: {
+  async function runMutation<Execute extends () => unknown>(options: {
     operation: string
     actorPrincipalId: string | null
     targetPrincipalId?: string | null
@@ -300,17 +410,19 @@ export function sqliteAccountAdminPort(input: {
     command: CommandIdentity
     payload: unknown
     lockKeys: readonly string[]
-    execute: () => T
-    persistResult?: (result: T) => unknown
-    replayResult?: (stored: unknown, commandId: string) => T
+    execute: SynchronousCallback<Execute>
+    persistResult?: (result: ReturnType<Execute>) => unknown
+    replayResult?: (stored: unknown, commandId: string) => ReturnType<Execute>
     replayGuard?: () => void
     /** In-memory secret/cache maintenance that must happen after commit but before lock release. */
-    afterCommit?: (result: T) => void
+    afterCommit?: (result: ReturnType<Execute>) => void
+    /** Release any in-memory reservation after the database transaction rolls back. */
+    afterRollback?: () => void
     audit?: {
       action: AccountAuditAction
       changedFields: readonly string[]
     }
-  }): Promise<T> {
+  }): Promise<ReturnType<Execute>> {
     return lock.withKeys(options.lockKeys, async () => {
       const scope = {
         applicationId,
@@ -321,17 +433,26 @@ export function sqliteAccountAdminPort(input: {
         targetPrincipalId: options.targetPrincipalId ?? null,
         workspaceId: options.workspaceId ?? null,
       }
-      const begun = beginCommand<unknown>(db, scope, options.command, options.payload)
+      const begun = beginCommand<unknown>(
+        db,
+        scope,
+        options.command,
+        options.payload,
+      )
       if (begun.kind === 'replay') {
         options.replayGuard?.()
-        return markAccountCommandReplay(options.replayResult
-          ? options.replayResult(begun.result, begun.record.commandId)
-          : begun.result as T)
+        return markAccountCommandReplay(
+          options.replayResult
+            ? options.replayResult(begun.result, begun.record.commandId)
+            : (begun.result as ReturnType<Execute>),
+        )
       }
-      let result: T
+      let result: ReturnType<Execute>
       try {
-        result = tx(db, () => {
-          const result = options.execute()
+        // Execute has already crossed this coordinator's SynchronousCallback boundary. Preserve
+        // that proof for the transaction wrapper that also writes the command completion row.
+        const transaction = (() => {
+          const result = options.execute() as ReturnType<Execute>
           completeCommand(
             db,
             scope,
@@ -339,24 +460,35 @@ export function sqliteAccountAdminPort(input: {
             options.persistResult ? options.persistResult(result) : result,
           )
           return result
-        })
+        }) as SynchronousCallback<() => ReturnType<Execute>>
+        result = tx(db, transaction)
       } catch (error) {
+        options.afterRollback?.()
         // The domain write rolled back with the transaction, so this is a known compensated outcome.
         // Record it outside the rolled-back transaction without hiding the original error.
-        try {
-          terminateCommand(db, scope, options.command, 'compensated',
-            error instanceof AccountContractError ? error.failure.code : 'CONFLICT')
-        } catch (terminalError) {
-          throw new AggregateError(
-            [error, terminalError],
-            'Account command failed and its compensation outcome could not be recorded.',
-            { cause: terminalError },
-          )
-        }
+        recordTerminalOutcome(
+          error,
+          () => {
+            terminateCommand(
+              db,
+              scope,
+              options.command,
+              'compensated',
+              error instanceof AccountContractError
+                ? error.failure.code
+                : 'CONFLICT',
+            )
+          },
+          'Account command failed and its compensation outcome could not be recorded.',
+        )
         if (options.audit) {
-          const code = error instanceof AccountContractError ? error.failure.code : null
-          const denied = code === 'FORBIDDEN' || code === 'NOT_MEMBER' ||
-            code === 'SESSION_NOT_FRESH' || code === 'MFA_REQUIRED'
+          const code =
+            error instanceof AccountContractError ? error.failure.code : null
+          const denied =
+            code === 'FORBIDDEN' ||
+            code === 'NOT_MEMBER' ||
+            code === 'SESSION_NOT_FRESH' ||
+            code === 'MFA_REQUIRED'
           audit({
             action: options.audit.action,
             outcome: denied ? 'denied' : 'failed',
@@ -396,19 +528,35 @@ export function sqliteAccountAdminPort(input: {
     command: CommandIdentity
   }): Membership {
     const live = getInvite(db, input.token)
-    if (!live) throw failure('NOT_FOUND', 'Invite not found.', input.command.commandId)
+    if (!live)
+      throw failure('NOT_FOUND', 'Invite not found.', input.command.commandId)
     if (live.usedAt !== null) {
-      throw failure('INVITATION_USED', 'This invite has already been used.', input.command.commandId)
+      throw failure(
+        'INVITATION_USED',
+        'This invite has already been used.',
+        input.command.commandId,
+      )
     }
     if (inviteIsExpired(live.expiresAt)) {
-      throw failure('INVITATION_EXPIRED', 'This invite has expired.', input.command.commandId)
+      throw failure(
+        'INVITATION_EXPIRED',
+        'This invite has expired.',
+        input.command.commandId,
+      )
     }
     assertRedeemableInvitationRole(live.role, input.command.commandId)
     assertWorkspaceExists(db, live.accountId)
-    if (!trustedLocal && !preauthInviteAllows(live.preauthEmail, {
-      email: input.principalEmail,
-      emailVerified: input.emailVerified,
-    }, input.passwordMode)) {
+    if (
+      !trustedLocal &&
+      !preauthInviteAllows(
+        live.preauthEmail,
+        {
+          email: input.principalEmail,
+          emailVerified: input.emailVerified,
+        },
+        input.passwordMode,
+      )
+    ) {
       throw failure(
         'INVITATION_EMAIL_MISMATCH',
         'This invite is reserved for a different identity.',
@@ -428,9 +576,11 @@ export function sqliteAccountAdminPort(input: {
       })
     }
     markInviteUsed(db, input.token, now)
-    const row = listMembershipsForUser(db, input.principalId)
-      .find((candidate) => candidate.accountId === live.accountId)
-    if (!row) throw new Error('Invitation claim committed without a membership row.')
+    const row = listMembershipsForUser(db, input.principalId).find(
+      (candidate) => candidate.accountId === live.accountId,
+    )
+    if (!row)
+      throw new Error('Invitation claim committed without a membership row.')
     return membership(db, row)
   }
 
@@ -450,18 +600,28 @@ export function sqliteAccountAdminPort(input: {
       bootstrapAuthorized,
       projectedWorkspaceCount,
     }) {
-      const count = Number((db.prepare(`SELECT COUNT(*) AS count FROM accounts`).get() as
-        { count?: number | bigint } | undefined)?.count ?? 0)
+      const count = Number(
+        (
+          db.prepare(`SELECT COUNT(*) AS count FROM accounts`).get() as
+            | { count?: number | bigint }
+            | undefined
+        )?.count ?? 0,
+      )
       const effectiveCount = projectedWorkspaceCount ?? count + 1
       if (effectiveCount > 1 && !multiWorkspace) {
         return { allowed: false, reason: 'single-workspace-cap' }
       }
-      if (count === 0 || trustedLocal || bootstrapAuthorized) return { allowed: true }
-      const allowed = [...roleMap(db, actor.principalId).values()]
-        .some((role) => canAdministerAccount(role, 'manage-members'))
-      return allowed
-        ? { allowed: true }
-        : { allowed: false, reason: 'insufficient-authority' }
+      if (count === 0 || trustedLocal || bootstrapAuthorized)
+        return { allowed: true }
+      const allowed = [...roleMap(db, actor.principalId).values()].some(
+        (role) => canAdministerAccount(role, 'manage-members'),
+      )
+      if (!allowed) return { allowed: false, reason: 'insufficient-authority' }
+      // This arm converts existing account administration into a new Owner grant. Apply the same
+      // step-up boundary as membership and invitation administration after proving the role, so a
+      // lower-privilege caller still receives the ordinary authority refusal.
+      assertAdministrativeAssurance(actor, requireMfa, trustedLocal)
+      return { allowed: true }
     },
 
     provisionOwnerMembershipInTx({ workspaceId, principalId, joinedAt }) {
@@ -472,27 +632,45 @@ export function sqliteAccountAdminPort(input: {
         status: 'active',
         createdAt: joinedAt,
       })
-      const row = listMembershipsForUser(db, principalId)
-        .find((candidate) => candidate.accountId === workspaceId)
-      if (!row) throw new Error('Workspace provisioning did not create its Owner membership.')
+      const row = listMembershipsForUser(db, principalId).find(
+        (candidate) => candidate.accountId === workspaceId,
+      )
+      if (!row)
+        throw new Error(
+          'Workspace provisioning did not create its Owner membership.',
+        )
       return membership(db, row)
     },
 
     assertWorkspaceErasureAuthorityInTx(actor, workspaceId): void {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal)
-      const role = assertAccountAuthority(db, actor, workspaceId, 'erase-workspace', trustedLocal)
-      if (role !== 'owner') throw failure('FORBIDDEN', 'Only the workspace owner may erase it.')
+      const role = assertAccountAuthority(
+        db,
+        actor,
+        workspaceId,
+        'erase-workspace',
+        trustedLocal,
+      )
+      if (role !== 'owner')
+        throw failure('FORBIDDEN', 'Only the workspace owner may erase it.')
     },
 
     eraseWorkspaceAdministrationInTx(workspaceId) {
-      const principalIds = [...new Set(
-        listMembersForAccount(db, workspaceId).map((row) => row.userId),
-      )]
+      const principalIds = [
+        ...new Set(
+          listMembersForAccount(db, workspaceId).map((row) => row.userId),
+        ),
+      ]
       removeAllMembersForAccount(db, workspaceId)
       removeAllInvitesForAccount(db, workspaceId)
-      return principalIds.filter((principalId) =>
-        !listMembershipsForUser(db, principalId).some((row) =>
-          row.status === 'active' && getRow(db, 'accounts', row.accountId) !== undefined))
+      return principalIds.filter(
+        (principalId) =>
+          !listMembershipsForUser(db, principalId).some(
+            (row) =>
+              row.status === 'active' &&
+              getRow(db, 'accounts', row.accountId) !== undefined,
+          ),
+      )
     },
 
     async listWorkspacesForPrincipal({ principalId }) {
@@ -500,29 +678,45 @@ export function sqliteAccountAdminPort(input: {
         .filter((row) => row.status === 'active')
         .flatMap((row) => {
           const workspace = getRow(db, 'accounts', row.accountId)
-          return workspace ? [{
-            workspaceId: row.accountId,
-            workspaceName: String(workspace.name),
-            role: row.role,
-            membershipRevision: String(getSecurityRevision(db, principalId)),
-            policyVersion: ACCOUNT_POLICY_VERSION,
-          }] : []
+          return workspace
+            ? [
+                {
+                  workspaceId: row.accountId,
+                  workspaceName: String(workspace.name),
+                  role: row.role,
+                  membershipRevision: String(
+                    getSecurityRevision(db, principalId),
+                  ),
+                  policyVersion: ACCOUNT_POLICY_VERSION,
+                },
+              ]
+            : []
         })
-        .sort((left, right) =>
-          left.workspaceName.localeCompare(right.workspaceName) ||
-          left.workspaceId.localeCompare(right.workspaceId))
+        .sort(
+          (left, right) =>
+            left.workspaceName.localeCompare(right.workspaceName) ||
+            left.workspaceId.localeCompare(right.workspaceId),
+        )
     },
 
     async getMembership({ principalId, workspaceId }) {
       if (!getRow(db, 'accounts', workspaceId)) return null
-      const row = listMembershipsForUser(db, principalId)
-        .find((candidate) => candidate.accountId === workspaceId && candidate.status === 'active')
+      const row = listMembershipsForUser(db, principalId).find(
+        (candidate) =>
+          candidate.accountId === workspaceId && candidate.status === 'active',
+      )
       return row ? membership(db, row) : null
     },
 
     async listMemberships({ actor, workspaceId }) {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal)
-      assertAccountAuthority(db, actor, workspaceId, 'list-members', trustedLocal)
+      assertAccountAuthority(
+        db,
+        actor,
+        workspaceId,
+        'list-members',
+        trustedLocal,
+      )
       return listMembersForAccount(db, workspaceId)
         .filter((row) => row.status === 'active')
         .map((row) => membership(db, row))
@@ -530,41 +724,66 @@ export function sqliteAccountAdminPort(input: {
 
     async listInvitations({ actor, workspaceId }) {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal)
-      assertAccountAuthority(db, actor, workspaceId, 'manage-invitations', trustedLocal)
+      assertAccountAuthority(
+        db,
+        actor,
+        workspaceId,
+        'manage-invitations',
+        trustedLocal,
+      )
       pruneInvites(db)
-      return listInvitesForAccount(db, workspaceId).map((invite) => {
-        assertInvitationRole(invite.role)
-        return {
-          id: invite.id,
-          workspaceId: invite.accountId,
-          role: invite.role,
-          preauthorizedEmail: invite.preauthEmail,
-          expiresAt: invite.expiresAt,
-          usedAt: invite.usedAt,
-          createdAt: invite.createdAt,
-        }
+      return listInvitesForAccount(db, workspaceId).flatMap((invite) => {
+        // Migration v10 deliberately retained already-used Owner invites as inert historical rows.
+        // They cannot satisfy the InvitationSummary contract (which excludes Owner), and rejecting
+        // one would hide every live invitation in the workspace, so omit only this legacy shape.
+        if (invite.role === 'owner') return []
+        return [
+          {
+            id: invite.id,
+            workspaceId: invite.accountId,
+            role: invite.role,
+            preauthorizedEmail: invite.preauthEmail,
+            expiresAt: invite.expiresAt,
+            usedAt: invite.usedAt,
+            createdAt: invite.createdAt,
+          },
+        ]
       })
     },
 
     async previewInvitation({ token }) {
       const invite = getInvite(db, token)
       if (!invite) throw failure('NOT_FOUND', 'Invite not found.')
-      if (invite.usedAt !== null) throw failure('INVITATION_USED', 'This invite has already been used.')
-      if (inviteIsExpired(invite.expiresAt)) throw failure('INVITATION_EXPIRED', 'This invite has expired.')
+      if (invite.usedAt !== null)
+        throw failure('INVITATION_USED', 'This invite has already been used.')
+      if (inviteIsExpired(invite.expiresAt))
+        throw failure('INVITATION_EXPIRED', 'This invite has expired.')
       assertRedeemableInvitationRole(invite.role)
       const workspace = assertWorkspaceExists(db, invite.accountId)
-      return { workspaceName: workspace.name, role: invite.role, expiresAt: invite.expiresAt }
+      return {
+        workspaceName: workspace.name,
+        role: invite.role,
+        expiresAt: invite.expiresAt,
+      }
     },
 
     async preparePasswordInvitationClaim({ token, normalizedEmail }) {
       const invite = getInvite(db, token)
       if (!invite) throw failure('NOT_FOUND', 'Invite not found.')
-      if (invite.usedAt !== null) throw failure('INVITATION_USED', 'This invite has already been used.')
-      if (inviteIsExpired(invite.expiresAt)) throw failure('INVITATION_EXPIRED', 'This invite has expired.')
+      if (invite.usedAt !== null)
+        throw failure('INVITATION_USED', 'This invite has already been used.')
+      if (inviteIsExpired(invite.expiresAt))
+        throw failure('INVITATION_EXPIRED', 'This invite has expired.')
       assertRedeemableInvitationRole(invite.role)
       assertWorkspaceExists(db, invite.accountId)
-      if (invite.preauthEmail !== null && normalizeEmail(normalizedEmail) !== invite.preauthEmail) {
-        throw failure('INVITATION_EMAIL_MISMATCH', 'This invite is reserved for a different email address.')
+      if (
+        invite.preauthEmail !== null &&
+        normalizeEmail(normalizedEmail) !== invite.preauthEmail
+      ) {
+        throw failure(
+          'INVITATION_EMAIL_MISMATCH',
+          'This invite is reserved for a different email address.',
+        )
       }
       return {
         emailVerifiedByInvitation: invite.preauthEmail !== null,
@@ -581,14 +800,17 @@ export function sqliteAccountAdminPort(input: {
       command,
     }): Promise<CreatedInvitation> {
       assertInvitationRole(role, command.commandId)
-      const created = await runMutation<CreatedInvitation>({
+      const created = await runMutation<() => CreatedInvitation>({
         operation: 'create-invitation',
         actorPrincipalId: actor.principalId,
         workspaceId,
         command,
         payload: { workspaceId, role, preauthorizedEmail, expiresAt },
         lockKeys: [actor.principalId, `workspace:${workspaceId}`],
-        audit: { action: 'invitation.created', changedFields: ['role', 'preauthorizedEmail', 'expiresAt'] },
+        audit: {
+          action: 'invitation.created',
+          changedFields: ['role', 'preauthorizedEmail', 'expiresAt'],
+        },
         persistResult: ({
           id,
           workspaceId: createdWorkspaceId,
@@ -605,7 +827,6 @@ export function sqliteAccountAdminPort(input: {
           createdAt,
         }),
         replayResult: (_stored, commandId) => {
-          pruneInvitationReplay()
           const replay = invitationSecretReplay.get(commandId)
           if (replay) return replay
           throw failure(
@@ -617,34 +838,64 @@ export function sqliteAccountAdminPort(input: {
         replayGuard: () => {
           // A command replay can re-disclose the write-once bearer token. Re-evaluate current
           // authority first so a removed/demoted actor cannot recover it from the process cache.
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId)
-          assertAccountAuthority(db, actor, workspaceId, 'manage-invitations', trustedLocal)
+          assertAdministrativeAssurance(
+            actor,
+            requireMfa,
+            trustedLocal,
+            command.commandId,
+          )
+          assertAccountAuthority(
+            db,
+            actor,
+            workspaceId,
+            'manage-invitations',
+            trustedLocal,
+          )
           assertWorkspaceExists(db, workspaceId)
         },
         afterCommit: (invitation) => {
-          pruneInvitationReplay()
-          invitationSecretReplay.set(command.commandId, invitation)
+          invitationSecretReplay.storeReserved(command.commandId, invitation)
+        },
+        afterRollback: () => {
+          invitationSecretReplay.releaseReservation(command.commandId)
         },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId)
-          assertAccountAuthority(db, actor, workspaceId, 'manage-invitations', trustedLocal)
+          assertAdministrativeAssurance(
+            actor,
+            requireMfa,
+            trustedLocal,
+            command.commandId,
+          )
+          assertAccountAuthority(
+            db,
+            actor,
+            workspaceId,
+            'manage-invitations',
+            trustedLocal,
+          )
           assertWorkspaceExists(db, workspaceId)
           const nowMs = Date.now()
-          const effectiveExpiresAt = expiresAt ??
-            new Date(nowMs + 7 * 24 * 60 * 60 * 1000).toISOString()
-          const expiry = Date.parse(effectiveExpiresAt)
-          if (!Number.isFinite(expiry) || expiry <= nowMs) {
-            throw failure('VALIDATION_FAILED', 'Invitation expiry must be in the future.', command.commandId)
+          const effectiveExpiresAt =
+            expiresAt ?? new Date(nowMs + 7 * 24 * 60 * 60 * 1000).toISOString()
+          const expiry = parseISOTimestamp(effectiveExpiresAt)
+          if (expiry === null || expiry <= nowMs) {
+            throw failure(
+              'VALIDATION_FAILED',
+              'expiresAt must be in the future.',
+              command.commandId,
+            )
           }
           if (expiry > nowMs + MAX_INVITATION_TTL_MS) {
-            throw failure('VALIDATION_FAILED', 'Invitations may be valid for at most 30 days.', command.commandId)
+            throw failure(
+              'VALIDATION_FAILED',
+              'Invitations may be valid for at most 30 days.',
+              command.commandId,
+            )
           }
-          const token = randomBytes(32).toString('base64url')
-          const now = new Date().toISOString()
-          const id = newInviteId()
-          const normalized = preauthorizedEmail === null
-            ? null
-            : normalizeAccountEmail(preauthorizedEmail)
+          const normalized =
+            preauthorizedEmail === null
+              ? null
+              : normalizeAccountEmail(preauthorizedEmail)
           if (normalized !== null && !isAccountEmail(normalized)) {
             throw failure(
               'VALIDATION_FAILED',
@@ -652,13 +903,27 @@ export function sqliteAccountAdminPort(input: {
               command.commandId,
             )
           }
+          const reservation = invitationSecretReplay.reserve(
+            command.commandId,
+            nowMs,
+          )
+          if (!reservation.accepted) {
+            throw replayCapacityFailure(
+              command.commandId,
+              reservation.retryAfterMs,
+            )
+          }
+          const token = randomBytes(32).toString('base64url')
+          const now = new Date().toISOString()
+          const id = newInviteId()
+          const canonicalExpiresAt = new Date(expiry).toISOString()
           createInvite(db, {
             token,
             id,
             accountId: workspaceId,
             role,
             preauthEmail: normalized,
-            expiresAt: effectiveExpiresAt,
+            expiresAt: canonicalExpiresAt,
             usedAt: null,
             createdAt: now,
           })
@@ -668,7 +933,7 @@ export function sqliteAccountAdminPort(input: {
             workspaceId,
             role,
             preauthorizedEmail: normalized,
-            expiresAt: effectiveExpiresAt,
+            expiresAt: canonicalExpiresAt,
             usedAt: null,
             createdAt: now,
           }
@@ -677,10 +942,18 @@ export function sqliteAccountAdminPort(input: {
       return created
     },
 
-    async acceptInvitation({ actor, token, principalEmail, emailVerified, command }) {
+    async acceptInvitation({
+      actor,
+      token,
+      principalEmail,
+      emailVerified,
+      command,
+    }) {
       const invite = getInvite(db, token)
-      if (!invite) throw failure('NOT_FOUND', 'Invite not found.', command.commandId)
-      const passwordMode = actor.assurance === 'password' || actor.assurance === 'mfa'
+      if (!invite)
+        throw failure('NOT_FOUND', 'Invite not found.', command.commandId)
+      const passwordMode =
+        actor.assurance === 'password' || actor.assurance === 'mfa'
       const accepted = await runMutation({
         operation: 'accept-invitation',
         actorPrincipalId: actor.principalId,
@@ -691,11 +964,12 @@ export function sqliteAccountAdminPort(input: {
         lockKeys: [actor.principalId, `workspace:${invite.accountId}`],
         audit: { action: 'invitation.accepted', changedFields: ['membership'] },
         afterCommit: () => {
-          for (const [createCommandId, invitation] of invitationSecretReplay) {
-            if (invitation.token === token) invitationSecretReplay.delete(createCommandId)
-          }
+          invitationSecretReplay.deleteWhere(
+            (invitation) => invitation.token === token,
+          )
         },
-        execute: () => claimInvitation({
+        execute: () =>
+          claimInvitation({
             token,
             principalId: actor.principalId,
             principalEmail,
@@ -716,29 +990,37 @@ export function sqliteAccountAdminPort(input: {
       command,
     }) {
       const invite = getInvite(db, token)
-      if (!invite) throw failure('NOT_FOUND', 'Invite not found.', command.commandId)
+      if (!invite)
+        throw failure('NOT_FOUND', 'Invite not found.', command.commandId)
       const claimed = await runMutation({
         operation: 'claim-invitation',
         actorPrincipalId: null,
         targetPrincipalId: principalId,
         workspaceId: invite.accountId,
         command,
-        payload: { tokenHash: createHashForToken(token), principalId, principalEmail, emailVerified, passwordMode },
-        lockKeys: [principalId, `workspace:${invite.accountId}`],
-        audit: { action: 'invitation.accepted', changedFields: ['membership'] },
-        afterCommit: () => {
-          for (const [createCommandId, invitation] of invitationSecretReplay) {
-            if (invitation.token === token) invitationSecretReplay.delete(createCommandId)
-          }
-        },
-        execute: () => claimInvitation({
-          token,
+        payload: {
+          tokenHash: createHashForToken(token),
           principalId,
           principalEmail,
           emailVerified,
           passwordMode,
-          command,
-        }),
+        },
+        lockKeys: [principalId, `workspace:${invite.accountId}`],
+        audit: { action: 'invitation.accepted', changedFields: ['membership'] },
+        afterCommit: () => {
+          invitationSecretReplay.deleteWhere(
+            (invitation) => invitation.token === token,
+          )
+        },
+        execute: () =>
+          claimInvitation({
+            token,
+            principalId,
+            principalEmail,
+            emailVerified,
+            passwordMode,
+            command,
+          }),
       })
       return claimed
     },
@@ -753,15 +1035,27 @@ export function sqliteAccountAdminPort(input: {
         lockKeys: [actor.principalId, `workspace:${workspaceId}`],
         audit: { action: 'invitation.revoked', changedFields: ['invitation'] },
         afterCommit: () => {
-          for (const [createCommandId, invitation] of invitationSecretReplay) {
-            if (invitation.id === invitationId) invitationSecretReplay.delete(createCommandId)
-          }
+          invitationSecretReplay.deleteWhere(
+            (invitation) => invitation.id === invitationId,
+          )
         },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId)
-          assertAccountAuthority(db, actor, workspaceId, 'manage-invitations', trustedLocal)
-          const changed = listInvitesForAccount(db, workspaceId)
-            .some((invite) => invite.id === invitationId)
+          assertAdministrativeAssurance(
+            actor,
+            requireMfa,
+            trustedLocal,
+            command.commandId,
+          )
+          assertAccountAuthority(
+            db,
+            actor,
+            workspaceId,
+            'manage-invitations',
+            trustedLocal,
+          )
+          const changed = listInvitesForAccount(db, workspaceId).some(
+            (invite) => invite.id === invitationId,
+          )
           revokeInvite(db, workspaceId, invitationId)
           return receipt(command.commandId, changed)
         },
@@ -769,7 +1063,13 @@ export function sqliteAccountAdminPort(input: {
       return revoked
     },
 
-    async changeMemberRole({ actor, workspaceId, targetPrincipalId, nextRole, command }) {
+    async changeMemberRole({
+      actor,
+      workspaceId,
+      targetPrincipalId,
+      nextRole,
+      command,
+    }) {
       assertInvitationRole(nextRole, command.commandId)
       return runMutation({
         operation: 'change-member-role',
@@ -778,14 +1078,35 @@ export function sqliteAccountAdminPort(input: {
         workspaceId,
         command,
         payload: { workspaceId, targetPrincipalId, nextRole },
-        lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
+        lockKeys: [
+          actor.principalId,
+          targetPrincipalId,
+          `workspace:${workspaceId}`,
+        ],
         audit: { action: 'member.role_changed', changedFields: ['role'] },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId)
-          const acting = assertAccountAuthority(db, actor, workspaceId, 'manage-members', trustedLocal)
+          assertAdministrativeAssurance(
+            actor,
+            requireMfa,
+            trustedLocal,
+            command.commandId,
+          )
+          const acting = assertAccountAuthority(
+            db,
+            actor,
+            workspaceId,
+            'manage-members',
+            trustedLocal,
+          )
           const target = getActiveMemberRole(db, workspaceId, targetPrincipalId)
-          if (!target) throw failure('NOT_FOUND', 'Not a member of this workspace.', command.commandId)
-          if (!canManageMemberRole(acting, target, nextRole)) throw failure('FORBIDDEN', 'Forbidden.', command.commandId)
+          if (!target)
+            throw failure(
+              'NOT_FOUND',
+              'Not a member of this workspace.',
+              command.commandId,
+            )
+          if (!canManageMemberRole(acting, target, nextRole))
+            throw failure('FORBIDDEN', 'Forbidden.', command.commandId)
           upsertMember(db, {
             accountId: workspaceId,
             userId: targetPrincipalId,
@@ -793,8 +1114,9 @@ export function sqliteAccountAdminPort(input: {
             status: 'active',
             createdAt: new Date().toISOString(),
           })
-          const row = listMembershipsForUser(db, targetPrincipalId)
-            .find((candidate) => candidate.accountId === workspaceId)!
+          const row = listMembershipsForUser(db, targetPrincipalId).find(
+            (candidate) => candidate.accountId === workspaceId,
+          )!
           return membership(db, row)
         },
       })
@@ -808,21 +1130,47 @@ export function sqliteAccountAdminPort(input: {
         workspaceId,
         command,
         payload: { workspaceId, targetPrincipalId },
-        lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
+        lockKeys: [
+          actor.principalId,
+          targetPrincipalId,
+          `workspace:${workspaceId}`,
+        ],
         audit: { action: 'member.removed', changedFields: ['membership'] },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId)
-          const acting = assertAccountAuthority(db, actor, workspaceId, 'manage-members', trustedLocal)
+          assertAdministrativeAssurance(
+            actor,
+            requireMfa,
+            trustedLocal,
+            command.commandId,
+          )
+          const acting = assertAccountAuthority(
+            db,
+            actor,
+            workspaceId,
+            'manage-members',
+            trustedLocal,
+          )
           const target = getActiveMemberRole(db, workspaceId, targetPrincipalId)
-          if (!target) throw failure('NOT_FOUND', 'Not a member of this workspace.', command.commandId)
-          if (!canRemoveMember(acting, target)) throw failure('FORBIDDEN', 'Forbidden.', command.commandId)
+          if (!target)
+            throw failure(
+              'NOT_FOUND',
+              'Not a member of this workspace.',
+              command.commandId,
+            )
+          if (!canRemoveMember(acting, target))
+            throw failure('FORBIDDEN', 'Forbidden.', command.commandId)
           removeMemberRow(db, workspaceId, targetPrincipalId)
           return receipt(command.commandId)
         },
       })
     },
 
-    async transferOwnership({ actor, workspaceId, targetPrincipalId, command }): Promise<OwnershipTransfer> {
+    async transferOwnership({
+      actor,
+      workspaceId,
+      targetPrincipalId,
+      command,
+    }): Promise<OwnershipTransfer> {
       return runMutation({
         operation: 'transfer-ownership',
         actorPrincipalId: actor.principalId,
@@ -830,16 +1178,42 @@ export function sqliteAccountAdminPort(input: {
         workspaceId,
         command,
         payload: { workspaceId, targetPrincipalId },
-        lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
-        audit: { action: 'ownership.transferred', changedFields: ['role', 'owner'] },
+        lockKeys: [
+          actor.principalId,
+          targetPrincipalId,
+          `workspace:${workspaceId}`,
+        ],
+        audit: {
+          action: 'ownership.transferred',
+          changedFields: ['role', 'owner'],
+        },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId)
-          assertAccountAuthority(db, actor, workspaceId, 'transfer-ownership', trustedLocal)
+          assertAdministrativeAssurance(
+            actor,
+            requireMfa,
+            trustedLocal,
+            command.commandId,
+          )
+          assertAccountAuthority(
+            db,
+            actor,
+            workspaceId,
+            'transfer-ownership',
+            trustedLocal,
+          )
           if (actor.principalId === targetPrincipalId) {
-            throw failure('VALIDATION_FAILED', 'The actor already owns this workspace.', command.commandId)
+            throw failure(
+              'VALIDATION_FAILED',
+              'The actor already owns this workspace.',
+              command.commandId,
+            )
           }
           if (!getActiveMemberRole(db, workspaceId, targetPrincipalId)) {
-            throw failure('NOT_FOUND', 'The next owner must already be a member.', command.commandId)
+            throw failure(
+              'NOT_FOUND',
+              'The next owner must already be a member.',
+              command.commandId,
+            )
           }
           const now = new Date().toISOString()
           upsertMember(db, {
@@ -856,11 +1230,16 @@ export function sqliteAccountAdminPort(input: {
             status: 'active',
             createdAt: now,
           })
-          const prior = listMembershipsForUser(db, actor.principalId)
-            .find((row) => row.accountId === workspaceId)!
-          const next = listMembershipsForUser(db, targetPrincipalId)
-            .find((row) => row.accountId === workspaceId)!
-          return { previousOwner: membership(db, prior), nextOwner: membership(db, next) }
+          const prior = listMembershipsForUser(db, actor.principalId).find(
+            (row) => row.accountId === workspaceId,
+          )!
+          const next = listMembershipsForUser(db, targetPrincipalId).find(
+            (row) => row.accountId === workspaceId,
+          )!
+          return {
+            previousOwner: membership(db, prior),
+            nextOwner: membership(db, next),
+          }
         },
       })
     },
@@ -878,9 +1257,30 @@ export function sqliteAccountAdminPort(input: {
       actor,
       targetPrincipalId,
       actions,
-    }): Promise<ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>> {
+    }): Promise<
+      ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>
+    > {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal)
       return evaluateAuthorities(db, actor, targetPrincipalId, actions)
+    },
+
+    async evaluateIdentityAdminAuthoritiesForTargets({
+      actor,
+      targetPrincipalIds,
+      actions,
+    }): Promise<
+      ReadonlyMap<
+        string,
+        ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>
+      >
+    > {
+      assertAdministrativeAssurance(actor, requireMfa, trustedLocal)
+      return evaluateAuthoritiesForTargets(
+        db,
+        actor,
+        targetPrincipalIds,
+        actions,
+      )
     },
 
     async confirmIdentityAdminAuthority({
@@ -897,5 +1297,8 @@ export function sqliteAccountAdminPort(input: {
 }
 
 function createHashForToken(token: string): string {
-  return createHash('sha256').update('account-command-invite\0').update(token).digest('hex')
+  return createHash('sha256')
+    .update('account-command-invite\0')
+    .update(token)
+    .digest('hex')
 }

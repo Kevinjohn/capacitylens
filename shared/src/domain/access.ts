@@ -19,7 +19,10 @@ export type { Role } from '../account/types'
  * calling {@link can}. The required tier is documented per member:
  *
  * - `'read'`             — view an account's scheduling data. ANY member (owner | admin | editor | viewer).
- * - `'write'`            — create / edit / delete scheduling data. Editor and up (owner | admin | editor); NOT viewer.
+ * - `'write'`            — create / edit / delete scheduling records and ordinary account planning/display
+ *                          configuration. Editor and up (owner | admin | editor); NOT viewer.
+ * - `'manageInternalClient'` — adopt a legacy built-in Internal-client id and reparent its projects.
+ *                              Admin tier (owner | admin).
  * - `'manageMembers'`    — add / remove members and change their roles. Admin tier (owner | admin).
  * - `'manageInvites'`    — create / revoke invites (link + email-preauth). Admin tier (owner | admin).
  * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
@@ -32,6 +35,7 @@ export type { Role } from '../account/types'
 export type Action =
   | 'read'
   | 'write'
+  | 'manageInternalClient'
   | 'manageMembers'
   | 'manageInvites'
   | 'purge'
@@ -51,6 +55,7 @@ export type Action =
 const MIN_TIER = {
   read: 'viewer', // any member
   write: 'editor', // editor and up
+  manageInternalClient: 'admin', // admin and up
   purge: 'admin', // admin and up
 } as const satisfies Record<ProductDataAction, Role>
 
@@ -63,7 +68,7 @@ const ACCOUNT_ADMIN_ACTION = {
   transferOwnership: 'transfer-ownership',
 } as const satisfies Record<AccountAdministrationAction, AccountAdminAction>
 
-type ProductDataAction = 'read' | 'write' | 'purge'
+type ProductDataAction = 'read' | 'write' | 'manageInternalClient' | 'purge'
 type AccountAdministrationAction = Exclude<Action, ProductDataAction>
 
 /**

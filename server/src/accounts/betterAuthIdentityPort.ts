@@ -32,8 +32,21 @@ import {
 import { applicationSessionHandle } from './sessionHandle'
 
 export interface LocalIdentityPort extends IdentityPort {
+  /** Embedded shared-SQLite capability: commit the credential identity and its coordinator-owned
+   * principal correlation as one transaction. The callback must perform synchronous writes only. */
+  createCorrelatedProvisionalCredentialPrincipal(
+    input: Parameters<IdentityPort['createProvisionalCredentialPrincipal']>[0] & {
+      correlatePrincipalInTransaction(principalId: string): void
+    },
+  ): Promise<ProvisionalPrincipal>
   /** Embedded-only capability used while the coordinator already owns the SQLite transaction. */
   deprovisionLocalPrincipalInTx(principalId: string, exceptCommandId?: string): void
+  /** Embedded bulk capability for workspace erasure. Verification state is classified once for
+   * the whole principal set while the coordinator owns the SQLite transaction. */
+  deprovisionLocalPrincipalsInTx(
+    principalIds: readonly string[],
+    exceptCommandId?: string,
+  ): void
 }
 
 function providerFailure(message: string, cause: unknown): AccountContractError {
@@ -60,6 +73,15 @@ function providerErrorCode(error: unknown): string | null {
   return typeof code === 'string' ? code : null
 }
 
+function isDuplicateCredentialEmailError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const sqlite = error as { errcode?: unknown; message?: unknown }
+  // node:sqlite exposes SQLite's extended SQLITE_CONSTRAINT_UNIQUE code (2067). The credential
+  // writer's pinned schema has one user-table uniqueness conflict that means this caller fault:
+  // the email column. Other constraints and provider lifecycle messages remain dependency errors.
+  return sqlite.errcode === 2067 && sqlite.message === 'UNIQUE constraint failed: user.email'
+}
+
 function stableFallbackSessionId(applicationId: string, principalId: string, createdAt: string): string {
   return createHash('sha256')
     .update(`${applicationId}-session-id\0`)
@@ -80,58 +102,122 @@ function timestampMs(value: string | number): number {
     : new Date(numeric).getTime()
 }
 
-function receipt(commandId: string): OperationReceipt {
-  return { commandId, completedAt: new Date().toISOString() }
+function providerInstant(value: string | number, field: 'createdAt' | 'expiresAt'): string {
+  const milliseconds = timestampMs(value)
+  if (!Number.isFinite(milliseconds)) {
+    throw invalidProviderSession(`The provider session has an invalid ${field} timestamp.`)
+  }
+  return new Date(milliseconds).toISOString()
+}
+
+function receipt(commandId: string, changed?: boolean): OperationReceipt {
+  return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) }
 }
 
 function tableExists(db: Db, table: string): boolean {
   return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined
 }
 
+const MALFORMED_STRUCTURED_VERIFICATION =
+  'Identity erasure cannot classify malformed structured verification state.'
+
+class MalformedVerificationStateError extends Error {
+  override name = 'MalformedVerificationStateError'
+}
+
+function invalidVerificationState(commandId: string, cause: MalformedVerificationStateError): AccountContractError {
+  return new AccountContractError({
+    code: 'DEPENDENCY_INVALID_RESPONSE',
+    message: MALFORMED_STRUCTURED_VERIFICATION,
+    retryable: false,
+    commandId,
+  }, { cause })
+}
+
+/**
+ * Return the principal linked by Better Auth's JSON OAuth state. Opaque scalar ceremonies (reset
+ * tokens and similar values) are intentionally unrelated unless they exactly equal the principal.
+ * An object-shaped value is different: if it cannot be decoded, erasure cannot prove that it is
+ * unrelated, so throw and let the caller's transaction roll back instead of reporting completion.
+ */
 function accountLinkUserId(value: string): string | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(value)
-  } catch {
+  } catch (cause) {
+    if (value.trimStart().startsWith('{')) {
+      throw new MalformedVerificationStateError(MALFORMED_STRUCTURED_VERIFICATION, { cause })
+    }
     return null
   }
-  if (typeof parsed !== 'object' || parsed === null) return null
-  const link = (parsed as { link?: unknown }).link
-  if (typeof link !== 'object' || link === null) return null
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
+  if (!Object.hasOwn(parsed, 'link')) return null
+  const link = (parsed as { link: unknown }).link
+  if (typeof link !== 'object' || link === null || Array.isArray(link)) {
+    throw new MalformedVerificationStateError(MALFORMED_STRUCTURED_VERIFICATION)
+  }
   const userId = (link as { userId?: unknown }).userId
-  if (typeof userId === 'string') return userId
-  return typeof userId === 'number' && Number.isFinite(userId) ? String(userId) : null
+  if (typeof userId === 'string' && userId.length > 0) return userId
+  if (typeof userId === 'number' && Number.isFinite(userId)) return String(userId)
+  throw new MalformedVerificationStateError(MALFORMED_STRUCTURED_VERIFICATION)
 }
 
-/** Delete only this installation's Better Auth identity state inside the caller's transaction. */
-function eraseLocalPrincipalInTx(db: Db, principalId: string): void {
-  if (!tableExists(db, 'user')) return
+/** Delete only these installation-local Better Auth identities inside the caller's transaction. */
+function eraseLocalPrincipalsInTx(db: Db, principalIds: readonly string[]): void {
+  const principals = new Set(principalIds)
+  if (principals.size === 0 || !tableExists(db, 'user')) return
 
-  removePrincipalSessionAssurance(db, principalId)
   if (tableExists(db, 'verification')) {
-    const rows = db.prepare(`SELECT id, value FROM verification`).all() as Array<{
+    // Scalar reset/email ceremonies can be removed entirely inside SQLite. Structured account-link
+    // state still needs the fail-closed decoder below, but only values containing an object opener
+    // can possibly carry that JSON shape; do not copy every opaque ceremony into JavaScript.
+    const rows = db.prepare(
+      `SELECT id, value FROM verification WHERE instr(value, '{') > 0`,
+    ).all() as Array<{
       id: string
       value: string
     }>
-    const removeVerification = db.prepare(`DELETE FROM verification WHERE id = ?`)
+    const verificationIds: string[] = []
     for (const row of rows) {
-      if (row.value === principalId || accountLinkUserId(row.value) === principalId) {
-        removeVerification.run(row.id)
+      if (principals.has(row.value)) {
+        verificationIds.push(row.id)
+        continue
       }
+      const linkedPrincipalId = accountLinkUserId(row.value)
+      if (linkedPrincipalId !== null && principals.has(linkedPrincipalId)) {
+        verificationIds.push(row.id)
+      }
+    }
+    // JSON1 is already a schema prerequisite (command resultJson uses json_valid). Passing each set
+    // as one JSON parameter avoids both a variable-count SQL string and one table scan per principal.
+    db.prepare(
+      `DELETE FROM verification WHERE value IN (SELECT value FROM json_each(?))`,
+    ).run(JSON.stringify([...principals]))
+    if (verificationIds.length > 0) {
+      db.prepare(
+        `DELETE FROM verification WHERE id IN (SELECT value FROM json_each(?))`,
+      ).run(JSON.stringify(verificationIds))
     }
   }
 
-  if (tableExists(db, 'session')) {
-    db.prepare(`DELETE FROM session WHERE userId = ?`).run(principalId)
+  const removeSession = tableExists(db, 'session')
+    ? db.prepare(`DELETE FROM session WHERE userId = ?`)
+    : null
+  const removeAccount = tableExists(db, 'account')
+    ? db.prepare(`DELETE FROM account WHERE userId = ?`)
+    : null
+  const removeTwoFactor = tableExists(db, 'twoFactor')
+    ? db.prepare(`DELETE FROM twoFactor WHERE userId = ?`)
+    : null
+  const removeUser = db.prepare(`DELETE FROM user WHERE id = ?`)
+  for (const principalId of principals) {
+    removePrincipalSessionAssurance(db, principalId)
+    removeSession?.run(principalId)
+    removeAccount?.run(principalId)
+    removeTwoFactor?.run(principalId)
+    removeUser.run(principalId)
+    removeSecurityRevision(db, principalId)
   }
-  if (tableExists(db, 'account')) {
-    db.prepare(`DELETE FROM account WHERE userId = ?`).run(principalId)
-  }
-  if (tableExists(db, 'twoFactor')) {
-    db.prepare(`DELETE FROM twoFactor WHERE userId = ?`).run(principalId)
-  }
-  db.prepare(`DELETE FROM user WHERE id = ?`).run(principalId)
-  removeSecurityRevision(db, principalId)
 }
 
 /** Better Auth and SQLite mechanics narrowed behind the provider-neutral IdentityPort. */
@@ -170,10 +256,77 @@ export function betterAuthIdentityPort(input: {
     }
   }
 
+  const createCredentialPrincipal = async (
+    input: Parameters<IdentityPort['createProvisionalCredentialPrincipal']>[0],
+    correlateInTransaction?: (principalId: string) => void,
+  ): Promise<ProvisionalPrincipal> => {
+    const { email, displayName, password, emailVerified, command } = input
+    if (authMode !== 'password') {
+      throw new AccountContractError({
+        code: 'UNSUPPORTED_CAPABILITY',
+        message: 'Credential identities are disabled for this installation.',
+        retryable: false,
+        commandId: command.commandId,
+      })
+    }
+    const validation = validateCredentialInput({ email, displayName, password })
+    if (validation) {
+      throw new AccountContractError({
+        code: 'VALIDATION_FAILED',
+        message: validation === 'password-length'
+          ? 'The password does not meet the configured length policy.'
+          : validation === 'email'
+            ? 'The email address is not normalized or valid.'
+            : 'The display name is not valid.',
+        retryable: false,
+        commandId: command.commandId,
+      })
+    }
+    try {
+      const created = await auth.createCredentialUser(
+        email,
+        displayName,
+        password,
+        emailVerified,
+        correlateInTransaction,
+      )
+      return {
+        principalId: created.id,
+        compensationHandle: makeCompensationHandle(created.id, command.commandId),
+      }
+    } catch (error) {
+      if (providerErrorCode(error) === 'PASSWORD_COMPROMISED') {
+        throw new AccountContractError({
+          code: 'VALIDATION_FAILED',
+          message: error instanceof Error && error.message
+            ? error.message
+            : 'The password does not meet the configured security policy.',
+          retryable: false,
+          commandId: command.commandId,
+        }, { cause: error })
+      }
+      if (isDuplicateCredentialEmailError(error)) {
+        throw new AccountContractError({
+          code: 'IDENTITY_ALREADY_EXISTS',
+          message: 'A sign-in identity already exists for that email address.',
+          retryable: false,
+          commandId: command.commandId,
+        }, { cause: error })
+      }
+      throw providerFailure('Identity creation is temporarily unavailable.', error)
+    }
+  }
+
   return {
     deprovisionLocalPrincipalInTx(principalId, exceptCommandId): void {
       erasePrincipalCommandHistoryInTx(db, principalId, exceptCommandId)
-      eraseLocalPrincipalInTx(db, principalId)
+      eraseLocalPrincipalsInTx(db, [principalId])
+    },
+    deprovisionLocalPrincipalsInTx(principalIds, exceptCommandId): void {
+      for (const principalId of new Set(principalIds)) {
+        erasePrincipalCommandHistoryInTx(db, principalId, exceptCommandId)
+      }
+      eraseLocalPrincipalsInTx(db, principalIds)
     },
     async verifyApplicationSession({ headers }): Promise<ApplicationSession | null> {
       try {
@@ -181,7 +334,13 @@ export function betterAuthIdentityPort(input: {
         if (!resolved) return null
         // A nonstandard adapter may omit the timestamp. Preserve authentication for ordinary reads,
         // but make the session provably stale so privileged freshness gates fail closed.
-        const createdAt = resolved.session?.createdAt ?? resolved.user.sessionCreatedAt ?? '1970-01-01T00:00:00.000Z'
+        const createdAt = providerInstant(
+          resolved.session?.createdAt ?? resolved.user.sessionCreatedAt ?? '1970-01-01T00:00:00.000Z',
+          'createdAt',
+        )
+        const expiresAt = resolved.session?.expiresAt
+          ? providerInstant(resolved.session.expiresAt, 'expiresAt')
+          : new Date(Date.parse(createdAt) + SESSION_ABSOLUTE_TTL_SECONDS * 1000).toISOString()
         const authentication = getSessionAuthentication(db, resolved.session?.id ?? '')
         if (!authentication) {
           const providerRows = tableExists(db, 'account')
@@ -245,9 +404,7 @@ export function betterAuthIdentityPort(input: {
               : null,
           },
           createdAt,
-          expiresAt: resolved.session?.expiresAt ?? new Date(
-            Date.parse(createdAt) + SESSION_ABSOLUTE_TTL_SECONDS * 1000,
-          ).toISOString(),
+          expiresAt,
           freshUntil: new Date(
             Date.parse(createdAt) + SESSION_FRESH_AGE_SECONDS * 1000,
           ).toISOString(),
@@ -394,68 +551,21 @@ export function betterAuthIdentityPort(input: {
             removeSessionAssurance(db, sessionId)
           })
         }
-        return receipt(command.commandId)
+        return receipt(command.commandId, row !== undefined)
       } catch (error) {
         throw providerFailure('Session revocation is temporarily unavailable.', error)
       }
     },
 
-    async createProvisionalCredentialPrincipal({
-      email,
-      displayName,
-      password,
-      emailVerified,
-      command,
+    async createProvisionalCredentialPrincipal(input): Promise<ProvisionalPrincipal> {
+      return createCredentialPrincipal(input)
+    },
+
+    async createCorrelatedProvisionalCredentialPrincipal({
+      correlatePrincipalInTransaction,
+      ...input
     }): Promise<ProvisionalPrincipal> {
-      if (authMode !== 'password') {
-        throw new AccountContractError({
-          code: 'UNSUPPORTED_CAPABILITY',
-          message: 'Credential identities are disabled for this installation.',
-          retryable: false,
-          commandId: command.commandId,
-        })
-      }
-      const validation = validateCredentialInput({ email, displayName, password })
-      if (validation) {
-        throw new AccountContractError({
-          code: 'VALIDATION_FAILED',
-          message: validation === 'password-length'
-            ? 'The password does not meet the configured length policy.'
-            : validation === 'email'
-              ? 'The email address is not normalized or valid.'
-              : 'The display name is not valid.',
-          retryable: false,
-          commandId: command.commandId,
-        })
-      }
-      try {
-        const created = await auth.createCredentialUser(email, displayName, password, emailVerified)
-        return {
-          principalId: created.id,
-          compensationHandle: makeCompensationHandle(created.id, command.commandId),
-        }
-      } catch (error) {
-        if (providerErrorCode(error) === 'PASSWORD_COMPROMISED') {
-          throw new AccountContractError({
-            code: 'VALIDATION_FAILED',
-            message: error instanceof Error && error.message
-              ? error.message
-              : 'The password does not meet the configured security policy.',
-            retryable: false,
-            commandId: command.commandId,
-          }, { cause: error })
-        }
-        const message = error instanceof Error ? error.message : ''
-        if (/unique|already|exists/i.test(message)) {
-          throw new AccountContractError({
-            code: 'IDENTITY_ALREADY_EXISTS',
-            message: 'A sign-in identity already exists for that email address.',
-            retryable: false,
-            commandId: command.commandId,
-          }, { cause: error })
-        }
-        throw providerFailure('Identity creation is temporarily unavailable.', error)
-      }
+      return createCredentialPrincipal(input, correlatePrincipalInTransaction)
     },
 
     async compensateProvisionalPrincipal({ provisional, command }): Promise<void> {
@@ -463,9 +573,12 @@ export function betterAuthIdentityPort(input: {
       try {
         tx(db, () => {
           erasePrincipalCommandHistoryInTx(db, provisional.principalId, command.commandId)
-          eraseLocalPrincipalInTx(db, provisional.principalId)
+          eraseLocalPrincipalsInTx(db, [provisional.principalId])
         })
       } catch (error) {
+        if (error instanceof MalformedVerificationStateError) {
+          throw invalidVerificationState(command.commandId, error)
+        }
         throw providerFailure('Provisional identity compensation failed.', error)
       }
     },
@@ -476,10 +589,13 @@ export function betterAuthIdentityPort(input: {
         // an upstream IdP deletion or management API.
         tx(db, () => {
           erasePrincipalCommandHistoryInTx(db, principalId, command.commandId)
-          eraseLocalPrincipalInTx(db, principalId)
+          eraseLocalPrincipalsInTx(db, [principalId])
         })
         return receipt(command.commandId)
       } catch (error) {
+        if (error instanceof MalformedVerificationStateError) {
+          throw invalidVerificationState(command.commandId, error)
+        }
         throw providerFailure('Local identity deprovisioning failed.', error)
       }
     },

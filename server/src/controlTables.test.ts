@@ -8,6 +8,7 @@ import {
   listMembersForAccount,
   migrateSingleOwnerControlPlaneV10,
   migrateOwnerlessControlPlaneV11,
+  reportOwnerlessPromotionsV11,
   migrateOwnerResetCeremoniesV12,
   migrateMemberResetCeremoniesV14,
   assertSingleOwnerControlPlaneCurrent,
@@ -212,7 +213,7 @@ describe('single-Owner control-plane migration', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { warnLines, errorLines } = (() => {
       try {
-        migrateOwnerlessControlPlaneV11(db)
+        reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db))
         return {
           warnLines: warnSpy.mock.calls.map((c) => String(c[0])),
           errorLines: errorSpy.mock.calls.map((c) => String(c[0])),
@@ -243,7 +244,7 @@ describe('single-Owner control-plane migration', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const errorLines = (() => {
       try {
-        migrateOwnerlessControlPlaneV11(db)
+        reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db))
         return errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
       } finally {
         errorSpy.mockRestore()
@@ -272,7 +273,7 @@ describe('single-Owner control-plane migration', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const errorLines = (() => {
       try {
-        migrateOwnerlessControlPlaneV11(db)
+        reportOwnerlessPromotionsV11(migrateOwnerlessControlPlaneV11(db))
         return errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
       } finally {
         errorSpy.mockRestore()
@@ -476,6 +477,26 @@ describe('pruneInvites', () => {
     // A USED invite survives pruning even when expired — the members list must still show it.
     expect(getInvite(db, 'tok-used')).not.toBeNull()
     expect(getInvite(db, 'tok-live')).not.toBeNull()
+  })
+
+  it('evaluates offset and malformed expiry values by instant and fails closed', () => {
+    const db = freshDb()
+    createInvite(db, invite({
+      token: 'tok-offset-expired',
+      id: 'inv-offset-expired',
+      expiresAt: '2026-08-01T01:00:00+01:00',
+    }))
+    createInvite(db, invite({
+      token: 'tok-offset-live',
+      id: 'inv-offset-live',
+      expiresAt: '2026-07-31T21:00:00-04:00',
+    }))
+    createInvite(db, invite({ token: 'tok-malformed', id: 'inv-malformed', expiresAt: 'not-a-date' }))
+
+    expect(pruneInvites(db, Date.parse('2026-08-01T00:30:00.000Z'))).toBe(2)
+    expect(getInvite(db, 'tok-offset-expired')).toBeNull()
+    expect(getInvite(db, 'tok-malformed')).toBeNull()
+    expect(getInvite(db, 'tok-offset-live')).not.toBeNull()
   })
 })
 

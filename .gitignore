@@ -29,7 +29,7 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 coverage/
-# Stryker mutation-testing output (`npm run mutation`) — report + sandbox, never committed
+# Stryker mutation-testing output (`pnpm run mutation`) — report + sandbox, never committed
 /reports/
 .stryker-tmp/
 stryker.log

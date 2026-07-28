@@ -9,7 +9,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 |---|---|---|---|
 | Tenant API route/body/query/path | JSON and bounded strings/arrays; explicit route schemas/codecs | Fastify API and shared domain | authentication, per-operation membership/action check, allowlisted tables/fields, sanitisation, relational validation |
 | Whole-account import | JSON; 5 MiB and 200,000 records | Owner-only API transaction | version migration, known tables only, ids remapped, tenant forced, invalid rows repaired/dropped, references checked, all-or-nothing write |
-| Password | 15–128 characters | Auth callbacks | context-word and HIBP check, exact-byte versioned scrypt hashing, generic failure paths; HIBP response is time/size bounded and redirects are refused |
+| Password | 15–128 Unicode code points | Auth callbacks | context-word and HIBP check, exact-byte versioned scrypt hashing, generic failure paths; HIBP response is time/size bounded and redirects are refused |
 | TOTP/recovery code | Better Auth bounded formats | Auth plugin | timed TOTP, lockout, encrypted recovery material, one-time use |
 | Sign-up/setup/invite/reset values | Bounded JSON/path/header values | Auth/API | first-owner or invite gate, token expiry/hash/revocation, generic lookup behavior |
 | Provider configuration | Environment only, not end-user input | Startup | safe provider id; absolute HTTPS endpoint; loopback-only HTTP; no embedded credentials; partial configuration fails |
@@ -29,7 +29,7 @@ processing entry point.
 | Authentication secret | password verifier, MFA seed/recovery, session/reset/invite values, provider secrets | SQLite/env over TLS; restrictive host files; secret-manager responsibility | sessions fixed at 12h with 30m idle expiry; reset/invite bounded and revocable; password verifiers until identity erasure; never log values |
 | Identity data | name, email, memberships, provider subject | SQLite over TLS | until identity no longer belongs to an account; account erasure removes eligible identity/control rows |
 | Tenant confidential data | schedule, notes, real private names | SQLite, encrypted operator storage, role-filtered API | operator policy; owner export; account erasure; old backups/audits follow operator retention/legal hold |
-| Offline tenant data | last verified identity/account/snapshot | AES-GCM IndexedDB | opt-in, maximum seven days, sign-out/device clear/schema upgrade/tamper removes records |
+| Offline tenant data | last verified identity/account/snapshot | AES-GCM IndexedDB | opt-in; seven-day expiry is physically swept before the next cache access; sign-out/opt-out/device clear/schema upgrade/tamper removes records |
 | Audit/security metadata | timestamp, actor/account/action/entity/field names, security outcome/IP | local JSONL and separately forwarded JSON | no entity values, credentials or bearer tokens; deployment defines access and retention |
 | Device preference | theme, zoom and similar settings | localStorage | device-local, not account data/export; explicit device clear |
 
@@ -77,8 +77,8 @@ path check cannot inspect.
 | API accepted sockets | 512 per process | new sockets refused; nginx surfaces upstream failure; client retries must be bounded |
 | API request/incomplete connection | 30 seconds | Fastify terminates timed-out work; proxy has bounded headroom, never an infinite read timeout |
 | SQLite | one synchronous connection/process; one API process/file | waits five seconds on a held lock, then surfaces failure; restart/repair rather than spawning writers |
-| Password scrypt | 2 active + 16 queued | overflow fails closed; queue releases after success or failure |
-| HIBP range service | 8 active + 32 queued; 5-second call | overflow, timeout, redirect or outage fails password mutation closed |
+| Password scrypt | 2 active + 16 queued per process | identity-global requests share the queue; overflow fails closed; queue releases after success or failure |
+| HIBP range service | 8 active + 32 queued per process; 5-second call | identity-global requests share the queue; overflow, timeout, redirect or outage fails password mutation closed |
 | CSP report ingestion | 64 KiB and 20 emitted events/request | malformed/oversize rejected; excess array entries discarded; normal IP rate limit applies |
 | OIDC/social provider | bounded by 512 active API requests/process | strict OIDC discovery/JWKS/user-info failures fail closed with no application retry loop; disable an unstable named social provider |
 | Backup operation | one in flight | scheduler skips overlap; shutdown waits for completion before closing SQLite |
@@ -89,7 +89,7 @@ path check cannot inspect.
 |---|---|---|---|
 | API request log | method, route, status, latency and request metadata | Pino JSON stdout when enabled | no request/response bodies, cookie or authorization values |
 | Security log | auth outcomes, required-auth/MFA/fresh-session rejection, authorization/CSRF denial, projected CSP reports, 429, 500, process failure and session revocation | `capacitylens.security` JSON stdout | ids/outcomes and bounded source metadata only; never credential/bearer values, exception details or CSP URL paths/queries |
-| Mutation audit | actor, account, action, entity, id and changed field names | mode-0600 JSONL plus optional `capacitylens.audit` JSON stdout | field names only, never field values |
+| Mutation audit | actor, account, action, entity, id and changed field names | transactional SQLite outbox → fsynced mode-0600 JSONL plus optional `capacitylens.audit` JSON stdout | field names only, never field values; stable `auditId` supports replay deduplication |
 | Proxy/IdP/platform | TLS/access/WAF/container/identity/collector events | deployment-defined separate systems | operator must classify, redact, restrict, retain and correlate in UTC |
 
 Production requires application audit to remain enabled. Forwarding security events to a separate

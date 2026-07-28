@@ -62,6 +62,10 @@ export function ImportExport() {
   const importData = useStore((s) => s.importData)
   const setNotice = useStore((s) => s.setNotice)
   const fileRef = useRef<HTMLInputElement>(null)
+  // File reads are asynchronous and the hidden input is reset after every selection. Keep a
+  // generation so an older, slower read cannot replace the confirmation prepared for the latest
+  // file (or surface its stale parse error over that selection).
+  const importSelectionRef = useRef(0)
   const role = useRole()
   const serverMode = isServerConfigured()
   const activeAccountId = useStore((s) => s.activeAccountId)
@@ -83,18 +87,19 @@ export function ImportExport() {
   // overwrite, and no company switch can interleave. The write-suspension seam inside
   // confirmServerImport stays as defence-in-depth for anything that slips past the lock.
   const [importBusy, setImportBusy] = useState(false)
-  const setDirtyForm = useStore((s) => s.setDirtyForm)
+  const setDirtyFormSource = useStore((s) => s.setDirtyFormSource)
+  const [importDirtySource] = useState(() => Symbol('import-busy'))
   // While the lock is up, borrow the dirty-form semantics: AppShell's beforeunload guard prompts
   // before a tab close mid-import (a parked edit has no durable fallback in server mode, and the
   // import outcome itself deserves the warning), and the palette / undo / scheduler keyboard
   // paths — which bypass the pointer-blocking dialog — are suppressed by their existing dirtyForm
-  // checks. This PARENT effect runs after the Modal child's own mount effect (which publishes
-  // dirtyForm=false for its untouched form state), so the lock's `true` wins for the window.
+  // checks. This is an independently owned contribution, so mounting or unmounting the clean
+  // blocking Modal cannot erase it (and it cannot erase a dirty editor elsewhere).
   useEffect(() => {
     if (!importBusy) return
-    setDirtyForm(true)
-    return () => setDirtyForm(false)
-  }, [importBusy, setDirtyForm])
+    setDirtyFormSource(importDirtySource, true)
+    return () => setDirtyFormSource(importDirtySource, false)
+  }, [importBusy, importDirtySource, setDirtyFormSource])
 
   const onExport = async () => {
     // downloadTextFile throws if the download couldn't start — surface it rather than letting it
@@ -115,6 +120,7 @@ export function ImportExport() {
   }
 
   const onImport = async (file: File) => {
+    const selection = ++importSelectionRef.current
     // Reject an oversized file before reading it into memory (self-DoS guard).
     if (file.size > MAX_IMPORT_BYTES) {
       setNotice(m.data_err_too_large({ max: MAX_IMPORT_BYTES / (1024 * 1024) }), 'error')
@@ -122,8 +128,10 @@ export function ImportExport() {
     }
     try {
       const parsed = parseData(await file.text())
+      if (selection !== importSelectionRef.current) return
       setPendingImport({ data: parsed, name: file.name })
     } catch (e) {
+      if (selection !== importSelectionRef.current) return
       // parseData throws PRECISE, user-ready messages ("This file isn't valid JSON.", "This file is
       // damaged: a data table is not a list.", "This file has too many records (…)", "This file
       // contains no CapacityLens records.") — surface the REAL reason instead of a generic catch-all, so

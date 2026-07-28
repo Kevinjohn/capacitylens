@@ -3,7 +3,7 @@ import { isServerConfigured } from '../../data/apiConfig'
 import { accountClient, accountCommandOutcomeUnknown } from '../../account/accountClient'
 import { useStore } from '../../store/useStore'
 import { useAuth } from '../../auth/authContext'
-import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
+import { refreshAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { can } from '@capacitylens/shared/domain/access'
 import { Badge } from '../ui/badge'
@@ -92,20 +92,21 @@ export function AccountPicker() {
   // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
   const [submitting, setSubmitting] = useState(false)
   // True while the server-mode DELETE is in flight — passed to the dialog as `busy` so the armed
-  // Delete button disarms during the round-trip. Without it a double-click sends a second DELETE,
-  // which 403s in auth-on mode (the membership was just erased) → a spurious "Forbidden." toast
-  // right after a successful delete. Demo-mode delete is synchronous and never sets it.
+  // Delete button disarms during the round-trip. Without it a double-click sends an overlapping
+  // command that may still be in progress and raises a spurious retry error after a successful
+  // delete. Demo-mode delete is synchronous and never sets it.
   const [deleting, setDeleting] = useState(false)
   const [name, setName] = useState('')
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON)
   const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE)
-  const { error, errorField, errorId, fail } = useFieldError()
+  const { error, errorField, errorId, fail, clear } = useFieldError()
   const [confirming, setConfirming] = useState<AccountSummary | null>(null)
   const roleDescriptionPrefix = useId()
   const tzOptions = supportedTimeZones()
 
   const resetForm = () => {
+    clear()
     setCreating(false)
     setName('')
     setWeekStartsOn(DEFAULT_WEEK_STARTS_ON)
@@ -134,14 +135,13 @@ export function AccountPicker() {
         if (await accountCommandOutcomeUnknown(res)) {
           // A response can fail after the command commits (proxy timeout, worker restart, or a
           // still-running ledger entry). Close the form and reconcile before allowing a retry.
-          const list = await fetchAccountSummaries({ allowCachedFallback: false })
-          if (list !== null) setAccountSummaries(list)
+          const list = await refreshAccountSummaries({ allowCachedFallback: false })
           await refreshAuth()
           resetForm()
           setNotice(
             list !== null
-              ? 'The create request had an unknown outcome. The company list was refreshed; check it before trying again.'
-              : 'The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again.',
+              ? m.picker_create_unknown_refreshed()
+              : m.picker_create_unknown_stale(),
             'warning',
           )
           return
@@ -164,8 +164,7 @@ export function AccountPicker() {
         // appears in the picker and the user opens it from there. A null refetch leaves the list
         // as-is — AppShell's own summaries fetch backstops on the next mount.
         resetForm()
-        const list = await fetchAccountSummaries()
-        if (list !== null) setAccountSummaries(list)
+        await refreshAccountSummaries()
         // The create changed the facts /me computes (account count, the caller's owner standing) —
         // re-ask so canCreateAccount tracks it (e.g. the button hides once a capped instance fills
         // up). refreshAuth is TOTAL (never rejects — degrades to the stale snapshot with a warn),
@@ -188,14 +187,13 @@ export function AccountPicker() {
     } catch (e) {
       // Once dispatched, a transport rejection cannot tell us whether the atomic create committed.
       // Reconcile first and close the form so an immediate retry cannot mint a duplicate company.
-      const list = await fetchAccountSummaries({ allowCachedFallback: false })
-      if (list !== null) setAccountSummaries(list)
+      const list = await refreshAccountSummaries({ allowCachedFallback: false })
       await refreshAuth()
       resetForm()
       setNotice(
         list !== null
-          ? `The create request had an unknown outcome. The company list was refreshed; check it before trying again. ${errorMessage(e)}`
-          : `The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again. ${errorMessage(e)}`,
+          ? `${m.picker_create_unknown_refreshed()} ${errorMessage(e)}`
+          : `${m.picker_create_unknown_stale()} ${errorMessage(e)}`,
         'warning',
       )
     } finally {
@@ -208,6 +206,7 @@ export function AccountPicker() {
     // in flight means any further submit — however triggered — must be a no-op, or one form could
     // create two companies.
     if (submitting) return
+    clear()
     const trimmed = validateName(name, fail)
     if (!trimmed) return
     // Pass the three frozen fields as CONCRETE values (never undefined): the server freezes them after
@@ -216,9 +215,9 @@ export function AccountPicker() {
       void createOrgOnServer(trimmed)
       return
     }
-    // DEMO build: local store create. Surface a store-side rejection as a form error rather than an
-    // uncaught React error. (addAccount is the one CRUD action that works with no active account —
-    // bootstrapping the first tenant.)
+    // DEMO build: local store create. A viewer refusal is a notice-backed no-op; other store-side
+    // validation errors surface in the form rather than becoming uncaught React errors. addAccount
+    // is the one CRUD action that works with no active account, bootstrapping the first tenant.
     try {
       const account = addAccount({
         name: trimmed,
@@ -228,6 +227,7 @@ export function AccountPicker() {
         language: DEFAULT_LANGUAGE,
         internalColourMode: 'grey',
       })
+      if (account === null) return
       resetForm()
       setActiveAccount(account.id)
     } catch (e) {
@@ -244,7 +244,7 @@ export function AccountPicker() {
   // invisible and gets replaced wholesale by the next account pick's loadAll.
   const deleteOrgOnServer = async (id: string) => {
     // In-flight guard, self-contained (the dialog's `busy` disable is the visible half): a second
-    // DELETE for the same org 403s in auth-on mode — see the `deleting` state's comment.
+    // overlapping DELETE can race the first command — see the `deleting` state's comment.
     if (deleting) return
     setDeleting(true)
     try {
@@ -253,13 +253,12 @@ export function AccountPicker() {
       const res = await accountClient.eraseWorkspace(id)
       if (!res.ok) {
         if (await accountCommandOutcomeUnknown(res)) {
-          const fresh = await fetchAccountSummaries({ allowCachedFallback: false })
-          if (fresh !== null) setAccountSummaries(fresh)
+          const fresh = await refreshAccountSummaries({ allowCachedFallback: false })
           await refreshAuth()
           setNotice(
             fresh !== null
-              ? 'The delete request had an unknown outcome. The company list was refreshed — verify it before retrying.'
-              : 'The delete request had an unknown outcome and the company list could not be refreshed. Reload before retrying.',
+              ? m.picker_delete_unknown_refreshed()
+              : m.picker_delete_unknown_stale(),
             'warning',
           )
           return
@@ -268,7 +267,9 @@ export function AccountPicker() {
         return
       }
       const summaries = useStore.getState().accountSummaries
+      const removedName = summaries.find((summary) => summary.id === id)?.name
       setAccountSummaries(summaries.filter((s) => s.id !== id))
+      if (removedName) setNotice(m.picker_delete_success({ name: removedName }), 'info')
       // The delete flipped the facts /me computes: on a single-company instance, dropping the only
       // company back to zero accounts makes canCreateAccount true again (the bootstrap exemption).
       // Without this re-ask the picker would show the "ask an admin for an invite" empty state with
@@ -282,13 +283,12 @@ export function AccountPicker() {
       // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
       // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out
       // if the erase committed; a failed re-read leaves the list untouched, same as before).
-      const fresh = await fetchAccountSummaries({ allowCachedFallback: false })
-      if (fresh !== null) setAccountSummaries(fresh)
+      const fresh = await refreshAccountSummaries({ allowCachedFallback: false })
       await refreshAuth()
       setNotice(
         fresh !== null
-          ? `The delete request had an unknown outcome. The company list was refreshed — verify it before retrying. ${errorMessage(e)}`
-          : `The delete request had an unknown outcome and the company list could not be refreshed. Reload before retrying. ${errorMessage(e)}`,
+          ? `${m.picker_delete_unknown_refreshed()} ${errorMessage(e)}`
+          : `${m.picker_delete_unknown_stale()} ${errorMessage(e)}`,
         'warning',
       )
     } finally {
@@ -303,8 +303,14 @@ export function AccountPicker() {
       return
     }
     // DEMO build: the local cascade drops the account and all its scoped data irreversibly.
-    deleteAccount(id)
-    setConfirming(null)
+    try {
+      const removedName = useStore.getState().data.accounts.find((account) => account.id === id)?.name
+      deleteAccount(id)
+      if (removedName) setNotice(m.picker_delete_success({ name: removedName }), 'info')
+      setConfirming(null)
+    } catch (error) {
+      setNotice(errorMessage(error), 'error')
+    }
   }
 
   return (
@@ -351,7 +357,7 @@ export function AccountPicker() {
           </p>
         </div>
 
-        {accounts.length === 0 && !creating ? (
+        {accounts.length === 0 && !creating && (
           <div data-testid="company-empty-options" className="mt-4 flex flex-col gap-2">
             {canCreateAccount && (
               <Card>
@@ -359,13 +365,15 @@ export function AccountPicker() {
                   <CardDescription>{m.picker_empty_create_hint()}</CardDescription>
                 </CardHeader>
                 <CardFooter>
-                <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />
+                <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" requiresEdit={false} />
                 </CardFooter>
               </Card>
             )}
             <Alert><AlertDescription>{m.picker_empty_invite()}</AlertDescription></Alert>
           </div>
-        ) : (
+        )}
+
+        {accounts.length > 0 && (
           <ItemGroup className="gap-2">
             {accounts.map((a, index) => {
               const roleDescriptionId = `${roleDescriptionPrefix}-company-role-${index}`
@@ -417,7 +425,7 @@ export function AccountPicker() {
             <TextField
               label={m.picker_company_name()}
               value={name}
-              onChange={setName}
+              onChange={(next) => { setName(next); if (errorField === 'name') clear() }}
               autoFocus
               invalid={errorField === 'name'}
               describedById={errorId}
@@ -465,7 +473,7 @@ export function AccountPicker() {
           // this button via the zero-accounts bootstrap exemption, without a manual reload.
           accounts.length > 0 && canCreateAccount && (
             <div className="mt-4">
-              <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />
+              <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" requiresEdit={false} />
             </div>
           )
         )}

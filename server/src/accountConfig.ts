@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_PROFILE_CAPABILITIES,
   isAccountDeploymentProfile,
   type AccountDeploymentProfile,
 } from '@capacitylens/shared/account/conformance'
@@ -58,8 +59,24 @@ const SECRET_KEYS = new Set<string>([
   'SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET',
 ])
 
-const warnedAliases = new Set<string>()
+let warnedAliasesBySource = new WeakMap<object, Set<string>>()
 const resolvedAccountEnvironments = new WeakMap<object, AccountDeploymentProfile | null>()
+
+function warnLegacyAlias(
+  source: object,
+  legacy: string,
+  canonical: string,
+  warn: (message: string) => void,
+): void {
+  let warnedAliases = warnedAliasesBySource.get(source)
+  if (!warnedAliases) {
+    warnedAliases = new Set()
+    warnedAliasesBySource.set(source, warnedAliases)
+  }
+  if (warnedAliases.has(legacy)) return
+  warn(`account configuration: ${legacy} is deprecated; use ${canonical}.`)
+  warnedAliases.add(legacy)
+}
 
 function normalizedForComparison(key: string, value: string): string {
   if (SECRET_KEYS.has(key)) return value
@@ -68,14 +85,19 @@ function normalizedForComparison(key: string, value: string): string {
   return value.trim()
 }
 
-function configured(value: string | undefined): string | undefined {
-  return value === undefined || value.trim() === '' ? undefined : value
+function configured(key: string, value: string | undefined): string | undefined {
+  if (value === undefined || value === '') return undefined
+  if (value.trim() === '') {
+    if (key === 'SMALLSASS_ACCOUNT_MODE' || key === 'CAPACITYLENS_AUTH') {
+      throw new AccountConfigError(`${key} contains only whitespace; refusing to choose a security posture.`)
+    }
+    return undefined
+  }
+  return value
 }
 
 function resolvedValue(key: string, value: string): string {
-  if (key === 'SMALLSASS_ACCOUNT_MODE') return value.trim().toLowerCase()
-  if (key === 'SMALLSASS_ACCOUNT_OIDC_SCOPES') return value.trim().split(/\s+/).join(' ')
-  return value
+  return normalizedForComparison(key, value)
 }
 
 export interface ResolvedAccountEnvironment {
@@ -103,28 +125,22 @@ export function resolveAccountEnvironment(
     // Compose commonly materializes unset interpolation as an empty string. Treat that as absent
     // so an empty canonical placeholder cannot conflict with (or erase) a real compatibility
     // alias supplied by an existing deployment.
-    const canonicalValue = configured(source[canonical])
-    const legacyValue = configured(source[legacy])
+    const canonicalValue = configured(canonical, source[canonical])
+    const legacyValue = configured(legacy, source[legacy])
     if (canonicalValue !== undefined && legacyValue !== undefined) {
       if (normalizedForComparison(canonical, canonicalValue) !== normalizedForComparison(canonical, legacyValue)) {
         throw new AccountConfigError(
           `${canonical} conflicts with its legacy alias ${legacy}; refusing to choose a security posture.`,
         )
       }
-      if (!warnedAliases.has(legacy)) {
-        warn(`account configuration: ${legacy} is deprecated; use ${canonical}.`)
-        warnedAliases.add(legacy)
-      }
+      warnLegacyAlias(source, legacy, canonical, warn)
       env[canonical] = resolvedValue(canonical, canonicalValue)
       env[legacy] = env[canonical]
     } else if (canonicalValue !== undefined) {
       env[canonical] = resolvedValue(canonical, canonicalValue)
       env[legacy] = env[canonical]
     } else if (legacyValue !== undefined) {
-      if (!warnedAliases.has(legacy)) {
-        warn(`account configuration: ${legacy} is deprecated; use ${canonical}.`)
-        warnedAliases.add(legacy)
-      }
+      warnLegacyAlias(source, legacy, canonical, warn)
       env[canonical] = resolvedValue(canonical, legacyValue)
       env[legacy] = env[canonical]
     } else {
@@ -144,12 +160,19 @@ export function resolveAccountEnvironment(
     )
   }
 
-  if (profile === 'hosted-oidc-only') {
-    if (env.CAPACITYLENS_AUTH !== 'sso') {
+  const capabilities = profile === null ? null : ACCOUNT_PROFILE_CAPABILITIES[profile]
+  if (capabilities) {
+    const requiredMode = capabilities.passwordSignIn ? 'password' : 'sso'
+    if (env.CAPACITYLENS_AUTH !== requiredMode) {
       throw new AccountConfigError(
-        'The hosted-oidc-only deployment profile requires SMALLSASS_ACCOUNT_MODE=sso; hosted password accounts are prohibited.',
+        capabilities.hosted
+          ? 'The hosted-oidc-only deployment profile requires SMALLSASS_ACCOUNT_MODE=sso; hosted password accounts are prohibited.'
+          : `The ${profile} deployment profile requires SMALLSASS_ACCOUNT_MODE=${requiredMode}.`,
       )
     }
+  }
+
+  if (capabilities?.hosted) {
     if (!env.CAPACITYLENS_SSO_CLIENT_ID || !env.CAPACITYLENS_SSO_CLIENT_SECRET) {
       throw new AccountConfigError('The hosted-oidc-only deployment profile requires an OIDC client id and secret.')
     }
@@ -186,11 +209,9 @@ export function resolveAccountEnvironment(
       throw new AccountConfigError('The hosted-oidc-only deployment profile refuses password-account configuration.')
     }
   }
-  if (profile === 'self-hosted-password' && env.CAPACITYLENS_AUTH !== 'password') {
-    throw new AccountConfigError('The self-hosted-password profile requires SMALLSASS_ACCOUNT_MODE=password.')
-  }
   if (
-    profile === 'self-hosted-password' &&
+    capabilities !== null &&
+    !capabilities.strictOidc &&
     (
       env.CAPACITYLENS_SSO_CLIENT_ID ||
       env.CAPACITYLENS_SSO_CLIENT_SECRET ||
@@ -213,13 +234,7 @@ export function resolveAccountEnvironment(
   ) {
     throw new AccountConfigError('The self-hosted-password profile does not permit external identity providers.')
   }
-  if (profile === 'self-hosted-mixed' && env.CAPACITYLENS_AUTH !== 'password') {
-    throw new AccountConfigError('The self-hosted-mixed profile requires password mode with an additive OIDC provider.')
-  }
-  if (profile === 'self-hosted-sso-only' && env.CAPACITYLENS_AUTH !== 'sso') {
-    throw new AccountConfigError('The self-hosted-sso-only profile requires SMALLSASS_ACCOUNT_MODE=sso.')
-  }
-  if (profile === 'self-hosted-mixed' || profile === 'self-hosted-sso-only') {
+  if (capabilities?.strictOidc && !capabilities.hosted) {
     if (
       !env.CAPACITYLENS_SSO_CLIENT_ID ||
       !env.CAPACITYLENS_SSO_CLIENT_SECRET ||
@@ -241,5 +256,5 @@ export function resolveAccountEnvironment(
 }
 
 export function resetAccountConfigWarningStateForTests(): void {
-  warnedAliases.clear()
+  warnedAliasesBySource = new WeakMap()
 }

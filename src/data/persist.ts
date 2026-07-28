@@ -3,7 +3,7 @@ import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import type { StoreState } from '../store/useStore'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
-import { BatchConflictError, BatchTooLargeError } from './ServerSyncAdapter'
+import { BatchReconciliationError, BatchTooLargeError } from './ServerSyncAdapter'
 import { applyOps, diffOps } from './syncOps'
 
 // Persistence is wired OUTSIDE the store so the store stays a pure state
@@ -130,7 +130,9 @@ export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutc
 }
 
 /**
- * Wire the store to a PersistenceAdapter (OUTSIDE the store) and return an unsubscribe.
+ * Wire the store to a PersistenceAdapter (OUTSIDE the store) and return a hard-detach function.
+ * Detach cancels ownership without initiating a final write; a caller that needs a confirmed handoff
+ * must call {@link flushPendingWrites} before detaching.
  *
  * Lifecycle of a write — the moving parts, top-down (each is detailed inline below):
  *  1. A data change fires the store subscription → schedule a DEBOUNCED save (immediate when
@@ -152,6 +154,10 @@ export function attachPersistence(
   onSuccess?: () => void,
   serverMode = false,
 ): () => void {
+  // Detach is an ownership boundary, not merely an event-unsubscribe. Async adapter work cannot
+  // always be aborted, so every continuation checks this before it can mutate bookkeeping/store,
+  // call the former owner's callbacks, refresh a slice, or schedule another write.
+  let disposed = false
   let timer: ReturnType<typeof setTimeout> | null = null
   let lastData = store.getState().data
   let pending: AppData | null = null // data awaiting a debounced write
@@ -162,10 +168,17 @@ export function attachPersistence(
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let retryAttempts = 0
   let failedSinceSuccess = false // a write failed and hasn't recovered — gates the online/visible re-attempt
-  // True while a 409 batch conflict is being resolved by a server-wins reload (see save's rejection
-  // arm). Guards re-entry: the resolution reload's own entry flush can 409 AGAIN if OTHER pending
-  // edits are also stale — without this a nested conflict would recurse into a reload↔save loop.
-  let resolvingConflict = false
+  // The exact snapshot rejected as structurally over the atomic batch cap. Focus/online must not
+  // replay it; a subsequent user edit clears the marker and gets one fresh attempt.
+  let terminalBatchSnapshot: AppData | null = null
+  // True while a conflict or uncertain commit is being resolved by an authoritative reload (see
+  // save's rejection arm). Guards re-entry: the reload's own entry flush can fail again if other
+  // pending edits are stale, and must not recurse into an unbounded reload↔save loop.
+  let resolvingAuthoritativeReload = false
+  // A reconciliation failure means the last batch either definitely conflicted or may already
+  // have committed. Until loadAll installs an authoritative slice, NO path may replay the old
+  // diff — including retry, focus/online recovery, import flush, or pagehide keepalive.
+  let authoritativeReloadRequiredFor: string | null = null
   // The currently-running save round-trip (P1.13): the account-switch orchestrator AWAITS it so a
   // prior account's save can't land against the new account's snapshot. Resolved (never rejected) so
   // an in-flight FAILED save can still be awaited; settles whether the save succeeds or fails.
@@ -202,6 +215,7 @@ export function attachPersistence(
     }
   }
   const acknowledge = (data: AppData) => {
+    if (disposed) return
     const acknowledgesLatest = unacknowledged === data || unacknowledged === null
     if (unacknowledged === data) unacknowledged = null
     if (pending === data) pending = null
@@ -209,6 +223,7 @@ export function attachPersistence(
     if (!acknowledgesLatest) return
     retryAttempts = 0
     failedSinceSuccess = false
+    terminalBatchSnapshot = null
     cancelRetry()
     onSuccess?.()
   }
@@ -217,9 +232,23 @@ export function attachPersistence(
   // to once per 30s; the timestamp is taken at refresh START so two focus events inside the window
   // collapse to a single loadAll.
   const REFRESH_MIN_INTERVAL_MS = 30_000
+  const VISIBLE_REFRESH_INTERVAL_MS = 60_000
   let lastRefreshAt = 0
 
   const save = (data: AppData) => {
+    if (disposed) return
+    if (serverMode && authoritativeReloadRequiredFor !== null) {
+      // Preserve the latest local snapshot as dirty for lifecycle/error reporting, but do not let
+      // it reach the adapter while the commit boundary is uncertain. Recovery retries loadAll,
+      // never the possibly-already-committed diff.
+      unacknowledged = data
+      pending = data
+      cancelDebounce()
+      cancelRetry()
+      const activeId = store.getState().activeAccountId
+      if (activeId === authoritativeReloadRequiredFor) startAuthoritativeReload(activeId)
+      return
+    }
     if (pending === data) pending = null
     // Two-arg then so a throw inside onSuccess isn't misreported as a save error.
     // onSuccess lets the caller CLEAR a prior error state once a write lands again
@@ -228,49 +257,30 @@ export function attachPersistence(
     // for the in-memory demo adapter).
     const round = adapter.saveAll(data).then(
       () => {
+        if (disposed) return
         // A normal save that started before a newer teardown flush must not erase that newer flush's
         // failure state. `acknowledge` applies that ordering rule for every save path.
         acknowledge(data)
       },
       (e: unknown) => {
+        if (disposed) return
         failedSinceSuccess = true
         // The banner must surface EVERY failed write — including a conflict, where the user's
         // edit is about to be discarded (server wins below); they must learn it did not save.
         onError?.(e)
-        // A 409 batch conflict (optimistic-concurrency servers) is NOT transient: the same stale
-        // diff 409s forever, so the backoff retry + the stranded-write re-arms (focus/online)
-        // would loop the error endlessly — and abortIfSaveFailed blocks the focus refresh that
-        // could break the loop. There is no client conflict UI yet, so apply the documented
-        // interim policy — SERVER WINS: reload the active slice instead of retrying. The reload
-        // deliberately does NOT pass abortIfSaveFailed: this reload IS the resolution, and the
-        // local conflicting edit is knowingly discarded. A future conflict UI replaces this arm.
-        if (serverMode && e instanceof BatchConflictError) {
-          // Never re-arm the backoff with a stale diff — it would just replay into another 409.
+        // A deterministic 400/409 rejection and a malformed 2xx commit receipt all require an
+        // authoritative reload. Rejections would repeat forever if retried; an uncertain receipt
+        // may already have committed, so replaying against the prior snapshot is unsafe. This reload deliberately bypasses
+        // abortIfSaveFailed because it is the resolution, not an ordinary focus refresh.
+        if (serverMode && e instanceof BatchReconciliationError) {
+          // Never re-arm backoff with a stale or commit-uncertain diff.
           cancelRetry()
           const activeId = store.getState().activeAccountId
-          // Nested conflict during the resolution (resolvingConflict), or no active account to
-          // reload: just surface the banner and stop. The completed reload reseeds the snapshot,
-          // so the next save diffs clean; a focus/online re-attempt retriggers resolution if needed.
-          if (activeId !== null && !resolvingConflict) {
-            resolvingConflict = true
-            void refreshActive(activeId)
-              .then(() => {
-                // One follow-up save so a now-empty diff fires onSuccess and clears the banner
-                // (the reload installed the server slice, so slice-vs-slice diffs to zero; an
-                // edits made DURING the reload are rebased without restoring this original
-                // conflicted edit). NOTE the banner-clearing onSuccess does
-                // not retract the sticky conflict notice raised via onError — that toast stays
-                // until the user dismisses it (they must learn their conflicting edit was
-                // discarded). Skipped if the user switched tenants mid-resolution — the switch
-                // orchestrator owns the new slice's lifecycle. resolvingConflict stays up until
-                // this follow-up settles, so a follow-up 409 cannot recurse into another reload.
-                if (store.getState().activeAccountId !== activeId) return
-                save(store.getState().data)
-                return inFlightSave ?? undefined
-              })
-              .finally(() => {
-                resolvingConflict = false
-              })
+          // A nested reconciliation failure, or no active account to reload, is surfaced without
+          // recursion. Keep the write gate raised until a completed reload reseeds the snapshot.
+          if (activeId !== null) {
+            authoritativeReloadRequiredFor = activeId
+            startAuthoritativeReload(activeId)
           }
           return
         }
@@ -280,9 +290,10 @@ export function attachPersistence(
         // notice) and STOP: never arm the exponential-backoff loop against a diff that can't land.
         // The desired state stays in memory and the banner clears once a later, smaller diff (the
         // user changing fewer items at once) syncs. Reloading before that discards the unsaved edit.
-        // retryStrandedWrite's focus/online re-attempt is event-driven, not a busy loop; it simply
-        // re-surfaces the same honest error while the delta is still over-limit.
+        // Focus/online recovery also declines this exact snapshot; a fresh edit clears the marker
+        // and earns one new attempt in case the resulting delta is now small enough.
         if (serverMode && e instanceof BatchTooLargeError) {
+          terminalBatchSnapshot = data
           cancelRetry()
           return
         }
@@ -304,11 +315,14 @@ export function attachPersistence(
   // when it's actually already synced, so this is a no-op.
   // Gated on a real prior failure so an idle online/focus event never triggers one.
   const retryStrandedWrite = () => {
+    if (disposed) return
     if (!failedSinceSuccess) return
     if (suspendDepth > 0) return // suspended: a replay would race the suspending operation's slice replacement
+    const retryData = unacknowledged ?? store.getState().data
+    if (terminalBatchSnapshot === retryData) return
     cancelRetry()
     retryAttempts = 0
-    save(unacknowledged ?? store.getState().data)
+    save(retryData)
   }
 
   // A failed write (e.g. the server is briefly unreachable) is retried in the
@@ -319,12 +333,15 @@ export function attachPersistence(
   // permanently-rejected write doesn't retry forever; a fresh user edit (see the
   // subscribe handler) resets the budget.
   const scheduleRetry = () => {
+    if (disposed) return
     if (retryTimer || retryAttempts >= MAX_RETRY_ATTEMPTS) return
     if (suspendDepth > 0) return // suspended: don't re-arm a replay under a slice replacement
     const delay = Math.min(1000 * 2 ** retryAttempts, 30000)
     retryAttempts += 1
     retryTimer = setTimeout(() => {
       retryTimer = null
+      if (disposed) return
+      if (suspendDepth > 0) return
       save(unacknowledged ?? store.getState().data)
     }, delay)
   }
@@ -335,6 +352,7 @@ export function attachPersistence(
   // The snapshot remains tracked until the adapter confirms it, including while an ordinary save
   // is already in flight.
   const flushOnUnload = () => {
+    if (disposed) return
     // Under an EXTERNAL suspension (the server-mode import): a parked edit predates a slice
     // replacement that may already be committed server-side — pushing it via keepalive would diff
     // it against the stale pre-import snapshot and upsert ghost rows into the imported slice.
@@ -344,7 +362,7 @@ export function attachPersistence(
     // still the pre-reload one (and the post-resolve stretch to replaceAll is synchronous — no
     // unload event can interleave), so the keepalive diff is self-vs-self and SAFE — declining
     // would silently lose an edit made during a reload window on every tab close.
-    if (externalSuspendDepth > 0) return
+    if (externalSuspendDepth > 0 || authoritativeReloadRequiredFor !== null) return
     cancelDebounce()
     const data = unacknowledged
     if (!data) return
@@ -352,11 +370,22 @@ export function attachPersistence(
     // success clears this exact snapshot; failure is surfaced and enters the normal retry machinery.
     void adapter.saveAll(data, { unload: true }).then(
       () => {
+        if (disposed) return
         acknowledge(data)
       },
       (error: unknown) => {
+        if (disposed) return
         failedSinceSuccess = true
         onError?.(error)
+        if (serverMode && error instanceof BatchReconciliationError) {
+          cancelRetry()
+          const activeId = store.getState().activeAccountId
+          if (activeId !== null) {
+            authoritativeReloadRequiredFor = activeId
+            startAuthoritativeReload(activeId)
+          }
+          return
+        }
         scheduleRetry()
       },
     )
@@ -365,6 +394,7 @@ export function attachPersistence(
   // visibilitychange is an ordinary surviving-page event, not teardown. Flush through the normal
   // serialized adapter queue so failures surface/retry and an existing save cannot be overtaken.
   const flushWhileAlive = () => {
+    if (disposed) return
     if (externalSuspendDepth > 0) return
     cancelDebounce()
     if (unacknowledged) save(unacknowledged)
@@ -377,11 +407,13 @@ export function attachPersistence(
   let loadingSlice = false
 
   const unsubscribe = store.subscribe((state) => {
+    if (disposed) return
     if (state.data === lastData) return // only persist when data actually changes
     lastData = state.data
     // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
     if (loadingSlice) return
     unacknowledged = state.data
+    terminalBatchSnapshot = null
     // Suspended (a slice replacement is in flight): PARK the edit — record it in `pending` with no
     // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
     // when the suspending operation failed before any reload.
@@ -403,6 +435,7 @@ export function attachPersistence(
   // adapter's compare-and-swap revision independently rejects a racing save; this listener keeps
   // an idle tab current instead of letting two full snapshots silently overwrite each other.
   const unsubscribeExternal = adapter.subscribeExternal?.((data) => {
+    if (disposed) return false
     if (pending || inFlightSave || failedSinceSuccess || suspendDepth > 0) {
       onError?.(new Error('Data changed in another tab while this tab had unsaved changes. Reload to reconcile.'))
       return false
@@ -474,25 +507,36 @@ export function attachPersistence(
   // When another suspension still holds the depth, the parked edit is left for THAT holder: a
   // newer refresh either flushes it at its own (a′) or rebases it at its own (c).
   const beginSuspension = (external: boolean): ((opts?: { dropParkedEdits?: boolean }) => void) => {
+    if (disposed) return () => {}
     suspendDepth += 1
     if (external) {
       if (externalSuspendDepth === 0) externalBaseData = store.getState().data
       externalSuspendDepth += 1
     }
     cancelDebounce()
+    cancelRetry()
     let resumed = false
     return (opts = {}) => {
+      if (disposed) return
       if (resumed) return // resume is idempotent — a double call must not underflow the depth
       resumed = true
       suspendDepth -= 1
       if (external) {
         externalSuspendDepth -= 1
-        if (externalSuspendDepth === 0 && !pending) externalBaseData = null
       }
-      if (suspendDepth > 0 || !pending) return
+      // A nested reload may outlive the external import suspension and still need this base for
+      // its operation-level rebase. Once the LAST suspension releases, however, no path may retain
+      // the pre-import tree — including the parked-edit drop arm below.
+      if (suspendDepth > 0) return
+      if (!pending) {
+        externalBaseData = null
+        if (failedSinceSuccess && authoritativeReloadRequiredFor === null) scheduleRetry()
+        return
+      }
       if (opts.dropParkedEdits) {
         pending = null
         unacknowledged = null
+        externalBaseData = null
         onError?.(
           new ReloadDiscardedEditError(
             'An edit arrived while this company’s data was being replaced and could not be saved.',
@@ -500,7 +544,7 @@ export function attachPersistence(
         )
       } else {
         const parked = pending
-        if (external) externalBaseData = null
+        externalBaseData = null
         save(parked)
       }
     }
@@ -519,7 +563,14 @@ export function attachPersistence(
     // (cross-tenant display, then cross-tenant writes). The switch subscriber calls refreshActive
     // AFTER setActiveAccount has already set the id, so this guard passes for every real switch;
     // mid-flight supersession is still covered by the post-await token checks below.
-    if (store.getState().activeAccountId !== id) return 'skipped'
+    if (disposed || store.getState().activeAccountId !== id) return 'skipped'
+    // Focus and post-lifecycle refreshes are conveniences, never owners of an account transition.
+    // If a switch/refresh already holds an internal slice suspension, starting another abortable refresh
+    // would bump its token and could then abort on failedSinceSuccess without issuing a replacement
+    // load. The older load would have re-seeded the adapter but be forbidden to install its slice,
+    // leaving one tenant's data paired with another tenant's diff snapshot. An external import
+    // suspension is excluded: its owner deliberately invokes this refresh to reseed after import.
+    if (abortIfSaveFailed && suspendDepth > externalSuspendDepth) return 'skipped'
     const myToken = ++switchToken
     // The ENTIRE sequence runs under a write suspension — not just loadAll. An edit landing during
     // ANY await below is parked: it is included in the (a′) flush when it arrives before it (the
@@ -528,15 +579,15 @@ export function attachPersistence(
     // arriving during the (a)/(a′) awaits re-armed a debounce timer at depth 0 that fired MID-LOAD:
     // its save was silently discarded by the adapter's seedGen guard, the (c) check couldn't see it
     // (pending consumed, dataAtLoad snapshotted later), and the edit vanished with no surface.
-    // The finally-resume also re-schedules an edit left parked by a FAILED load (slice + snapshot
-    // unchanged → saving is correct; leaving it parked with no timer would strand it until the
-    // next edit or reload, losing it to any tab close in between).
+    // The finally-resume also re-schedules an edit left parked by an ordinary FAILED load (slice +
+    // snapshot unchanged → saving is correct). When this load is required to reconcile an unknown
+    // commit, save's gate retains the edit without replaying it until a later load succeeds.
     const dataAtSequenceStart = store.getState().data
     const resume = beginSuspension(false)
     try {
       // (a) Let a prior account's save settle before we re-seed the snapshot.
       if (inFlightSave) await inFlightSave
-      if (myToken !== switchToken) return 'skipped' // a newer switch/refresh superseded this one
+      if (disposed || myToken !== switchToken) return 'skipped' // detached/newer owner owns effects
       // (a′) FLUSH (don't drop) the current account's PENDING debounced edits before we re-seed.
       // Merely dropping them would LOSE edits made within the debounce window of a switch/refresh.
       // Flush NOW — while data AND the adapter's lastSynced snapshot are both this account — so
@@ -551,7 +602,7 @@ export function attachPersistence(
       if (pending && externalSuspendDepth === 0) {
         save(pending) // sets inFlightSave synchronously; pending is consumed inside save()
         if (inFlightSave) await inFlightSave
-        if (myToken !== switchToken) return 'skipped' // a newer switch/refresh superseded this one mid-flush
+        if (disposed || myToken !== switchToken) return 'skipped' // detached/newer owner owns effects
       }
       // See the abortIfSaveFailed doc above: a refresh must not reload over a failed save's edits.
       // Checked AFTER the flush/await so a flush that just SUCCEEDED (clearing the flag) still refreshes.
@@ -567,7 +618,12 @@ export function attachPersistence(
       // (b) Load the slice; loadAll(id) re-seeds the adapter's diff snapshot to it. Writes stay
       // suspended so an edit arriving mid-load is parked and can be rebased after the response,
       // never raced onto the server against the old snapshot.
+      // Capture failure state at this boundary. A teardown keepalive may fail DURING loadAll, but
+      // its mid-load edit is rebased below and is not discarded; only a failure already present
+      // before the loaded slice was requested can describe older state that replacement loses.
+      const failedBeforeLoad = failedSinceSuccess
       const slice = await adapter.loadAll(id)
+      if (disposed) return 'skipped'
       if (myToken !== switchToken) {
         // Superseded AFTER loadAll resolved: the load has already RESEEDED the adapter's diff
         // snapshot, and the superseding token bump may install nothing over it (the null-switch /
@@ -592,11 +648,12 @@ export function attachPersistence(
       // (a parked edit), or failedSinceSuccess (a switch/conflict path proceeded past a FAILED
       // (a′) flush — those un-persisted edits are about to be discarded by the replaceAll below,
       // and the success arm then clears the banner that was their only surface; the sticky notice
-      // raised here replaces it). The conflict-resolution reload is exempt from the third signal:
-      // its 409 arm already raised the dedicated sticky conflict notice for the same loss.
+      // raised here replaces it). An authoritative reconciliation reload is exempt from the third
+      // signal: its typed failure arm already raised the appropriate sticky notice for the same
+      // potentially lost edit.
       const currentData = store.getState().data
       const editedMidLoad = currentData !== dataAtLoad || pending !== null
-      const lostFailedEdits = failedSinceSuccess && !resolvingConflict
+      const lostFailedEdits = failedBeforeLoad && !resolvingAuthoritativeReload
       let installed = slice
       if (editedMidLoad) {
         // Rebase only the operations the user performed during this network window onto the fresh
@@ -610,6 +667,11 @@ export function attachPersistence(
       } else if (lostFailedEdits) {
         pending = null
         unacknowledged = null
+      }
+      // A successfully rebased mid-load edit and an older discarded failed write are independent
+      // outcomes. Preserve the former above, but always surface the latter before clearing the
+      // transient transport-failure state below.
+      if (lostFailedEdits) {
         onError?.(
           new ReloadDiscardedEditError(
             'An edit could not be saved before this company’s data reloaded.',
@@ -622,6 +684,7 @@ export function attachPersistence(
       lastData = store.getState().data
       loadingSlice = false
       if (!editedMidLoad) unacknowledged = null
+      authoritativeReloadRequiredFor = null
       // The store now holds the server's authoritative slice and the snapshot is re-seeded to it —
       // writes are CLEAN by construction, whatever their history. Clear the failure state and fire
       // onSuccess (mirrors the 409 arm's follow-up empty save, which exists for the same reason):
@@ -640,12 +703,34 @@ export function attachPersistence(
       // banner clears on the next good write). Don't replaceAll — leaving the prior data is
       // safer than blanking it, and the snapshot is unchanged so no bad diff can form. An edit
       // parked during the failed load is re-scheduled by the finally-resume below.
-      if (myToken !== switchToken) return 'skipped' // superseded — a newer call owns the outcome
+      if (disposed || myToken !== switchToken) return 'skipped' // detached/newer owner owns outcome
       onError?.(e)
       return 'failed'
     } finally {
       resume()
     }
+  }
+
+  // Resolve a stale/uncertain batch boundary exactly once at a time. A failed load deliberately
+  // leaves authoritativeReloadRequiredFor set: subsequent online/focus activity retries the load,
+  // while every write entry point remains closed. Only a successful reload permits the clean
+  // acknowledgement/rebased follow-up write.
+  function startAuthoritativeReload(activeId: string): void {
+    if (disposed || resolvingAuthoritativeReload) return
+    resolvingAuthoritativeReload = true
+    void refreshActive(activeId)
+      .then((outcome) => {
+        if (disposed || outcome !== 'reloaded') return
+        // One follow-up save makes an empty diff acknowledge recovery, or lands only edits made
+        // during the reload after refreshActive rebased them onto the authoritative slice.
+        if (store.getState().activeAccountId !== activeId) return
+        if (inFlightSave) return inFlightSave
+        save(store.getState().data)
+        return inFlightSave ?? undefined
+      })
+      .finally(() => {
+        resolvingAuthoritativeReload = false
+      })
   }
 
   const unsubscribeSwitch = serverMode
@@ -662,7 +747,7 @@ export function attachPersistence(
           const myToken = ++switchToken
           void (async () => {
             if (inFlightSave) await inFlightSave
-            if (myToken !== switchToken) return // a newer switch superseded this one
+            if (disposed || myToken !== switchToken) return // detached/newer owner owns effects
             cancelDebounce()
             // Same external-suspension rule as refreshActive's (a′): a parked edit belongs to the
             // suspending slice replacement's drop/resume, not to this flush. (An INTERNAL
@@ -692,14 +777,24 @@ export function attachPersistence(
   // every account); SKIP when there's no active account (on the picker — nothing to refresh); and
   // THROTTLE to REFRESH_MIN_INTERVAL_MS. Unsaved-edit safety is INHERENT — refreshActive flushes
   // pending + awaits inFlightSave BEFORE loadAll, so the user's edits POST first (last-writer-wins).
-  const maybeRefreshOnFocus = () => {
+  const maybeRefreshActiveSlice = () => {
+    if (disposed) return
     if (!serverMode) return
     const id = store.getState().activeAccountId
     if (id === null) return // on the picker — nothing to refresh
+    if (authoritativeReloadRequiredFor === id) {
+      startAuthoritativeReload(id)
+      return
+    }
     const now = Date.now()
     if (now - lastRefreshAt <= REFRESH_MIN_INTERVAL_MS) return
     lastRefreshAt = now // stamp at refresh START so two focuses inside the window collapse to one
-    void refreshActive(id, { abortIfSaveFailed: true }) // a focus refresh must never clobber failed-save edits
+    void refreshActive(id, { abortIfSaveFailed: true }).then((outcome) => {
+      // A skipped refresh never reached the server. Do not let a failed-write guard or a superseded
+      // owner consume the throttle and suppress the next genuine recovery event. Preserve a newer
+      // refresh's timestamp if one started while this attempt was settling.
+      if (outcome === 'skipped' && lastRefreshAt === now) lastRefreshAt = 0
+    }) // a focus refresh must never clobber failed-save edits
   }
 
   // Register the orchestrator-backed refresh for out-of-band server writers (see
@@ -716,6 +811,8 @@ export function attachPersistence(
   // freshly imported slice.
   const myRegisteredFlush = serverMode
     ? async (): Promise<boolean> => {
+        if (disposed) return false
+        if (authoritativeReloadRequiredFor !== null) return false
         // Suspended: another slice replacement is already in flight — writes are NOT clean and
         // flushing the parked edit would push it against a mid-replacement snapshot. Refuse.
         if (suspendDepth > 0) return false
@@ -724,19 +821,24 @@ export function attachPersistence(
         // a one-shot flush would then return "clean" while that save is still on the wire, and
         // the caller's import POST would race it (the exact pre-suspension window the whole
         // import sequence exists to close). Terminates when a full round finds nothing new.
-        while (timer || pending || inFlightSave) {
+        while (!disposed && (timer || pending || inFlightSave)) {
           cancelDebounce()
           if (pending) save(pending) // consumes pending, sets inFlightSave synchronously
           if (inFlightSave) await inFlightSave
         }
-        return !failedSinceSuccess && unacknowledged === null
+        return !disposed && !failedSinceSuccess && unacknowledged === null
       }
     : null
   // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL
   // variant of beginSuspension, registered for the server-mode import.
   const myRegisteredSuspend = serverMode ? () => beginSuspension(true) : null
   const myRegisteredHasUnsaved = () =>
-    unacknowledged !== null || pending !== null || inFlightSave !== null || failedSinceSuccess
+    !disposed &&
+    (unacknowledged !== null ||
+      pending !== null ||
+      inFlightSave !== null ||
+      failedSinceSuccess ||
+      authoritativeReloadRequiredFor !== null)
   const unregisterCoordinator = persistenceCoordinator.attach({
     ...(myRegisteredRefresh ? { refreshActive: myRegisteredRefresh } : {}),
     ...(myRegisteredFlush ? { flushPending: myRegisteredFlush } : {}),
@@ -750,13 +852,17 @@ export function attachPersistence(
     if (document.visibilityState === 'hidden') flushWhileAlive()
     else {
       retryStrandedWrite()
-      maybeRefreshOnFocus() // returning via tab-switch/mobile also re-hydrates (throttled)
+      maybeRefreshActiveSlice() // returning via tab-switch/mobile also re-hydrates (throttled)
     }
   }
   const onOnline = () => retryStrandedWrite()
   // A bare window `focus` covers regaining focus without a visibility change (e.g. alt-tab back to
-  // an already-visible window); it shares the same throttle as the visibility→visible path.
-  const onFocus = () => maybeRefreshOnFocus()
+  // an already-visible window). Match visibility→visible by retrying any stranded write before the
+  // shared throttled refresh; refreshActive then waits for that write and reloads only if it lands.
+  const onFocus = () => {
+    retryStrandedWrite()
+    maybeRefreshActiveSlice()
+  }
   const canListen = typeof window !== 'undefined'
   if (canListen) {
     window.addEventListener('pagehide', onPageHide)
@@ -764,8 +870,18 @@ export function attachPersistence(
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
   }
+  // A continuously focused tab emits neither focus nor visibility events. Poll only while visible
+  // in server mode so multi-writer sessions converge without waiting for their next conflicting
+  // edit. The ordinary refresh throttle still coalesces this with a recent focus-triggered load.
+  const visibleRefreshTimer = canListen && serverMode
+    ? setInterval(() => {
+        if (document.visibilityState === 'visible') maybeRefreshActiveSlice()
+      }, VISIBLE_REFRESH_INTERVAL_MS)
+    : null
 
   return () => {
+    if (disposed) return
+    disposed = true
     unsubscribe()
     unsubscribeExternal?.()
     unsubscribeSwitch?.()
@@ -776,7 +892,7 @@ export function attachPersistence(
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-    flushWhileAlive()
+    if (visibleRefreshTimer) clearInterval(visibleRefreshTimer)
     cancelDebounce() // cancel any pending debounced write
     cancelRetry() // cancel any pending background retry
   }

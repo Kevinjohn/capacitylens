@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openApp, selectShadOption } from './helpers'
 
 // Covers US-SET-14: Internal work is neutral by default without discarding saved project colours.

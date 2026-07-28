@@ -3,7 +3,17 @@
 // future app-level tests. Pure data, no behaviour.
 import { externalCapacityDefaults } from '../types/entities'
 import { NEUTRAL_COLOR } from '../lib/color'
-import type { Account, Allocation, Client, Discipline, Phase, Project, Resource, Activity, TimeOff } from '../types/entities'
+import type {
+  Account,
+  Allocation,
+  Client,
+  Discipline,
+  Phase,
+  Project,
+  Resource,
+  Activity,
+  TimeOff,
+} from '../types/entities'
 
 const TS1 = '2026-01-01T00:00:00.000Z'
 const TS2 = '2026-06-01T12:00:00.000Z'
@@ -23,6 +33,11 @@ export const FIXTURE_ACCOUNT: Account = {
   externalEnabled: true,
   // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
   internalColourMode: 'palette',
+  // All three default to true when absent. Persist explicit false values so the full-fixture
+  // round-trip detects a dropped column or accidental default substitution.
+  showInternalProjects: false,
+  showInternalActivities: false,
+  inlineActivityCreateEnabled: false,
   createdAt: TS1,
   updatedAt: TS2,
 }

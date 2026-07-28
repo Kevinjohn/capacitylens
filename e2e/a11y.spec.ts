@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 import { disableCssMotion, openApp } from './helpers'
 
@@ -77,21 +77,13 @@ async function openAllocationEditor(page: import('@playwright/test').Page): Prom
   await disableCssMotion(page)
   await page.getByRole('radio', { name: '4w', exact: true }).click()
   await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
-  // Robust open (it timed out once under parallel load): wait for the bar to actually be present and
-  // visible before acting, scroll it into the viewport (it can sit under the sticky chrome at the
-  // grid edge), then click. `force` is a last resort only if the normal click's actionability check
-  // can't settle in time — the assertion intent (a non-portal regression trips axe-critical) is
-  // unchanged; this just stops the open itself from flaking.
+  // Wait for the bar to be present and visible, then use a normal actionable click. This setup is
+  // also the pointer-interaction assertion: an overlay or disabled bar must fail the test rather
+  // than being bypassed before axe scans the resulting dialog.
   const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first()
   await expect(bar).toBeVisible()
   await bar.scrollIntoViewIfNeeded()
-  try {
-    await bar.click({ timeout: 5000 })
-  } catch {
-    // Under heavy parallel load the bar can be transiently covered by a hover popover / mid-scroll;
-    // a forced click still exercises the same open path the assertion below verifies.
-    await bar.click({ force: true })
-  }
+  await bar.click()
   await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible()
 }
 

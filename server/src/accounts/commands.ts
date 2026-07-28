@@ -1,9 +1,17 @@
 import { createHash } from 'node:crypto'
-import { AccountContractError, type AccountErrorCode } from '@capacitylens/shared/account/errors'
-import type { CommandIdentity, OperationReceipt, PrincipalId } from '@capacitylens/shared/account/types'
+import {
+  AccountContractError,
+  type AccountErrorCode,
+} from '@capacitylens/shared/account/errors'
+import type {
+  CommandIdentity,
+  OperationReceipt,
+  PrincipalId,
+} from '@capacitylens/shared/account/types'
 import type { Db } from '../db'
 import {
   finishAccountCommand,
+  finishAccountCommandIfPending,
   getAccountCommand,
   reserveAccountCommand,
   type AccountCommandRecord,
@@ -22,7 +30,8 @@ function canonicalJson(value: unknown): string {
     const encoded = JSON.stringify(value)
     return encoded === undefined ? 'null' : encoded
   }
-  if (Array.isArray(value)) return `[${value.map((child) => canonicalJson(child)).join(',')}]`
+  if (Array.isArray(value))
+    return `[${value.map((child) => canonicalJson(child)).join(',')}]`
   const toJSON = (value as { toJSON?: unknown }).toJSON
   if (typeof toJSON === 'function') return canonicalJson(toJSON.call(value))
   const entries = Object.entries(value as Record<string, unknown>)
@@ -37,15 +46,21 @@ function canonicalJson(value: unknown): string {
  * the provider-neutral response shape. HTTP adapters use this to avoid logging a second mutation
  * audit event for a request that merely re-read an already committed result. */
 export function markAccountCommandReplay<T>(result: T): T {
-  if ((typeof result === 'object' && result !== null) || typeof result === 'function') {
+  if (
+    (typeof result === 'object' && result !== null) ||
+    typeof result === 'function'
+  ) {
     replayedCommandResults.add(result as object)
   }
   return result
 }
 
 export function wasAccountCommandReplayed(result: unknown): boolean {
-  return ((typeof result === 'object' && result !== null) || typeof result === 'function') &&
+  return (
+    ((typeof result === 'object' && result !== null) ||
+      typeof result === 'function') &&
     replayedCommandResults.has(result as object)
+  )
 }
 
 export function accountPayloadHash(payload: unknown): string {
@@ -53,7 +68,10 @@ export function accountPayloadHash(payload: unknown): string {
 }
 
 export function secretDigest(purpose: string, secret: string): string {
-  return createHash('sha256').update(`smallsass-account:${purpose}\0`).update(secret).digest('hex')
+  return createHash('sha256')
+    .update(`smallsass-account:${purpose}\0`)
+    .update(secret)
+    .digest('hex')
 }
 
 export interface CommandScope {
@@ -67,6 +85,89 @@ export interface CommandScope {
 export type BegunCommand<T> =
   | { kind: 'execute'; record: AccountCommandRecord }
   | { kind: 'replay'; record: AccountCommandRecord; result: T }
+
+type ReplayedCommand<T> = Extract<BegunCommand<T>, { kind: 'replay' }>
+
+function commandConflict(
+  record: AccountCommandRecord,
+  scope: Pick<CommandScope, 'applicationId' | 'operation' | 'actorPrincipalId'>,
+  command: CommandIdentity,
+): never {
+  const commandIdReused =
+    record.commandId === command.commandId &&
+    (record.applicationId !== scope.applicationId ||
+      record.operation !== scope.operation ||
+      record.idempotencyKey !== command.idempotencyKey)
+  throw new AccountContractError({
+    code: 'IDEMPOTENCY_CONFLICT',
+    message: commandIdReused
+      ? 'That command id is already bound to another account operation.'
+      : record.commandId !== command.commandId
+        ? 'That idempotency key is already bound to another command id.'
+        : record.actorPrincipalId !== scope.actorPrincipalId
+          ? 'That idempotency key is already bound to another command context.'
+          : 'That idempotency key was already used for a different command payload.',
+    retryable: false,
+    commandId: record.commandId,
+  })
+}
+
+function replayOrRejectExistingCommand<T>(
+  record: AccountCommandRecord,
+): ReplayedCommand<T> {
+  if (record.status === 'completed' && record.resultJson !== null) {
+    return {
+      kind: 'replay',
+      record,
+      result: JSON.parse(record.resultJson) as T,
+    }
+  }
+  throw new AccountContractError({
+    code:
+      record.status === 'reconciliation_required'
+        ? 'DEPENDENCY_UNAVAILABLE'
+        : record.status === 'pending'
+          ? 'COMMAND_IN_PROGRESS'
+          : 'CONFLICT',
+    message:
+      record.status === 'pending'
+        ? 'That command is already in progress.'
+        : 'That command already reached a terminal non-success state.',
+    retryable:
+      record.status === 'pending' ||
+      record.status === 'reconciliation_required',
+    commandId: record.commandId,
+  })
+}
+
+/**
+ * Read an existing command outcome without pruning, reserving, or changing ledger state.
+ *
+ * Bearer-authorized flows use this before validating a now-single-use bearer so a completed retry
+ * can still replay, while an attacker presenting a new invalid bearer cannot cause a database write.
+ */
+export function resumeExistingCommand<T>(
+  db: Db,
+  scope: CommandScope,
+  command: CommandIdentity,
+  canonicalPayload: unknown,
+): ReplayedCommand<T> | null {
+  const existing = getAccountCommand(
+    db,
+    scope.applicationId,
+    scope.operation,
+    command.idempotencyKey,
+  )
+  if (!existing) return null
+  if (
+    existing.commandId !== command.commandId ||
+    existing.actorPrincipalId !== scope.actorPrincipalId ||
+    existing.payloadHash !== accountPayloadHash(canonicalPayload)
+  ) {
+    return commandConflict(existing, scope, command)
+  }
+  return replayOrRejectExistingCommand<T>(existing)
+}
 
 export function beginCommand<T>(
   db: Db,
@@ -85,43 +186,11 @@ export function beginCommand<T>(
     payloadHash: accountPayloadHash(canonicalPayload),
   })
   if (reserved.kind === 'conflict') {
-    const commandIdReused = reserved.record.commandId === command.commandId &&
-      (
-        reserved.record.applicationId !== scope.applicationId ||
-        reserved.record.operation !== scope.operation ||
-        reserved.record.idempotencyKey !== command.idempotencyKey
-      )
-    throw new AccountContractError({
-      code: 'IDEMPOTENCY_CONFLICT',
-      message: commandIdReused
-        ? 'That command id is already bound to another account operation.'
-        : reserved.record.commandId !== command.commandId
-          ? 'That idempotency key is already bound to another command id.'
-        : 'That idempotency key was already used for a different command payload.',
-      retryable: false,
-      commandId: reserved.record.commandId,
-    })
+    return commandConflict(reserved.record, scope, command)
   }
-  if (reserved.kind === 'reserved') return { kind: 'execute', record: reserved.record }
-  if (reserved.record.status === 'completed' && reserved.record.resultJson !== null) {
-    return {
-      kind: 'replay',
-      record: reserved.record,
-      result: JSON.parse(reserved.record.resultJson) as T,
-    }
-  }
-  throw new AccountContractError({
-    code: reserved.record.status === 'reconciliation_required'
-      ? 'DEPENDENCY_UNAVAILABLE'
-      : reserved.record.status === 'pending'
-        ? 'COMMAND_IN_PROGRESS'
-        : 'CONFLICT',
-    message: reserved.record.status === 'pending'
-      ? 'That command is already in progress.'
-      : 'That command already reached a terminal non-success state.',
-    retryable: reserved.record.status === 'pending' || reserved.record.status === 'reconciliation_required',
-    commandId: reserved.record.commandId,
-  })
+  if (reserved.kind === 'reserved')
+    return { kind: 'execute', record: reserved.record }
+  return replayOrRejectExistingCommand<T>(reserved.record)
 }
 
 export function completeCommand(
@@ -157,7 +226,27 @@ export function terminateCommand(
   })
 }
 
-export function operationReceipt(record: AccountCommandRecord): OperationReceipt {
+export function terminatePendingCommand(
+  db: Db,
+  scope: Pick<CommandScope, 'applicationId' | 'operation'>,
+  command: CommandIdentity,
+  status: 'compensated' | 'reconciliation_required',
+  failureCode: AccountErrorCode,
+  result?: unknown,
+): boolean {
+  return finishAccountCommandIfPending(db, {
+    applicationId: scope.applicationId,
+    operation: scope.operation,
+    idempotencyKey: command.idempotencyKey,
+    status,
+    failureCode,
+    resultJson: result === undefined ? null : canonicalJson(result),
+  })
+}
+
+export function operationReceipt(
+  record: AccountCommandRecord,
+): OperationReceipt {
   return { commandId: record.commandId, completedAt: record.updatedAt }
 }
 

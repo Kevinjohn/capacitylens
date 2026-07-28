@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DisciplineList } from './DisciplineList'
 import { useStore } from '../../store/useStore'
@@ -23,6 +23,8 @@ describe('DisciplineList', () => {
     expect(screen.getByText('Engineering')).toBeInTheDocument()
     expect(screen.getByText('Design')).toBeInTheDocument()
     expect(screen.getAllByTestId('discipline-row')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Delete Engineering' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Design' })).toBeInTheDocument()
   })
 
   it('adds a discipline via the modal (fill Name, Save) and sees it listed', async () => {
@@ -85,7 +87,7 @@ describe('DisciplineList', () => {
     expect(screen.getByText('ToDelete')).toBeInTheDocument()
 
     const row = screen.getByTestId('discipline-row')
-    await user.click(within(row).getByRole('button', { name: 'Delete' }))
+    await user.click(within(row).getByRole('button', { name: 'Delete ToDelete' }))
 
     const dialog = screen.getByRole('alertdialog')
     expect(dialog).toBeInTheDocument()
@@ -105,7 +107,7 @@ describe('DisciplineList', () => {
     render(<DisciplineList />)
 
     const row = screen.getByTestId('discipline-row')
-    await user.click(within(row).getByRole('button', { name: 'Delete' }))
+    await user.click(within(row).getByRole('button', { name: 'Delete KeepMe' }))
 
     const dialog = screen.getByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
@@ -113,5 +115,22 @@ describe('DisciplineList', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(screen.getByText('KeepMe')).toBeInTheDocument()
     expect(useStore.getState().data.disciplines).toHaveLength(1)
+  })
+
+  it('keeps the edit form open when its discipline vanished during editing', async () => {
+    const user = userEvent.setup()
+    const discipline = useStore.getState().addDiscipline({ name: 'Design', color: '#00ff00', sortOrder: 0 })
+    render(<DisciplineList />)
+
+    await user.click(within(screen.getByTestId('discipline-row')).getByRole('button', { name: 'Edit' }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit discipline' })
+    act(() => useStore.getState().deleteDiscipline(discipline.id))
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.type(within(dialog).getByLabelText('Name'), 'Product')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('dialog', { name: 'Edit discipline' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/changed while you were editing/i)
+    expect(useStore.getState().data.disciplines).toHaveLength(0)
   })
 })

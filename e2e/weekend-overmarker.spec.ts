@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from './fixtures'
 import { openApp, selectShadOption } from './helpers'
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
@@ -12,21 +12,30 @@ import { openApp, selectShadOption } from './helpers'
 // The spec drives the modal in the seed's default HOURLY scheduling mode (Start/End + Hours / day).
 test.describe('Weekend over-marker', () => {
   const nikeLane = (page: Page) => page.locator('[data-resource-id="r-nike"]')
-  const nikeOverMarkers = (page: Page) => nikeLane(page).getByTestId('over-marker')
+  const nikeOverMarkers = (page: Page) =>
+    nikeLane(page).getByTestId('over-marker')
   // The inline `left` is the geom column offset — stable identity for "which day" a marker sits on.
   const leftsOf = (loc: ReturnType<Page['locator']>) =>
     loc.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.left))
 
-  test('a spanned weekend is not over; include-weekends and time-off are', async ({ page }) => {
+  test('a spanned weekend is not over; include-weekends and time-off are', async ({
+    page,
+  }) => {
     await openApp(page)
     await page.getByRole('radio', { name: '2w', exact: true }).click()
 
-    const baseline = await nikeOverMarkers(page).count() // Nike has no seed over-days
+    await expect(nikeOverMarkers(page)).toHaveCount(0) // Nike has no seed over-days
+    const baseline = 0
 
     // A fresh allocation spanning the weekend, default (weekend-aware).
-    await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
+    await page
+      .getByRole('button', { name: 'Add allocation for Nike Spiros' })
+      .click()
     const create = page.getByRole('dialog', { name: 'New allocation' })
-    await selectShadOption(create.getByLabel('Project', { exact: true }), 'p-acme')
+    await selectShadOption(
+      create.getByLabel('Project', { exact: true }),
+      'p-acme',
+    )
     await create.getByLabel('New activity name').fill('Weekend Verify')
     await create.getByRole('button', { name: 'Add activity' }).click()
     await create.getByLabel(/^Start/).fill('2026-06-12') // Fri
@@ -34,7 +43,9 @@ test.describe('Weekend over-marker', () => {
     await create.getByLabel('Hours / day').fill('8') // exactly at capacity, so the working days are NOT over
     await page.getByRole('button', { name: 'Save' }).click()
 
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Weekend Verify' })
+    const bar = page
+      .getByTestId('allocation-bar')
+      .filter({ hasText: 'Weekend Verify' })
     await expect(bar).toBeVisible()
 
     // Sat 13 / Sun 14 are merely spanned → NOT over (no new marker).
@@ -53,14 +64,23 @@ test.describe('Weekend over-marker', () => {
     // `left` as Nike's grey unavailable-day cells — so a regression that flagged Fri/Mon instead would
     // fail even though the count of 2 held.
     const includeWeekendsLefts = await leftsOf(nikeOverMarkers(page))
-    const newWeekendLefts = includeWeekendsLefts.filter((l) => !weekendAwareLefts.includes(l))
-    const unavailableLefts = await leftsOf(nikeLane(page).getByTestId('unavailable-day'))
+    const newWeekendLefts = includeWeekendsLefts.filter(
+      (l) => !weekendAwareLefts.includes(l),
+    )
+    const unavailableLefts = await leftsOf(
+      nikeLane(page).getByTestId('unavailable-day'),
+    )
     expect(newWeekendLefts).toHaveLength(2)
-    expect(newWeekendLefts.every((l) => unavailableLefts.includes(l))).toBe(true)
+    expect(newWeekendLefts.every((l) => unavailableLefts.includes(l))).toBe(
+      true,
+    )
 
     // Back to weekend-aware → the weekend clears again.
     await bar.click()
-    await page.getByRole('dialog', { name: 'Edit allocation' }).getByText('Include weekends as working days').click()
+    await page
+      .getByRole('dialog', { name: 'Edit allocation' })
+      .getByText('Include weekends as working days')
+      .click()
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(nikeOverMarkers(page)).toHaveCount(baseline)
 
@@ -68,7 +88,9 @@ test.describe('Weekend over-marker', () => {
     await page.getByRole('link', { name: 'Time off' }).click()
     await page.getByRole('button', { name: 'Add time off' }).click()
     const timeOff = page.getByRole('dialog', { name: 'Add time off' })
-    await selectShadOption(timeOff.getByLabel('Resource'), { label: 'Nike Spiros' })
+    await selectShadOption(timeOff.getByLabel('Resource'), {
+      label: 'Nike Spiros',
+    })
     await timeOff.getByLabel('Start').fill('2026-06-15')
     await timeOff.getByLabel('End').fill('2026-06-15')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -87,8 +109,13 @@ test.describe('Weekend over-marker', () => {
     // them from one settled snapshot — they re-render to the final geometry in lockstep. Chromium/
     // Firefox pass on the first attempt; a real wrong-day regression still fails the inner toEqual.
     await expect(async () => {
-      const newTimeOffLefts = (await leftsOf(nikeOverMarkers(page))).filter((l) => !weekendAwareLefts.includes(l))
-      const timeOffBlockLeft = await nikeLane(page).getByTestId('timeoff-block').first().evaluate((e) => (e as HTMLElement).style.left)
+      const newTimeOffLefts = (await leftsOf(nikeOverMarkers(page))).filter(
+        (l) => !weekendAwareLefts.includes(l),
+      )
+      const timeOffBlockLeft = await nikeLane(page)
+        .getByTestId('timeoff-block')
+        .first()
+        .evaluate((e) => (e as HTMLElement).style.left)
       expect(newTimeOffLefts).toEqual([timeOffBlockLeft])
     }).toPass()
   })

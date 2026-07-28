@@ -46,11 +46,15 @@ export function AddButton({
   label,
   onClick,
   testId,
+  requiresEdit = true,
 }: {
   label: string
   onClick: () => void
   testId?: string
+  requiresEdit?: boolean
 }) {
+  const canEdit = useCanEdit()
+  if (requiresEdit && !canEdit) return null
   return (
     <Button size="sm" type="button" onClick={onClick} data-testid={testId}>
       <Plus data-icon="inline-start" />
@@ -129,7 +133,8 @@ export function Modal({
   onDirtyChange?: (dirty: boolean) => void
 }) {
   const setNotice = useStore((s) => s.setNotice)
-  const setDirtyForm = useStore((s) => s.setDirtyForm)
+  const setDirtyFormSource = useStore((s) => s.setDirtyFormSource)
+  const [dirtySource] = useState(() => Symbol('modal-dirty'))
   const [invoker] = useState(() => document.activeElement as HTMLElement | null)
 
   const [localDirty, setLocalDirty] = useState(false)
@@ -143,14 +148,19 @@ export function Modal({
     // React can surface one native edit through both input and change capture before the controlled
     // value re-renders. Flip the live guard immediately so one edit publishes one dirty transition.
     dirtyRef.current = true
+    setDirtyFormSource(dirtySource, true)
     if (controlledDirty === undefined) setLocalDirty(true)
     onDirtyChange?.(true)
-  }, [controlledDirty, guardDirty, onDirtyChange])
-  // Publish dirtiness so other surfaces (beforeunload) can guard; always clear on unmount.
+  }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, setDirtyFormSource])
+  // Publish this Modal's contribution so global beforeunload/shortcut guards aggregate every open
+  // owner. Cleanup releases only this token; a clean overlapping Modal cannot clear another form.
   useEffect(() => {
-    setDirtyForm(dirty)
-  }, [dirty, setDirtyForm])
-  useEffect(() => () => setDirtyForm(false), [setDirtyForm])
+    setDirtyFormSource(dirtySource, guardDirty && dirty)
+  }, [dirty, dirtySource, guardDirty, setDirtyFormSource])
+  useEffect(
+    () => () => setDirtyFormSource(dirtySource, false),
+    [dirtySource, setDirtyFormSource],
+  )
   useEffect(() => () => restoreFocus(invoker), [invoker])
 
   const requestClose = () => {
@@ -167,6 +177,7 @@ export function Modal({
     <Dialog open onOpenChange={(open) => { if (!open) requestClose() }}>
       <DialogContent
         showCloseButton={false}
+        aria-modal="true"
         aria-describedby={undefined}
         className="max-h-[90dvh] max-w-md gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
@@ -255,14 +266,11 @@ export function ListPage({
   onAdd?: () => void
   children?: ReactNode
 }) {
-  // Gating here keeps every entity list's create affordance consistent for viewers. Server
-  // authorization remains the security boundary.
-  const canEdit = useCanEdit()
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{title}</h1>
-        {canEdit && onAdd && <AddButton label={addLabel ?? m.form_add()} onClick={onAdd} />}
+        {onAdd && <AddButton label={addLabel ?? m.form_add()} onClick={onAdd} />}
       </div>
       {children}
     </div>

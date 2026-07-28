@@ -5,17 +5,23 @@ const inventoryPath = 'docs/security/crypto-inventory.json'
 const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8'))
 const reviewed = new Set(inventory.entries.map((entry) => entry.path))
 
-const listed = spawnSync(
-  'git',
-  ['ls-files', '--cached', '--others', '--exclude-standard'],
-  { encoding: 'utf8' },
-)
-if (listed.status !== 0) {
-  console.error(listed.stderr || 'Unable to enumerate repository files for cryptographic discovery.')
-  process.exit(1)
+function gitFiles(args) {
+  const listed = spawnSync('git', ['ls-files', ...args], { encoding: 'utf8' })
+  if (listed.status !== 0) {
+    console.error(
+      listed.stderr ||
+        'Unable to enumerate repository files for cryptographic discovery.',
+    )
+    process.exit(1)
+  }
+  return listed.stdout.split('\n').filter(Boolean)
 }
 
-const excluded = /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide|to-my-siblings)(?:\/|$)|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$/
+const trackedFiles = gitFiles(['--cached'])
+const untrackedFiles = gitFiles(['--others', '--exclude-standard'])
+
+const excluded =
+  /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide|to-my-siblings)(?:\/|$)|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$/
 const eligible = /(?:\.[cm]?[jt]sx?|\.mjs|\.sh|\.conf)$/
 const markers = [
   /(?:from|require\()['"]node:crypto/,
@@ -29,29 +35,49 @@ const markers = [
   /minVersion:\s*['"]TLSv/,
 ]
 
-const discovered = new Set()
-for (const path of listed.stdout.split('\n').filter(Boolean)) {
-  if (excluded.test(path) || !(eligible.test(path) || path === 'Dockerfile')) continue
-  // `git ls-files --cached` includes tracked files deleted in the working tree. Treat their absence
-  // as the intended candidate state so the gate can validate a deletion before it is staged.
-  if (!existsSync(path)) continue
-  const source = readFileSync(path, 'utf8')
-    .replace(/\/\/.*$/gm, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-  if (markers.some((marker) => marker.test(source))) discovered.add(path)
+function discover(files) {
+  const discovered = new Set()
+  for (const path of files) {
+    if (excluded.test(path) || !(eligible.test(path) || path === 'Dockerfile'))
+      continue
+    // `git ls-files --cached` includes tracked files deleted in the working tree. Treat their absence
+    // as the intended candidate state so the gate can validate a deletion before it is staged.
+    if (!existsSync(path)) continue
+    const source = readFileSync(path, 'utf8')
+      .replace(/\/\/.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    if (markers.some((marker) => marker.test(source))) discovered.add(path)
+  }
+  return discovered
+}
+
+const discovered = discover(trackedFiles)
+const untrackedDiscovered = discover(untrackedFiles)
+if (untrackedDiscovered.size > 0) {
+  console.warn(
+    `Untracked crypto-like files are outside the inventory gate and were ignored:\n  ${[...untrackedDiscovered].sort().join('\n  ')}`,
+  )
 }
 
 const unreviewed = [...discovered].filter((path) => !reviewed.has(path)).sort()
 const stale = [...reviewed].filter((path) => !discovered.has(path)).sort()
 if (unreviewed.length > 0 || stale.length > 0) {
   if (unreviewed.length > 0) {
-    console.error(`Unreviewed cryptographic implementation paths:\n  ${unreviewed.join('\n  ')}`)
+    console.error(
+      `Unreviewed cryptographic implementation paths:\n  ${unreviewed.join('\n  ')}`,
+    )
   }
   if (stale.length > 0) {
-    console.error(`Stale cryptographic inventory paths:\n  ${stale.join('\n  ')}`)
+    console.error(
+      `Stale cryptographic inventory paths:\n  ${stale.join('\n  ')}`,
+    )
   }
-  console.error(`Update ${inventoryPath} after reviewing the algorithms, keys, purpose and lifecycle.`)
+  console.error(
+    `Update ${inventoryPath} after reviewing the algorithms, keys, purpose and lifecycle.`,
+  )
   process.exit(1)
 }
 
-console.log(`Cryptographic discovery: ${discovered.size} implementation paths match the reviewed inventory.`)
+console.log(
+  `Cryptographic discovery: ${discovered.size} implementation paths match the reviewed inventory.`,
+)

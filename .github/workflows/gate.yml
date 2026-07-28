@@ -5,12 +5,12 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   # Monthly run on the default branch: PR/tag runs never feed the README's unqualified
   # badge (it reflects default-branch runs only), so without this the badge reads
   # "no status" between releases. Also doubles as a bit-rot canary for the toolchain.
   schedule:
-    - cron: '17 6 3 * *'
+    - cron: "17 6 3 * *"
 
 concurrency:
   group: gate-${{ github.ref }}
@@ -54,11 +54,11 @@ jobs:
           persist-credentials: false
       - name: Verify every pull-request commit is signed off
         env:
-          ACTOR: ${{ github.actor }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
-          if [ "$ACTOR" = 'dependabot[bot]' ]; then
+          if [ "$PR_AUTHOR" = 'dependabot[bot]' ]; then
             echo 'Dependabot commits are exempt from DCO sign-off.'
             exit 0
           fi
@@ -94,7 +94,9 @@ jobs:
         with:
           files: ./coverage/lcov.info
           flags: unit
-          fail_ci_if_error: true
+          # Coverage thresholds are enforced by `pnpm run gate`; reporting availability is not a
+          # code-quality signal and must not make this required job depend on Codecov uptime.
+          fail_ci_if_error: false
           token: ${{ env.CODECOV_TOKEN }}
 
   server:

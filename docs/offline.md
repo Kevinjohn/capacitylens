@@ -12,22 +12,30 @@ its cache key, creation time and record domain as authenticated additional data.
 failure, malformed data and expiry all delete the record instead of returning it. Upgrading from
 the older plaintext cache schema clears those records rather than migrating them.
 
-When a server request fails because the network is unavailable, a valid cached snapshot may be
-shown with an offline banner. The effective role becomes `viewer`, so create, update, delete,
-import and membership actions are unavailable. CapacityLens never queues a mutation for later and
-never attempts to reconcile offline edits.
+When a server request fails because the network is unavailable—including a stalled request that
+reaches its client deadline—a valid cached snapshot may be shown with an offline banner. The
+effective role becomes `viewer`, so create, update, delete, import and membership actions are
+unavailable. CapacityLens never queues a mutation for later and never attempts to reconcile offline
+edits.
 
-The cache is scoped to the browser origin and verified user id. Encryption reduces disclosure from
+The cache is scoped to the browser origin, canonical configured API origin and verified user id.
+Changing `VITE_CAPACITYLENS_API` on an existing web origin creates a new namespace: snapshots from
+the previous backend are never considered, and expire through normal seven-day maintenance.
+Encryption reduces disclosure from
 raw storage inspection and copied records, but it is not a substitute for full-disk encryption or a
 locked device: JavaScript running in the unlocked application origin can ask the browser to use the
 device key. Do not enable offline access on a shared, compromised or untrusted device.
 
 Signing out clears that user's cached identity and snapshots before ending the server session.
-“Clear device data” clears the offline cache and CapacityLens preferences. Browser or operating
-system storage eviction can remove the cache earlier than seven days.
+“Clear device data” clears the offline cache, its device encryption key and CapacityLens
+preferences. Browser or operating system storage eviction can remove the cache earlier than seven
+days. Cache maintenance physically removes expired records the next time the application opens or
+writes the offline database.
 
-Application-shell caches are versioned and reconciled during service-worker upgrades so obsolete
-hashed bundles are removed. Disabling offline access unregisters active, waiting and installing
-CapacityLens workers before deleting all CapacityLens shell-cache versions.
+Each service-worker installation stages its application shell in a private cache. Only a complete
+shell is promoted for offline reads, so a failed upgrade leaves the active release unchanged.
+Obsolete hashed bundles are removed after promotion. Disabling offline access removes every user's
+encrypted identity and account snapshots plus the device encryption key, unregisters active,
+waiting and installing CapacityLens workers, and deletes all shell caches and their metadata.
 
 Offline access does not change the server source of truth, backup requirements or session expiry.

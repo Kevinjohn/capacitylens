@@ -20,6 +20,14 @@ beforeEach(() => {
 })
 
 describe('MfaEnrollmentScreen', () => {
+  it('sets a descriptive title while rendering outside the app shell', () => {
+    document.title = 'Schedule · CapacityLens'
+
+    render(<MfaEnrollmentScreen onEnrolled={vi.fn()} onSignOut={vi.fn()} />)
+
+    expect(document.title).toBe('Secure your account · CapacityLens')
+  })
+
   it('requires recovery-code acknowledgement and a verified TOTP before opening tenant data', async () => {
     enable.mockResolvedValue({
       data: {
@@ -39,7 +47,9 @@ describe('MfaEnrollmentScreen', () => {
     expect(enable).toHaveBeenCalledWith({ password: 'current-password', issuer: 'CapacityLens' })
 
     const submit = screen.getByTestId('mfa-enroll-submit')
-    fireEvent.change(screen.getByTestId('mfa-enroll-code'), { target: { value: '123456' } })
+    const code = screen.getByTestId('mfa-enroll-code')
+    expect(code).toHaveFocus()
+    fireEvent.change(code, { target: { value: '123456' } })
     expect(submit).toBeDisabled()
     fireEvent.click(screen.getByRole('checkbox', { name: /stored the recovery codes/i }))
     expect(submit).toBeEnabled()
@@ -53,8 +63,57 @@ describe('MfaEnrollmentScreen', () => {
     enable.mockResolvedValue({ data: null, error: { message: 'Current password is incorrect.' } })
     const onEnrolled = vi.fn()
     render(<MfaEnrollmentScreen onEnrolled={onEnrolled} onSignOut={vi.fn()} />)
+    const password = screen.getByTestId('mfa-enroll-password')
+    expect(password).not.toHaveAttribute('aria-invalid')
+    expect(password).not.toHaveAttribute('aria-describedby')
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect.')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Current password is incorrect.')
+    expect(password).toHaveAttribute('aria-invalid', 'true')
+    expect(password).toHaveAttribute('aria-describedby', alert.id)
     expect(onEnrolled).not.toHaveBeenCalled()
+  })
+
+  it('associates a rejected authentication code with the verification input', async () => {
+    enable.mockResolvedValue({
+      data: {
+        totpURI: 'otpauth://totp/CapacityLens:test?secret=ABCDEF&issuer=CapacityLens',
+        backupCodes: ['recovery-one'],
+      },
+      error: null,
+    })
+    verifyTotp.mockResolvedValue({ data: null, error: { message: 'Authentication code is incorrect.' } })
+    render(<MfaEnrollmentScreen onEnrolled={vi.fn()} onSignOut={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await screen.findByText('recovery-one')
+    const code = screen.getByTestId('mfa-enroll-code')
+    fireEvent.change(code, { target: { value: '123456' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /stored the recovery codes/i }))
+    fireEvent.click(screen.getByTestId('mfa-enroll-submit'))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Authentication code is incorrect.')
+    expect(code).toHaveAttribute('aria-invalid', 'true')
+    expect(code).toHaveAttribute('aria-describedby', alert.id)
+  })
+
+  it.each([
+    ['missing URI', { backupCodes: ['recovery-one'] }],
+    ['blank URI', { totpURI: '   ', backupCodes: ['recovery-one'] }],
+    ['missing codes', { totpURI: 'otpauth://valid' }],
+    ['scalar codes', { totpURI: 'otpauth://valid', backupCodes: 'recovery-one' }],
+    ['empty codes', { totpURI: 'otpauth://valid', backupCodes: [] }],
+    ['mixed codes', { totpURI: 'otpauth://valid', backupCodes: ['recovery-one', 2] }],
+    ['blank code', { totpURI: 'otpauth://valid', backupCodes: [''] }],
+  ])('keeps the start form usable when successful enrollment data has %s', async (_case, data) => {
+    enable.mockResolvedValue({ data, error: null })
+    render(<MfaEnrollmentScreen onEnrolled={vi.fn()} onSignOut={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('MFA enrollment returned an invalid response.')
+    expect(screen.getByTestId('mfa-enroll-password')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+    expect(screen.queryByText('1. Add the authenticator entry')).not.toBeInTheDocument()
   })
 })

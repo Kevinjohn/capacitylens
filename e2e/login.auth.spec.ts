@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import type { APIRequestContext } from '@playwright/test'
+import { test, expect } from './fixtures'
+import type { APIRequestContext } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_ADMIN, BOOTSTRAP_TOKEN, signUpUser } from './auth-helpers'
 
@@ -119,14 +119,23 @@ test.describe('login screen (SMALLSASS_ACCOUNT_MODE=password)', () => {
   test('a login with NO memberships sees an EMPTY picker (tenant isolation — no cross-tenant leak)', async ({
     page,
     request,
-  }) => {
+  }, testInfo) => {
     // P1.13 isolation: a fresh user with NO org bootstrapped sees no companies — the picker lists ONLY
     // the login's memberships, never another tenant's org (the no-arg whole read that leaked all tenants
     // is closed in auth-on). And since canCreateAccount now reflects the caller's actual standing
     // (owner/admin somewhere — the same predicate POST /api/orgs enforces), a membership-less login
     // on an instance with existing accounts sees NO "New company" affordance either: the old button
     // was a dead end (submission always 403'd). The empty state tells them to ask for an invite.
-    const lonely = `lonely-${Date.now()}@capacitylens.dev`
+    const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`
+    const controlOrgName = `Isolation Control ${isolationSuffix}`
+    const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`)
+    const controlOrg = await request.post(`${API}/api/orgs`, {
+      headers: { cookie: controlOwner.cookie, 'x-capacitylens-bootstrap-token': BOOTSTRAP_TOKEN },
+      data: { name: controlOrgName },
+    })
+    expect(controlOrg.status()).toBe(201)
+
+    const lonely = `lonely-${isolationSuffix}@capacitylens.dev`
     await seedUser(request, lonely)
     await page.goto('/')
     await page.getByLabel('Email').fill(lonely)
@@ -136,7 +145,7 @@ test.describe('login screen (SMALLSASS_ACCOUNT_MODE=password)', () => {
     // Past the wall, on the picker — but with no company button (no other tenant's org leaked in).
     await expect(page.getByRole('heading', { name: 'Start planning' })).toBeVisible()
     await expect(page.getByText('Ask an admin for an invite to join a company.')).toBeVisible()
-    await expect(page.getByRole('button', { name: ORG_NAME, exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0)
     // No doomed create affordance: the server would 403 a membership-less org create.
     await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0)
   })

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openApp } from './helpers'
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error

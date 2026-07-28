@@ -16,7 +16,7 @@ import { useStore } from '../../store/useStore'
 // but stripped to just the viewport hook, no grid chrome.
 function Harness({ minimiseWeekends = false }: { minimiseWeekends?: boolean }) {
   const ui = useStore((s) => s.ui)
-  const { scrollRef, leftEdgeIdx, onScroll, visibleStartDate } = useSchedulerViewport({
+  const { scrollRef, leftEdgeIdx, onScroll, visibleStartDate, geom } = useSchedulerViewport({
     ui,
     minimiseWeekends,
     snapToWeekStart: false,
@@ -26,6 +26,7 @@ function Harness({ minimiseWeekends = false }: { minimiseWeekends?: boolean }) {
     <div ref={scrollRef} data-testid="scroll" onScroll={onScroll} style={{ overflow: 'auto' }}>
       <div data-testid="left-edge-idx">{leftEdgeIdx}</div>
       <div data-testid="visible-start">{visibleStartDate()}</div>
+      <div data-testid="focus-x">{geom.xForDateInGeom(ui.focusDate)}</div>
     </div>
   )
 }
@@ -104,5 +105,26 @@ describe('useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding', () => {
 
     expect(screen.getByTestId('left-edge-idx').textContent).toBe('3')
     expect(screen.getByTestId('visible-start').textContent).toBe('2026-06-04')
+  })
+
+  it('recenters with the new commit\'s focus offset after origin and focus change together', () => {
+    render(<Harness />)
+    const grid = screen.getByTestId('scroll')
+    expect(grid.scrollLeft).toBe(0)
+
+    act(() => {
+      useStore.setState((state) => ({
+        ui: {
+          ...state.ui,
+          originDate: '2026-08-01',
+          focusDate: '2026-08-15',
+          recenterToken: state.ui.recenterToken + 1,
+        },
+      }))
+    })
+
+    const currentFocusX = Number(screen.getByTestId('focus-x').textContent)
+    expect(currentFocusX).toBeGreaterThan(0)
+    expect(grid.scrollLeft).toBe(currentFocusX)
   })
 })

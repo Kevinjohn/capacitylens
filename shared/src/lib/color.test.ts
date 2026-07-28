@@ -6,6 +6,7 @@ import {
   readableTextColor,
   ensureBarColors,
   isHexColor,
+  isPresetColor,
   snapToPresetColor,
   FALLBACK_PRESET_COLOR,
   PRESET_COLORS,
@@ -106,6 +107,10 @@ describe('contrastRatio', () => {
     // the luminance arithmetic instead of short-circuiting to 1.
     expect(contrastRatio('#ffffff', '#zzzzzz')).toBe(1)
   })
+
+  it('rejects a non-hex trailing nibble in every colour byte', () => {
+    expect(contrastRatio('#1z2z3z', '#ffffff')).toBe(1)
+  })
 })
 
 describe('readableTextColor', () => {
@@ -141,6 +146,10 @@ describe('ensureBarColors', () => {
     expect(ensureBarColors('#zz3456')).toEqual({ bg: '#9ca3af', ink: '#1c2230' })
   })
 
+  it('falls back when each colour byte has a valid first nibble followed by junk', () => {
+    expect(ensureBarColors('#1z2z3z')).toEqual({ bg: '#9ca3af', ink: '#1c2230' })
+  })
+
   it('zero-pads a single-hex-digit channel back to two digits', () => {
     // The adjusted red channel here rounds to 0, i.e. a single hex digit ("0")
     // that MUST be left-padded to "00" — dropping the padStart pad character
@@ -150,6 +159,13 @@ describe('ensureBarColors', () => {
 })
 
 describe('snapToPresetColor', () => {
+  it('keeps the exported palette runtime-immutable and aligned with membership checks', () => {
+    expect(Object.isFrozen(PRESET_COLORS)).toBe(true)
+    expect(() => (PRESET_COLORS as unknown as string[]).push('#000000')).toThrow(TypeError)
+    expect(PRESET_COLORS).not.toContain('#000000')
+    expect(isPresetColor('#000000')).toBe(false)
+  })
+
   it('passes through a preset colour unchanged', () => {
     expect(snapToPresetColor('#e02727')).toBe('#e02727')
     expect(snapToPresetColor(PRESET_COLORS[10])).toBe(PRESET_COLORS[10])
@@ -181,6 +197,7 @@ describe('snapToPresetColor', () => {
     expect(snapToPresetColor(undefined)).toBe(FALLBACK_PRESET_COLOR)
     expect(snapToPresetColor(42)).toBe(FALLBACK_PRESET_COLOR)
     expect(snapToPresetColor('#zzzzzz')).toBe(FALLBACK_PRESET_COLOR)
+    expect(snapToPresetColor('#1z2z3z')).toBe(FALLBACK_PRESET_COLOR)
   })
 })
 

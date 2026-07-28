@@ -7,7 +7,11 @@ import { Input } from '../components/ui/input'
 import { Field, FieldError, FieldGroup, FieldLabel } from '../components/ui/field'
 import { Card, CardContent } from '../components/ui/card'
 import { APP_NAME } from '@capacitylens/shared/brand'
-import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import {
+  MIN_PASSWORD_LENGTH,
+  MAX_PASSWORD_LENGTH,
+  passwordLengthFailure,
+} from '@capacitylens/shared/domain/password'
 import { messageForFailure } from './resetPasswordFailure'
 import { m } from '@/i18n'
 import { requestSignal } from '../data/requestTimeout'
@@ -69,11 +73,12 @@ export function ResetPassword() {
       return
     }
     // Pre-checks that save a round trip; the server re-enforces the length on redeem.
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    const lengthFailure = passwordLengthFailure(password)
+    if (lengthFailure === 'too-short') {
       setError(m.reset_err_short({ min: MIN_PASSWORD_LENGTH }))
       return
     }
-    if (password.length > MAX_PASSWORD_LENGTH) {
+    if (lengthFailure === 'too-long') {
       setError(m.reset_err_long({ max: MAX_PASSWORD_LENGTH }))
       return
     }
@@ -94,8 +99,16 @@ export function ResetPassword() {
         setState({ kind: 'done' })
         return
       }
+      // A proxy-generated timeout/5xx can arrive after the upstream consumed the one-use token and
+      // changed the password. Do not reopen the form and invite a misleading retry; use the same
+      // honest verification path as a transport failure.
+      if (res.status === 408 || res.status >= 500) {
+        setError(null)
+        setState({ kind: 'unknown' })
+        return
+      }
       const body = (await res.json().catch(() => ({}))) as { code?: string }
-      setError(messageForFailure(body))
+      setError(messageForFailure(body, res.status))
       setState({ kind: 'form' })
     } catch (err) {
       // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
@@ -165,7 +178,7 @@ export function ResetPassword() {
               <p role="status" data-testid="reset-success" className="text-sm font-medium text-ink">
                 {state.kind === 'done'
                   ? m.reset_success()
-                  : 'The reset request had an unknown outcome. Try signing in with the new password; request a replacement reset link only if sign-in fails.'}
+                  : m.reset_unknown_outcome()}
               </p>
               <div className="flex justify-end">
                 {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean

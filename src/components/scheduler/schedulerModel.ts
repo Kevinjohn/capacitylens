@@ -1,5 +1,5 @@
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
-import { capacityAllocationsForMode, capacityForWindow, dayCapacity, utilization as utilizationOf } from '../../lib/capacity'
+import { capacityAllocationsForMode, dayCapacity, utilizationFromCapacity, type DayCapacity } from '../../lib/capacity'
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
 import { resolveBarColor } from '@capacitylens/shared/lib/color'
 import { timeOffTypeLabels, resourceDisplayName } from '../../lib/metadata'
@@ -70,13 +70,13 @@ export interface GroupModel {
   rows: RowModel[]
 }
 
-export function buildSchedulerModel(
-  data: AppData,
+export interface SchedulerModelOptions {
+  data: AppData
   // Per-column pixel geometry (built once in SchedulerGrid). Owns the date→x / range→width
   // math so bars line up with the header even when weekend columns are narrowed; replaces the
   // old uniform `origin` + `dayWidth` scalars. Its origin (days[0]) === ui.originDate.
-  geom: ColumnGeometry,
-  days: ISODate[],
+  geom: ColumnGeometry
+  days: ISODate[]
   // TWO separate windows, deliberately distinct (CLAUDE.md / DECISIONS.md):
   //
   // - [visStart, visEnd] drives the DISPLAYED utilisation % (per-person `utilization`, and so the
@@ -93,40 +93,58 @@ export function buildSchedulerModel(
   // `allocated` is weekend-aware (a bar merely spanning Sat/Sun does no weekend work), so the only
   // zero-capacity days it catches are a TIME-OFF day a working allocation covers and a weekend an
   // allocation opts into via `ignoreWeekends`.
-  visStart: ISODate,
-  visEnd: ISODate,
-  overStart: ISODate,
-  overEnd: ISODate,
-  filters: Filters,
-  // When false (account.disciplinesEnabled === false) the schedule renders FLAT: one
-  // synthetic group holding every resource (no discipline bands), and the discipline
-  // filter is ignored. SchedulerGrid skips the group-header row for the flat group.
-  disciplinesEnabled: boolean,
-  // Per-account view pref (default OFF). When false, placeholder ("slot") resources are dropped
-  // by `resourceVisible` below — this ONE filter removes the lane, its bars/day-states, AND its
-  // contribution to per-discipline + overall utilisation (both derive from this model). It is a
-  // pure VIEW pref: the placeholder resources and their allocations stay in the data untouched and
-  // reappear when re-enabled. See selectors.ts / DECISIONS.md.
-  placeholdersEnabled: boolean,
-  // Per-account view pref (default OFF), the EXACT analog of `placeholdersEnabled` for external /
-  // 3rd-party resources. When false, externals are dropped by `resourceVisible` below — the same
-  // single chokepoint. Crucially that also empties the trailing external band, which the final
-  // `.filter((g) => g.rows.length > 0)` then drops, so NO empty "External / 3rd party" header
-  // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
-  // when re-enabled. See selectors.ts / DECISIONS.md.
-  externalEnabled: boolean,
-  blocksMode = false,
-  // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
-  // restores the normal project/resource colour path without changing persisted entity colours.
-  internalColourMode: InternalColourMode = 'grey',
-  // Per-account BAR-ONLY view prefs (both default ON). When false they hide, from the schedule bars
-  // ONLY, allocations on internal PROJECTS (activity kind 'project' whose project's client is the
-  // built-in Internal client) / internal ACTIVITIES (kind 'internal' ONLY — cross-project
-  // 'repeatable' work is a distinct third group and is never hidden) respectively. See the
-  // `barVisibleByInternalPref` filter below for the truthful-utilisation guarantee.
-  showInternalProjects = true,
-  showInternalActivities = true,
-): GroupModel[] {
+  visibleWindow: { start: ISODate; end: ISODate }
+  overSoonWindow: { start: ISODate; end: ISODate }
+  filters: Filters
+  preferences: {
+    // When false (account.disciplinesEnabled === false) the schedule renders FLAT: one
+    // synthetic group holding every resource (no discipline bands), and the discipline
+    // filter is ignored. SchedulerGrid skips the group-header row for the flat group.
+    disciplinesEnabled: boolean
+    // Per-account view pref (default OFF). When false, placeholder ("slot") resources are dropped
+    // by `resourceVisible` below — this ONE filter removes the lane, its bars/day-states, AND its
+    // contribution to per-discipline + overall utilisation (both derive from this model). It is a
+    // pure VIEW pref: the placeholder resources and their allocations stay in the data untouched and
+    // reappear when re-enabled. See selectors.ts / DECISIONS.md.
+    placeholdersEnabled: boolean
+    // Per-account view pref (default OFF), the EXACT analog of `placeholdersEnabled` for external /
+    // 3rd-party resources. When false, externals are dropped by `resourceVisible` below — the same
+    // single chokepoint. Crucially that also empties the trailing external band, which the final
+    // `.filter((g) => g.rows.length > 0)` then drops, so NO empty "External / 3rd party" header
+    // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
+    // when re-enabled. See selectors.ts / DECISIONS.md.
+    externalEnabled: boolean
+    blocksMode?: boolean
+    // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
+    // restores the normal project/resource colour path without changing persisted entity colours.
+    internalColourMode?: InternalColourMode
+    // Per-account BAR-ONLY view prefs (both default ON). When false they hide, from the schedule bars
+    // ONLY, allocations on internal PROJECTS (activity kind 'project' whose project's client is the
+    // built-in Internal client) / internal ACTIVITIES (kind 'internal' ONLY — cross-project
+    // 'repeatable' work is a distinct third group and is never hidden) respectively. See the
+    // `barVisibleByInternalPref` filter below for the truthful-utilisation guarantee.
+    showInternalProjects?: boolean
+    showInternalActivities?: boolean
+  }
+}
+
+export function buildSchedulerModel({
+  data,
+  geom,
+  days,
+  visibleWindow: { start: visStart, end: visEnd },
+  overSoonWindow: { start: overStart, end: overEnd },
+  filters,
+  preferences: {
+    disciplinesEnabled,
+    placeholdersEnabled,
+    externalEnabled,
+    blocksMode = false,
+    internalColourMode = 'grey',
+    showInternalProjects = true,
+    showInternalActivities = true,
+  },
+}: SchedulerModelOptions): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
   const clientById = new Map(data.clients.map((c) => [c.id, c]))
@@ -197,11 +215,10 @@ export function buildSchedulerModel(
   // is identical whether the active lens is client/project or activity.
   const workFilterActive = projectClientActive || activityFilterActive
   const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === 'tentative')
-  const allocVisible = (a: Allocation): boolean =>
-    matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a)
+  const allocVisible = (a: Allocation): boolean => matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a)
   // Per-account BAR-ONLY visibility for internal work. CRITICAL PRODUCT DECISION: this filter is
   // applied ONLY when building `visibleAllocs` (bars + lane packing) — NEVER to `allAllocs`, which
-  // feeds capacityForWindow / utilization below. Utilisation and capacity numbers MUST stay TRUTHFUL:
+  // feeds the capacity cache / utilisation below. Utilisation and capacity numbers MUST stay TRUTHFUL:
   // a person fully booked on internal work still shows as fully booked even when their internal bars
   // are hidden. Internal-project detection uses the pre-built maps (no extra scans): a 'project'
   // activity → its project's client (via activityMeta.clientId) → `builtin === true`.
@@ -236,10 +253,12 @@ export function buildSchedulerModel(
   }
 
   // The [visStart, visEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT — every row in
-  // this model reads the exact same two windows. Building their day arrays here, ONCE, and passing
-  // them into utilizationOf / capacityForWindow below avoids resources × (visibleDays + 14) redundant
-  // eachDayISO calls per model rebuild (this fires on every scroll-day change, zoom, filter keystroke
-  // and edit). Not sliced from `days`: `days` covers the SCROLLABLE timeline, while overStart/overEnd
+  // this model reads the exact same two windows. Building their day arrays here ONCE avoids resources
+  // × (visibleDays + 14) redundant eachDayISO calls per model rebuild (this fires on every scroll-day
+  // change, zoom, filter keystroke and edit). Each row separately caches its computed resource-day
+  // results below, so dates shared by the timeline, visible window and fixed overSoon window scan
+  // that resource's allocations/time off only once. Not sliced from `days`: `days` covers the
+  // SCROLLABLE timeline, while overStart/overEnd
   // is a FIXED window anchored on today that can fall outside it (and visStart/visEnd, though always
   // within `days` in practice, isn't worth a fragile index-based slice to save one extra pair of calls).
   const visDays = eachDayISO(visStart, visEnd)
@@ -248,8 +267,7 @@ export function buildSchedulerModel(
   const timelineStart = days[0]
   const timelineEnd = days[days.length - 1]
   const intersectsTimeline = (row: { startDate: ISODate; endDate: ISODate }) =>
-    timelineStart !== undefined && timelineEnd !== undefined &&
-    row.endDate >= timelineStart && row.startDate <= timelineEnd
+    timelineStart !== undefined && timelineEnd !== undefined && row.endDate >= timelineStart && row.startDate <= timelineEnd
 
   // Disciplines on → group by discipline (ungrouped bucket, then the external band, last). Off →
   // one flat group of every NON-external resource, with the external band STILL trailing (the band
@@ -259,7 +277,12 @@ export function buildSchedulerModel(
   const groups = disciplinesEnabled
     ? resourcesByDiscipline(data)
     : (() => {
-        const flat: DisciplineGroup[] = [{ discipline: null, resources: data.resources.filter(isCapacityTracked) }]
+        const flat: DisciplineGroup[] = [
+          {
+            discipline: null,
+            resources: data.resources.filter(isCapacityTracked),
+          },
+        ]
         const band = externalBand(data.resources)
         if (band) flat.push(band)
         return flat
@@ -276,93 +299,96 @@ export function buildSchedulerModel(
         .filter(resourceVisible)
         .sort((a, b) => Number(a.kind === 'placeholder') - Number(b.kind === 'placeholder'))
         .map((resource) => {
-        // This resource's data, pre-grouped above; capacity then scans only its own
-        // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
-        const allAllocs = allocsByResource.get(resource.id) ?? []
-        const resTimeOff = timeOffByResource.get(resource.id) ?? []
-        // External / 3rd-party rows have NO capacity: no over-markers, no utilisation, no time-off
-        // — an awareness band, not a bookable lane. We starve the capacity path rather than
-        // special-case the (dumb) lane; their activity bars still render.
-        const isExternal = isExternalResource(resource)
-        // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
-        // this resource has NO VISIBLE work on it — we still show their full real load (so you can see
-        // who's free to staff), just visually de-emphasised. Uses `allocVisible` (the
-        // same predicate the bars use), so a resource whose only matching allocation is a
-        // HIDDEN tentative one is correctly treated as unmatched — not rendered as a
-        // full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
-        const dimmed = workFilterActive && !allAllocs.some(allocVisible)
-        const visibleAllocs = (dimmed ? allAllocs.filter(notTentativeHidden) : allAllocs.filter(allocVisible))
-          .filter(intersectsTimeline)
-          // BAR-ONLY internal-work hide (see barVisibleByInternalPref). Applied here, after the
-          // capacity path has already taken `allAllocs`, so hiding an internal bar never changes the
-          // resource's utilisation/capacity — only which bars render.
-          .filter(barVisibleByInternalPref)
-        const { lanes, laneCount } = packLanes(visibleAllocs)
-        const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
-        const bars: BarLayout[] = visibleAllocs.map((a) => {
-          const meta = activityMeta.get(a.activityId)
-          const project = meta?.projectId ? projectById.get(meta.projectId) : undefined
-          const client = meta?.clientId ? clientById.get(meta.clientId) : undefined
+          // This resource's data, pre-grouped above; capacity then scans only its own
+          // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
+          const allAllocs = allocsByResource.get(resource.id) ?? []
+          const resTimeOff = timeOffByResource.get(resource.id) ?? []
+          // External / 3rd-party rows have NO capacity: no over-markers, no utilisation, no time-off
+          // — an awareness band, not a bookable lane. We starve the capacity path rather than
+          // special-case the (dumb) lane; their activity bars still render.
+          const isExternal = isExternalResource(resource)
+          // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
+          // this resource has NO MATCHING BAR in the displayed timeline — we still show their full
+          // real load (so you can see who's free to staff), just visually de-emphasised. Deriving this
+          // from the exact matching bar set means off-timeline and otherwise hidden matches cannot
+          // create a full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
+          const matchingVisibleAllocs = allAllocs.filter(allocVisible).filter(intersectsTimeline).filter(barVisibleByInternalPref)
+          const dimmed = workFilterActive && matchingVisibleAllocs.length === 0
+          const visibleAllocs = dimmed
+            ? allAllocs
+                .filter(notTentativeHidden)
+                .filter(intersectsTimeline)
+                // BAR-ONLY internal-work hide (see barVisibleByInternalPref). Applied here, after the
+                // capacity path has already taken `allAllocs`, so hiding an internal bar never changes
+                // the resource's utilisation/capacity — only which bars render.
+                .filter(barVisibleByInternalPref)
+            : matchingVisibleAllocs
+          const { lanes, laneCount } = packLanes(visibleAllocs)
+          const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
+          const bars: BarLayout[] = visibleAllocs.map((a) => {
+            const meta = activityMeta.get(a.activityId)
+            const project = meta?.projectId ? projectById.get(meta.projectId) : undefined
+            const client = meta?.clientId ? clientById.get(meta.clientId) : undefined
+            return {
+              allocation: a,
+              x: geom.xForDateInGeom(a.startDate),
+              width: geom.widthForDates(a.startDate, a.endDate),
+              top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
+              color: resolveBarColor(a, colorMaps),
+              label: activityById.get(a.activityId)?.name ?? 'Activity',
+              project: project?.name,
+              client: client?.name,
+              external: isExternal,
+            }
+          })
+          // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
+          // External rows carry none — flat, unmarked day cells and no time-off blocks.
+          const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode)
+          const capacityByDate = new Map<ISODate, DayCapacity>()
+          const capacityOnDay = (date: ISODate): DayCapacity => {
+            const cached = capacityByDate.get(date)
+            if (cached) return cached
+            const computed = dayCapacity(resource, date, capacityAllocs, resTimeOff)
+            capacityByDate.set(date, computed)
+            return computed
+          }
+          const dayStates: DayState[] = isExternal
+            ? days.map(() => ({ over: false, unavailable: false }))
+            : days.map((d) => {
+                const cap = capacityOnDay(d)
+                return { over: cap.over, unavailable: cap.available === 0 }
+              })
+          const timeOff: TimeOffBlock[] = isExternal
+            ? []
+            : resTimeOff.filter(intersectsTimeline).map((t) => ({
+                id: t.id,
+                x: geom.xForDateInGeom(t.startDate),
+                width: geom.widthForDates(t.startDate, t.endDate),
+                label: timeOffTypeLabels()[t.type],
+                note: t.note,
+              }))
+          // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
+          // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
+          // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
+          // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
+          // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
+          // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
+          const utilization = isExternal ? 0 : utilizationFromCapacity(visDays.map(capacityOnDay))
+          const overSoon = !isExternal && overDays.some((date) => capacityOnDay(date).over)
           return {
-            allocation: a,
-            x: geom.xForDateInGeom(a.startDate),
-            width: geom.widthForDates(a.startDate, a.endDate),
-            top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
-            color: resolveBarColor(a, colorMaps),
-            label: activityById.get(a.activityId)?.name ?? 'Activity',
-            project: project?.name,
-            client: client?.name,
-            external: isExternal,
+            resource,
+            rowHeight: rowHeightForLanes(laneCount, laneLayout),
+            bars,
+            dayStates,
+            timeOff,
+            utilization,
+            overSoon,
+            dimmed,
           }
         })
-        // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-        // External rows carry none — flat, unmarked day cells and no time-off blocks.
-        const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode)
-        const dayStates: DayState[] = isExternal
-          ? days.map(() => ({ over: false, unavailable: false }))
-          : days.map((d) => {
-              const cap = dayCapacity(resource, d, capacityAllocs, resTimeOff)
-              return { over: cap.over, unavailable: cap.available === 0 }
-            })
-        const timeOff: TimeOffBlock[] = isExternal
-          ? []
-          : resTimeOff.filter(intersectsTimeline).map((t) => ({
-              id: t.id,
-              x: geom.xForDateInGeom(t.startDate),
-              width: geom.widthForDates(t.startDate, t.endDate),
-              label: timeOffTypeLabels()[t.type],
-              note: t.note,
-            }))
-        // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
-        // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
-        // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
-        // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
-        // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
-        // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
-        const utilization = isExternal ? 0 : utilizationOf(resource, capacityAllocs, resTimeOff, visStart, visEnd, visDays)
-        let overSoon = false
-        if (!isExternal) {
-          for (const c of capacityForWindow(resource, capacityAllocs, resTimeOff, overStart, overEnd, overDays)) {
-            if (c.allocated > c.available) {
-              overSoon = true
-              break
-            }
-          }
-        }
-        return {
-          resource,
-          rowHeight: rowHeightForLanes(laneCount, laneLayout),
-          bars,
-          dayStates,
-          timeOff,
-          utilization,
-          overSoon,
-          dimmed,
-        }
-      })
-      // Non-matching rows are hidden by default; the "Show unallocated" toggle opts
-      // the dimmed staffing view back in.
-      .filter((row) => filters.showUnmatched || !row.dimmed),
+        // Non-matching rows are hidden by default; the "Show unallocated" toggle opts
+        // the dimmed staffing view back in.
+        .filter((row) => filters.showUnmatched || !row.dimmed),
     }))
     .filter((g) => g.rows.length > 0)
 }

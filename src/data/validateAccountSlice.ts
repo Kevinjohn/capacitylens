@@ -1,4 +1,8 @@
-import { KNOWN_KEYS, migrate } from '@capacitylens/shared/data/migrate'
+import {
+  KNOWN_KEYS,
+  migrateWithRepairBase,
+  type MigrationWithRepairBase,
+} from '@capacitylens/shared/data/migrate'
 import { SCOPED_KEYS, type AppData } from '@capacitylens/shared/types/entities'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -6,6 +10,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 /** Validate a complete tenant slice before migration can repair or synthesize rows. */
 export function validateAccountSlice(value: unknown, accountId: string): AppData | null {
+  return validateAccountSliceWithRepairBase(value, accountId)?.data ?? null
+}
+
+/** Validate a complete tenant slice and preserve its pre-repair persistence baseline. */
+export function validateAccountSliceWithRepairBase(
+  value: unknown,
+  accountId: string,
+): MigrationWithRepairBase | null {
   if (!isRecord(value) || KNOWN_KEYS.some((key) => !Array.isArray(value[key]))) return null
   for (const key of KNOWN_KEYS) {
     if (!(value[key] as unknown[]).every(isRecord)) return null
@@ -15,5 +27,5 @@ export function validateAccountSlice(value: unknown, accountId: string): AppData
   for (const key of SCOPED_KEYS) {
     if (!(value[key] as Array<Record<string, unknown>>).every((row) => row.accountId === accountId)) return null
   }
-  return migrate(value)
+  return migrateWithRepairBase(value)
 }

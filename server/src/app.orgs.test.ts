@@ -150,6 +150,28 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
     assertUsableOrg(db, res.json().id as string, userId)
   })
 
+  it('requires a fresh owner session to provision another account', async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true })
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'stale-owner@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`)
+      .run(new Date(Date.now() - 16 * 60 * 1000).toISOString(), userId)
+
+    const ordinaryRead = await call(app, {
+      method: 'GET',
+      url: '/api/accounts',
+      headers: { cookie },
+    })
+    expect(ordinaryRead.statusCode).toBe(200)
+
+    const result = await createOrg(app, { name: 'Stale Session Company' }, { cookie })
+    expect(result.statusCode).toBe(403)
+    expect(result.json()).toMatchObject({ code: 'SESSION_NOT_FRESH' })
+    expect(loadState(db).accounts.map((existing) => existing.id)).toEqual(['a1'])
+    expect(getMemberRole(db, 'a1', userId)).toBe('owner')
+  })
+
   it('a viewer/editor of an existing account is DENIED (below admin tier)', async () => {
     for (const role of ['viewer', 'editor'] as const) {
       const { app, db } = await appWithAuth()

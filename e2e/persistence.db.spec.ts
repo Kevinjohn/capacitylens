@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openApp } from './helpers'
 import { resetServer, serverState } from './db-helpers'
 
@@ -8,8 +8,6 @@ import { resetServer, serverState } from './db-helpers'
 // difference that matters is that a reload re-hydrates purely from GET /api/state
 // (there is no localStorage fallback), so a surviving record proves a real server
 // round-trip: UI → store → adapter → PUT/DELETE → SQLite → GET on reload.
-
-const settle = (page: import('@playwright/test').Page) => page.waitForTimeout(600) // debounced save + network
 
 test.describe('database-backed persistence', () => {
   test.beforeEach(async ({ request }) => {
@@ -43,7 +41,7 @@ test.describe('database-backed persistence', () => {
     await expect(page.getByText('Persisted DB Co')).toBeVisible()
   })
 
-  test('edit + reload: a rename round-trips through the DB', async ({ page }) => {
+  test('edit + reload: a rename round-trips through the DB', async ({ page, request }) => {
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
@@ -58,7 +56,12 @@ test.describe('database-backed persistence', () => {
     await page.getByRole('dialog').getByRole('textbox', { name: 'Name', exact: true }).fill('Renamed Co')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('client-row').filter({ hasText: 'Renamed Co' })).toBeVisible()
-    await settle(page)
+
+    await expect
+      .poll(async () => (await serverState(request)).clients.some((c) => c.name === 'Renamed Co'), {
+        timeout: 10_000,
+      })
+      .toBe(true)
 
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
@@ -79,7 +82,11 @@ test.describe('database-backed persistence', () => {
     await page.getByRole('button', { name: 'Save' }).click()
     const row = page.getByTestId('client-row').filter({ hasText: 'Doomed Co' })
     await expect(row).toBeVisible()
-    await settle(page)
+    await expect
+      .poll(async () => (await serverState(request)).clients.some((c) => c.name === 'Doomed Co'), {
+        timeout: 10_000,
+      })
+      .toBe(true)
 
     await row.getByRole('button', { name: 'Archive Doomed Co' }).click()
     await page.getByRole('alertdialog', { name: 'Archive client?' }).getByRole('button', { name: 'Archive', exact: true }).click()

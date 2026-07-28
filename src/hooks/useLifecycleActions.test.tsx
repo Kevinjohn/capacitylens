@@ -9,8 +9,9 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 // useStore.lifecycle.test.ts + the list/section component tests). With a backend configured, the
 // hook POSTs the dedicated P2.5a route, surfaces a non-OK body.error as an error notice WITHOUT
 // crashing (the highest-value gap, since purge is destructive), and on success RELOADS the active
-// slice via persistenceAdapter.loadAll → replaceAll. We assert OBSERVABLE outcomes: the exact fetch
-// args, the store data replaced from the stubbed loadAll, and the surfaced notice on 409/403.
+// slice through the attached persistence orchestrator. An explicit no-orchestrator test seam covers
+// the documented loadAll → replaceAll fallback. We assert both paths so a refactor cannot bypass
+// the orchestrator's pending-write flush while leaving fallback-only coverage green.
 
 // apiConfig mocked with a fixed API_BASE and isServerConfigured() => true so `run` takes the server
 // branch. The vi.hoisted box hoists above the mock factory (a bare `let` would throw "Cannot access
@@ -18,13 +19,17 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 const cfg = vi.hoisted(() => ({ base: 'http://api.test' }))
 const refreshControl = vi.hoisted(() => ({
   outcome: 'unattached' as 'reloaded' | 'skipped' | 'failed' | 'unattached',
+  call: vi.fn(async (accountId: string) => {
+    void accountId
+    return refreshControl.outcome
+  }),
 }))
 vi.mock('../data/apiConfig', () => ({
   API_BASE: cfg.base,
   isServerConfigured: () => true,
 }))
 vi.mock('../data/persist', () => ({
-  refreshActiveAccountSlice: async () => refreshControl.outcome,
+  refreshActiveAccountSlice: (accountId: string) => refreshControl.call(accountId),
 }))
 
 // The reloaded slice the stubbed loadAll returns — a recognisable AppData so we can prove replaceAll
@@ -46,6 +51,7 @@ beforeEach(() => {
   loadAll.mockClear()
   loadAll.mockResolvedValue(reloadedSlice)
   refreshControl.outcome = 'unattached'
+  refreshControl.call.mockClear()
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -60,22 +66,27 @@ function stubFetch(response: Partial<Response> & { json?: () => Promise<unknown>
 }
 
 describe('useLifecycleActions — SERVER mode dispatch', () => {
-  it('ignores an overlapping lifecycle mutation until the first transition settles', async () => {
+  it('queues an overlapping lifecycle mutation until the first transition settles', async () => {
     let release: (() => void) | null = null
-    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
-      release = () => resolve({ ok: true, status: 200, json: async () => ({}) } as unknown as Response)
-    }))
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => {
+        release = () => resolve({ ok: true, status: 200, json: async () => ({}) } as unknown as Response)
+      }))
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ({}) } as unknown as Response)
     vi.stubGlobal('fetch', fetchMock)
     const { result } = renderHook(() => useLifecycleActions())
 
     const first = result.current.archive('clients', 'c-1')
     const overlapping = result.current.purge('clients', 'c-1')
-    expect(fetchMock).toHaveBeenCalledOnce()
-    await expect(overlapping).resolves.toBeUndefined()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
     release!()
-    await first
+    await Promise.all([first, overlapping])
 
-    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'http://api.test/api/clients/c-1/archive',
+      'http://api.test/api/clients/c-1/purge',
+    ])
   })
 
   it.each([
@@ -107,6 +118,20 @@ describe('useLifecycleActions — SERVER mode dispatch', () => {
     },
   )
 
+  it('delegates a successful lifecycle reload to the attached persistence orchestrator', async () => {
+    refreshControl.outcome = 'reloaded'
+    const onReloaded = vi.fn()
+    stubFetch({ ok: true, status: 200, json: async () => ({}) })
+    const { result } = renderHook(() => useLifecycleActions(onReloaded))
+
+    await result.current.archive('clients', 'c-1')
+
+    expect(refreshControl.call).toHaveBeenCalledOnce()
+    expect(refreshControl.call).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID)
+    expect(loadAll).not.toHaveBeenCalled()
+    expect(onReloaded).toHaveBeenCalledOnce()
+  })
+
   it('a 409 (purge <30d) surfaces body.error via an error notice and does NOT throw or reload', async () => {
     const fetchMock = stubFetch({
       ok: false,
@@ -137,6 +162,28 @@ describe('useLifecycleActions — SERVER mode dispatch', () => {
     expect(useStore.getState().notice?.message).toBe('You do not have permission to do that.')
     expect(loadAll).not.toHaveBeenCalled()
   })
+
+  it.each([408, 504])(
+    'reconciles an HTTP %s response as an unknown lifecycle outcome before allowing a retry',
+    async (status) => {
+      stubFetch({
+        ok: false,
+        status,
+        json: async () => ({ error: 'Gateway did not confirm the mutation.' }),
+      })
+      const onReloaded = vi.fn()
+      const { result } = renderHook(() => useLifecycleActions(onReloaded))
+
+      await result.current.softDelete('resources', 'r-1')
+
+      expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID)
+      expect(onReloaded).toHaveBeenCalledOnce()
+      expect(useStore.getState().data.clients.some((client) => client.id === 'c-reloaded')).toBe(true)
+      expect(useStore.getState().notice?.tone).toBe('warning')
+      expect(useStore.getState().notice?.message).toContain('unknown outcome')
+      expect(useStore.getState().notice?.message).toContain(`HTTP ${status}`)
+    },
+  )
 
   it('a 204 purge (no body) is treated as success: reloads without a body-parse error', async () => {
     // A 204 No Content carries no JSON; res.ok is false at 204 in some runtimes, so the hook guards
@@ -199,4 +246,20 @@ describe('useLifecycleActions — SERVER mode dispatch', () => {
       expect(useStore.getState().notice?.message).toContain(`(${outcome})`)
     },
   )
+
+  it('suppresses a transport reconciliation notice after the user leaves the company', async () => {
+    const onReloaded = vi.fn()
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      useStore.getState().setActiveAccount(null)
+      throw new TypeError('connection lost')
+    }))
+    const { result } = renderHook(() => useLifecycleActions(onReloaded))
+
+    await result.current.archive('clients', 'c-1')
+
+    expect(onReloaded).not.toHaveBeenCalled()
+    expect(refreshControl.call).not.toHaveBeenCalled()
+    expect(loadAll).not.toHaveBeenCalled()
+    expect(useStore.getState().notice).toBeNull()
+  })
 })

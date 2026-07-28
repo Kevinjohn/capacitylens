@@ -1,6 +1,6 @@
 {
   "name": "@capacitylens/shared",
-  "version": "0.25.0-alpha.6",
+  "version": "0.27.0-alpha.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -8,6 +8,7 @@
     "node": ">=24"
   },
   "exports": {
+    "./account": "./src/account/index.ts",
     "./*": "./src/*.ts"
   },
   "dependencies": {

@@ -26,7 +26,8 @@ pnpm run e2e
 
 Authentication, account, invitation, membership, authorization, session and erasure changes must
 also run the portable account boundary check. Identity-provider and OIDC changes additionally run
-the pinned reference-provider browser suite:
+the pinned reference-provider browser suite. The OIDC suite requires a working Docker installation
+because it starts the digest-pinned Dex reference provider in a local container:
 
 ```bash
 pnpm run test:account-conformance
@@ -44,6 +45,11 @@ pnpm run e2e:firefox
 pnpm run e2e:browsers
 pnpm run e2e:all
 ```
+
+These conditions are local-development guidance for choosing extra checks before opening a pull
+request. Pull-request CI deliberately runs account conformance, released-database rehearsal, the
+complete Chromium/Firefox/WebKit suite and strict OIDC conformance on every change, regardless of
+paths, so required checks always exist and cross-cutting regressions cannot evade them.
 
 User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
 spec. New domain fields must flow through shared types, full fixtures, server table columns and

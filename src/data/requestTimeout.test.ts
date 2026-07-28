@@ -1,8 +1,28 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AUDIT_WARNING_EVENT } from '../lib/auditWarning'
-import { apiFetch, requestSignal, API_REQUEST_TIMEOUT_MS, API_BULK_TIMEOUT_MS } from './requestTimeout'
+import {
+  apiFetch,
+  isTransportFailure,
+  requestSignal,
+  API_REQUEST_TIMEOUT_MS,
+  API_BULK_TIMEOUT_MS,
+} from './requestTimeout'
 
 afterEach(() => vi.unstubAllGlobals())
+
+describe('isTransportFailure', () => {
+  it.each([
+    ['network TypeError', new TypeError('fetch failed')],
+    ['caller abort', new DOMException('aborted', 'AbortError')],
+    ['request deadline', new DOMException('timed out', 'TimeoutError')],
+  ])('accepts %s', (_label, error) => {
+    expect(isTransportFailure(error)).toBe(true)
+  })
+
+  it('does not reinterpret an ordinary application error as an offline transport failure', () => {
+    expect(isTransportFailure(new Error('invalid response'))).toBe(false)
+  })
+})
 
 describe('requestSignal tiers', () => {
   // AbortSignal.timeout schedules on an internal timer that fake timers don't intercept, so assert

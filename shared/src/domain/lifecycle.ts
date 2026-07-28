@@ -19,15 +19,17 @@
 // exactly why those predicates are exported separately, so a caller can gate an affordance without a
 // try/catch (mirrors access.ts's `can*` predicates).
 
-import type { AppData, ISOTimestamp, Resource } from '../types/entities'
+import { APP_DATA_KEYS } from '../types/entities'
+import type { AppData, AppDataKey, ISOTimestamp, Resource } from '../types/entities'
+import { parseISOTimestamp } from '../lib/integrity'
 
 /**
  * The three DERIVED lifecycle states an entity can be read as. There is no stored `state` column —
  * the state is derived from the `archivedAt`/`deletedAt` tombstone fields (see {@link lifecycleStatus}):
  * - `'active'`   — neither tombstone set (the default; absent = active).
- * - `'archived'` — `archivedAt` set, `deletedAt` absent (soft, reversible: hidden from scheduling
+ * - `'archived'` — valid `archivedAt` set, valid `deletedAt` absent (soft, reversible: hidden from scheduling
  *                  but fully retained).
- * - `'deleted'`  — `deletedAt` set (a soft-delete tombstone). `deletedAt` WINS over `archivedAt`: a
+ * - `'deleted'`  — valid `deletedAt` set (a soft-delete tombstone). `deletedAt` WINS over `archivedAt`: a
  *                  record archived-then-deleted reads `'deleted'`, never `'archived'`.
  *
  * INVARIANT: these are the only three states; the predicates + transitions below are exhaustive over
@@ -78,11 +80,12 @@ export const PURGE_MIN_AGE_DAYS = 30
 // numbers) — the unit `Date.parse` works in, so {@link canPurge} can compare tombstone age directly.
 const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000
 
-// A present-check that treats BOTH `undefined` and `null` as absent — the P2.1 convention is
-// "absent = not in that state", and a column round-tripped through SQLite/JSON can come back `null`
-// rather than `undefined`. `value != null` (loose) is the idiomatic both-at-once guard.
-function isPresent(value: ISOTimestamp | null | undefined): value is ISOTimestamp {
-  return value != null
+// Lifecycle state is derived only from a canonical, parseable tombstone. Import repair uses the
+// same nearest-valid-state rule; applying it at this read boundary prevents legacy/direct database
+// corruption from creating a hidden state with no legal transition. Purge remains independently
+// fail-closed below and never acts on an invalid deletion timestamp.
+function isValidTombstone(value: ISOTimestamp | null | undefined): value is ISOTimestamp {
+  return value != null && parseISOTimestamp(value) !== null
 }
 
 /**
@@ -95,12 +98,87 @@ function isPresent(value: ISOTimestamp | null | undefined): value is ISOTimestam
  *
  * @param entity - any object carrying the {@link LifecycleFields} (Resource/Client/Project).
  * @returns the derived state: `'deleted'` if `deletedAt` is set, else `'archived'` if `archivedAt`
- *          is set, else `'active'`.
+ *          is valid, else `'active'`. Malformed legacy tombstones are ignored so the row derives
+ *          to its nearest valid state and can be repaired by its next legal transition.
  */
 export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
-  if (isPresent(entity.deletedAt)) return 'deleted'
-  if (isPresent(entity.archivedAt)) return 'archived'
+  if (isValidTombstone(entity.deletedAt)) return 'deleted'
+  if (isValidTombstone(entity.archivedAt)) return 'archived'
   return 'active'
+}
+
+export type LifecycleAncestryRow = LifecycleFields & {
+  id: string
+  accountId?: string
+} & Record<string, unknown>
+
+export type LifecycleAncestryLookup = (
+  table: AppDataKey,
+  id: string,
+) => LifecycleAncestryRow | undefined
+
+export interface LifecycleAncestryResult {
+  /** False when an ancestor is absent, cross-account or inactive, matching normal-read closure. */
+  visible: boolean
+  /** Present only for a proven archived/deleted ancestor; missing refs remain the FK guard's job. */
+  inactiveAncestor?: {
+    table: LifecycleEntityKey
+    id: string
+    state: Exclude<LifecycleState, 'active'>
+  }
+}
+
+interface LifecycleAncestryRelation {
+  child: AppDataKey
+  parent: AppDataKey
+  field: string
+  optional?: boolean
+}
+
+/** The same ancestor edges inherited by normal-read visibility and generic-write validation. */
+const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
+  { child: 'projects', parent: 'clients', field: 'clientId' },
+  { child: 'phases', parent: 'projects', field: 'projectId' },
+  { child: 'activities', parent: 'projects', field: 'projectId', optional: true },
+  { child: 'activities', parent: 'phases', field: 'phaseId', optional: true },
+  { child: 'allocations', parent: 'resources', field: 'resourceId' },
+  { child: 'allocations', parent: 'activities', field: 'activityId' },
+  { child: 'timeOff', parent: 'resources', field: 'resourceId' },
+]
+
+/**
+ * Inspect only an entity's lifecycle ancestry, not the entity's own lifecycle state. `activeOnly`
+ * combines this with its own-state filter; generic writes use `inactiveAncestor` so ordinary
+ * missing/cross-account references retain their existing validation messages.
+ */
+export function inspectLifecycleAncestry(
+  table: AppDataKey,
+  row: LifecycleAncestryRow,
+  lookup: LifecycleAncestryLookup,
+): LifecycleAncestryResult {
+  for (const relation of LIFECYCLE_ANCESTRY) {
+    if (relation.child !== table) continue
+    const parentId = row[relation.field]
+    if (relation.optional && parentId === undefined) continue
+    if (typeof parentId !== 'string') return { visible: false }
+    const parent = lookup(relation.parent, parentId)
+    if (!parent || (
+      typeof row.accountId === 'string' &&
+      parent.accountId !== row.accountId
+    )) return { visible: false }
+    if (isLifecycleEntityKey(relation.parent)) {
+      const state = lifecycleStatus(parent)
+      if (state !== 'active') {
+        return {
+          visible: false,
+          inactiveAncestor: { table: relation.parent, id: parent.id, state },
+        }
+      }
+    }
+    const upstream = inspectLifecycleAncestry(relation.parent, parent, lookup)
+    if (!upstream.visible) return upstream
+  }
+  return { visible: true }
 }
 
 /**
@@ -130,25 +208,27 @@ export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
  */
 export function activeOnly(data: AppData): AppData {
   const isActive = (e: LifecycleFields) => lifecycleStatus(e) === 'active'
+  const indexes = Object.fromEntries(
+    APP_DATA_KEYS.map((table) => [
+      table,
+      new Map(
+        (data[table] as unknown as LifecycleAncestryRow[]).map((row) => [row.id, row]),
+      ),
+    ]),
+  ) as Record<AppDataKey, Map<string, LifecycleAncestryRow>>
+  const lookup: LifecycleAncestryLookup = (table, id) => indexes[table].get(id)
+  const hasVisibleAncestry = (table: AppDataKey, row: object): boolean =>
+    inspectLifecycleAncestry(table, row as LifecycleAncestryRow, lookup).visible
   const resources = data.resources.filter(isActive)
   const clients = data.clients.filter(isActive)
-  const clientIds = new Set(clients.map((client) => client.id))
   // Parent lifecycle is inherited by the read projection. An active child beneath an archived or
   // deleted parent is retained in storage/export, but cannot remain independently visible in the
   // normal app (which previously left orphan-labelled projects and allocation bars on screen).
   const projects = data.projects.filter(
-    (project) => isActive(project) && clientIds.has(project.clientId),
+    (project) => isActive(project) && hasVisibleAncestry('projects', project),
   )
-  const projectIds = new Set(projects.map((project) => project.id))
-  const phases = data.phases.filter((phase) => projectIds.has(phase.projectId))
-  const phaseIds = new Set(phases.map((phase) => phase.id))
-  const activities = data.activities.filter(
-    (activity) =>
-      (activity.projectId === undefined || projectIds.has(activity.projectId)) &&
-      (activity.phaseId === undefined || phaseIds.has(activity.phaseId)),
-  )
-  const resourceIds = new Set(resources.map((resource) => resource.id))
-  const activityIds = new Set(activities.map((activity) => activity.id))
+  const phases = data.phases.filter((phase) => hasVisibleAncestry('phases', phase))
+  const activities = data.activities.filter((activity) => hasVisibleAncestry('activities', activity))
   return {
     ...data,
     resources,
@@ -156,11 +236,8 @@ export function activeOnly(data: AppData): AppData {
     projects,
     phases,
     activities,
-    allocations: data.allocations.filter(
-      (allocation) =>
-        resourceIds.has(allocation.resourceId) && activityIds.has(allocation.activityId),
-    ),
-    timeOff: data.timeOff.filter((entry) => resourceIds.has(entry.resourceId)),
+    allocations: data.allocations.filter((allocation) => hasVisibleAncestry('allocations', allocation)),
+    timeOff: data.timeOff.filter((entry) => hasVisibleAncestry('timeOff', entry)),
   }
 }
 
@@ -172,6 +249,8 @@ export function activeOnly(data: AppData): AppData {
 export interface ArchiveImpact {
   /** Active projects hidden — non-zero only when archiving a CLIENT. */
   projects: number
+  /** Active phases hidden beneath an archived client or project. */
+  phases: number
   /** Active project-activities hidden. */
   activities: number
   /** Active allocation bars hidden. */
@@ -180,9 +259,9 @@ export interface ArchiveImpact {
   timeOff: number
 }
 
-// A non-null sentinel `archivedAt` used only to MEASURE the cascade (never persisted): isPresent()
-// treats any non-null value as archived, so this flips the target row to 'archived' for the diff.
-const ARCHIVE_IMPACT_SENTINEL = '0000-01-01T00:00:00.000Z' as ISOTimestamp
+// A valid sentinel `archivedAt` used only to MEASURE the cascade (never persisted), so this flips
+// the target row to 'archived' for the diff under the same strict timestamp rule as real rows.
+const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp
 
 /**
  * Count what archiving one active `resource`/`client`/`project` would ADDITIONALLY hide from the
@@ -210,10 +289,11 @@ export function archiveImpact(data: AppData, entity: LifecycleEntityKey, id: str
   }
   const before = activeOnly(data)
   const after = activeOnly(archived)
-  const hidden = (key: 'projects' | 'activities' | 'allocations' | 'timeOff'): number =>
+  const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff'): number =>
     before[key].length - after[key].length
   return {
     projects: entity === 'clients' ? hidden('projects') : 0,
+    phases: hidden('phases'),
     activities: hidden('activities'),
     allocations: hidden('allocations'),
     timeOff: entity === 'resources' ? hidden('timeOff') : 0,
@@ -272,8 +352,8 @@ export function canSoftDelete(entity: LifecycleFields): boolean {
  * the eligibility check.
  *
  * Fail-closed: purge is DESTRUCTIVE, so this never falls open. It returns `false` if the entity is
- * not `'deleted'`, OR if `deletedAt`/`nowISO` is missing or unparseable (`Number.isNaN` after
- * `Date.parse`). When in doubt, refuse.
+ * not `'deleted'`, OR if `deletedAt`/`nowISO` is missing or outside the supported strict ISO
+ * timestamp form. When in doubt, refuse.
  *
  * @param entity - the (expected soft-deleted) entity to test.
  * @param nowISO - the caller-supplied "now" timestamp (the store/server owns the clock and passes it
@@ -285,12 +365,24 @@ export function canPurge(entity: LifecycleFields, nowISO: ISOTimestamp): boolean
   // Fail-closed: only a soft-deleted tombstone is ever purgeable.
   if (lifecycleStatus(entity) !== 'deleted') return false
   // `lifecycleStatus === 'deleted'` guarantees `deletedAt` is present; parse both ends.
-  const deletedMs = Date.parse(entity.deletedAt as ISOTimestamp)
-  const nowMs = Date.parse(nowISO)
-  // Fail-closed at an untyped boundary: an unparseable timestamp yields NaN, and any comparison with
-  // NaN is `false` anyway — but we deny EXPLICITLY rather than rely on that, since purge is destructive.
-  if (Number.isNaN(deletedMs) || Number.isNaN(nowMs)) return false
+  const deletedMs = parseISOTimestamp(entity.deletedAt)
+  const nowMs = parseISOTimestamp(nowISO)
+  // Fail-closed at an untyped boundary: only the supported strict ISO shape may unlock a purge.
+  if (deletedMs === null || nowMs === null) return false
   return nowMs - deletedMs >= PURGE_MIN_AGE_MS
+}
+
+export type LifecycleTransitionErrorCode = 'already_inactive' | 'invalid_transition'
+
+/** A lifecycle precondition failure that API adapters may classify without inspecting prose. */
+export class LifecycleTransitionError extends Error {
+  readonly code: LifecycleTransitionErrorCode
+
+  constructor(code: LifecycleTransitionErrorCode, message: string) {
+    super(message)
+    this.name = 'LifecycleTransitionError'
+    this.code = code
+  }
 }
 
 /**
@@ -304,14 +396,25 @@ export function canPurge(entity: LifecycleFields, nowISO: ISOTimestamp): boolean
  *
  * @param entity - the entity to archive (must be `'active'`).
  * @param nowISO - the caller-supplied archive timestamp (the store/server owns the clock).
- * @returns a new entity of the same type with `archivedAt = nowISO`.
- * @throws {Error} if the entity is already archived or deleted.
+ * @returns a new entity of the same type with a canonical `archivedAt`.
+ * @throws {Error} if the entity is already archived/deleted or the timestamp is invalid.
  */
 export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimestamp): T {
   if (!canArchive(entity)) {
-    throw new Error(`Cannot archive: entity is already ${lifecycleStatus(entity)}.`)
+    const status = lifecycleStatus(entity)
+    throw new LifecycleTransitionError(
+      status === 'archived' ? 'already_inactive' : 'invalid_transition',
+      `Cannot archive: entity is already ${status}.`,
+    )
   }
-  return { ...entity, archivedAt: nowISO }
+  const archivedMs = parseISOTimestamp(nowISO)
+  if (archivedMs === null) {
+    throw new LifecycleTransitionError('invalid_transition', 'Cannot archive: archive time must be a valid ISO timestamp.')
+  }
+  const next = { ...entity }
+  delete next.archivedAt
+  delete next.deletedAt
+  return { ...next, archivedAt: new Date(archivedMs).toISOString() }
 }
 
 /**
@@ -330,19 +433,27 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
  */
 export function unarchive<T extends LifecycleFields>(entity: T): T {
   if (!canUnarchive(entity)) {
-    throw new Error(`Cannot unarchive: entity is ${lifecycleStatus(entity)}, not archived.`)
+    throw new LifecycleTransitionError(
+      'invalid_transition',
+      `Cannot unarchive: entity is ${lifecycleStatus(entity)}, not archived.`,
+    )
   }
   // Copy then DELETE the key so the field round-trips as absent (absent = active), rather than
   // leaving an explicit `archivedAt: undefined` that JSON/SQLite would treat differently.
   const next = { ...entity }
   delete next.archivedAt
+  // A malformed deletedAt is ignored by lifecycleStatus so the nearest valid state is archived;
+  // remove that stale corruption while completing the recovery transition to active.
+  if (!isValidTombstone(next.deletedAt)) delete next.deletedAt
   return next
 }
 
 /**
- * Soft-delete an entity (archived → deleted). Returns a NEW object with `deletedAt` set to `nowISO`,
- * PRESERVING `archivedAt` — the tombstone retains when it was archived; {@link lifecycleStatus} still
- * reads `'deleted'` because `deletedAt` wins. The input is NOT mutated.
+ * Soft-delete an entity (archived → deleted). Returns a NEW object with `deletedAt` set to a valid
+ * canonical instant no earlier than `archivedAt`, PRESERVING `archivedAt` — the tombstone retains
+ * when it was archived; {@link lifecycleStatus} still reads `'deleted'` because `deletedAt` wins.
+ * The input is NOT mutated. A caller clock behind the archive is clamped to the archive instant so
+ * this transition cannot create ordering that import must later repair by dropping the deletion.
  *
  * STRICT: THROWS if the entity is not `'archived'` — enforcing the Decisions rule that soft-delete
  * requires PRIOR archival (you cannot delete an active record directly), and refusing to re-delete an
@@ -350,14 +461,25 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
  *
  * @param entity - the entity to soft-delete (must be `'archived'`).
  * @param nowISO - the caller-supplied delete timestamp (the store/server owns the clock).
- * @returns a new entity of the same type with `deletedAt = nowISO` and `archivedAt` preserved.
- * @throws {Error} if the entity is not currently archived.
+ * @returns a new entity of the same type with an ordered `deletedAt` and `archivedAt` preserved.
+ * @throws {Error} if the entity is not currently archived or either timestamp is invalid.
  */
 export function softDelete<T extends LifecycleFields>(entity: T, nowISO: ISOTimestamp): T {
   if (!canSoftDelete(entity)) {
-    throw new Error(`Cannot delete: entity must be archived first (is ${lifecycleStatus(entity)}).`)
+    throw new LifecycleTransitionError(
+      'invalid_transition',
+      `Cannot delete: entity must be archived first (is ${lifecycleStatus(entity)}).`,
+    )
   }
-  return { ...entity, deletedAt: nowISO }
+  const archivedMs = parseISOTimestamp(entity.archivedAt)
+  const deletedMs = parseISOTimestamp(nowISO)
+  if (archivedMs === null || deletedMs === null) {
+    throw new LifecycleTransitionError(
+      'invalid_transition',
+      'Cannot delete: archive and deletion times must be valid ISO timestamps.',
+    )
+  }
+  return { ...entity, deletedAt: new Date(Math.max(archivedMs, deletedMs)).toISOString() }
 }
 
 // The fallback tag used when a resource id is empty or yields no alphanumerics — so an

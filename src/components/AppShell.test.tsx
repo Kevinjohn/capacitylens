@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from './AppShell'
@@ -13,6 +13,8 @@ vi.mock('../data/apiConfig', () => ({
   isDemoMode: () => true,
   isServerConfigured: () => false,
 }))
+
+afterEach(() => vi.unstubAllGlobals())
 
 beforeEach(() => {
   // Sign through the cosmetic demo gate, dismiss the post-login intro page, AND seed an active
@@ -58,6 +60,44 @@ it('consumes a joined-account query only once and preserves later route queries'
   await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings?tab=security'))
 })
 
+it('waits for initial hydration before consuming a joined-account handoff', async () => {
+  useStore.getState().setActiveAccount(null)
+  useStore.getState().setHydrated(false)
+
+  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`])
+
+  await waitFor(() =>
+    expect(
+      useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID),
+    ).toBe(true),
+  )
+  expect(useStore.getState().activeAccountId).toBeNull()
+
+  act(() => useStore.getState().setHydrated(true))
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID))
+})
+
+it('does not reactivate a consumed joined-account handoff after a later account-list refresh', async () => {
+  const otherAccountId = 'acct-other'
+  const accounts = [makeAccount(), makeAccount({ id: otherAccountId, name: 'Other Co' })]
+  useStore.getState().replaceAll(makeAppData({ accounts }))
+  useStore.getState().setAccountSummaries(accounts.map(({ id, name }) => ({ id, name, role: 'owner' })))
+  useStore.getState().setActiveAccount(otherAccountId)
+
+  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`])
+  act(() => useStore.getState().setHydrated(true))
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID))
+
+  act(() => {
+    useStore.getState().setActiveAccount(otherAccountId)
+    useStore.getState().setAccountSummaries(
+      accounts.map(({ id, name }) => ({ id, name, role: 'owner' })),
+    )
+  })
+
+  expect(useStore.getState().activeAccountId).toBe(otherAccountId)
+})
+
 it('guards navigation while a persistence write is still unacknowledged', () => {
   const detachPersistence = attachPersistence(
     useStore,
@@ -79,6 +119,14 @@ it('guards navigation while a persistence write is still unacknowledged', () => 
 })
 
 describe('AppShell navigation links', () => {
+  it('places the focused skip link on its dedicated accessibility layer', () => {
+    renderAppShell()
+
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveClass(
+      'focus:z-(--z-index-skip-link)',
+    )
+  })
+
   it('labels a cached snapshot as Offline and view only instead of Demo access', () => {
     setOfflineReadState(true, Date.parse('2026-07-17T10:00:00.000Z'))
     renderAppShell()
@@ -146,6 +194,29 @@ describe('AppShell sidebar collapse', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('reports the mobile sheet state and next action from the top-bar trigger', () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: true,
+      media: '(max-width: 767px)',
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    } satisfies MediaQueryList)))
+    sessionStorage.setItem('capacitylens/rotateHintDismissed', '1')
+    renderAppShell()
+
+    const trigger = within(screen.getByRole('main')).getByRole('button', { name: 'Expand menu' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(trigger)
+
+    expect(trigger).toHaveAccessibleName('Collapse menu')
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('collapsing keeps the navigation links usable and persists the choice', () => {
     renderAppShell()
 
@@ -179,6 +250,77 @@ describe('AppShell sidebar collapse', () => {
     const link = screen.getByRole('link', { name: 'Projects' })
     expect(link.querySelector('svg')).not.toBeNull()
     expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts', () => {
+    renderAppShell()
+    const event = new KeyboardEvent('keydown', { key: 'b', metaKey: true, bubbles: true, cancelable: true })
+
+    act(() => {
+      window.dispatchEvent(event)
+    })
+
+    expect(useStore.getState().sidebarOpen).toBe(false)
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it.each([
+    ['input', 'input'],
+    ['textarea', 'textarea'],
+    ['select', 'select'],
+    ['editable content', 'div'],
+  ] as const)('leaves Cmd/Ctrl+B to %s', (_label, tagName) => {
+    renderAppShell()
+    const target = document.createElement(tagName)
+    if (tagName === 'div') target.setAttribute('contenteditable', 'true')
+    document.body.append(target)
+    const event = new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true, cancelable: true })
+
+    act(() => {
+      target.dispatchEvent(event)
+    })
+
+    expect(useStore.getState().sidebarOpen).toBe(true)
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('ignores Cmd/Ctrl+B during IME composition', () => {
+    renderAppShell()
+    const event = new KeyboardEvent('keydown', {
+      key: 'b',
+      metaKey: true,
+      isComposing: true,
+      bubbles: true,
+      cancelable: true,
+    })
+
+    act(() => {
+      window.dispatchEvent(event)
+    })
+
+    expect(useStore.getState().sidebarOpen).toBe(true)
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('ignores Cmd/Ctrl+B while a modal is open', () => {
+    renderAppShell()
+    const modal = document.createElement('div')
+    modal.setAttribute('role', 'dialog')
+    modal.setAttribute('aria-modal', 'true')
+    modal.setAttribute('data-state', 'open')
+    document.body.append(modal)
+    const event = new KeyboardEvent('keydown', { key: 'b', metaKey: true, bubbles: true, cancelable: true })
+
+    try {
+      act(() => {
+        window.dispatchEvent(event)
+      })
+
+      expect(useStore.getState().sidebarOpen).toBe(true)
+      expect(event.defaultPrevented).toBe(false)
+    } finally {
+      modal.remove()
+    }
   })
 })
 
@@ -275,6 +417,44 @@ describe('AppShell undo/redo keyboard', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }))
     })
     expect(useStore.getState().data.clients).toHaveLength(0) // undone
+  })
+
+  it('ignores undo and redo while a clean modal has focus on a non-text control', () => {
+    useStore.getState().setHydrated(true)
+    renderAppShell()
+    act(() => {
+      useStore.getState().addClient({ name: 'Undoable', color: '#111111' })
+    })
+
+    const modal = document.createElement('div')
+    modal.setAttribute('role', 'dialog')
+    modal.setAttribute('aria-modal', 'true')
+    modal.setAttribute('data-state', 'open')
+    const button = document.createElement('button')
+    modal.append(button)
+    document.body.append(modal)
+
+    try {
+      act(() => {
+        button.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true }))
+      })
+      expect(useStore.getState().data.clients).toHaveLength(1)
+
+      // Seed the redo side of history directly, then prove the same clean modal owns Cmd+Shift+Z.
+      act(() => useStore.getState().undo())
+      expect(useStore.getState().data.clients).toHaveLength(0)
+      act(() => {
+        button.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'z',
+          metaKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }))
+      })
+      expect(useStore.getState().data.clients).toHaveLength(0)
+    } finally {
+      modal.remove()
+    }
   })
 })
 

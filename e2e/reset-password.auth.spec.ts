@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from './auth-helpers'
 
 test.use({ reducedMotion: 'reduce' })
@@ -60,6 +60,10 @@ test.describe('password reset link (SMALLSASS_ACCOUNT_MODE=password)', () => {
     const memberRow = page.getByTestId('member-row').filter({ hasText: MEMBER })
     await expect(memberRow).toBeVisible()
     await memberRow.getByTestId('member-reset-password').click()
+    await page
+      .getByRole('alertdialog', { name: 'Create password-reset link?' })
+      .getByRole('button', { name: 'Reset password' })
+      .click()
 
     // The write-once reset-link block: shown exactly once, straight from the create response.
     const linkEl = page.getByTestId('reset-link')

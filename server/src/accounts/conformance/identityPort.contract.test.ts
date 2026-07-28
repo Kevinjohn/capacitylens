@@ -11,6 +11,7 @@ import type {
   ProvisionalPrincipal,
   SessionSummary,
 } from '@capacitylens/shared/account/types'
+import { isIsoInstant } from '@capacitylens/shared/account/types'
 import { authFromEnv, runAuthMigrations, type Auth } from '../../auth'
 import { openDb } from '../../db'
 import { PASSWORD_ENV } from '../../testHelpers'
@@ -119,8 +120,8 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
       for (const session of sessions) {
         expect(session).toEqual({
           id: expect.any(String),
-          createdAt: expect.any(String),
-          expiresAt: expect.toSatisfy((value: unknown) => value === null || typeof value === 'string'),
+          createdAt: expect.toSatisfy(isIsoInstant),
+          expiresAt: expect.toSatisfy((value: unknown) => value === null || isIsoInstant(value)),
           current: expect.any(Boolean),
         })
         expect(session.id).not.toContain('bearer')
@@ -130,16 +131,18 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
     it('revokes an own-session handle idempotently without exposing a bearer', async () => {
       const current = await setup()
       const operation = command('own-session')
+      const sessionExisted = (await current.port.listSessions({ actor: current.actor }))
+        .some((session) => session.id === current.actor.sessionId)
       await expect(current.port.revokeOwnSession({
         actor: current.actor,
         sessionId: current.actor.sessionId,
         command: operation,
-      })).resolves.toMatchObject({ commandId: operation.commandId })
+      })).resolves.toMatchObject({ commandId: operation.commandId, changed: sessionExisted })
       await expect(current.port.revokeOwnSession({
         actor: current.actor,
         sessionId: current.actor.sessionId,
         command: operation,
-      })).resolves.toMatchObject({ commandId: operation.commandId })
+      })).resolves.toMatchObject({ commandId: operation.commandId, changed: false })
     })
 
     it('deprovisions only the requested installation-local principal', async () => {
@@ -376,8 +379,7 @@ function fakeIdentityHarness(): Harness {
       return [...sessions.values()].filter(() => actor.principalId === PRINCIPAL.id)
     },
     async revokeOwnSession({ sessionId, command: operation }) {
-      sessions.delete(sessionId)
-      return receipt(operation)
+      return { ...receipt(operation), changed: sessions.delete(sessionId) }
     },
     async createProvisionalCredentialPrincipal({ email, displayName, command: operation }) {
       const value = {

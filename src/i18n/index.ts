@@ -10,8 +10,16 @@
 // detail, and the locale<-account wiring lives in one documented spot. English-only today; the seam
 // is ready for later locales without touching call sites.
 
-import { m } from '@/paraglide/messages.js'
-import { baseLocale, isLocale, setLocale, type Locale } from '@/paraglide/runtime.js'
+import { m } from "@/paraglide/messages.js";
+import {
+  baseLocale,
+  getLocale,
+  isLocale,
+  setLocale,
+  type Locale,
+} from "@/paraglide/runtime.js";
+import { enGB } from "date-fns/locale";
+import type { Locale as DateFnsLocale } from "date-fns";
 
 /**
  * The compiled message catalogue — typed functions, one per key in messages/<locale>.json.
@@ -21,7 +29,17 @@ import { baseLocale, isLocale, setLocale, type Locale } from '@/paraglide/runtim
  * (then recompiling) removes its function here and turns every `m.<key>()` call into a tsc error —
  * that compile-time safety IS the point of choosing Paraglide.
  */
-export { m }
+export { m };
+
+const DATE_FNS_LOCALES: Record<Locale, DateFnsLocale> = {
+  en: enGB,
+};
+
+/** Resolve date-fns presentation rules from the active Paraglide locale.
+ *  The exhaustive map makes a new generated locale require one central date-locale mapping. */
+export function activeDateLocale(): DateFnsLocale {
+  return DATE_FNS_LOCALES[getLocale()];
+}
 
 /**
  * Apply the active company's UI language to the i18n runtime.
@@ -39,10 +57,11 @@ export { m }
  * @param language - The active Account's `language` field (e.g. `'en'`); `undefined` ⇒ baseLocale.
  */
 export function syncLocaleFromAccount(language: string | undefined): void {
-  const resolved: Locale = language !== undefined && isLocale(language) ? language : baseLocale
+  const resolved: Locale =
+    language !== undefined && isLocale(language) ? language : baseLocale;
   // `setLocale` is typed `void | Promise<void>` (it becomes async only if a custom async strategy is
   // configured). Our strategies — `globalVariable`/`baseLocale` — are synchronous, so there is nothing
   // to await; `void` marks the non-promise return intentionally ignored (the repo's floating-promise
   // discipline) rather than mislabelling this as async.
-  void setLocale(resolved, { reload: false })
+  void setLocale(resolved, { reload: false });
 }

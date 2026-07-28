@@ -70,4 +70,22 @@ describe('feedbackMailto', () => {
     const { feedbackMailto } = await freshBuildInfo()
     expect(feedbackMailto()).toBe(`mailto:owner@example.com?subject=${encodeURIComponent('CapacityLens feedback')}`)
   })
+
+  it('encodes reserved characters as part of a valid recipient mailbox', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', 'owner?reports@example.com')
+    const { feedbackMailto } = await freshBuildInfo()
+    expect(feedbackMailto()).toBe(
+      `mailto:owner%3Freports@example.com?subject=${encodeURIComponent('CapacityLens feedback')}`,
+    )
+  })
+
+  it.each([
+    'not-an-email-address',
+    'two@@example.com',
+    'owner @example.com',
+  ])('renders no feedback link for an invalid mailbox: %s', async (value) => {
+    vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', value)
+    const { feedbackMailto } = await freshBuildInfo()
+    expect(feedbackMailto()).toBeNull()
+  })
 })

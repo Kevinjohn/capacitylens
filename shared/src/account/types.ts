@@ -14,7 +14,19 @@ export type MembershipRevision = string
 export type PolicyVersion = string
 export type CommandId = string
 export type IdempotencyKey = string
+/** Canonical UTC instant produced by `Date#toISOString()`, including exactly three millisecond
+ * digits and a trailing `Z` (for example `2026-07-18T10:00:00.000Z`). */
 export type IsoInstant = string
+export function isIsoInstant(value: unknown): value is IsoInstant {
+  if (typeof value !== 'string') return false
+  const milliseconds = Date.parse(value)
+  if (!Number.isFinite(milliseconds)) return false
+  try {
+    return new Date(milliseconds).toISOString() === value
+  } catch {
+    return false
+  }
+}
 export type AccountMode = 'off' | 'password' | 'sso'
 
 export interface AccountBranding {
@@ -142,6 +154,13 @@ export interface OperationReceipt {
   completedAt: IsoInstant
   /** Whether an idempotent set/delete changed durable state, when the operation exposes it. */
   changed?: boolean
+}
+
+/** A non-terminal command observation. Kept distinct from OperationReceipt so callers cannot
+ * mistake a ledger heartbeat for proof that the operation completed. */
+export interface PendingOperationReceipt {
+  commandId: CommandId
+  observedAt: IsoInstant
 }
 
 export interface ProvisionalPrincipal {

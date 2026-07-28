@@ -31,7 +31,7 @@ export function Avatar({
     : name
         .trim()
         .split(/\s+/)
-        .map((w) => w[0])
+        .map((word) => Array.from(word)[0] ?? '')
         .slice(0, 2)
         .join('')
         .toUpperCase() || '—'

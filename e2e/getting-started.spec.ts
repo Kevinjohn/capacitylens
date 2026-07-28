@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openApp, openNewCompany } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
@@ -53,6 +53,22 @@ test.describe('getting started checklist', () => {
     await expect(card.getByRole('link', { name: 'Add your first client' })).toHaveCount(0)
     await expect(card.getByText('Add your first client')).toBeVisible()
     await expect(card.getByRole('link', { name: 'Add your first project' })).toBeVisible()
+  })
+
+  test('the overflowing card scrolls with a pointer wheel at a short viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 320 })
+    await openNewCompany(page, 'Fresh Co')
+    const card = page.getByTestId('getting-started')
+    await expect(card).toBeVisible()
+    await expect.poll(() => card.evaluate((element) => element.scrollHeight > element.clientHeight))
+      .toBe(true)
+
+    const bounds = await card.boundingBox()
+    expect(bounds).not.toBeNull()
+    await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2)
+    await page.mouse.wheel(0, 300)
+
+    await expect.poll(() => card.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
   })
 
   test('"Show me around" runs the loose orientation tour', async ({ page }) => {

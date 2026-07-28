@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from 'vitest'
-import { validateName, validateHex, validateWorkingDays, validateText, validationMessages } from './validation'
-import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
+import {
+  validateName,
+  validateHex,
+  validateWorkingDays,
+  validateText,
+  validationMessages,
+} from './validation'
+import {
+  MAX_NAME_LENGTH,
+  MAX_NOTE_LENGTH,
+} from '@capacitylens/shared/lib/strings'
 
 describe('validateName', () => {
   it('returns the trimmed value for a clean name', () => {
@@ -15,14 +24,19 @@ describe('validateName', () => {
   })
   it('rejects emoji / control junk', () => {
     const fail = vi.fn()
-    expect(validateName(`Bad ${String.fromCodePoint(0x1f4a9)}`, fail)).toBeNull()
+    expect(
+      validateName(`Bad ${String.fromCodePoint(0x1f4a9)}`, fail),
+    ).toBeNull()
     expect(fail).toHaveBeenCalledWith('name', validationMessages().textInvalid)
   })
 
   it('reports failures against the custom field name passed through, not the "name" default', () => {
     const fail = vi.fn()
     expect(validateName('   ', fail, 'discipline')).toBeNull()
-    expect(fail).toHaveBeenCalledWith('discipline', validationMessages().nameRequired)
+    expect(fail).toHaveBeenCalledWith(
+      'discipline',
+      validationMessages().nameRequired,
+    )
   })
 })
 
@@ -53,7 +67,9 @@ describe('validateText (optional fields)', () => {
 
   it('allows newlines when multiline is explicitly true', () => {
     const fail = vi.fn()
-    expect(validateText('line1\nline2', fail, { multiline: true })).toBe('line1\nline2')
+    expect(validateText('line1\nline2', fail, { multiline: true })).toBe(
+      'line1\nline2',
+    )
     expect(fail).not.toHaveBeenCalled()
   })
 
@@ -67,6 +83,14 @@ describe('validateText (optional fields)', () => {
     expect(fail).toHaveBeenCalledWith('name', validationMessages().textTooLong)
   })
 
+  it('measures an astral-letter name in Unicode code points', () => {
+    const fail = vi.fn()
+    const astralLetter = '𠀀'
+    const atLimit = astralLetter.repeat(MAX_NAME_LENGTH)
+    expect(validateText(atLimit, fail)).toBe(atLimit)
+    expect(validateText(`${atLimit}${astralLetter}`, fail)).toBeNull()
+  })
+
   it('defaults maxLength to MAX_NOTE_LENGTH when multiline', () => {
     const fail = vi.fn()
     const atLimit = 'a'.repeat(MAX_NOTE_LENGTH)
@@ -76,7 +100,9 @@ describe('validateText (optional fields)', () => {
 
   it('is not "too long" exactly AT maxLength (strict > boundary), but is one char over', () => {
     const fail = vi.fn()
-    expect(validateText('a'.repeat(10), fail, { maxLength: 10 })).toBe('a'.repeat(10))
+    expect(validateText('a'.repeat(10), fail, { maxLength: 10 })).toBe(
+      'a'.repeat(10),
+    )
     expect(fail).not.toHaveBeenCalled()
     fail.mockClear()
     expect(validateText('a'.repeat(11), fail, { maxLength: 10 })).toBeNull()
@@ -103,7 +129,10 @@ describe('validateWorkingDays', () => {
   it('fails on an empty set and reports the field', () => {
     const fail = vi.fn()
     expect(validateWorkingDays([], fail)).toBe(false)
-    expect(fail).toHaveBeenCalledWith('workingDays', validationMessages().workingDaysRequired)
+    expect(fail).toHaveBeenCalledWith(
+      'workingDays',
+      validationMessages().workingDaysRequired,
+    )
   })
   it.each([
     [[1, 1], 'duplicate days'],
@@ -114,6 +143,9 @@ describe('validateWorkingDays', () => {
     expect(description.length).toBeGreaterThan(0)
     const fail = vi.fn()
     expect(validateWorkingDays([...days], fail, 'availability')).toBe(false)
-    expect(fail).toHaveBeenCalledWith('availability', validationMessages().workingDaysRequired)
+    expect(fail).toHaveBeenCalledWith(
+      'availability',
+      validationMessages().workingDaysRequired,
+    )
   })
 })

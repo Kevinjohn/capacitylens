@@ -1,23 +1,37 @@
-import { DatabaseSync } from 'node:sqlite'
-import { createHash } from 'node:crypto'
-import { chmodSync, existsSync } from 'node:fs'
-import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
+import { DatabaseSync } from "node:sqlite";
+import { createHash } from "node:crypto";
+import { chmodSync, existsSync } from "node:fs";
+import { emptyAppData, isEmpty } from "@capacitylens/shared/types/entities";
 import {
+  availableInternalClientId,
   buildInternalClient,
   INTERNAL_CLIENT_COLOR,
   INTERNAL_CLIENT_NAME,
-} from '@capacitylens/shared/data/internalClient'
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
-import { redactPrivateNames } from '@capacitylens/shared/domain/privateNames'
-import type { AppData } from '@capacitylens/shared/types/entities'
+} from "@capacitylens/shared/data/internalClient";
+import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
+import { redactPrivateNames } from "@capacitylens/shared/domain/privateNames";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
 // keep resolving it from this module; the single definition lives in shared/types.
-export { isEmpty }
-import { TABLES, SCHEMA_V8_SQL, CREATE_ORDER, SCOPED_ORDER, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from './tables'
-import { tx } from './txn'
-import { toRow, fromRow, type Row } from './rowCodec'
-import { assertSchemaCurrent, assertSchemaV8, migrateSchemaV8, renameLegacyActivityTables } from './schema'
+export { isEmpty };
+import {
+  TABLES,
+  SCHEMA_V8_SQL,
+  CREATE_ORDER,
+  SCOPED_ORDER,
+  INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
+} from "./tables";
+import { tx } from "./txn";
+import { toRow, fromRow, type Row } from "./rowCodec";
+import {
+  assertSchemaCurrent,
+  assertSchemaV16,
+  assertSchemaV8,
+  assertSchemaV9,
+  migrateSchemaV8,
+  renameLegacyActivityTables,
+} from "./schema";
 import {
   assertControlTablesCurrent,
   assertSingleOwnerControlPlaneCurrent,
@@ -25,14 +39,32 @@ import {
   ensureControlTables,
   migrateMemberResetCeremoniesV14,
   migrateOwnerlessControlPlaneV11,
+  reportOwnerlessPromotionsV11,
   migrateOwnerResetCeremoniesV12,
   migrateSingleOwnerControlPlaneV10,
   SINGLE_OWNER_INDEX,
-} from './controlTables'
+} from "./controlTables";
 import {
   ACCOUNT_BOUNDARY_STATE_V15_SQL,
   assertAccountBoundaryStateCurrent,
-} from './accounts/state'
+} from "./accounts/state";
+import { AUDIT_OUTBOX_SQL, assertAuditOutboxCurrent } from "./auditOutbox";
+import { SYNC_ORDERING_SQL, assertSyncOrderingCurrent } from "./syncOrdering";
+import {
+  TENANT_RELATIONSHIP_INTEGRITY_V19_SQL,
+  assertTenantRelationshipIntegrityCurrent,
+} from "./tenantIntegrity";
+import {
+  assertBootstrapClaimCurrent,
+  BOOTSTRAP_CLAIM_V20_DEFINITION,
+  migrateBootstrapClaimV20,
+} from "./bootstrapClaim";
+import {
+  assertTenantAccountIndexesV21,
+  assertTenantEntityIndexesCurrent,
+  FOREIGN_KEY_CHILD_INDEXES_V23_SQL,
+  TENANT_ENTITY_INDEXES_V21_SQL,
+} from "./tenantIndexes";
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
 // domain-core's job (see validate.ts). These helpers only map between SQL rows and the
@@ -40,35 +72,42 @@ import {
 // ./rowCodec, schema migration/assertion in ./schema, and the tx() helper in ./txn; this
 // module owns openDb plus the CRUD / bulk / init-marker primitives the routes call.
 
-export type Db = DatabaseSync
+export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 16
+export const DB_SCHEMA_VERSION = 23;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
-export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
+export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
 
 interface DatabaseMigration {
-  version: number
-  name: string
-  checksum: string
-  up(db: Db): void
+  version: number;
+  name: string;
+  checksum: string;
+  /** Return commit-dependent reporting work when an outcome must not be published on rollback. */
+  up(db: Db): void | (() => void);
 }
 
 export interface DatabaseMigrationPlan {
-  fromVersion: number
-  toVersion: number
-  fresh: boolean
-  migrations: ReadonlyArray<Pick<DatabaseMigration, 'version' | 'name' | 'checksum'>>
+  fromVersion: number;
+  toVersion: number;
+  fresh: boolean;
+  migrations: ReadonlyArray<
+    Pick<DatabaseMigration, "version" | "name" | "checksum">
+  >;
 }
 
 export interface DatabaseMigrationHooks {
   /** Test/rehearsal seam: runs after the migration, history row and version stamps, immediately
    * before COMMIT. Throwing (or terminating the process) must leave the previous version intact. */
-  beforeCommit?(migration: Readonly<Pick<DatabaseMigration, 'version' | 'name' | 'checksum'>>): void
+  beforeCommit?(
+    migration: Readonly<
+      Pick<DatabaseMigration, "version" | "name" | "checksum">
+    >,
+  ): void;
 }
 
-export const DATABASE_MIGRATION_TABLE = 'capacitylens_schema_migrations'
+export const DATABASE_MIGRATION_TABLE = "capacitylens_schema_migrations";
 
 const MIGRATION_HISTORY_SQL = `
 CREATE TABLE IF NOT EXISTS ${DATABASE_MIGRATION_TABLE} (
@@ -77,26 +116,26 @@ CREATE TABLE IF NOT EXISTS ${DATABASE_MIGRATION_TABLE} (
   checksum TEXT NOT NULL CHECK(length(checksum) = 64),
   appliedAt TEXT NOT NULL
 ) STRICT;
-`
+`;
 
 function defineMigration(
   version: number,
   name: string,
   definition: string,
-  up: (db: Db) => void,
+  up: (db: Db) => void | (() => void),
 ): DatabaseMigration {
   // The definition is the immutable, reviewable migration manifest. Include every SQL block and
   // named repair revision that contributes to the step. Once released, changing it changes the
   // checksum and every already-upgraded database will refuse to open instead of drifting silently.
-  const checksum = createHash('sha256')
-    .update('capacitylens-sqlite-migration\0')
+  const checksum = createHash("sha256")
+    .update("capacitylens-sqlite-migration\0")
     .update(String(version))
-    .update('\0')
+    .update("\0")
     .update(name)
-    .update('\0')
+    .update("\0")
     .update(definition)
-    .digest('hex')
-  return { version, name, checksum, up }
+    .digest("hex");
+  return { version, name, checksum, up };
 }
 
 /**
@@ -125,14 +164,20 @@ function defineMigration(
  * decision. The ledger row is LEFT UNTOUCHED — we accept the superseded checksum during read-only
  * planning rather than rewriting history, so assertMigrationHistory stays a pure read.
  */
-const SUPERSEDED_MIGRATION_CHECKSUMS: ReadonlyMap<number, readonly string[]> = new Map([
-  [11, ['057242fc8e358bebf0a188395e9289d2661f6a89e843bc091e718d003f013f5e']],
-])
+const SUPERSEDED_MIGRATION_CHECKSUMS: ReadonlyMap<number, readonly string[]> =
+  new Map([
+    [11, ["057242fc8e358bebf0a188395e9289d2661f6a89e843bc091e718d003f013f5e"]],
+  ]);
 
 /** True only when `checksum` is an explicitly superseded prior definition for `version` (see
  * {@link SUPERSEDED_MIGRATION_CHECKSUMS}). Any unlisted checksum is a genuine drift and returns false. */
-function isSupersededMigrationChecksum(version: number, checksum: string): boolean {
-  return SUPERSEDED_MIGRATION_CHECKSUMS.get(version)?.includes(checksum) ?? false
+function isSupersededMigrationChecksum(
+  version: number,
+  checksum: string,
+): boolean {
+  return (
+    SUPERSEDED_MIGRATION_CHECKSUMS.get(version)?.includes(checksum) ?? false
+  );
 }
 
 /**
@@ -149,24 +194,78 @@ function isSupersededMigrationChecksum(version: number, checksum: string): boole
  * a new colour policy is a NEW migration with its own frozen list and checksum.
  */
 export const V13_FROZEN_PRESET_COLORS: readonly string[] = [
-  '#f5bcbc', '#f7caba', '#f9d9b8', '#f9e6b8', '#f9f1b8', '#d9f2c0', '#c2f0d1', '#c0edf2', '#bed4f4', '#ccc0f2', '#e0c2f0', '#f4bedd', '#d8b397',
-  '#eb7272', '#ef906e', '#f3ae6a', '#f3ca6a', '#f3e16a', '#aee37a', '#7edf9e', '#7adae3', '#76a5e7', '#947ae3', '#be7edf', '#e776b8', '#c38c61',
-  '#e02727', '#e65621', '#ed841b', '#edae1b', '#edd11b', '#84d434', '#3ace6b', '#34c7d4', '#2d75da', '#5c34d4', '#9c3ace', '#da2d92', '#9e663c',
-  '#9c1616', '#a13812', '#a5590d', '#a5780d', '#a5910d', '#59931f', '#248f47', '#1f8a93', '#1b4f98', '#3c1f93', '#6b248f', '#981b64', '#684327',
-]
+  "#f5bcbc",
+  "#f7caba",
+  "#f9d9b8",
+  "#f9e6b8",
+  "#f9f1b8",
+  "#d9f2c0",
+  "#c2f0d1",
+  "#c0edf2",
+  "#bed4f4",
+  "#ccc0f2",
+  "#e0c2f0",
+  "#f4bedd",
+  "#d8b397",
+  "#eb7272",
+  "#ef906e",
+  "#f3ae6a",
+  "#f3ca6a",
+  "#f3e16a",
+  "#aee37a",
+  "#7edf9e",
+  "#7adae3",
+  "#76a5e7",
+  "#947ae3",
+  "#be7edf",
+  "#e776b8",
+  "#c38c61",
+  "#e02727",
+  "#e65621",
+  "#ed841b",
+  "#edae1b",
+  "#edd11b",
+  "#84d434",
+  "#3ace6b",
+  "#34c7d4",
+  "#2d75da",
+  "#5c34d4",
+  "#9c3ace",
+  "#da2d92",
+  "#9e663c",
+  "#9c1616",
+  "#a13812",
+  "#a5590d",
+  "#a5780d",
+  "#a5910d",
+  "#59931f",
+  "#248f47",
+  "#1f8a93",
+  "#1b4f98",
+  "#3c1f93",
+  "#6b248f",
+  "#981b64",
+  "#684327",
+];
 
 /** The ONE fixed colour v13 uses for a value that can't be parsed as a 6-digit hex at all (frozen
  * transcription of shared `FALLBACK_PRESET_COLOR` at authoring time — frozen for the same reason). */
-const V13_FALLBACK_PRESET_COLOR = '#5c34d4'
+const V13_FALLBACK_PRESET_COLOR = "#5c34d4";
 
 /** v13 migration definition string. The joined frozen-palette hex list and fallback are embedded so
  * the migration CHECKSUM covers the EXACT palette the repair snaps to: edit the frozen palette and
  * the definition (hence the checksum) changes with it, instead of the step silently drifting. */
 export const V13_DEFINITION = [
-  'repair:snap-every-stored-account-colour-to-its-nearest-preset:v2',
-  `palette:${V13_FROZEN_PRESET_COLORS.join(',')}`,
+  "repair:snap-every-stored-account-colour-to-its-nearest-preset:v2",
+  `palette:${V13_FROZEN_PRESET_COLORS.join(",")}`,
   `fallback:${V13_FALLBACK_PRESET_COLOR}`,
-].join('\n')
+].join("\n");
+
+const V22_DEFINITION = [
+  "repair:reactivate-built-in-internal-clients:v1",
+  "scope:clients WHERE builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)",
+  "mutation:clear archivedAt/deletedAt and advance updatedAt past both its previous value and the migration clock",
+].join("\n");
 
 // `table` is interpolated DIRECTLY into the SQL strings below (SQL can't parameterise an
 // identifier), so it MUST be a vetted key of TABLES — this is the SQL-injection safety boundary.
@@ -177,299 +276,504 @@ export const V13_DEFINITION = [
 // masquerade as a table.
 function assertKnownTable(table: string): void {
   if (!Object.hasOwn(TABLES, table)) {
-    throw new Error(`Unknown table "${table}" — not a known entity table (SQL-identifier safety guard).`)
+    throw new Error(
+      `Unknown table "${table}" — not a known entity table (SQL-identifier safety guard).`,
+    );
   }
 }
 
 /** Open/configure the SQLite handle without creating or migrating application tables. Production
  * startup uses this seam to inspect the migration plan and take its rollback snapshot first. */
 export function openDbConnection(path: string): Db {
-  let db: Db
+  let db: Db;
   try {
-    db = new DatabaseSync(path, { enableForeignKeyConstraints: false, timeout: 5000 })
+    db = new DatabaseSync(path, {
+      enableForeignKeyConstraints: false,
+      timeout: 5000,
+    });
   } catch (e) {
     // Boot SHOULD crash on an unopenable DB — but frame the raw node:sqlite error with the path so
     // an operator sees "could not open <CAPACITYLENS_DB>" instead of a bare stack. Rethrow (don't swallow).
     throw new Error(
       `Could not open the SQLite database at "${path}": ${e instanceof Error ? e.message : String(e)}`,
       { cause: e },
-    )
+    );
   }
-  if (path !== ':memory:') {
-    try {
-      chmodSync(path, 0o600)
-      // WAL/SHM may not exist until the first write; the process umask above protects later files.
-    } catch (cause) {
-      db.close()
-      throw new Error(`Could not restrict database permissions at "${path}".`, { cause })
-    }
-  }
+  databasePaths.set(db, path);
   // Also set the pragma explicitly: constructor timeout is the primary Node 24 path; the pragma
   // pins the behavior if the driver construction path changes later.
-  db.exec('PRAGMA busy_timeout = 5000;')
-  return db
+  db.exec("PRAGMA busy_timeout = 5000;");
+  return db;
 }
 
-const pragmaNumber = (db: Db, pragma: 'user_version' | 'application_id'): number =>
-  Number((db.prepare(`PRAGMA ${pragma}`).get() as Record<string, number | undefined>)[pragma] ?? 0)
+// DatabaseSync does not expose its filename. Retain it only for handles opened through this module
+// so successful identity planning can harden the file without touching a database we then refuse.
+const databasePaths = new WeakMap<Db, string>();
+
+function restrictIdentifiedDatabasePermissions(db: Db): void {
+  const path = databasePaths.get(db);
+  if (!path || path === ":memory:") return;
+  try {
+    chmodSync(path, 0o600);
+    // WAL/SHM may not exist until the first write; the process umask protects later files.
+  } catch (cause) {
+    throw new Error(`Could not restrict database permissions at "${path}".`, {
+      cause,
+    });
+  }
+}
+
+const pragmaNumber = (
+  db: Db,
+  pragma: "user_version" | "application_id",
+): number =>
+  Number(
+    (
+      db.prepare(`PRAGMA ${pragma}`).get() as Record<string, number | undefined>
+    )[pragma] ?? 0,
+  );
 
 const userTables = (db: Db): string[] =>
-  (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all() as Array<{
-    name: string
-  }>).map((row) => row.name)
+  (
+    db
+      .prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+      )
+      .all() as Array<{
+      name: string;
+    }>
+  ).map((row) => row.name);
+
+const tableHasColumns = (
+  db: Db,
+  table: string,
+  required: readonly string[],
+): boolean => {
+  const columns = new Set(
+    (
+      db.prepare(`PRAGMA table_info("${table}")`).all() as Array<{
+        name: string;
+      }>
+    ).map(({ name }) => name),
+  );
+  return required.every((column) => columns.has(column));
+};
+
+const tableHasForeignKey = (
+  db: Db,
+  table: string,
+  from: string,
+  targetTable: string,
+  targetColumn = "id",
+): boolean =>
+  (
+    db.prepare(`PRAGMA foreign_key_list("${table}")`).all() as Array<{
+      from: string;
+      table: string;
+      to: string;
+    }>
+  ).some(
+    (key) =>
+      key.from === from && key.table === targetTable && key.to === targetColumn,
+  );
+
+/** application_id predates the retained v7 fixtures, so legacy recognition must be structural.
+ * Require the distinctive account→client→project→work chain plus allocation ownership rather
+ * than accepting any second table whose name happens to overlap the domain model. The identifiers
+ * below are fixed source constants, never caller input. */
+function hasLegacyCapacityLensShape(
+  db: Db,
+  tables: readonly string[],
+): boolean {
+  const tableSet = new Set(tables);
+  const workTable = tableSet.has("activities")
+    ? "activities"
+    : tableSet.has("tasks")
+      ? "tasks"
+      : null;
+  if (
+    !workTable ||
+    !["accounts", "clients", "projects", "allocations"].every((table) =>
+      tableSet.has(table),
+    )
+  )
+    return false;
+
+  const allocationWorkColumn =
+    workTable === "activities" ? "activityId" : "taskId";
+  return (
+    tableHasColumns(db, "accounts", ["id", "name", "createdAt", "updatedAt"]) &&
+    tableHasColumns(db, "clients", ["id", "accountId", "name"]) &&
+    tableHasColumns(db, "projects", ["id", "accountId", "clientId"]) &&
+    tableHasColumns(db, workTable, ["id", "accountId", "name", "projectId"]) &&
+    tableHasColumns(db, "allocations", [
+      "id",
+      "accountId",
+      "resourceId",
+      allocationWorkColumn,
+    ]) &&
+    tableHasForeignKey(db, "clients", "accountId", "accounts") &&
+    tableHasForeignKey(db, "projects", "accountId", "accounts") &&
+    tableHasForeignKey(db, "projects", "clientId", "clients") &&
+    tableHasForeignKey(db, workTable, "accountId", "accounts") &&
+    tableHasForeignKey(db, workTable, "projectId", "projects") &&
+    tableHasForeignKey(db, "allocations", "accountId", "accounts")
+  );
+}
 
 /** Read-only migration planning. It rejects future/wrong-application files before any schema DDL. */
 export function planDatabaseMigrations(db: Db): DatabaseMigrationPlan {
-  const fromVersion = pragmaNumber(db, 'user_version')
-  const applicationId = pragmaNumber(db, 'application_id')
-  const tables = userTables(db)
-  const fresh = tables.length === 0
+  const fromVersion = pragmaNumber(db, "user_version");
+  const applicationId = pragmaNumber(db, "application_id");
+  const tables = userTables(db);
+  const fresh = tables.length === 0;
 
   if (!Number.isSafeInteger(fromVersion) || fromVersion < 0) {
-    throw new Error(`Database schema version is invalid (${fromVersion}).`)
+    throw new Error(`Database schema version is invalid (${fromVersion}).`);
   }
   if (fromVersion > DB_SCHEMA_VERSION) {
     throw new Error(
       `Database schema version ${fromVersion} is newer than this server supports (${DB_SCHEMA_VERSION}); refusing a downgrade.`,
-    )
+    );
   }
   if (applicationId !== 0 && applicationId !== CAPACITYLENS_APPLICATION_ID) {
     throw new Error(
       `SQLite application_id ${applicationId} does not identify a CapacityLens database; refusing to modify this file.`,
-    )
+    );
   }
   if (!fresh && applicationId === 0) {
-    const legacyDomainTables = new Set([...Object.keys(TABLES), 'tasks'])
-    const legacyShape = tables.includes('accounts') && tables.some(
-      (table) => table !== 'accounts' && legacyDomainTables.has(table),
-    )
-    if (!legacyShape) {
-      throw new Error('SQLite file has tables but no CapacityLens application_id or legacy CapacityLens shape; refusing to modify it.')
+    if (!hasLegacyCapacityLensShape(db, tables)) {
+      throw new Error(
+        "SQLite file has tables but no CapacityLens application_id or legacy CapacityLens shape; refusing to modify it.",
+      );
     }
   }
-  if (fromVersion === DB_SCHEMA_VERSION && applicationId !== CAPACITYLENS_APPLICATION_ID) {
-    throw new Error('Current-version database is missing the CapacityLens application_id; refusing ambiguous schema repair.')
+  if (
+    fromVersion === DB_SCHEMA_VERSION &&
+    applicationId !== CAPACITYLENS_APPLICATION_ID
+  ) {
+    throw new Error(
+      "Current-version database is missing the CapacityLens application_id; refusing ambiguous schema repair.",
+    );
   }
-  assertMigrationHistory(db, fromVersion)
+  assertMigrationHistory(db, fromVersion);
+  // Identity, supported version and immutable migration history are now established. Only at this
+  // point does the file belong to this application and become safe to harden.
+  restrictIdentifiedDatabasePermissions(db);
 
   return {
     fromVersion,
     toVersion: DB_SCHEMA_VERSION,
     fresh,
-    migrations: DATABASE_MIGRATIONS.filter((migration) => migration.version > fromVersion).map(
-      ({ version, name, checksum }) => ({ version, name, checksum }),
-    ),
-  }
+    migrations: DATABASE_MIGRATIONS.filter(
+      (migration) => migration.version > fromVersion,
+    ).map(({ version, name, checksum }) => ({ version, name, checksum })),
+  };
 }
 
 const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(
     8,
-    'establish-explicit-migration-baseline',
+    "establish-explicit-migration-baseline",
     [
-      'legacy-activity-table-rename:v1',
+      "legacy-activity-table-rename:v1",
       SCHEMA_V8_SQL,
-      'legacy-schema-shape-repair:v1',
-      'app-control-table-repair:v1',
-      'initialization-marker-repair:v1',
-      'internal-client-repair:v1',
+      "legacy-schema-shape-repair:v1",
+      "app-control-table-repair:v1",
+      "initialization-marker-repair:v1",
+      "internal-client-repair:v1",
       INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
-    ].join('\n-- migration component --\n'),
+    ].join("\n-- migration component --\n"),
     (db) => {
       // Consolidate every legacy v0-v7 file through the already-proven, introspection-gated
       // repair path. From v8 onward, persisted changes get their own ordered migration entry.
-      renameLegacyActivityTables(db)
-      db.exec(SCHEMA_V8_SQL)
-      migrateSchemaV8(db)
-      ensureControlTables(db)
-      if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db)
-      ensureInternalClients(db)
-      db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL)
-      assertSchemaV8(db)
-      assertControlTablesCurrent(db)
+      renameLegacyActivityTables(db);
+      db.exec(SCHEMA_V8_SQL);
+      migrateSchemaV8(db);
+      ensureControlTables(db);
+      if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db);
+      ensureInternalClients(db);
+      db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL);
+      assertSchemaV8(db);
+      assertControlTablesCurrent(db);
     },
   ),
   defineMigration(
     9,
-    'add-internal-colour-mode',
+    "add-internal-colour-mode",
     [
-      'guard:PRAGMA table_info(accounts):internalColourMode-missing',
-      'ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;',
-    ].join('\n'),
+      "guard:PRAGMA table_info(accounts):internalColourMode-missing",
+      "ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;",
+    ].join("\n"),
     (db) => {
       // Some pre-ledger development databases were manually version-stamped after receiving the
       // current optional-column repair. Keep the explicit migration idempotent for that shape while
       // real released v8 databases take the ALTER path.
-      const exists = (db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>)
-        .some((column) => column.name === 'internalColourMode')
-      if (!exists) db.exec('ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;')
-      assertSchemaCurrent(db)
+      const exists = (
+        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "internalColourMode");
+      if (!exists)
+        db.exec("ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;");
+      assertSchemaV9(db);
     },
   ),
   defineMigration(
     10,
-    'enforce-single-owner',
+    "enforce-single-owner",
     [
-      'repair:retain-oldest-active-owner-demote-additional-to-admin:v1',
+      "repair:retain-oldest-active-owner-demote-additional-to-admin:v1",
       "DELETE FROM invites WHERE role = 'owner' AND usedAt IS NULL;",
       `CREATE UNIQUE INDEX ${SINGLE_OWNER_INDEX} ON account_members(accountId) WHERE role = 'owner' AND status = 'active';`,
-    ].join('\n'),
+    ].join("\n"),
     (db) => {
-      migrateSingleOwnerControlPlaneV10(db)
-      assertSingleOwnerControlPlaneV10(db)
+      migrateSingleOwnerControlPlaneV10(db);
+      assertSingleOwnerControlPlaneV10(db);
     },
   ),
   defineMigration(
     11,
-    'repair-ownerless-memberships',
-    'repair:promote-highest-role-tier-active-member-when-ownerless:v2',
+    "repair-ownerless-memberships",
+    "repair:promote-highest-role-tier-active-member-when-ownerless:v2",
     (db) => {
-      migrateOwnerlessControlPlaneV11(db)
-      assertSingleOwnerControlPlaneCurrent(db)
+      const promotions = migrateOwnerlessControlPlaneV11(db);
+      assertSingleOwnerControlPlaneCurrent(db);
+      return () => reportOwnerlessPromotionsV11(promotions);
     },
   ),
   defineMigration(
     12,
-    'revoke-owner-reset-ceremonies',
-    'repair:revoke-outstanding-verification-ceremonies-for-active-owners:v1',
+    "revoke-owner-reset-ceremonies",
+    "repair:revoke-outstanding-verification-ceremonies-for-active-owners:v1",
     (db) => {
-      migrateOwnerResetCeremoniesV12(db)
-      assertSingleOwnerControlPlaneCurrent(db)
+      migrateOwnerResetCeremoniesV12(db);
+      assertSingleOwnerControlPlaneCurrent(db);
     },
   ),
-  defineMigration(
-    13,
-    'snap-legacy-account-colors',
-    V13_DEFINITION,
-    (db) => {
-      snapLegacyAccountColors(db)
-    },
-  ),
+  defineMigration(13, "snap-legacy-account-colors", V13_DEFINITION, (db) => {
+    snapLegacyAccountColors(db);
+  }),
   defineMigration(
     14,
-    'revoke-member-reset-ceremonies',
-    'repair:revoke-outstanding-verification-ceremonies-for-active-members:v1',
+    "revoke-member-reset-ceremonies",
+    "repair:revoke-outstanding-verification-ceremonies-for-active-members:v1",
     (db) => {
       // v12 revoked ceremonies for active OWNERS only, so co-owners the v10-era raw-SQL repairs
       // DEMOTED to admin kept reset links minted at Owner privilege. The blanket every-active-member
       // scope is deliberate — see migrateMemberResetCeremoniesV14 (the original v11 destroyed the
       // role history a targeted revocation would need).
-      migrateMemberResetCeremoniesV14(db)
-      assertSingleOwnerControlPlaneCurrent(db)
+      migrateMemberResetCeremoniesV14(db);
+      assertSingleOwnerControlPlaneCurrent(db);
     },
   ),
   defineMigration(
     15,
-    'add-account-boundary-state',
+    "add-account-boundary-state",
     ACCOUNT_BOUNDARY_STATE_V15_SQL,
     (db) => {
-      db.exec(ACCOUNT_BOUNDARY_STATE_V15_SQL)
-      assertAccountBoundaryStateCurrent(db)
+      db.exec(ACCOUNT_BOUNDARY_STATE_V15_SQL);
+      assertAccountBoundaryStateCurrent(db);
     },
   ),
   defineMigration(
     16,
-    'add-account-view-prefs',
+    "add-account-view-prefs",
     [
-      'guard:PRAGMA table_info(accounts):view-prefs-missing',
-      'ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;',
-      'ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;',
-      'ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;',
-    ].join('\n'),
+      "guard:PRAGMA table_info(accounts):view-prefs-missing",
+      "ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;",
+      "ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;",
+      "ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;",
+    ].join("\n"),
     (db) => {
       // Idempotent per-column ADD (mirrors migration 9's add-internal-colour-mode guard): a
       // pre-ledger dev database may already carry a subset from the generic optional-column repair,
       // so add only the columns that are actually missing. Absent columns read back as undefined and
       // default to true (shown/enabled) on the client.
       const existing = new Set(
-        (db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>).map((column) => column.name),
-      )
-      for (const column of ['showInternalProjects', 'showInternalActivities', 'inlineActivityCreateEnabled']) {
-        if (!existing.has(column)) db.exec(`ALTER TABLE accounts ADD COLUMN ${column} TEXT;`)
+        (
+          db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
+            name: string;
+          }>
+        ).map((column) => column.name),
+      );
+      for (const column of [
+        "showInternalProjects",
+        "showInternalActivities",
+        "inlineActivityCreateEnabled",
+      ]) {
+        if (!existing.has(column))
+          db.exec(`ALTER TABLE accounts ADD COLUMN ${column} TEXT;`);
       }
-      assertSchemaCurrent(db)
+      assertSchemaV16(db);
     },
   ),
-]
+  defineMigration(17, "add-durable-audit-outbox", AUDIT_OUTBOX_SQL, (db) => {
+    db.exec(AUDIT_OUTBOX_SQL);
+    assertAuditOutboxCurrent(db);
+  }),
+  defineMigration(18, "add-browser-sync-ordering", SYNC_ORDERING_SQL, (db) => {
+    db.exec(SYNC_ORDERING_SQL);
+    assertSyncOrderingCurrent(db);
+  }),
+  defineMigration(
+    19,
+    "enforce-tenant-relationship-integrity",
+    [
+      TENANT_RELATIONSHIP_INTEGRITY_V19_SQL,
+      "assert:no-cross-account-existing-relationships:v1",
+    ].join("\n-- migration component --\n"),
+    (db) => {
+      db.exec(TENANT_RELATIONSHIP_INTEGRITY_V19_SQL);
+      assertTenantRelationshipIntegrityCurrent(db);
+    },
+  ),
+  defineMigration(
+    20,
+    "version-bootstrap-claim-control",
+    BOOTSTRAP_CLAIM_V20_DEFINITION,
+    (db) => {
+      migrateBootstrapClaimV20(db);
+      assertBootstrapClaimCurrent(db);
+    },
+  ),
+  defineMigration(
+    21,
+    "index-tenant-entity-slices",
+    TENANT_ENTITY_INDEXES_V21_SQL,
+    (db) => {
+      db.exec(TENANT_ENTITY_INDEXES_V21_SQL);
+      assertTenantAccountIndexesV21(db);
+    },
+  ),
+  defineMigration(
+    22,
+    "reactivate-builtin-internal-clients",
+    V22_DEFINITION,
+    (db) => {
+      reactivateBuiltinInternalClientsV22(db);
+      assertBuiltinInternalClientsActiveV22(db);
+    },
+  ),
+  defineMigration(
+    23,
+    "index-foreign-key-children",
+    FOREIGN_KEY_CHILD_INDEXES_V23_SQL,
+    (db) => {
+      db.exec(FOREIGN_KEY_CHILD_INDEXES_V23_SQL);
+      assertTenantEntityIndexesCurrent(db);
+    },
+  ),
+];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
-  throw new Error('DB_SCHEMA_VERSION must equal the newest explicit database migration.')
+  throw new Error(
+    "DB_SCHEMA_VERSION must equal the newest explicit database migration.",
+  );
 }
 for (let index = 1; index < DATABASE_MIGRATIONS.length; index += 1) {
-  if (DATABASE_MIGRATIONS[index].version !== DATABASE_MIGRATIONS[index - 1].version + 1) {
-    throw new Error('Explicit database migration versions must be contiguous and ordered.')
+  if (
+    DATABASE_MIGRATIONS[index].version !==
+    DATABASE_MIGRATIONS[index - 1].version + 1
+  ) {
+    throw new Error(
+      "Explicit database migration versions must be contiguous and ordered.",
+    );
   }
 }
 
 function migrationHistoryExists(db: Db): boolean {
-  return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(
-    DATABASE_MIGRATION_TABLE,
-  ) !== undefined
+  return (
+    db
+      .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`)
+      .get(DATABASE_MIGRATION_TABLE) !== undefined
+  );
 }
 
 function assertMigrationHistoryTable(db: Db): void {
   const expected = new Map<string, { type: string; required: boolean }>([
-    ['version', { type: 'INTEGER', required: true }],
-    ['name', { type: 'TEXT', required: true }],
-    ['checksum', { type: 'TEXT', required: true }],
-    ['appliedAt', { type: 'TEXT', required: true }],
-  ])
-  const columns = db.prepare(`PRAGMA table_info(${DATABASE_MIGRATION_TABLE})`).all() as Array<{
-    name: string
-    type: string
-    notnull: number
-    pk: number
-  }>
-  const problems: string[] = []
+    ["version", { type: "INTEGER", required: true }],
+    ["name", { type: "TEXT", required: true }],
+    ["checksum", { type: "TEXT", required: true }],
+    ["appliedAt", { type: "TEXT", required: true }],
+  ]);
+  const columns = db
+    .prepare(`PRAGMA table_info(${DATABASE_MIGRATION_TABLE})`)
+    .all() as Array<{
+    name: string;
+    type: string;
+    notnull: number;
+    pk: number;
+  }>;
+  const problems: string[] = [];
   for (const column of columns) {
-    const wanted = expected.get(column.name)
+    const wanted = expected.get(column.name);
     if (!wanted) {
-      problems.push(`unexpected column ${column.name}`)
-      continue
+      problems.push(`unexpected column ${column.name}`);
+      continue;
     }
-    if (column.type.toUpperCase() !== wanted.type) problems.push(`${column.name} has type ${column.type}`)
-    if ((column.notnull === 1) !== wanted.required) problems.push(`${column.name} nullability mismatch`)
-    if (column.name === 'version' && column.pk !== 1) problems.push('version is not the primary key')
+    if (column.type.toUpperCase() !== wanted.type)
+      problems.push(`${column.name} has type ${column.type}`);
+    if ((column.notnull === 1) !== wanted.required)
+      problems.push(`${column.name} nullability mismatch`);
+    if (column.name === "version" && column.pk !== 1)
+      problems.push("version is not the primary key");
   }
   for (const name of expected.keys()) {
-    if (!columns.some((column) => column.name === name)) problems.push(`missing column ${name}`)
+    if (!columns.some((column) => column.name === name))
+      problems.push(`missing column ${name}`);
   }
   if (problems.length > 0) {
-    throw new Error(`Database migration history table is invalid — ${problems.join('; ')}.`)
+    throw new Error(
+      `Database migration history table is invalid — ${problems.join("; ")}.`,
+    );
   }
 }
 
 /** Validate the database-side audit trail before planning any writes. Legacy v0-v7 files have no
  * history yet; v8 creates the table and its baseline row atomically with the schema/version stamp. */
 function assertMigrationHistory(db: Db, databaseVersion: number): void {
-  const exists = migrationHistoryExists(db)
-  const expected = DATABASE_MIGRATIONS.filter((migration) => migration.version <= databaseVersion)
+  const exists = migrationHistoryExists(db);
+  const expected = DATABASE_MIGRATIONS.filter(
+    (migration) => migration.version <= databaseVersion,
+  );
   if (!exists) {
     if (expected.length > 0) {
       throw new Error(
         `Database schema version ${databaseVersion} is missing its ${DATABASE_MIGRATION_TABLE} audit trail.`,
-      )
+      );
     }
-    return
+    return;
   }
 
-  assertMigrationHistoryTable(db)
-  const rows = db.prepare(
-    `SELECT version, name, checksum, appliedAt FROM ${DATABASE_MIGRATION_TABLE} ORDER BY version`,
-  ).all() as Array<{ version: number; name: string; checksum: string; appliedAt: string }>
+  assertMigrationHistoryTable(db);
+  const rows = db
+    .prepare(
+      `SELECT version, name, checksum, appliedAt FROM ${DATABASE_MIGRATION_TABLE} ORDER BY version`,
+    )
+    .all() as Array<{
+    version: number;
+    name: string;
+    checksum: string;
+    appliedAt: string;
+  }>;
   if (rows.length !== expected.length) {
     throw new Error(
       `Database migration history has ${rows.length} row(s), expected ${expected.length} for schema version ${databaseVersion}.`,
-    )
+    );
   }
   for (let index = 0; index < expected.length; index += 1) {
-    const migration = expected[index]
-    const row = rows[index]
+    const migration = expected[index];
+    const row = rows[index];
     if (row.version !== migration.version) {
-      throw new Error(`Database migration history is missing or out of order at version ${migration.version}.`)
+      throw new Error(
+        `Database migration history is missing or out of order at version ${migration.version}.`,
+      );
     }
     if (row.name !== migration.name) {
-      throw new Error(`Database migration v${migration.version} name does not match this build.`)
+      throw new Error(
+        `Database migration v${migration.version} name does not match this build.`,
+      );
     }
     // Accept the current checksum OR one explicitly superseded prior checksum for this version (the
     // one-time alpha-line amendment allow-list). Any OTHER value is genuine drift and refuses boot.
@@ -477,9 +781,14 @@ function assertMigrationHistory(db: Db, databaseVersion: number): void {
       row.checksum !== migration.checksum &&
       !isSupersededMigrationChecksum(migration.version, row.checksum)
     ) {
-      throw new Error(`Database migration v${migration.version} checksum does not match this build.`)
+      throw new Error(
+        `Database migration v${migration.version} checksum does not match this build.`,
+      );
     }
-    if (!row.appliedAt) throw new Error(`Database migration v${migration.version} has no applied timestamp.`)
+    if (!row.appliedAt)
+      throw new Error(
+        `Database migration v${migration.version} has no applied timestamp.`,
+      );
   }
 }
 
@@ -490,85 +799,157 @@ export function initializeOpenDb(
   path: string,
   hooks: DatabaseMigrationHooks = {},
 ): DatabaseMigrationPlan {
-  const plan = planDatabaseMigrations(db)
+  const plan = planDatabaseMigrations(db);
   if (plan.migrations.length > 0 && !plan.fresh) {
-    const quickCheck = db.prepare('PRAGMA quick_check').all() as Array<{ quick_check?: string }>
-    if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== 'ok') {
-      throw new Error(`Database quick integrity check failed before migration (${quickCheck.length} result row(s)).`)
+    const quickCheck = db.prepare("PRAGMA quick_check").all() as Array<{
+      quick_check?: string;
+    }>;
+    if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== "ok") {
+      throw new Error(
+        `Database quick integrity check failed before migration (${quickCheck.length} result row(s)).`,
+      );
     }
   }
 
-  db.exec('PRAGMA journal_mode = WAL;')
-  db.exec('PRAGMA foreign_keys = OFF;')
-  for (const pending of plan.migrations) {
-    const migration = DATABASE_MIGRATIONS.find((candidate) => candidate.version === pending.version)
-    if (!migration) throw new Error(`Missing database migration implementation for v${pending.version}.`)
-    tx(db, () => {
-      db.exec(MIGRATION_HISTORY_SQL)
-      assertMigrationHistoryTable(db)
-      migration.up(db)
-      const fkViolations = db.prepare('PRAGMA foreign_key_check').all()
-      if (fkViolations.length > 0) {
+  db.exec("PRAGMA journal_mode = WAL;");
+  // A successful write acknowledgement must not inherit a runtime-dependent SQLite default.
+  // FULL asks SQLite to sync the WAL at every commit; the assertion makes a driver/build that
+  // cannot establish that policy a startup failure instead of silently weakening durability.
+  db.exec("PRAGMA synchronous = FULL;");
+  const synchronous = Number(
+    (db.prepare("PRAGMA synchronous").get() as { synchronous?: number })
+      .synchronous,
+  );
+  if (synchronous !== 2) {
+    throw new Error(
+      `SQLite synchronous durability policy is ${synchronous}; expected FULL (2).`,
+    );
+  }
+  db.exec("PRAGMA foreign_keys = OFF;");
+  try {
+    for (const pending of plan.migrations) {
+      const migration = DATABASE_MIGRATIONS.find(
+        (candidate) => candidate.version === pending.version,
+      );
+      if (!migration)
         throw new Error(
-          `Database migration v${migration.version} (${migration.name}) left ${fkViolations.length} foreign-key violation(s).`,
-        )
-      }
-      db.prepare(
-        `INSERT INTO ${DATABASE_MIGRATION_TABLE} (version, name, checksum, appliedAt) VALUES (?, ?, ?, ?)`,
-      ).run(migration.version, migration.name, migration.checksum, new Date().toISOString())
-      db.exec(`PRAGMA application_id = ${CAPACITYLENS_APPLICATION_ID}`)
-      db.exec(`PRAGMA user_version = ${migration.version}`)
-      hooks.beforeCommit?.({
-        version: migration.version,
-        name: migration.name,
-        checksum: migration.checksum,
-      })
-    }, 'immediate')
+          `Missing database migration implementation for v${pending.version}.`,
+        );
+      let afterCommit: (() => void) | undefined;
+      tx(
+        db,
+        () => {
+          // Planning is deliberately read-only and happens before BEGIN IMMEDIATE so startup can take a
+          // rollback snapshot first. Another same-version process may therefore finish this step while
+          // this handle waits for SQLite's writer lock. Re-read only AFTER acquiring that lock and
+          // validate the winner's immutable ledger before treating its commit as our clean no-op.
+          const currentVersion = pragmaNumber(db, "user_version");
+          if (currentVersion >= migration.version) {
+            if (currentVersion > DB_SCHEMA_VERSION) {
+              throw new Error(
+                `Database schema version ${currentVersion} is newer than this server supports (${DB_SCHEMA_VERSION}); refusing a downgrade.`,
+              );
+            }
+            assertMigrationHistory(db, currentVersion);
+            return;
+          }
+          db.exec(MIGRATION_HISTORY_SQL);
+          assertMigrationHistoryTable(db);
+          afterCommit = migration.up(db) ?? undefined;
+          const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
+          if (fkViolations.length > 0) {
+            throw new Error(
+              `Database migration v${migration.version} (${migration.name}) left ${fkViolations.length} foreign-key violation(s).`,
+            );
+          }
+          db.prepare(
+            `INSERT INTO ${DATABASE_MIGRATION_TABLE} (version, name, checksum, appliedAt) VALUES (?, ?, ?, ?)`,
+          ).run(
+            migration.version,
+            migration.name,
+            migration.checksum,
+            new Date().toISOString(),
+          );
+          db.exec(`PRAGMA application_id = ${CAPACITYLENS_APPLICATION_ID}`);
+          db.exec(`PRAGMA user_version = ${migration.version}`);
+          hooks.beforeCommit?.({
+            version: migration.version,
+            name: migration.name,
+            checksum: migration.checksum,
+          });
+        },
+        "immediate",
+      );
+      afterCommit?.();
+    }
+
+    assertSchemaCurrent(db);
+    assertControlTablesCurrent(db);
+    assertSingleOwnerControlPlaneCurrent(db);
+    assertAccountBoundaryStateCurrent(db);
+    assertAuditOutboxCurrent(db);
+    assertSyncOrderingCurrent(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertBootstrapClaimCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+    assertMigrationHistory(db, DB_SCHEMA_VERSION);
+    if (pragmaNumber(db, "user_version") !== DB_SCHEMA_VERSION) {
+      throw new Error(
+        `Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`,
+      );
+    }
+    if (pragmaNumber(db, "application_id") !== CAPACITYLENS_APPLICATION_ID) {
+      throw new Error(
+        "Database migration did not stamp the CapacityLens application_id.",
+      );
+    }
+  } finally {
+    // This handle may be retained by migration tooling after a surfaced failure. Never leave its
+    // connection-scoped integrity enforcement disabled merely because initialization did not finish.
+    db.exec("PRAGMA foreign_keys = ON;");
   }
 
-  assertSchemaCurrent(db)
-  assertControlTablesCurrent(db)
-  assertSingleOwnerControlPlaneCurrent(db)
-  assertAccountBoundaryStateCurrent(db)
-  assertMigrationHistory(db, DB_SCHEMA_VERSION)
-  if (pragmaNumber(db, 'user_version') !== DB_SCHEMA_VERSION) {
-    throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`)
-  }
-  if (pragmaNumber(db, 'application_id') !== CAPACITYLENS_APPLICATION_ID) {
-    throw new Error('Database migration did not stamp the CapacityLens application_id.')
-  }
-
-  db.exec('PRAGMA foreign_keys = ON;')
-  const fkViolations = db.prepare('PRAGMA foreign_key_check').all()
+  const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
   if (fkViolations.length > 0) {
-    throw new Error(`Database foreign-key integrity check failed (${fkViolations.length} violation(s)).`)
+    throw new Error(
+      `Database foreign-key integrity check failed (${fkViolations.length} violation(s)).`,
+    );
   }
-  if (path !== ':memory:') {
+  if (path !== ":memory:") {
     try {
       // Schema setup normally creates the WAL/SHM sidecars after the first chmod above. Pin every
       // file in the SQLite set before returning the live handle; process.umask(0077) protects any
       // sidecar SQLite later recreates in the server process.
       for (const file of [path, `${path}-wal`, `${path}-shm`]) {
-        if (existsSync(file)) chmodSync(file, 0o600)
+        if (existsSync(file)) chmodSync(file, 0o600);
       }
     } catch (cause) {
-      db.close()
-      throw new Error(`Could not restrict SQLite file permissions at "${path}".`, { cause })
+      throw new Error(
+        `Could not restrict SQLite file permissions at "${path}".`,
+        { cause },
+      );
     }
   }
-  return plan
+  return plan;
 }
 
 /** Convenience open used by tests and embedded callers. The production entrypoint uses
  * openDbConnection → pre-migration snapshot → initializeOpenDb instead. */
 export function openDb(path: string): Db {
-  const db = openDbConnection(path)
+  const db = openDbConnection(path);
   try {
-    initializeOpenDb(db, path)
-    return db
+    initializeOpenDb(db, path);
+    return db;
   } catch (error) {
-    db.close()
-    throw error
+    try {
+      db.close();
+    } catch (cleanupError) {
+      console.error(
+        "capacitylens-server: failed to close SQLite after open failure",
+        cleanupError,
+      );
+    }
+    throw error;
   }
 }
 
@@ -584,28 +965,89 @@ export function openDb(path: string): Db {
  * inserted row is built by the shared `buildInternalClient` factory so the row shape can't drift.
  */
 function ensureInternalClients(db: Db): void {
-  const accounts = db.prepare(`SELECT id FROM accounts ORDER BY id`).all() as Array<{ id: string }>
-  const now = new Date().toISOString()
+  const accounts = db
+    .prepare(`SELECT id FROM accounts ORDER BY id`)
+    .all() as Array<{ id: string }>;
+  const now = new Date().toISOString();
   tx(db, () => {
+    const usedIds = new Set(
+      (db.prepare(`SELECT id FROM clients`).all() as Array<{ id: string }>).map(
+        ({ id }) => id,
+      ),
+    );
     for (const { id } of accounts) {
-      const builtins = db.prepare(
-        `SELECT id FROM clients WHERE accountId = ? AND builtin = 'true'
+      const builtins = db
+        .prepare(
+          `SELECT id FROM clients WHERE accountId = ? AND builtin = 'true'
          ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END, createdAt, id`,
-      ).all(id, `internal:${id}`) as Array<{ id: string }>
+        )
+        .all(id, `internal:${id}`) as Array<{ id: string }>;
       if (builtins.length === 0) {
-        insertRowRaw(db, 'clients', buildInternalClient(id, now) as unknown as Row)
-        continue
+        const internalId = availableInternalClientId(id, usedIds);
+        usedIds.add(internalId);
+        insertRowRaw(
+          db,
+          "clients",
+          buildInternalClient(id, now, internalId) as unknown as Row,
+        );
+        continue;
       }
-      const retainedId = builtins[0].id
+      const retainedId = builtins[0].id;
       db.prepare(
         `UPDATE clients SET name = ?, color = ?, builtin = 'true' WHERE id = ? AND accountId = ?`,
-      ).run(INTERNAL_CLIENT_NAME, INTERNAL_CLIENT_COLOR, retainedId, id)
+      ).run(INTERNAL_CLIENT_NAME, INTERNAL_CLIENT_COLOR, retainedId, id);
       for (const duplicate of builtins.slice(1)) {
-        db.prepare(`UPDATE projects SET clientId = ? WHERE clientId = ?`).run(retainedId, duplicate.id)
-        db.prepare(`DELETE FROM clients WHERE id = ?`).run(duplicate.id)
+        db.prepare(`UPDATE projects SET clientId = ? WHERE clientId = ?`).run(
+          retainedId,
+          duplicate.id,
+        );
+        db.prepare(`DELETE FROM clients WHERE id = ?`).run(duplicate.id);
       }
     }
-  })
+  });
+}
+
+/** Database-v22 recovery for the historical generated-replacement path that could promote an
+ * inactive ordinary client into the protected singleton. This is deliberately separate from the
+ * released v8 repair: changing that migration would invalidate its immutable behavior and ledger. */
+function reactivateBuiltinInternalClientsV22(db: Db): void {
+  const rows = db
+    .prepare(
+      `SELECT id, updatedAt FROM clients
+     WHERE builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)
+     ORDER BY id`,
+    )
+    .all() as Array<{ id: string; updatedAt: string }>;
+  const migrationClock = Date.now();
+  const update = db.prepare(
+    `UPDATE clients
+     SET archivedAt = NULL, deletedAt = NULL, updatedAt = ?
+     WHERE id = ? AND builtin = 'true'`,
+  );
+  for (const row of rows) {
+    const previous = Date.parse(row.updatedAt);
+    const revision = new Date(
+      Number.isFinite(previous)
+        ? Math.max(migrationClock, previous + 1)
+        : migrationClock,
+    ).toISOString();
+    update.run(revision, row.id);
+  }
+}
+
+function assertBuiltinInternalClientsActiveV22(db: Db): void {
+  const inactive = db
+    .prepare(
+      `SELECT id FROM clients
+     WHERE builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)
+     LIMIT 1`,
+    )
+    .get() as { id: string } | undefined;
+  if (inactive) {
+    throw new Error(
+      `Database v22 failed to reactivate built-in Internal client ${inactive.id}.`,
+    );
+  }
 }
 
 /**
@@ -617,37 +1059,37 @@ function ensureInternalClients(db: Db): void {
  * deterministic tie-break); an unparseable value returns {@link V13_FALLBACK_PRESET_COLOR}.
  */
 function snapToFrozenPresetV13(value: string | null): string {
-  if (typeof value !== 'string') return V13_FALLBACK_PRESET_COLOR
-  const normalized = value.trim().toLowerCase()
-  if (V13_FROZEN_PRESET_COLORS.includes(normalized)) return normalized
-  const rgb = hexToRgbV13(normalized)
-  if (!rgb) return V13_FALLBACK_PRESET_COLOR
-  const [r, g, b] = rgb
-  let nearest = V13_FROZEN_PRESET_COLORS[0]
-  let nearestDistance = Infinity
+  if (typeof value !== "string") return V13_FALLBACK_PRESET_COLOR;
+  const normalized = value.trim().toLowerCase();
+  if (V13_FROZEN_PRESET_COLORS.includes(normalized)) return normalized;
+  const rgb = hexToRgbV13(normalized);
+  if (!rgb) return V13_FALLBACK_PRESET_COLOR;
+  const [r, g, b] = rgb;
+  let nearest = V13_FROZEN_PRESET_COLORS[0];
+  let nearestDistance = Infinity;
   for (const preset of V13_FROZEN_PRESET_COLORS) {
-    const presetRgb = hexToRgbV13(preset)
-    if (!presetRgb) continue // unreachable: every frozen entry is a valid 6-digit hex (pinned by a test)
-    const [pr, pg, pb] = presetRgb
+    const presetRgb = hexToRgbV13(preset);
+    if (!presetRgb) continue; // unreachable: every frozen entry is a valid 6-digit hex (pinned by a test)
+    const [pr, pg, pb] = presetRgb;
     // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
-    const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2
+    const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
     // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie — palette order is
     // the deterministic tie-break, matching shared `snapToPresetColor`.
     if (distance < nearestDistance) {
-      nearestDistance = distance
-      nearest = preset
+      nearestDistance = distance;
+      nearest = preset;
     }
   }
-  return nearest
+  return nearest;
 }
 
 function hexToRgbV13(hex: string): [number, number, number] | null {
-  const c = hex.replace('#', '')
-  if (c.length !== 6) return null // reject short AND overlong hex (the latter mis-slices)
-  const r = parseInt(c.slice(0, 2), 16)
-  const g = parseInt(c.slice(2, 4), 16)
-  const b = parseInt(c.slice(4, 6), 16)
-  return [r, g, b].some(Number.isNaN) ? null : [r, g, b]
+  const c = hex.replace("#", "");
+  if (c.length !== 6) return null; // reject short AND overlong hex (the latter mis-slices)
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return [r, g, b].some(Number.isNaN) ? null : [r, g, b];
 }
 
 /**
@@ -662,74 +1104,88 @@ function hexToRgbV13(hex: string): [number, number, number] | null {
  * the live shared one) keeps this checksummed step reproducible forever. See DECISIONS.md.
  */
 function snapLegacyAccountColors(db: Db): void {
-  const rows = db.prepare(`SELECT id, color FROM accounts`).all() as Array<{ id: string; color: string | null }>
-  const update = db.prepare(`UPDATE accounts SET color = ? WHERE id = ?`)
+  const rows = db.prepare(`SELECT id, color FROM accounts`).all() as Array<{
+    id: string;
+    color: string | null;
+  }>;
+  const update = db.prepare(`UPDATE accounts SET color = ? WHERE id = ?`);
   for (const row of rows) {
-    const snapped = snapToFrozenPresetV13(row.color)
-    if (snapped !== row.color) update.run(snapped, row.id)
+    const snapped = snapToFrozenPresetV13(row.color);
+    if (snapped !== row.color) update.run(snapped, row.id);
   }
 }
 
-const placeholders = (n: number) => Array.from({ length: n }, () => '?').join(', ')
+const placeholders = (n: number) =>
+  Array.from({ length: n }, () => "?").join(", ");
 
 // Insert one row WITHOUT touching the init marker — the primitive the bulk paths
 // (insertAll / replaceAccountSlice) loop over so they can mark ONCE at the end instead of
 // re-running an `INSERT OR IGNORE INTO _meta` per row.
 function insertRowRaw(db: Db, table: string, obj: Row): void {
-  assertKnownTable(table)
-  const spec = TABLES[table]
-  const cols = spec.columns.map((c) => c.name)
-  db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders(cols.length)})`).run(
-    ...toRow(spec, obj),
-  )
+  assertKnownTable(table);
+  const spec = TABLES[table];
+  const cols = spec.columns.map((c) => c.name);
+  db.prepare(
+    `INSERT INTO ${table} (${cols.join(", ")}) VALUES (${placeholders(cols.length)})`,
+  ).run(...toRow(spec, obj));
 }
 
 export function insertRow(db: Db, table: string, obj: Row): void {
-  insertRowRaw(db, table, obj)
-  markInitialized(db)
+  // The row and persistent first-write marker are one logical write. Without this transaction,
+  // SQLite autocommits the row before a later marker failure and the caller observes a rejection
+  // for a mutation that actually persisted. tx() uses a savepoint inside an existing transaction.
+  tx(db, () => {
+    insertRowRaw(db, table, obj);
+    markInitialized(db);
+  });
 }
 
 /** Idempotent insert-or-replace by id — the write the sync adapter uses for every
  *  create/update, so replaying a batch after a partial failure can't double-insert
  *  (a re-PUT of an already-written row just overwrites it). */
 export function upsertRow(db: Db, table: string, obj: Row): void {
-  assertKnownTable(table)
-  const spec = TABLES[table]
-  const cols = spec.columns.map((c) => c.name)
+  assertKnownTable(table);
+  const spec = TABLES[table];
+  const cols = spec.columns.map((c) => c.name);
   // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
   // (entities.ts calls it "impossible to backfill"), so a re-PUT must never rewrite the
   // original creation time, and a body that omits it must not null it out on update.
-  const setCols = cols.filter((c) => c !== 'id' && c !== 'createdAt')
-  const set = setCols.map((c) => `${c} = excluded.${c}`).join(', ')
-  db.prepare(
-    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders(cols.length)}) ` +
-      `ON CONFLICT(id) DO UPDATE SET ${set}`,
-  ).run(...toRow(spec, obj))
-  markInitialized(db)
+  const setCols = cols.filter((c) => c !== "id" && c !== "createdAt");
+  const set = setCols.map((c) => `${c} = excluded.${c}`).join(", ");
+  tx(db, () => {
+    db.prepare(
+      `INSERT INTO ${table} (${cols.join(", ")}) VALUES (${placeholders(cols.length)}) ` +
+        `ON CONFLICT(id) DO UPDATE SET ${set}`,
+    ).run(...toRow(spec, obj));
+    markInitialized(db);
+  });
 }
 
 /** Idempotent: deleting an absent id is a no-op (the store's cascade and the DB's
  *  ON DELETE can both target the same row; whichever loses the race must not error). */
 export function deleteRow(db: Db, table: string, id: string): void {
-  assertKnownTable(table)
-  db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id)
+  assertKnownTable(table);
+  db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
 }
 
 export function getRow(db: Db, table: string, id: string): Row | undefined {
-  assertKnownTable(table)
-  const spec = TABLES[table]
-  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id)
-  return row ? fromRow(spec, row) : undefined
+  assertKnownTable(table);
+  const spec = TABLES[table];
+  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+  return row ? fromRow(spec, row) : undefined;
 }
 
 /** Assemble the whole AppData tree from the tables. */
 export function loadState(db: Db): AppData {
-  const data = emptyAppData() as unknown as Record<string, Row[]>
+  const data = emptyAppData() as unknown as Record<string, Row[]>;
   for (const table of CREATE_ORDER) {
-    const spec = TABLES[table]
-    data[table] = db.prepare(`SELECT * FROM ${table}`).all().map((r) => fromRow(spec, r))
+    const spec = TABLES[table];
+    data[table] = db
+      .prepare(`SELECT * FROM ${table}`)
+      .all()
+      .map((r) => fromRow(spec, r));
   }
-  return data as unknown as AppData
+  return data as unknown as AppData;
 }
 
 /**
@@ -783,42 +1239,61 @@ export function loadState(db: Db): AppData {
 export function readSlice(
   db: Db,
   accountId: string,
-  opts: { includeTimeOffNote: boolean; includeInactive: boolean; includePrivateNames: boolean },
+  opts: {
+    includeTimeOffNote: boolean;
+    includeInactive: boolean;
+    includePrivateNames: boolean;
+  },
 ): AppData {
-  const data = emptyAppData() as unknown as Record<string, Row[]>
+  // A slice is one logical read. Under WAL another handle may commit between table SELECTs; BEGIN
+  // pins all of them to one snapshot. tx() uses a savepoint when the caller already owns a write.
+  return tx(db, () => readSliceFromSnapshot(db, accountId, opts));
+}
+
+function readSliceFromSnapshot(
+  db: Db,
+  accountId: string,
+  opts: {
+    includeTimeOffNote: boolean;
+    includeInactive: boolean;
+    includePrivateNames: boolean;
+  },
+): AppData {
+  const data = emptyAppData() as unknown as Record<string, Row[]>;
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
-  const accountsSpec = TABLES['accounts']
-  data['accounts'] = db
+  const accountsSpec = TABLES["accounts"];
+  data["accounts"] = db
     .prepare(`SELECT * FROM accounts WHERE id = ?`)
     .all(accountId)
-    .map((r) => fromRow(accountsSpec, r))
+    .map((r) => fromRow(accountsSpec, r));
   // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
-    const spec = TABLES[table]
+    const spec = TABLES[table];
     data[table] = db
       .prepare(`SELECT * FROM ${table} WHERE accountId = ?`)
       .all(accountId)
-      .map((r) => fromRow(spec, r))
+      .map((r) => fromRow(spec, r));
   }
   // P1.6 field-level redaction: drop the owner/admin-only `note` from every time-off row when the
   // caller may not see it. Delete the KEY (so the optional field is absent, matching its TimeOff
   // shape — not a null), and do it on the built objects BEFORE returning so the note is never
   // serialized for an Editor/Viewer read.
   if (!opts.includeTimeOffNote) {
-    for (const row of data['timeOff']) delete (row as Record<string, unknown>).note
+    for (const row of data["timeOff"])
+      delete (row as Record<string, unknown>).note;
   }
   // Private real names are owner-only. Replace them with the consistently quoted code name and
   // remove the raw codeName field before this slice can be serialized or cached by a non-owner.
   const visibleData = opts.includePrivateNames
     ? (data as unknown as AppData)
-    : redactPrivateNames(data as unknown as AppData)
+    : redactPrivateNames(data as unknown as AppData);
   // P2.4 lifecycle projection: for the NORMAL app read (includeInactive:false), drop every NON-active
   // (archived/soft-deleted) resource/client/project via the SHARED activeOnly helper — the SAME rule
   // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the note
   // redaction so the projection runs over the already-redacted slice. includeInactive:true (P2.5's
   // admin read) returns the full slice untouched. The dropped rows stay in the DB + export.
-  if (!opts.includeInactive) return activeOnly(visibleData)
-  return visibleData
+  if (!opts.includeInactive) return activeOnly(visibleData);
+  return visibleData;
 }
 
 /** Persistent "this dataset has been initialised" marker, set on the first write. Unlike
@@ -826,14 +1301,16 @@ export function readSlice(
  *  genuinely-fresh DB (seed it) from one the user deliberately cleared (don't re-seed) —
  *  mirroring the web app's "storage key present" semantics, where the two diverged. */
 export function markInitialized(db: Db): void {
-  db.prepare(`INSERT OR IGNORE INTO _meta (key, value) VALUES ('initialized', '1')`).run()
+  db.prepare(
+    `INSERT OR IGNORE INTO _meta (key, value) VALUES ('initialized', '1')`,
+  ).run();
 }
 
 export function isInitialized(db: Db): boolean {
-  const row = db.prepare(`SELECT value FROM _meta WHERE key = 'initialized'`).get() as
-    | { value?: string }
-    | undefined
-  return row?.value === '1'
+  const row = db
+    .prepare(`SELECT value FROM _meta WHERE key = 'initialized'`)
+    .get() as { value?: string } | undefined;
+  return row?.value === "1";
 }
 
 /** First-run seeding gate used by the server entrypoint: seed ONLY a never-initialised DB.
@@ -842,43 +1319,57 @@ export function isInitialized(db: Db): boolean {
  *  dataset back on the next restart (the same predicate /api/meta reports). Seeding sets
  *  the marker, so it fires exactly once. Returns whether it seeded. */
 export function seedIfUninitialized(db: Db, data: AppData): boolean {
-  if (isInitialized(db)) return false
-  insertAll(db, data)
-  return true
+  if (isInitialized(db)) return false;
+  insertAll(db, data);
+  return true;
 }
 
 /** Insert an entire AppData tree (parent-first). Used by seeding and reset. */
 export function insertAll(db: Db, data: AppData): void {
-  const d = data as unknown as Record<string, Row[]>
+  const d = data as unknown as Record<string, Row[]>;
   tx(db, () => {
-    for (const table of CREATE_ORDER) for (const row of d[table] ?? []) insertRowRaw(db, table, row)
-    markInitialized(db) // once for the whole batch, not per row
-  })
+    for (const table of CREATE_ORDER)
+      for (const row of d[table] ?? []) insertRowRaw(db, table, row);
+    markInitialized(db); // once for the whole batch, not per row
+  });
 }
 
-/** Wipe every table (children-first so FK checks stay satisfied within the tx). Also
- *  clears the init marker — a full wipe is a factory reset, so the next load seeds
- *  again (unlike a user deleting their entities, which keeps the marker). */
+/** Wipe every product-domain row plus account membership/invitation control state. Domain tables
+ *  are deleted children-first so FK checks stay satisfied. Authentication identities, migration
+ *  history and installation-level control state deliberately survive this trusted-local reset. The
+ *  init marker is cleared so the next load seeds again. */
 export function wipe(db: Db): void {
   tx(db, () => {
-    for (let i = CREATE_ORDER.length - 1; i >= 0; i--) db.exec(`DELETE FROM ${CREATE_ORDER[i]}`)
-    db.exec(`DELETE FROM _meta`)
-  })
+    for (let i = CREATE_ORDER.length - 1; i >= 0; i--)
+      db.exec(`DELETE FROM ${CREATE_ORDER[i]}`);
+    db.exec(`DELETE FROM account_members`);
+    db.exec(`DELETE FROM invites`);
+    db.exec(`DELETE FROM _meta`);
+  });
 }
 
 /** Replace one account's scoped slice with the rows for that account in `next`.
  *  Used by /api/import, the P2.5 lifecycle routes (archive/unarchive/delete/purge), and
  *  TenantStore.write — every path that rewrites one account's scoped tables wholesale.
- *  Callers must read the full slice first: the rewrite erases any sibling row not re-supplied. */
-export function replaceAccountSlice(db: Db, accountId: string, next: AppData): void {
-  const d = next as unknown as Record<string, Row[]>
+ *  The rewrite erases any sibling row not re-supplied. Read-modify-write callers must bracket the
+ *  full slice read and this replacement with TenantStore.transact; an independently validated
+ *  complete import may replace directly inside its existing transaction. */
+export function replaceAccountSlice(
+  db: Db,
+  accountId: string,
+  next: AppData,
+): void {
+  const d = next as unknown as Record<string, Row[]>;
   tx(db, () => {
     for (let i = SCOPED_ORDER.length - 1; i >= 0; i--) {
-      db.prepare(`DELETE FROM ${SCOPED_ORDER[i]} WHERE accountId = ?`).run(accountId)
+      db.prepare(`DELETE FROM ${SCOPED_ORDER[i]} WHERE accountId = ?`).run(
+        accountId,
+      );
     }
     for (const table of SCOPED_ORDER) {
-      for (const row of d[table] ?? []) if (row.accountId === accountId) insertRowRaw(db, table, row)
+      for (const row of d[table] ?? [])
+        if (row.accountId === accountId) insertRowRaw(db, table, row);
     }
-    markInitialized(db) // once for the whole slice, not per row
-  })
+    markInitialized(db); // once for the whole slice, not per row
+  });
 }

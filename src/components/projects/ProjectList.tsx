@@ -10,7 +10,7 @@ import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
 import { resolveProjectColor } from '@capacitylens/shared/lib/color'
 import { useStore } from '../../store/useStore'
 import { internalColourModeFor } from '../../store/selectors'
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 import { Folder, Plus } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
@@ -19,14 +19,17 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/
 function projectArchiveMessage(data: AppData, project: Project): string {
   const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name
   const base = m.list_projects_archive_message({ name })
-  const { allocations } = archiveImpact(data, 'projects', project.id)
-  return allocations > 0 ? `${base} ${m.list_projects_archive_cascade({ allocations })}` : base
+  const { phases, allocations } = archiveImpact(data, 'projects', project.id)
+  return phases + allocations > 0
+    ? `${base} ${m.list_projects_archive_cascade({ phases, allocations })}`
+    : base
 }
 
 export function ProjectList() {
   const data = useActiveScopedData()
   const projects = data.projects
   const clients = data.clients
+  const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients])
   const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId))
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
@@ -34,7 +37,7 @@ export function ProjectList() {
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Project>()
 
   const clientName = (id: string) => {
-    const c = clients.find((x) => x.id === id)
+    const c = clientById.get(id)
     return c?.name ?? m.list_projects_no_client()
   }
 
@@ -56,7 +59,7 @@ export function ProjectList() {
             <Item size="sm" role="listitem" data-testid="project-row" className="rounded-none">
               <ItemContent className="flex-row items-center gap-2">
                 <ColorSwatch
-                  color={resolveProjectColor(p, clients.find((client) => client.id === p.clientId), internalColourMode)}
+                  color={resolveProjectColor(p, clientById.get(p.clientId), internalColourMode)}
                 />
                 <span className="font-medium">{p.name}</span>
                 <span className="text-sm text-muted-foreground">· {clientName(p.clientId)}</span>

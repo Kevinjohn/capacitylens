@@ -3,6 +3,7 @@ import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fas
 import { buildApp } from './app'
 import { openDb, type Db } from './db'
 import { authFromEnv, runAuthMigrations } from './auth'
+import { signUp } from './testHelpers'
 
 // P1.17 — the Phase-1 CAPSTONE. "Retire the open shared dataset": in the HOSTED (auth-on) posture
 // there must be ZERO unauthenticated /api access. The requireUser preHandler (app.ts) is the single
@@ -26,6 +27,7 @@ const PASSWORD_ENV = {
   CAPACITYLENS_AUTH: 'password',
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
   BETTER_AUTH_URL: 'http://localhost:8787',
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
 }
 
 /**
@@ -86,6 +88,26 @@ describe('P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     // never served. (requireUser's 401 is exactly `{ error: 'Sign in to continue.' }` — note it has
     // NO `authMode` key, which distinguishes it from the /api/auth/me 401 handled by the auth layer.)
     expect(res.json()).toEqual({ error: 'Sign in to continue.' })
+  })
+
+  it('refuses installation-wide reset to a signed-in non-member and preserves tenant data', async () => {
+    const { app, db } = await appWithAuth()
+    db.prepare(`
+      INSERT INTO accounts (id, name, color, createdAt, updatedAt)
+      VALUES ('a1', 'Protected tenant', '#3b82f6', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
+    `).run()
+    const principal = await signUp(app, 'reset-non-member@capacitylens.dev')
+
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      payload: { seed: false },
+      headers: { cookie: principal.cookie },
+    })
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: 'reset disabled' })
+    expect(db.prepare(`SELECT id FROM accounts`).all()).toEqual([{ id: 'a1' }])
   })
 
   it('GET /api/health → 200 (exempt: the uptime monitor has no session)', async () => {

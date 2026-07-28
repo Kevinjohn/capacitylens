@@ -4,9 +4,9 @@ import { useStore } from '../store/useStore'
 import { useAuth } from './authContext'
 import { PermissionContext } from './permissionContext'
 import type { Role } from '@capacitylens/shared/domain/access'
-import { isAccountRole } from '@capacitylens/shared/account/types'
-import { accountClient } from '../account/accountClient'
 import { useOfflineState } from '../data/useOfflineState'
+import { offlineStateEpisode } from '../data/offlineCache'
+import { refreshAccountSummaries } from './useAccountSummaries'
 
 // Client permission boundary (production plan P1.12). It resolves the caller's ROLE for the ACTIVE
 // account and provides it to the pure-`can`-driven affordance hooks (useRole / useCanEdit) so a
@@ -27,8 +27,9 @@ import { useOfflineState } from '../data/useOfflineState'
  * Resolve and provide the caller's role for the active account (P1.12).
  *
  * - OFF mode OR the demo build (no server): `role: null`, no fetch — the must-stay-editable path.
- * - auth-on + server + an active account: fetch `GET /api/accounts` ONCE per active account, find
- *   the entry whose `id === activeAccountId`, and set its role. Pending/failure/absence is viewer.
+ * - auth-on + server + an active account: own the shared `GET /api/accounts` refresh for this
+ *   generation, publish its validated summaries for the picker, and resolve the active role from
+ *   that same result. Pending/failure/absence is viewer.
  *
  * The resolved role is ALSO pushed to the store (`setActiveRole`) so the store's defense-in-depth
  * mutation guard (P1.12) can no-op a viewer's optimistic local write — see useStore.assertCanWrite.
@@ -39,6 +40,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const setActiveRole = useStore((s) => s.setActiveRole)
   const membershipRevision = useStore((s) => s.membershipRevision)
   const offline = useOfflineState()
+  const offlineEpisode = offlineStateEpisode()
   // The FETCHED role TAGGED with the account it was resolved for. Only ever set behind an `await` in
   // the effect's async IIFE (the MembersSection / AuthProvider idiom) — never synchronously in the
   // effect body — so there's no cascading-render setState-in-effect. Tagging with `accountId` is what
@@ -49,6 +51,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const [fetched, setFetched] = useState<{
     accountId: string
     membershipRevision: number
+    offlineEpisode: number
     status: 'resolved' | 'unavailable'
     role?: Role
   } | null>(null)
@@ -75,38 +78,37 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       // Viewer projection for the new account until the keyed fetch resolves.
       setActiveRole('viewer')
       try {
-        const res = await accountClient.listWorkspaces()
-        if (!res.ok) {
+        // The shell's directory hook deliberately yields active-account reads to this provider in
+        // auth-on mode. One validated request therefore drives both the picker list and the
+        // fail-closed permission projection without coupling their distinct failure postures.
+        const summaries = await refreshAccountSummaries({
+          acceptEffects: () => !cancelled,
+          allowCachedFallback: false,
+        })
+        if (summaries === null) {
           if (!cancelled) {
-            setFetched({ accountId: activeAccountId, membershipRevision, status: 'unavailable' })
+            setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: 'unavailable' })
           }
           return
         }
-        // UNTRUSTED external input: validate the shape rather than trusting an `as` cast. We want the
-        // entry for the ACTIVE account; anything off-spec (not an array, missing entry, bad role)
-        // degrades to viewer. (The in-effect-async idiom
-        // mirrors MembersSection: every setState is behind the await, never synchronous in the body.)
-        const body: unknown = await res.json()
-        const entry = Array.isArray(body)
-          ? body.find((a): a is { id: string; role: unknown } =>
-              typeof a === 'object' && a !== null && (a as { id?: unknown }).id === activeAccountId,
-            )
-          : undefined
-        if (!entry || !isAccountRole(entry.role)) {
+        // refreshAccountSummaries already validates every untrusted row. A malformed role remains
+        // selectable only as an explicitly unavailable Viewer summary and must not resolve access.
+        const entry = summaries.find((account) => account.id === activeAccountId)
+        if (!entry || entry.roleStatus === 'unavailable') {
           if (!cancelled) {
-            setFetched({ accountId: activeAccountId, membershipRevision, status: 'unavailable' })
+            setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: 'unavailable' })
           }
           return
         }
         if (cancelled) return
-        setFetched({ accountId: activeAccountId, membershipRevision, status: 'resolved', role: entry.role })
+        setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: 'resolved', role: entry.role })
         setActiveRole(entry.role)
       } catch (error) {
         // Fail-closed: the store and context keep the viewer projection until a later successful
         // role lookup. No optimistic local mutation can diverge from the server during an outage.
         console.warn('PermissionProvider: the active account role could not be resolved', error)
         if (!cancelled) {
-          setFetched({ accountId: activeAccountId, membershipRevision, status: 'unavailable' })
+          setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: 'unavailable' })
         }
       }
     })()
@@ -116,17 +118,22 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     // activeAccountId in the deps re-keys the fetch per tenant; an account switch re-runs the effect
     // (resetting the store role above) and the stale `fetched` is discarded by the accountId tag check
     // in the value computation below until the new fetch lands.
-  }, [enabled, activeAccountId, membershipRevision, offline.readOnly, setActiveRole])
+  }, [enabled, activeAccountId, membershipRevision, offline.readOnly, offlineEpisode, setActiveRole])
 
   // OFF / demo / no active account → null (editable). Otherwise use the fetched role ONLY when it was
   // resolved for the CURRENTLY active account (the accountId tag) — a prior tenant's role can't leak
   // across a switch. This computation is what lets the OFF/demo branch above avoid a synchronous
   // setState (the set-state-in-effect lint).
-  const currentFetched = fetched?.accountId === activeAccountId && fetched.membershipRevision === membershipRevision
+  const currentFetched =
+    fetched?.accountId === activeAccountId &&
+    fetched.membershipRevision === membershipRevision &&
+    fetched.offlineEpisode === offlineEpisode
     ? fetched
     : null
   const status: 'not-applicable' | 'pending' | 'resolved' | 'unavailable' = offline.readOnly
-    ? 'resolved'
+    // Offline read-only is a safe capability projection, not a resolved membership fact. Keep the
+    // status unavailable so explanatory consumers cannot present Viewer as the authoritative role.
+    ? 'unavailable'
     : enabled && activeAccountId
       ? currentFetched?.status ?? 'pending'
       : 'not-applicable'

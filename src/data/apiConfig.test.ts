@@ -37,20 +37,32 @@ describe('apiConfig', () => {
     expect(API_BASE).toBe('https://api.example.com')
   })
 
-  it('demo wins over a configured API (demo flag forces in-memory persistence)', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.com')
+  it('demo wins over even an invalid configured API (demo never consumes the endpoint)', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'file:///tmp/ignored')
     vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1')
     vi.resetModules()
-    const { isServerConfigured, isDemoMode } = await import('./apiConfig')
+    const { API_BASE, isServerConfigured, isDemoMode } = await import('./apiConfig')
     expect(isDemoMode()).toBe(true)
     expect(isServerConfigured()).toBe(false)
+    expect(API_BASE).toBe('')
   })
 
-  it('trims a trailing slash so `${API_BASE}/api/...` stays clean', async () => {
-    vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.com///')
+  it('trims surrounding whitespace and canonicalizes an origin', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', '  https://API.EXAMPLE.com:443///  ')
     vi.resetModules()
     const { API_BASE, isServerConfigured } = await import('./apiConfig')
     expect(API_BASE).toBe('https://api.example.com')
     expect(isServerConfigured()).toBe(true)
+  })
+
+  it.each([
+    'https://user:secret@api.example.com',
+    'https://api.example.com/base',
+    'https://api.example.com?tenant=one',
+    'file:///tmp/capacitylens-api',
+  ])('rejects a configured API value that is not an HTTP(S) origin: %s', async (value) => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', value)
+    vi.resetModules()
+    await expect(import('./apiConfig')).rejects.toThrow(/HTTP\(S\) origin/)
   })
 })

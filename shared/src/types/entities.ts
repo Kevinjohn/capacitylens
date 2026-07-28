@@ -255,17 +255,9 @@ const appDataKeysAreComplete: MissingAppDataKey extends never ? true : never = t
 void appDataKeysAreComplete
 
 /** The AppData arrays holding account-scoped entities (everything except `accounts`). */
-export type ScopedEntityKey =
-  | 'disciplines'
-  | 'resources'
-  | 'clients'
-  | 'projects'
-  | 'phases'
-  | 'activities'
-  | 'allocations'
-  | 'timeOff'
+export type ScopedEntityKey = Exclude<AppDataKey, 'accounts'>
 
-export const SCOPED_KEYS: ScopedEntityKey[] = [
+export const SCOPED_KEYS = [
   'disciplines',
   'resources',
   'clients',
@@ -274,7 +266,16 @@ export const SCOPED_KEYS: ScopedEntityKey[] = [
   'activities',
   'allocations',
   'timeOff',
-]
+] as const satisfies readonly ScopedEntityKey[]
+
+type MissingScopedEntityKey = Exclude<ScopedEntityKey, (typeof SCOPED_KEYS)[number]>
+const scopedEntityKeysAreComplete: MissingScopedEntityKey extends never ? true : never = true
+void scopedEntityKeysAreComplete
+
+/** Shared runtime guard for the same closed scoped-entity vocabulary enforced above. */
+export function isScopedEntityKey(key: string): key is ScopedEntityKey {
+  return (SCOPED_KEYS as readonly string[]).includes(key)
+}
 
 /** Parent-before-child order for writes; reverse it for child-before-parent deletion. This is a
  * domain relationship graph shared by the browser diff engine and SQLite adapter, not SQL DDL. */

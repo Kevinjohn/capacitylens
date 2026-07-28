@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render as rtlRender, screen, fireEvent, act, type RenderOptions } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { AllocationBar } from './AllocationBar'
 import { TooltipProvider } from '../ui/tooltip'
+import { PermissionContext } from '../../auth/permissionContext'
 
 // AllocationBar now uses a provider-less TooltipRoot (the single TooltipProvider is hoisted to
 // SchedulerGrid), so isolated bar renders must supply their own provider.
@@ -21,13 +23,50 @@ import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
 const GEOM = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 48, { minimiseWeekends: false, weekendWidth: 22 })
 const indexAtClientX = (clientX: number) => GEOM.indexAt(clientX)
 
-function seedAllocation(): Allocation {
+function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
   const s = useStore.getState()
   const c = s.addClient({ name: 'Acme', color: '#1' })
   const p = s.addProject({ name: 'P', clientId: c.id, color: '#2' })
   const t = s.addActivity({ name: 'Wires', kind: 'project', projectId: p.id })
   const r = s.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
-  return s.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+  return s.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed', ...overrides })
+}
+
+function seedVisibleAllocationWithHiddenCapacity(): Allocation {
+  const st = useStore.getState()
+  const hiddenClient = st.addClient({ name: 'Archived client', color: '#1' })
+  const hiddenProject = st.addProject({ name: 'Archived work', clientId: hiddenClient.id, color: '#2' })
+  const hiddenActivity = st.addActivity({ name: 'Hidden work', kind: 'project', projectId: hiddenProject.id })
+  const visibleClient = st.addClient({ name: 'Visible client', color: '#3' })
+  const visibleProject = st.addProject({ name: 'Visible work', clientId: visibleClient.id, color: '#4' })
+  const visibleActivity = st.addActivity({ name: 'Visible work', kind: 'project', projectId: visibleProject.id })
+  const resource = st.addResource({
+    kind: 'person',
+    name: 'Ty',
+    role: 'Dev',
+    employmentType: 'permanent',
+    workingHoursPerDay: 8,
+    workingDays: [1, 2, 3, 4, 5],
+    color: '#5',
+  })
+  st.addAllocation({
+    resourceId: resource.id,
+    activityId: hiddenActivity.id,
+    startDate: '2026-06-03',
+    endDate: '2026-06-03',
+    hoursPerDay: 8,
+    status: 'confirmed',
+  })
+  const visible = st.addAllocation({
+    resourceId: resource.id,
+    activityId: visibleActivity.id,
+    startDate: '2026-06-01',
+    endDate: '2026-06-02',
+    hoursPerDay: 4,
+    status: 'confirmed',
+  })
+  st.archiveEntity('clients', hiddenClient.id)
+  return visible
 }
 
 const barFor = (allocation: Allocation): BarLayout => ({ allocation, x: 0, width: 144, top: 0, color: '#3b82f6', label: 'Wires', external: false })
@@ -45,11 +84,55 @@ describe('AllocationBar interactions', () => {
     const pop = screen.getByTestId('allocation-popover')
     expect(pop).toHaveTextContent('Project Lightning')
     expect(pop).toHaveTextContent('Acme')
+    expect(pop).toHaveTextContent(/drag to move/i)
     fireEvent.mouseLeave(bar)
     expect(screen.queryByTestId('allocation-popover')).toBeNull()
   })
 
   describe('Escape closes the focus popover (keyboard accessibility)', () => {
+    it('keeps Viewer details in the tab order without enabling allocation edits', async () => {
+      const user = userEvent.setup()
+      const a = seedAllocation({ note: 'Call the client before kickoff' })
+      const onEdit = vi.fn()
+      useStore.getState().setBarLabelPref('showClient', false)
+      useStore.getState().setBarLabelPref('showProject', false)
+      render(
+        <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+          <AllocationBar
+            bar={{ ...barFor(a), project: 'Project Lightning', client: 'Acme' }}
+            geom={GEOM}
+            indexAtClientX={indexAtClientX}
+            onEdit={onEdit}
+          />
+        </PermissionContext.Provider>,
+      )
+      const bar = screen.getByTestId('allocation-bar')
+
+      expect(bar).toHaveAttribute('role', 'img')
+      expect(bar).toHaveAttribute('tabindex', '0')
+      expect(bar).not.toHaveTextContent('Project Lightning')
+      expect(bar).not.toHaveTextContent('Acme')
+      expect(screen.queryByTestId('resize-start')).toBeNull()
+      expect(screen.queryByTestId('resize-end')).toBeNull()
+
+      await user.tab()
+      expect(document.activeElement).toBe(bar)
+      const popover = screen.getByTestId('allocation-popover')
+      expect(popover).toHaveTextContent('Project Lightning')
+      expect(popover).toHaveTextContent('Call the client before kickoff')
+      expect(popover).toHaveTextContent('Read-only allocation details')
+      expect(popover).not.toHaveTextContent(/drag|resize|reassign/i)
+      expect(bar).toHaveAccessibleName(/Wires, Project Lightning · Acme, 8h per day, Confirmed, 1 Jun to 3 Jun, note: Call the client before kickoff\./)
+
+      await user.keyboard('{Escape}')
+      expect(screen.queryByTestId('allocation-popover')).toBeNull()
+      expect(document.activeElement).toBe(bar)
+
+      await user.keyboard('{Enter}{Space}{ArrowRight}')
+      expect(onEdit).not.toHaveBeenCalled()
+      expect(useStore.getState().data.allocations.find((allocation) => allocation.id === a.id)).toEqual(a)
+    })
+
     it('closes an open popover on Escape while KEEPING focus on the bar', () => {
       const a = seedAllocation()
       render(<AllocationBar bar={{ ...barFor(a), project: 'Project Lightning', client: 'Acme' }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
@@ -163,6 +246,30 @@ describe('AllocationBar interactions', () => {
     expect(moved.endDate).toBe('2026-06-04')
   })
 
+  it('does not report a successful move when permission drops to Viewer mid-drag', () => {
+    const a = seedAllocation()
+    const barUi = (role: 'editor' | 'viewer') => (
+      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+        <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+      </PermissionContext.Provider>
+    )
+    const { rerender } = render(barUi('editor'))
+    const bar = screen.getByTestId('allocation-bar')
+
+    fireEvent.pointerDown(bar, { clientX: 50, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }))
+    act(() => useStore.getState().setActiveRole('viewer'))
+    rerender(barUi('viewer'))
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }))
+
+    expect(useStore.getState().data.allocations.find((row) => row.id === a.id)).toMatchObject({
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+    })
+    expect(useStore.getState().notice).toMatchObject({ tone: 'error' })
+    expect(useStore.getState().notice?.message).not.toMatch(/moved|reassigned|undo/i)
+  })
+
   it('a click (no movement) opens the editor instead of moving', () => {
     const a = seedAllocation()
     const onEdit = vi.fn()
@@ -177,7 +284,7 @@ describe('AllocationBar interactions', () => {
     expect(unchanged.startDate).toBe('2026-06-01')
   })
 
-  it('surfaces a notice (instead of failing silently) when a reassign is rejected', () => {
+  it('leaves assignee, dates and hours unchanged when a diagonal reassign is rejected', () => {
     const st = useStore.getState()
     const c = st.addClient({ name: 'Acme', color: '#1' })
     const p1 = st.addProject({ name: 'P1', clientId: c.id, color: '#2' })
@@ -203,12 +310,18 @@ describe('AllocationBar interactions', () => {
 
     const bar = screen.getByTestId('allocation-bar')
     fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 })
-    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true })) // drop onto lane-dst
-    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 55, clientY: 125, bubbles: true }))
+    // Cross both a row and a date boundary: rejecting the target must reject the complete gesture,
+    // not silently retain its horizontal source-row move.
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, clientY: 125, bubbles: true }))
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, clientY: 125, bubbles: true }))
 
-    // Reassign rejected -> the bar stays on its original resource AND the user is told why.
     const alloc = useStore.getState().data.allocations.find((x) => x.id === a.id)!
-    expect(alloc.resourceId).toBe(person.id)
+    expect(alloc).toMatchObject({
+      resourceId: person.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+    })
     expect(useStore.getState().notice?.message).toMatch(/placeholder/i)
   })
 
@@ -245,6 +358,163 @@ describe('AllocationBar interactions', () => {
     expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.resourceId).toBe(r2.id)
     expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(false) // cleared on commit
   })
+
+  it('assigns a shared lane-boundary drop to the following lane', () => {
+    const st = useStore.getState()
+    const client = st.addClient({ name: 'Acme', color: '#1' })
+    const project = st.addProject({ name: 'P', clientId: client.id, color: '#2' })
+    const activity = st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id })
+    const source = st.addResource({
+      kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3',
+    })
+    const destination = st.addResource({
+      kind: 'person', name: 'Sam', role: 'Dev', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4',
+    })
+    const allocation = st.addAllocation({
+      resourceId: source.id,
+      activityId: activity.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    })
+    const rect = (top: number, bottom: number): DOMRect =>
+      ({ left: 0, right: 500, top, bottom, width: 500, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect
+
+    render(
+      <>
+        <div data-resource-id={source.id} data-testid="lane-src" />
+        <div data-resource-id={destination.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={barFor(allocation)}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    )
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(50, 100)
+
+    const bar = screen.getByTestId('allocation-bar')
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 55, clientY: 50, bubbles: true }))
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 55, clientY: 50, bubbles: true }))
+
+    expect(useStore.getState().data.allocations.find((row) => row.id === allocation.id)?.resourceId)
+      .toBe(destination.id)
+  })
+
+  it('keeps an External block at zero hours when it is reassigned to a person', () => {
+    const st = useStore.getState()
+    st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: 'blocks' })
+    const client = st.addClient({ name: 'Acme', color: '#1' })
+    const project = st.addProject({ name: 'P', clientId: client.id, color: '#2' })
+    const activity = st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id })
+    const external = st.addResource({
+      kind: 'external',
+      name: 'Northstar Partners',
+      role: 'Partner studio',
+      employmentType: 'permanent',
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      color: '#3',
+    })
+    const person = st.addResource({
+      kind: 'person',
+      name: 'Ty',
+      role: 'Dev',
+      employmentType: 'permanent',
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      color: '#4',
+    })
+    const allocation = st.addAllocation({
+      resourceId: external.id,
+      activityId: activity.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      hoursPerDay: 0,
+      status: 'confirmed',
+      ignoreWeekends: true,
+    })
+    const rect = (top: number, bottom: number): DOMRect =>
+      ({ left: 0, right: 500, top, bottom, width: 500, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect
+
+    render(
+      <>
+        <div data-resource-id={external.id} data-testid="lane-src" />
+        <div data-resource-id={person.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={{ ...barFor(allocation), external: true }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    )
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150)
+
+    const bar = screen.getByTestId('allocation-bar')
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true }))
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 55, clientY: 125, bubbles: true }))
+
+    expect(useStore.getState().data.allocations.find((row) => row.id === allocation.id)).toMatchObject({
+      resourceId: person.id,
+      hoursPerDay: 0,
+    })
+  })
+
+  it.each(['scroll', 'resize'] as const)(
+    'uses post-%s lane rectangles when pointerup precedes the queued animation frame',
+    (geometryEvent) => {
+      const requestFrame = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 47)
+      const cancelFrame = vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => undefined)
+      try {
+        const st = useStore.getState()
+        const c = st.addClient({ name: 'Acme', color: '#1' })
+        const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+        const t = st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id })
+        const r1 = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+        const r2 = st.addResource({ kind: 'person', name: 'Sam', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' })
+        const a = st.addAllocation({ resourceId: r1.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+        const rect = (top: number, bottom: number): DOMRect =>
+          ({ left: 0, right: 500, top, bottom, width: 500, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect
+
+        render(
+          <>
+            <div data-resource-id={r1.id} data-testid="lane-src" />
+            <div data-resource-id={r2.id} data-testid="lane-dst" />
+            <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+          </>,
+        )
+        let geometryChanged = false
+        screen.getByTestId('lane-src').getBoundingClientRect = () => geometryChanged ? rect(100, 150) : rect(0, 50)
+        screen.getByTestId('lane-dst').getBoundingClientRect = () => geometryChanged ? rect(200, 250) : rect(100, 150)
+
+        const bar = screen.getByTestId('allocation-bar')
+        fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 })
+        document.dispatchEvent(new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true }))
+        expect(screen.getByTestId('lane-dst')).toHaveAttribute('data-droptarget')
+
+        geometryChanged = true
+        const eventTarget = geometryEvent === 'scroll' ? document : window
+        eventTarget.dispatchEvent(new Event(geometryEvent))
+        expect(requestFrame).toHaveBeenCalledOnce()
+        document.dispatchEvent(new MouseEvent('pointerup', { clientX: 55, clientY: 225, bubbles: true }))
+
+        expect(cancelFrame).toHaveBeenCalledWith(47)
+        expect(useStore.getState().data.allocations.find((allocation) => allocation.id === a.id)!.resourceId).toBe(r2.id)
+      } finally {
+        requestFrame.mockRestore()
+        cancelFrame.mockRestore()
+      }
+    },
+  )
 
   describe('days mode preserves volume on resize', () => {
     const enableDays = () => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: 'days' })
@@ -430,6 +700,16 @@ describe('AllocationBar interactions', () => {
       expect(clear.seq).toBeGreaterThan(over.seq)
     })
 
+    it('ignores retained allocations hidden beneath an archived client', () => {
+      useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }))
+      const visible = seedVisibleAllocationWithHiddenCapacity()
+      render(<AllocationBar bar={barFor(visible)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
+
+      expect(useStore.getState().srAnnouncement?.text).toBe('Ty: no capacity conflicts.')
+    })
+
     // Window-alignment (the major review finding): the spoken count must equal the RENDERED per-row
     // sr-only summary, which counts over-days only WITHIN the visible timeline window
     // (`dayStates.filter(d => d.over)`, built across `visibleRange(ui)`). So an over-day OUTSIDE that
@@ -479,6 +759,17 @@ describe('AllocationBar interactions', () => {
       expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe('2026-06-02') // moved
       expect(useStore.getState().srAnnouncement).toBeNull() // but the live region stayed silent
     })
+  })
+
+  it('excludes retained hidden allocations from pointer capacity advice', () => {
+    const visible = seedVisibleAllocationWithHiddenCapacity()
+    render(<AllocationBar bar={barFor(visible)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+
+    fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }))
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }))
+
+    expect(useStore.getState().notice?.message).not.toMatch(/over capacity/i)
   })
 
   it('pins the dragged row (draggingAllocationId) on the first move and clears it on commit', () => {

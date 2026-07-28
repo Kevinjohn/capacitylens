@@ -8,15 +8,18 @@ import { formatShortDate, formatDayCount } from '../../lib/dateDisplay'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 import { Calendar, Plus } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
+import { errorMessage } from '../../lib/errorMessage'
 
 export function TimeOffList() {
   const data = useActiveScopedData()
   const resources = data.resources
+  const resourceById = useMemo(() => new Map(resources.map((resource) => [resource.id, resource])), [resources])
   const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
   const del = useStore((s) => s.deleteTimeOff)
+  const setNotice = useStore((s) => s.setNotice)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>()
 
   // Placeholders are gated behind a per-account pref (default OFF). When off, HIDE time-off whose
@@ -25,10 +28,10 @@ export function TimeOffList() {
   // else. An empty result here still falls through to the existing empty-state below.
   const timeOff = placeholdersEnabled
     ? data.timeOff
-    : data.timeOff.filter((t) => resources.find((r) => r.id === t.resourceId)?.kind !== 'placeholder')
+    : data.timeOff.filter((t) => resourceById.get(t.resourceId)?.kind !== 'placeholder')
 
   const resourceName = (id: string) => {
-    const r = resources.find((x) => x.id === id)
+    const r = resourceById.get(id)
     return r ? resourceDisplayName(r) : m.list_timeoff_unknown_resource()
   }
 
@@ -75,8 +78,12 @@ export function TimeOffList() {
           title={m.list_timeoff_delete_title()}
           message={m.list_timeoff_delete_message()}
           onConfirm={() => {
-            del(confirming.id)
-            setConfirming(null)
+            try {
+              del(confirming.id)
+              setConfirming(null)
+            } catch (error) {
+              setNotice(errorMessage(error), 'error')
+            }
           }}
           onCancel={() => setConfirming(null)}
         />

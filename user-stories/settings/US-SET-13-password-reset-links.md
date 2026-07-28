@@ -27,14 +27,15 @@ identity provider owns credentials, and in auth-off there are none.
 1. In the **Members** section, B's row (`data-testid="member-row"`) shows a **Reset password**
    button (`data-testid="member-reset-password"`).
 2. A clicks it. A block appears with the full link `<origin>/reset-password/<token>`
-   (`data-testid="reset-link"`), a **Copy** button, and a note naming **B** and the expiry date —
-   the link is shown **once** and never again.
+   (`data-testid="reset-link"`), a visible **Copy** button whose accessible name is
+   **Copy reset link for B**, and a note naming **B** and the expiry date — the link is shown
+   **once** and never again.
 3. A copies the link and sends it to B directly. Nothing is emailed by the app.
 4. **As B, signed out** — open the link. The **Reset password** page renders (no login wall in
    front of it — B is exactly the person who cannot sign in): **New password**
    (`data-testid="reset-new-password"`), **Confirm new password**
    (`data-testid="reset-confirm-password"`), **Set new password** (`data-testid="reset-submit"`).
-5. Mismatched or too-short (< 8 chars) input shows a field error without a request.
+5. Mismatched or too-short (under 15 characters) input shows a field error without a request.
 6. On success: *"Password updated. Sign in with your new password."*
    (`data-testid="reset-success"`) with a **Go to sign in** link (a full page load onto the login
    wall). B signs in with the new password.

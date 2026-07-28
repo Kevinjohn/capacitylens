@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openNewCompanyForm, createCompany, selectShadOption } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })

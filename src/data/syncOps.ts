@@ -21,6 +21,9 @@ export interface Op {
    *  sent so the server can refuse a cross-account delete. Accounts are top-level and
    *  carry none. */
   accountId?: string
+  /** Stored revision of the row being deleted. Ordered browser-sync batches use it to distinguish
+   *  their own predecessor from an intervening edit before applying a successor deletion. */
+  updatedAt?: string
 }
 
 /** Compute the ordered operations that turn `prev` into `next`, applied as one
@@ -36,6 +39,19 @@ export interface Op {
  *  would be lost. Doing upserts first lets the cascade find nothing to take.
  *  Exported for unit tests. */
 export function diffOps(prev: AppData, next: AppData): Op[] {
+  return diffOpsFromPossibleBases([prev], next)
+}
+
+/** Build one final-state delta that is correct when any supplied snapshot may be the server's
+ * current base. Page teardown uses this while an ordinary batch is unacknowledged: that earlier
+ * request may be absent, committed, or still racing the keepalive successor. */
+export function diffOpsFromPossibleBases(
+  possibleBases: readonly AppData[],
+  next: AppData,
+): Op[] {
+  if (possibleBases.length === 0) {
+    throw new Error('diffOpsFromPossibleBases: at least one possible base is required.')
+  }
   const upserts: Op[] = []
   const deletes: Op[] = []
   for (const table of UPSERT_ORDER) {
@@ -44,25 +60,28 @@ export function diffOps(prev: AppData, next: AppData): Op[] {
     // casts are always over real arrays. A non-array here is an UPSTREAM PROGRAMMER ERROR, not
     // user data; the assert turns an otherwise-cryptic "x.map is not a function" into a diagnosable
     // message. Pure function — a throw correctly propagates to the caller's error path.
-    const prevRows = prev[table] as Entity[]
     const nextRows = next[table] as Entity[]
-    if (!Array.isArray(prevRows) || !Array.isArray(nextRows)) {
+    const baseRows = possibleBases.map((base) => base[table] as Entity[])
+    if (baseRows.some((rows) => !Array.isArray(rows)) || !Array.isArray(nextRows)) {
       throw new Error(`diffOps: table "${table}" is not an array — inputs must be post-migrate AppData.`)
     }
-    const prevById = new Map(prevRows.map((e) => [e.id, e]))
+    const baseIndexes = baseRows.map((rows) => new Map(rows.map((entity) => [entity.id, entity])))
     const nextById = new Map(nextRows.map((e) => [e.id, e]))
     for (const row of nextRows) {
-      const before = prevById.get(row.id)
-      if (!before || before.updatedAt !== row.updatedAt) {
+      if (baseIndexes.some((index) => index.get(row.id)?.updatedAt !== row.updatedAt)) {
         upserts.push({ method: 'PUT', table, id: row.id, row })
       }
     }
-    for (const row of prevRows) {
-      if (!nextById.has(row.id)) {
+    const candidateIds = new Set(baseRows.flatMap((rows) => rows.map((row) => row.id)))
+    for (const id of candidateIds) {
+      if (!nextById.has(id)) {
+        const row = baseIndexes
+          .map((index) => index.get(id))
+          .find((candidate) => candidate !== undefined)!
         // Carry the owning account (from the pre-delete snapshot) so the server can scope
         // the delete; accounts are top-level so they carry none.
         const accountId = table === 'accounts' ? undefined : (row as { accountId?: string }).accountId
-        deletes.push({ method: 'DELETE', table, id: row.id, accountId })
+        deletes.push({ method: 'DELETE', table, id: row.id, accountId, updatedAt: row.updatedAt })
       }
     }
   }

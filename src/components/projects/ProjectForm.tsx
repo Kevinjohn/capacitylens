@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useActiveScopedData, useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
-import { errorMessage } from '../../lib/errorMessage'
+import { domainErrorMessage, errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { normalizeCodeName } from '@capacitylens/shared/domain/privateNames'
 import { canSeePrivateNames } from '@capacitylens/shared/domain/access'
@@ -11,14 +11,28 @@ import { validateProjectClient } from '@capacitylens/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { internalColourModeFor } from '../../store/selectors'
 import { m } from '@/i18n'
-import { ColorField, Modal, RequiredLegend, SelectField, SwitchField, TextField, type Option } from '../common/ui'
+import {
+  ColorField,
+  Modal,
+  RequiredLegend,
+  SelectField,
+  SwitchField,
+  TextField,
+  type Option,
+} from '../common/ui'
 import { Button } from '../ui/button'
 import { FieldError } from '../ui/field'
 import type { Project } from '@capacitylens/shared/types/entities'
 
 /** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
  *  save or cancel. */
-export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
+export function ProjectForm({
+  project,
+  onClose,
+}: {
+  project?: Project
+  onClose: () => void
+}) {
   const add = useStore((s) => s.addProject)
   const update = useStore((s) => s.updateProject)
   const role = useRole()
@@ -30,7 +44,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   // build an archived client is still in the raw slice (so we can show its name); in server mode the
   // per-account read strips it entirely, so the label degrades to the generic "(current, archived)".
   const rawClients = useScopedData().clients
-  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId))
+  const internalColourMode = useStore((s) =>
+    internalColourModeFor(s.data, s.activeAccountId),
+  )
 
   const [name, setName] = useState(project?.name ?? '')
   const [clientId, setClientId] = useState(project?.clientId ?? '')
@@ -38,10 +54,15 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const [isPrivate, setIsPrivate] = useState(project?.isPrivate ?? false)
   const [codeName, setCodeName] = useState(project?.codeName ?? '')
   const { error, errorField, errorId, fail } = useFieldError()
-  const selectedClientIsInternal = clients.find((client) => client.id === clientId)?.builtin === true
-  const showColourPicker = internalColourMode === 'palette' || !selectedClientIsInternal
+  const selectedClientIsInternal =
+    clients.find((client) => client.id === clientId)?.builtin === true
+  const showColourPicker =
+    internalColourMode === 'palette' || !selectedClientIsInternal
 
-  const clientOptions: Option[] = clients.map((c) => ({ value: c.id, label: c.name }))
+  const clientOptions: Option[] = clients.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }))
   // Editing a project whose client is ARCHIVED: the active-only options above don't contain it, so
   // without this the select would silently blank and an unrelated edit (rename, colour) couldn't
   // round-trip the unchanged clientId. Append the current id as a DISABLED option — it stays
@@ -51,7 +72,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
     const raw = rawClients.find((c) => c.id === project.clientId)
     clientOptions.push({
       value: project.clientId,
-      label: raw ? m.list_label_archived({ name: raw.name }) : m.form_option_current_archived(),
+      label: raw
+        ? m.list_label_archived({ name: raw.name })
+        : m.form_option_current_archived(),
       disabled: true,
     })
   }
@@ -59,13 +82,14 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const submit = () => {
     const trimmed = validateName(name, fail)
     if (!trimmed) return
-    const cleanCodeName = isPrivate && canManagePrivacy
-      ? validateName(normalizeCodeName(codeName), fail, 'codeName')
-      : null
+    const cleanCodeName =
+      isPrivate && canManagePrivacy
+        ? validateName(normalizeCodeName(codeName), fail, 'codeName')
+        : null
     if (isPrivate && canManagePrivacy && !cleanCodeName) return
     const check = validateProjectClient(clientId)
     if (!check.ok) {
-      fail('client', check.errors[0])
+      fail('client', domainErrorMessage(check.codes[0]))
       return
     }
     if (!validateHex(color, fail)) return
@@ -75,11 +99,21 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       const privacy = canManagePrivacy
         ? {
             isPrivate: isPrivate || undefined,
-            codeName: isPrivate ? cleanCodeName ?? undefined : undefined,
+            codeName: isPrivate ? (cleanCodeName ?? undefined) : undefined,
           }
         : {}
-      if (project) update(project.id, { name: trimmed, clientId, color, ...privacy })
-      else add({ name: trimmed, clientId, color, ...privacy })
+      if (project) {
+        const current = useStore
+          .getState()
+          .data.projects.find((candidate) => candidate.id === project.id)
+        if (!current || current.updatedAt !== project.updatedAt) {
+          fail(null, m.form_project_err_changed())
+          return
+        }
+        update(project.id, { name: trimmed, clientId, color, ...privacy })
+      } else {
+        add({ name: trimmed, clientId, color, ...privacy })
+      }
       onClose()
     } catch (e) {
       fail(null, errorMessage(e))
@@ -96,12 +130,27 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
           <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button size="sm" type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">
+            {m.form_save()}
+          </Button>
         </>
       }
     >
-      <TextField label={m.form_project_name_label()} value={name} onChange={setName} autoFocus={!protectedName} required disabled={protectedName} invalid={errorField === 'name'} describedById={errorId} />
-      {protectedName && <p className="text-xs text-muted-foreground">{m.form_private_owner_only_hint()}</p>}
+      <TextField
+        label={m.form_project_name_label()}
+        value={name}
+        onChange={setName}
+        autoFocus={!protectedName}
+        required
+        disabled={protectedName}
+        invalid={errorField === 'name'}
+        describedById={errorId}
+      />
+      {protectedName && (
+        <p className="text-xs text-muted-foreground">
+          {m.form_private_owner_only_hint()}
+        </p>
+      )}
       {canManagePrivacy && (
         <SwitchField
           label={m.form_private_toggle_label()}
@@ -121,12 +170,29 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
             invalid={errorField === 'codeName'}
             describedById={errorId}
           />
-          <p className="text-xs text-muted-foreground">{m.form_private_code_name_hint()}</p>
+          <p className="text-xs text-muted-foreground">
+            {m.form_private_code_name_hint()}
+          </p>
         </>
       )}
-      <SelectField label={m.form_project_client_label()} value={clientId} onChange={setClientId} options={clientOptions} placeholder={m.form_project_select_client_placeholder()} required invalid={errorField === 'client'} describedById={errorId} />
+      <SelectField
+        label={m.form_project_client_label()}
+        value={clientId}
+        onChange={setClientId}
+        options={clientOptions}
+        placeholder={m.form_project_select_client_placeholder()}
+        required
+        invalid={errorField === 'client'}
+        describedById={errorId}
+      />
       {showColourPicker && (
-        <ColorField label={m.form_project_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+        <ColorField
+          label={m.form_project_colour_label()}
+          value={color}
+          onChange={setColor}
+          invalid={errorField === 'color'}
+          describedById={errorId}
+        />
       )}
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />

@@ -16,6 +16,8 @@ This is the short, present-tense record of decisions that constrain future work.
   do not contribute to utilisation.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.
 - The product introduction is acknowledged once per device, not once per sign-in.
+- The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
+  keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
 
 ## Scheduling invariants
 
@@ -46,6 +48,45 @@ This is the short, present-tense record of decisions that constrain future work.
 - Every scoped entity carries `accountId`; the active account is transient and never persisted.
 - Server session + membership is the security boundary. Client scoping is defense in depth and UI
   hygiene, not authorization.
+- Authenticated batches take two independent authorization snapshots: one before waiting for
+  workspace locks and one after acquisition immediately before the transaction. Repeated checks
+  for the same company and action reuse their result within one snapshot, but authorization state
+  is never cached across the lock wait.
+- Batch validation projections and account imports materialise only the account slices named by the
+  request. Cross-table relationship checks load every required table within those slices. Batch
+  projections maintain id and reverse-foreign-key indexes as operations advance, so upserts,
+  deletes and cascades do not rebuild unaffected arrays; whole-installation state is never used as
+  a shortcut.
+- Browser account-command retry identities survive transport failures, HTTP 408 and server
+  failures, concurrent execution and unreadable or unrecognised 409 responses. Success or a
+  successfully decoded known terminal caller/policy rejection may close the retry ceremony;
+  ambiguous responses never do.
+  A page-local memory copy is authoritative while the page lives, with session storage extending
+  the same identity across reloads when browser policy permits it.
+- Each local audit-log generation is hard-bounded by the configured rotation size. Rotation occurs
+  before the next complete JSONL line would cross that bound; a single entry larger than the bound
+  is rejected, leaves its durable outbox row queued and marks audit health degraded rather than
+  consuming unbounded space or truncating security evidence.
+- A scheduled SQLite snapshot is file-synced and its published directory entry is synced before
+  retention may remove an older recovery point. Retention metadata is synced again after deletes;
+  a failure at that second barrier warns but does not deny an already-durable new snapshot, because
+  the safe crash outcome is retention of extra old recovery points. New snapshot names use UTC;
+  legacy local-time names remain retention-compatible through their publication timestamps, and
+  the snapshot being returned is never eligible for its own retention pass.
+- Ordinary company-wide planning and display configuration shares the normal write capability:
+  Editor and up may rename the company and change scheduling mode, disciplines, colour mode and
+  feature-visibility settings. Editors are already trusted to shape the shared schedule, so these
+  reversible account settings do not introduce a separate Admin-only `configureAccount` tier.
+  Identity, membership, privacy, lifecycle, whole-slice import and company-erasure operations keep
+  their existing stricter Admin/Owner gates; creation-time calendar and language fields stay frozen.
+  The compatibility path that adopts a legacy id for the server-managed Internal client and
+  reparents its projects is likewise a fresh-session Admin/Owner operation, not an ordinary edit.
+- Command-palette entity visibility follows the destination, not every similarly named preference:
+  omit resources or Internal projects whose selection would jump to a hidden schedule row/bar, but
+  retain Internal activities because their selection opens the complete Activities management list.
+- An unmatched URL is navigation state, not an application crash: it gets a branded not-found page
+  with a schedule link, while valid reset/invitation bearer paths keep their exact one-token matcher
+  and malformed signed-out entries remain behind the sign-in wall.
 - Forms reject invalid input. Import and server boundaries repair safe values, drop unsafe rows
   and preserve referential integrity.
 - Optimistic-concurrency conflicts require both timestamps: a write is stale only when the stored
@@ -74,7 +115,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Theme and display preferences are device-global and outside account exports.
 - Client/project privacy is opt-in and owner-managed. Real names and raw code names remain stored;
   only account owners receive them. Every other role receives the quoted code name, and non-owner
-  writes preserve the protected stored fields. The built-in Internal client is always public.
+  writes preserve the protected stored fields. The built-in Internal client is always public and
+  active; import/load repair clears any impossible lifecycle tombstones on the singleton.
 
 ## Offline
 
@@ -114,8 +156,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
   proxy. Legacy product/vendor-prefixed account variables remain warning aliases until both two
   stable minor releases and 90 days have elapsed from the first stable release carrying the
-  canonical namespace. The 0.25 alpha does not start that clock; after 0.25.0 stable, removal is no
-  earlier than 0.27.0 and 90 days after its recorded release date. Conflicting aliases refuse startup.
+  canonical namespace. The 0.26 alpha does not start that clock; after 0.26.0 stable, removal is no
+  earlier than 0.28.0 and 90 days after its recorded release date. Conflicting aliases refuse startup.
 - Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
   Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than
   fifteen minutes regardless of MFA policy. The client answers the freshness refusal with an
@@ -133,7 +175,12 @@ This is the short, present-tense record of decisions that constrain future work.
   `needsSetup` and all non-401 failures remain fail-closed. A genuinely malformed body (non-JSON
   or junk mode — as opposed to a well-formed older-server response) additionally renders a
   degraded-configuration notice above the form so an SSO-only instance behind a broken proxy is
-  diagnosable rather than a silent password-retry loop.
+  diagnosable rather than a silent password-retry loop. In server mode, tenant persistence starts
+  only after this auth check returns an admitted non-MFA-blocked status; login, setup and mandatory
+  enrollment walls never issue speculative company-data requests or publish persistence errors.
+- Required MFA enrollment outranks both public invitation and password-reset entries while the
+  identity remains signed in. The enrollment wall states why: invitations cannot be accepted until
+  policy is satisfied, while signing out returns a reset link to its deliberate session-free flow.
 - When a database upgrade finds an account with active members but no active Owner, the repair
   migration promotes the member with the highest role tier, tie-broken by earliest membership. A
   viewer is promoted only when the account holds nothing but viewers, and every promotion emits a
@@ -178,11 +225,19 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Continuous integration
 
-- Local green gates are the pre-launch source of truth. Automatic GitHub runner jobs are skipped
-  while the repository is private; maintainers run the complete remote gate manually when it adds
-  value rather than on every development push.
-- Making the repository public automatically restores CI for pull requests, `main`, release tags
-  and the scheduled canary. Public-repository standard runners are the intended long-term posture.
-- Private CodeQL is not enabled. CodeQL stays dormant until the repository is public rather than
-  consuming runner time on an upload GitHub will reject.
+- Coverage thresholds and the main-entry bundle limits are standing regression boundaries, not
+  automatic high-water-mark ratchets. Maintainers own them. A feature that reaches a boundary must
+  first add focused tests, remove dead code or preserve lazy-loading/code-splitting as applicable.
+  Changing a boundary requires an intentional review containing before/after measurements and the
+  product reason the added tested behavior or first-load cost is worth accepting; never edit a
+  number solely to make a red gate green. Periodic tightening is allowed when sustained headroom
+  makes the stricter boundary representative rather than flaky.
+- Aggregate coverage floors are supplemented by an exact-file zero-coverage gate. Every measured
+  hand-written module with executable lines must cover at least one line unless its full path is in
+  the reviewed legacy-debt list; directory and glob exceptions are forbidden.
+- Local green gates remain the developer source of truth. The public repository's workflows run
+  automatically for pull requests, `main`, release tags and their documented scheduled canaries;
+  `workflow_dispatch` supports deliberate reruns.
+- CodeQL runs in the public-repository security workflow. Private-repository runner/upload
+  limitations are no longer part of the active CI policy.
 - Dependabot continues its monthly root-workspace updates independently of the runner policy.

@@ -85,11 +85,15 @@ export function xForDate(date: ISODate, origin: ISODate, dayWidth: number): numb
   return Number.isFinite(i) ? i * dayWidth : 0
 }
 
-/** Pixel width of an inclusive [start, end] range. Clamped to >= 0 so a reversed
- *  or unparseable range renders as a zero-width (harmless) bar, never negative. */
+/** Pixel width of an inclusive [start, end] range. Clamped to >= 0 so a reversed or
+ *  unparseable range, or a negative/non-finite `dayWidth`, renders as a zero-width
+ *  (harmless) bar, never negative or non-finite. */
 export function widthForRange(start: ISODate, end: ISODate, dayWidth: number): number {
+  if (!Number.isFinite(dayWidth) || dayWidth < 0) return 0
   const n = daysInclusive(start, end)
-  return Number.isFinite(n) && n > 0 ? n * dayWidth : 0
+  if (!Number.isFinite(n) || n <= 0) return 0
+  const width = n * dayWidth
+  return Number.isFinite(width) ? width : 0
 }
 
 /** Is `date` within the inclusive range [start, end]? Zero-padded YYYY-MM-DD strings
@@ -168,9 +172,12 @@ export function allocationWorksOnDay(
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
   const span = daysInclusive(start, end)
   if (span <= 0) return 0
-  let count = 0
-  for (let i = 0; i < span; i++) {
-    if (isWorkingWeekday(addDaysISO(start, i), workingDays)) count++
+  const working = new Set(workingDays)
+  const fullWeeks = Math.floor(span / 7)
+  let count = fullWeeks * working.size
+  const startWeekday = weekdayOf(start)
+  for (let offset = 0; offset < span % 7; offset += 1) {
+    if (working.has(((startWeekday + offset) % 7) as Weekday)) count += 1
   }
   return count
 }
@@ -178,7 +185,8 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
 /** The end date such that [start, end] contains exactly `count` working days —
  *  i.e. `end` lands on the `count`-th working day at/after `start`.
  *
- *  Guards against the degenerate cases that would otherwise make no sense: if
+ *  `count` must be a safe integer; fractional and non-finite counts are rejected.
+ *  Guards against the remaining degenerate cases that would otherwise make no sense: if
  *  `count <= 0`, `workingDays` is empty, or `workingDays.length >= 7` (treated as a
  *  full/every-calendar-day week, matching isWeekendAware — which is false at length
  *  >= 7), it falls back to a raw inclusive calendar span.
@@ -196,6 +204,7 @@ export function endDateForWorkingDays(
   count: number,
   workingDays: Weekday[],
 ): ISODate {
+  if (!Number.isSafeInteger(count)) throw new RangeError('count must be a safe integer.')
   if (count <= 0 || workingDays.length === 0 || workingDays.length >= 7) {
     return addDaysISO(start, Math.max(0, count - 1))
   }

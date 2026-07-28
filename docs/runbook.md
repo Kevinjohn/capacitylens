@@ -4,9 +4,11 @@
 
 `GET /api/health` is unauthenticated, constant-work and deliberately exempt from rate limiting so
 API traffic cannot starve the public uptime probe. With `CAPACITYLENS_HEALTH_DEEP=1`, it runs a
-constant SQLite readiness query and reports audit degradation; startup separately performs the full
-foreign-key integrity check before accepting traffic. Monitor health through the same public proxy
-users reach and do not expose the API container directly.
+constant SQLite readiness query, reports audit degradation and surfaces the configured internal
+certificate's cached expiry. When scheduled backups are configured it also reports their latched
+status and the most recent successful snapshot time; startup separately performs the full foreign-key integrity check before
+accepting traffic. Monitor health through the same public proxy users reach and do not expose the API
+container directly.
 
 With Compose:
 
@@ -16,9 +18,16 @@ docker compose logs --since=30m api
 curl -fsS https://capacity.example.com/api/health
 ```
 
-Treat repeated 401/403 as access events, 409 as write conflicts, 429 as rate limiting, and 5xx or
-`audit: degraded` as operator alerts. Logs may contain identifiers and must follow your retention
-policy.
+Treat repeated 401/403 as access events, 409 as write conflicts, 429 as rate limiting, and 5xx,
+`audit: degraded`, `backup.status: degraded`, `internalTls.status: expiring` or
+`internalTls.status: expired` as operator
+alerts. `expiring` begins at the same 30-day boundary used by the initializer; renew before it reaches
+zero. Logs may contain identifiers and must follow your retention policy.
+Password hashing and breached-password checks use bounded queues. Entries waiting longer than five
+seconds are shed, disconnected requests withdraw before execution, and both immediate overflow and
+wait expiry emit a `password_security_queue_saturated` security event naming the queue and reason.
+Alert on repeated events; they indicate sustained CPU or dependency pressure rather than bad
+credentials.
 
 The packaged nginx→API hop uses a private per-install CA and verified TLS 1.2/1.3. Check that the
 one-shot `internal-tls` service exited zero, the API/web services are healthy, and the leaf remains
@@ -48,17 +57,82 @@ flag is an operator attestation that this external control exists; the applicati
 the collector. External forwarding is optional for community self-hosting: without it, local audit
 and process logs remain available and startup emits a posture warning.
 
+Do not set `CAPACITYLENS_AUDIT=off` in production. The production posture guard refuses startup
+rather than serving without the mandatory local mutation audit; use the bounded rotation setting
+and the delivery/degradation procedure below to manage disk usage instead.
+
+Product-mutation audit events first enter `capacitylens_audit_outbox` in the same SQLite transaction
+as the data change. The server drains them in commit order to JSONL, fsyncs each line, and deletes a
+row only after delivery. On restart it replays pending rows; the stable `auditId` makes local-file
+replay idempotent if a crash happened after fsync but before deletion. A failed sink leaves rows
+queued and reports `audit: degraded`; alert and restore the sink promptly because continued writes
+will grow the SQLite file. The degraded signal is deliberately sticky for the process lifetime: after
+repairing the path, permissions or free-space problem, restart the server so startup replays the
+queued outbox and deep health can return to `audit: ok`. Forwarded stdout collectors should
+deduplicate the same `auditId` if a
+restart replays a record after local delivery. A complete recovery/incident bundle therefore
+includes both the SQLite database (which may contain pending events) and the JSONL generations.
+For product mutations, `changedFields` contains field names only, never values, and includes only
+fields the caller requested whose sanitized, authorization-pinned result changed persisted state.
+Rejected or normalized-away request fields therefore do not appear as completed changes.
+
+The local active file and its single `.1` generation are each hard-bounded by
+`CAPACITYLENS_AUDIT_MAX_MB`; rotation happens before the next complete JSONL line would exceed the
+cap. An individual line larger than the cap is not truncated or written: delivery stays in the
+SQLite outbox and deep health reports audit degradation. Preserve the database and raise the cap
+before retrying rather than deleting the queued evidence. A generation already over the configured
+cap (from an older build or a lowered setting) is likewise preserved and blocks new delivery until
+the operator archives it safely or restores a sufficient cap.
+
 ## Backups
 
+The server explicitly configures SQLite WAL commits with `synchronous=FULL` and refuses startup if
+the connection cannot report that policy. This defines the application's normal host-power-loss
+boundary for acknowledged writes. It cannot protect against a filesystem, storage controller or
+device that falsely reports completed flushes, or loss of the whole volume; retain off-host backups
+and exercise restore drills.
+
 When `CAPACITYLENS_BACKUP_DIR` is set, the server uses SQLite's online backup operation at boot and
-on the configured interval. Do not `cp` a live WAL database.
+on the configured interval. Do not `cp` a live WAL database. Before a scheduled snapshot receives
+its final name or can trigger retention, the server verifies its `quick_check`, `foreign_key_check`
+and copied schema version, then normalises it to one standalone DELETE-journal file. A failed check
+is logged as `backup FAILED`, removes the unpublished temp artifact, and leaves every older restore
+point untouched; investigate the live database or backup storage before relying on later attempts.
+Deep health exposes `backup.status` and `backup.lastSuccessAt`; any failed snapshot latches the
+status as `degraded` for the process lifetime while later successes continue advancing the timestamp.
+Before retention begins, the server sets the completed snapshot's final permissions, syncs the
+file, atomically renames it and syncs the containing directory. A failure in any publication
+barrier rejects the attempt and skips retention. After removing old snapshots, it syncs the
+directory again; failure there is logged as a retention warning because the new recovery point is
+already durable and the safe power-loss outcome is that an older file may remain. These are the
+standard host-filesystem durability boundaries, not a guarantee against storage that lies about
+flush completion or loss of the entire volume.
+Retention identifies and excludes the open main database by resolved path and filesystem identity,
+even if it shares the snapshot directory and its basename resembles a snapshot. A separate snapshot
+volume remains recommended so database and recovery artifacts have independent failure domains.
+`CAPACITYLENS_BACKUP_KEEP` defaults to 48 and accepts values whose floor is between 1 and 10,000;
+for compatibility, `100.5` retains 100 snapshots. Invalid, lower and over-maximum values use the
+safe default. `CAPACITYLENS_BACKUP_INTERVAL_MIN` remains a whole-minute value.
 
 When an existing database needs a schema migration, startup always writes and verifies a separate
-`capacitylens-pre-migration-vN-to-vM-*.db` snapshot before applying DDL. It uses
-`CAPACITYLENS_BACKUP_DIR` when configured and otherwise the database directory. Failure to create,
-permission or pass `quick_check` on this snapshot refuses startup. These rollback snapshots are not
-part of rolling retention: keep the matching file until the upgraded release has been verified,
-then remove it deliberately under the deployment's retention policy.
+`capacitylens-pre-migration-vN-to-vM.db` snapshot before applying DDL. Repeated attempts for the
+same version pair refresh one stable filename. Before startup may enter forward-only DDL, it sets
+the unpublished snapshot's final permissions, syncs that file, atomically renames it and syncs the
+containing directory. Any barrier failure refuses the upgrade; do not bypass it. This is the
+standard host-filesystem durability boundary, not a guarantee against storage hardware that lies
+about flush completion or loses the entire volume, so retain off-host backups and restore drills.
+The snapshot uses `CAPACITYLENS_BACKUP_DIR` when configured and otherwise the database directory.
+Creation, verification, permission or durability-barrier failure refuses startup. These rollback
+snapshots are not part of rolling retention: keep the matching file until the upgraded release has
+been verified, then remove it deliberately under the deployment's retention policy.
+
+A current-version file is still structurally validated before traffic starts. An unexpected
+required product column, incompatible declared type or primary key, CHECK/UNIQUE constraint,
+write trigger, STRICT mode or WITHOUT ROWID table is treated as physical schema drift and refuses
+startup. Do not change `user_version`, the application id or the migration ledger to bypass that
+failure. Preserve the database and logs, compare it with a verified snapshot, and repair or restore
+the unexpected DDL while the API remains stopped. Nullable or defaulted extension columns are safe
+and do not cause refusal because product writes use an explicit column list.
 
 The process applies a restrictive `0077` umask and enforces mode `0600` on database, WAL/SHM,
 audit and snapshot files plus `0700` on the snapshot directory. Treat broader ownership or ACLs as
@@ -81,13 +155,88 @@ Schedule this before launch and after material storage changes:
 6. Verify login, account list, recent expected data and a safe write.
 7. Record snapshot time, result and recovery duration.
 
+### Docker Compose named-volume procedure
+
+The packaged Compose deployment stores `/data` and `/backups` in named volumes. Run the following
+from the checkout containing the active `.env` and `docker-compose.yml`; host-path `cp` commands do
+not reach those volumes. The one-off helper uses the API image's normal unprivileged `node` user and
+the same volume mounts as the stopped service, so restored files keep the ownership the API expects.
+
+Before a restore, confirm `docker compose config` renders the physical volume prefix used by the
+active installation. New deployments use `capacitylens_`. A pre-pin deployment may retain its
+historical prefix through `COMPOSE_PROJECT_NAME` in `.env`; do not remove or change that override.
+If an upgrade unexpectedly presents an empty instance, do not create a company or remove volumes.
+Stop the new stack, list `docker volume ls`, restore the previous project prefix in `.env`, confirm
+the rendered `*_capacitylens-db`, `*_capacitylens-backups` and `*_capacitylens-internal-tls` names,
+then start the stack and verify the expected account list.
+
+First stop the API, list the available snapshots and preserve the cleanly stopped live database in
+the backup volume. The command fails before changing `/data` if no snapshot is present:
+
+New snapshots use UTC-sortable names (`capacitylens-utc-YYYYMMDD-HHMMSS-sss.db`). Older
+`capacitylens-YYYYMMDD-HHMMSS-sss.db` local-time snapshots remain valid restore inputs and remain
+inside automatic retention until they age out.
+
+```bash
+docker compose stop api
+docker compose run --rm --no-deps --entrypoint sh api -eu -c '
+  ls -l /backups/capacitylens-*.db
+  rollback_dir="/backups/manual-restore-$(date -u +%Y%m%dT%H%M%SZ)"
+  umask 077
+  mkdir -m 700 "$rollback_dir"
+  for file in /data/capacitylens.db /data/capacitylens.db-wal /data/capacitylens.db-shm; do
+    test ! -e "$file" || cp -p "$file" "$rollback_dir/"
+  done
+  printf "Preserved stopped database files in %s\n" "$rollback_dir"
+'
+```
+
+Choose an exact filename from that listing, then copy it to a temporary file in `/data`, verify its
+mode and owner, atomically replace the live database and remove sidecars. The basename check keeps
+the operator-supplied value inside `/backups`:
+
+```bash
+export RESTORE_SNAPSHOT=capacitylens-utc-YYYYMMDD-HHMMSS-sss.db
+docker compose run --rm --no-deps -e RESTORE_SNAPSHOT --entrypoint sh api -eu -c '
+  case "$RESTORE_SNAPSHOT" in
+    capacitylens-*.db) ;;
+    *) echo "RESTORE_SNAPSHOT must be a capacitylens-*.db basename" >&2; exit 1 ;;
+  esac
+  case "$RESTORE_SNAPSHOT" in
+    */*) echo "RESTORE_SNAPSHOT must not contain a path" >&2; exit 1 ;;
+  esac
+  source="/backups/$RESTORE_SNAPSHOT"
+  target=/data/capacitylens.db
+  temporary="$target.restore"
+  test -f "$source"
+  umask 077
+  cp "$source" "$temporary"
+  chmod 600 "$temporary"
+  test "$(stat -c %a "$temporary")" = 600
+  test "$(stat -c %u "$temporary")" = "$(id -u)"
+  mv "$temporary" "$target"
+  rm -f "$target-wal" "$target-shm"
+'
+unset RESTORE_SNAPSHOT
+docker compose up -d api
+docker compose ps
+curl -fsS https://capacity.example.com/api/health
+```
+
+Complete the login, account, recent-data and safe-write checks above before removing the preserved
+`manual-restore-*` directory. If `CAPACITYLENS_DB` or `CAPACITYLENS_BACKUP_DIR` was deliberately
+changed from the packaged paths, adapt and rehearse the procedure for those mounts before an
+incident.
+
 `server/src/restore.drill.test.ts` continuously exercises the core backup → corruption → restore
 path, but it does not replace an operator drill with real storage and credentials.
 
 For an application rollback after a schema upgrade, stop the API, preserve the failed/upgraded file
 for diagnosis, restore the matching pre-migration snapshot with no stale WAL/SHM sidecars, and start
 the previous image. Never point the previous image at the upgraded database: downgrade refusal is
-intentional, and CapacityLens has no down migrations.
+intentional, and CapacityLens has no down migrations. Compose operators use the named-volume
+procedure above with the exact `capacitylens-pre-migration-vN-to-vM.db` filename, then select and
+start the retained previous image instead of the upgraded image.
 
 ## Migration release rehearsal
 
@@ -143,6 +292,20 @@ browser command-status endpoint returns only status and a redacted repair kind; 
 target-principal, provisional-principal and ceremony coordinates remain operator-only in the local
 ledger/CLI path. Neither surface returns a bearer token.
 
+If command-status returns a generic 500 and the server log names
+`CorruptAccountCommandStateError` plus the command id, stop the application and preserve the
+database before doing anything else. Present malformed or incomplete repair metadata is an
+integrity incident, not an `operator-review` default: the server leaves the raw row unchanged and
+will not fabricate missing provisional-principal or ceremony coordinates. Do not close that row
+with the reconciliation CLI until its metadata has been recovered from a known-good copy or every
+external effect has been established from authoritative provider and audit evidence. A legacy row
+whose `resultJson` is genuinely SQL `NULL` remains the explicit generic-review case.
+
+For password invitation signup, the local user, credential link and command `targetPrincipalId`
+commit in one SQLite transaction. An interruption before commit leaves no provisional identity; an
+interruption after commit leaves the exact principal coordinate available to this reconciliation
+procedure. The ledger never stores the submitted password or an independently testable verifier.
+
 1. Stop retrying the command with a new idempotency key.
 2. Inspect the account audit event and the `account_commands` repair coordinates, then verify the
    actual membership, session, reset-ceremony or provisional-identity state.
@@ -166,6 +329,13 @@ Account deletion erases the live tenant and eligible identities, but existing au
 remain. Apply the deployment's retention schedule to those copies and document legal holds. See
 `docs/privacy.md`.
 
+Erasure refuses to run when a corrupt id-only product relationship would cascade or unbind a row
+labelled for another account. Treat the generic API failure plus the server-side
+`TenantErasureIntegrityError` as an integrity incident: stop the application, preserve a copy of the
+database, identify the reported parent/child edge, and repair the account labels or relationship
+against an authoritative source before retrying. Do not disable foreign-key enforcement or delete
+the reported child merely to make erasure pass.
+
 ## Routine maintenance
 
 - Weekly: inspect health, disk, backup freshness and security advisories.
@@ -184,11 +354,20 @@ The API accepts at most 512 simultaneous sockets per process; excess connections
 the proxy returns an upstream error for retry/backoff rather than opening an unbounded queue. Each
 request and incomplete connection has a 30-second server timeout. SQLite uses one synchronous
 connection per process, waits at most five seconds for a held write lock and then returns a surfaced
-error. Run exactly one API process against a SQLite file.
+error. Run exactly one API process against a SQLite file. On SIGTERM/SIGINT the daemon stops
+accepting work and gives requests and background snapshots ten seconds to drain. If either remains
+wedged it logs the deadline and force-exits non-zero without closing SQLite underneath live work;
+the supervisor must allow more than ten seconds before SIGKILL and restart the failed process.
 
 Memory-expensive scrypt work is limited to two active operations plus sixteen queued operations.
 HIBP range lookups are limited to eight active calls plus thirty-two queued calls, each with a
-five-second timeout; overflow or upstream failure rejects password creation/change/reset closed.
+five-second timeout. Scrypt overflow aborts password verification without producing a wrong-password
+verdict, and overflow or upstream HIBP failure rejects password creation/change/reset closed.
+These scrypt/HIBP queues are process-wide availability safeguards, not per-company reservations.
+Password authentication is identity-global and occurs before company selection, so every company
+on a multi-company instance shares them. The normal per-IP API limit remains the first admission
+control. Use edge/global quotas or separate CapacityLens instances, each with its own database, when
+adversarial isolation is required; do not weaken the memory bounds.
 The CSP collector accepts at most 64 KiB and logs at most twenty projected reports per request.
 Configured OIDC/social exchanges remain bounded by the 512-request process ceiling and the
 provider/library HTTP lifecycle; monitor provider latency and 5xx responses. Strict OIDC fails
@@ -198,4 +377,6 @@ unstable named social provider; investigate strict-OIDC availability with the Id
 An uncaught exception or unhandled rejection emits a `process_failure` security event, drains the
 API and exits non-zero. Compose restarts it automatically. Alert on every such event and on restart
 loops; preserve the full local operational error, verify health/data integrity and investigate the
-underlying defect instead of treating restart as remediation.
+underlying defect instead of treating restart as remediation. If another stop arrives during a
+drain, the forced-exit log includes `reason=signal:<name>` for an operator signal or
+`reason=process_failure:<kind>` for a concurrent uncaught failure.

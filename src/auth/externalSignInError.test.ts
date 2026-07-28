@@ -1,20 +1,32 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from "vitest";
 import {
   clearExternalSignInError,
   externalSignInErrorUrl,
   hasExternalSignInError,
-} from './externalSignInError'
+} from "./externalSignInError";
 
-describe('external sign-in browser error URL', () => {
-  it('marks the current route while preserving invitation state', () => {
-    const marked = externalSignInErrorUrl('https://app.example/invite/token?source=mail')
-    expect(marked).toBe('https://app.example/invite/token?source=mail&externalSignInError=1')
-  })
+describe("external sign-in browser error URL", () => {
+  it("marks the current route while preserving invitation state", () => {
+    const marked = externalSignInErrorUrl(
+      "https://app.example/invite/token?source=mail",
+    );
+    expect(marked).toBe(
+      "https://app.example/invite/token?source=mail&externalSignInError=1",
+    );
+  });
 
-  it('recognizes only marked provider failures and clears provider-controlled detail', () => {
-    const failed = 'https://app.example/?externalSignInError=1&error=access_denied&error_description=secret&keep=1'
-    expect(hasExternalSignInError(failed)).toBe(true)
-    expect(hasExternalSignInError('https://app.example/?error=unrelated')).toBe(false)
-    expect(clearExternalSignInError(failed)).toBe('https://app.example/?keep=1')
-  })
-})
+  it("recognizes only marked provider failures and clears provider-controlled detail", () => {
+    const failed =
+      "https://app.example/?externalSignInError=1&error=access_denied&error_description=secret&error_uri=https%3A%2F%2Fidp.example%2Fdetail&keep=1";
+    expect(hasExternalSignInError(failed)).toBe(true);
+    expect(
+      hasExternalSignInError("https://app.example/?externalSignInError=1"),
+    ).toBe(true);
+    expect(hasExternalSignInError("https://app.example/?error=unrelated")).toBe(
+      false,
+    );
+    expect(clearExternalSignInError(failed)).toBe(
+      "https://app.example/?keep=1",
+    );
+  });
+});

@@ -9,6 +9,8 @@ export interface FieldError {
   errorId: string
   /** Record an error against a field (pass null for a form-level error). */
   fail: (field: string | null, message: string) => void
+  /** Clear both visible and field-scoped error state. */
+  clear: () => void
 }
 
 /** The error/errorField/errorId/fail quartet every CRUD form hand-rolled. One copy.
@@ -22,5 +24,9 @@ export function useFieldError(): FieldError {
     setError(message)
     setErrorField(field)
   }, [])
-  return { error, errorField, errorId, fail }
+  const clear = useCallback(() => {
+    setError(null)
+    setErrorField(null)
+  }, [])
+  return { error, errorField, errorId, fail, clear }
 }

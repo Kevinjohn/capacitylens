@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from '@playwright/test'
+import { test, expect, type Locator } from './fixtures'
 import { openApp, selectShadOption } from './helpers'
 
 async function box(locator: Locator) {
@@ -8,13 +8,17 @@ async function box(locator: Locator) {
 }
 
 test.describe('Feature flows', () => {
-  test('filtering by project narrows the schedule to that project', async ({ page }) => {
+  test('filtering by project narrows the schedule to that project', async ({
+    page,
+  }) => {
     await openApp(page)
     const bars = page.getByTestId('allocation-bar')
-    expect(await bars.count()).toBeGreaterThan(1)
+    await expect.poll(() => bars.count()).toBeGreaterThan(1)
 
     await selectShadOption(page.getByLabel('Filter by project'), 'p-brand')
-    await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
+    await expect(
+      page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }),
+    ).toBeVisible()
 
     // Filtering hides non-matching resources by default, collapsing the schedule to
     // just the project's work ("Show unallocated" opts the dimmed staffing view in).
@@ -24,10 +28,13 @@ test.describe('Feature flows', () => {
   test('undo restores a deleted allocation', async ({ page }) => {
     await openApp(page)
     const bars = page.getByTestId('allocation-bar')
+    await expect(bars).toHaveCount(6)
     const n = await bars.count()
 
     await bars.filter({ hasText: 'Brand System' }).click()
-    await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible()
+    await expect(
+      page.getByRole('dialog', { name: 'Edit allocation' }),
+    ).toBeVisible()
     await page.getByRole('button', { name: 'Delete' }).click()
     await expect(bars).toHaveCount(n - 1)
 
@@ -42,11 +49,14 @@ test.describe('Feature flows', () => {
   test('booking time off greys the schedule', async ({ page }) => {
     await openApp(page)
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+    await expect(page.getByTestId('timeoff-block').first()).toBeVisible()
     const blocksBefore = await page.getByTestId('timeoff-block').count()
 
     await page.getByRole('link', { name: 'Time off' }).click()
     await page.getByRole('button', { name: 'Add time off' }).click()
-    await selectShadOption(page.getByLabel('Resource'), { label: 'Nike Spiros' })
+    await selectShadOption(page.getByLabel('Resource'), {
+      label: 'Nike Spiros',
+    })
     await page.getByLabel('Start').fill('2026-06-18')
     await page.getByLabel('End').fill('2026-06-20')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -54,25 +64,35 @@ test.describe('Feature flows', () => {
 
     await page.getByRole('link', { name: 'Schedule' }).click()
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
-    await expect.poll(() => page.getByTestId('timeoff-block').count()).toBeGreaterThan(blocksBefore)
+    await expect
+      .poll(() => page.getByTestId('timeoff-block').count())
+      .toBeGreaterThan(blocksBefore)
   })
 
-  test('clicking a discipline header collapses its rows', async ({ page }) => {
+  test('clicking a discipline header collapses its rows', async ({
+    page,
+  }, testInfo) => {
     await openApp(page)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
     await page.getByRole('button', { name: 'Design', exact: true }).click()
     await expect(page.getByText('Tyler Nix')).toHaveCount(0) // rows removed
     await expect(page.getByTestId('discipline-group').first()).toBeVisible() // header stays
-    await page.screenshot({ path: 'test-results/capacitylens-collapsed.png' })
+    await page.screenshot({
+      path: testInfo.outputPath('capacitylens_collapsed.png'),
+    })
   })
 
-  test('dragging an allocation onto another row reassigns it', async ({ page }) => {
+  test('dragging an allocation onto another row reassigns it', async ({
+    page,
+  }, testInfo) => {
     await openApp(page)
     // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
     // early-June seed bars stay in view — no manual scroll reset needed.
     await page.getByRole('radio', { name: '4w', exact: true }).click()
 
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
+    const bar = page
+      .getByTestId('allocation-bar')
+      .filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
     // Address the target row by identity, not position — robust to seed re-ordering.
     const nikeLane = page.locator('[data-resource-id="r-nike"]')
@@ -84,16 +104,24 @@ test.describe('Feature flows', () => {
     await page.mouse.move(cx, nike.y + nike.height / 2, { steps: 10 })
     // Nike's row is highlighted as the drop target mid-drag.
     await expect(nikeLane).toHaveAttribute('data-droptarget', '')
-    await page.screenshot({ path: 'test-results/capacitylens-drophighlight.png' })
+    await page.screenshot({
+      path: testInfo.outputPath('capacitylens_drophighlight.png'),
+    })
     await page.mouse.up()
 
     // Assert the resulting state, not a pixel delta: the bar now lives inside Nike's lane.
-    await expect(nikeLane.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
+    await expect(
+      nikeLane
+        .getByTestId('allocation-bar')
+        .filter({ hasText: 'Brand System' }),
+    ).toBeVisible()
     // Highlight cleared after drop.
     await expect(nikeLane).not.toHaveAttribute('data-droptarget', '')
   })
 
-  test('drawing in Time off mode opens a prefilled time-off form', async ({ page }) => {
+  test('drawing in Time off mode opens a prefilled time-off form', async ({
+    page,
+  }) => {
     await openApp(page)
     await page.getByRole('radio', { name: '4w', exact: true }).click()
     // Toolbar draw-mode radio, distinct from the "Time off" nav link.
@@ -117,10 +145,14 @@ test.describe('Feature flows', () => {
     await expect(dialog).toBeVisible()
     await expect(dialog.getByLabel('Resource')).toHaveText('Nike Spiros')
     await page.getByRole('button', { name: 'Save' }).click()
-    await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0)
+    await expect(
+      page.getByRole('dialog', { name: 'Add time off' }),
+    ).toHaveCount(0)
   })
 
-  test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
+  test('drawing on a placeholder locks the modal to its bound project', async ({
+    page,
+  }) => {
     await openApp(page, 'Studio North', '/settings')
     // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
     await page.getByRole('switch', { name: 'Show placeholders' }).click()
@@ -140,7 +172,9 @@ test.describe('Feature flows', () => {
     await page.mouse.move(b.x + 48, y, { steps: 6 })
     await page.mouse.up()
 
-    await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible()
+    await expect(
+      page.getByRole('dialog', { name: 'New allocation' }),
+    ).toBeVisible()
     const project = page.getByLabel('Project', { exact: true })
     // "Locked" = the bound project is preselected and the choices are restricted to it
     // (+ the general option), but the select stays ENABLED so the placeholder can still
@@ -148,6 +182,8 @@ test.describe('Feature flows', () => {
     await expect(project).toHaveText(/Project Lightning/)
     await expect(project).toBeEnabled()
     await project.click()
-    await expect(page.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
+    await expect(
+      page.getByRole('option', { name: /Brand Themes/ }),
+    ).toHaveCount(0)
   })
 })

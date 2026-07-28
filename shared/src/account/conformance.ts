@@ -25,9 +25,9 @@ export function isAccountDeploymentProfile(value: unknown): value is AccountDepl
 }
 
 export interface AccountProfileCapabilities {
-  passwordSignIn: boolean
-  strictOidc: boolean
-  hosted: boolean
+  readonly passwordSignIn: boolean
+  readonly strictOidc: boolean
+  readonly hosted: boolean
 }
 
 export const ACCOUNT_PROFILE_CAPABILITIES: Readonly<Record<

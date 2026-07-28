@@ -10,12 +10,12 @@ account records or sessions.
 
 Set `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE` when an installation should enforce a named posture:
 
-| Profile | Password | Strict OIDC | Intended use |
-| --- | --- | --- | --- |
-| `self-hosted-password` | yes | no | Independent community install with local credentials |
-| `self-hosted-mixed` | yes | yes | Self-hosted transition or deliberate password fallback |
-| `self-hosted-sso-only` | no | yes | Self-hosted IdP-only install |
-| `hosted-oidc-only` | no | yes | Hosted product; password and named-social configuration refused |
+| Profile                | Password | Strict OIDC | Intended use                                                    |
+| ---------------------- | -------- | ----------- | --------------------------------------------------------------- |
+| `self-hosted-password` | yes      | no          | Independent community install with local credentials            |
+| `self-hosted-mixed`    | yes      | yes         | Self-hosted transition or deliberate password fallback          |
+| `self-hosted-sso-only` | no       | yes         | Self-hosted IdP-only install                                    |
+| `hosted-oidc-only`     | no       | yes         | Hosted product; password and named-social configuration refused |
 
 The open-source product does not force SSO. Hosted is SSO-only as a standing product constraint;
 weakening it requires an explicit architecture amendment and must not be treated as a sales-time
@@ -45,31 +45,53 @@ application sends no email and never lists the bearer value again.
 `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1` deliberately reopens email registration. It is a
 trusted-instance/development escape, not an internet-facing default.
 
-Password mode enforces 15–128 characters, rejects product/context-specific passwords and stores new
-hashes with the versioned scrypt profile (`N=2^17, r=8, p=1`). Existing Better Auth hashes remain
-verify-only compatible during migration. Outside tests, the candidate is checked against the Have I
-Been Pwned range API: only the first five SHA-1 characters leave the process and padded suffixes are
-requested. Creation, change and reset fail closed when the service is unavailable.
+Password mode enforces 15–128 Unicode code points, rejects product/context-specific passwords and
+stores new hashes with the versioned scrypt profile (`N=2^17, r=8, p=1`). Existing Better Auth
+hashes remain verify-only compatible during migration. Outside tests, the candidate is checked
+against the Have I Been Pwned range API: only the first five SHA-1 characters leave the process and
+padded suffixes are requested. Creation, change and reset fail closed when the service is
+unavailable.
+Identity names and provider labels use the same Unicode-code-point meaning of “character”; email's
+254 limit is measured in UTF-8 bytes.
 `SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off` is available for isolated deployments and produces a
 production warning.
 
 Set `SMALLSASS_ACCOUNT_REQUIRE_MFA=1` to require TOTP for every password identity. A new identity is
-stopped before tenant data, records a six-digit/30-second authenticator, stores one-time recovery
+stopped before tenant data: the browser does not begin tenant persistence until `/api/auth/me`
+admits the session, and the server independently refuses tenant routes while enrollment remains
+required. The identity records a six-digit/30-second authenticator, stores one-time recovery
 codes and proves one code. Five failed attempts lock the account for fifteen minutes. There is no
 administrator bypass or email-only MFA reset; losing the authenticator and every recovery code
-requires operator-managed identity re-proofing outside the product.
+requires operator-managed identity re-proofing outside the product. Mandatory enrollment also
+outranks public-entry links for a signed-in identity. The wall explains that invitations require
+enrollment before acceptance and that signing out reopens an admin-issued password-reset link in
+its intended session-free flow.
 
 ## Sessions and sensitive actions
 
 Local sessions have a fixed twelve-hour absolute lifetime, no sliding refresh and a thirty-minute
 server-observed inactivity limit. Activity writes are bounded to once per minute without moving the
-absolute expiry. A session is fresh for fifteen minutes; membership, invitation, ownership, purge
-and account-erasure operations require fresh authentication.
+absolute expiry. A session is fresh for fifteen minutes; membership-authorized company
+provisioning, membership, invitation, ownership, purge, inactive-state export and account-erasure
+operations require fresh authentication.
+
+The in-place recent-authentication dialog accepts either the enrolled authenticator code or one
+unused recovery code. Recovery codes therefore remain the supported fallback for sensitive actions
+without forcing a sign-out that discards the user's current working state.
 
 Password changes and resets revoke existing local sessions. Administrators may reset a password or
 revoke sessions only with reset-equivalent authority everywhere the target can enter in this
 installation. Authority evaluation and execution are one flow command: membership/security
 revisions are rechecked, and a newly issued reset ceremony is burned if authority changes.
+
+Invitation and password-reset creation responses contain write-once bearer tokens. To reconcile an
+immediately lost response, the server may replay the same bearer for the same authorized command for
+up to five minutes. This cache is process-local, entry-bounded and independent of the bearer expiry;
+after five minutes the plaintext value is discarded and the completed command returns a conflict
+rather than reconstructing or redisclosing the secret. If every replay slot is occupied, the server
+returns retryable rate-limit backpressure before minting another bearer; it never evicts an earlier
+completed response to admit the new issuance. Durable command state stores only digests and non-secret
+metadata.
 
 ## Strict OIDC profile
 
@@ -112,6 +134,10 @@ The first external local principal must have a verified email listed in
 unexpired, preauthorized invitation. Email is an admission attribute only. Once the provider link is
 stored, equal or changed emails never merge two identities.
 
+On a fresh `self-hosted-mixed` deployment, the first-run wall shows both the setup-token password
+form and every configured external provider. The allow-listed first owner can therefore bootstrap
+through OIDC directly; creating an interim password owner is not required.
+
 The configured provider id and issuer become an immutable pair in the local database. Renaming a
 provider id, repointing it to a different issuer, or reusing an id for another issuer refuses startup
 rather than silently changing the namespace of existing subjects. Treat either change as an
@@ -150,7 +176,9 @@ cryptographic issuer/audience/signature/key-rotation tests and a real Dex browse
 bootstrap, provider callback, local session, preauthorized invitation, membership, account
 selection and local-vs-provider logout semantics. Separate fresh-process Dex runs inject malformed
 discovery and provider unavailability; callback-shaped denial/failure cases prove the product's
-retryable, non-reflecting browser error surface. The same marked return is consumed by the signed-out
-wall, invitation flow or authenticated shell, so a failed SSO step-up cannot leave provider detail in
-the address bar. See `docs/account-boundary.md` for the contract, version and sibling propagation
-model.
+retryable, non-reflecting browser error surface. A pre-module external bootstrap strips provider
+error fields from a marked return before hydration, retaining only the product marker; the signed-out
+wall, invitation flow or authenticated shell consumes that marker and removes it after rendering the
+stable message. Provider detail therefore does not depend on successful application hydration to
+leave the address bar. See `docs/account-boundary.md` for the contract, version and sibling
+propagation model.

@@ -1,15 +1,16 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
-import { openDb } from './db'
+import { initializeOpenDb, openDb, planDatabaseMigrations } from './db'
 import {
-  authControlTablesNeedMigration,
   authFromEnv,
   ensureAuthControlTables,
   planAuthSchemaMigrations,
   providerIdFromExternalContext,
   runAuthMigrations,
 } from './auth'
+import { assertBootstrapClaimCurrent } from './bootstrapClaim'
 import { localExternalIdentityAdmission } from './accounts/externalIdentityAdmission'
+import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from './tenantIndexes'
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
@@ -28,18 +29,17 @@ describe('startup configuration before database migration', () => {
     vi.restoreAllMocks()
   })
 
-  it('can resolve auth options without application DDL, then creates controls explicitly', () => {
+  it('can resolve auth options without DDL, then maintains controls after app migration', () => {
     const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
     const configured = authFromEnv(db, PASSWORD_ENV, { deferDatabaseSetup: true })
     expect(configured.auth).not.toBeNull()
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([])
+    expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i)
 
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 23 }))
+    initializeOpenDb(db, ':memory:')
     ensureAuthControlTables(db, PASSWORD_ENV)
-    expect(
-      (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>).map(
-        (row) => row.name,
-      ),
-    ).toEqual(['capacitylens_bootstrap_claim'])
+    expect(() => assertBootstrapClaimCurrent(db)).not.toThrow()
     db.close()
   })
 
@@ -133,17 +133,29 @@ describe('startup configuration before database migration', () => {
     expect(response.headers.get('location')).not.toContain('attacker.example')
   })
 
-  it('plans both app-owned auth controls and Better Auth DDL before executing either', async () => {
+  it('plans both the app-owned control migration and Better Auth DDL before executing either', async () => {
     const db = openDb(':memory:')
+    for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`)
+    db.exec(`
+      DROP TABLE capacitylens_bootstrap_claim;
+      DELETE FROM capacitylens_schema_migrations WHERE version >= 20;
+      PRAGMA user_version = 19;
+    `)
     const configured = authFromEnv(db, PASSWORD_ENV, { deferDatabaseSetup: true })
-    expect(authControlTablesNeedMigration(db, PASSWORD_ENV)).toBe(true)
+    expect(planDatabaseMigrations(db).migrations).toEqual([
+      expect.objectContaining({ version: 20, name: 'version-bootstrap-claim-control' }),
+      expect.objectContaining({ version: 21, name: 'index-tenant-entity-slices' }),
+      expect.objectContaining({ version: 22, name: 'reactivate-builtin-internal-clients' }),
+      expect.objectContaining({ version: 23, name: 'index-foreign-key-children' }),
+    ])
     const before = await planAuthSchemaMigrations(configured.auth!)
     expect(before.pending).toBe(true)
     expect(before.tables).toContain('user')
 
+    initializeOpenDb(db, ':memory:')
     ensureAuthControlTables(db, PASSWORD_ENV)
     await runAuthMigrations(configured.auth!)
-    expect(authControlTablesNeedMigration(db, PASSWORD_ENV)).toBe(false)
+    expect(planDatabaseMigrations(db).migrations).toEqual([])
     await expect(planAuthSchemaMigrations(configured.auth!)).resolves.toEqual({ pending: false, tables: [] })
     db.close()
   })
@@ -268,7 +280,7 @@ describe('external identity creation gate', () => {
     }
     authFromEnv(db, env)
 
-    expect(authControlTablesNeedMigration(db, env)).toBe(false)
+    expect(() => assertBootstrapClaimCurrent(db)).not.toThrow()
     expect(db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all()).not.toEqual([])
   })
 

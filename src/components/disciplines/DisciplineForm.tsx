@@ -34,8 +34,16 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
     // Surface a store-side rejection as a form error rather than an uncaught React error — see the
     // store CRUD contract.
     try {
-      if (discipline) update(discipline.id, { name: trimmed, color, sortOrder })
-      else add({ name: trimmed, color, sortOrder })
+      if (discipline) {
+        const current = useStore.getState().data.disciplines.find((candidate) => candidate.id === discipline.id)
+        if (!current || current.updatedAt !== discipline.updatedAt) {
+          fail(null, m.form_discipline_err_changed())
+          return
+        }
+        update(discipline.id, { name: trimmed, color, sortOrder })
+      } else {
+        add({ name: trimmed, color, sortOrder })
+      }
       onClose()
     } catch (e) {
       fail(null, errorMessage(e))

@@ -265,4 +265,40 @@ describe('ClientForm – edit mode', () => {
 
     expect(useStore.getState().data.clients).toHaveLength(1)
   })
+
+  it('rejects a stale edit instead of overwriting a concurrently changed client', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#2d75da' })
+    render(<ClientForm client={client} onClose={onClose} />)
+
+    useStore.getState().updateClient(client.id, { color: '#e02727' })
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Acme renamed')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/client changed while you were editing/i)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.clients[0]).toMatchObject({ name: 'Acme', color: '#e02727' })
+  })
+
+  it('keeps the form open when the client vanished during editing', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#2d75da' })
+    render(<ClientForm client={client} onClose={onClose} />)
+
+    const data = useStore.getState().data
+    useStore.getState().replaceAll({
+      ...data,
+      clients: data.clients.filter((candidate) => candidate.id !== client.id),
+    })
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Acme renamed')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/client changed while you were editing/i)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.clients.some((candidate) => candidate.id === client.id)).toBe(false)
+  })
 })

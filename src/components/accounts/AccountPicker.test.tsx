@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
@@ -59,6 +59,7 @@ beforeEach(() => {
   useStore.getState().setActiveAccount(null)
   useStore.getState().setAccountSummaries([])
   useStore.getState().setHydrated(true)
+  useStore.getState().setNotice(null)
   // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
   // sits in front of it) — these tests exercise the account gate, not the demo one.
   useStore.getState().setFakeSignedIn(true)
@@ -83,6 +84,18 @@ describe('AppShell account gate', () => {
     expect(screen.getByText('Studio North')).toBeInTheDocument()
     // The main nav is gated away until a company is chosen.
     expect(screen.queryByRole('link', { name: 'Schedule' })).not.toBeInTheDocument()
+  })
+
+  it('renders store notices as Sonner toasts while the account picker is visible', async () => {
+    seedAccounts(makeAccount({ name: 'Studio North' }))
+    renderShell()
+
+    act(() => {
+      useStore.getState().setNotice('Company deletion was refused.', 'error')
+    })
+
+    const message = await screen.findByText('Company deletion was refused.')
+    expect(message.closest('[data-sonner-toast]')).not.toBeNull()
   })
 
   it('shows the shell (with the active company + Switch company) once an account is active', () => {
@@ -313,6 +326,7 @@ describe('AccountPicker server-mode list (P1.13)', () => {
     await user.click(screen.getByRole('button', { name: 'New company' }))
     expect(screen.queryByText('Colour')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Colour \(/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 })
 
@@ -398,6 +412,42 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     expect(useStore.getState().accountSummaries).toHaveLength(0)
   })
 
+  it('uses the localised refreshed-list guidance for an unknown create response', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (url: string) => url === '/api/orgs'
+      ? { ok: false, status: 503, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => [] })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    await user.type(screen.getByLabelText('Company name'), 'Uncertain Co')
+    await user.click(screen.getByRole('button', { name: 'Create company' }))
+
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe(
+      'The create request had an unknown outcome. The company list was refreshed; check it before trying again.',
+    ))
+  })
+
+  it('uses the localised stale-list guidance and preserves diagnostics after a create transport failure', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (url: string) => {
+      throw new Error(url === '/api/orgs' ? 'create transport failed' : 'directory refresh failed')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    await user.type(screen.getByLabelText('Company name'), 'Uncertain Co')
+    await user.click(screen.getByRole('button', { name: 'Create company' }))
+
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe(
+      'The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again. create transport failed',
+    ))
+  })
+
   it('deletes an UNLOADED company via DELETE /api/accounts/:id and drops its summary', async () => {
     // The regression this guards: the local deleteAccount cascade diffs the LOADED slice only, so a
     // company whose slice isn't in `data` would emit no ops, delete nothing server-side, and
@@ -414,6 +464,10 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0))
+    expect(useStore.getState().notice).toMatchObject({
+      message: 'Ghost Co was permanently deleted.',
+      tone: 'info',
+    })
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('/api/accounts/a9')
     expect(init.method).toBe('DELETE')
@@ -421,7 +475,7 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
 
   it('disarms Delete while the DELETE is in flight (double-click sends ONE request)', async () => {
     // The regression this guards: without the in-flight guard a double-click sends a second DELETE,
-    // which 403s in auth-on mode (the membership was erased by the first) → a spurious "Forbidden."
+    // which can race the first command and raise a spurious in-progress retry error
     // toast right after a successful delete.
     serverFlag.on = true
     const user = userEvent.setup()
@@ -445,7 +499,10 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     resolveDelete({ ok: true, status: 204, json: async () => ({}) })
     await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0))
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(useStore.getState().notice).toBeNull() // no spurious error after a successful delete
+    expect(useStore.getState().notice).toMatchObject({
+      message: 'Ghost Co was permanently deleted.',
+      tone: 'info',
+    })
   })
 
   it('keeps the company listed and surfaces a notice when the server refuses the delete', async () => {
@@ -462,6 +519,47 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
 
     await waitFor(() => expect(useStore.getState().notice?.message).toBe('Forbidden.'))
     expect(useStore.getState().accountSummaries).toHaveLength(1) // nothing removed optimistically
+  })
+
+  it('uses the localised refreshed-list guidance for an unknown delete response', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
+      url === '/api/accounts/a9' && init?.method === 'DELETE'
+        ? { ok: false, status: 503, json: async () => ({}) }
+        : { ok: true, status: 200, json: async () => [{ id: 'a9', name: 'Ghost Co', role: 'owner' }] })
+    vi.stubGlobal('fetch', fetchMock)
+    useStore.getState().setAccountSummaries([{ id: 'a9', name: 'Ghost Co', role: 'owner' }])
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete Ghost Co' }))
+    const dialog = screen.getByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/Type/i), 'Ghost Co')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe(
+      'The delete request had an unknown outcome. The company list was refreshed — verify it before retrying.',
+    ))
+  })
+
+  it('uses the localised stale-list guidance and preserves diagnostics after a delete transport failure', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (url: string) => {
+      throw new Error(url === '/api/accounts/a9' ? 'delete transport failed' : 'directory refresh failed')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    useStore.getState().setAccountSummaries([{ id: 'a9', name: 'Ghost Co', role: 'owner' }])
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete Ghost Co' }))
+    const dialog = screen.getByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/Type/i), 'Ghost Co')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe(
+      'The delete request had an unknown outcome and the company list could not be refreshed. Reload before retrying. delete transport failed',
+    ))
   })
 
   it('offers a Delete button only on an owner summary', () => {

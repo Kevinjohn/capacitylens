@@ -1,9 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { hasActiveFilters, useStore } from './useStore'
-import { resetStoreWithAccount, makeAppData, makeAccount } from '../test/fixtures'
+import {
+  resetStoreWithAccount,
+  makeAppData,
+  makeAccount,
+} from '../test/fixtures'
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath'
 import { serializeData } from '@capacitylens/shared/data/transfer'
 import { PAST_BUFFER_DAYS } from '../lib/schedulerConfig'
+import { diffOps } from '../data/syncOps'
 
 const s = () => useStore.getState()
 beforeEach(() => resetStoreWithAccount())
@@ -27,20 +32,63 @@ describe('store CRUD', () => {
     expect(s().data.resources).toHaveLength(1)
   })
 
-  it('updates fields and bumps updatedAt', async () => {
+  it('generates a bounded revision when an existing timestamp has no representable successor', () => {
+    const client = s().addClient({ name: 'Boundary', color: '#111111' })
+    const data = s().data
+    s().replaceAll({
+      ...data,
+      clients: data.clients.map((row) =>
+        row.id === client.id
+          ? { ...row, updatedAt: '+275760-09-12T23:59:59.999Z' }
+          : row,
+      ),
+    })
+    s().updateClient(client.id, { name: 'Last successor' })
+    expect(
+      s().data.clients.find((row) => row.id === client.id)?.updatedAt,
+    ).toBe('+275760-09-13T00:00:00.000Z')
+
+    const atMaximum = s().data
+    s().replaceAll({
+      ...atMaximum,
+      clients: atMaximum.clients.map((row) =>
+        row.id === client.id
+          ? { ...row, updatedAt: '+275760-09-13T00:00:00.000Z' }
+          : row,
+      ),
+    })
+
+    expect(() =>
+      s().updateClient(client.id, { name: 'Still editable' }),
+    ).not.toThrow()
+    expect(
+      s().data.clients.find((row) => row.id === client.id)?.updatedAt,
+    ).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('updates fields, advances updatedAt and emits a sync PUT', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    await new Promise((res) => setTimeout(res, 2))
+    const before = s().data
     s().updateResource(r.id, { name: 'Tyler' })
     const updated = s().data.resources[0]
     expect(updated.name).toBe('Tyler')
-    expect(updated.updatedAt >= r.updatedAt).toBe(true)
+    expect(Date.parse(updated.updatedAt)).toBeGreaterThan(
+      Date.parse(r.updatedAt),
+    )
+    expect(diffOps(before, s().data)).toEqual([
+      expect.objectContaining({ method: 'PUT', table: 'resources', id: r.id }),
+    ])
   })
 
   it('rejects assigning a placeholder to an activity outside its bound project', () => {
     const client = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: client.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: client.id, color: '#3' })
-    const activityP2 = s().addActivity({ name: 'T2', kind: 'project', projectId: p2.id })
+    const activityP2 = s().addActivity({
+      name: 'T2',
+      kind: 'project',
+      projectId: p2.id,
+    })
     const ph = s().addResource({
       kind: 'placeholder',
       role: 'Designer',
@@ -51,8 +99,15 @@ describe('store CRUD', () => {
       projectId: p1.id,
     })
     expect(() =>
-      s().addAllocation({ resourceId: ph.id, activityId: activityP2.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' }),
-    ).toThrow()
+      s().addAllocation({
+        resourceId: ph.id,
+        activityId: activityP2.id,
+        startDate: '2026-06-01',
+        endDate: '2026-06-02',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    ).toThrow(/placeholder.*bound project/i)
     expect(s().data.allocations).toHaveLength(0)
   })
 })
@@ -78,7 +133,9 @@ describe('store scheduler UI', () => {
     expect(s().ui.originDate).not.toBe('2020-01-01')
     expect(weekdayOf(s().ui.focusDate)).toBe(1) // this week's Monday
     // Origin sits the back-buffer earlier, so the past is scrollable to the left.
-    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS))
+    expect(s().ui.originDate).toBe(
+      addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS),
+    )
   })
 
   it('signOutDemo drops the active company, the back-breadcrumb, and the fake flag', () => {
@@ -103,7 +160,9 @@ describe('store scheduler UI', () => {
     // Focus snaps to the current week's Monday (scrolled flush to the left edge);
     // origin sits the back-buffer earlier so last month stays reachable by scrolling.
     expect(weekdayOf(s().ui.focusDate)).toBe(1)
-    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS))
+    expect(s().ui.originDate).toBe(
+      addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS),
+    )
   })
 
   it('setNotice sets and clears the transient message', () => {
@@ -139,36 +198,85 @@ describe('store scheduler UI', () => {
     // Seed an account whose calendar week starts on SUNDAY and make it active. This guards a
     // regression where goToDate floored to Monday regardless of the account's weekStartsOn.
     const sunStart = 'acct-sun'
-    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })] }))
+    useStore.getState().replaceAll(
+      makeAppData({
+        accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })],
+      }),
+    )
     useStore.getState().setActiveAccount(sunStart)
     // 2026-09-09 is a Wednesday (verified); the Sunday that starts its week is 2026-09-06 (verified).
     useStore.getState().goToDate('2026-09-09')
     expect(useStore.getState().ui.focusDate).toBe('2026-09-06') // that week's Sunday, NOT 09-07 (Monday)
     expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0) // 0 = Sunday
     // Origin sits the back-buffer behind the snapped Sunday, so the past stays scrollable.
-    expect(useStore.getState().ui.originDate).toBe(addDaysISO('2026-09-06', -PAST_BUFFER_DAYS))
+    expect(useStore.getState().ui.originDate).toBe(
+      addDaysISO('2026-09-06', -PAST_BUFFER_DAYS),
+    )
   })
 
   it('preserves the visible week when refreshing the currently loaded account', () => {
     s().goToDate('2026-09-09')
-    const before = { originDate: s().ui.originDate, focusDate: s().ui.focusDate }
+    const before = {
+      originDate: s().ui.originDate,
+      focusDate: s().ui.focusDate,
+    }
 
     s().replaceAll(makeAppData({ accounts: [makeAccount()] }))
 
-    expect({ originDate: s().ui.originDate, focusDate: s().ui.focusDate }).toEqual(before)
+    expect({
+      originDate: s().ui.originDate,
+      focusDate: s().ui.focusDate,
+    }).toEqual(before)
+  })
+
+  it('preserves undo and redo across an unchanged same-account replacement', () => {
+    s().addClient({ name: 'Undoable', color: '#111111' })
+    s().undo()
+    expect(s().future).toHaveLength(1)
+
+    s().replaceAll(structuredClone(s().data))
+
+    expect(s().future).toHaveLength(1)
+    s().redo()
+    expect(s().data.clients.some((client) => client.name === 'Undoable')).toBe(
+      true,
+    )
+  })
+
+  it('clears history when a same-account replacement contains a remote revision', () => {
+    const client = s().addClient({ name: 'Local', color: '#111111' })
+    const replacement = structuredClone(s().data)
+    replacement.clients = replacement.clients.map((row) =>
+      row.id === client.id
+        ? { ...row, name: 'Remote', updatedAt: '2099-01-01T00:00:00.000Z' }
+        : row,
+    )
+
+    s().replaceAll(replacement)
+
+    expect(s().past).toEqual([])
+    expect(s().future).toEqual([])
   })
 
   it('re-anchors after the first slice for a selected account replaces the temporary fallback', () => {
     const accountId = 'late-account'
-    s().setAccountSummaries([{ id: accountId, name: 'Late account', role: 'owner' }])
+    s().setAccountSummaries([
+      { id: accountId, name: 'Late account', role: 'owner' },
+    ])
     s().setActiveAccount(accountId) // absent locally: temporarily anchored with GMT/Monday
     s().goToDate('2026-09-09')
 
-    s().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId, weekStartsOn: 0 })] }))
+    s().replaceAll(
+      makeAppData({
+        accounts: [makeAccount({ id: accountId, weekStartsOn: 0 })],
+      }),
+    )
 
     expect(weekdayOf(s().ui.focusDate)).toBe(0)
     expect(s().ui.focusDate).not.toBe('2026-09-06') // today's week, not the previously panned week
-    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS))
+    expect(s().ui.originDate).toBe(
+      addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS),
+    )
   })
 
   it('setSnapToWeekStart persists to its own key, is OFF the undo stack, and is NOT in export', () => {
@@ -221,6 +329,22 @@ describe('store scheduler UI', () => {
     expect(s().data.clients[0].id).toBe(c.id)
   })
 
+  it('serializes only changed row candidates when preparing undo history', () => {
+    resetStoreWithAccount()
+    const clients = Array.from({ length: 100 }, (_, index) =>
+      s().addClient({ name: `Client ${index}`, color: '#1' }),
+    )
+    useStore.setState({ past: [], future: [] })
+    s().updateClient(clients[0].id, { name: 'Changed' })
+    const stringify = vi.spyOn(JSON, 'stringify')
+
+    s().undo()
+
+    expect(s().data.clients[0].name).toBe('Client 0')
+    expect(stringify).toHaveBeenCalledTimes(2)
+    stringify.mockRestore()
+  })
+
   it('setFilters merges, hasActiveFilters reflects state, clearFilters resets', () => {
     s().clearFilters()
     expect(hasActiveFilters(s().ui.filters)).toBe(false)
@@ -231,5 +355,26 @@ describe('store scheduler UI', () => {
     s().clearFilters()
     expect(s().ui.filters.search).toBe('')
     expect(hasActiveFilters(s().ui.filters)).toBe(false)
+  })
+
+  it('setFilters keeps the specific-activity and activity-kind lenses mutually exclusive', () => {
+    s().clearFilters()
+    s().setFilters({ activityKind: 'internal' })
+    s().setFilters({ activityId: 'activity-1' })
+    expect(s().ui.filters.activityId).toBe('activity-1')
+    expect(s().ui.filters.activityKind).toBeNull()
+
+    s().setFilters({ activityKind: 'repeatable' })
+    expect(s().ui.filters.activityKind).toBe('repeatable')
+    expect(s().ui.filters.activityId).toBeNull()
+  })
+
+  it('gives the activity lens precedence when one patch spans both lens families', () => {
+    s().clearFilters()
+    s().setFilters({ activityId: 'activity-1', clientId: 'client-1' })
+
+    expect(s().ui.filters.activityId).toBe('activity-1')
+    expect(s().ui.filters.clientId).toBeNull()
+    expect(s().ui.filters.projectId).toBeNull()
   })
 })

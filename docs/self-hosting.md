@@ -44,13 +44,42 @@ Compose also creates a private, per-install P-256 CA and API leaf certificate on
 `api` service name and CA over TLS 1.2/1.3; the API listener has no plaintext fallback. The CA key
 is root-only, the API can read only its own leaf key, and nginx can read only public certificates.
 The initializer reuses a valid set and renews the leaf within 30 days of expiry on a coordinated
-Compose recreation.
+Compose recreation. Deep `/api/health` reports the cached leaf expiry and changes its
+`internalTls.status` from `ok` to `expiring` during that same 30-day window; alert on that field and
+perform the coordinated recreation before expiry.
+
+The Compose project name is pinned to `capacitylens`, so the physical database, backup and
+internal-TLS volume names do not change when the checkout directory is renamed. Do not introduce a
+different `docker compose -p` or `COMPOSE_PROJECT_NAME` after first start: either override selects a
+different set of volumes.
 
 If the browser and API are intentionally on different origins, set
-`CAPACITYLENS_CORS_ORIGIN` to the exact comma-separated browser origins. `*` is rejected because
-CapacityLens authenticates browser requests with cookies.
+`CAPACITYLENS_CORS_ORIGIN` to the comma-separated HTTP(S) browser origins. Host case, default ports
+and a trailing slash are normalized. Credentials, paths, queries, fragments and `*` are rejected at
+startup because CapacityLens authenticates browser requests with cookies.
 
-Then:
+### Client-only Compose image
+
+The normal `web` service is deliberately coupled to the same-origin local API. For an in-memory
+demo with no backend, set `VITE_CAPACITYLENS_DEMO=1` and explicitly start the static-only service:
+
+```bash
+VITE_CAPACITYLENS_DEMO=1 docker compose up --build -d web-client
+curl -fsS http://127.0.0.1:8080/
+```
+
+Naming `web-client` is important: it activates only that profile and has no API dependency or
+internal-certificate mount. Its healthcheck verifies the SPA root. Data is temporary and resets on
+refresh; do not present this mode as persistent scheduling.
+
+To serve the SPA against an API on another origin, leave the demo flag empty, set
+`VITE_CAPACITYLENS_API` to that exact HTTP(S) origin and start the same `web-client` service. The
+build rejects credentials, paths, queries and fragments, and permits only that origin in the
+packaged CSP. The remote API must allow the browser origin through `CAPACITYLENS_CORS_ORIGIN` and
+must be configured for the intended browser-cookie topology. The client-only nginx returns 404 for
+same-origin `/api/*`; it never silently falls back to an unused local daemon.
+
+For the normal same-origin stack:
 
 ```bash
 docker compose up --build -d
@@ -63,6 +92,14 @@ to `127.0.0.1` by default; set `WEB_BIND_IP` only when a private platform load b
 the container host. The public edge must overwrite `X-Forwarded-Proto` with the browser-visible
 scheme. If that proxy emits HSTS itself, `CAPACITYLENS_HTTPS` may stay unset; otherwise set it only
 when the public response is actually HTTPS. Never expose the API container directly.
+
+Loopback API listeners (`127.0.0.1`, `localhost` or `::1`, including the bare-metal configuration
+below) automatically trust their same-host proxy's forwarded headers. That proxy must overwrite,
+not append, `X-Forwarded-For` and `X-Forwarded-Proto`; otherwise a supplied leftmost value can become
+the rate-limit identity or public-origin scheme. `CAPACITYLENS_TRUST_PROXY_HEADERS=1` enables the
+same posture on a non-loopback listener and is safe only when clients cannot reach the API directly.
+The packaged Compose topology sets it because its API listens on the private container network and
+only packaged Nginx can reach it.
 
 The first password owner must enter `SMALLSASS_ACCOUNT_SETUP_TOKEN`. Remove the value from the running
 environment after setup if your deployment process permits; it cannot create a second first user.
@@ -77,9 +114,17 @@ manager and verify that a second sign-in is challenged before opening the servic
 - `SMALLSASS_ACCOUNT_SECRET` and setup/provider secrets come from a password manager, not Git.
 - `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`, `CAPACITYLENS_ALLOW_RESET` and
   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` are unset.
-- Rate limiting is a positive integer; local audit logging remains enabled.
+- Rate limiting is a positive integer; local audit logging remains enabled. Production startup
+  refuses `CAPACITYLENS_AUDIT=off` rather than serving without the mutation audit.
 - Database and any enabled backup paths are persistent and outside release directories.
+- The database and audit JSONL share a persistent failure domain: SQLite retains pending mutation
+  events until their fsynced file delivery succeeds, so preserve both files during recovery.
 - Proxy overwrites forwarding headers and the API cannot be reached around it.
+
+`CAPACITYLENS_ALLOW_RESET=1` exposes the installation-wide test reset only while authentication is
+off, and production startup still refuses the flag. It is E2E/local tooling, not an administrative
+recovery mechanism; authenticated modes return 403 because tenant membership grants no global wipe
+authority.
 
 Recommended hardening, deliberately optional for community self-hosting:
 
@@ -153,12 +198,14 @@ pnpm run build
 
 Run `pnpm --filter capacitylens-server start` as an unprivileged supervised system service with
 automatic restart on non-zero exit (the daemon deliberately drains and exits after an uncaught
-process fault rather than continuing with potentially corrupt state). Configure
+process fault rather than continuing with potentially corrupt state). Graceful shutdown allows ten
+seconds for accepted requests and background snapshots to drain, then force-exits non-zero; keep a
+supervisor kill grace above ten seconds (the supplied Compose configuration uses fifteen). Configure
 `CAPACITYLENS_HOST=127.0.0.1`, a database path outside the checkout and the same production auth
 variables above. A simple same-host Forge/nginx deployment may omit both internal TLS variables and
 use `proxy_pass http://127.0.0.1:8787`; keep the API bound to loopback and terminate public HTTPS at
-nginx. Route `/api/` without stripping the prefix and use the security headers in the repository's
-`nginx.conf`.
+nginx. Route `/api/` without stripping the prefix, overwrite both forwarded headers as the supplied
+`nginx.conf` does, and use its security headers.
 
 For defense in depth, create an internal CA-signed service certificate, set both
 `CAPACITYLENS_INTERNAL_TLS_CERT` and `CAPACITYLENS_INTERNAL_TLS_KEY`, then switch nginx to
@@ -182,20 +229,44 @@ rollback cannot replace persistent state.
 
 ## Upgrades
 
+One-time compatibility check for a Compose deployment created before the project name was pinned:
+before pulling the new Compose file, identify the database volume attached to the running API.
+
+```bash
+db_volume="$(docker inspect "$(docker compose ps -q api)" \
+  --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}')"
+printf 'Database volume: %s\n' "$db_volume"
+```
+
+If that name is not `capacitylens_capacitylens-db`, take the prefix before
+`_capacitylens-db` and add it to the existing `.env`, for example
+`COMPOSE_PROJECT_NAME=floaty-v1`. Keep that override for the lifetime of the install. After pulling,
+run `docker compose config` and confirm its three rendered physical volume names carry the same
+historical prefix before starting any service. If more than one candidate prefix exists, stop and
+identify the volume mounted by the old API rather than guessing.
+
 1. Confirm a recent restore test; off-host copies remain recommended for disaster recovery.
 2. Read `CHANGELOG.md` for migrations or breaking changes.
 3. Pull the target tag, rebuild all three targets and stop the old API before activating the new
-   one. Mixed-version writers are unsupported.
+   one. Compose deployments use `docker compose up --build --force-recreate -d`; this reruns the
+   certificate initializer and reloads the resulting identity into both long-running services.
+   Mixed-version writers are unsupported.
 4. On first start, any pending database upgrade creates a verified
-   `capacitylens-pre-migration-vN-to-vM-*.db` snapshot before DDL. If this fails, startup refuses;
+   `capacitylens-pre-migration-vN-to-vM.db` snapshot before DDL. If this fails, startup refuses;
    resolve storage or permission capacity rather than bypassing the snapshot.
 5. Check API health, login, account access and one safe write.
 6. Keep the old image and matching pre-migration snapshot until verification completes. Rollback
    means stopping the API, restoring that snapshot without stale WAL/SHM files, then starting the
-   old image; an old image deliberately refuses the upgraded database.
+   old image; an old image deliberately refuses the upgraded database. For Compose's named volumes,
+   follow the executable restore procedure in `docs/runbook.md` rather than copying host paths.
 
 ## Data and offline behavior
 
 The SQLite file is authoritative. The demo is a separate in-memory build. Optional browser offline
 access is a seven-day read-only snapshot and does not replace server backups. See
 `docs/offline.md`, `docs/privacy.md` and `docs/runbook.md`.
+
+While a server-backed tab is visible, it refreshes the active company at least once per minute;
+returning focus may refresh sooner and is throttled to once per 30 seconds. A refresh first flushes
+pending edits and is postponed while a save is failing, so it cannot silently discard unsaved work.
+Write conflicts still resolve from the authoritative server copy and surface the rejected local edit.

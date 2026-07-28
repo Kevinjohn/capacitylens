@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { sanitizeImportedRecord, sanitizeAccount } from './sanitizeImport'
+import { FALLBACK_PRESET_COLOR, snapToPresetColor } from './color'
+import { SCOPED_KEYS } from '../types/entities'
+import { softDelete } from '../domain/lifecycle'
 
 describe('sanitizeImportedRecord', () => {
+  it.each(SCOPED_KEYS)('drops undeclared properties from imported %s records', (key) => {
+    const out = sanitizeImportedRecord(key, { opaquePrivateField: 'must not persist' })
+
+    expect(out).not.toHaveProperty('opaquePrivateField')
+  })
+
   it('repairs a resource with junk enum / numeric / colour fields', () => {
     const out = sanitizeImportedRecord('resources', {
       kind: 'wizard',
@@ -15,7 +24,7 @@ describe('sanitizeImportedRecord', () => {
       employmentType: 'permanent',
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
-      color: '#2d75da',
+      color: FALLBACK_PRESET_COLOR,
     })
   })
 
@@ -57,10 +66,16 @@ describe('sanitizeImportedRecord', () => {
   })
 
   it('drops non-string optional text and non-boolean weekend flags', () => {
-    expect(sanitizeImportedRecord('resources', { name: 42, role: 'R' }).name).toBeUndefined()
+    expect(sanitizeImportedRecord('resources', { kind: 'placeholder', name: 42, role: 'R' }).name).toBeUndefined()
     expect(sanitizeImportedRecord('allocations', { note: {}, ignoreWeekends: 'false' })).not.toHaveProperty('note')
     expect(sanitizeImportedRecord('allocations', { ignoreWeekends: 'false' })).not.toHaveProperty('ignoreWeekends')
     expect(sanitizeImportedRecord('allocations', { ignoreWeekends: false }).ignoreWeekends).toBe(false)
+  })
+
+  it('repairs missing names by resource kind while preserving nameless placeholders', () => {
+    expect(sanitizeImportedRecord('resources', { kind: 'person' }).name).toBe('Unnamed person')
+    expect(sanitizeImportedRecord('resources', { kind: 'external', name: '  ' }).name).toBe('Unnamed company')
+    expect(sanitizeImportedRecord('resources', { kind: 'placeholder' }).name).toBeUndefined()
   })
 
   it('repairs fields that are incoherent with the resource kind', () => {
@@ -97,17 +112,27 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('timeOff', { type: 'vacation' }).type).toBe('other')
   })
 
-  it('repairs a padded non-preset hex colour to the canonical default', () => {
-    expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color).toBe('#2d75da')
+  it('repairs a padded non-preset hex colour to its nearest preset', () => {
+    expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color)
+      .toBe(snapToPresetColor('#aabbcc'))
   })
+
+  it.each(['resources', 'disciplines', 'clients', 'projects'] as const)(
+    '%s snaps an off-palette hex through the shared nearest-preset mapping',
+    (key) => {
+      expect(sanitizeImportedRecord(key, { color: '#eb7273' }).color).toBe(
+        snapToPresetColor('#eb7273'),
+      )
+    },
+  )
 
   it('canonicalizes a padded preset colour and preserves it for an ordinary client', () => {
     expect(sanitizeImportedRecord('clients', { color: '  #5C34D4  ' }).color).toBe('#5c34d4')
   })
 
   it('falls back a malformed / overlong colour to the safe default', () => {
-    expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe('#2d75da') // 8 digits
-    expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe('#2d75da') // 3 digits
+    expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe(FALLBACK_PRESET_COLOR) // 8 digits
+    expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe(FALLBACK_PRESET_COLOR) // 3 digits
   })
 
   it('normalizes sloppily-padded dates to canonical YYYY-MM-DD so the record is kept', () => {
@@ -151,7 +176,13 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('phases', { name: '' }).name).toBe('Untitled')
     expect(sanitizeImportedRecord('activities', { name: '' }).name).toBe('Untitled')
     expect(sanitizeImportedRecord('disciplines', { name: '' }).name).toBe('Untitled')
-    expect(sanitizeImportedRecord('resources', { role: '' }).role).toBe('Team member')
+  })
+
+  it('preserves an optional blank resource role while repairing a missing or non-string role', () => {
+    expect(sanitizeImportedRecord('resources', { role: '' }).role).toBe('')
+    expect(sanitizeImportedRecord('resources', { role: '  ' }).role).toBe('')
+    expect(sanitizeImportedRecord('resources', {}).role).toBe('Team member')
+    expect(sanitizeImportedRecord('resources', { role: 42 }).role).toBe('Team member')
   })
 
   it('cleans a single-line name (collapsing newlines) but preserves newlines in multiline notes', () => {
@@ -166,13 +197,25 @@ describe('sanitizeImportedRecord', () => {
 
   it('repairs a discipline colour only when present (an absent colour stays absent)', () => {
     expect(sanitizeImportedRecord('disciplines', { name: 'D' }).color).toBeUndefined()
-    expect(sanitizeImportedRecord('disciplines', { name: 'D', color: 'notahex' }).color).toBe('#2d75da')
+    expect(sanitizeImportedRecord('disciplines', { name: 'D', color: 'notahex' }).color).toBe(FALLBACK_PRESET_COLOR)
   })
 
   it('drops a non-true builtin flag on an imported client, keeping only an explicit true', () => {
     expect(sanitizeImportedRecord('clients', { name: 'C', builtin: 'yes' }).builtin).toBeUndefined()
     expect(sanitizeImportedRecord('clients', { name: 'C', builtin: false }).builtin).toBeUndefined()
     expect(sanitizeImportedRecord('clients', { name: 'C', builtin: true }).builtin).toBe(true)
+  })
+
+  it('clears lifecycle tombstones from the protected built-in Internal client', () => {
+    const out = sanitizeImportedRecord('clients', {
+      name: 'Internal',
+      builtin: true,
+      archivedAt: '2026-01-01T00:00:00.000Z',
+      deletedAt: '2026-01-02T00:00:00.000Z',
+    })
+
+    expect(out).not.toHaveProperty('archivedAt')
+    expect(out).not.toHaveProperty('deletedAt')
   })
 
   it.each(['clients', 'projects'] as const)('%s keeps a coherent private code-name pair', (key) => {
@@ -249,6 +292,17 @@ describe('sanitizeImportedRecord', () => {
       expect(out.deletedAt).toBeUndefined()
     })
 
+    it.each([
+      ['numeric shorthand', '0'],
+      ['locale date', '01/01/2000'],
+      ['timezone-less datetime', '2026-01-01T00:00:00'],
+      ['nonexistent calendar instant', '2026-02-29T00:00:00Z'],
+    ])('drops Date.parse-compatible non-ISO %s lifecycle timestamps', (_label, timestamp) => {
+      const out = sanitizeImportedRecord(key, { archivedAt: timestamp, deletedAt: timestamp })
+      expect(out.archivedAt).toBeUndefined()
+      expect(out.deletedAt).toBeUndefined()
+    })
+
     it('canonicalizes valid timestamps and rejects impossible lifecycle ordering', () => {
       const canonical = sanitizeImportedRecord(key, {
         archivedAt: '2026-01-01T01:00:00+01:00',
@@ -283,6 +337,17 @@ describe('sanitizeImportedRecord', () => {
         deletedAt: '2026-02-01T00:00:00Z',
       })
       expect(sameTimestamp.deletedAt).toBe('2026-02-01T00:00:00.000Z')
+    })
+
+    it('retains a soft-delete created while the caller clock trails a future archive', () => {
+      const transitioned = softDelete(
+        { archivedAt: '2099-01-01T00:00:00.000Z' },
+        '2026-01-01T00:00:00.000Z',
+      )
+      const out = sanitizeImportedRecord(key, { ...transitioned })
+
+      expect(out.archivedAt).toBe('2099-01-01T00:00:00.000Z')
+      expect(out.deletedAt).toBe('2099-01-01T00:00:00.000Z')
     })
   })
 })

@@ -15,7 +15,8 @@ import { m } from '@/i18n'
  *  without runtime validation, so `body` itself is untrusted (a same-shape-JSON server could answer
  *  `null`/a string/an array) — `body?.code` keeps that a safe `undefined` (→ generic fallback)
  *  instead of a `TypeError` crashing the submit handler. */
-export function messageForFailure(body: { code?: string }): string {
+export function messageForFailure(body: { code?: string }, status?: number): string {
+  if (status === 404) return m.reset_err_unavailable()
   if (body?.code === 'INVALID_TOKEN') return m.reset_err_invalid()
   if (body?.code === 'PASSWORD_TOO_SHORT') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH })
   if (body?.code === 'PASSWORD_TOO_LONG') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH })

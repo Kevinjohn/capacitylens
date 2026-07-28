@@ -12,10 +12,17 @@ const RLO = String.fromCodePoint(0x202e) // right-to-left override (format)
 const VS16 = String.fromCodePoint(0xfe0f) // emoji variation selector-16 (Mn)
 const KEYCAP = String.fromCodePoint(0x20e3) // combining enclosing keycap (Me)
 const ACUTE = String.fromCodePoint(0x0301) // combining acute accent (Mn — legitimate)
+const UNASSIGNED = String.fromCodePoint(0x0378) // unassigned in the supported runtime baseline
 
 describe('hasDisallowedChars', () => {
   it('accepts ordinary names incl. accents, CJK and punctuation', () => {
-    for (const ok of ['José Müller', "O'Brien & Co", 'Acme, Inc.', '设计部', 'Project Lightning 2']) {
+    for (const ok of [
+      'José Müller',
+      "O'Brien & Co",
+      'Acme, Inc.',
+      '设计部',
+      'Project Lightning 2',
+    ]) {
       expect(hasDisallowedChars(ok)).toBe(false)
     }
   })
@@ -38,6 +45,12 @@ describe('hasDisallowedChars', () => {
     expect(hasDisallowedChars(`a${RLO}b`)).toBe(true)
   })
 
+  it('conservatively rejects a code point classified as unassigned', () => {
+    expect(/^\p{Cn}$/u.test(UNASSIGNED)).toBe(true)
+    expect(hasDisallowedChars(`a${UNASSIGNED}b`)).toBe(true)
+    expect(cleanText(`a${UNASSIGNED}b`)).toBe('ab')
+  })
+
   it('rejects keycap emoji and the emoji variation selector (U+FE0F / U+20E3)', () => {
     expect(hasDisallowedChars(`1${VS16}${KEYCAP}`)).toBe(true) // "1️⃣" keycap emoji
     expect(hasDisallowedChars(VS16)).toBe(true) // lone variation selector
@@ -51,7 +64,9 @@ describe('hasDisallowedChars', () => {
   it('rejects a newline in single-line mode but allows it in multiline', () => {
     expect(hasDisallowedChars('line1\nline2')).toBe(true)
     expect(hasDisallowedChars('line1\nline2', { multiline: true })).toBe(false)
-    expect(hasDisallowedChars(`still ${PARTY} bad`, { multiline: true })).toBe(true)
+    expect(hasDisallowedChars(`still ${PARTY} bad`, { multiline: true })).toBe(
+      true,
+    )
   })
 })
 
@@ -73,6 +88,13 @@ describe('cleanText', () => {
   it('caps length to the max', () => {
     const long = 'a'.repeat(MAX_NAME_LENGTH + 50)
     expect(cleanText(long).length).toBe(MAX_NAME_LENGTH)
+  })
+
+  it('caps astral letters by Unicode code point without splitting them', () => {
+    const astralLetter = '𠀀'
+    const cleaned = cleanText(astralLetter.repeat(MAX_NAME_LENGTH + 1))
+    expect(Array.from(cleaned)).toHaveLength(MAX_NAME_LENGTH)
+    expect(cleaned.endsWith(astralLetter)).toBe(true)
   })
 
   it('strips keycap-emoji parts but keeps the base char, and preserves decomposed accents', () => {

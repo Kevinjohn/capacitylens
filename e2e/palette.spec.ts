@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 import { disableCssMotion, openApp } from './helpers'
 
@@ -229,7 +229,9 @@ test.describe('Command palette', () => {
     await expect(page.getByTestId('scheduler-empty')).not.toBeVisible()
 
     // The project filter must show Project Lightning and the stale search text must be gone.
-    await expect(page.getByRole('combobox', { name: 'Filter by project' })).toHaveText('Project Lightning')
+    await expect(page.getByRole('combobox', { name: 'Filter by project' })).toHaveText(
+      'Acme Inc. / Project Lightning',
+    )
     await expect(page.getByPlaceholder('Search people…')).toHaveValue('')
   })
 

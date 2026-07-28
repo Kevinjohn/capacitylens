@@ -25,9 +25,9 @@ export function SegmentedControl<T extends string | number>({
   /** Optional layout classes for the group container. */
   className?: string
   /**
-   * When true, every segment is a disabled button (native `disabled` + `aria-disabled`, muted +
-   * cursor-not-allowed) so the selected value is shown but can't change. Used for the FROZEN
-   * week-start control in Settings. Default false.
+   * When true, the group gives every segment the native `disabled` attribute, so the selected value
+   * remains visible but cannot receive sequential focus or change. Used for the frozen week-start
+   * control in Settings. Default false.
    */
   disabled?: boolean
 }) {

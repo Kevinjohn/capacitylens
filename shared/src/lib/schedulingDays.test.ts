@@ -53,6 +53,13 @@ describe('endDateForSpan is the inverse of spanDays', () => {
     // NaN → a single day, never an Invalid Date.
     expect(endDateForSpan('2026-06-01', NaN, opts)).toBe('2026-06-01')
   })
+
+  it('does not derive a five-digit year near the upper ISO-date boundary', () => {
+    expect(endDateForSpan('9999-12-31', MAX_SPAN_DAYS, { ignoreWeekends: true }))
+      .toBe('9999-12-31')
+    expect(endDateForSpan('9999-12-31', MAX_SPAN_DAYS, { workingDays: [0] }))
+      .toBe('9999-12-31')
+  })
 })
 
 describe('hoursPerDayFor / daysOfWorkFor', () => {

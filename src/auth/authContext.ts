@@ -19,12 +19,22 @@ export interface AuthUser {
   image?: string | null
 }
 
-export interface AuthProviderInfo {
-  id: string
+interface AuthProviderBase {
   label: string
-  kind: 'social' | 'oidc'
   experimental: boolean
 }
+
+export const SUPPORTED_SOCIAL_PROVIDER_IDS = ['google', 'microsoft', 'github'] as const
+export type SupportedSocialProviderId = typeof SUPPORTED_SOCIAL_PROVIDER_IDS[number]
+const supportedSocialProviderIds: ReadonlySet<string> = new Set(SUPPORTED_SOCIAL_PROVIDER_IDS)
+
+export function isSupportedSocialProviderId(value: unknown): value is SupportedSocialProviderId {
+  return typeof value === 'string' && supportedSocialProviderIds.has(value)
+}
+
+export type AuthProviderInfo =
+  | (AuthProviderBase & { id: SupportedSocialProviderId; kind: 'social' })
+  | (AuthProviderBase & { id: string; kind: 'oidc' })
 
 export interface AuthContextValue {
   authMode: AuthMode

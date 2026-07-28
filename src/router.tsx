@@ -1,9 +1,11 @@
 /* eslint-disable react-refresh/only-export-components -- route config, not a component module */
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { PUBLIC_AUTH_ENTRY_PATHS } from './auth/authEntryRoute'
 import { AppShell } from './components/AppShell'
 import { SchedulerView } from './components/scheduler/SchedulerView'
 import { RouteError } from './components/common/ErrorBoundary'
+import { NotFound } from './components/common/NotFound'
 import { useStore } from './store/useStore'
 import { disciplinesEnabledFor } from './store/selectors'
 
@@ -66,7 +68,7 @@ export const router = createBrowserRouter([
     // own errorElement + Suspense boundary (AppShell provides those only for ITS children). The
     // surrounding AuthProvider (main.tsx) provides identity state and lets this token-scoped
     // onboarding page render before a session exists.
-    path: '/invite/:token',
+    path: PUBLIC_AUTH_ENTRY_PATHS.invitation,
     errorElement: <RouteError />,
     element: (
       <Suspense fallback={null}>
@@ -78,12 +80,19 @@ export const router = createBrowserRouter([
     // Password reset (P1.18). A sibling of AppShell for the same reason as /invite (no tenant gate),
     // with its own errorElement + Suspense. AuthProvider additionally lets this path through the
     // login wall — the visitor redeeming a reset link is exactly the person who cannot sign in.
-    path: '/reset-password/:token',
+    path: PUBLIC_AUTH_ENTRY_PATHS.passwordReset,
     errorElement: <RouteError />,
     element: (
       <Suspense fallback={null}>
         <ResetPassword />
       </Suspense>
     ),
+  },
+  {
+    // A navigation miss is not a render failure. Keep it out of RouteError's reload-only path and
+    // give stale bookmarks and mistyped URLs a stable route back into the product.
+    path: '*',
+    element: <NotFound />,
+    errorElement: <RouteError />,
   },
 ])

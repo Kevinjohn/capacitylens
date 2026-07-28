@@ -1,0 +1,59 @@
+# Static-only nginx configuration for the Compose `web-client` service. The Docker build replaces
+# the connect-source placeholder with either 'self' (demo) or 'self' plus one validated remote API
+# origin. This image neither resolves nor mounts the local `api` service.
+
+server {
+    listen 8080;
+    server_name _;
+    server_tokens off;
+    client_max_body_size 6m;
+
+    set $capacitylens_connect_src __CAPACITYLENS_CONNECT_SOURCES__;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    add_header Cache-Control "no-store" always;
+    include /etc/nginx/capacitylens-security-headers.conf;
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    location ^~ /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        include /etc/nginx/capacitylens-security-headers.conf;
+        try_files $uri =404;
+    }
+
+    location ~* \.(?:css|js|mjs|json|map|svg|png|jpe?g|gif|webp|ico|woff2?|ttf|txt|xml|webmanifest)$ {
+        try_files $uri =404;
+    }
+
+    # Fail closed if a server-mode bundle is accidentally placed in this static-only image. The
+    # real client-only bundle either performs no API calls (demo) or calls its compiled remote origin.
+    location ~ ^/api/(invites/[^/]+/(accept|signup)|auth/(callback|oauth2/callback)/) {
+        access_log off;
+        return 404;
+    }
+
+    location /api/ {
+        return 404;
+    }
+
+    # These SPA paths contain single-use bearer values and must not enter the nginx access log even
+    # when the API itself is hosted on another origin.
+    location ~ ^/(invite|reset-password)/ {
+        access_log off;
+        add_header Cache-Control "no-store";
+        include /etc/nginx/capacitylens-security-headers.conf;
+        try_files /index.html =404;
+    }
+
+    location / {
+        add_header Cache-Control "no-store";
+        include /etc/nginx/capacitylens-security-headers.conf;
+        try_files $uri $uri/ /index.html;
+    }
+}

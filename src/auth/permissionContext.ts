@@ -48,12 +48,14 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue['statu
 }
 
 /**
- * May the current user EDIT (create / update / delete) the active account's scheduling data?
+ * May the current user EDIT (create / update / delete) the active account's scheduling data or
+ * ordinary planning/display configuration?
  *
  * The single client affordance gate (P1.12): the affordance hubs (ListPage / EmptyState / Edit /
- * Delete, the scheduler draw/drag/resize, the toolbar draw-toggle + undo/redo) call THIS to decide
- * whether to render an edit affordance. It is single-sourced from the pure {@link can} matrix, the
- * SAME authority the server's route guard uses, so client and server can't drift.
+ * Delete, the scheduler draw/drag/resize, the toolbar draw-toggle + undo/redo, and Settings account
+ * controls) call THIS to decide whether to render an edit affordance. It is single-sourced from the
+ * pure {@link can} matrix, the SAME authority the server's route guard uses, so client and server
+ * can't drift.
  *
  * `role === null` → `true` (editable): the OFF/demo/no-provider regression guard (see
  * the module header). Otherwise it is exactly `can(role, 'write')` — `true` for owner/admin/editor,

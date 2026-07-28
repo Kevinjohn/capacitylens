@@ -47,6 +47,18 @@ describe('neutral account configuration', () => {
     expect(warn.mock.calls[0]?.[0]).not.toContain('password')
   })
 
+  it('warns once for each independently configured environment using the same legacy alias', () => {
+    const warn = vi.fn()
+    const first = { CAPACITYLENS_AUTH: 'password' }
+    const second = { CAPACITYLENS_AUTH: 'password' }
+
+    resolveAccountEnvironment(first, { warn })
+    resolveAccountEnvironment(first, { warn })
+    resolveAccountEnvironment(second, { warn })
+
+    expect(warn).toHaveBeenCalledTimes(2)
+  })
+
   it('does not reinterpret generated compatibility aliases when a resolved environment is reused', () => {
     const warn = vi.fn()
     const first = resolveAccountEnvironment({
@@ -73,6 +85,27 @@ describe('neutral account configuration', () => {
     }, { warn: () => {} })).toThrow(AccountConfigError)
   })
 
+  it.each([
+    ['SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP', 'CAPACITYLENS_ALLOW_OPEN_SIGNUP', '1'],
+    ['SMALLSASS_ACCOUNT_REQUIRE_MFA', 'CAPACITYLENS_REQUIRE_MFA', '1'],
+    ['SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK', 'CAPACITYLENS_PASSWORD_BREACH_CHECK', 'off'],
+    ['SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED', 'CAPACITYLENS_SSO_MFA_ENFORCED', '1'],
+  ] as const)('trims padded %s values before exposing %s', (canonical, compatibility, value) => {
+    const resolved = resolveAccountEnvironment({ [canonical]: `  ${value} \n` }, { warn: () => {} })
+    expect(resolved.env[canonical]).toBe(value)
+    expect(resolved.env[compatibility]).toBe(value)
+  })
+
+  it('keeps secret values byte-exact while normalizing non-secret settings', () => {
+    const secret = `  ${'x'.repeat(32)}  `
+    const resolved = resolveAccountEnvironment({
+      SMALLSASS_ACCOUNT_SECRET: secret,
+      SMALLSASS_ACCOUNT_PUBLIC_URL: '  https://capacity.example.test  ',
+    }, { warn: () => {} })
+    expect(resolved.env.BETTER_AUTH_SECRET).toBe(secret)
+    expect(resolved.env.BETTER_AUTH_URL).toBe('https://capacity.example.test')
+  })
+
   it('treats empty Compose placeholders as absent', () => {
     const warn = vi.fn()
     const resolved = resolveAccountEnvironment({
@@ -85,6 +118,14 @@ describe('neutral account configuration', () => {
     expect(resolved.env.BETTER_AUTH_SECRET).toBe('x'.repeat(32))
     expect(warn).toHaveBeenCalledTimes(2)
   })
+
+  it.each(['SMALLSASS_ACCOUNT_MODE', 'CAPACITYLENS_AUTH'] as const)(
+    'refuses a whitespace-only %s instead of resolving trusted-local mode',
+    (key) => {
+      expect(() => resolveAccountEnvironment({ [key]: '   ' }, { warn: () => {} }))
+        .toThrow(`${key} contains only whitespace`)
+    },
+  )
 
   it('enforces hosted OIDC-only and accepts a strict discovery configuration', () => {
     const resolved = resolveAccountEnvironment(hosted, { warn: () => {} })

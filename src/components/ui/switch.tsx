@@ -1,33 +1,36 @@
-import * as React from "react"
-import { Switch as SwitchPrimitive } from "radix-ui"
+import * as React from "react";
+import { Switch as SwitchPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
+// CapacityLens deliberately enlarges both shadcn switch sizes for a clearer pointer/touch target.
+// Track padding plus fixed thumb travel keep the 5/3-unit thumbs inset at either end; preserve this
+// geometry when reviewing a registry refresh rather than accepting the smaller upstream defaults.
 function Switch({
   className,
   size = "default",
   ...props
 }: React.ComponentProps<typeof SwitchPrimitive.Root> & {
-  size?: "sm" | "default"
+  size?: "sm" | "default";
 }) {
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
       data-size={size}
       className={cn(
-        "peer group/switch inline-flex shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-6 data-[size=default]:w-10 data-[size=default]:p-0.5 data-[size=sm]:h-4 data-[size=sm]:w-7 data-[size=sm]:p-px data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80",
-        className
+        "peer group/switch inline-flex shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-6 data-[size=default]:w-10 data-[size=default]:p-0.5 data-[size=sm]:h-4 data-[size=sm]:w-7 data-[size=sm]:p-px data-[state=checked]:bg-primary data-[state=unchecked]:bg-switch-track",
+        className,
       )}
       {...props}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         className={cn(
-          "pointer-events-none block rounded-full bg-background ring-0 transition-transform group-data-[size=default]/switch:size-5 group-data-[size=default]/switch:data-[state=checked]:translate-x-4 group-data-[size=sm]/switch:size-3 group-data-[size=sm]/switch:data-[state=checked]:translate-x-3 data-[state=unchecked]:translate-x-0 dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground"
+          "pointer-events-none block rounded-full bg-switch-thumb ring-0 transition-transform group-data-[size=default]/switch:size-5 group-data-[size=default]/switch:data-[state=checked]:translate-x-4 group-data-[size=sm]/switch:size-3 group-data-[size=sm]/switch:data-[state=checked]:translate-x-3 data-[state=unchecked]:translate-x-0",
         )}
       />
     </SwitchPrimitive.Root>
-  )
+  );
 }
 
-export { Switch }
+export { Switch };

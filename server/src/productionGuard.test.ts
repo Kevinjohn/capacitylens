@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { evaluateProductionPosture } from './productionGuard'
 import { BOOTSTRAP_ADMIN_EMAIL } from './auth'
@@ -17,6 +19,8 @@ const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
   CAPACITYLENS_INTERNAL_TLS_CERT: '/run/capacitylens-internal-tls/api.crt',
   CAPACITYLENS_INTERNAL_TLS_KEY: '/run/capacitylens-internal-tls/api.key',
 }
+
+const envExample = readFileSync(fileURLToPath(new URL('../../.env.example', import.meta.url)), 'utf8')
 
 function productionPosture(overrides: ProductionEnv) {
   return evaluateProductionPosture({ ...FULLY_HARDENED_PRODUCTION_CONTROLS, ...overrides })
@@ -51,6 +55,17 @@ describe('evaluateProductionPosture', () => {
     expect(result.refusals[0]).toMatch(/auth is OFF/)
     // HTTPS unset here, so a warning is expected — the refusal does not suppress warnings.
     expect(result.warnings.length).toBeGreaterThan(0)
+  })
+
+  it('returns an invalid auth mode as a fatal posture refusal instead of throwing', () => {
+    const evaluate = () => productionPosture({ CAPACITYLENS_AUTH: 'bogus' })
+
+    expect(evaluate).not.toThrow()
+    const result = evaluate()
+    expect(result.refusals).toEqual([
+      expect.stringMatching(/SMALLSASS_ACCOUNT_MODE must be .*off.*password.*sso/i),
+    ])
+    expect(result.warnings).toEqual([])
   })
 
   it('downgrades the auth-off refusal to a warning when CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1', () => {
@@ -166,6 +181,17 @@ describe('evaluateProductionPosture', () => {
   ])('refuses a production deployment that has no %s control', (_control, overrides) => {
     const result = productionPosture(overrides)
     expect(result.refusals).toHaveLength(1)
+  })
+
+  it('keeps the audit-off production refusal explicit in the operator variable register', () => {
+    const start = envExample.indexOf('# Append-only JSONL audit log')
+    const end = envExample.indexOf('# Audit log path.', start)
+    const auditBlock = envExample.slice(start, end)
+
+    expect(auditBlock).toContain('server REFUSES to boot with CAPACITYLENS_AUDIT=off')
+    expect(auditBlock).toContain('NODE_ENV=production')
+    expect(productionPosture({ CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_AUDIT: 'off' }).refusals[0])
+      .toContain('CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production')
   })
 
   // The guard must validate CAPACITYLENS_RATE_LIMIT with the SAME parser the limiter uses

@@ -14,7 +14,7 @@ For a client review or billing check, the manager wants to see just that client'
 2. Choose **Acme Inc.**.
 
 ## Acceptance criteria
-- ✅ Choosing **Acme Inc.** collapses the schedule to the allocations on *Project Lightning* activities (e.g. *Wireframes*, *Visual Design*, *CMS Review*) — resources with no Acme work are **hidden by default**. Ticking **Show unallocated** (off by default) brings them back **visible but dimmed**, still showing their full real load (so you can see who's free to staff).
+- ✅ Choosing **Acme Inc.** collapses the schedule to the allocations on *Project Lightning* activities (e.g. *Wireframes*, *Visual Design*, *CMS Review*) — resources with no Acme work are **hidden by default**. Ticking **Show unallocated** (off by default) brings them back **visible but dimmed**, still showing their full real utilisation (so you can see who's free to staff).
 - ✅ Capacity stays truthful: **over-markers** (`over-marker`) and the per-resource **utilisation %** (`utilization`) still reflect **all** of each resource's work, not just the filtered-in bars.
 - ✅ Setting the select back to **All clients** restores every bar.
 - ✅ While a client filter is active, the **Clear** button is shown.

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { dismissIntroIfPresent, openApp } from './helpers'
 
 test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 800 } })
@@ -161,6 +161,7 @@ test.describe('Snap to week start', () => {
     await page.getByRole('switch', { name: 'Minimise weekends' }).click()
 
     await page.getByRole('link', { name: 'Schedule' }).click()
+    await page.getByTestId('getting-started-dismiss').click()
     await page.getByRole('radio', { name: '1w', exact: true }).click()
 
     // The left edge now opens flush on a Sunday (the week start), not a Monday.

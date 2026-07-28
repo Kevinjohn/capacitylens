@@ -10,10 +10,12 @@ import { m } from '@/i18n'
 import { Fragment } from 'react'
 import { Plus, Tag } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
+import { errorMessage } from '../../lib/errorMessage'
 
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines
   const del = useStore((s) => s.deleteDiscipline)
+  const setNotice = useStore((s) => s.setNotice)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Discipline>()
 
   const sorted = [...disciplines].sort(byDisciplineOrder)
@@ -40,7 +42,7 @@ export function DisciplineList() {
               </ItemContent>
               <ItemActions>
                 <EditButton onClick={() => setEditing(d)} />
-                <DeleteButton onClick={() => setConfirming(d)} />
+                <DeleteButton label={m.list_disciplines_delete_aria({ name: d.name })} onClick={() => setConfirming(d)} />
               </ItemActions>
             </Item>
             </Fragment>
@@ -55,8 +57,12 @@ export function DisciplineList() {
           title={m.list_disciplines_delete_title()}
           message={m.list_disciplines_delete_message({ name: confirming.name })}
           onConfirm={() => {
-            del(confirming.id)
-            setConfirming(null)
+            try {
+              del(confirming.id)
+              setConfirming(null)
+            } catch (error) {
+              setNotice(errorMessage(error), 'error')
+            }
           }}
           onCancel={() => setConfirming(null)}
         />

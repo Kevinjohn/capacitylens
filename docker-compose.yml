@@ -1,14 +1,17 @@
 # CapacityLens — one reproducible deployment: the API server + the SPA, built
-# from the single multi-stage Dockerfile (targets `internal-tls`, `api` and `web`).
+# from the single multi-stage Dockerfile (targets `internal-tls`, `api`, `web` and `web-client`).
 #
 #   internal-tls  : one-shot per-install CA/API certificate creation and renewal
 #   web  (nginx)  : serves the built SPA, verifies and reverse-proxies /api -> api over TLS
+#   web-client     : opt-in static-only demo/remote-API image; no local API or TLS volume
 #   api  (Node 24): the HTTPS Fastify daemon, SQLite DB + backups on named volumes
 #
 # Runtime config comes from a .env file you create from .env.example (compose
 # auto-loads .env from this directory). `docker compose up --build` serves the
 # app at http://localhost:8080 in server mode against a persisted DB.
 #
+name: capacitylens
+
 services:
   internal-tls:
     build:
@@ -81,7 +84,7 @@ services:
       # Used only by the container healthcheck's single verified loopback request. It is not added
       # to Node's global outbound trust store.
       CAPACITYLENS_INTERNAL_TLS_CA: /run/capacitylens-internal-tls/ca.crt
-      CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED: "1"
+      CAPACITYLENS_TRUST_PROXY_HEADERS: "1"
       CAPACITYLENS_BACKUP_INTERVAL_MIN: ${CAPACITYLENS_BACKUP_INTERVAL_MIN:-}
       CAPACITYLENS_BACKUP_KEEP: ${CAPACITYLENS_BACKUP_KEEP:-}
       # Canonical account configuration. Auth is OFF when mode is empty/unset.
@@ -128,7 +131,7 @@ services:
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: ${CAPACITYLENS_ALLOW_OPEN_SIGNUP:-}
       CAPACITYLENS_CREATE_ADMIN_ADMIN: ${CAPACITYLENS_CREATE_ADMIN_ADMIN:-}
       CAPACITYLENS_AUDIT: ${CAPACITYLENS_AUDIT:-}
-      CAPACITYLENS_AUDIT_FILE: ${CAPACITYLENS_AUDIT_FILE:-}
+      CAPACITYLENS_AUDIT_FILE: ${CAPACITYLENS_AUDIT_FILE:-/data/capacitylens-audit.jsonl}
       CAPACITYLENS_AUDIT_MAX_MB: ${CAPACITYLENS_AUDIT_MAX_MB:-}
       CAPACITYLENS_AUDIT_STDOUT: ${CAPACITYLENS_AUDIT_STDOUT:-1}
       CAPACITYLENS_GOOGLE_CLIENT_ID: ${CAPACITYLENS_GOOGLE_CLIENT_ID:-}
@@ -196,6 +199,40 @@ services:
       # Bind loopback by default so a public TLS edge is the only internet-reachable hop and its
       # overwritten forwarding scheme can be trusted. Set WEB_BIND_IP deliberately for a platform
       # load balancer that reaches the container host over a private network.
+      - "${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080"
+
+  # Explicitly target this service for a client-only deployment:
+  #   VITE_CAPACITYLENS_DEMO=1 docker compose up --build -d web-client
+  # Because a service name was supplied, Compose starts only this profile and its dependencies
+  # (there are none); the normal api/internal-tls/web services remain stopped.
+  web-client:
+    profiles:
+      - client-only
+    build:
+      context: .
+      target: web-client
+      args:
+        VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
+        VITE_CAPACITYLENS_DEMO: ${VITE_CAPACITYLENS_DEMO:-}
+        VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
+        VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    ports:
       - "${WEB_BIND_IP:-127.0.0.1}:${WEB_PORT:-8080}:8080"
 
 volumes:

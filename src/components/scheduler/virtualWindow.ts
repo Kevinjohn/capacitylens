@@ -31,7 +31,7 @@ export function buildLayout(heights: number[]): RowLayout {
 }
 
 /** The per-scroll-frame work: given a precomputed layout, find the visible slice.
- *  Only two short edge-scans — no O(n) prefix-sum rebuild. */
+ *  Binary-searches both edges — no O(n) prefix-sum rebuild or row scan. */
 export function windowFromLayout(
   layout: RowLayout,
   heights: number[],
@@ -51,10 +51,28 @@ export function windowFromLayout(
 
   const top = scrollTop - overscanPx
   const bottom = scrollTop + viewportHeight + overscanPx
-  let first = 0
-  while (first < n - 1 && tops[first] + heights[first] <= top) first++
-  let last = first
-  while (last < n - 1 && tops[last + 1] < bottom) last++
+
+  // First row whose bottom is after the upper edge. Clamp to the final row when
+  // scrollTop is beyond the content, preserving the existing out-of-range behaviour.
+  let low = 0
+  let high = n
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    if (tops[middle] + heights[middle] <= top) low = middle + 1
+    else high = middle
+  }
+  const first = Math.min(low, n - 1)
+
+  // Last row whose top is before the lower edge. Starting after `first` keeps at
+  // least that row in the result even when the viewport is beyond the content.
+  low = first + 1
+  high = n
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    if (tops[middle] < bottom) low = middle + 1
+    else high = middle
+  }
+  const last = low - 1
 
   return { first, last, topPad: tops[first], bottomPad: total - (tops[last] + heights[last]) }
 }

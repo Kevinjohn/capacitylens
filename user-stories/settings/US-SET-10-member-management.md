@@ -3,12 +3,14 @@
 **Area:** Team & access · **Persona:** Studio owner / admin · **Linked E2E:** `e2e/members.auth.spec.ts` → "admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak"
 
 ## Goal
+
 Let an Owner or Admin manage who can access their company from Team & access: see the member list, invite
 people (a link, optionally pre-authorised to one email), change a member's role, remove a member, and
 list/revoke outstanding invites. An Owner can additionally **transfer ownership** to another member
 (handing the account over). An Admin manages members but cannot do owner-only operations.
 
 ## Why
+
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login),
 so the people who run a company need a place to grant, adjust, and revoke that access without touching
 the database. Team & access is visible to every role so a Viewer/Editor can understand their own
@@ -23,21 +25,26 @@ in-memory demo, **Team & access** still explains the access posture and member/r
 but no directory or management controls exist.
 
 ## How (end-to-end)
-**Precondition:** The app runs in server mode (`VITE_CAPACITYLENS_API` set) against a server with
-`CAPACITYLENS_AUTH=password`. Owner A has created a company and invited Admin B and Editor C (both
-accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
+
+**Precondition:** The app runs in its default server mode against a server with
+`CAPACITYLENS_AUTH=password`. Same-origin `/api` needs no frontend API setting; set
+`VITE_CAPACITYLENS_API` only when the API uses a different origin. Owner A has created a company and
+invited Admin B and Editor C (both accepted). Sign in as **B (admin)**, pick the company, dismiss the
+intro.
 
 1. Open **Team & access** (sidebar). The page explains the caller's role and contains a **Members** section
    (`data-testid="members-section"`, heading **Members**).
 2. The **member list** shows a row per member (`data-testid="member-row"`): name (email), role and
-   status; B's own row is marked **(you)**.
+   status; B's own row is marked **(you)**. Role and action controls include that member in their
+   accessible names so a screen-reader controls list identifies every target unambiguously.
 3. B chooses Viewer in **C**'s role select (`data-testid="member-role-select"`). A confirmation
    names C, explains Viewer access, and sends the change only after B clicks **Change role**.
 4. In the **Invite someone** form, B picks a role (`data-testid="invite-role"`), optionally fills the
    **pre-authorise email** (`data-testid="invite-preauth"`), checks the selected role's visible
    capability summary, and clicks **Create invite**
    (`data-testid="invite-submit"`). The full link `<origin>/invite/<token>` appears **once**
-   (`data-testid="invite-link"`) with a **Copy** button. That write-once block disappears if the
+   (`data-testid="invite-link"`) with a visible **Copy** button whose accessible name is
+   **Copy invitation link**. That write-once block disappears if the
    matching invite is revoked, or an authoritative refresh reports that it was used or is missing,
    so the UI never offers a dead bearer link.
 5. The invites list (`data-testid="invite-row"`) shows the new invite **and** the admin/editor
@@ -56,6 +63,7 @@ accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
    themselves (400) or a non-member (404).
 
 ## Acceptance criteria
+
 - **Team & access** renders for every role and distinguishes the in-memory **Demo access** posture
   from a persisted auth-off server's **Open access** posture. The **Members** management section
   renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
@@ -73,7 +81,7 @@ accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
     and refetches both membership projections, so the caller's role badge, capability summary and
     affordances update immediately without a reload or account switch.
 - The invite token is shown **once** at creation (`/invite/<token>`), is stored only as a one-way
-  hash, and the invites list carries no token. Accepted (used) invites remain listed (marked *used*)
+  hash, and the invites list carries no token. Accepted (used) invites remain listed (marked _used_)
   for admin visibility; an expired, unaccepted link is pruned.
 - The server is the backstop regardless of the UI: any generic Owner assignment or Owner invite is
   **400**; touching or removing the Owner outside transfer is **403**;

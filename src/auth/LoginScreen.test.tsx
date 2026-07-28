@@ -5,12 +5,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // signUp.email return the library's FAILURE shape ({ error }) so each form sets its inline error
 // and the per-control describedby wires up.
 const signInEmail = vi.fn()
+const signInSocial = vi.fn()
 const signUpEmail = vi.fn()
 const verifyTotp = vi.fn()
 const verifyBackupCode = vi.fn()
 vi.mock('./authClient', () => ({
   authClient: {
-    signIn: { email: (...args: unknown[]) => signInEmail(...args), oauth2: vi.fn() },
+    signIn: {
+      email: (...args: unknown[]) => signInEmail(...args),
+      oauth2: vi.fn(),
+      social: (...args: unknown[]) => signInSocial(...args),
+    },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
     twoFactor: {
       verifyTotp: (...args: unknown[]) => verifyTotp(...args),
@@ -24,12 +29,21 @@ import { LoginScreen } from './LoginScreen'
 beforeEach(() => {
   window.history.replaceState({}, '', '/')
   signInEmail.mockReset()
+  signInSocial.mockReset()
   signUpEmail.mockReset()
   verifyTotp.mockReset()
   verifyBackupCode.mockReset()
 })
 
 describe('LoginScreen — external callback failures', () => {
+  it('sets a descriptive title while rendering outside the app shell', () => {
+    document.title = 'Schedule · CapacityLens'
+
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
+
+    expect(document.title).toBe('Sign in · CapacityLens')
+  })
+
   it('shows stable retry guidance and removes provider-controlled query values', async () => {
     window.history.replaceState(
       {},
@@ -47,6 +61,24 @@ describe('LoginScreen — external callback failures', () => {
     )
     expect(screen.getByRole('alert')).not.toHaveTextContent('provider-secret')
     await waitFor(() => expect(window.location.search).toBe(''))
+  })
+
+  it('supplies a marked failure return to a named social provider', async () => {
+    signInSocial.mockResolvedValue({ data: {}, error: null })
+    window.history.replaceState({}, '', '/invite/token?source=mail')
+    render(<LoginScreen
+      authMode="sso"
+      providers={[{ id: 'google', label: 'Google', kind: 'social', experimental: true }]}
+      onSignedIn={vi.fn()}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+
+    await waitFor(() => expect(signInSocial).toHaveBeenCalledWith({
+      provider: 'google',
+      callbackURL: 'http://localhost:3000/invite/token?source=mail',
+      errorCallbackURL: 'http://localhost:3000/invite/token?source=mail&externalSignInError=1',
+    }))
   })
 })
 
@@ -134,6 +166,18 @@ describe('LoginScreen — first-run owner setup (needsSetup)', () => {
     expect(screen.getByRole('button', { name: 'Create owner account' })).toBeInTheDocument()
     // The ordinary sign-in affordances are replaced, not stacked.
     expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
+  })
+
+  it('keeps configured external bootstrap providers reachable during owner setup', () => {
+    render(<LoginScreen
+      authMode="password"
+      needsSetup
+      providers={[{ id: 'sso', label: 'Company SSO', kind: 'oidc', experimental: true }]}
+      onSignedIn={vi.fn()}
+    />)
+
+    expect(screen.getByRole('button', { name: 'Create owner account' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with Company SSO' })).toBeInTheDocument()
   })
 
   it('renders the ordinary sign-in form when needsSetup is absent (fail-closed default)', () => {
@@ -224,5 +268,18 @@ describe('LoginScreen — degraded 401 body notice', () => {
   it('renders no advisory by default (a well-formed body)', () => {
     render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('LoginScreen — unsaved session-expiry notice', () => {
+  it('surfaces the captured write loss without blocking sign-in', () => {
+    render(<LoginScreen authMode="password" hadUnsavedChanges onSignedIn={vi.fn()} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not be saved before your session expired/i)
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+  })
+
+  it('does not claim loss for an ordinary signed-out boot', () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
+    expect(screen.queryByText(/could not be saved before your session expired/i)).not.toBeInTheDocument()
   })
 })

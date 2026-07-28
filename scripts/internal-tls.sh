@@ -49,7 +49,17 @@ certificate_set_is_usable() {
     test "$api_cert_fingerprint" = "$api_key_fingerprint"
 }
 
+repair_certificate_permissions() {
+  # Publishing and permission handoff are separate filesystem operations. Reapply the complete
+  # policy on every successful validation so a restart converges after interruption between them.
+  chmod 0400 "$CA_KEY" "$API_KEY"
+  chmod 0444 "$CA_CERT" "$API_CERT"
+  chown 0:0 "$CA_KEY" "$CA_CERT"
+  chown 1000:1000 "$API_KEY" "$API_CERT"
+}
+
 if certificate_set_is_usable; then
+  repair_certificate_permissions
   echo "capacitylens-internal-tls: existing certificate set is valid"
   exit 0
 fi
@@ -100,9 +110,6 @@ mv -f "$WORK_DIR/api.crt" "$API_CERT"
 # as uid 101, so it can read the public CA certificate and cannot read either private key. Apply
 # ownership after moving from tmpfs: with every other capability dropped, the initializer cannot
 # reopen a uid-1000 mode-0400 file to copy it across filesystems.
-chmod 0400 "$CA_KEY" "$API_KEY"
-chmod 0444 "$CA_CERT" "$API_CERT"
-chown 0:0 "$CA_KEY" "$CA_CERT"
-chown 1000:1000 "$API_KEY" "$API_CERT"
+repair_certificate_permissions
 
 echo "capacitylens-internal-tls: generated a new certificate set"

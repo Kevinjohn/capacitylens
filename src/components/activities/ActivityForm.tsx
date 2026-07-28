@@ -95,8 +95,16 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     // Surface a store-side rejection as a form error rather than an uncaught React error — see the
     // store CRUD contract.
     try {
-      if (activity) update(activity.id, patch)
-      else add(patch)
+      if (activity) {
+        const current = useStore.getState().data.activities.find((candidate) => candidate.id === activity.id)
+        if (!current || current.updatedAt !== activity.updatedAt) {
+          fail(null, m.form_activity_err_changed())
+          return
+        }
+        update(activity.id, patch)
+      } else {
+        add(patch)
+      }
       onClose()
     } catch (e) {
       fail(null, errorMessage(e))

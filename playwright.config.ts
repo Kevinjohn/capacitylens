@@ -1,4 +1,5 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from "@playwright/test";
+import { selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
 
 // Playwright drives the real app via Vite. Three project flavours:
 //   chromium    — the in-memory DEMO build on :5173 (VITE_CAPACITYLENS_DEMO=1; the existing specs).
@@ -8,12 +9,19 @@ import { defineConfig, devices } from '@playwright/test'
 //   auth-backed — a third server (:8887) booted with SMALLSASS_ACCOUNT_MODE=password (fresh DB per
 //                 run) + a Vite dev server (:5373) whose /api proxy targets it — the ONLY place the
 //                 flag-gated login screen exists (US-NAV-10). *.auth.spec.ts run here.
-const API_PORT = 8787
-const DB_WEB_PORT = 5273
-const AUTH_API_PORT = 8887
-const AUTH_WEB_PORT = 5373
-const OIDC_API_PORT = 8897
-const OIDC_WEB_PORT = 5473
+const API_PORT = 8787;
+const DB_WEB_PORT = 5273;
+const AUTH_API_PORT = 8887;
+const AUTH_WEB_PORT = 5373;
+const OIDC_API_PORT = 8897;
+const OIDC_WEB_PORT = 5473;
+const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
+const coreSpec = new RegExp(
+  String.raw`^(?!.*\.(?:db|auth|oidc)\.spec\.${specExtension}$).*\.spec\.ts$`,
+  "i",
+);
+const flavourSpec = (flavour: "db" | "auth" | "oidc") =>
+  new RegExp(String.raw`\.${flavour}\.spec\.${specExtension}$`, "i");
 
 // Cross-browser opt-in (WebKit/Safari + Firefox/Gecko). `e2e:webkit` / `e2e:firefox` set the
 // matching *_ONLY flag: each runs ONLY that browser's twin of the core in-memory demo specs against
@@ -25,24 +33,32 @@ const OIDC_WEB_PORT = 5473
 // engines run unconditionally — see those scripts for why.
 // A *_ONLY flag (or its un-suffixed sibling CAPACITYLENS_WEBKIT / CAPACITYLENS_FIREFOX) makes that browser's
 // project exist; CAPACITYLENS_VITE_ONLY (or either *_ONLY) trims the webServer list to Vite-only.
-const webkitOnly = !!process.env.CAPACITYLENS_WEBKIT_ONLY
-const firefoxOnly = !!process.env.CAPACITYLENS_FIREFOX_ONLY
-const webkitEnabled = webkitOnly || !!process.env.CAPACITYLENS_WEBKIT
-const firefoxEnabled = firefoxOnly || !!process.env.CAPACITYLENS_FIREFOX
+const envFlag = (name: string) => process.env[name] === "1";
+const webkitOnly = envFlag("CAPACITYLENS_WEBKIT_ONLY");
+const firefoxOnly = envFlag("CAPACITYLENS_FIREFOX_ONLY");
+const webkitEnabled = webkitOnly || envFlag("CAPACITYLENS_WEBKIT");
+const firefoxEnabled = firefoxOnly || envFlag("CAPACITYLENS_FIREFOX");
 // True when the run touches only the core in-memory demo specs, so the SQLite + auth servers
-// aren't needed and the webServer list trims to Vite alone: set directly by CAPACITYLENS_VITE_ONLY (the
-// cross-engine `e2e:browsers` core run) and implied by either single-engine *_ONLY flag.
-const viteOnly = !!process.env.CAPACITYLENS_VITE_ONLY || webkitOnly || firefoxOnly
-const oidcOnly = !!process.env.CAPACITYLENS_OIDC_E2E
-const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE ?? 'default')
-  .replace(/[^a-zA-Z0-9_-]+/g, '-')
+// aren't needed and the webServer list trims to Vite alone: set directly by CAPACITYLENS_VITE_ONLY
+// (the cross-engine `e2e:browsers` core run), implied by either single-engine *_ONLY flag, or
+// inferred conservatively when every explicitly named spec is a core spec.
+const viteOnly =
+  envFlag("CAPACITYLENS_VITE_ONLY") ||
+  webkitOnly ||
+  firefoxOnly ||
+  selectsOnlyExplicitCoreSpecs(process.argv);
+const oidcOnly = envFlag("CAPACITYLENS_OIDC_E2E");
+const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE ?? "default").replace(
+  /[^a-zA-Z0-9_-]+/g,
+  "-",
+);
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the
 // app's default; the db/auth flavours below carry their own proxy target.
 const devWebServer = {
-  command: 'pnpm run dev:demo',
-  url: 'http://localhost:5173',
+  command: "pnpm run dev:demo",
+  url: "http://localhost:5173",
   // Never reuse: Playwright matches a running server by URL (:5173) only — it can't see the
   // persistence flavour. Post-flip, `pnpm run dev` boots a SERVER-mode dev server on :5173; reusing
   // that for the in-memory demo specs would run them against the wrong backend. Always spawn a
@@ -52,52 +68,66 @@ const devWebServer = {
   // server-mode :5173 would corrupt the demo specs). Stop `pnpm run dev` first.
   reuseExistingServer: false,
   timeout: 120_000,
-}
+};
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI
     ? [
-        ['github'],
-        ['html', { outputFolder: `playwright-report/${reportPhase}`, open: 'never' }],
-        ['junit', { outputFile: `test-results/${reportPhase}.xml` }],
+        ["github"],
+        [
+          "html",
+          { outputFolder: `playwright-report/${reportPhase}`, open: "never" },
+        ],
+        ["junit", { outputFile: `test-results/${reportPhase}.xml` }],
       ]
-    : 'list',
+    : "list",
   outputDir: `test-results/artifacts/${reportPhase}`,
   use: {
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
   },
   projects: [
     {
-      name: 'chromium',
-      testIgnore: /\.(db|auth|oidc)\.spec\.ts$/,
-      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:5173' },
+      name: "chromium",
+      testMatch: coreSpec,
+      use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:5173" },
     },
     {
-      name: 'db-backed',
-      testMatch: /\.db\.spec\.ts$/,
+      name: "db-backed",
+      testMatch: flavourSpec("db"),
       // Every DB-backed test resets the same SQLite fixture in beforeEach. Running those resets
       // concurrently can abort another page's in-flight account read and makes the suite pass by
       // luck against mutually changing state. Keep this one shared-database project serial; the
       // browser-only and auth projects retain their normal parallelism.
       workers: 1,
-      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${DB_WEB_PORT}` },
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://localhost:${DB_WEB_PORT}`,
+      },
     },
     {
-      name: 'auth-backed',
-      testMatch: /\.auth\.spec\.ts$/,
-      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${AUTH_WEB_PORT}` },
+      name: "auth-backed",
+      testMatch: flavourSpec("auth"),
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://localhost:${AUTH_WEB_PORT}`,
+      },
     },
     ...(oidcOnly
-      ? [{
-          name: 'oidc-backed',
-          testMatch: /\.oidc\.spec\.ts$/,
-          use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${OIDC_WEB_PORT}` },
-        }]
+      ? [
+          {
+            name: "oidc-backed",
+            testMatch: flavourSpec("oidc"),
+            use: {
+              ...devices["Desktop Chrome"],
+              baseURL: `http://localhost:${OIDC_WEB_PORT}`,
+            },
+          },
+        ]
       : []),
     // Safari/WebKit & Firefox twins of the core in-memory demo specs (owner; WebKit 2026-06-13,
     // Firefox 2026-06-16): the exact same specs as `chromium` (testIgnore matches), run on the
@@ -109,22 +139,28 @@ export default defineConfig({
     ...(webkitEnabled
       ? [
           {
-            name: 'webkit',
-            testIgnore: /\.(db|auth|oidc)\.spec\.ts$/,
-            use: { ...devices['Desktop Safari'], baseURL: 'http://localhost:5173' },
+            name: "webkit",
+            testMatch: coreSpec,
+            use: {
+              ...devices["Desktop Safari"],
+              baseURL: "http://localhost:5173",
+            },
           },
         ]
       : []),
     ...(firefoxEnabled
       ? [
           {
-            name: 'firefox',
-            testIgnore: /\.(db|auth|oidc)\.spec\.ts$/,
+            name: "firefox",
+            testMatch: coreSpec,
             // No `dependencies` here on purpose: `e2e:all` sequences Firefox AFTER the WebKit matrix
             // at the SCRIPT level (scripts/e2e-all.mjs runs two invocations) so Firefox runs
             // unconditionally — a project dependency on `webkit` would SKIP Firefox whenever the
             // WebKit pass had a single failure, hiding Firefox-only regressions.
-            use: { ...devices['Desktop Firefox'], baseURL: 'http://localhost:5173' },
+            use: {
+              ...devices["Desktop Firefox"],
+              baseURL: "http://localhost:5173",
+            },
           },
         ]
       : []),
@@ -136,9 +172,12 @@ export default defineConfig({
     ...(process.env.CAPACITYLENS_REHEARSAL_URL
       ? [
           {
-            name: 'rehearsal',
+            name: "rehearsal",
             testMatch: /\.db\.spec\.ts$/,
-            use: { ...devices['Desktop Chrome'], baseURL: process.env.CAPACITYLENS_REHEARSAL_URL },
+            use: {
+              ...devices["Desktop Chrome"],
+              baseURL: process.env.CAPACITYLENS_REHEARSAL_URL,
+            },
           },
         ]
       : []),
@@ -152,14 +191,14 @@ export default defineConfig({
     : oidcOnly
       ? [
           {
-            command: 'pnpm run start:oidc-e2e',
-            cwd: './server',
+            command: "pnpm run start:oidc-e2e",
+            cwd: "./server",
             url: `http://localhost:${OIDC_API_PORT}/api/health`,
             reuseExistingServer: false,
             timeout: 120_000,
           },
           {
-            command: 'pnpm run dev:oidc',
+            command: "pnpm run dev:oidc",
             // Readiness must traverse Vite's /api proxy, not merely prove that Vite can serve HTML.
             url: `http://localhost:${OIDC_WEB_PORT}/api/health`,
             reuseExistingServer: false,
@@ -167,48 +206,48 @@ export default defineConfig({
             env: { CAPACITYLENS_DEV_API_PORT: String(OIDC_API_PORT) },
           },
         ]
-    : viteOnly
-      ? [devWebServer]
-      : [
-          devWebServer,
-          {
-            command: 'pnpm run start:e2e',
-            cwd: './server',
-            url: `http://localhost:${API_PORT}/api/health`,
-            reuseExistingServer: !process.env.CI,
-            timeout: 120_000,
-          },
-          {
-            command: 'pnpm run dev:api',
-            // Warm and verify the browser's real Vite → API path before the first page mounts.
-            // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
-            url: `http://localhost:${DB_WEB_PORT}/api/health`,
-            reuseExistingServer: !process.env.CI,
-            timeout: 120_000,
-            // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
-            // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
-            // cross-origin exception that the shipped app never has.
-            env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
-          },
-          {
-            // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
-            // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
-            // already-running :8887 — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
-            // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
-            // bootstrap-credential spec with a confusing red (same lesson as the :5173 block above
-            // and the 2026-07-08 orphaned-:8787 war story in the decisions log).
-            command: 'pnpm run start:auth-e2e',
-            cwd: './server',
-            url: `http://localhost:${AUTH_API_PORT}/api/health`,
-            reuseExistingServer: false,
-            timeout: 120_000,
-          },
-          {
-            command: 'pnpm run dev:auth',
-            url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
-            reuseExistingServer: !process.env.CI,
-            timeout: 120_000,
-            env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
-          },
-        ],
-})
+      : viteOnly
+        ? [devWebServer]
+        : [
+            devWebServer,
+            {
+              command: "pnpm run start:e2e",
+              cwd: "./server",
+              url: `http://localhost:${API_PORT}/api/health`,
+              reuseExistingServer: !process.env.CI,
+              timeout: 120_000,
+            },
+            {
+              command: "pnpm run dev:api",
+              // Warm and verify the browser's real Vite → API path before the first page mounts.
+              // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
+              url: `http://localhost:${DB_WEB_PORT}/api/health`,
+              reuseExistingServer: !process.env.CI,
+              timeout: 120_000,
+              // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
+              // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
+              // cross-origin exception that the shipped app never has.
+              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
+            },
+            {
+              // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
+              // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
+              // already-running :8887 — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
+              // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
+              // bootstrap-credential spec with a confusing red (same lesson as the :5173 block above
+              // and the 2026-07-08 orphaned-:8787 war story in the decisions log).
+              command: "pnpm run start:auth-e2e",
+              cwd: "./server",
+              url: `http://localhost:${AUTH_API_PORT}/api/health`,
+              reuseExistingServer: false,
+              timeout: 120_000,
+            },
+            {
+              command: "pnpm run dev:auth",
+              url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
+              reuseExistingServer: !process.env.CI,
+              timeout: 120_000,
+              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
+            },
+          ],
+});

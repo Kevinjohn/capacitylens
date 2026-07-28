@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { openApp } from './helpers'
 
 // Covers US-SET-08 — the Settings "Clear device data" action.

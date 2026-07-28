@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('app boots and mounts the React root', async ({ page }) => {
   await page.goto('/')

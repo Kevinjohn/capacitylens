@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Modal } from '../components/common/ui'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -38,6 +38,8 @@ export function ReauthDialog({
   // in the same dialog rather than dead-ending a 2FA account (mirrors LoginScreen's two-phase flow).
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [code, setCode] = useState('')
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false)
+  const errorId = useId()
 
   const email = user?.email ?? ''
 
@@ -80,7 +82,9 @@ export function ReauthDialog({
     setBusy(true)
     setError(null)
     try {
-      const result = await authClient.twoFactor.verifyTotp({ code, trustDevice: false })
+      const result = useRecoveryCode
+        ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice: false })
+        : await authClient.twoFactor.verifyTotp({ code, trustDevice: false })
       if (result.error) {
         setError(result.error.message ?? m.reauth_failed())
         setBusy(false)
@@ -109,8 +113,9 @@ export function ReauthDialog({
               errorCallbackURL: externalSignInErrorUrl(window.location.href),
             })
           : await authClient.signIn.social({
-              provider: provider.id as 'google' | 'microsoft' | 'github',
+              provider: provider.id,
               callbackURL: window.location.href,
+              errorCallbackURL: externalSignInErrorUrl(window.location.href),
             })
       if (result.error) {
         setError(result.error.message ?? m.reauth_failed())
@@ -178,21 +183,40 @@ export function ReauthDialog({
           </>
         }
       >
-        <p className="text-sm text-muted-foreground">{m.reauth_2fa_body()}</p>
+        <p className="text-sm text-muted-foreground">
+          {useRecoveryCode ? m.reauth_2fa_recovery_body() : m.reauth_2fa_body()}
+        </p>
         <Field>
-          <FieldLabel htmlFor="reauth-2fa-code">{m.reauth_2fa_label()}</FieldLabel>
+          <FieldLabel htmlFor="reauth-2fa-code">
+            {useRecoveryCode ? m.reauth_2fa_recovery_label() : m.reauth_2fa_label()}
+          </FieldLabel>
           <Input
             id="reauth-2fa-code"
             data-testid="reauth-2fa-code"
             type="text"
-            inputMode="numeric"
+            inputMode={useRecoveryCode ? 'text' : 'numeric'}
             autoComplete="one-time-code"
             value={code}
             onChange={(e) => setCode(e.target.value.trim())}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
             autoFocus
           />
         </Field>
-        <FieldError>{error}</FieldError>
+        <FieldError id={errorId}>{error}</FieldError>
+        <Button
+          size="sm"
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={() => {
+            setUseRecoveryCode((value) => !value)
+            setCode('')
+            setError(null)
+          }}
+        >
+          {useRecoveryCode ? m.reauth_2fa_use_authenticator() : m.reauth_2fa_use_recovery()}
+        </Button>
       </Modal>
     )
   }
@@ -225,10 +249,12 @@ export function ReauthDialog({
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           autoFocus
         />
       </Field>
-      <FieldError>{error}</FieldError>
+      <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )
 }
