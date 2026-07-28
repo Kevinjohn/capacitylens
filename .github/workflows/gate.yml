@@ -161,4 +161,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --prod --audit-level high
+      # CapacityLens uses React Router in browser-only library mode, so no RSC server actions exist.
+      # Fastify is created as an HTTP/1 server and packaged nginx proxies HTTP/1.1, so the HTTP/2
+      # request-routing path in the second advisory is unreachable. Keep both exceptions exact.
+      - run: pnpm audit --prod --audit-level high --ignore GHSA-qwww-vcr4-c8h2 --ignore GHSA-c96f-x56v-gq3h
