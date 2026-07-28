@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 
 // The seed dataset lives in the first half of June 2026 — the over-allocated day is
 // 3-4 June and every demo bar falls between 1-9 June. The scheduler is anchored to
@@ -145,4 +146,76 @@ export async function createCompany(page: Page, name: string): Promise<void> {
 export async function openNewCompany(page: Page, name: string): Promise<void> {
   await openNewCompanyForm(page);
   await createCompany(page, name);
+}
+
+export interface SchedulerGeometryProbe {
+  leftDate: string;
+  leftWeekday: string;
+  visibleDays: number;
+  weekdayWidth: number;
+}
+
+/** Read settled scheduler geometry through semantic test hooks. Shared by every scroll/zoom spec so
+ * sticky-column measurement, double-rAF settling and weekday-width selection cannot drift. */
+export async function probeSchedulerGeometry(page: Page): Promise<SchedulerGeometryProbe> {
+  return page.evaluate(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement;
+    const resourceHeader = document.querySelector('[data-testid="scheduler-resource-header"]') as HTMLElement;
+    const dayTier = document.querySelector('[data-testid="scheduler-day-tier"]') as HTMLElement;
+    const cells = dayTier ? Array.from(dayTier.children) : [];
+    const gridRect = grid.getBoundingClientRect();
+    const laneLeft = resourceHeader.getBoundingClientRect().right;
+    const weekdayLabel = (cell: Element) => {
+      const spans = cell.querySelectorAll("span");
+      return (spans[spans.length - 1]?.textContent || "").trim();
+    };
+    let leftDate = "";
+    let leftWeekday = "";
+    let visibleDays = 0;
+    let weekdayWidth = 0;
+    for (const cell of cells) {
+      const rect = (cell as HTMLElement).getBoundingClientRect();
+      const label = weekdayLabel(cell);
+      if (!leftDate && rect.right > laneLeft + 1) {
+        leftDate = (cell.textContent || "").trim();
+        leftWeekday = label;
+      }
+      if (rect.right > laneLeft && rect.left < gridRect.right) visibleDays += 1;
+      if (!weekdayWidth && label.length === 3) weekdayWidth = rect.width;
+    }
+    return { leftDate, leftWeekday, visibleDays, weekdayWidth };
+  });
+}
+
+export async function settledSchedulerLeftDate(page: Page): Promise<string> {
+  const grid = page.getByTestId("scheduler-grid");
+  let last = Number.NaN;
+  await expect
+    .poll(
+      async () => {
+        const current = await grid.evaluate((node) => (node as HTMLElement).scrollLeft);
+        const stable = current === last;
+        last = current;
+        return stable;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+  return (await probeSchedulerGeometry(page)).leftDate;
+}
+
+export async function nudgeScheduler(page: Page, columns: number): Promise<void> {
+  const { weekdayWidth } = await probeSchedulerGeometry(page);
+  await page.getByTestId("scheduler-grid").evaluate(
+    (node, delta) => {
+      (node as HTMLElement).scrollLeft += delta;
+    },
+    Math.round(weekdayWidth * columns),
+  );
+}
+
+/** Leave the production idle timer plus layout/paint margin before asserting snap or no-snap. */
+export async function waitForWeekSnap(page: Page): Promise<void> {
+  await page.waitForTimeout(WEEK_SNAP_IDLE_MS + 280);
 }

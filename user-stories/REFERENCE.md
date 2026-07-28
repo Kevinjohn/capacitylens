@@ -439,7 +439,7 @@ these stories run against has no footer at all.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
 server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACITYLENS_AUTH=password` or
-`sso`: the app checks `GET /api/auth/me` once at boot, showing **Checking your session…** as an
+`sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
 and a `Sign in` button in password mode; a `Continue with SSO` button in sso mode; failures
@@ -448,6 +448,9 @@ sign-in wall also warns **Some changes could not be saved before your session ex
 not be restored after you sign in again.** On a fresh server-mode boot, company persistence starts
 only after `/api/auth/me` has admitted the session: a signed-out visitor or an identity awaiting
 mandatory MFA makes no tenant-data request and cannot receive a misleading save-failure banner.
+Because session cookies are shared across tabs, a server-mode tab also rechecks the session when it
+returns to the foreground. A sign-out or revocation completed in another tab therefore replaces its
+stale authenticated shell with the sign-in wall before the user resumes work.
 The sign-in, mandatory MFA and session-verification failure walls set page-specific document titles;
 the failure detail is announced as an alert when it replaces the checking state.
 While signed in, Settings gains an **Account** section

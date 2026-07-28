@@ -456,6 +456,23 @@ export function AuthProvider({
     void refreshAuth();
   }, [serverMode, persistError, refreshAuth]);
 
+  // Session cookies are shared between tabs, but React state is not. Re-check when a dormant tab
+  // becomes observable again so a sign-out, revocation or role change completed elsewhere cannot
+  // leave this tab presenting its old authenticated shell indefinitely. The request sequence above
+  // makes simultaneous focus/visibility notifications harmless.
+  useEffect(() => {
+    if (!serverMode) return;
+    const revalidateVisibleSession = () => {
+      if (document.visibilityState === "visible") void refreshAuth();
+    };
+    window.addEventListener("focus", revalidateVisibleSession);
+    document.addEventListener("visibilitychange", revalidateVisibleSession);
+    return () => {
+      window.removeEventListener("focus", revalidateVisibleSession);
+      document.removeEventListener("visibilitychange", revalidateVisibleSession);
+    };
+  }, [serverMode, refreshAuth]);
+
   useEffect(() => {
     if (status.kind === "error") {
       document.title = `${m.auth_verify_session_failed()} · ${APP_NAME}`;

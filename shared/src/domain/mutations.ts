@@ -224,8 +224,17 @@ export function assertScopedRefs(
       need("disciplineId", "disciplines", "Resource discipline must belong to this company.");
       need("projectId", "projects", "Placeholder project must belong to this company.");
       break;
-    // allocations / timeOff: their refs are checked by assertAllocationRefs /
-    // assertResourceExists (scoped to the active account), below.
+    case "clients":
+    case "disciplines":
+      break;
+    case "allocations":
+    case "timeOff":
+      // Their refs are checked by assertAllocationRefs / assertResourceExists below.
+      break;
+    default: {
+      const exhaustive: never = key;
+      return exhaustive;
+    }
   }
 }
 

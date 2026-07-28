@@ -42,39 +42,30 @@ export class AccountContractError extends Error {
   }
 }
 
+const ACCOUNT_FAILURE_STATUS = {
+  AUTHENTICATION_REQUIRED: 401,
+  MFA_REQUIRED: 403,
+  SESSION_NOT_FRESH: 403,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  NOT_MEMBER: 403,
+  VALIDATION_FAILED: 400,
+  CONFLICT: 409,
+  COMMAND_IN_PROGRESS: 409,
+  OWNER_TRANSFER_REQUIRED: 400,
+  INVITATION_EXPIRED: 410,
+  INVITATION_USED: 409,
+  INVITATION_EMAIL_MISMATCH: 403,
+  IDENTITY_ALREADY_EXISTS: 400,
+  AUTHORITY_CHANGED: 409,
+  IDEMPOTENCY_CONFLICT: 409,
+  COMPENSATION_FAILED: 503,
+  DEPENDENCY_UNAVAILABLE: 503,
+  DEPENDENCY_INVALID_RESPONSE: 503,
+  RATE_LIMITED: 429,
+  UNSUPPORTED_CAPABILITY: 400,
+} as const satisfies Record<AccountErrorCode, number>;
+
 export function statusForAccountFailure(failure: AccountFailure): number {
-  switch (failure.code) {
-    case "AUTHENTICATION_REQUIRED":
-      return 401;
-    case "MFA_REQUIRED":
-    case "SESSION_NOT_FRESH":
-    case "FORBIDDEN":
-    case "NOT_MEMBER":
-    case "INVITATION_EMAIL_MISMATCH":
-      return 403;
-    case "NOT_FOUND":
-      return 404;
-    case "INVITATION_EXPIRED":
-      return 410;
-    case "INVITATION_USED":
-    case "CONFLICT":
-    case "COMMAND_IN_PROGRESS":
-    case "AUTHORITY_CHANGED":
-    case "IDEMPOTENCY_CONFLICT":
-      return 409;
-    case "RATE_LIMITED":
-      return 429;
-    case "DEPENDENCY_UNAVAILABLE":
-    case "DEPENDENCY_INVALID_RESPONSE":
-    case "COMPENSATION_FAILED":
-      return 503;
-    case "VALIDATION_FAILED":
-    case "OWNER_TRANSFER_REQUIRED":
-    case "IDENTITY_ALREADY_EXISTS":
-    case "UNSUPPORTED_CAPABILITY":
-      return 400;
-  }
-  // Runtime input may have escaped static validation. An unknown account error is never a success
-  // or an authorization denial; surface it as an internal failure.
-  return 500;
+  return ACCOUNT_FAILURE_STATUS[failure.code];
 }

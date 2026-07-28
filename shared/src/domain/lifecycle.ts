@@ -20,7 +20,7 @@
 // try/catch (mirrors access.ts's `can*` predicates).
 
 import { APP_DATA_KEYS } from "../types/entities";
-import type { AppData, AppDataKey, ISOTimestamp, Resource } from "../types/entities";
+import type { AppData, AppDataKey, ISOTimestamp, Resource, ScopedEntityKey } from "../types/entities";
 import { parseISOTimestamp } from "../lib/integrity";
 
 /**
@@ -219,6 +219,20 @@ export function activeOnly(data: AppData): AppData {
   const projects = data.projects.filter((project) => isActive(project) && hasVisibleAncestry("projects", project));
   const phases = data.phases.filter((phase) => hasVisibleAncestry("phases", phase));
   const activities = data.activities.filter((activity) => hasVisibleAncestry("activities", activity));
+  type ProjectedLifecycleKey = Exclude<ScopedEntityKey, "disciplines">;
+  const projectedKeys = [
+    "resources",
+    "clients",
+    "projects",
+    "phases",
+    "activities",
+    "allocations",
+    "timeOff",
+  ] as const satisfies readonly ProjectedLifecycleKey[];
+  type MissingProjectedKey = Exclude<ProjectedLifecycleKey, (typeof projectedKeys)[number]>;
+  const projectedKeysAreComplete: MissingProjectedKey extends never ? true : never = true;
+  void projectedKeys;
+  void projectedKeysAreComplete;
   return {
     ...data,
     resources,

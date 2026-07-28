@@ -1,5 +1,5 @@
 import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
 import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
@@ -25,6 +25,15 @@ interface CommittedRevision {
 interface BatchCommitReceipt {
   revisions: CommittedRevision[];
   superseded: boolean;
+}
+
+const MAX_DIAGNOSTIC_BODY_LENGTH = 1_000;
+
+function safeResponseError(action: string, status: number, rawBody: string): Error {
+  const message = `${action} failed (${status}).`;
+  if (!rawBody) return new Error(message);
+  const diagnostic = rawBody.slice(0, MAX_DIAGNOSTIC_BODY_LENGTH);
+  return new Error(message, { cause: new Error(diagnostic) });
 }
 
 // Re-insert lifecycle rows whose out-of-batch archive did NOT converge back into `data`, so the
@@ -134,8 +143,8 @@ export class BatchCommitUncertainError extends BatchReconciliationError {
 /** A remembered sync archive could not be reversed authoritatively. Reload instead of replaying a
  * generic PUT that the server's lifecycle boundary cannot use to clear a tombstone. */
 export class LifecycleRestoreError extends BatchReconciliationError {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "LifecycleRestoreError";
   }
 }
@@ -204,6 +213,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // persist.ts's reload paths surface/re-push any edit a dropped save carried (see refreshActive's
   // mid-load-edit handling), so a drop here is never a silent loss.
   private seedGen = 0;
+  /** Tenant paired with the current scoped snapshot. Null means the snapshot came from the
+   * unscoped OFF/demo bootstrap path. A scoped save must match this tenant before diffing. */
+  private seededAccountId: string | null = null;
   // The seedGen at the moment `queued` was last written — pairs a parked save with the snapshot
   // generation it was diffed-to-be against.
   private queuedSeedGen = 0;
@@ -275,8 +287,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // client stamp could be mistranslated). This is also the Map's cleanup boundary — see
   // canonicalizeAcknowledged: without a rehydrate the Map only ever shrinks or overwrites, so seeding
   // is where it is emptied.
-  private seedSnapshot(data: AppData): void {
+  private seedSnapshot(data: AppData, accountId?: string): void {
     this.lastSynced = data;
+    this.seededAccountId = accountId ?? null;
     this.seedGen += 1;
     this.acknowledgedRevisions.clear();
     this.archivedBySync.clear();
@@ -422,7 +435,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         // ordinary parent-before-child/upserts-before-deletes ordering and advances lastSynced only
         // after a confirmed receipt. A failed repair rejects hydration rather than presenting data
         // whose required parent rows do not exist durably.
-        this.seedSnapshot(repairBase);
+        this.seedSnapshot(repairBase, accountId);
         // Avoid joining an unrelated in-flight save when migration was identity-preserving. Besides
         // being unnecessary, awaiting that request here would make a concurrent reload wait on a
         // batch whose own race coordinator may be waiting for the reload to finish.
@@ -456,7 +469,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         try {
           const cached = await readCachedAccountSlice(accountId);
           if (cached) {
-            if (myGen === this.loadGen) this.seedSnapshot(cached.value);
+            if (myGen === this.loadGen) this.seedSnapshot(cached.value, accountId);
             if (myGen === this.loadGen) setOfflineReadState(true, cached.savedAt);
             return cached.value;
           }
@@ -493,6 +506,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
+    if (this.seededAccountId !== null) {
+      const expected = this.seededAccountId;
+      const mismatchedAccount = next.accounts.some((account) => account.id !== expected);
+      const mismatchedScopedRow = SCOPED_KEYS.some((table) => next[table].some((row) => row.accountId !== expected));
+      if (mismatchedAccount || mismatchedScopedRow) {
+        throw new Error("The pending changes do not belong to the active company.");
+      }
+    }
     // Page-teardown flush: send the whole diff as ONE keepalive batch request so it
     // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
     if (opts?.unload) {
@@ -749,9 +770,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new LifecycleRestoreError(
-        `Lifecycle restore of ${op.table}/${op.id} failed (${res.status}) ${detail}`.trim(),
-      );
+      throw new LifecycleRestoreError(`Lifecycle restore of ${op.table}/${op.id} failed (${res.status}).`, {
+        cause: detail ? new Error(detail.slice(0, MAX_DIAGNOSTIC_BODY_LENGTH)) : undefined,
+      });
     }
     const body: unknown = await res.json().catch(() => null);
     if (
@@ -816,8 +837,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         this.archivedBySync.add(this.lifecycleKey(op));
         return;
       }
-      const message = typeof conflict?.error === "string" ? conflict.error : detail;
-      throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}) ${message}`.trim());
+      if (typeof conflict?.error === "string") {
+        throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}): ${conflict.error}`);
+      }
+      throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
     }
     if (res.status === 404) {
       this.archivedBySync.delete(this.lifecycleKey(op));
@@ -825,7 +848,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}) ${detail}`.trim());
+      throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
     }
     this.archivedBySync.add(this.lifecycleKey(op));
   }
@@ -939,7 +962,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // failure — persist.ts raises the banner, and the AuthProvider's re-check sees the
       // 401 and swaps to the login screen. Never a silent drop.
       const detail = await res.text().catch(() => "");
-      throw new Error(`Batch sync failed (${res.status}) ${detail}`.trim());
+      throw safeResponseError("Batch sync", res.status, detail);
     }
     const receipt = (await res.json().catch(() => null)) as {
       ok?: unknown;

@@ -1,35 +1,10 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, probeSchedulerGeometry as probe, selectShadOption, waitForWeekSnap } from "./helpers";
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
   if (!b) throw new Error("no bounding box");
   return b;
-}
-
-// Read the leftmost visible date-header cell text (e.g. "7Mon" = day number + 3-letter weekday)
-// and the width of one weekday column, used to nudge the grid by a deterministic number of columns
-// so the left-edge week-snap is testable without flaky pixel guesses. Mirrors the probe in
-// e2e/minimise-weekends.spec.ts. (At fine zoom the header day cells carry the weekday label.)
-async function probe(page: import("@playwright/test").Page) {
-  return page.evaluate(() => {
-    const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement;
-    const header = document.querySelector('[role="columnheader"][aria-label="Dates"]') as HTMLElement;
-    const dayTier = header?.querySelector(".flex.flex-auto");
-    const cells = dayTier ? Array.from(dayTier.children) : [];
-    const gridRect = grid.getBoundingClientRect();
-    const laneLeft = gridRect.left + 256; // past the sticky left column
-    let leftDate = "";
-    let weekdayWidth = 0;
-    for (const c of cells) {
-      const r = (c as HTMLElement).getBoundingClientRect();
-      if (!leftDate && r.right > laneLeft + 1) leftDate = (c.textContent || "").trim();
-      // A weekday column is the wide one (weekends collapse to a sliver when minimised) — take the
-      // widest visible cell as a robust "one weekday column" measure for nudging.
-      if (r.right > laneLeft && r.left < gridRect.right) weekdayWidth = Math.max(weekdayWidth, r.width);
-    }
-    return { leftDate, weekdayWidth };
-  });
 }
 
 test.describe("Scheduler", () => {
@@ -358,7 +333,7 @@ test.describe("Scheduler", () => {
       await grid.evaluate((el, px) => {
         (el as HTMLElement).scrollLeft = px;
       }, nudge);
-      await page.waitForTimeout(300); // > WEEK_SNAP_IDLE_MS — a snap, if it fired, would have by now
+      await waitForWeekSnap(page);
       expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
     };
 

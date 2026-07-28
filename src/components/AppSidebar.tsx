@@ -25,6 +25,7 @@ import {
 } from "./ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { m } from "@/i18n";
+import { APP_NAME } from "@capacitylens/shared/brand";
 
 interface AppSidebarProps {
   activeAccount: { name: string } | null;
@@ -58,7 +59,7 @@ export function AppSidebar({
           </TooltipTrigger>
           <TooltipContent>{toggleLabel}</TooltipContent>
         </Tooltip>
-        <div className="truncate text-xl font-bold text-brand group-data-[collapsible=icon]:hidden">{m.app_name()}</div>
+        <div className="truncate text-xl font-bold text-brand group-data-[collapsible=icon]:hidden">{APP_NAME}</div>
       </SidebarHeader>
 
       <SidebarContent>

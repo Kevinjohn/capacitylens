@@ -594,6 +594,7 @@ export function SchedulerGrid() {
             style={{ minHeight: LAYOUT.headerHeight }}
           >
             <div
+              data-testid="scheduler-resource-header"
               role="columnheader"
               aria-colindex={1}
               aria-label={m.scheduler_resources_column()}

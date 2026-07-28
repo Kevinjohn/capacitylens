@@ -42,6 +42,9 @@ const firefoxEnabled = firefoxOnly || envFlag("CAPACITYLENS_FIREFOX");
 const viteOnly =
   envFlag("CAPACITYLENS_VITE_ONLY") || webkitOnly || firefoxOnly || selectsOnlyExplicitCoreSpecs(process.argv);
 const oidcOnly = envFlag("CAPACITYLENS_OIDC_E2E");
+const rehearsalEnabled = Boolean(process.env.CAPACITYLENS_REHEARSAL_URL);
+const coreEnabled = !oidcOnly && !rehearsalEnabled;
+const standardServerProjectsEnabled = !viteOnly && !oidcOnly && !rehearsalEnabled;
 const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE ?? "default").replace(/[^a-zA-Z0-9_-]+/g, "-");
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
@@ -79,32 +82,40 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    {
-      name: "chromium",
-      testMatch: coreSpec,
-      use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:5173" },
-    },
-    {
-      name: "db-backed",
-      testMatch: flavourSpec("db"),
-      // Every DB-backed test resets the same SQLite fixture in beforeEach. Running those resets
-      // concurrently can abort another page's in-flight account read and makes the suite pass by
-      // luck against mutually changing state. Keep this one shared-database project serial; the
-      // browser-only and auth projects retain their normal parallelism.
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        baseURL: `http://localhost:${DB_WEB_PORT}`,
-      },
-    },
-    {
-      name: "auth-backed",
-      testMatch: flavourSpec("auth"),
-      use: {
-        ...devices["Desktop Chrome"],
-        baseURL: `http://localhost:${AUTH_WEB_PORT}`,
-      },
-    },
+    ...(coreEnabled
+      ? [
+          {
+            name: "chromium",
+            testMatch: coreSpec,
+            use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:5173" },
+          },
+        ]
+      : []),
+    ...(standardServerProjectsEnabled
+      ? [
+          {
+            name: "db-backed",
+            testMatch: flavourSpec("db"),
+            // Every DB-backed test resets the same SQLite fixture in beforeEach. Running those resets
+            // concurrently can abort another page's in-flight account read and makes the suite pass by
+            // luck against mutually changing state. Keep this one shared-database project serial; the
+            // browser-only and auth projects retain their normal parallelism.
+            workers: 1,
+            use: {
+              ...devices["Desktop Chrome"],
+              baseURL: `http://localhost:${DB_WEB_PORT}`,
+            },
+          },
+          {
+            name: "auth-backed",
+            testMatch: flavourSpec("auth"),
+            use: {
+              ...devices["Desktop Chrome"],
+              baseURL: `http://localhost:${AUTH_WEB_PORT}`,
+            },
+          },
+        ]
+      : []),
     ...(oidcOnly
       ? [
           {
@@ -157,7 +168,7 @@ export default defineConfig({
     // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
     // baseURL override is the only difference. Started by hand per the runbook, so the
     // dev webServers below are skipped for these runs (see the webServer conditional).
-    ...(process.env.CAPACITYLENS_REHEARSAL_URL
+    ...(rehearsalEnabled
       ? [
           {
             name: "rehearsal",
@@ -174,7 +185,7 @@ export default defineConfig({
   // servers under them. A core-specs-only run (`e2e:webkit`/`e2e:firefox`/`e2e:browsers`, i.e.
   // viteOnly) needs only Vite on :5173. Every other run keeps the full list (the SQLite + auth
   // servers the db/auth specs depend on).
-  webServer: process.env.CAPACITYLENS_REHEARSAL_URL
+  webServer: rehearsalEnabled
     ? []
     : oidcOnly
       ? [

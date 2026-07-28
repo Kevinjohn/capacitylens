@@ -1,5 +1,11 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp } from "./helpers";
+import {
+  nudgeScheduler as nudge,
+  openApp,
+  probeSchedulerGeometry as probe,
+  settledSchedulerLeftDate as settledLeftDate,
+  waitForWeekSnap,
+} from "./helpers";
 
 test.use({ reducedMotion: "reduce" });
 
@@ -7,78 +13,6 @@ async function box(locator: Locator) {
   const b = await locator.boundingBox();
   if (!b) throw new Error("no bounding box");
   return b;
-}
-
-// Read the leftmost visible date-header cell + how many day columns are on screen. Used to
-// guard (a) the zoom scroll-anchor (the left-edge date must not drift onto the weekend) and
-// (b) the weekend-aware fit (a "1-week" view must show ~1 week, not ~1.5).
-async function probe(page: import("@playwright/test").Page) {
-  return page.evaluate(async () => {
-    // Sample AFTER two animation frames so the date header has been re-laid-out to match the current
-    // scrollLeft. The header scroll is rAF-synced to the body, so reading cell rects mid-relayout
-    // (which heavy parallel load on Firefox makes a wide window) pairs a stale, mid-timeline cell's
-    // text with a leftmost layout position — yielding a torn left-edge date like a non-existent
-    // "18Mon". The double-rAF lets layout settle before we measure. (See also the expect.poll reads.)
-    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement;
-    const header = document.querySelector('[role="columnheader"][aria-label="Dates"]') as HTMLElement;
-    const dayTier = header?.querySelector(".flex.flex-auto");
-    const cells = dayTier ? Array.from(dayTier.children) : [];
-    const gridRect = grid.getBoundingClientRect();
-    const laneLeft = gridRect.left + 256; // past the sticky left column
-    // The weekday label is the cell's last <span> ("Mon"/"S"/…); a 3-letter label marks a weekday.
-    const weekdayLabel = (c: Element) => {
-      const spans = c.querySelectorAll("span");
-      return (spans[spans.length - 1]?.textContent || "").trim();
-    };
-    let leftDate = "";
-    let visibleDays = 0;
-    let weekdayWidth = 0;
-    for (const c of cells) {
-      const r = (c as HTMLElement).getBoundingClientRect();
-      if (!leftDate && r.right > laneLeft + 1) leftDate = (c.textContent || "").trim();
-      if (r.right > laneLeft && r.left < gridRect.right) visibleDays++;
-      // First wide (3-letter) weekday cell gives a representative column width for column-relative nudges.
-      if (!weekdayWidth && weekdayLabel(c).length === 3) weekdayWidth = r.width;
-    }
-    return { leftDate, visibleDays, weekdayWidth };
-  });
-}
-
-// Wait until the grid's horizontal scroll has STOPPED moving, then read the settled left-edge date.
-// The left-edge probe derives the date from header cell rects at the *current* scroll position, so
-// sampling while a programmatic scroll (zoom re-anchor) is still in flight returns the date of a
-// transient position — a Monday one-to-three weeks off, e.g. a stray "18Mon". Under heavy parallel
-// load on Firefox/WebKit that in-flight window is wide enough that a plain poll can keep sampling
-// mid-scroll and never converge in time. Polling scrollLeft to a fixed point first guarantees we
-// measure only once the view has settled, so the returned date is the real left edge.
-async function settledLeftDate(page: import("@playwright/test").Page): Promise<string> {
-  const grid = page.getByTestId("scheduler-grid");
-  let last = NaN;
-  await expect
-    .poll(
-      async () => {
-        const x = await grid.evaluate((n) => (n as HTMLElement).scrollLeft);
-        const stable = x === last; // two consecutive equal reads ⇒ the scroll has come to rest
-        last = x;
-        return stable;
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(true);
-  return (await probe(page)).leftDate;
-}
-
-// Nudge the grid by a fixed number of weekday columns (derived from a probed column width, so it's
-// resolution-independent), mirroring e2e/snap-week.spec.ts's nudge().
-async function nudge(page: import("@playwright/test").Page, columns: number) {
-  const { weekdayWidth } = await probe(page);
-  await page.getByTestId("scheduler-grid").evaluate(
-    (node, dx) => {
-      (node as HTMLElement).scrollLeft += dx;
-    },
-    Math.round(weekdayWidth * columns),
-  );
 }
 
 // Turn the device-global "Snap to week start" pref OFF and land on the Schedule at 1w. With the
@@ -231,7 +165,7 @@ test.describe("Minimise weekends", () => {
     // Let the refit (rAF) fully settle past the free-scroll idle window so a (wrong) snap WOULD have
     // landed by now. A single post-settle read — NOT expect.poll, which would short-circuit on the
     // stale pre-resize value before the snap could fire and pass this no-change assertion vacuously.
-    await page.waitForTimeout(400); // > WEEK_SNAP_IDLE_MS (120ms) + the refit frame
+    await waitForWeekSnap(page);
     expect((await probe(page)).leftDate).toBe(leftDate); // exact date unchanged (no snap to Monday)
   });
 
@@ -259,7 +193,7 @@ test.describe("Minimise weekends", () => {
     // Let the refit (rAF) fully settle past the free-scroll idle window so a (wrong) snap WOULD have
     // landed by now. A single post-settle read — NOT expect.poll, which would short-circuit on the
     // stale pre-resize value before the snap could fire and pass this no-change assertion vacuously.
-    await page.waitForTimeout(400); // > WEEK_SNAP_IDLE_MS (120ms) + the refit frame
+    await waitForWeekSnap(page);
     expect((await probe(page)).leftDate).toBe(leftDate); // exact mid-week date preserved (no Monday-floor)
   });
 });

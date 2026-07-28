@@ -539,6 +539,23 @@ describe("ServerSyncAdapter.loadAll", () => {
     expect(ops).toEqual([expect.objectContaining({ method: "PUT", table: "clients", id: "c2" })]);
   });
 
+  it("rejects a save whose rows do not match the scoped snapshot tenant", async () => {
+    const a1Slice = scopedData("a1", { clients: [client("c1")] });
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/state")) return new Response(JSON.stringify(a1Slice), { status: 200 });
+      return commitReceipt(init);
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+
+    await adapter.loadAll("a1");
+    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+    await expect(adapter.saveAll(scopedData("a2", {}))).rejects.toThrow(
+      "pending changes do not belong to the active company",
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("scoped loadAll TOLERATES a MISSING known table (rolling deploy) and hydrates it empty", async () => {
     // FIX 1: an older server may OMIT a table this newer client already knows. The scoped path must
     // NOT throw "incomplete state payload" during the skew window — it hydrates the missing table

@@ -39,6 +39,11 @@ export interface SanitizeWriteOptions {
   canSeePrivateNames?: boolean;
 }
 
+export interface ReadSliceFieldVisibility {
+  includeTimeOffNote: boolean;
+  includePrivateNames: boolean;
+}
+
 /** One role-gated confidentiality policy: the field list, the role predicate that decides who may
  *  see it, and the redact/pin operations the three sites reuse. */
 export interface GatedFieldPolicy {
@@ -50,6 +55,8 @@ export interface GatedFieldPolicy {
   readonly fields: readonly string[];
   /** The {@link SanitizeWriteOptions} flag that is `false` when the caller may NOT see these fields. */
   readonly visKey: keyof SanitizeWriteOptions;
+  /** readSlice option driven by the same visibility decision. */
+  readonly includeKey: keyof ReadSliceFieldVisibility;
   /** Role predicate: `true` iff `role` may see the gated field(s). */
   readonly visibleTo: (role: Role) => boolean;
   /** Redact the gated field(s) from a row about to be serialized to a caller who may not see them. */
@@ -64,6 +71,7 @@ export const GATED_FIELD_POLICIES: readonly GatedFieldPolicy[] = [
     tables: ["timeOff"],
     fields: ["note"],
     visKey: "canSeeTimeOffNote",
+    includeKey: "includeTimeOffNote",
     visibleTo: canSeeTimeOffNote,
     redactEcho: (row) => {
       const visible = { ...row };
@@ -84,6 +92,7 @@ export const GATED_FIELD_POLICIES: readonly GatedFieldPolicy[] = [
     tables: ["clients", "projects"],
     fields: ["name", "isPrivate", "codeName"],
     visKey: "canSeePrivateNames",
+    includeKey: "includePrivateNames",
     visibleTo: canSeePrivateNames,
     redactEcho: (row) => redactPrivateName(row as unknown as Client | Project) as unknown as Record<string, unknown>,
     // A non-owner round-trips a private row whose `name` is already the quoted code name and whose
@@ -151,4 +160,17 @@ export function visibilityForRole(role: Role | null): SanitizeWriteOptions {
     vis[policy.visKey] = role !== null && policy.visibleTo(role);
   }
   return vis;
+}
+
+/** Project the policy catalogue onto readSlice's include flags. Adding a gated-field policy now
+ * requires declaring its read projection beside its redact and pin behaviour. */
+export function readSliceVisibility(vis: SanitizeWriteOptions): ReadSliceFieldVisibility {
+  const includes: ReadSliceFieldVisibility = {
+    includeTimeOffNote: true,
+    includePrivateNames: true,
+  };
+  for (const policy of GATED_FIELD_POLICIES) {
+    includes[policy.includeKey] = vis[policy.visKey] !== false;
+  }
+  return includes;
 }

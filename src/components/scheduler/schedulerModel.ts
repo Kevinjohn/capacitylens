@@ -1,5 +1,11 @@
 import { laneTop, packLanes, rowHeightForLanes } from "../../lib/lanePacking";
-import { capacityAllocationsForMode, dayCapacity, utilizationFromCapacity, type DayCapacity } from "../../lib/capacity";
+import {
+  capacityAllocationsForMode,
+  dayCapacity,
+  overAllocatedInWindow,
+  utilizationFromCapacity,
+  type DayCapacity,
+} from "../../lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
 import { timeOffTypeLabels, resourceDisplayName } from "../../lib/metadata";
@@ -389,7 +395,16 @@ export function buildSchedulerModel({
           // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
           // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
           const utilization = isExternal ? 0 : utilizationFromCapacity(visDays.map(capacityOnDay));
-          const overSoon = !isExternal && overDays.some((date) => capacityOnDay(date).over);
+          const overSoon =
+            !isExternal &&
+            overAllocatedInWindow(
+              resource,
+              capacityAllocs,
+              resTimeOff,
+              overStart,
+              overEnd,
+              overDays.map(capacityOnDay),
+            );
           return {
             resource,
             rowHeight: rowHeightForLanes(laneCount, laneLayout),

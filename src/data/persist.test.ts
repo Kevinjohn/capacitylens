@@ -41,6 +41,17 @@ beforeEach(() => {
 });
 
 describe("attachPersistence", () => {
+  it("rejects a second live persistence owner", () => {
+    const detach = attachPersistence(useStore, new InMemoryDemoAdapter(), 0);
+    try {
+      expect(() => attachPersistence(useStore, new InMemoryDemoAdapter(), 0)).toThrow(
+        "Persistence is already attached.",
+      );
+    } finally {
+      detach();
+    }
+  });
+
   it("persists data changes (immediate mode)", async () => {
     const adapter = new InMemoryDemoAdapter();
     const detach = attachPersistence(useStore, adapter, 0);

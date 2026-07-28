@@ -25,6 +25,9 @@ class PersistenceCoordinator {
   private registration: PersistenceRegistration | null = null;
 
   attach(registration: PersistenceRegistration): () => void {
+    if (this.registration) {
+      throw new Error("Persistence is already attached.");
+    }
     this.registration = registration;
     return () => {
       if (this.registration === registration) this.registration = null;

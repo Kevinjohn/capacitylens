@@ -59,7 +59,13 @@ import {
   sanitizeWrite,
   ValidationError,
 } from "./validate";
-import { redactGatedEcho, tableHasGatedFields, visibilityForRole, type SanitizeWriteOptions } from "./fieldPolicy";
+import {
+  readSliceVisibility,
+  redactGatedEcho,
+  tableHasGatedFields,
+  visibilityForRole,
+  type SanitizeWriteOptions,
+} from "./fieldPolicy";
 import {
   builtinInternalWriteGuard,
   checkEntityWriteBody,
@@ -1669,8 +1675,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // drive the write-pin and read-echo, so the three can never disagree. OFF is trusted-local ⇒
         // include everything; otherwise each gated field is included iff the role may see it.
         const vis = authMode === "off" ? ALL_FIELDS_VISIBLE : visibilityForRole(role);
-        const includeTimeOffNote = vis.canSeeTimeOffNote !== false;
-        const includePrivateNames = vis.canSeePrivateNames !== false;
         // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
         // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
         // purge (admin+ with a fresh session) — the lifecycle-management tier — so an editor/viewer or
@@ -1691,9 +1695,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // includeInactive:false so readSlice drops them server-side (the same rule the client views
         // apply via useActiveScopedData). The P2.5a admin read passes true to retain them.
         return store.readSlice(accountId, {
-          includeTimeOffNote,
+          ...readSliceVisibility(vis),
           includeInactive: wantsInactive,
-          includePrivateNames,
         });
       }
       // No ?accountId=. The auth-on cross-tenant whole-read is now CLOSED (P1.13 — the P1.4
@@ -2321,18 +2324,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           return reply.code(400).send({ error: "Each op needs a known table and string id." });
         }
         if (op.method === "PUT") {
-          if (!op.row || typeof op.row !== "object" || Array.isArray(op.row) || op.row.id !== op.id) {
-            return reply.code(400).send({
-              error: "Each PUT op needs a row whose id matches the op id.",
-            });
-          }
-          if (syncOrder && typeof op.row.updatedAt !== "string") {
+          const rejection = checkEntityWriteBody("replace", op.table, op.row, op.id, isScopedTable(op.table));
+          if (rejection) return reply.code(rejection.status).send({ error: rejection.error });
+          const row = op.row as Record<string, unknown>;
+          if (syncOrder && typeof row.updatedAt !== "string") {
             return reply.code(400).send({
               error: "An ordered PUT op needs a string updatedAt revision.",
             });
-          }
-          if (isScopedTable(op.table) && typeof op.row.accountId !== "string") {
-            return reply.code(400).send({ error: "A scoped PUT op needs a string accountId." });
           }
         } else {
           if (isLifecycleEntity(op.table)) {

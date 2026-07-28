@@ -201,6 +201,11 @@ describe("isWeekendAware", () => {
   it("is true for a genuine partial week (both boundaries cleared)", () => {
     expect(isWeekendAware([1, 2, 3, 4, 5], false)).toBe(true);
   });
+
+  it("uses distinct weekdays when malformed input repeats a day", () => {
+    expect(isWeekendAware([0, 1, 2, 3, 4, 5, 5], false)).toBe(true);
+    expect(isWeekendAware([0, 1, 2, 3, 4, 5, 6, 6], false)).toBe(false);
+  });
 });
 
 describe("countWorkingDays", () => {
@@ -255,13 +260,8 @@ describe("endDateForWorkingDays", () => {
     expect(endDateForWorkingDays("2026-06-01", 5, [])).toBe("2026-06-05");
   });
 
-  it("falls back to the raw calendar span at length >= 7, even with duplicate weekday entries", () => {
-    // A length-7 workingDays array is normally the full week (matches every day), so
-    // the fallback and the working-day scan happen to agree — UNLESS the array is
-    // degenerate (all entries the same weekday), which still has length 7 but only
-    // actually works ~1 day in 7. That's exactly what distinguishes ">= 7" (fallback,
-    // start + 4) from a scan that would otherwise land 4 WEEKS later.
-    expect(endDateForWorkingDays("2026-06-01", 5, [1, 1, 1, 1, 1, 1, 1])).toBe("2026-06-05");
+  it("uses distinct weekdays rather than array length for duplicate-bearing input", () => {
+    expect(endDateForWorkingDays("2026-06-01", 5, [1, 1, 1, 1, 1, 1, 1])).toBe("2026-06-29");
   });
 
   it("lands on the count-th working day at/after start", () => {

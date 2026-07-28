@@ -234,6 +234,8 @@ export function overAllocatedInWindow(
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,
+  precomputedCapacity?: Iterable<DayCapacity>,
 ): boolean {
-  return capacityForWindow(resource, allocations, timeOff, start, end).some((day) => day.over);
+  const days = precomputedCapacity ?? capacityForWindow(resource, allocations, timeOff, start, end);
+  return Array.from(days).some((day) => day.over);
 }

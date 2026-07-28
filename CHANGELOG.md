@@ -10,6 +10,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Revalidated shared authentication sessions when a background tab returns to the foreground, so
+  sign-out or revocation in another tab cannot leave stale tenant controls visible indefinitely.
+- Hardened persistence boundaries against cross-company snapshots, raw server error bodies,
+  divergent batch validation, duplicate live persistence owners and incomplete response receipts.
+- Consolidated scheduler geometry test helpers and snap timing around semantic hooks, reducing
+  brittle coupling to Tailwind classes and duplicated pixel constants.
+- Made lifecycle, account-failure, scoped-reference, import-field and read-slice policies more
+  exhaustive so future entity or field additions fail compilation or focused conformance tests.
+- Kept duplicate working-weekday input consistent across date calculations and removed duplicated
+  brand and import-notice strings from the translation catalogue.
+
 ## [0.27.1-alpha.1] — 2026-07-28
 
 This patch adopts Prettier as the repository's formatter and applies it everywhere in one pass.

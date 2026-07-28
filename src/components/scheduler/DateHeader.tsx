@@ -103,7 +103,7 @@ export const DateHeader = memo(function DateHeader({
           real height counts toward the header — otherwise the date + weekday lines
           overflow the row and get clipped — while still filling any slack height. */}
       {showDays ? (
-        <div className="flex flex-auto">
+        <div data-testid="scheduler-day-tier" className="flex flex-auto">
           {days.map((d, i) => {
             const wd = weekdayOf(d);
             const weekStart = wd === weekStartsOn;

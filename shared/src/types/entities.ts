@@ -407,5 +407,5 @@ export function emptyAppData(): AppData {
  *  bootstrap (src/data/persist.ts) and the server's init-marker backfill
  *  (server/src/db.ts) so the two "is this empty?" checks can never drift. */
 export function isEmpty(data: AppData): boolean {
-  return Object.values(data).every((v) => Array.isArray(v) && v.length === 0);
+  return APP_DATA_KEYS.every((key) => data[key].length === 0);
 }

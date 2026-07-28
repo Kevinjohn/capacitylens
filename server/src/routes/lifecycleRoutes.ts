@@ -64,11 +64,12 @@ interface TransitionResult {
 }
 
 interface TransitionSpec {
-  path: "archive" | "unarchive" | "delete";
+  path: "archive" | "unarchive" | "delete" | "purge";
   permission: Action;
   protectedVerb: string;
   auditAction: AuditRecord["action"];
-  apply: (row: LifecycleRow, entity: LifecycleEntityKey) => TransitionResult;
+  apply: (row: LifecycleRow, entity: LifecycleEntityKey, accountId: string, id: string) => TransitionResult | null;
+  successStatus?: 200 | 204;
 }
 
 /** Register one lifecycle mutation through the shared guard→read→transition→write→audit pipeline. */
@@ -102,8 +103,8 @@ function registerTransition(
         id,
         changedFields: [],
       };
-      let result!: TransitionResult;
-      let response!: Record<string, unknown>;
+      let result: TransitionResult | null = null;
+      let response: Record<string, unknown> | undefined;
       dependencies.commit(reply, auditRecord, () => {
         const row = dependencies.store.readLifecycleRow(accountId, rawEntity, id);
         if (!row) throw new LifecycleResponseError(404, "Not found");
@@ -115,7 +116,8 @@ function registerTransition(
           );
         }
 
-        result = spec.apply(row, rawEntity);
+        result = spec.apply(row, rawEntity, accountId, id);
+        if (result === null) return;
         dependencies.store.writeLifecycleRow(accountId, rawEntity, result.next);
         const scrubbed = result.scrubResourceNotes ? dependencies.store.scrubResourceNotes(accountId, id) : null;
         auditRecord.changedFields = [
@@ -127,6 +129,7 @@ function registerTransition(
         // product/audit transaction so a failure cannot turn a committed transition into a 5xx.
         response = dependencies.redact(req, rawEntity, result.next as unknown as Record<string, unknown>, accountId);
       });
+      if (spec.successStatus === 204) return reply.code(204).send();
       return reply.code(200).send(response);
     } catch (error) {
       return lifecycleFailure(reply, error, dependencies.fail);
@@ -177,54 +180,20 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     },
   });
 
-  app.post("/api/:entity/:id/purge", (req, reply) => {
-    const { entity: rawEntity, id } = req.params as {
-      entity: string;
-      id: string;
-    };
-    if (!isLifecycleEntityKey(rawEntity)) {
-      return reply.code(404).send({ error: `Unknown entity: ${rawEntity}` });
-    }
-    const body = (req.body ?? {}) as { accountId?: unknown };
-    if (typeof body.accountId !== "string" || body.accountId.length === 0) {
-      return reply.code(400).send({ error: "accountId is required." });
-    }
-    const accountId = body.accountId;
-    if (!dependencies.authorize(req, reply, accountId, "purge")) return;
-
-    try {
-      dependencies.commit(
-        reply,
-        {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: "purge",
-          entity: rawEntity,
-          id,
-          changedFields: [],
-        },
-        () => {
-          const row = dependencies.store.readLifecycleRow(accountId, rawEntity, id);
-          if (!row) throw new LifecycleResponseError(404, "Not found");
-          if (rawEntity === "clients" && isBuiltinClient(row as Client)) {
-            throw new LifecycleResponseError(409, "The built-in Internal client cannot be purged.", "protected_entity");
-          }
-          if (!canPurge(row, new Date().toISOString())) {
-            throw new LifecycleResponseError(
-              409,
-              "Cannot purge: must be a soft-deleted tombstone at least 30 days old.",
-            );
-          }
-
-          if (!dependencies.store.purgeLifecycleRow(accountId, rawEntity, id)) {
-            throw new LifecycleResponseError(404, "Not found");
-          }
-        },
-      );
-      return reply.code(204).send();
-    } catch (error) {
-      return lifecycleFailure(reply, error, dependencies.fail);
-    }
+  registerTransition(app, dependencies, {
+    path: "purge",
+    permission: "purge",
+    protectedVerb: "purged",
+    auditAction: "purge",
+    successStatus: 204,
+    apply: (row, entity, accountId, id) => {
+      if (!canPurge(row, new Date().toISOString())) {
+        throw new LifecycleResponseError(409, "Cannot purge: must be a soft-deleted tombstone at least 30 days old.");
+      }
+      if (!dependencies.store.purgeLifecycleRow(accountId, entity, id)) {
+        throw new LifecycleResponseError(404, "Not found");
+      }
+      return null;
+    },
   });
 }

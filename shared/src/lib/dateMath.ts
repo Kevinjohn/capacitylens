@@ -146,7 +146,9 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
  *  drag math (gestureMath) and the days/hours conversions (schedulingDays) so the
  *  two can never disagree on what "a working day" means. */
 export function isWeekendAware(workingDays: Weekday[] | undefined, ignoreWeekends: boolean | undefined): boolean {
-  return !ignoreWeekends && !!workingDays && workingDays.length > 0 && workingDays.length < 7;
+  if (ignoreWeekends || !workingDays) return false;
+  const distinctWorkingDays = new Set(workingDays).size;
+  return distinctWorkingDays > 0 && distinctWorkingDays < 7;
 }
 
 /** Does an allocation place work on a given day? A weekend-aware allocation works ONLY the resource's
@@ -198,10 +200,10 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
  *  weekdays keeps a degenerate array like [1,1,1] (length 3, but only Mondays) correct. */
 export function endDateForWorkingDays(start: ISODate, count: number, workingDays: Weekday[]): ISODate {
   if (!Number.isSafeInteger(count)) throw new RangeError("count must be a safe integer.");
-  if (count <= 0 || workingDays.length === 0 || workingDays.length >= 7) {
+  const working = new Set(workingDays);
+  if (count <= 0 || working.size === 0 || working.size >= 7) {
     return addDaysISO(start, Math.max(0, count - 1));
   }
-  const working = new Set(workingDays);
   const d = working.size; // distinct working weekdays, 1..6 in this branch
   const startWd = weekdayOf(start);
   const fullWeeks = Math.floor((count - 1) / d);

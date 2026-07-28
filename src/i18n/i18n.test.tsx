@@ -1,10 +1,9 @@
 // i18n scaffolding tests (P1.5.1) — Paraglide (inlang) compile-time, type-safe messages.
 //
-// ACCEPTANCE — "a removed key fails the build": the demonstrator key `app_name` is referenced in
-// type-checked code (this test + the AppShell wordmark). Deleting `app_name` from messages/en.json
-// then recompiling (`pnpm run paraglide:compile`) removes the generated `m.app_name` function, so every
-// `m.app_name()` becomes a tsc error and `pnpm run build`/`gate` fails. That compile-time safety is the
-// whole point of choosing Paraglide; these runtime tests are the render/value smoke that rides on top.
+// ACCEPTANCE — "a removed key fails the build": the demonstrator key `form_cancel` is referenced
+// in type-checked code. Deleting it and recompiling removes the generated function, so TypeScript and
+// the green gate fail. Brand identity is deliberately single-sourced from shared/brand instead of
+// being duplicated in the translation catalogue.
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -17,16 +16,15 @@ describe("i18n scaffolding (Paraglide)", () => {
     expect(locales).toContain("en");
   });
 
-  it("resolves the demonstrator message to the brand string", () => {
-    // Value MUST equal APP_NAME from shared/brand so there is no brand drift / no visible change.
-    expect(m.app_name()).toBe("CapacityLens");
+  it("resolves the demonstrator message", () => {
+    expect(m.form_cancel()).toBe("Cancel");
   });
 
   it("renders a typed message in a component", () => {
     function Wordmark() {
-      return <div>{m.app_name()}</div>;
+      return <div>{m.form_cancel()}</div>;
     }
     render(<Wordmark />);
-    expect(screen.getByText("CapacityLens")).toBeInTheDocument();
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
   });
 });

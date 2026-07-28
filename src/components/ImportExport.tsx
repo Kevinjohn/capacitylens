@@ -282,12 +282,9 @@ export function ImportExport() {
         if (outcome === "failed" || outcome === "skipped" || outcome === "unattached") {
           safeToResume = false; // leave persistence suspended until a reload performs a clean boot read
           keepBlockedUntilReload = true;
-          setNotice("The import result could not be verified. Reload this page before making changes.", "error");
+          setNotice(m.data_import_unknown_reload_required(), "error");
         } else {
-          setNotice(
-            "The import outcome was unknown, so the latest server data was reloaded. Check the imported records before continuing.",
-            "warning",
-          );
+          setNotice(m.data_import_unknown_reloaded(), "warning");
         }
       } finally {
         if (safeToResume) resumeWrites({ dropParkedEdits: committed });
