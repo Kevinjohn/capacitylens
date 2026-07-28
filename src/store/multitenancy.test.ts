@@ -31,6 +31,21 @@ describe("scopeData", () => {
     expect(scoped.accounts).toEqual([]);
   });
 
+  it("deliberately excludes company settings from the portable scoped slice", () => {
+    const source = twoAccountData();
+    source.accounts[0] = {
+      ...source.accounts[0],
+      schedulingMode: "days",
+      placeholdersEnabled: true,
+      internalColourMode: "palette",
+    };
+
+    const exported = scopeData(source, "a1");
+
+    expect(exported.accounts).toEqual([]);
+    expect(exported.clients.map((client) => client.id)).toEqual(["c1"]);
+  });
+
   it("returns empty slices for an unknown account", () => {
     const scoped = scopeData(twoAccountData(), "nope");
     expect(scoped.clients).toEqual([]);

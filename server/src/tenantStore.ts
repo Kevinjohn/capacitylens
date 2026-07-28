@@ -171,8 +171,9 @@ export interface TenantStore {
   /**
    * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
    * account's scoped tables; the global `accounts` row and every other account are left untouched.
-   * This is for an independently complete replacement. If `next` came from a prior slice read, use
-   * {@link transact}; separating that read from this destructive replacement is unsafe.
+   * This is a complete replacement: an owned row omitted from `next` is deleted. If `next` came
+   * from a prior slice read, use {@link transact}; separating that read from this destructive
+   * replacement is unsafe.
    */
   write(accountId: string, next: AppData): void;
   /**

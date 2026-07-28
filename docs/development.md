@@ -43,6 +43,10 @@ pnpm run mutation
 coverage floors, rejects any new measured executable module with zero covered lines, and builds the
 SPA. A short exact-file allow-list records existing zero-coverage debt; broad patterns are forbidden
 so unrelated new files cannot inherit an exception.
+The enforced browser/shared coverage floors are 84% statements, 78% branches, 85% functions and
+86% lines. The main-entry raw and gzip byte budgets are defined beside the checker in
+`scripts/check-build-size.mjs`; those checked constants, rather than prose copied here, are the
+authoritative size limits.
 The build also enforces a budget on the main JavaScript entry chunk; route-level lazy chunks remain
 separate so authentication and settings code do not inflate first load unnoticed. The checker
 requires exactly one JavaScript module entry in the built HTML and refuses to guess if another entry
@@ -86,9 +90,9 @@ different pass/fail results; add an intended source file to Git before relying o
 The mutation configuration deliberately measures the pure shared/scheduler/browser helper layer.
 React hooks are excluded because their effect and event orchestration is exercised by component and
 cross-browser tests rather than isolated pure-function mutation. The mutation score is not evidence
-for the Fastify/Better Auth implementation, which is covered by the separate server integration
-gate. Review surviving, timed-out and uncovered mutants rather than accepting the aggregate score
-alone. The latest triage is recorded in
+for the Zustand store, React orchestration, or the Fastify/Better Auth implementation; those are
+covered by focused unit/component tests, the server integration gate and E2E. Review surviving,
+timed-out and uncovered mutants rather than accepting the aggregate score alone. The latest triage is recorded in
 [`docs/security/mutation-review-2026-07-18.md`](security/mutation-review-2026-07-18.md).
 
 Cross-browser commands:

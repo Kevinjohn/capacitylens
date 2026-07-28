@@ -143,7 +143,11 @@ owner-confidential client/project identities; **Export JSON** remains available 
 role tiers and is server-redacted for non-owners. The local demo and auth-off deploy remain
 owner-equivalent. Import repair applies the same erasure privacy rule as an interactive resource
 deletion: a deleted person is anonymised and notes on their dependent allocations and time off are
-removed before the replacement slice is stored.
+removed before the replacement slice is stored. The portable file contains the active company's
+scoped planning records but deliberately omits the company row itself. Import re-stamps those
+records into the destination company and does not replace its identity, calendar, language,
+scheduling mode or visibility settings. Export → import is a planning-data transfer, not a
+byte-for-byte company clone.
 The company block —
 the active company name plus a **Switch company** control (which returns to the company picker) —
 is pinned to the **bottom** of the sidebar, below a divider beneath the Data section. (It used to
@@ -380,7 +384,8 @@ as `'en'` on the Account.)
 **Placeholders (per-account, default OFF).** Settings → **Placeholders** has a single switch
 **Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
 It's a **per-account** setting (`placeholdersEnabled` on the Account, absent = off, toggled via
-`updateAccount` — mirroring `disciplinesEnabled`; carried in export like other account settings). **Off** (the out-of-the-box state) → every placeholder is hidden:
+`updateAccount` — mirroring `disciplinesEnabled`; synced but omitted from the scoped planning-data
+export). **Off** (the out-of-the-box state) → every placeholder is hidden:
 no row in the schedule (and no contribution to utilisation), no entry in the assignee picker or
 command palette, and the Resources page hides its _Placeholders_ section + _Add placeholder_ button.
 The **Time off** views honour it too: the Time-off list hides any time-off entry whose resource is a
@@ -402,7 +407,7 @@ activity-first layout regardless of these toggles.
 **Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
 **Grey** (the default) or **Use colour palette**. It is stored as `internalColourMode` on the
-Account (absent = `grey`, syncs and exports). In **Grey** mode, allocation bars for `internal`
+Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Grey** mode, allocation bars for `internal`
 activities and for projects owned by the built-in **Internal** client use the neutral grey, and an
 Internal-owned project's saved colour is overridden by grey in the Projects list. The project
 form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
@@ -416,7 +421,7 @@ link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline*
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle — and
 the schedule then renders **flat** (no `discipline-group` bands). It's stored on the account
-(`disciplinesEnabled`, syncs + exports), so it applies to everyone on that company; the discipline
+(`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
 **Clear device data (Settings → Device data).** A maintenance action near the bottom of Settings:

@@ -405,9 +405,10 @@ export interface StoreState {
   // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
   // delete,purge}, P2.5a) directly, so the admin view only invokes these in the demo build. They COMPOSE
   // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts) — the transition logic and the
-  // soft-delete obfuscation string are NEVER re-derived here. Same contract as the CRUD: undoable,
-  // viewer-no-op, stale-id-no-op, and the transition THROWS a display-safe Error on an invalid source
-  // state (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
+  // soft-delete obfuscation string are NEVER re-derived here. Archive/unarchive are undoable;
+  // soft-delete/purge clear both history stacks so erased data cannot be recovered from memory.
+  // All four are viewer-no-op and stale-id-no-op, and invalid transitions throw a display-safe Error
+  // (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
   /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow — `archive` throws
    *  if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
   archiveEntity: (entity: LifecycleEntity, id: ID) => void;

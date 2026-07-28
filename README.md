@@ -108,12 +108,13 @@ Read the details in [authentication](docs/authentication.md) and [offline access
 ## Checks for contributors
 
 ```bash
-pnpm run gate         # client typecheck, lint, tests, coverage and production build
-pnpm run gate:server  # server/shared typecheck and tests
+pnpm run gate         # formatting, generated i18n, typecheck, lint, coverage, zero-coverage checks and build budget
+pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and migration/architecture checks
 pnpm run e2e          # Chromium demo, database and authentication flows
 ```
 
-See [development](docs/development.md) for cross-browser, mutation and GitHub Actions checks.
+See [development](docs/development.md#verification) for the enforced coverage/build numbers,
+cross-browser checks, mutation scope and GitHub Actions checks.
 
 ## Documentation
 

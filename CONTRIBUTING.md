@@ -37,6 +37,18 @@ pnpm run e2e:oidc
 Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
 authentication shape or Better Auth version.
 
+### Account-security versioning
+
+When account-security behavior changes, update the version at the boundary that owns the rule:
+
+- portable identity behavior: the account contract and every `IdentityPort` conformance fixture;
+- database/auth-library behavior: the minimum-security or schema version and its migration/rehearsal evidence;
+- browser/server propagation: the shared command version and the tests proving every implementation accepts it.
+
+The pull-request description should name the changed version and link the conformance, migration,
+or propagation test that proves all implementations moved together. If no version changes, explain
+why the change preserves the existing contract.
+
 ## Formatting
 
 Prettier owns whitespace, quoting and line breaks. The only project setting is `printWidth: 120`;

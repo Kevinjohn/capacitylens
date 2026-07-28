@@ -63,7 +63,9 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   carry an adjacent comment explaining why. Before re-pulling any installed primitive with
   `pnpm dlx shadcn add`, use the CLI dry-run/diff workflow and re-merge local behavior; never
   overwrite blindly. In particular, `button.tsx` adds `danger-soft`, custom icon sizes and retints
-  `default`, while `badge.tsx` carries AA-tuned `danger`/`warn` variants.
+  `default`; `badge.tsx` carries AA-tuned `danger`/`warn` variants; and `dialog.tsx`,
+  `alert-dialog.tsx`, `tooltip.tsx`, `toggle-group.tsx` and `alert.tsx` carry deliberate local
+  behavior or variants documented beside the extension.
 - Use the z-index tokens in `src/index.css` rather than ad hoc `z-[N]` values for global layers.
 
 ## Documentation

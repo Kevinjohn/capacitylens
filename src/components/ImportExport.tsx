@@ -42,8 +42,9 @@ function summarize(data: AppData): string {
 }
 
 export function ImportExport() {
-  // Export only the active account's data (the `accounts` list itself is omitted,
-  // since import re-stamps everything into whichever account is active).
+  // Export only the active account's planning data. The `accounts` list itself is deliberately
+  // omitted: import re-stamps records into whichever account is active and preserves that
+  // destination's identity, calendar, language, scheduling and visibility settings.
   // DELIBERATELY the RAW useScopedData, NOT useActiveScopedData (P2.4): the export must NOT apply the
   // view-only active filter — it serializes whatever the store actually holds. In the DEMO build the store
   // is the whole device blob, so archived + soft-deleted rows ARE retained in the backup. In SERVER

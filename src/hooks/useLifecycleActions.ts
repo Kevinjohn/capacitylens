@@ -71,9 +71,10 @@ export interface LifecycleActions {
  * failed save, the lifecycle change is already committed server-side — it appears on the next
  * successful refresh; preserving the un-persisted edit wins.)
  *
- * The bare-reload fallback runs ONLY when no orchestrator is attached (unit tests, pre-bootstrap) —
- * with no orchestrator there is no debounce/retry state to clobber, so it is safe there. The demo
- * build never calls this (its store actions already mutate `data`).
+ * The bare-reload fallback runs when no orchestrator is attached: normally unit tests and
+ * pre-bootstrap, but also production after a bootstrap hard failure leaves server persistence
+ * unattached. With no orchestrator there is no debounce/retry state to clobber. The demo build
+ * never calls this (its store actions already mutate `data`).
  */
 async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutcome, "unattached">> {
   // STALE-TENANT GUARD: the lifecycle POST may resolve AFTER the user switched company, so re-read

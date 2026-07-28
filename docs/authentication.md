@@ -110,6 +110,9 @@ The exact issuer and discovery document are required. Discovery is the sole auth
 authorization, token, JWKS and user-info endpoints; explicit endpoint overrides are rejected. HTTP
 is accepted only for loopback test providers. URL credentials, malformed provider ids, missing
 `openid`, symmetric-only signing metadata and non-HTTPS remote endpoints refuse operation.
+The registered `SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL` and
+`SMALLSASS_ACCOUNT_OIDC_TOKEN_URL` names exist only to map bounded legacy configuration; every
+named deployment profile rejects them. Do not set them for a supported deployment.
 
 The relying-party path provides:
 

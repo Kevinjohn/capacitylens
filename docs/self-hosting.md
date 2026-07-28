@@ -181,6 +181,9 @@ removed, and explicit authorization/token endpoint overrides are rejected. Use
 self-hosted choice. Requiring MFA at the IdP remains strongly recommended; after testing that
 policy and its recovery path, set `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED=1`. Named Google, Microsoft
 and GitHub providers remain experimental; strict OIDC is the supported provider-neutral path.
+The compatibility register also recognises `SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL` and
+`SMALLSASS_ACCOUNT_OIDC_TOKEN_URL`, but named profiles reject both; they are not supported
+self-hosting configuration.
 After the first successful startup, the configured generic provider id and issuer are an immutable
 pair. Changing either side refuses startup to protect existing `(issuer, subject)` correlations;
 plan an explicit reviewed identity migration instead of editing those values in place.

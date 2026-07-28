@@ -13,7 +13,7 @@ account-conformance, migration-rehearsal, cross-browser and strict-OIDC jobs on 
 - [ ] E2E (`pnpm run e2e`) passes if UI behaviour changed
 - [ ] Strict OIDC E2E (`pnpm run e2e:oidc`) passes if identity-provider, login, callback, invitation-admission or session behavior changed
 - [ ] `pnpm run rehearse:migrations` passes if database migrations, persisted auth shape or Better Auth changed
-- [ ] Account-security changes update the applicable contract, conformance or minimum-security version and propagation evidence
+- [ ] Account-security changes update the applicable version and propagation evidence described in [CONTRIBUTING.md](../CONTRIBUTING.md#account-security-versioning)
 - [ ] Kept the PR small and focused (see CONTRIBUTING.md)
 - [ ] No new dependencies without discussion
 - [ ] Added a changelog entry for user-visible behavior
