@@ -1,0 +1,10 @@
+# Commits that changed formatting only. `git blame` skips these so it keeps
+# pointing at the commit that last changed the code's meaning.
+#
+# Enable locally (once per clone):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub honours this file automatically.
+
+# style: apply Prettier across the repository
+20a9dcb9174b99e144c36181fb71724da18d3859
