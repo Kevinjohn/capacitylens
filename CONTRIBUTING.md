@@ -37,6 +37,15 @@ pnpm run e2e:oidc
 Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
 authentication shape or Better Auth version.
 
+## Formatting
+
+Prettier owns whitespace, quoting and line breaks. The only project setting is `printWidth: 120`;
+everything else is stock. Run `pnpm run format` before committing — `pnpm run gate` fails on
+unformatted files.
+
+Style is not reviewable: if Prettier produced it, it is correct. Reach for `// prettier-ignore`
+only when a hand-aligned block genuinely reads better, and say why in the patch.
+
 Run the applicable cross-browser suite for interaction or layout changes:
 
 ```bash

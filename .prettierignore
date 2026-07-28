@@ -1,0 +1,21 @@
+# Generated output
+dist
+build
+coverage
+**/coverage/**
+playwright-report
+test-results
+reports
+.stryker-tmp
+
+# Generated source — Paraglide compiles this from messages/*.json
+src/paraglide
+
+# Lockfiles and vendored patches
+pnpm-lock.yaml
+patches
+
+# Agent scratch space
+.claude/worktrees
+.claude/workflows
+to-my-siblings/reference-kit
