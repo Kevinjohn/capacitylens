@@ -10,6 +10,55 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.1-alpha.1] — 2026-07-28
+
+This patch adopts Prettier as the repository's formatter and applies it everywhere in one pass.
+There is no application, application-data, export-schema or database-schema change: the reformat is
+mechanical, and the single behavioural change is to a test that was asserting on formatting rather
+than on the invariant it guards. Contributors now spend no review attention on whitespace, quoting
+or line breaks, and the gate rejects an unformatted tree in seconds rather than after the suite.
+
+### Added
+
+- Adopted Prettier for every supported file type in the repository, configured with stock defaults
+  and a single project setting, `printWidth: 120`. The codebase already matched Prettier's defaults
+  for arrow parentheses, JSX quoting and trailing commas, so the line width is the only choice worth
+  stating.
+- Added `pnpm run format` and `pnpm run format:check`, and a Formatting section in the contributor
+  guide recording that style is no longer reviewable: if Prettier produced it, it is correct.
+- Added `.git-blame-ignore-revs` naming the reformat commit, so `git blame` continues to attribute
+  each line to the commit that last changed its meaning. GitHub honours the file automatically;
+  local clones opt in once with `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+
+### Changed
+
+- Applied Prettier across 639 files covering the browser application, shared domain, SQLite server,
+  end-to-end specs, build scripts, workflows and documentation, as an isolated mechanical commit
+  that changes no behaviour.
+- Made `format:check` part of both gates. It runs early, so an unformatted tree fails before the
+  test suite rather than after it; `gate:server` checks the server and shared packages only, since
+  it is also run on its own.
+- Excluded generated and vendored paths from formatting, including the compiled Paraglide message
+  output, the lockfile, dependency patches, build output and coverage reports.
+
+### Fixed
+
+- Fixed account-boundary architecture conformance checks that scanned source text for route paths
+  and policy thresholds wrapped in hardcoded single quotes. They tracked the formatter rather than
+  the invariant, so a change of quote style would have let the route-ownership assertions pass by
+  absence instead of by proof. They now match either quote style.
+
+### Verification
+
+- Certified the reformat against the complete local suite on Node 24: both gates, the portable
+  account-boundary conformance check, migration rehearsal, and the full browser matrix — 195
+  Chromium tests including the database- and authentication-backed projects, 179 on WebKit and 179
+  on Firefox — plus the strict OIDC suite against the digest-pinned reference provider. Mutation
+  certification was not re-run, as no production logic changed.
+- Confirmed the formatted tree is a fixed point rather than merely formatted once: an initial pass
+  left fourteen files that a second pass still altered, so formatting was run to convergence before
+  the commit was recorded.
+
 ## [0.27.0-alpha.1] — 2026-07-28
 
 This minor release consolidates verified product-review fixes across the application. It strengthens
@@ -1928,7 +1977,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.1-alpha.1...HEAD
+[0.27.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.0-alpha.1...v0.27.1-alpha.1
 [0.27.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.26.0-alpha.1...v0.27.0-alpha.1
 [0.26.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.25.0-alpha.9...v0.26.0-alpha.1
 [0.25.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.1-alpha.2...v0.25.0-alpha.2
