@@ -30,6 +30,7 @@ test.describe("Feature flows", () => {
     await bars.filter({ hasText: "Brand System" }).click();
     await expect(page.getByRole("dialog", { name: "Edit allocation" })).toBeVisible();
     await page.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
     await expect(bars).toHaveCount(n - 1);
 
     // Undo here uses the global ⌘Z shortcut (AppShell); the toolbar Undo button path is

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { useStore } from "../../store/useStore";
@@ -793,6 +793,7 @@ describe("AllocationModal edit", () => {
     try {
       render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
       await user.click(screen.getByRole("button", { name: "Delete" }));
+      await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete" }));
 
       expect(deleteAllocation).toHaveBeenCalledWith(allocation.id);
       expect(onClose).not.toHaveBeenCalled();

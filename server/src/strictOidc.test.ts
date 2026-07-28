@@ -102,7 +102,10 @@ describe("strictOidcUserInfo", () => {
     );
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it("verifies the signed ID token and maps a subject-bound verified profile", async () => {
     const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
@@ -589,6 +592,36 @@ describe("strictOidcUserInfo", () => {
     const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
     await expect(client.metadata()).rejects.toThrow("malformed JSON");
     await expect(client.metadata()).resolves.toMatchObject({ issuer });
+    expect(attempts).toBe(2);
+  });
+
+  it("revalidates discovery metadata after the bounded cache lifetime", async () => {
+    let now = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    let attempts = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        attempts += 1;
+        return Response.json({
+          ...requiredDiscoveryCapabilities,
+          issuer,
+          authorization_endpoint: `${issuer}/auth`,
+          token_endpoint: `${issuer}/token`,
+          jwks_uri: jwksUrl,
+          userinfo_endpoint: userInfoUrl,
+          id_token_signing_alg_values_supported: ["RS256"],
+        });
+      }),
+    );
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
+
+    await client.metadata();
+    now += 4 * 60 * 1_000;
+    await client.metadata();
+    expect(attempts).toBe(1);
+    now += 2 * 60 * 1_000;
+    await client.metadata();
     expect(attempts).toBe(2);
   });
 

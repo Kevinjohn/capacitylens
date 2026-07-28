@@ -723,7 +723,8 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     expect(sink.append(rec("r3"))).toBe(true);
     expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rec("r2")) + "\n");
     expect(readFileSync(file, "utf8")).toBe(JSON.stringify(rec("r3")) + "\n");
-    expect(log).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenLastCalledWith(expect.stringContaining("audit log rotated"));
     expect(sink.degraded).toBe(false);
   });
 

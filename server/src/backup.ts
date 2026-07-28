@@ -66,7 +66,8 @@ const UTC_SNAPSHOT_RE = /^capacitylens-utc-\d{8}-\d{6}(-\d{3})?\.db$/;
 // In-progress writes go to `<snapshot>.tmp` and are renamed on success, so a crash mid-write
 // can never leave a torn file behind a valid snapshot name. Deliberately does NOT match
 // SNAPSHOT_RE (no `.db$`), so prune() and the stamp seeding both ignore temp files.
-const TMP_RE = /^capacitylens-(?:utc-)?\d{8}-\d{6}(-\d{3})?\.db\.tmp$/;
+const TMP_RE =
+  /^(?:capacitylens-(?:utc-)?\d{8}-\d{6}(?:-\d{3})?\.db|capacitylens-pre-migration-v\d+-to-v\d+\.db)\.tmp$/;
 
 // Only sweep temp files at least this old at start-up. A snapshot takes seconds, so one hour is
 // generous headroom for "abandoned by a crashed process" without racing a *live* writer during a
@@ -78,17 +79,20 @@ export const MAX_BACKUP_INTERVAL_MIN = 35_000;
 export const MAX_BACKUP_KEEP = 10_000;
 
 /** Fail-closed env parse: no CAPACITYLENS_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
- *  knobs are only read when backups are on; junk falls back to the documented defaults. */
+ *  knobs are only read when backups are on; junk/low values use the documented defaults while
+ *  over-limit values clamp to the published operator-safety ceiling. */
 export function parseBackupConfig(env: Record<string, string | undefined>): BackupConfig | null {
   const dir = env.CAPACITYLENS_BACKUP_DIR;
   if (!dir) return null;
   const boundedInteger = (raw: string | undefined, fallback: number, max: number) => {
     const n = Number(raw);
-    return Number.isSafeInteger(n) && n >= 1 && n <= max ? n : fallback;
+    if (!Number.isSafeInteger(n) || n < 1) return fallback;
+    return Math.min(n, max);
   };
   const boundedFloor = (raw: string | undefined, fallback: number, max: number) => {
     const floored = Math.floor(Number(raw));
-    return Number.isSafeInteger(floored) && floored >= 1 && floored <= max ? floored : fallback;
+    if (!Number.isSafeInteger(floored) || floored < 1) return fallback;
+    return Math.min(floored, max);
   };
   return {
     dir,

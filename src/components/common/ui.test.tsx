@@ -708,6 +708,18 @@ describe("ColorField", () => {
     expect(screen.getByRole("button", { name: colorName(RED) })).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("uses one tab stop and arrow keys to move through the swatch grid", async () => {
+    const user = userEvent.setup();
+    render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
+    const selected = screen.getByRole("button", { name: colorName(BLUE) });
+    const swatches = screen.getAllByRole("button").slice(1);
+    expect(swatches.filter((button) => button.tabIndex === 0)).toEqual([selected]);
+    selected.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(swatches[(swatches.indexOf(selected) + 1) % swatches.length]);
+  });
+
   it("closes the popup on an outside click", async () => {
     const user = userEvent.setup();
     render(

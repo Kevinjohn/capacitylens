@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { openDbConnection, planDatabaseMigrations } from "../src/db";
 import {
@@ -6,6 +5,7 @@ import {
   closeAccountCommandReconciliation,
   getAccountCommandByIdForReconciliation,
 } from "../src/accounts/state";
+import { secretDigest } from "../src/accounts/commands";
 
 const [databasePath, applicationId, commandId, operatorReference] = process.argv.slice(2);
 if (!databasePath || !applicationId || !commandId || !operatorReference) {
@@ -35,7 +35,24 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
     if (record.status !== "reconciliation_required") {
       throw new Error(`Command is ${record.status}; only reconciliation_required commands can be closed.`);
     }
-    const referenceHash = createHash("sha256").update(operatorReference).digest("hex");
+    let repairKind: string | null = null;
+    try {
+      const result = record.resultJson ? (JSON.parse(record.resultJson) as { repair?: { kind?: unknown } }) : null;
+      repairKind = typeof result?.repair?.kind === "string" ? result.repair.kind : null;
+    } catch {
+      // The persisted failure code and status remain printable even if legacy result metadata is malformed.
+    }
+    console.log(
+      JSON.stringify({
+        commandId: record.commandId,
+        operation: record.operation,
+        status: record.status,
+        createdAt: record.createdAt,
+        failureCode: record.failureCode,
+        repairKind,
+      }),
+    );
+    const referenceHash = secretDigest("reconciliation-reference", operatorReference);
     if (!closeAccountCommandReconciliation(db, applicationId, commandId, referenceHash)) {
       throw new Error("The command changed while reconciliation was being closed; inspect it again.");
     }

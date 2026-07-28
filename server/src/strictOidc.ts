@@ -146,10 +146,13 @@ export function createStrictOidcClient(input: {
   clientSecret?: string;
   discoveryUrl: string;
 }): StrictOidcClient {
+  const metadataTtlMs = 5 * 60 * 1_000;
   let metadataPromise: Promise<StrictOidcMetadata> | null = null;
+  let metadataCache: { value: StrictOidcMetadata; expiresAt: number } | null = null;
   let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
   const metadata = async (): Promise<StrictOidcMetadata> => {
+    if (metadataCache && Date.now() < metadataCache.expiresAt) return metadataCache.value;
     if (!metadataPromise)
       metadataPromise = (async () => {
         const body = object(await json(input.discoveryUrl));
@@ -204,10 +207,11 @@ export function createStrictOidcClient(input: {
           allowed_signing_algorithms: allowedSigningAlgorithms,
           token_endpoint_authentication: tokenEndpointAuthentication,
         };
+        if (metadataCache && metadataCache.value.jwks_uri !== result.jwks_uri) jwks = null;
+        metadataCache = { value: result, expiresAt: Date.now() + metadataTtlMs };
         return result;
-      })().catch((error) => {
+      })().finally(() => {
         metadataPromise = null;
-        throw error;
       });
     return metadataPromise;
   };

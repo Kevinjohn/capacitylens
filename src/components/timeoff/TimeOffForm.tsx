@@ -40,7 +40,13 @@ export function TimeOffForm({
   const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone));
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? "holiday");
   const [note, setNote] = useState(canEditNote ? (timeOff?.note ?? "") : "");
-  const { error, errorField, errorId, fail } = useFieldError();
+  const { error, errorField, errorId, fail, clear } = useFieldError();
+  const change =
+    <T,>(setter: (value: T) => void) =>
+    (value: T) => {
+      clear();
+      setter(value);
+    };
 
   // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
   // Placeholders are gated behind a per-account pref (default OFF); when off, drop them too —
@@ -109,7 +115,7 @@ export function TimeOffForm({
       <SelectField
         label={m.form_timeoff_resource_label()}
         value={resourceId}
-        onChange={setResourceId}
+        onChange={change(setResourceId)}
         options={resourceOptions}
         placeholder={m.form_timeoff_select_resource_placeholder()}
         required
@@ -119,7 +125,7 @@ export function TimeOffForm({
       <DateField
         label={m.form_timeoff_start_label()}
         value={startDate}
-        onChange={setStartDate}
+        onChange={change(setStartDate)}
         required
         invalid={errorField === "dates"}
         describedById={errorId}
@@ -127,7 +133,7 @@ export function TimeOffForm({
       <DateField
         label={m.form_timeoff_end_label()}
         value={endDate}
-        onChange={setEndDate}
+        onChange={change(setEndDate)}
         required
         invalid={errorField === "dates"}
         describedById={errorId}
@@ -135,14 +141,14 @@ export function TimeOffForm({
       <SelectField
         label={m.form_timeoff_type_label()}
         value={type}
-        onChange={(v) => setType(v as TimeOffType)}
+        onChange={(v) => change(setType)(v as TimeOffType)}
         options={timeOffTypeOptions()}
       />
       {canEditNote && (
         <TextAreaField
           label={m.form_timeoff_note_label()}
           value={note}
-          onChange={setNote}
+          onChange={change(setNote)}
           invalid={errorField === "note"}
           describedById={errorId}
         />

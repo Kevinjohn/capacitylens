@@ -36,6 +36,10 @@ new features and **patch** versions carry fixes.
   exhaustive so future entity or field additions fail compilation or focused conformance tests.
 - Kept duplicate working-weekday input consistent across date calculations and removed duplicated
   brand and import-notice strings from the translation catalogue.
+- Made allocation deletion explicit and permission-aware, improved app-entry and form-error focus,
+  and reduced the colour palette to one keyboard Tab stop with arrow-key navigation.
+- Improved rolling-version API compatibility, bounded operational diagnostics and dependency
+  auditing, and reduced persistence acknowledgement work to the tables that actually changed.
 
 ## [0.27.1-alpha.1] — 2026-07-28
 

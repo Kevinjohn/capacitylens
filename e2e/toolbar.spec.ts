@@ -116,6 +116,7 @@ test.describe("Toolbar", () => {
     const before = await page.getByTestId("allocation-bar").count();
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
     await page.getByRole("dialog", { name: "Edit allocation" }).getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
     await expect(undoBtn).toBeEnabled();
 
@@ -139,6 +140,7 @@ test.describe("Toolbar", () => {
     const before = await page.getByTestId("allocation-bar").count();
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
     await page.getByRole("dialog", { name: "Edit allocation" }).getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
 
     // Typing in the search box must NOT trigger undo.

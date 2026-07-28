@@ -214,6 +214,7 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
         }
         if (size > 0 && size + lineBytes > maxBytes) {
           renameSync(file, `${file}.1`);
+          log(`capacitylens-server: audit log rotated — ${file} (${size} bytes) -> ${file}.1`);
           permissionsPinned = false;
         }
         const created = !existsSync(file);

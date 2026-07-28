@@ -11,6 +11,20 @@ const json = (body: unknown) =>
 afterEach(() => vi.restoreAllMocks());
 
 describe("teamAccessClient identity validation", () => {
+  it("decodes an equivalent successful status instead of reporting a rejected command", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(accountClient, "issuePasswordReset").mockResolvedValue(
+      new Response(JSON.stringify({ token: "one-time-token" }), { status: 200 }),
+    );
+
+    await expect(teamAccessClient.issuePasswordReset("account-1", "user-1")).resolves.toMatchObject({
+      kind: "ok",
+      status: 200,
+      value: { token: "one-time-token" },
+    });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("equivalent success 200"));
+  });
+
   it("defaults absent additive fields and contains unsupported rows", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(accountClient, "listMembers").mockResolvedValue(

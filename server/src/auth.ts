@@ -829,6 +829,11 @@ export function authFromEnv(
   // is active. createBootstrapAdmin generates a high-entropy password that comfortably exceeds it.
 
   const testRuntime = env.NODE_ENV === "test" || process.env.NODE_ENV === "test";
+  if (testRuntime && !process.env.VITEST) {
+    console.warn(
+      "capacitylens-server: TEST credential profile active — scrypt cost is reduced and breached-password screening is disabled; never retain these credentials or expose this process.",
+    );
+  }
   const breachCheckEnabled = env.CAPACITYLENS_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
   const baseHasher = scryptPasswordHasher(testRuntime ? 2 ** 10 : undefined);
   const assertCredentialPasswordLength = (password: unknown): void => {

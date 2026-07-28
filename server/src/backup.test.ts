@@ -131,7 +131,7 @@ describe("parseBackupConfig (fail-closed)", () => {
     expect(configured("1.9")).toBe(1);
     expect(configured("10000.9")).toBe(10_000);
     expect(configured("0.5")).toBe(48);
-    expect(configured("10001")).toBe(48);
+    expect(configured("10001")).toBe(10_000);
     expect(configured("lots")).toBe(48);
 
     // Cadence remains explicitly whole minutes; this compatibility rule is retention-only.

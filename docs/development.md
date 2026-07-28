@@ -328,10 +328,11 @@ to distinguish a safe successor from an intervening external edit. Ordered brows
 enforce these stale preconditions, even in the explicit single-writer concurrency mode; direct API
 writes retain their configured optimistic-concurrency policy. Ordering rows expire after seven days.
 Row provenance carries its owning account explicitly and is removed as part of workspace erasure.
-Every non-superseded batch receipt must return one server-owned revision for each PUT table/id and
-no others; a superseded ordered batch returns an empty revision list. Missing revision arrays are
-not a legacy compatibility shape: the client treats missing, partial, duplicate or extra coverage
-as commit-uncertain and reloads the authoritative slice before it may write again.
+Current servers return one server-owned revision for each PUT table/id and no others; a superseded
+ordered batch returns an empty revision list. During a rolling-version window the client also
+accepts a successful legacy receipt with missing or partial revision metadata, logs the skew and
+continues without the unavailable timestamp translations. The `ok` result remains mandatory and a
+present `applied` count must still equal the submitted operation count.
 
 Database v19 installs product-table triggers for every parent/child tenant relationship. They reject
 cross-company references on insert or update, make scoped `accountId` values immutable, and are

@@ -130,7 +130,8 @@ describe("loadInternalTls", () => {
     expect(script).toMatch(
       /if certificate_set_is_usable; then\s+repair_certificate_permissions\s+echo "capacitylens-internal-tls: existing certificate set is valid"/,
     );
-    expect(script).toContain('chown 1000:1000 "$API_KEY" "$API_CERT"');
+    expect(script).toContain("API_UID=${CAPACITYLENS_INTERNAL_TLS_API_UID:-1000}");
+    expect(script).toContain('chown "$API_UID:$API_UID" "$API_KEY" "$API_CERT"');
     expect(script).toMatch(/mv -f "\$WORK_DIR\/api\.crt" "\$API_CERT"\s+[^]*repair_certificate_permissions/);
   });
 });

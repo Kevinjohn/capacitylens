@@ -48,6 +48,7 @@ test.describe("Allocation editor", () => {
     const before = await page.getByTestId("allocation-bar").count();
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
     await page.getByRole("dialog", { name: "Edit allocation" }).getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before);

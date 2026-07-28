@@ -325,6 +325,8 @@
   "form_allocation_err_new_activity_name": "Enter a name for the new activity.",
   "form_allocation_err_save_failed": "Could not save this allocation.",
   "form_allocation_err_delete_failed": "Could not delete this allocation.",
+  "form_allocation_delete_title": "Delete allocation?",
+  "form_allocation_delete_message": "Delete this allocation? You can undo this with ⌘Z.",
   "form_timeoff_edit_title": "Edit time off",
   "form_timeoff_add_title": "Add time off",
   "form_timeoff_resource_label": "Resource",

@@ -28,6 +28,13 @@ interface BatchCommitReceipt {
 }
 
 const MAX_DIAGNOSTIC_BODY_LENGTH = 1_000;
+const compatibilityWarnings = new Set<string>();
+
+function warnCompatibilityOnce(key: string, message: string): void {
+  if (compatibilityWarnings.has(key)) return;
+  compatibilityWarnings.add(key);
+  console.warn(message);
+}
 
 function safeResponseError(action: string, status: number, rawBody: string): Error {
   const message = `${action} failed (${status}).`;
@@ -52,11 +59,16 @@ function restoreRows(data: AppData, rows: Array<{ table: Op["table"]; row: Entit
 
 function applyCommittedRevisions(data: AppData, revisions: CommittedRevision[]): AppData {
   if (revisions.length === 0) return data;
-  const byRow = new Map(revisions.map((revision) => [`${revision.table}\0${revision.id}`, revision]));
+  const byTable = new Map<keyof AppData, Map<string, CommittedRevision>>();
+  for (const revision of revisions) {
+    const rows = byTable.get(revision.table) ?? new Map<string, CommittedRevision>();
+    rows.set(revision.id, revision);
+    byTable.set(revision.table, rows);
+  }
   const next = { ...data };
-  for (const table of Object.keys(data) as Array<keyof AppData>) {
+  for (const [table, revisionsById] of byTable) {
     next[table] = data[table].map((row) => {
-      const revision = byRow.get(`${table}\0${row.id}`);
+      const revision = revisionsById.get(row.id);
       return revision
         ? {
             ...row,
@@ -846,8 +858,19 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
     }
     if (res.status === 404) {
-      this.archivedBySync.delete(this.lifecycleKey(op));
-      return;
+      const detail = await res.text().catch(() => "");
+      let notFound: { error?: unknown } | null = null;
+      try {
+        notFound = JSON.parse(detail) as { error?: unknown };
+      } catch {
+        // A proxy or missing route can also return 404. Only the API's exact row-absence envelope
+        // proves that the lifecycle intent has converged.
+      }
+      if (notFound?.error === "Not found") {
+        this.archivedBySync.delete(this.lifecycleKey(op));
+        return;
+      }
+      throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
     }
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
@@ -974,8 +997,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       superseded?: unknown;
       auditWarning?: unknown;
     } | null;
-    if (receipt?.ok !== true || receipt.applied !== ops.length) {
+    if (receipt?.ok !== true || (receipt.applied !== undefined && receipt.applied !== ops.length)) {
       throw new BatchCommitUncertainError("Batch sync returned an invalid commit receipt.");
+    }
+    if (receipt.applied === undefined) {
+      warnCompatibilityOnce(
+        "batch-applied",
+        "ServerSyncAdapter: the batch receipt omitted 'applied'; accepting the proven commit for rolling-version compatibility.",
+      );
     }
     if (receipt.superseded !== undefined && typeof receipt.superseded !== "boolean") {
       throw new BatchCommitUncertainError("Batch sync returned an invalid ordering receipt.");
@@ -983,11 +1012,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     if (receipt.auditWarning === true || res.headers.get("x-capacitylens-audit-warning") === "true") {
       announceAuditWarning();
     }
-    if (!Array.isArray(receipt.revisions)) {
-      throw new BatchCommitUncertainError("Batch sync returned no server revisions.");
-    }
+    const rawRevisions = Array.isArray(receipt.revisions) ? receipt.revisions : [];
+    if (!Array.isArray(receipt.revisions))
+      warnCompatibilityOnce(
+        "batch-revisions",
+        "ServerSyncAdapter: the batch receipt omitted server revisions; continuing without revision translation.",
+      );
     const knownTables = emptyAppData(); // hoisted: one shape probe for the whole receipt, not one per revision
-    const revisions = receipt.revisions.filter((revision): revision is CommittedRevision => {
+    const revisions = rawRevisions.filter((revision): revision is CommittedRevision => {
       if (!revision || typeof revision !== "object") return false;
       const value = revision as Partial<CommittedRevision>;
       return (
@@ -998,24 +1030,35 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         typeof value.updatedAt === "string"
       );
     });
-    if (revisions.length !== receipt.revisions.length) {
-      throw new BatchCommitUncertainError("Batch sync returned invalid server revisions.");
-    }
+    if (revisions.length !== rawRevisions.length)
+      warnCompatibilityOnce(
+        "batch-invalid-revisions",
+        "ServerSyncAdapter: dropping malformed server revisions from an otherwise successful batch receipt.",
+      );
 
     const expected = new Set(
       receipt.superseded === true ? [] : ops.filter((op) => op.method === "PUT").map((op) => `${op.table}\0${op.id}`),
     );
     const received = new Set<string>();
+    const compatibleRevisions: CommittedRevision[] = [];
     for (const revision of revisions) {
       const key = `${revision.table}\0${revision.id}`;
       if (!expected.has(key) || received.has(key)) {
-        throw new BatchCommitUncertainError("Batch sync returned mismatched server revisions.");
+        warnCompatibilityOnce(
+          "batch-mismatched-revisions",
+          "ServerSyncAdapter: dropping unexpected or duplicate server revisions from a successful batch receipt.",
+        );
+        continue;
       }
       received.add(key);
+      compatibleRevisions.push(revision);
     }
     if (received.size !== expected.size) {
-      throw new BatchCommitUncertainError("Batch sync returned incomplete server revisions.");
+      warnCompatibilityOnce(
+        "batch-incomplete-revisions",
+        "ServerSyncAdapter: the batch receipt omitted some server revisions; continuing without those translations.",
+      );
     }
-    return { revisions, superseded: receipt.superseded === true };
+    return { revisions: compatibleRevisions, superseded: receipt.superseded === true };
   }
 }

@@ -131,13 +131,17 @@ async function commandResult<T>(
   decode: (body: unknown) => T | null,
   expectedStatus?: number,
 ): Promise<TeamAccessResult<T>> {
-  const success = expectedStatus === undefined ? response.ok : response.status === expectedStatus;
-  if (!success) {
+  if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
     const message = failureMessage(body);
     return (await accountCommandOutcomeUnknown(response, body))
       ? { kind: "unknown", status: response.status, message }
       : { kind: "rejected", status: response.status, message };
+  }
+  if (expectedStatus !== undefined && response.status !== expectedStatus) {
+    console.warn(
+      `teamAccessClient: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
+    );
   }
   const body: unknown = await response.json().catch(() => null);
   const value = decode(body);

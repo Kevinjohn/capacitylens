@@ -359,6 +359,10 @@ export function ColorField({
 }) {
   const markDirty = useMarkFormDirty();
   const [open, setOpen] = useState(false);
+  const selectedIndex = Math.max(
+    0,
+    SWATCHES.findIndex((hex) => hex.toLowerCase() === value.toLowerCase()),
+  );
 
   return (
     <Field data-invalid={invalid || undefined}>
@@ -401,6 +405,23 @@ export function ColorField({
                 aria-label={swatchLabel(i)}
                 data-form-dirty-managed
                 aria-pressed={selected}
+                tabIndex={i === selectedIndex ? 0 : -1}
+                onKeyDown={(event) => {
+                  const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
+                  const vertical = event.key === "ArrowUp" || event.key === "ArrowDown";
+                  if (!horizontal && !vertical) return;
+                  event.preventDefault();
+                  const delta = horizontal
+                    ? event.key === "ArrowRight"
+                      ? 1
+                      : -1
+                    : event.key === "ArrowDown"
+                      ? SWATCH_COLUMNS
+                      : -SWATCH_COLUMNS;
+                  const next = (i + delta + SWATCHES.length) % SWATCHES.length;
+                  const target = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")[next];
+                  target?.focus();
+                }}
                 onClick={() => {
                   if (!selected) markDirty();
                   onChange(hex);

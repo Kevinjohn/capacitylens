@@ -245,20 +245,24 @@ run `docker compose config` and confirm its three rendered physical volume names
 historical prefix before starting any service. If more than one candidate prefix exists, stop and
 identify the volume mounted by the old API rather than guessing.
 
-1. Confirm a recent restore test; off-host copies remain recommended for disaster recovery.
-2. Read `CHANGELOG.md` for migrations or breaking changes.
-3. Pull the target tag, rebuild all three targets and stop the old API before activating the new
+1. Take a fresh explicit snapshot and preserve it outside the release tree. A recent restore test
+   proves the procedure, but is not a current copy of the live data; off-host copies remain
+   recommended for disaster recovery.
+2. Confirm a recent restore test.
+3. Read `CHANGELOG.md` for migrations or breaking changes.
+4. Pull the target tag, rebuild all three targets and stop the old API before activating the new
    one. Compose deployments use `docker compose up --build --force-recreate -d`; this reruns the
    certificate initializer and reloads the resulting identity into both long-running services.
    Mixed-version writers are unsupported.
-4. On first start, any pending database upgrade creates a verified
+5. On first start, any pending database upgrade creates a verified
    `capacitylens-pre-migration-vN-to-vM.db` snapshot before DDL. If this fails, startup refuses;
    resolve storage or permission capacity rather than bypassing the snapshot.
-5. Check API health, login, account access and one safe write.
-6. Keep the old image and matching pre-migration snapshot until verification completes. Rollback
-   means stopping the API, restoring that snapshot without stale WAL/SHM files, then starting the
-   old image; an old image deliberately refuses the upgraded database. For Compose's named volumes,
-   follow the executable restore procedure in `docs/runbook.md` rather than copying host paths.
+6. Check API health, login, account access and one safe write.
+7. Keep the old image and recovery snapshot until verification completes. Rollback means stopping
+   the API, restoring the pre-migration snapshot when this release created one, or otherwise the
+   explicit snapshot from step 1, without stale WAL/SHM files, then starting the old image. An old
+   image deliberately refuses an upgraded database. For Compose's named volumes, follow the
+   executable restore procedure in `docs/runbook.md` rather than copying host paths.
 
 ## Data and offline behavior
 

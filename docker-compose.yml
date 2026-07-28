@@ -29,6 +29,9 @@ services:
       - CHOWN
     tmpfs:
       - /tmp:size=8m,mode=1777
+    environment:
+      # Must match the API container's runtime uid. The initializer uses it for the leaf key only.
+      CAPACITYLENS_INTERNAL_TLS_API_UID: "1000"
     volumes:
       - capacitylens-internal-tls:/tls
 
@@ -43,6 +46,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    user: "1000:1000"
     tmpfs:
       - /tmp:size=32m,mode=1777
     stop_grace_period: 15s

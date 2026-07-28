@@ -265,7 +265,9 @@ columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` la
 buttons), `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
 `Colour (Blue dark)` for a known swatch, else the raw hex — that opens a grid of preset
 colour swatches, each button labelled by a human-readable name like `Blue dark` /
-`Red bright`, not a hex), `Start`, `End`, `Hours / day`, `Status`,
+`Red bright`, not a hex). The selected swatch is the grid's single Tab stop; arrow keys move
+between presets. Fields with rejected input expose the inline error as their accessible
+description, and editing a rejected time-off field clears the stale error. Other labels are `Start`, `End`, `Hours / day`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Northstar`) and the hint
@@ -294,8 +296,9 @@ and projects use **Archive** (`Archive <name>`); their records and children are 
 lifecycle described below. Other deletable rows use **Delete** and include the row name when several
 controls would otherwise be ambiguous (for example, `Delete Design`). The glyph is decorative and the
 button's `aria-label`/`title` carries its action and, where needed, the row name.
-An allocation **Delete** closes its editor only after the store accepts the removal. If the
-mutation rejects, the dialog stays open and its form error surfaces the safe rejection reason.
+An allocation **Delete** asks for confirmation, then closes its editor only after the store accepts
+the removal. If the mutation rejects, the dialog stays open and its form error surfaces the safe
+rejection reason. Viewers see no allocation mutation actions.
 
 **Destructive confirmation** uses the action-specific title and buttons: lifecycle list actions use
 `Archive <entity>?`, `Archive`, and `Cancel`; actual deletion uses `Delete <entity>?`, `Delete`, and

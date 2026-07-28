@@ -11,6 +11,7 @@ CA_CERT="$TLS_DIR/ca.crt"
 CA_KEY="$TLS_DIR/ca.key"
 API_CERT="$TLS_DIR/api.crt"
 API_KEY="$TLS_DIR/api.key"
+API_UID=${CAPACITYLENS_INTERNAL_TLS_API_UID:-1000}
 
 umask 077
 mkdir -p "$TLS_DIR"
@@ -55,7 +56,7 @@ repair_certificate_permissions() {
   chmod 0400 "$CA_KEY" "$API_KEY"
   chmod 0444 "$CA_CERT" "$API_CERT"
   chown 0:0 "$CA_KEY" "$CA_CERT"
-  chown 1000:1000 "$API_KEY" "$API_CERT"
+  chown "$API_UID:$API_UID" "$API_KEY" "$API_CERT"
 }
 
 if certificate_set_is_usable; then

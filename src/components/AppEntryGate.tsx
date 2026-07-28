@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { AccountPicker } from "./accounts/AccountPicker";
 import { ConnectionError } from "./ConnectionError";
 import { FakeSignIn } from "./FakeSignIn";
@@ -32,6 +32,25 @@ export function AppEntryGate({
   onIntroContinue,
   children,
 }: AppEntryGateProps) {
+  const stage =
+    connectionError || loadError
+      ? "error"
+      : !hydrated
+        ? "loading"
+        : demoAuthActive && !fakeSignedIn
+          ? "signin"
+          : !hasActiveAccount
+            ? "account"
+            : !introSeen
+              ? "intro"
+              : "app";
+  useEffect(() => {
+    if (stage === "loading" || stage === "app") return;
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>("main input, main button, main a[href]")?.focus();
+    });
+  }, [stage]);
+
   if (connectionError || loadError) return <ConnectionError />;
   if (!hydrated) {
     return (

@@ -221,9 +221,14 @@ try {
 
 // Validate every pure production posture rule before opening the database. A deployment typo must
 // not advance the schema and then fail for a reason that was knowable without touching storage.
-const posture = evaluateProductionPosture(
-  bootstrapAdmin ? { ...accountEnv, CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" } : accountEnv,
-);
+let posture: ReturnType<typeof evaluateProductionPosture>;
+try {
+  posture = evaluateProductionPosture(
+    bootstrapAdmin ? { ...accountEnv, CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" } : accountEnv,
+  );
+} catch (error) {
+  refuseToStart(error instanceof Error ? error.message : String(error));
+}
 for (const w of posture.warnings) {
   console.warn(`capacitylens-server: production posture warning — ${w}`);
 }

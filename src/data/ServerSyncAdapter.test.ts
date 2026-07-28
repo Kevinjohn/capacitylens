@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import {
   ServerSyncAdapter,
-  BatchCommitUncertainError,
   BatchConflictError,
   BatchTooLargeError,
   BatchValidationError,
@@ -888,7 +887,8 @@ describe("ServerSyncAdapter.saveAll", () => {
         revisions: [...ops.map(revisionFor), { ...revisionFor(ops[0]), id: "unexpected" }],
       }),
     ],
-  ])("rejects a revision-bearing receipt with %s PUT coverage", async (_case, revisionFields) => {
+  ])("accepts a committed receipt with %s revision coverage", async (_case, revisionFields) => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
       const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
       return new Response(
@@ -902,9 +902,17 @@ describe("ServerSyncAdapter.saveAll", () => {
     }) as unknown as typeof fetch;
     const a = new ServerSyncAdapter("http://x", fetchImpl);
 
-    await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).rejects.toBeInstanceOf(
-      BatchCommitUncertainError,
-    );
+    await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).resolves.toBeUndefined();
+  });
+
+  it("accepts a legacy successful receipt that omits applied and revisions", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => Response.json({ ok: true })) as unknown as typeof fetch;
+    const a = new ServerSyncAdapter("http://x", fetchImpl);
+
+    await expect(a.saveAll(withData({ clients: [client("c1")] }))).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("omitted 'applied'"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("omitted server revisions"));
   });
 
   it("coalesces overlapping saves to the latest state", async () => {
@@ -1423,6 +1431,18 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     calls.length = 0;
     await a.saveAll(scopedData("a1", {}));
     expect(calls).toHaveLength(0);
+  });
+
+  it("does not treat a proxy or missing-route 404 as a converged lifecycle archive", async () => {
+    const { fetchImpl } = recordingFetch((url) =>
+      url.endsWith("/clients/c1/archive")
+        ? new Response(JSON.stringify({ error: "Not Found", message: "Route not found" }), { status: 404 })
+        : null,
+    );
+    const a = new ServerSyncAdapter("http://x", fetchImpl);
+    await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
+
+    await expect(a.saveAll(scopedData("a1", {}))).rejects.toThrow("Lifecycle archive of clients/c1 failed (404)");
   });
 
   it("awaits a pending lifecycle-delete keepalive receipt without poisoning the batch", async () => {

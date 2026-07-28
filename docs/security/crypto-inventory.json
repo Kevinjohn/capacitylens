@@ -18,10 +18,6 @@
       "purpose": "Unkeyed SHA-256 database-state digests for temporary anonymised migration rollback rehearsals"
     },
     {
-      "path": "server/scripts/reconcile-account-command.ts",
-      "purpose": "Unkeyed SHA-256 digest of a non-secret operator reconciliation reference so free-form incident metadata is not retained in the command ledger"
-    },
-    {
       "path": "server/src/app.ts",
       "purpose": "CSPRNG bearer values, constant-time bootstrap comparison, deterministic SHA-256 workspace identifiers and HTTPS server options"
     },

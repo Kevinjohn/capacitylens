@@ -149,7 +149,9 @@ Schedule this before launch and after material storage changes:
 
 1. Stop the API cleanly and wait for it to exit.
 2. Copy the live database and WAL/SHM sidecars somewhere safe for rollback.
-3. Copy a selected `capacitylens-*.db` snapshot to the configured database path.
+3. Copy a selected dated `capacitylens-utc-YYYYMMDD-HHMMSS-sss.db` scheduled snapshot to the
+   configured database path. Do not select a `capacitylens-pre-migration-*` file here; those belong
+   to the application-rollback procedure below.
 4. Remove stale `-wal` and `-shm` sidecars.
 5. Start the API and check deep health.
 6. Verify login, account list, recent expected data and a safe write.

@@ -206,7 +206,7 @@ export const AllocationBar = memo(function AllocationBar({
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               onEdit?.(bar.allocation.id);
-            } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            } else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.ctrlKey && !e.metaKey) {
               e.preventDefault();
               // Alt = resize the start edge, Shift = resize the end edge, neither = move.
               const mode = e.altKey ? "resize-start" : e.shiftKey ? "resize-end" : "move";

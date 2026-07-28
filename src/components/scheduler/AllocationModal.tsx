@@ -38,6 +38,8 @@ import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
 import { useFieldError } from "../../hooks/useFieldError";
+import { useCanEdit } from "../../auth/permissionContext";
+import { ConfirmDialog } from "../common/dialogs";
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
  *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
@@ -107,6 +109,8 @@ function effectiveAllocationValues({
 
 export function AllocationModal(props: AllocationModalProps) {
   const { onClose } = props;
+  const canEdit = useCanEdit();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const data = useActiveScopedData();
   const addAllocation = useStore((s) => s.addAllocation);
   const updateAllocation = useStore((s) => s.updateAllocation);
@@ -509,6 +513,7 @@ export function AllocationModal(props: AllocationModalProps) {
   };
 
   const submit = () => {
+    if (!canEdit) return;
     const draft = validatedDraft();
     if (!draft) return;
     try {
@@ -543,7 +548,8 @@ export function AllocationModal(props: AllocationModalProps) {
   };
 
   const onDelete = () => {
-    if (!editing) return;
+    if (!editing || !canEdit) return;
+    setConfirmDelete(false);
     try {
       deleteAllocation(editing.id);
       onClose();
@@ -578,9 +584,9 @@ export function AllocationModal(props: AllocationModalProps) {
       onSubmit={submit}
       footer={
         <>
-          {editing && (
+          {editing && canEdit && (
             <>
-              <Button size="sm" type="button" variant="danger-soft" onClick={onDelete}>
+              <Button size="sm" type="button" variant="danger-soft" onClick={() => setConfirmDelete(true)}>
                 {m.form_delete()}
               </Button>
               <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
@@ -592,12 +598,22 @@ export function AllocationModal(props: AllocationModalProps) {
           <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
+          {canEdit && (
+            <Button size="sm" type="submit">
+              {m.form_save()}
+            </Button>
+          )}
         </>
       }
     >
+      {confirmDelete && (
+        <ConfirmDialog
+          title={m.form_allocation_delete_title()}
+          message={m.form_allocation_delete_message()}
+          onConfirm={onDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
       {!create && (
         <SelectField
           label={m.form_allocation_assignee_label()}
@@ -640,6 +656,7 @@ export function AllocationModal(props: AllocationModalProps) {
             }
             aria-label={m.form_allocation_new_activity_aria()}
             aria-invalid={errorField === "newactivity" || undefined}
+            aria-describedby={errorField === "newactivity" ? errorId : undefined}
             onChange={(e) => setNewActivityName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {

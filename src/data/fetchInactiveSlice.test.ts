@@ -19,11 +19,13 @@ describe("fetchInactiveSlice", () => {
     const fetchMock = vi.fn(async () => ok(body));
     vi.stubGlobal("fetch", fetchMock);
 
-    const data = await fetchInactiveSlice("a 1");
+    const controller = new AbortController();
+    const data = await fetchInactiveSlice("a 1", controller.signal);
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain(`/api/state?accountId=${encodeURIComponent("a 1")}&includeInactive=1`);
     expect(init.credentials).toBe("include");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
     // migrate() ran: the raw table map came back normalized as a full AppData.
     expect(data.accounts.map((a) => a.id)).toEqual(["a 1"]);
   });
