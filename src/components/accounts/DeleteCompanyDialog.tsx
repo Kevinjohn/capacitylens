@@ -64,7 +64,7 @@ export function DeleteCompanyDialog({
   // success OR failure — Delete re-arms: export is deliberately optional (the user may already
   // hold their own backup), so a failed export warns loudly but never locks the dialog.
   const [exporting, setExporting] = useState(false);
-  const matches = typed.trim() === account.name;
+  const matches = typed.trim().normalize("NFC") === account.name.trim().normalize("NFC");
   // Hint id so the disabled Delete button can point at the type-to-confirm instruction —
   // a screen reader then announces WHY Delete is unavailable, not just that it's disabled.
   const hintId = useId();
@@ -134,13 +134,15 @@ export function DeleteCompanyDialog({
   return (
     <Modal
       title={m.dialog_delete_company_title()}
-      onClose={onCancel}
+      onClose={() => {
+        if (!busy) onCancel();
+      }}
       // Confirmation-only: the type-to-confirm field is a gate, not savable data, so don't
       // let the unsaved-changes guard refuse Escape/backdrop once the user starts typing.
       guardDirty={false}
       footer={
         <>
-          <Button size="sm" variant="outline" onClick={onCancel}>
+          <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>
             {m.form_cancel()}
           </Button>
           <Button

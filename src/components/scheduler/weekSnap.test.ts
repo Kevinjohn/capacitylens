@@ -87,6 +87,13 @@ describe("weekStartSnapTarget — degenerate inputs stay finite", () => {
     const empty = buildColumnGeometry([], DAY_W, OFF);
     expect(weekStartSnapTarget(empty, [], 0, 1)).toBeNull();
   });
+
+  it("degrades invalid dates and an out-of-window first week start to zero", () => {
+    expect(weekStartSnapTarget(geom, ["not-a-date"], 48, 1)).toBe(0);
+    const partial = eachDayISO("2026-06-03", "2026-06-09");
+    const partialGeom = buildColumnGeometry(partial, DAY_W, OFF);
+    expect(weekStartSnapTarget(partialGeom, partial, DAY_W, 1)).toBe(0);
+  });
 });
 
 // Regression for the HiDPI Firefox sub-pixel bug: a fractional scrollLeft a hair BELOW an integer

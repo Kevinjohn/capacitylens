@@ -488,7 +488,9 @@ function prepareHistoryTarget(current: AppData, target: AppData): AppData {
     return targetRows.map((row) => {
       const before = beforeById.get(row.id);
       if (before === row) return row;
-      return before && content(before) !== content(row) ? { ...row, updatedAt: now } : row;
+      return before && (before.updatedAt !== row.updatedAt || content(before) !== content(row))
+        ? { ...row, updatedAt: now }
+        : row;
     });
   };
   return {
@@ -693,6 +695,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
     deleteAccount: (id) => {
       if (blockedByViewer()) return;
       if (!get().data.accounts.some((account) => account.id === id)) return;
+      if (get().activeAccountId !== null && get().activeAccountId !== id) {
+        throw new Error("Cannot delete a company other than the active company.");
+      }
       mutateIrreversible((d) => deleteAccountCascade(d, id));
       // Drop it from the picker's list too (P1.13). This action now runs only in the DEMO build —
       // server-mode delete goes through the AccountPicker's dedicated DELETE /api/accounts/:id route,
@@ -1269,7 +1274,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
       // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
       // string is single-sourced from lifecycle.ts — never hand-written here).
-      mutateIrreversible((d) => ({
+      const applyDelete = (d: AppData): AppData => ({
         ...d,
         [entity]: d[entity].map((e) => {
           if (e.id !== id) return e;
@@ -1302,7 +1307,11 @@ export const useStore = create<StoreState>()((set, get, store) => {
               ),
             }
           : {}),
-      }));
+      });
+      // Resource deletion scrubs PII and dependent notes and therefore cannot be undone. Client and
+      // project tombstones retain their data, so keep their ordinary undo history intact.
+      if (entity === "resources") mutateIrreversible(applyDelete);
+      else mutate(applyDelete);
     },
     purgeEntity: (entity, id) => {
       if (blockedByViewer()) return;

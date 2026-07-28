@@ -128,7 +128,10 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const CONNECTION_TIMEOUT_MS = 30_000;
 export const MAX_SERVER_CONNECTIONS = 512;
 const CSP_REPORT_BODY_LIMIT = 64 * 1024;
-const MAX_CSP_REPORTS_PER_REQUEST = 20;
+// One unauthenticated request may produce at most one security-log record even when the Reporting
+// API sends an array. This prevents request-to-log amplification when the optional global limiter
+// is disabled; browsers retry later reports independently.
+const MAX_CSP_REPORTS_PER_REQUEST = 1;
 
 // Only these parsing errors have messages we intentionally preserve for clients. Return canonical
 // text rather than trusting even an allow-listed error object's message to remain harmless.
@@ -1268,10 +1271,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   };
 
   const commitProductAudit = (reply: FastifyReply, record: AuditRecord, mutation: () => void): boolean => {
-    tx(db, () => {
-      mutation();
-      enqueueAudit(db, record);
-    });
+    tx(
+      db,
+      () => {
+        mutation();
+        enqueueAudit(db, record);
+      },
+      "immediate",
+    );
     return drainProductAudit(reply);
   };
 
@@ -1689,7 +1696,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // session|account) are STRUCTURALLY excluded: readSlice only ever reads `accounts` + the scoped
         // tables, never the control plane, so membership/invite secrets/PII can never ride the export.
         // The slice composition is locked by app.export.test.ts.
-        const wantsInactive = (req.query as { includeInactive?: string }).includeInactive === "1";
+        const includeInactive = (req.query as { includeInactive?: string }).includeInactive;
+        if (includeInactive !== undefined && includeInactive !== "1") {
+          return reply.code(400).send({ error: "includeInactive must be the literal value 1 when present." });
+        }
+        const wantsInactive = includeInactive === "1";
         if (wantsInactive && !authorize(req, reply, accountId, "purge")) return;
         // P2.4: the NORMAL app read HIDES archived/soft-deleted resources/clients/projects — pass
         // includeInactive:false so readSlice drops them server-side (the same rule the client views
@@ -1792,15 +1803,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             validateWrite(store.readSlice(id, FULL_SLICE_READ), "accounts", accountRow);
             insertRow(db, "accounts", accountRow);
             insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
-            enqueueAudit(db, {
-              ts: String(accountRow.createdAt),
-              userId: req.user!.id,
-              accountId: id,
-              action: "create",
-              entity: "accounts",
-              id,
-              changedFields: acceptedFieldNames("accounts", accountRow),
-            });
+            enqueueAudit(
+              db,
+              {
+                ts: String(accountRow.createdAt),
+                userId: req.user!.id,
+                accountId: id,
+                action: "create",
+                entity: "accounts",
+                id,
+                changedFields: acceptedFieldNames("accounts", accountRow),
+              },
+              "immediate",
+            );
             return accountRow;
           },
         });
@@ -2525,189 +2540,199 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     changedFields: [],
                   };
             });
-            return tx(db, () => {
-              if (syncOrder && isSupersededSyncBatch(db, syncOrder)) {
-                supersededSyncBatch = true;
-                return;
-              }
-              // Read every relationship table, but only for accounts this request targets. `state` is
-              // then advanced in lockstep with each write (upsert/cascade helpers) so op N validates
-              // against exactly the state ops 1..N-1 produced without scanning unrelated tenants.
-              const state = emptyAppData();
-              for (const accountId of affectedAccountIds) {
-                appendAppDataSlice(state, store.readSlice(accountId, FULL_SLICE_READ));
-              }
-              const projection = new BatchStateProjection(state);
-              // Recompute under the provisioning lock: the earlier cap projection may have waited
-              // behind another top-level account mutation. A scalar COUNT is sufficient; validation's
-              // account rows are already present in the affected slices above.
-              const projectedWorkspaceCount = hasAccountOperations ? projectBatchAccounts(db, ops).count : 0;
-              const mintedInternalIds = new Set<string>();
-              for (const [opIndex, op] of ops.entries()) {
-                const { method, table, id } = op;
-                // Shape, method, known-table and id validation completed before authorization and before
-                // opening this transaction. This loop owns only state-dependent validation and mutation.
-                if (method === "PUT") {
-                  const row = op.row;
-                  if (!row || typeof row !== "object" || (row as { id?: unknown }).id !== id) {
-                    throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
-                  }
-                  // accountId is immutable (ownsRow): a write must not re-home an existing row.
-                  const existing = getRow(db, table, id);
-                  // Built-in Internal guard (Finding 7 — ONE implementation). The batch's own minted-
-                  // Internal exception accepts only the canonical duplicate a client emitted alongside
-                  // the account create; malformed or re-homed bodies roll the whole batch back.
-                  if (table === "clients" && existing?.builtin === true && mintedInternalIds.has(id)) {
-                    if (!matchesMintedInternalClient(existing, row as Record<string, unknown>)) {
+            return tx(
+              db,
+              () => {
+                if (syncOrder && isSupersededSyncBatch(db, syncOrder)) {
+                  supersededSyncBatch = true;
+                  return;
+                }
+                // Read every relationship table, but only for accounts this request targets. `state` is
+                // then advanced in lockstep with each write (upsert/cascade helpers) so op N validates
+                // against exactly the state ops 1..N-1 produced without scanning unrelated tenants.
+                const state = emptyAppData();
+                for (const accountId of affectedAccountIds) {
+                  appendAppDataSlice(state, store.readSlice(accountId, FULL_SLICE_READ));
+                }
+                const projection = new BatchStateProjection(state);
+                // Recompute under the provisioning lock: the earlier cap projection may have waited
+                // behind another top-level account mutation. A scalar COUNT is sufficient; validation's
+                // account rows are already present in the affected slices above.
+                const projectedWorkspaceCount = hasAccountOperations ? projectBatchAccounts(db, ops).count : 0;
+                const mintedInternalIds = new Set<string>();
+                for (const [opIndex, op] of ops.entries()) {
+                  const { method, table, id } = op;
+                  // Shape, method, known-table and id validation completed before authorization and before
+                  // opening this transaction. This loop owns only state-dependent validation and mutation.
+                  if (method === "PUT") {
+                    const row = op.row;
+                    if (!row || typeof row !== "object" || (row as { id?: unknown }).id !== id) {
+                      throw new ValidationError("Each PUT op needs a row whose id matches the op id.");
+                    }
+                    // accountId is immutable (ownsRow): a write must not re-home an existing row.
+                    const existing = getRow(db, table, id);
+                    // Built-in Internal guard (Finding 7 — ONE implementation). The batch's own minted-
+                    // Internal exception accepts only the canonical duplicate a client emitted alongside
+                    // the account create; malformed or re-homed bodies roll the whole batch back.
+                    if (table === "clients" && existing?.builtin === true && mintedInternalIds.has(id)) {
+                      if (!matchesMintedInternalClient(existing, row as Record<string, unknown>)) {
+                        throw new ValidationError(
+                          "The same-batch built-in Internal client must match the generated server row.",
+                        );
+                      }
+                      revisions.push({
+                        table,
+                        id,
+                        createdAt: existing.createdAt as string,
+                        updatedAt: existing.updatedAt as string,
+                      });
+                      const auditRecord = auditRecords[opIndex];
+                      if (auditRecord) auditRecord.changedFields = [];
+                      continue;
+                    }
+                    const builtinRejection = builtinInternalWriteGuard(
+                      "replace",
+                      table,
+                      existing,
+                      row as Record<string, unknown>,
+                    );
+                    if (builtinRejection) throw new ValidationError(builtinRejection.error);
+                    if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
+                      throw new ValidationError("That record belongs to a different company.");
+                    }
+                    const sanitizedRow = sanitizeWrite(
+                      table,
+                      row as Record<string, unknown>,
+                      existing,
+                      fieldVisFor(table, (row as { accountId?: unknown }).accountId),
+                    );
+                    // language/weekStartsOn/timezone are FROZEN after creation (P1.14). DOCUMENTED
+                    // ASYMMETRY: the per-route PUT/PATCH return 409 (what the acceptance asserts), but a
+                    // ValidationError in the batch maps to 400 — the batch is the INTERNAL sync path, and
+                    // the disabled Settings UI never sends a changed frozen field, so a violation here is
+                    // a malformed client, not a user action. accounts-only.
+                    if (table === "accounts" && accountFieldsFrozen(existing, sanitizedRow)) {
                       throw new ValidationError(
-                        "The same-batch built-in Internal client must match the generated server row.",
+                        "Language, week start and time zone are set when the company is created and cannot be changed.",
                       );
+                    }
+                    // Optimistic concurrency is default-on for generic writes and mandatory for an
+                    // ordered browser batch. The stale-write refusal is isStaleWrite, the SAME predicate
+                    // the direct PUT route runs, so the two paths can't drift. Thrown
+                    // (not replied) because we are inside tx(): the throw aborts the transaction, so
+                    // the WHOLE batch rolls back, and the catch below maps it to the direct route's
+                    // 409 + { current } shape.
+                    if (
+                      (opts.optimisticConcurrency !== false || syncOrder !== null) &&
+                      isStaleWrite(existing, row as Record<string, unknown>) &&
+                      !(syncOrder && isSameSessionSuccessor(db, syncOrder, table, id, existing))
+                    ) {
+                      // The 409's `current` payload is a READ of the stored row: redact the time-off
+                      // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
+                      // path must not hand an editor the very field readSlice redacts.
+                      throw new StaleWriteError(
+                        redactWriteEcho(
+                          table,
+                          existing,
+                          fieldVisFor(table, (row as { accountId?: unknown }).accountId),
+                        ),
+                      );
+                    }
+                    // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
+                    // REAL save path, so an editor's redacted round-trip lands here (see sanitizeWrite).
+                    const clean = stampServerRevision(sanitizedRow, existing);
+                    const auditRecord = auditRecords[opIndex];
+                    if (auditRecord) {
+                      auditRecord.changedFields = appliedRequestedFieldNames(table, row, existing, clean);
+                    }
+                    const generatedReplacement = generatedBuiltinReplacement(state, table, clean);
+                    if (table === "accounts" && !existing) {
+                      // Evaluate provisioning policy before inserting the account, against the final
+                      // count of the whole atomic batch. The surrounding application-wide lock is shared
+                      // with /api/orgs; any later storage failure rolls this membership write back.
+                      accountFlows.provisionWorkspaceInExistingTransaction({
+                        workspaceId: id,
+                        principalId: req.accountActor!.principalId,
+                        joinedAt: clean.createdAt as string,
+                        multiWorkspace: opts.multiAccount === true,
+                        projectedWorkspaceCount,
+                      });
+                    }
+                    if (generatedReplacement) {
+                      replaceGeneratedBuiltin(db, state, generatedReplacement, clean);
+                      projection.replaceGeneratedBuiltin(generatedReplacement, clean);
+                    } else {
+                      validateWrite(state, table, clean, existing, projection);
+                      upsertRow(db, table, clean);
+                      projection.upsert(table as AppDataKey, clean);
+                    }
+                    if (table === "accounts" && !existing) {
+                      const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<
+                        string,
+                        unknown
+                      >;
+                      upsertRow(db, "clients", internalClient);
+                      projection.upsert("clients", internalClient);
+                      mintedInternalIds.add(internalClient.id as string);
                     }
                     revisions.push({
                       table,
                       id,
-                      createdAt: existing.createdAt as string,
-                      updatedAt: existing.updatedAt as string,
+                      createdAt: clean.createdAt as string,
+                      updatedAt: clean.updatedAt as string,
                     });
-                    const auditRecord = auditRecords[opIndex];
-                    if (auditRecord) auditRecord.changedFields = [];
-                    continue;
-                  }
-                  const builtinRejection = builtinInternalWriteGuard(
-                    "replace",
-                    table,
-                    existing,
-                    row as Record<string, unknown>,
-                  );
-                  if (builtinRejection) throw new ValidationError(builtinRejection.error);
-                  if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
-                    throw new ValidationError("That record belongs to a different company.");
-                  }
-                  const sanitizedRow = sanitizeWrite(
-                    table,
-                    row as Record<string, unknown>,
-                    existing,
-                    fieldVisFor(table, (row as { accountId?: unknown }).accountId),
-                  );
-                  // language/weekStartsOn/timezone are FROZEN after creation (P1.14). DOCUMENTED
-                  // ASYMMETRY: the per-route PUT/PATCH return 409 (what the acceptance asserts), but a
-                  // ValidationError in the batch maps to 400 — the batch is the INTERNAL sync path, and
-                  // the disabled Settings UI never sends a changed frozen field, so a violation here is
-                  // a malformed client, not a user action. accounts-only.
-                  if (table === "accounts" && accountFieldsFrozen(existing, sanitizedRow)) {
-                    throw new ValidationError(
-                      "Language, week start and time zone are set when the company is created and cannot be changed.",
-                    );
-                  }
-                  // Optimistic concurrency is default-on for generic writes and mandatory for an
-                  // ordered browser batch. The stale-write refusal is isStaleWrite, the SAME predicate
-                  // the direct PUT route runs, so the two paths can't drift. Thrown
-                  // (not replied) because we are inside tx(): the throw aborts the transaction, so
-                  // the WHOLE batch rolls back, and the catch below maps it to the direct route's
-                  // 409 + { current } shape.
-                  if (
-                    (opts.optimisticConcurrency !== false || syncOrder !== null) &&
-                    isStaleWrite(existing, row as Record<string, unknown>) &&
-                    !(syncOrder && isSameSessionSuccessor(db, syncOrder, table, id, existing))
-                  ) {
-                    // The 409's `current` payload is a READ of the stored row: redact the time-off
-                    // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
-                    // path must not hand an editor the very field readSlice redacts.
-                    throw new StaleWriteError(
-                      redactWriteEcho(table, existing, fieldVisFor(table, (row as { accountId?: unknown }).accountId)),
-                    );
-                  }
-                  // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
-                  // REAL save path, so an editor's redacted round-trip lands here (see sanitizeWrite).
-                  const clean = stampServerRevision(sanitizedRow, existing);
-                  const auditRecord = auditRecords[opIndex];
-                  if (auditRecord) {
-                    auditRecord.changedFields = appliedRequestedFieldNames(table, row, existing, clean);
-                  }
-                  const generatedReplacement = generatedBuiltinReplacement(state, table, clean);
-                  if (table === "accounts" && !existing) {
-                    // Evaluate provisioning policy before inserting the account, against the final
-                    // count of the whole atomic batch. The surrounding application-wide lock is shared
-                    // with /api/orgs; any later storage failure rolls this membership write back.
-                    accountFlows.provisionWorkspaceInExistingTransaction({
-                      workspaceId: id,
-                      principalId: req.accountActor!.principalId,
-                      joinedAt: clean.createdAt as string,
-                      multiWorkspace: opts.multiAccount === true,
-                      projectedWorkspaceCount,
-                    });
-                  }
-                  if (generatedReplacement) {
-                    replaceGeneratedBuiltin(db, state, generatedReplacement, clean);
-                    projection.replaceGeneratedBuiltin(generatedReplacement, clean);
+                  } else if (method === "DELETE") {
+                    if (table === "accounts") {
+                      throw new ValidationError("Use the dedicated company deletion endpoint.");
+                    }
+                    const existing = getRow(db, table, id);
+                    // Scoped deletes assert ownership (same rule as the DELETE route).
+                    if (isScopedTable(table)) {
+                      if (typeof op.accountId !== "string") {
+                        throw new ValidationError("accountId is required to delete a scoped record.");
+                      }
+                      if (!ownsRow(existing, op.accountId)) {
+                        throw new ValidationError("That record belongs to a different company.");
+                      }
+                    }
+                    if (
+                      syncOrder &&
+                      isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
+                      !isSameSessionSuccessor(db, syncOrder, table, id, existing)
+                    ) {
+                      throw new StaleWriteError(
+                        redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)),
+                      );
+                    }
+                    deleteRow(db, table, id);
+                    projection.delete(table as AppDataKey, id);
                   } else {
-                    validateWrite(state, table, clean, existing, projection);
-                    upsertRow(db, table, clean);
-                    projection.upsert(table as AppDataKey, clean);
+                    throw new ValidationError(`Unknown op method: ${String(method)}`);
                   }
-                  if (table === "accounts" && !existing) {
-                    const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<
-                      string,
-                      unknown
-                    >;
-                    upsertRow(db, "clients", internalClient);
-                    projection.upsert("clients", internalClient);
-                    mintedInternalIds.add(internalClient.id as string);
-                  }
-                  revisions.push({
-                    table,
-                    id,
-                    createdAt: clean.createdAt as string,
-                    updatedAt: clean.updatedAt as string,
-                  });
-                } else if (method === "DELETE") {
-                  if (table === "accounts") {
-                    throw new ValidationError("Use the dedicated company deletion endpoint.");
-                  }
-                  const existing = getRow(db, table, id);
-                  // Scoped deletes assert ownership (same rule as the DELETE route).
-                  if (isScopedTable(table)) {
-                    if (typeof op.accountId !== "string") {
-                      throw new ValidationError("accountId is required to delete a scoped record.");
-                    }
-                    if (!ownsRow(existing, op.accountId)) {
-                      throw new ValidationError("That record belongs to a different company.");
-                    }
-                  }
-                  if (
-                    syncOrder &&
-                    isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
-                    !isSameSessionSuccessor(db, syncOrder, table, id, existing)
-                  ) {
-                    throw new StaleWriteError(redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)));
-                  }
-                  deleteRow(db, table, id);
-                  projection.delete(table as AppDataKey, id);
-                } else {
-                  throw new ValidationError(`Unknown op method: ${String(method)}`);
                 }
-              }
-              for (const record of auditRecords) {
-                if (record) enqueueAudit(db, record);
-              }
-              if (syncOrder) {
-                recordAppliedSyncBatch(
-                  db,
-                  syncOrder,
-                  ops.map((op) => ({
-                    table: op.table,
-                    id: op.id,
-                    accountId:
-                      op.table === "accounts"
-                        ? op.id
-                        : op.method === "PUT"
-                          ? (op.row!.accountId as string)
-                          : op.accountId!,
-                    row: getRow(db, op.table, op.id),
-                  })),
-                );
-              }
-            });
+                for (const record of auditRecords) {
+                  if (record) enqueueAudit(db, record);
+                }
+                if (syncOrder) {
+                  recordAppliedSyncBatch(
+                    db,
+                    syncOrder,
+                    ops.map((op) => ({
+                      table: op.table,
+                      id: op.id,
+                      accountId:
+                        op.table === "accounts"
+                          ? op.id
+                          : op.method === "PUT"
+                            ? (op.row!.accountId as string)
+                            : op.accountId!,
+                      row: getRow(db, op.table, op.id),
+                    })),
+                  );
+                }
+              },
+              "immediate",
+            );
           },
           {
             // Serialize every top-level account mutation with /api/orgs. The batch re-evaluates its

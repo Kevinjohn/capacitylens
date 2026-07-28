@@ -42,6 +42,7 @@ import {
   revokeInvite,
   upsertMember,
   type AccountMember,
+  InviteAlreadyUsedError,
 } from "../controlTables";
 import type { Db } from "../db";
 import { getRow } from "../db";
@@ -355,7 +356,7 @@ export function sqliteAccountAdminPort(input: {
           completeCommand(db, scope, options.command, options.persistResult ? options.persistResult(result) : result);
           return result;
         }) as SynchronousCallback<() => ReturnType<Execute>>;
-        result = tx(db, transaction);
+        result = tx(db, transaction, "immediate");
       } catch (error) {
         options.afterRollback?.();
         // The domain write rolled back with the transaction, so this is a known compensated outcome.
@@ -454,7 +455,14 @@ export function sqliteAccountAdminPort(input: {
         createdAt: now,
       });
     }
-    markInviteUsed(db, input.token, now);
+    try {
+      markInviteUsed(db, input.token, now);
+    } catch (error) {
+      if (error instanceof InviteAlreadyUsedError) {
+        throw failure("INVITATION_USED", "This invite has already been used.", input.command.commandId);
+      }
+      throw error;
+    }
     const row = listMembershipsForUser(db, input.principalId).find(
       (candidate) => candidate.accountId === live.accountId,
     );

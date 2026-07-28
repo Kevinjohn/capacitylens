@@ -156,6 +156,7 @@ export async function refreshAccountSummaries(init?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
   allowCachedFallback?: boolean;
+  preserveActiveAccountIfMissing?: boolean;
 }): Promise<AccountSummary[] | null> {
   const callerAcceptsEffects = init?.acceptEffects ?? (() => true);
   const requestId = useStore.getState().beginAccountSummariesRequest();
@@ -163,6 +164,15 @@ export async function refreshAccountSummaries(init?: {
   const list = await fetchAccountSummaries({ ...init, acceptEffects: requestIsCurrent });
   if (list !== null && callerAcceptsEffects()) {
     useStore.getState().setAccountSummaries(list, requestId);
+    const activeAccountId = useStore.getState().activeAccountId;
+    if (
+      init?.preserveActiveAccountIfMissing !== true &&
+      activeAccountId !== null &&
+      !list.some((account) => account.id === activeAccountId)
+    ) {
+      useStore.getState().setActiveAccount(null);
+      useStore.getState().setNotice(m.notice_company_access_removed(), "warning");
+    }
   }
   return list;
 }

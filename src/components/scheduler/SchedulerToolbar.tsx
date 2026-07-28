@@ -12,6 +12,7 @@ import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
+import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
 
 export function SchedulerToolbar() {
@@ -139,7 +140,7 @@ export function SchedulerToolbar() {
         <Input
           type="date"
           value={focusDate}
-          onChange={(e) => e.target.value && goToDate(e.target.value)}
+          onChange={(e) => isValidISODate(e.target.value) && goToDate(e.target.value)}
           aria-label={m.scheduler_jump_to_date()}
           title={m.scheduler_jump_to_date()}
           className="w-auto"

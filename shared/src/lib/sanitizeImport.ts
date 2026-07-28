@@ -162,8 +162,10 @@ const normalizePrivateNameFields = (rec: Record<string, unknown>): void => {
  * the purge clock. */
 const normalizeLifecycleFields = (rec: Record<string, unknown>): void => {
   const timestamp = (value: unknown): string | null => {
-    if (typeof value !== "string" || value.trim() === "") return null;
-    const milliseconds = parseISOTimestamp(value);
+    if (typeof value !== "string") return null;
+    const text = value.trim();
+    if (text === "") return null;
+    const milliseconds = parseISOTimestamp(text);
     return milliseconds === null ? null : new Date(milliseconds).toISOString();
   };
 

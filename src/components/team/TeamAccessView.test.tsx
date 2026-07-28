@@ -81,7 +81,7 @@ describe("TeamAccessView", () => {
     expect(screen.getByText("View the schedule").closest("li")).toHaveTextContent("Allowed:");
     expect(screen.getByText("Edit scheduling data").closest("li")).toHaveTextContent("Not allowed:");
     expect(screen.getByText(/An Owner or Admin manages invitations/)).toBeInTheDocument();
-    expect(screen.getByTestId("member-management")).not.toBeVisible();
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
   });
 
   it("shows management controls to the single Owner", () => {
@@ -98,10 +98,10 @@ describe("TeamAccessView", () => {
 
     expect(screen.getByTestId("current-access")).toHaveTextContent(label);
     expect(screen.getByTestId("current-access")).not.toHaveTextContent("Viewer");
-    expect(screen.getByTestId("member-management")).not.toBeVisible();
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
   });
 
-  it("keeps member management mounted while a membership recheck fails closed", () => {
+  it("unmounts member management while a membership recheck fails closed", () => {
     const view = renderView("owner", "password", "resolved");
     const controls = screen.getByTestId("member-management");
     expect(controls).toBeVisible();
@@ -116,9 +116,8 @@ describe("TeamAccessView", () => {
       </MemoryRouter>,
     );
 
-    expect(controls).toBeInTheDocument();
-    expect(screen.getByTestId("member-management")).toBe(controls);
-    expect(controls).not.toBeVisible();
+    expect(controls).not.toBeInTheDocument();
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
   });
 
   it.each([
@@ -134,7 +133,6 @@ describe("TeamAccessView", () => {
     expect(screen.getByText("View the schedule").closest("li")).toHaveTextContent("Allowed:");
     expect(screen.getByText("Edit scheduling data").closest("li")).toHaveTextContent("Not allowed:");
     expect(screen.getByText("Transfer ownership")).toHaveClass("text-muted-foreground");
-    if (authMode === "password") expect(screen.getByTestId("member-management")).not.toBeVisible();
-    else expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
   });
 });

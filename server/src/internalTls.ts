@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { X509Certificate } from "node:crypto";
 import type { ServerOptions as HttpsServerOptions } from "node:https";
+import { createSecureContext } from "node:tls";
 
 export type InternalTlsOptions = Pick<HttpsServerOptions, "key" | "cert" | "minVersion"> & {
   expiresAt: string;
@@ -52,11 +53,16 @@ export function loadInternalTls(
   env: InternalTlsEnv,
   read: (path: string) => Buffer = (path) => readFileSync(path),
   expiry: (certificate: Buffer) => string = certificateExpiresAt,
+  validateIdentity: (certificate: Buffer, privateKey: Buffer) => void = (certificate, privateKey) => {
+    createSecureContext({ cert: certificate, key: privateKey });
+  },
 ): InternalTlsOptions | undefined {
-  const certPath = env.CAPACITYLENS_INTERNAL_TLS_CERT?.trim();
-  const keyPath = env.CAPACITYLENS_INTERNAL_TLS_KEY?.trim();
+  const rawCertPath = env.CAPACITYLENS_INTERNAL_TLS_CERT;
+  const rawKeyPath = env.CAPACITYLENS_INTERNAL_TLS_KEY;
+  const certPath = rawCertPath?.trim();
+  const keyPath = rawKeyPath?.trim();
 
-  if (!certPath && !keyPath) return undefined;
+  if (rawCertPath === undefined && rawKeyPath === undefined) return undefined;
   if (!certPath || !keyPath) {
     throw new InternalTlsConfigError(
       "CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY must be configured together.",
@@ -74,6 +80,13 @@ export function loadInternalTls(
   }
   if (cert.length === 0 || key.length === 0) {
     throw new InternalTlsConfigError("The configured internal TLS certificate and key must not be empty.");
+  }
+
+  try {
+    validateIdentity(cert, key);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new InternalTlsConfigError(`The configured internal TLS identity is invalid: ${detail}`);
   }
 
   let expiresAt: string;

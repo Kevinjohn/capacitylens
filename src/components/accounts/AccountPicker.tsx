@@ -283,7 +283,7 @@ export function AccountPicker() {
       );
     } finally {
       setDeleting(false);
-      setConfirming(null);
+      setConfirming((current) => (current?.id === id ? null : current));
     }
   };
 
@@ -504,7 +504,9 @@ export function AccountPicker() {
             account={confirming}
             busy={deleting}
             onConfirm={() => confirmDelete(confirming.id)}
-            onCancel={() => setConfirming(null)}
+            onCancel={() => {
+              if (!deleting) setConfirming(null);
+            }}
           />
         )}
       </div>

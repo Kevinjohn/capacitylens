@@ -28,8 +28,8 @@ beforeEach(() => {
   // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
   // toast layer is module-global; the store notice is the source of truth the bridge reads).
   useStore.getState().setNotice(null);
-  // Reset hydrated state to false before each test
-  useStore.getState().setHydrated(false);
+  // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
+  useStore.getState().setHydrated(true);
   setOfflineReadState(false);
 });
 
@@ -327,6 +327,8 @@ describe("AppShell sidebar collapse", () => {
 });
 
 describe("AppShell hydration gate", () => {
+  beforeEach(() => useStore.getState().setHydrated(false));
+
   it('shows "Loading…" when the store is not hydrated', () => {
     renderAppShell();
 

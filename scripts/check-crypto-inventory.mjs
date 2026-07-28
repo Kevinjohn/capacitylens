@@ -18,8 +18,8 @@ const trackedFiles = gitFiles(["--cached"]);
 const untrackedFiles = gitFiles(["--others", "--exclude-standard"]);
 
 const excluded =
-  /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide|to-my-siblings)(?:\/|$)|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$/;
-const eligible = /(?:\.[cm]?[jt]sx?|\.mjs|\.sh|\.conf)$/;
+  /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide|to-my-siblings)(?:\/|$)|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$|^docs\/security\/crypto-inventory\.json$/;
+const eligible = /(?:\.[cm]?[jt]sx?|\.sh|\.conf|\.ya?ml|\.json|\.sql|\.py)$/;
 const markers = [
   /(?:from|require\()['"]node:crypto/,
   /from\s+['"]jose['"]/,
@@ -35,13 +35,17 @@ const markers = [
 function discover(files) {
   const discovered = new Set();
   for (const path of files) {
-    if (excluded.test(path) || !(eligible.test(path) || path === "Dockerfile")) continue;
+    if (excluded.test(path) || !(eligible.test(path) || /(?:^|\/)Dockerfile(?:\.|$)/.test(path))) continue;
     // `git ls-files --cached` includes tracked files deleted in the working tree. Treat their absence
     // as the intended candidate state so the gate can validate a deletion before it is staged.
     if (!existsSync(path)) continue;
-    const source = readFileSync(path, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
+    const extension = path.slice(path.lastIndexOf("."));
+    const raw = readFileSync(path, "utf8");
+    const source = /\.(?:[cm]?[jt]sx?)$/.test(extension)
+      ? raw.replace(/(?<!:)\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
+      : /\.(?:sh|conf|ya?ml|py)$/.test(extension)
+        ? raw.replace(/#.*$/gm, "")
+        : raw;
     if (markers.some((marker) => marker.test(source))) discovered.add(path);
   }
   return discovered;

@@ -586,6 +586,27 @@ describe("AllocationModal days mode", () => {
     expect(after.hoursPerDay).toBeCloseTo(5, 6);
   });
 
+  it("preserves a stored non-working end date when an existing allocation is saved unchanged", async () => {
+    enableDays();
+    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-07",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)?.endDate).toBe(
+      "2026-06-07",
+    );
+  });
+
   it("seeds the days inputs by inverting an existing allocation", () => {
     enableDays();
     const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });

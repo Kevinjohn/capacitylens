@@ -333,6 +333,12 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       isDays && mode !== "move"
         ? volumePreservingHoursClamped(current, next, options, bar.allocation.hoursPerDay)
         : null;
+    if (
+      next.startDate === current.startDate &&
+      next.endDate === current.endDate &&
+      (rescale === null || rescale.hours === bar.allocation.hoursPerDay)
+    )
+      return;
     try {
       const updated = updateAllocation(bar.allocation.id, {
         ...next,

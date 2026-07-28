@@ -51,6 +51,11 @@ describe("private-name projection", () => {
     expect(redacted).not.toHaveProperty("codeName");
   });
 
+  it("fails closed instead of throwing when an untrusted private row has a non-string code name", () => {
+    const malformed = { ...privateClient, codeName: 42 } as unknown as Client;
+    expect(redactPrivateName(malformed).name).toBe('"Confidential"');
+  });
+
   it("redacts only clients and projects, leaving public names and all other tables untouched", () => {
     const publicClient = {
       ...privateClient,

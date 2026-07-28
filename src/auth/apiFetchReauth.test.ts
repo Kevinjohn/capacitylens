@@ -51,6 +51,7 @@ describe("apiFetchReauth", () => {
 
     const pending = apiFetchReauth("http://api.test/api/accounts/a1", {
       method: "DELETE",
+      headers: { "Idempotency-Key": "delete-a1" },
     });
     // The dialog trigger: a step-up becomes pending, and we have NOT retried yet.
     await vi.waitFor(() => expect(reauthPending()).toBe(true));
@@ -93,6 +94,7 @@ describe("apiFetchReauth", () => {
     vi.stubGlobal("fetch", fetchMock);
     const request = new Request("http://api.test/api/command", {
       method: "POST",
+      headers: { "Idempotency-Key": "command-1" },
       body: "payload",
     });
 
@@ -130,6 +132,7 @@ describe("apiFetchReauth", () => {
 
     const pending = apiFetchReauth("http://api.test/api/accounts/a1", {
       method: "DELETE",
+      headers: { "Idempotency-Key": "delete-a1" },
     });
     await vi.waitFor(() => expect(reauthPending()).toBe(true));
 

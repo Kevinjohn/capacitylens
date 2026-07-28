@@ -81,6 +81,13 @@ describe("applyGesture: weekend-aware resize", () => {
     expect(out.startDate).toBe("2026-06-07");
   });
 
+  it("never widens a weekend-only range while pinning an over-dragged edge", () => {
+    const range: DateRange = { startDate: "2026-06-06", endDate: "2026-06-07" };
+
+    expect(applyGesture("resize-start", range, 99, wd)).toEqual(range);
+    expect(applyGesture("resize-end", range, -99, wd)).toEqual(range);
+  });
+
   it("a move whose range has NO working days at all preserves its calendar span (does not collapse it)", () => {
     // 2026-06-06 Sat … 2026-06-07 Sun: 0 working days for a Mon-Fri resource. The
     // working-day-count branch would collapse this to a single day (endDateForWorkingDays with

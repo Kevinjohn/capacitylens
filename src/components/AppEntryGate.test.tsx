@@ -16,6 +16,13 @@ const baseProps = {
 };
 
 describe("AppEntryGate connection failures", () => {
+  it("shows only a neutral loading boundary before hydration completes", () => {
+    render(<AppEntryGate {...baseProps} hydrated={false} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+    expect(screen.queryByText("application shell")).not.toBeInTheDocument();
+  });
+
   it.each([
     ["connection error", { connectionError: true }],
     ["load error", { loadError: true }],

@@ -121,9 +121,7 @@ function parseToken(value: unknown): OneTimeToken | null {
   };
 }
 
-async function failureMessage(response: Response): Promise<string | null> {
-  const readable = typeof response.clone === "function" ? response.clone() : response;
-  const body: unknown = await readable.json().catch(() => null);
+function failureMessage(body: unknown): string | null {
   if (!isRecord(body)) return null;
   return typeof body.error === "string" && body.error.length > 0 ? body.error : null;
 }
@@ -135,8 +133,9 @@ async function commandResult<T>(
 ): Promise<TeamAccessResult<T>> {
   const success = expectedStatus === undefined ? response.ok : response.status === expectedStatus;
   if (!success) {
-    const message = await failureMessage(response);
-    return (await accountCommandOutcomeUnknown(response))
+    const body: unknown = await response.json().catch(() => null);
+    const message = failureMessage(body);
+    return (await accountCommandOutcomeUnknown(response, body))
       ? { kind: "unknown", status: response.status, message }
       : { kind: "rejected", status: response.status, message };
   }
@@ -156,7 +155,7 @@ async function readResult<T>(response: Response, decode: (body: unknown) => T | 
     return {
       kind: "rejected",
       status: response.status,
-      message: await failureMessage(response),
+      message: failureMessage(await response.json().catch(() => null)),
     };
   }
   const body: unknown = await response.json().catch(() => null);

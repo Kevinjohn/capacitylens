@@ -71,7 +71,8 @@ export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number
         // Over-dragged past the end: pin to the end, but when weekend-aware snap that pin
         // BACK onto a working day — else the start lands on a non-working `endDate` and the
         // days-mode span collapses to zero working days (silently keeping old hours).
-        startDate = weekendAware ? snapToWorkingDay(range.endDate, opts!.workingDays!, -1) : range.endDate;
+        const pinned = weekendAware ? snapToWorkingDay(range.endDate, opts!.workingDays!, -1) : range.endDate;
+        startDate = pinned < range.startDate ? range.startDate : pinned;
       }
       return { startDate, endDate: range.endDate };
     }
@@ -84,7 +85,8 @@ export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number
       if (endDate < range.startDate) {
         // Symmetric to resize-start: pin to the start, snapped FORWARD to a working day when
         // weekend-aware so the edge never sits on a weekend / zeroes the working-day span.
-        endDate = weekendAware ? snapToWorkingDay(range.startDate, opts!.workingDays!, 1) : range.startDate;
+        const pinned = weekendAware ? snapToWorkingDay(range.startDate, opts!.workingDays!, 1) : range.startDate;
+        endDate = pinned > range.endDate ? range.endDate : pinned;
       }
       return { startDate: range.startDate, endDate };
     }

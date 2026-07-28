@@ -37,6 +37,7 @@ describe("loadInternalTls", () => {
         },
         read,
         () => "2027-01-01T00:00:00.000Z",
+        () => undefined,
       ),
     ).toEqual({
       cert: Buffer.from("certificate"),
@@ -80,7 +81,23 @@ describe("loadInternalTls", () => {
         },
         () => Buffer.from("not-a-certificate"),
       ),
-    ).toThrow(/certificate is invalid/i);
+    ).toThrow(/TLS identity is invalid/i);
+  });
+
+  it("frames a malformed or mismatched private key as a configuration error", () => {
+    expect(() =>
+      loadInternalTls(
+        {
+          CAPACITYLENS_INTERNAL_TLS_CERT: "/tls/api.crt",
+          CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
+        },
+        (path) => Buffer.from(path.endsWith(".crt") ? "certificate" : "malformed-key"),
+        () => "2027-01-01T00:00:00.000Z",
+        () => {
+          throw new Error("key values mismatch");
+        },
+      ),
+    ).toThrow(/TLS identity is invalid.*key values mismatch/i);
   });
 
   it("reports ok, renewal-window and expired states at exact boundaries", () => {

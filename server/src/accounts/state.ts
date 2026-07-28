@@ -595,10 +595,11 @@ export function eraseWorkspaceCommandHistoryInTx(db: Db, workspaceId: WorkspaceI
        AND status IN ('completed', 'compensated')
   `,
   ).run(workspaceId, exceptCommandId);
-  db.prepare(`UPDATE account_commands SET workspaceId = NULL WHERE commandId = ? AND workspaceId = ?`).run(
-    exceptCommandId,
-    workspaceId,
-  );
+  db.prepare(
+    `UPDATE account_commands
+        SET workspaceId = NULL, actorPrincipalId = NULL, targetPrincipalId = NULL
+      WHERE commandId = ? AND workspaceId = ?`,
+  ).run(exceptCommandId, workspaceId);
 }
 
 /** Erase command-ledger correlation for a local principal that is itself being erased. */

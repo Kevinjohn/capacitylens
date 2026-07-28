@@ -101,11 +101,15 @@ function transactSlice<Result>(
   },
 ): Result {
   let output!: Result;
-  tx(db, () => {
-    const { next, result } = operation(readSlice(db, accountId, opts));
-    replaceAccountSlice(db, accountId, next);
-    output = result as Result;
-  });
+  tx(
+    db,
+    () => {
+      const { next, result } = operation(readSlice(db, accountId, opts));
+      replaceAccountSlice(db, accountId, next);
+      output = result as Result;
+    },
+    "immediate",
+  );
   return output;
 }
 

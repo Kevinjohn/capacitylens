@@ -89,12 +89,12 @@ describe("account CRUD", () => {
     expect(s().activeAccountId).toBeNull();
   });
 
-  it("deleting a non-active account leaves the active selection intact", () => {
+  it("refuses to delete a non-active account", () => {
     s().replaceAll(twoAccountData());
     s().setActiveAccount("a1");
-    s().deleteAccount("a2");
+    expect(() => s().deleteAccount("a2")).toThrow(/active company/i);
     expect(s().activeAccountId).toBe("a1");
-    expect(s().data.clients.map((c) => c.id)).toEqual(["c1"]);
+    expect(s().data.clients.map((c) => c.id)).toEqual(["c1", "c2"]);
   });
 });
 

@@ -297,6 +297,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
       const list = await refreshAccountSummaries({
         signal: AbortSignal.timeout(5000),
         allowCachedFallback: false,
+        preserveActiveAccountIfMissing: true,
       });
       // The directory refresh remains useful after navigation, but this route no longer owns the
       // global company selection once it has unmounted. A company chosen on the destination route

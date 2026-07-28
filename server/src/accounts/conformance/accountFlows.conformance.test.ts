@@ -1318,6 +1318,41 @@ describe("AccountFlows conformance", () => {
     expect(lock.pendingKeyCount()).toBe(0);
   });
 
+  it("does not treat async context retained after release as a still-held lock", async () => {
+    const lock = new KeyedOperationLock();
+    let triggerLate!: () => void;
+    const trigger = new Promise<void>((resolve) => {
+      triggerLate = resolve;
+    });
+    let late!: Promise<void>;
+    let lateEntered = false;
+
+    await lock.withKeys(["principal-1"], () => {
+      late = trigger.then(() =>
+        lock.withKeys(["principal-1"], () => {
+          lateEntered = true;
+        }),
+      );
+    });
+
+    let releaseBlocker!: () => void;
+    const blocker = lock.withKeys(
+      ["principal-1"],
+      () =>
+        new Promise<void>((resolve) => {
+          releaseBlocker = resolve;
+        }),
+    );
+    await Promise.resolve();
+    triggerLate();
+    await Promise.resolve();
+    expect(lateEntered).toBe(false);
+    releaseBlocker();
+    await blocker;
+    await late;
+    expect(lateEntered).toBe(true);
+  });
+
   it("locks every workspace principal before erasure can race identity administration", async () => {
     const lock = new KeyedOperationLock();
     let releasePrincipal!: () => void;

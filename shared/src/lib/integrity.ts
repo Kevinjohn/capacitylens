@@ -1,4 +1,4 @@
-import { daysInclusive, parseDate, toISODate } from "./dateMath";
+import { daysInclusive } from "./dateMath";
 import { MAX_SPAN_DAYS } from "./schedulingDays";
 import type { DomainErrorCode } from "../domain/errors";
 import type { AppData, EmploymentType, ID, ISODate, Resource } from "../types/entities";
@@ -15,9 +15,16 @@ import type { AppData, EmploymentType, ID, ISODate, Resource } from "../types/en
  * out-of-range one rolls over (parse("2026-02-30") → "2026-03-02") and mismatches.
  */
 export function isValidISODate(s: unknown): s is ISODate {
-  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const parsed = parseDate(s);
-  return !Number.isNaN(parsed.getTime()) && toISODate(parsed) === s;
+  if (typeof s !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1) return false;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  return day <= daysInMonth;
 }
 
 const ISO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;

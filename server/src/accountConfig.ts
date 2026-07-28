@@ -176,8 +176,11 @@ export function resolveAccountEnvironment(
       );
     }
     const scopes = (env.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/);
-    if (!scopes.includes("openid")) {
-      throw new AccountConfigError("The hosted-oidc-only deployment profile requires the openid scope.");
+    const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
+    if (missingScopes.length > 0) {
+      throw new AccountConfigError(
+        `The hosted-oidc-only deployment profile requires the ${missingScopes.join(", ")} scope${missingScopes.length === 1 ? "" : "s"}.`,
+      );
     }
     if (
       env.CAPACITYLENS_GOOGLE_CLIENT_ID ||

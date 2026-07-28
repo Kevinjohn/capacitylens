@@ -53,6 +53,7 @@ export function useDragResize(args: UseDragResizeArgs) {
     const startX = e.clientX;
     const startY = e.clientY;
     const pointerId = e.pointerId; // only react to THIS pointer's move/up/cancel
+    const captureTarget = e.currentTarget;
     const threshold = argsRef.current.threshold ?? 4;
     let dragging = false;
 
@@ -82,10 +83,17 @@ export function useDragResize(args: UseDragResizeArgs) {
       document.removeEventListener("pointerup", onUp);
       document.removeEventListener("pointercancel", onCancel);
       document.removeEventListener("keydown", onKeyDown);
+      captureTarget.removeEventListener("lostpointercapture", onLostPointerCapture);
+      if (captureTarget.hasPointerCapture?.(pointerId)) captureTarget.releasePointerCapture(pointerId);
       teardownRef.current = null;
     };
     const onUp = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return;
+      if (ev.button !== 0) {
+        detach();
+        argsRef.current.onCancel?.();
+        return;
+      }
       detach();
       if (!dragging) {
         argsRef.current.onClick?.();
@@ -106,6 +114,10 @@ export function useDragResize(args: UseDragResizeArgs) {
       // listener for every twitch-then-browser-scroll, accumulating across gestures.
       argsRef.current.onCancel?.();
     };
+    const onLostPointerCapture = () => {
+      detach();
+      argsRef.current.onCancel?.();
+    };
     // Keyboard escape hatch: a pointer-only gesture has no way to back out once armed (a
     // resize/move drag has no native "cancel" gesture). Escape mirrors onCancel's teardown
     // (detach, then the consumer's cancel hook) rather than committing whatever the last
@@ -120,6 +132,8 @@ export function useDragResize(args: UseDragResizeArgs) {
     document.addEventListener("pointerup", onUp);
     document.addEventListener("pointercancel", onCancel);
     document.addEventListener("keydown", onKeyDown);
+    captureTarget.addEventListener("lostpointercapture", onLostPointerCapture);
+    captureTarget.setPointerCapture?.(pointerId);
     teardownRef.current = detach;
     return true;
   }, []);

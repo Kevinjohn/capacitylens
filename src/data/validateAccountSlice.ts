@@ -13,7 +13,13 @@ export function validateAccountSlice(value: unknown, accountId: string): AppData
 export function validateAccountSliceWithRepairBase(value: unknown, accountId: string): MigrationWithRepairBase | null {
   if (!isRecord(value) || KNOWN_KEYS.some((key) => !Array.isArray(value[key]))) return null;
   for (const key of KNOWN_KEYS) {
-    if (!(value[key] as unknown[]).every(isRecord)) return null;
+    const rows = value[key] as unknown[];
+    if (!rows.every(isRecord)) return null;
+    const ids = new Set<string>();
+    for (const row of rows as Array<Record<string, unknown>>) {
+      if (typeof row.id !== "string" || row.id.length === 0 || ids.has(row.id)) return null;
+      ids.add(row.id);
+    }
   }
   const accounts = value.accounts as Array<Record<string, unknown>>;
   if (accounts.length !== 1 || accounts[0].id !== accountId) return null;

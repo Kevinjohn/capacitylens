@@ -325,7 +325,7 @@ export function SelectField({
           aria-label={ariaLabel}
           data-testid={testId}
         >
-          <SelectValue placeholder={placeholder}>{selectedOption?.label}</SelectValue>
+          <SelectValue placeholder={placeholder}>{selectedOption?.label ?? placeholder}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
@@ -390,10 +390,6 @@ export function ColorField({
           className="grid w-max gap-1.5 p-2"
           style={{
             gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))`,
-          }}
-          onPointerDownOutside={(event) => {
-            event.preventDefault();
-            setOpen(false);
           }}
         >
           {SWATCHES.map((hex, i) => {

@@ -35,6 +35,20 @@ export type { SanitizeWriteOptions } from "./fieldPolicy";
 /** Account calendar/locale facts become immutable after their first valid stored value. */
 export const IMMUTABLE_ACCOUNT_FIELDS = ["language", "weekStartsOn", "timezone"] as const;
 
+/** Required domain values the import sanitiser is allowed to invent, but a direct API writer must
+ * supply explicitly. Referential fields remain with validateWrite so callers retain its precise
+ * domain error codes and messages. */
+const DIRECT_WRITE_REQUIRED_FIELDS: Partial<Record<ScopedEntityKey, readonly string[]>> = {
+  disciplines: ["name", "sortOrder"],
+  resources: ["kind", "role", "employmentType", "workingHoursPerDay", "workingDays", "color"],
+  clients: ["name", "color"],
+  projects: ["name", "color"],
+  phases: ["name"],
+  activities: ["name", "kind"],
+  allocations: ["hoursPerDay", "status"],
+  timeOff: ["type"],
+};
+
 // The server is the integrity boundary for direct API writes. Two layers, both
 // reusing the SAME shared domain-core the client uses (so server rules can't drift
 // from client rules):
@@ -158,6 +172,10 @@ export function sanitizeWrite(
     return copy;
   }
   if (isScopedEntityKey(table)) {
+    const missingRequired = (DIRECT_WRITE_REQUIRED_FIELDS[table] ?? []).filter((field) => !Object.hasOwn(copy, field));
+    if (missingRequired.length > 0) {
+      throw new ValidationError(`Missing required field(s): ${missingRequired.join(", ")}.`);
+    }
     const cleaned = sanitizeImportedRecord(table, copy);
     // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
     // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions +

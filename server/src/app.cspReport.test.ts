@@ -58,7 +58,7 @@ describe("CSP violation reporting", () => {
     db.close();
   });
 
-  it("accepts the Reporting API array format and bounds one request to twenty events", async () => {
+  it("accepts the Reporting API array format and bounds one request to one event", async () => {
     const app = buildApp(openDb(":memory:"), { securityLog: (event) => events.push(event) });
     const reports = Array.from({ length: 25 }, () => ({
       type: "csp-violation",
@@ -77,7 +77,7 @@ describe("CSP violation reporting", () => {
     });
 
     expect(response.statusCode).toBe(204);
-    expect(events).toHaveLength(20);
+    expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ blockedOrigin: "inline", effectiveDirective: "style-src-elem" });
     await app.close();
   });

@@ -30,8 +30,10 @@ type PrivateNamedEntity = Client | Project;
  * projection and is also used for write/conflict echoes, so no non-owner response path can drift.
  */
 export function redactPrivateName<T extends PrivateNamedEntity>(entity: T): T {
-  if (entity.isPrivate !== true) return entity;
-  const redacted = { ...entity, name: quoteCodeName(entity.codeName ?? "") };
+  if (!entity.isPrivate) return entity;
+  if (entity.codeName === undefined && /^".*"$/u.test(entity.name)) return entity;
+  const codeName = typeof entity.codeName === "string" ? entity.codeName : "";
+  const redacted = { ...entity, name: quoteCodeName(codeName) };
   delete redacted.codeName;
   return redacted;
 }

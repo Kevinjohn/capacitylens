@@ -445,7 +445,7 @@ describe("assertScopedRefs", () => {
       ).not.toThrow();
     });
 
-    it("does not make an unchanged legacy cross-account reference the repair boundary", () => {
+    it("rejects an unchanged legacy reference when the resolved parent belongs to another account", () => {
       const existing = project("p1", A1, "cross-account-client");
       const data: AppData = {
         ...base(),
@@ -455,7 +455,7 @@ describe("assertScopedRefs", () => {
 
       expect(() =>
         assertScopedRefs(data, A1, "projects", { name: "Unrelated rename", clientId: existing.clientId }, existing),
-      ).not.toThrow();
+      ).toThrow("Project must reference a client in this company.");
     });
 
     it("still rejects a CHANGED clientId that is absent from data", () => {
@@ -1081,10 +1081,10 @@ describe("remapAndValidateImport", () => {
     const { data } = remapAndValidateImport(base(), A1, { ...emptyAppData(), resources: [deleted] }, TS);
     expect(data.resources).toHaveLength(1);
     expect(data.resources[0]).toMatchObject({
-      role: "Sensitive role",
+      role: "Removed resource",
       deletedAt: deleted.deletedAt,
     });
-    expect(data.resources[0].name).toMatch(/^Removed person #[a-zA-Z0-9]{4}$/);
+    expect(data.resources[0].name).toMatch(/^Removed person #[a-zA-Z0-9]{12}$/);
     expect(data.resources[0].name).not.toContain("Named Person");
   });
 

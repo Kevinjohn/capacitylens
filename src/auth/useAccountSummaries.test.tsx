@@ -244,6 +244,22 @@ describe("fetchAccountSummaries — response classification", () => {
 });
 
 describe("refreshAccountSummaries — shared request ordering", () => {
+  it("returns an active user to the picker when a live directory no longer contains that company", async () => {
+    useStore.setState({ activeAccountId: "a1" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, [{ id: "a2", name: "Other", role: "viewer" }])),
+    );
+
+    await refreshAccountSummaries();
+
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().notice).toMatchObject({
+      message: m.notice_company_access_removed(),
+      tone: "warning",
+    });
+  });
+
   it("keeps the later-issued directory when two responses resolve in reverse order", async () => {
     const earlier = deferred<Response>();
     const later = deferred<Response>();

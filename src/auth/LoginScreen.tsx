@@ -101,7 +101,7 @@ export function LoginScreen({
     setError(null);
     try {
       const { data, error: failure } = await authClient.signIn.email({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
       if (failure) {
@@ -409,7 +409,7 @@ export function LoginScreen({
                 </FieldGroup>
               </form>
             ) : null}
-            {providers.length > 0 && (
+            {!twoFactorPending && providers.length > 0 && (
               <div className="mt-4 flex flex-col gap-3">
                 <Separator />
                 {providers.some((provider) => provider.experimental) ? (

@@ -330,7 +330,10 @@ export function localAccountFlows(input: {
           {
             applicationId,
             operation,
-            actorPrincipalId: actor.principalId,
+            // A successful erasure deliberately anonymises its retained receipt. Accept that
+            // redacted scope only after the exact completed command has been found above; a live
+            // principal binding must still match the authenticated caller.
+            actorPrincipalId: existing.actorPrincipalId === null ? null : actor.principalId,
             workspaceId,
           },
           command,
@@ -351,7 +354,12 @@ export function localAccountFlows(input: {
       provisionProductData,
     }) {
       return lock.withKeys(
-        [commandExecutionKey(command), actor.principalId, `application:${applicationId}:workspace-provisioning`],
+        [
+          commandExecutionKey(command),
+          actor.principalId,
+          `application:${applicationId}:workspace-provisioning`,
+          `workspace:${workspaceId}`,
+        ],
         async () => {
           const operation = `workspace-provisioning:actor:${actor.principalId}`;
           const scope = {
@@ -378,33 +386,37 @@ export function localAccountFlows(input: {
             };
           }
           try {
-            const result = tx(db, () => {
-              const decision = administration.evaluateWorkspaceProvisioningAuthorityInTx({
-                actor,
-                multiWorkspace,
-                bootstrapAuthorized,
-              });
-              if (!decision.allowed) {
-                throw new AccountContractError({
-                  code: "FORBIDDEN",
-                  message:
-                    decision.reason === "single-workspace-cap"
-                      ? "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more."
-                      : "Forbidden.",
-                  retryable: false,
-                  commandId: command.commandId,
+            const result = tx(
+              db,
+              () => {
+                const decision = administration.evaluateWorkspaceProvisioningAuthorityInTx({
+                  actor,
+                  multiWorkspace,
+                  bootstrapAuthorized,
                 });
-              }
-              const product = provisionProductData();
-              const membership = administration.provisionOwnerMembershipInTx({
-                workspaceId,
-                principalId: actor.principalId,
-                joinedAt,
-              });
-              const result = { product, membership };
-              completeCommand(db, scope, command, result);
-              return result;
-            });
+                if (!decision.allowed) {
+                  throw new AccountContractError({
+                    code: "FORBIDDEN",
+                    message:
+                      decision.reason === "single-workspace-cap"
+                        ? "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more."
+                        : "Forbidden.",
+                    retryable: false,
+                    commandId: command.commandId,
+                  });
+                }
+                const product = provisionProductData();
+                const membership = administration.provisionOwnerMembershipInTx({
+                  workspaceId,
+                  principalId: actor.principalId,
+                  joinedAt,
+                });
+                const result = { product, membership };
+                completeCommand(db, scope, command, result);
+                return result;
+              },
+              "immediate",
+            );
             audit({
               action: "workspace.provisioned",
               outcome: "success",
@@ -483,20 +495,24 @@ export function localAccountFlows(input: {
               };
             }
             try {
-              const value = tx(db, () => {
-                administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
-                eraseProductWorkspaceInTx(workspaceId);
-                const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId);
-                identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
-                auditProductMutationInTx?.();
-                const receipt = {
-                  commandId: command.commandId,
-                  completedAt: new Date().toISOString(),
-                };
-                eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
-                completeCommand(db, scope, command, receipt);
-                return receipt;
-              });
+              const value = tx(
+                db,
+                () => {
+                  administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
+                  eraseProductWorkspaceInTx(workspaceId);
+                  const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId);
+                  identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
+                  auditProductMutationInTx?.();
+                  const receipt = {
+                    commandId: command.commandId,
+                    completedAt: new Date().toISOString(),
+                  };
+                  eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
+                  completeCommand(db, scope, command, receipt);
+                  return receipt;
+                },
+                "immediate",
+              );
               audit({
                 action: "workspace.erased",
                 outcome: "success",

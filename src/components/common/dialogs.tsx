@@ -200,6 +200,8 @@ export function Modal({
         onPointerDownOutside={(event) => {
           event.preventDefault();
           if (hasOpenNestedOverlay()) return;
+          const pointer = event.detail.originalEvent;
+          if (pointer.button === 2 || (pointer.button === 0 && pointer.ctrlKey)) return;
           requestClose();
         }}
         onCloseAutoFocus={(event) => event.preventDefault()}

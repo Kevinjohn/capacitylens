@@ -7,6 +7,7 @@ import { errorMessage } from "../lib/errorMessage";
 import { readApiError } from "../lib/readApiError";
 import { m } from "@/i18n";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
+import { API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 
 // The SINGLE dispatch seam for the Active → Archived → Soft-deleted → Purged data-lifecycle (P2.5b),
 // shared by BOTH the management lists' Archive affordance (ResourceList/ClientList/ProjectList) and
@@ -118,6 +119,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return;
+      let notifyReloaded = false;
       try {
         // apiFetchReauth (not raw fetch) so: (1) the server's `x-capacitylens-audit-warning` header
         // on these destructive lifecycle writes is surfaced (announceAuditWarning) exactly like
@@ -126,12 +128,16 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         // irreversible and destroys resource PII, so the server freshness-gates both) — that 403
         // SESSION_NOT_FRESH raise the step-up dialog and retry after re-auth (DEFECT B).
         // archive/unarchive are ordinary writes and never trip freshness, so this is a no-op there.
-        const res = await apiFetchReauth(`${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId: activeAccountId }),
-        });
+        const res = await apiFetchReauth(
+          `${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+            body: JSON.stringify({ accountId: activeAccountId }),
+          },
+          API_BULK_TIMEOUT_MS,
+        );
         if (lifecycleOutcomeUnknown(res)) {
           throw new Error(`HTTP ${res.status} did not confirm whether the lifecycle mutation committed.`);
         }
@@ -142,7 +148,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         }
         // The dedicated routes write the DB out-of-band from the snapshot-diff sync, so a reload is
         // REQUIRED to refresh the active views + re-seed the adapter snapshot (see reloadFromServer).
-        if ((await reloadFromServer(activeAccountId)) === "reloaded") onReloaded?.();
+        notifyReloaded = (await reloadFromServer(activeAccountId)) === "reloaded";
       } catch (e) {
         // A route change during the request makes this reconciliation intentionally stale. The
         // original company will hydrate its committed state when selected again; do not attach an
@@ -153,7 +159,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           if (outcome !== "reloaded") {
             throw new Error(`Authoritative reload did not complete (${outcome}).`, { cause: e });
           }
-          onReloaded?.();
+          notifyReloaded = true;
           setNotice(
             `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${errorMessage(e)}`,
             "warning",
@@ -165,6 +171,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           );
         }
       }
+      if (notifyReloaded) onReloaded?.();
     },
     [activeAccountId, setNotice, onReloaded],
   );

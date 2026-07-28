@@ -133,8 +133,11 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
     if (rows) rows.push(entry);
     else builtinsByAccount.set(client.accountId, [entry]);
   });
+  const processedAccountIds = new Set<ID>();
   for (const account of data.accounts) {
     if (!account || typeof account !== "object" || typeof account.id !== "string") continue;
+    if (processedAccountIds.has(account.id)) continue;
+    processedAccountIds.add(account.id);
     const generatedId = `internal:${account.id}`;
     const builtins = builtinsByAccount.get(account.id);
     if (!builtins || builtins.length === 0) {

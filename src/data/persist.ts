@@ -820,12 +820,15 @@ export function attachPersistence(
         // a one-shot flush would then return "clean" while that save is still on the wire, and
         // the caller's import POST would race it (the exact pre-suspension window the whole
         // import sequence exists to close). Terminates when a full round finds nothing new.
-        while (!disposed && (timer || pending || inFlightSave)) {
+        const deadline = Date.now() + 120_000;
+        let rounds = 0;
+        while (!disposed && (timer || pending || inFlightSave) && rounds < 100 && Date.now() < deadline) {
+          rounds += 1;
           cancelDebounce();
           if (pending) save(pending); // consumes pending, sets inFlightSave synchronously
           if (inFlightSave) await inFlightSave;
         }
-        return !disposed && !failedSinceSuccess && unacknowledged === null;
+        return !disposed && !timer && !pending && !inFlightSave && !failedSinceSuccess && unacknowledged === null;
       }
     : null;
   // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL

@@ -479,8 +479,9 @@ function anonymise(db: DatabaseSync): void {
 
   const violations = db.prepare("PRAGMA foreign_key_check").all();
   if (violations.length > 0) throw new Error(`anonymised copy has ${violations.length} foreign-key violation(s)`);
-  // Rewrite every page so deleted/replaced source values are not left in freelist pages.
-  db.exec("VACUUM; PRAGMA journal_mode = DELETE;");
+  // secure_delete was enabled before the transaction, so replaced/deleted values are overwritten
+  // without rebuilding the file. Preserve the copied operator database's page layout and journal
+  // mode: the rehearsal must exercise the physical shape it was given.
 }
 
 function rowCounts(db: DatabaseSync): Record<string, number> {

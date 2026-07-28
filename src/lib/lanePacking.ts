@@ -1,4 +1,5 @@
 import { dayIndex } from "@capacitylens/shared/lib/dateMath";
+import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 
 // Greedy first-fit interval partitioning, per resource. Produces the minimum
@@ -34,7 +35,7 @@ export function packLanes(items: Interval[]): PackResult {
 
   // Origin = the first non-empty start (a bad/empty record sorts first but must
   // not become the origin, or it would NaN-poison every other item's day-index).
-  const origin = sorted.find((it) => it.startDate)?.startDate ?? sorted[0].startDate;
+  const origin = sorted.find((it) => isValidISODate(it.startDate))?.startDate ?? sorted[0].startDate;
   const laneEnds: number[] = []; // inclusive endDay of the last item placed in each lane
   const lanes: LaneItem[] = [];
 

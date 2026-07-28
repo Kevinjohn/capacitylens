@@ -564,6 +564,20 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
 });
 
 describe("validation (shared domain-core) rejects bad writes with 400", () => {
+  it("rejects direct writes that omit values only the import path may repair", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+    const res = await post(app, "resources", {
+      id: "r1",
+      accountId: "a1",
+      name: "Ada",
+      ...meta(),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/missing required field.*kind/i);
+    expect((await state(app)).resources).toEqual([]);
+  });
+
   it("rejects missing required project and phase parents at the shared boundary", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -1025,7 +1039,7 @@ describe("import", () => {
       name: string;
       deletedAt: string | null;
     };
-    expect(importedResource.name).toMatch(/^Removed person #[a-zA-Z0-9]{4}$/);
+    expect(importedResource.name).toMatch(/^Removed person #[a-zA-Z0-9]{12}$/);
     expect(importedResource.deletedAt).toBe(deleted.deletedAt);
     expect(db.prepare(`SELECT note FROM allocations WHERE accountId = 'a1'`).get()).toEqual({ note: null });
     expect(db.prepare(`SELECT note FROM timeOff WHERE accountId = 'a1'`).get()).toEqual({ note: null });

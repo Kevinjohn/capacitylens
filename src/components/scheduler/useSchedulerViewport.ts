@@ -136,6 +136,7 @@ export function useSchedulerViewport({
 
   const focusX = geom.xForDateInGeom(ui.focusDate);
   const focusXRef = useRef(focusX);
+  const previousScrollLeftRef = useRef<number | null>(null);
   // Recenter consumes this ref in a later layout effect from the same commit. Update it here,
   // before that consumer runs, so a simultaneous origin/focus/token change cannot use the prior
   // geometry's offset. Keeping the ref avoids making ordinary geometry changes trigger recentering.
@@ -171,7 +172,7 @@ export function useSchedulerViewport({
     const leftDate = days[previousGeom.indexAt(Math.round(el.scrollLeft))] ?? days[0];
     const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
     const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
-    el.scrollLeft = geom.xForDateInGeom(targetDate);
+    el.scrollLeft = Math.max(0, geom.xForDateInGeom(targetDate));
   }, [geom, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn]);
 
   useEffect(() => {
@@ -194,9 +195,11 @@ export function useSchedulerViewport({
       // Vertical windowing follows the viewport during a drag so newly visible rows can become
       // drop targets. SchedulerGrid separately pins the source row to keep gesture ownership.
       setScrollTop(el.scrollTop);
+      const horizontalChanged = previousScrollLeftRef.current !== el.scrollLeft;
+      previousScrollLeftRef.current = el.scrollLeft;
       // Horizontal state and idle snapping remain frozen until the drag ends: changing the date
       // geometry underneath a pointer gesture would change its meaning mid-flight.
-      if (useStore.getState().draggingAllocationId !== null) return;
+      if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
       // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (HiDPI can store scrollLeft
       // just below an integer column boundary; indexAt's strict floor would resolve that to the
       // previous, narrower-under-minimised-weekends column).

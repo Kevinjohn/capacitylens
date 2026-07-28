@@ -128,14 +128,9 @@ export function TeamAccessView() {
         </Card>
       </div>
 
-      {/* Keep the write-once link state mounted across a fail-closed membership recheck. The wrapper
-          hides stale management controls immediately; MembersSection independently self-gates its
-          reads with the server and therefore remains safe for lower roles. */}
-      {authenticated && (
-        <div hidden={!mayManage}>
-          <MembersSection />
-        </div>
-      )}
+      {/* Resolve permission before mounting: lower roles must not issue privileged directory reads
+          merely by visiting this page. */}
+      {authenticated && mayManage && <MembersSection />}
       {authenticated && !offline.readOnly && permissionStatus === "resolved" && !mayManage ? (
         <Card>
           <CardHeader>

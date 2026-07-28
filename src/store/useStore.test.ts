@@ -299,7 +299,7 @@ describe("store scheduler UI", () => {
     expect(s().data.clients[0].id).toBe(c.id);
   });
 
-  it("serializes only changed row candidates when preparing undo history", () => {
+  it("re-stamps a changed revision without serializing content unnecessarily", () => {
     resetStoreWithAccount();
     const clients = Array.from({ length: 100 }, (_, index) => s().addClient({ name: `Client ${index}`, color: "#1" }));
     useStore.setState({ past: [], future: [] });
@@ -309,7 +309,7 @@ describe("store scheduler UI", () => {
     s().undo();
 
     expect(s().data.clients[0].name).toBe("Client 0");
-    expect(stringify).toHaveBeenCalledTimes(2);
+    expect(stringify).not.toHaveBeenCalled();
     stringify.mockRestore();
   });
 

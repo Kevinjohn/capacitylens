@@ -116,6 +116,11 @@ describe("ownership guard on update/delete", () => {
     expect(s().notice).toMatchObject({ tone: "error" });
   });
 
+  it("refuses to delete a non-active account", () => {
+    expect(() => s().deleteAccount(B)).toThrow(/active company/i);
+    expect(s().data.accounts.some((account) => account.id === B)).toBe(true);
+  });
+
   it("treats stale account update and delete ids as true no-ops that preserve undo and redo", () => {
     s().updateAccount(A, { name: "Changed once" });
     s().undo();

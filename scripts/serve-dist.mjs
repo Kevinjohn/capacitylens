@@ -9,6 +9,7 @@
 
 import { createServer, request as httpRequest } from "node:http";
 import { createReadStream, existsSync } from "node:fs";
+import { stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parsePort } from "./port.mjs";
@@ -79,7 +80,17 @@ createServer((req, res) => {
   // createReadStream can open a directory and emit EISDIR only after its `open` event. Avoid
   // committing a 200 for the dist directory at GET /; the SPA root is index.html.
   const requested = path === "/" ? join(DIST, "index.html") : join(DIST, path);
-  const serve = (target, fallbackAllowed) => {
+  const serve = async (target, fallbackAllowed) => {
+    try {
+      if (!(await stat(target)).isFile()) throw new Error("Static path is not a file.");
+    } catch {
+      if (fallbackAllowed) await serve(join(DIST, "index.html"), false);
+      else {
+        res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        res.end("404 not found");
+      }
+      return;
+    }
     const stream = createReadStream(target);
     stream.once("open", () => {
       res.writeHead(200, { "content-type": MIME[extname(target)] ?? "application/octet-stream" });
@@ -89,14 +100,14 @@ createServer((req, res) => {
       if (res.headersSent) {
         res.destroy(error);
       } else if (fallbackAllowed) {
-        serve(join(DIST, "index.html"), false);
+        void serve(join(DIST, "index.html"), false);
       } else {
         res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
         res.end("404 not found");
       }
     });
   };
-  serve(requested, !path.startsWith("/assets/"));
+  void serve(requested, !path.startsWith("/assets/"));
 }).listen(PORT, "127.0.0.1", () => {
   console.log(`serve-dist: http://127.0.0.1:${PORT} (dist/ + /api → 127.0.0.1:${API_PORT})`);
 });

@@ -12,6 +12,20 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Serialized account, identity, lifecycle and tenant writes at their SQLite boundaries, while
+  retaining exact-command replay after completed company erasure.
+- Hardened database startup, migration rehearsal, TLS configuration, container health checks and
+  shutdown persistence against partial, malformed or concurrent state.
+- Kept authentication, MFA, invitation, management and account-selection failure states actionable
+  instead of clearing state, rendering stale controls or leaving the interface busy.
+- Made scheduler keyboard, pointer and viewport gestures terminate safely at invalid dates, bounds,
+  lost capture and secondary-button release, with undoable client and project removal.
+- Tightened API input and response contracts for scoped slices, inactive reads, lifecycle errors,
+  server-authored fields and persistence completion.
+- Bounded unauthenticated CSP telemetry and warning cardinality, and expanded the reviewed
+  cryptographic-path inventory to cover workflow, container and lifecycle identifiers.
+- Removed residual personal role data from deleted-resource tombstones and lengthened their opaque
+  display identifiers.
 - Revalidated shared authentication sessions when a background tab returns to the foreground, so
   sign-out or revocation in another tab cannot leave stale tenant controls visible indefinitely.
 - Hardened persistence boundaries against cross-company snapshots, raw server error bodies,

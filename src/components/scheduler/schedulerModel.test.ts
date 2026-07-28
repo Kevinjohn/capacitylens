@@ -1100,6 +1100,22 @@ describe("built-in Internal client bucketing + filter", () => {
     expect(internalBarIds(model)).not.toContain("aIntNoProj");
     expect(internalBarIds(model)).not.toContain("aIntProj");
   });
+
+  it("does not misclassify an activity with a dangling project reference as project-less Internal work", () => {
+    const data = withInternal();
+    data.projects = data.projects.filter((project) => project.id !== "pInt");
+    const model = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: { ...emptyFilters(), clientId: internalId },
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+
+    expect(internalBarIds(model)).not.toContain("aIntProj");
+  });
 });
 
 // Per-account BAR-ONLY hide prefs for internal work (showInternalProjects / showInternalActivities).

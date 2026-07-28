@@ -45,7 +45,7 @@ const oidcOnly = envFlag("CAPACITYLENS_OIDC_E2E");
 const rehearsalEnabled = Boolean(process.env.CAPACITYLENS_REHEARSAL_URL);
 const coreEnabled = !oidcOnly && !rehearsalEnabled;
 const standardServerProjectsEnabled = !viteOnly && !oidcOnly && !rehearsalEnabled;
-const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE ?? "default").replace(/[^a-zA-Z0-9_-]+/g, "-");
+const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE || "default").replace(/[^a-zA-Z0-9_-]+/g, "-");
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the

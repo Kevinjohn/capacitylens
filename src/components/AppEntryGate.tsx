@@ -4,6 +4,7 @@ import { ConnectionError } from "./ConnectionError";
 import { FakeSignIn } from "./FakeSignIn";
 import { IntroPage } from "./IntroPage";
 import { RotateHint } from "./RotateHint";
+import { m } from "@/i18n";
 
 interface AppEntryGateProps {
   hydrated: boolean;
@@ -32,8 +33,17 @@ export function AppEntryGate({
   children,
 }: AppEntryGateProps) {
   if (connectionError || loadError) return <ConnectionError />;
+  if (!hydrated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
+        <p role="status" className="text-sm text-muted-foreground">
+          {m.app_loading()}
+        </p>
+      </main>
+    );
+  }
 
-  if (hydrated && demoAuthActive && !fakeSignedIn) {
+  if (demoAuthActive && !fakeSignedIn) {
     return (
       <>
         <FakeSignIn onSignIn={onFakeSignIn} />
@@ -42,7 +52,7 @@ export function AppEntryGate({
     );
   }
 
-  if (hydrated && !hasActiveAccount) {
+  if (!hasActiveAccount) {
     return (
       <>
         <AccountPicker />
@@ -51,7 +61,7 @@ export function AppEntryGate({
     );
   }
 
-  if (hydrated && hasActiveAccount && !introSeen) {
+  if (hasActiveAccount && !introSeen) {
     return (
       <>
         <IntroPage onContinue={onIntroContinue} />

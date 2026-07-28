@@ -401,19 +401,19 @@ export function AuthProvider({
    *    render the auth error boundary and are never converted to auth-off.
    *  - 'keep-previous' (every mid-session re-check): keep the current snapshot with a warn
    *    breadcrumb — stale beats resetting a live session's user/authMode to 'off'. */
-  const checkAuth = useCallback((onNull: "fail-open" | "keep-previous"): Promise<void> => {
+  const checkAuth = useCallback((onNull: "fail-open" | "keep-previous"): Promise<Status | null> => {
     const requestId = ++authRequestSeq.current;
     // .then (not await) so setStatus runs in a plain callback — the same shape as subscribing to
     // an external system, which is what this is (react-hooks/set-state-in-effect is happy with it).
     return fetchAuthStatus(() => requestId === authRequestSeq.current).then((next) => {
-      if (requestId !== authRequestSeq.current) return; // superseded by a newer check — drop, don't clobber
+      if (requestId !== authRequestSeq.current) return null; // superseded by a newer check — drop, don't clobber
       if (next === null || (next.kind === "error" && onNull === "keep-previous")) {
         if (onNull === "fail-open") {
           setStatus(passOpen("off", null));
         } else {
           console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
         }
-        return;
+        return next;
       }
       if (next.kind === "login") {
         clearStoredAccountCommands();
@@ -421,6 +421,7 @@ export function AuthProvider({
         bindStoredAccountCommandsToIdentity(next.user?.id ?? "auth-off");
       }
       setStatus(next);
+      return next;
     });
   }, []);
 
@@ -441,6 +442,12 @@ export function AuthProvider({
   const refreshAuth = useCallback(async () => {
     if (!serverMode) return; // demo build: no server, the fields already fail open to true
     await checkAuth("keep-previous");
+  }, [serverMode, checkAuth]);
+
+  const confirmMfaEnrollment = useCallback(async () => {
+    if (!serverMode) return true;
+    const next = await checkAuth("keep-previous");
+    return next?.kind === "pass" && !next.mfaRequired;
   }, [serverMode, checkAuth]);
 
   // P3.4: a failing write raises the persistError banner; when the cause is an expired
@@ -568,7 +575,7 @@ export function AuthProvider({
       <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
         <MfaEnrollmentScreen
           blockedEntry={publicEntry}
-          onEnrolled={() => void refreshAuth()}
+          onEnrolled={confirmMfaEnrollment}
           onSignOut={() => void signOut()}
         />
       </Suspense>

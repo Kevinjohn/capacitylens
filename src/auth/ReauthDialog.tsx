@@ -120,6 +120,11 @@ export function ReauthDialog({
       if (result.error) {
         setError(result.error.message ?? m.reauth_failed());
         setBusy(false);
+      } else {
+        // Successful redirect-based SDK calls should navigate away. If an adapter resolves without
+        // doing so, restore an actionable dialog instead of leaving it permanently busy.
+        setError(m.reauth_failed());
+        setBusy(false);
       }
     } catch (err) {
       console.error("ReauthDialog: SSO re-auth request failed", err);
@@ -134,10 +139,12 @@ export function ReauthDialog({
     return (
       <Modal
         title={m.reauth_title()}
-        onClose={cancel}
+        onClose={() => {
+          if (!busy) cancel();
+        }}
         guardDirty={false}
         footer={
-          <Button size="sm" type="button" variant="outline" onClick={cancel}>
+          <Button size="sm" type="button" variant="outline" onClick={cancel} disabled={busy}>
             {m.form_cancel()}
           </Button>
         }
@@ -170,12 +177,14 @@ export function ReauthDialog({
     return (
       <Modal
         title={m.reauth_title()}
-        onClose={cancel}
+        onClose={() => {
+          if (!busy) cancel();
+        }}
         onSubmit={() => void confirmSecondFactor()}
         guardDirty={false}
         footer={
           <>
-            <Button size="sm" type="button" variant="outline" onClick={cancel}>
+            <Button size="sm" type="button" variant="outline" onClick={cancel} disabled={busy}>
               {m.form_cancel()}
             </Button>
             <Button size="sm" type="submit" data-testid="reauth-2fa-submit" disabled={busy || code.length === 0}>
@@ -226,12 +235,14 @@ export function ReauthDialog({
   return (
     <Modal
       title={m.reauth_title()}
-      onClose={cancel}
+      onClose={() => {
+        if (!busy) cancel();
+      }}
       onSubmit={() => void confirmPassword()}
       guardDirty={false}
       footer={
         <>
-          <Button size="sm" type="button" variant="outline" onClick={cancel}>
+          <Button size="sm" type="button" variant="outline" onClick={cancel} disabled={busy}>
             {m.form_cancel()}
           </Button>
           <Button size="sm" type="submit" data-testid="reauth-submit" disabled={busy}>

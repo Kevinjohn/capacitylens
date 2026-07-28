@@ -14,6 +14,8 @@ vi.mock("./authClient", () => ({
 
 import { MfaEnrollmentScreen } from "./MfaEnrollmentScreen";
 
+const enrollmentConfirmed = () => Promise.resolve(true);
+
 beforeEach(() => {
   enable.mockReset();
   verifyTotp.mockReset();
@@ -23,7 +25,7 @@ describe("MfaEnrollmentScreen", () => {
   it("sets a descriptive title while rendering outside the app shell", () => {
     document.title = "Schedule · CapacityLens";
 
-    render(<MfaEnrollmentScreen onEnrolled={vi.fn()} onSignOut={vi.fn()} />);
+    render(<MfaEnrollmentScreen onEnrolled={enrollmentConfirmed} onSignOut={vi.fn()} />);
 
     expect(document.title).toBe("Secure your account · CapacityLens");
   });
@@ -37,7 +39,7 @@ describe("MfaEnrollmentScreen", () => {
       error: null,
     });
     verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
-    const onEnrolled = vi.fn();
+    const onEnrolled = vi.fn(enrollmentConfirmed);
     render(<MfaEnrollmentScreen onEnrolled={onEnrolled} onSignOut={vi.fn()} />);
 
     fireEvent.change(screen.getByTestId("mfa-enroll-password"), { target: { value: "current-password" } });
@@ -59,9 +61,26 @@ describe("MfaEnrollmentScreen", () => {
     expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
   });
 
+  it("surfaces a successful enrollment whose session confirmation fails", async () => {
+    enable.mockResolvedValue({
+      data: { totpURI: "otpauth://valid", backupCodes: ["recovery-one"] },
+      error: null,
+    });
+    verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
+    render(<MfaEnrollmentScreen onEnrolled={() => Promise.resolve(false)} onSignOut={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await screen.findByText("recovery-one");
+    fireEvent.change(screen.getByTestId("mfa-enroll-code"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /stored the recovery codes/i }));
+    fireEvent.click(screen.getByTestId("mfa-enroll-submit"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/MFA is enabled.*session could not be confirmed/i);
+  });
+
   it("keeps the enrollment wall closed and surfaces an authentication failure", async () => {
     enable.mockResolvedValue({ data: null, error: { message: "Current password is incorrect." } });
-    const onEnrolled = vi.fn();
+    const onEnrolled = vi.fn(enrollmentConfirmed);
     render(<MfaEnrollmentScreen onEnrolled={onEnrolled} onSignOut={vi.fn()} />);
     const password = screen.getByTestId("mfa-enroll-password");
     expect(password).not.toHaveAttribute("aria-invalid");
@@ -83,7 +102,7 @@ describe("MfaEnrollmentScreen", () => {
       error: null,
     });
     verifyTotp.mockResolvedValue({ data: null, error: { message: "Authentication code is incorrect." } });
-    render(<MfaEnrollmentScreen onEnrolled={vi.fn()} onSignOut={vi.fn()} />);
+    render(<MfaEnrollmentScreen onEnrolled={enrollmentConfirmed} onSignOut={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByText("recovery-one");
     const code = screen.getByTestId("mfa-enroll-code");
@@ -107,7 +126,7 @@ describe("MfaEnrollmentScreen", () => {
     ["blank code", { totpURI: "otpauth://valid", backupCodes: [""] }],
   ])("keeps the start form usable when successful enrollment data has %s", async (_case, data) => {
     enable.mockResolvedValue({ data, error: null });
-    render(<MfaEnrollmentScreen onEnrolled={vi.fn()} onSignOut={vi.fn()} />);
+    render(<MfaEnrollmentScreen onEnrolled={enrollmentConfirmed} onSignOut={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 

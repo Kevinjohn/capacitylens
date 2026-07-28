@@ -1,4 +1,5 @@
 import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
+import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
@@ -56,7 +57,8 @@ export function weekStartSnapTarget(
 
   // `?? days[0]` covers an out-of-range index for custom geometry implementations.
   const leftDay = days[geom.indexAt(Math.round(scrollLeft))] ?? days[0];
-  const target = geom.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn));
+  if (!isValidISODate(leftDay)) return 0;
+  const target = Math.max(0, geom.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn)));
   // Already aligned (within the sub-pixel band) → null so the caller no-ops. Math.abs, not a signed
   // compare, so a (never-expected) forward target also converges rather than oscillates.
   return Math.abs(target - scrollLeft) <= epsilon ? null : target;

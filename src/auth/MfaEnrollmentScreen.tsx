@@ -32,7 +32,7 @@ export function MfaEnrollmentScreen({
   onSignOut,
   blockedEntry = null,
 }: {
-  onEnrolled: () => void;
+  onEnrolled: () => Promise<boolean>;
   onSignOut: () => void;
   blockedEntry?: PublicAuthEntry;
 }) {
@@ -88,7 +88,7 @@ export function MfaEnrollmentScreen({
       if (result.error) {
         setError(result.error.message ?? m.mfa_enrollment_code_rejected());
       } else {
-        onEnrolled();
+        if (!(await onEnrolled())) setError(m.mfa_enrollment_confirm_failed());
       }
     } catch (cause) {
       console.error("MfaEnrollmentScreen: verification failed", cause);

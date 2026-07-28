@@ -53,9 +53,10 @@ function schemaVersion(obj: Record<string, unknown>): number {
 export function importCandidate(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const obj = value as Record<string, unknown>;
-  return "data" in obj && obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)
+  if (!("data" in obj)) return obj;
+  return obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)
     ? (obj.data as Record<string, unknown>)
-    : obj;
+    : null;
 }
 
 // Recognisable-CapacityLens guard for the IMPORT path: any JSON that parses but isn't
@@ -125,14 +126,15 @@ function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
 // is a genuinely new bucket, set explicitly via the UI afterwards, never inferred here.
 // NB: this runs BEFORE the v4→v5 rename, so the table is still named `tasks` at this point.
 function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.tasks)) return data;
-  const tasks = data.tasks.map((t) => {
+  const table = Array.isArray(data.tasks) ? "tasks" : Array.isArray(data.activities) ? "activities" : null;
+  if (table === null) return data;
+  const activities = (data[table] as unknown[]).map((t) => {
     if (!t || typeof t !== "object") return t;
     const rec = t as Record<string, unknown>;
     if (rec.kind !== undefined) return rec; // already v4 (or hand-set) — leave it
     return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? "project" : "repeatable" };
   });
-  return { ...data, tasks };
+  return { ...data, [table]: activities };
 }
 
 // v4 → v5: the domain concept "Task" was renamed "Activity". Rename the `tasks` table to
@@ -262,7 +264,7 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   if (version > EXPORT_SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version);
 
   // Accept either a { schemaVersion, data } wrapper or a bare AppData (legacy).
-  let data = ("data" in obj ? obj.data : obj) as Record<string, unknown> | undefined;
+  let data = importCandidate(obj) ?? undefined;
 
   if (data && typeof data === "object" && version < 2) {
     data = migrateV1toV2(data);

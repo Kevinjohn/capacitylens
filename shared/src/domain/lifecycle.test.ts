@@ -311,13 +311,13 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(result.name).not.toContain("Ada");
   });
 
-  it("preserves EVERY non-PII field unchanged (role is NOT PII)", () => {
+  it("scrubs both free-text display fields and preserves non-PII fields", () => {
     const input = makeResource();
     const result = obfuscateResource(input);
     expect(result.id).toBe(input.id);
     expect(result.accountId).toBe(input.accountId);
     expect(result.kind).toBe(input.kind);
-    expect(result.role).toBe("Senior Designer"); // a job label, retained
+    expect(result.role).toBe("Removed resource");
     expect(result.disciplineId).toBe(input.disciplineId);
     expect(result.employmentType).toBe(input.employmentType);
     expect(result.workingHoursPerDay).toBe(input.workingHoursPerDay);
@@ -345,7 +345,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(a.name).toBe(b.name);
   });
 
-  it("different ids ⇒ different tokens (first-4 hex differ)", () => {
+  it("different ids ⇒ different tokens", () => {
     const a = obfuscateResource(makeResource({ id: "a1b2c3d4-0000-4000-8000-000000000000" }));
     const b = obfuscateResource(makeResource({ id: "ffff0000-0000-4000-8000-000000000000" }));
     expect(a.name).not.toBe(b.name);
@@ -367,7 +367,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
   it("never leaves a bare 'Removed person #' — the tag is non-empty for a normal UUID id", () => {
     const result = obfuscateResource(makeResource());
     const tag = result.name?.replace("Removed person #", "");
-    expect(tag).toBe("a1b2"); // first-4 alphanumerics of the id
+    expect(tag).toBe("a1b2c3d40000");
     expect(tag?.length).toBeGreaterThan(0);
   });
 

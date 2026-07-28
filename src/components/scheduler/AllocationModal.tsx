@@ -489,11 +489,18 @@ export function AllocationModal(props: AllocationModalProps) {
     }
     // Externals have no working week — weekends are plain calendar days for them, so a span is
     // literal (ignoreWeekends: true) and the toggle is hidden below.
+    const preserveStoredEnd =
+      editing !== undefined &&
+      (isDays || isBlocks) &&
+      resourceId === editing.resourceId &&
+      startDate === editing.startDate &&
+      ignoreWeekends === (editing.ignoreWeekends ?? false) &&
+      daysOver === initialDaysOver;
     return {
       resourceId,
       activityId,
       startDate,
-      endDate: effEndDate,
+      endDate: preserveStoredEnd ? editing.endDate : effEndDate,
       hoursPerDay: effHoursPerDay,
       status,
       note: cleanNote ? cleanNote : undefined,

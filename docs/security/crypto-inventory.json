@@ -96,6 +96,18 @@
     {
       "path": "src/account/accountClient.ts",
       "purpose": "Secure-context UUID generation plus SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
+    },
+    {
+      "path": "src/hooks/useLifecycleActions.ts",
+      "purpose": "Secure-context UUID generation for non-secret lifecycle mutation idempotency keys"
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "purpose": "OpenSSL generation of ephemeral authentication secrets and bootstrap tokens for isolated CI security checks"
+    },
+    {
+      "path": "docker-compose.yml",
+      "purpose": "Internal TLS certificate, key and CA path wiring between the API and reverse proxy containers"
     }
   ]
 }

@@ -660,7 +660,7 @@ function assertMigrationHistory(db: Db, databaseVersion: number): void {
  * owns one BEGIN IMMEDIATE transaction and advances user_version inside that same commit. */
 export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationHooks = {}): DatabaseMigrationPlan {
   const plan = planDatabaseMigrations(db);
-  if (plan.migrations.length > 0 && !plan.fresh) {
+  if (!plan.fresh) {
     const quickCheck = db.prepare("PRAGMA quick_check").all() as Array<{
       quick_check?: string;
     }>;
@@ -670,6 +670,12 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
   }
 
   db.exec("PRAGMA journal_mode = WAL;");
+  const journalMode = String(
+    (db.prepare("PRAGMA journal_mode").get() as { journal_mode?: unknown }).journal_mode ?? "",
+  ).toLowerCase();
+  if (path !== ":memory:" && journalMode !== "wal") {
+    throw new Error(`SQLite journal mode is ${journalMode || "unknown"}; expected WAL.`);
+  }
   // A successful write acknowledgement must not inherit a runtime-dependent SQLite default.
   // FULL asks SQLite to sync the WAL at every commit; the assertion makes a driver/build that
   // cannot establish that policy a startup failure instead of silently weakening durability.
@@ -725,6 +731,10 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
       );
       afterCommit?.();
     }
+
+    // Control tables are an idempotent every-boot repair boundary, not only a v8 migration helper.
+    // Reserve the writer before inspecting them so a concurrent process cannot race the repair.
+    tx(db, () => ensureControlTables(db), "immediate");
 
     assertSchemaCurrent(db);
     assertControlTablesCurrent(db);

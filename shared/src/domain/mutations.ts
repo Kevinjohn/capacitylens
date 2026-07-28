@@ -141,9 +141,14 @@ export function assertScopedRefs(
     );
   };
   const need = (field: string, table: ScopedEntityKey, msg: string) => {
-    if (present(field) && !unchanged(field) && !inAccount(table, rec[field])) {
+    if (!present(field)) return;
+    if (unchanged(field)) {
+      const id = rec[field];
+      const resolved = typeof id === "string" ? validationRow(data, table, id, lookup) : undefined;
+      if (resolved === undefined || belongsToAccount(resolved as unknown as ScopedEntity, accountId)) return;
       domainError("reference_wrong_account", msg);
     }
+    if (!inAccount(table, rec[field])) domainError("reference_wrong_account", msg);
   };
   const needRequired = (field: string, table: ScopedEntityKey, msg: string) => {
     if (!present(field)) {

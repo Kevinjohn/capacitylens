@@ -152,6 +152,7 @@ export function MembersSection() {
 /** Account-keyed implementation. Changing companies remounts this boundary, which discards
  * account-local drafts, confirmations, action locks and write-once bearer links together. */
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
+  const [renderedAt] = useState(() => Date.now());
   const { authMode, refreshAuth } = useAuth();
   const offline = useOfflineState();
   const setActiveAccount = useStore((s) => s.setActiveAccount);
@@ -551,13 +552,13 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   const submitInvite = async () => {
     clear();
     const accountId = requestAccountId();
-    setMintedLink(null);
     const trimmed = invitePreauth.trim();
     if (trimmed.length > MAX_EMAIL_LENGTH || (trimmed.length > 0 && !/^[^@\s]+@[^@\s]+$/.test(trimmed))) {
       fail("invite", m.identity_err_email());
       return;
     }
     if (!beginAction("invite:create")) return;
+    setMintedLink(null);
     try {
       const result = await teamAccessClient.createInvitation({
         accountId,
@@ -914,39 +915,47 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             <div className="flex flex-col gap-1">
               <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
               <ItemGroup>
-                {invites.map((inv, index) => (
-                  <Fragment key={inv.id}>
-                    {index > 0 && <ItemSeparator />}
-                    <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
-                      <ItemContent className="text-sm text-ink">
-                        <span className="capitalize">{inv.role}</span>
-                        {inv.preauthEmail
-                          ? m.settings_invite_suffix_email({
-                              email: inv.preauthEmail,
-                            })
-                          : m.settings_invite_suffix_link()}
-                        {inv.usedAt
-                          ? m.settings_invite_suffix_used()
-                          : // Invite validity spans several days, so keep this compact row date-only while
-                            // rendering the date on the viewer's local calendar rather than slicing UTC.
-                            m.settings_invite_suffix_expires({
-                              date: new Date(inv.expiresAt).toLocaleDateString(),
-                            })}
-                      </ItemContent>
-                      <ItemActions>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          data-testid="invite-revoke"
-                          disabled={busyAction !== null}
-                          onClick={() => void revokeInvite(inv.id)}
-                        >
-                          {m.settings_invite_revoke()}
-                        </Button>
-                      </ItemActions>
-                    </Item>
-                  </Fragment>
-                ))}
+                {invites.map((inv, index) => {
+                  const expired = Date.parse(inv.expiresAt) <= renderedAt;
+                  const actionable = inv.usedAt === null && !expired;
+                  return (
+                    <Fragment key={inv.id}>
+                      {index > 0 && <ItemSeparator />}
+                      <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
+                        <ItemContent className="text-sm text-ink">
+                          <span className="capitalize">{inv.role}</span>
+                          {inv.preauthEmail
+                            ? m.settings_invite_suffix_email({
+                                email: inv.preauthEmail,
+                              })
+                            : m.settings_invite_suffix_link()}
+                          {inv.usedAt
+                            ? m.settings_invite_suffix_used()
+                            : expired
+                              ? m.settings_invite_suffix_expired()
+                              : // Invite validity spans several days, so keep this compact row date-only while
+                                // rendering the date on the viewer's local calendar rather than slicing UTC.
+                                m.settings_invite_suffix_expires({
+                                  date: new Date(inv.expiresAt).toLocaleDateString(),
+                                })}
+                        </ItemContent>
+                        {actionable && (
+                          <ItemActions>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              data-testid="invite-revoke"
+                              disabled={busyAction !== null}
+                              onClick={() => void revokeInvite(inv.id)}
+                            >
+                              {m.settings_invite_revoke()}
+                            </Button>
+                          </ItemActions>
+                        )}
+                      </Item>
+                    </Fragment>
+                  );
+                })}
               </ItemGroup>
             </div>
           )}

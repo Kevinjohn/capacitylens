@@ -138,6 +138,7 @@ const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
   { child: "phases", parent: "projects", field: "projectId" },
   { child: "activities", parent: "projects", field: "projectId", optional: true },
   { child: "activities", parent: "phases", field: "phaseId", optional: true },
+  { child: "resources", parent: "projects", field: "projectId", optional: true },
   { child: "allocations", parent: "resources", field: "resourceId" },
   { child: "allocations", parent: "activities", field: "activityId" },
   { child: "timeOff", parent: "resources", field: "resourceId" },
@@ -499,13 +500,14 @@ const ANON_FALLBACK_TAG = "0000";
  * function of the id string only — no Date, no Math.random.
  *
  * FORMAT CHOICE (documented): strip every non-alphanumeric character (so a UUID's hyphens go) and
- * take the FIRST 4 of what remains — i.e. the UUID's leading hex. Short, opaque, and deterministic.
+ * take the FIRST 12 of what remains — enough of a UUID to keep retained tombstones distinguishable
+ * without exposing user data. Opaque and deterministic.
  * If the id is empty or has no alphanumerics, fall back to {@link ANON_FALLBACK_TAG} so the token is
  * never left with an empty marker. NON-exported: an internal detail of {@link obfuscateResource}, not
  * a public contract.
  */
 function shortResourceTag(id: string): string {
-  const tag = id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4);
+  const tag = id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
   return tag.length > 0 ? tag : ANON_FALLBACK_TAG;
 }
 
@@ -516,8 +518,8 @@ function shortResourceTag(id: string): string {
  *
  * WHY: a soft-deleted row is retained for the {@link PURGE_MIN_AGE_DAYS} grace window, but it must
  * carry NO original personal data while it waits to be purged. A Resource TODAY has NO email and NO
- * SSO link — its ONLY PII is `name`, so that is all there is to scrub. `role` is a job label
- * ("Senior Designer"), NOT PII — it is RETAINED, as are id/accountId/kind/disciplineId/employmentType/
+ * SSO link. Both `name` and the unconstrained display-label `role` can contain identifying text, so
+ * both are scrubbed. id/accountId/kind/disciplineId/employmentType/
  * workingHoursPerDay/workingDays/projectId/color and the lifecycle tombstones (archivedAt/deletedAt)
  * and audit timestamps (createdAt/updatedAt).
  *
@@ -543,7 +545,7 @@ function shortResourceTag(id: string): string {
  * @returns a NEW Resource identical to the input except `name` is the anonymised token.
  */
 export function obfuscateResource(resource: Resource): Resource {
-  return { ...resource, name: `Removed person #${shortResourceTag(resource.id)}` };
+  return { ...resource, name: `Removed person #${shortResourceTag(resource.id)}`, role: "Removed resource" };
 }
 
 // NOTE: there is deliberately NO `purge(entity)` function. Purge is a HARD row-delete done

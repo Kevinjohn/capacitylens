@@ -100,12 +100,14 @@ async function payloadOperationKey(operation: string, body: unknown): Promise<st
 }
 
 /** HTTP responses for which the client cannot prove whether a command committed. */
-export async function accountCommandOutcomeUnknown(response: Response): Promise<boolean> {
+export async function accountCommandOutcomeUnknown(response: Response, parsedBody?: unknown): Promise<boolean> {
   if (response.status === 408 || response.status >= 500) return true;
   if (response.status !== 409) return false;
   try {
-    const readable = typeof response.clone === "function" ? response.clone() : response;
-    const body: unknown = await readable.json();
+    const body: unknown =
+      parsedBody === undefined
+        ? await (typeof response.clone === "function" ? response.clone() : response).json()
+        : parsedBody;
     if (typeof body !== "object" || body === null || !("code" in body)) return true;
     const code = (body as { code?: unknown }).code;
     return typeof code !== "string" || !TERMINAL_COMMAND_CONFLICT_CODES.has(code);

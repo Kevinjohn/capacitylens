@@ -58,8 +58,10 @@ export class InactiveSliceShapeError extends Error {
  * response throws {@link InactiveSliceHttpError}. A network/parse failure rejects with the raw
  * error — the callers already route unknown failures to their surfaces.
  *
- * Once structurally complete, migrate() only normalizes/repairs records within tables, exactly
- * like ServerSyncAdapter.loadAll does for the same endpoint family.
+ * Once structurally complete, migrate() normalizes and repairs field-level defects exactly like
+ * ServerSyncAdapter.loadAll. This boundary proves table completeness, not archival semantics: a
+ * malformed lifecycle field can be repaired to active and consequently disappear from an inactive
+ * list. Callers surface structural/HTTP failures; repairable legacy fields follow import policy.
  */
 export async function fetchInactiveSlice(accountId: ID): Promise<AppData> {
   const res = await apiFetch(

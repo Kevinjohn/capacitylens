@@ -187,6 +187,7 @@ export const AllocationBar = memo(function AllocationBar({
           onFocus={showPopover}
           onBlur={hidePopover}
           onKeyDown={(e) => {
+            if (e.repeat) return;
             // Escape closes an OPEN popover — the keyboard user's topmost transient surface — while
             // the bar keeps focus (closing the innermost overlay is the platform convention). This is
             // gated on the SETTLED popover, not a drag: while a drag is in progress `dragging` is true,

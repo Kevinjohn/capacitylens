@@ -1,4 +1,4 @@
-import type { IdentityAdminAction, Role } from "./types";
+import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
 
 export type AccountAdminAction =
   "list-members" | "manage-members" | "manage-invitations" | "transfer-ownership" | "erase-workspace";
@@ -30,16 +30,17 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
 }
 
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
-  if (!canAdministerAccount(actorRole, "manage-members")) return false;
+  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole) || !isAccountRole(nextRole))
+    return false;
   return targetRole !== "owner" && nextRole !== "owner";
 }
 
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
-  return canAdministerAccount(actorRole, "manage-members") && targetRole !== "owner";
+  return isAccountRole(targetRole) && canAdministerAccount(actorRole, "manage-members") && targetRole !== "owner";
 }
 
 export function canAdministerIdentity(actorRole: Role, targetRole: Role): boolean {
-  if (!canAdministerAccount(actorRole, "manage-members")) return false;
+  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
   return targetRole !== "owner" || actorRole === "owner";
 }
 

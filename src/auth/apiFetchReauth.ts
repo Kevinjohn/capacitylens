@@ -62,6 +62,10 @@ export async function apiFetchReauth(
   const retryInput = input instanceof Request ? input.clone() : input;
   const res = await apiFetch(firstInput, init, timeoutMs);
   if (!(await isSessionNotFresh(res))) return res;
+  const method = (init.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+  if (method !== "GET" && method !== "HEAD" && !headers.has("Idempotency-Key")) return res;
   const reauthenticated = await requestReauth();
   if (!reauthenticated) return res;
   return apiFetch(retryInput, init, timeoutMs);

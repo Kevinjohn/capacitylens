@@ -1271,27 +1271,31 @@ async function createCredentialUserWith(
 ): Promise<{ id: string }> {
   const hash = await ctx.password.hash(password);
   const cleanedName = cleanText(name);
-  return tx(db, () => {
-    // Better Auth's default ids are opaque random strings. Keep the same 32-character base64url
-    // shape while generating user and provider-link identities independently.
-    const userId = randomBytes(24).toString("base64url");
-    const accountId = randomBytes(24).toString("base64url");
-    const now = Date.now();
-    db.prepare(
-      `
+  return tx(
+    db,
+    () => {
+      // Better Auth's default ids are opaque random strings. Keep the same 32-character base64url
+      // shape while generating user and provider-link identities independently.
+      const userId = randomBytes(24).toString("base64url");
+      const accountId = randomBytes(24).toString("base64url");
+      const now = Date.now();
+      db.prepare(
+        `
       INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?)
     `,
-    ).run(userId, cleanedName || "User", email.toLowerCase(), emailVerified ? 1 : 0, now, now);
-    db.prepare(
-      `
+      ).run(userId, cleanedName || "User", email.toLowerCase(), emailVerified ? 1 : 0, now, now);
+      db.prepare(
+        `
       INSERT INTO account (id, accountId, providerId, userId, password, createdAt, updatedAt)
       VALUES (?, ?, 'credential', ?, ?, ?, ?)
     `,
-    ).run(accountId, userId, userId, hash, now, now);
-    correlateInTransaction?.(userId);
-    return { id: userId };
-  });
+      ).run(accountId, userId, userId, hash, now, now);
+      correlateInTransaction?.(userId);
+      return { id: userId };
+    },
+    "immediate",
+  );
 }
 
 /** Create/upgrade Better Auth's tables in the shared SQLite file. Called at boot ONLY

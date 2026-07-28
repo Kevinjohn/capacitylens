@@ -159,7 +159,12 @@ export function buildSchedulerModel({
     showInternalActivities = true,
   },
 }: SchedulerModelOptions): GroupModel[] {
-  const search = filters.search.trim().toLowerCase();
+  const searchable = (value: string | undefined): string =>
+    (value ?? "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLocaleLowerCase();
+  const search = searchable(filters.search.trim());
   const projectById = new Map(data.projects.map((p) => [p.id, p]));
   const clientById = new Map(data.clients.map((c) => [c.id, c]));
   const activityById = new Map(data.activities.map((act) => [act.id, act]));
@@ -189,7 +194,7 @@ export function buildSchedulerModel({
       // (purely for the view-model — never persisted). `kind` feeds the activity lens
       // ('Internal — All' / 'Cross-project — All') without a second activity lookup.
       const project = act.projectId ? projectById.get(act.projectId) : undefined;
-      const clientId = project ? project.clientId : internalClient?.id;
+      const clientId = act.projectId ? project?.clientId : internalClient?.id;
       return [act.id, { projectId: act.projectId, clientId, kind: act.kind }];
     }),
   );
@@ -263,7 +268,8 @@ export function buildSchedulerModel({
     if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false;
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
     // user sees — matching the command palette — as well as by its underlying role/name.
-    if (search && !`${resourceDisplayName(r)} ${r.name ?? ""} ${r.role}`.toLowerCase().includes(search)) return false;
+    if (search && ![resourceDisplayName(r), r.name, r.role].some((field) => searchable(field).includes(search)))
+      return false;
     return true;
   };
 

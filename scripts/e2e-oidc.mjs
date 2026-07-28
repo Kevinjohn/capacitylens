@@ -90,8 +90,16 @@ const faultProxy = createServer(async (request, response) => {
 
 async function listenForDiscoveryFaults() {
   await new Promise((resolve, reject) => {
-    faultProxy.once("error", reject);
-    faultProxy.listen(5557, "127.0.0.1", resolve);
+    const onStartupError = (error) => reject(error);
+    faultProxy.once("error", onStartupError);
+    faultProxy.listen(5557, "127.0.0.1", () => {
+      faultProxy.removeListener("error", onStartupError);
+      resolve();
+    });
+  });
+  faultProxy.on("error", (error) => {
+    console.error("OIDC discovery fault proxy failed after startup.", error);
+    void cleanup().catch((cleanupError) => console.error("OIDC cleanup failed after proxy failure.", cleanupError));
   });
 }
 

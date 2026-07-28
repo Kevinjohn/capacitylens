@@ -925,7 +925,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 | --------------------------------- | ------------------ | -------------------------------------------------------------------------- | ----------------- |
 | `POST /api/:entity/:id/archive`   | write (editor+)    | active → archived                                                          | `200` updated row |
 | `POST /api/:entity/:id/unarchive` | write (editor+)    | archived → active                                                          | `200` updated row |
-| `POST /api/:entity/:id/delete`    | write (editor+)    | archived → soft-deleted (resource: `name` scrubbed to `Removed person #…`) | `200` updated row |
+| `POST /api/:entity/:id/delete`    | purge (admin+)     | archived → soft-deleted (resource: `name` scrubbed to `Removed person #…`) | `200` updated row |
 | `POST /api/:entity/:id/purge`     | **purge (admin+)** | ≥30-day-old tombstone → **HARD delete + cascade**                          | `204`             |
 
 - **Error mapping:** an **illegal transition** (e.g. deleting a row that was never archived, archiving
@@ -1004,6 +1004,19 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   swatch palette (always a valid 6-digit hex `#rrggbb`).
 
 ## Conventions for these stories
+
+### Reliability and recovery expectations
+
+- The application shows a loading state until the local store is hydrated; it never renders an
+  empty company as though loading had completed.
+- Failed SSO hand-off, MFA enrollment, reauthentication and invitation acceptance remain visible
+  and actionable. A successful invitation keeps the newly selected company active while its account
+  list refreshes.
+- Company management data is fetched only for members who may manage it. Removing a client or
+  project through the normal UI is undoable, and keyboard or pointer allocation gestures stop
+  cleanly when focus, capture or the initiating button is lost.
+- A deleted person's retained tombstone contains neither their original name nor role; the displayed
+  identifier is an opaque `Removed person #…` label.
 
 - Each story is **end-to-end**: it starts from a defined state (usually the seeded app)
   and is runnable by a human with no prior setup.

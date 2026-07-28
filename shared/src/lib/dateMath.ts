@@ -112,6 +112,9 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
  *  Intl.DateTimeFormat — so midnight UTC on 2026-06-11 is still 2026-06-10 in
  *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR
  *  invalid (an invalid IANA zone is warned about, then ignored — never throws). */
+const warnedInvalidTimeZones = new Set<string>();
+const MAX_INVALID_TIMEZONE_WARNINGS = 32;
+
 export function todayISO(timeZone?: string): ISODate {
   if (!timeZone) return toISODate(new Date());
   try {
@@ -130,7 +133,10 @@ export function todayISO(timeZone?: string): ISODate {
     // utilisation calc. The client path can still hold an un-sanitised `account.timezone`
     // (sanitizeAccount only runs on the server write path), so degrade to the LOCAL date —
     // but WARN, never silently, so a bad zone is discoverable instead of masked.
-    console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e);
+    if (!warnedInvalidTimeZones.has(timeZone) && warnedInvalidTimeZones.size < MAX_INVALID_TIMEZONE_WARNINGS) {
+      warnedInvalidTimeZones.add(timeZone);
+      console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e);
+    }
     return toISODate(new Date());
   }
 }
@@ -171,7 +177,7 @@ export function allocationWorksOnDay(
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
   const span = daysInclusive(start, end);
   if (span <= 0) return 0;
-  const working = new Set(workingDays);
+  const working = new Set(workingDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6));
   const fullWeeks = Math.floor(span / 7);
   let count = fullWeeks * working.size;
   const startWeekday = weekdayOf(start);
@@ -219,5 +225,6 @@ export function endDateForWorkingDays(start: ISODate, count: number, workingDays
       }
     }
   }
+  if (seen !== remaining) throw new Error("The working-day span could not be resolved.");
   return addDaysISO(start, fullWeeks * 7 + offsetInWeek);
 }

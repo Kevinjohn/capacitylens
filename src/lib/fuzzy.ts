@@ -46,7 +46,7 @@ export function fuzzyScore(query: string, text: string): number {
 
   // Tier 1: word-boundary prefix — query starts a word inside the text
   // A "word" starts after a space, hyphen, underscore, or is the string start.
-  const wordBoundaryRe = /(?:^|[\s\-_])(.)/g;
+  const wordBoundaryRe = /(?:^|[\s\-_]+)(.)/g;
   let m: RegExpExecArray | null;
   while ((m = wordBoundaryRe.exec(t)) !== null) {
     const wordStart = m.index + (m[0].length - 1); // position of the captured letter

@@ -80,6 +80,8 @@
     "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^10.0.1",
     "@inlang/paraglide-js": "^2.21.0",
+    "@inlang/plugin-m-function-matcher": "2.2.6",
+    "@inlang/plugin-message-format": "4.4.0",
     "@playwright/test": "^1.60.0",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",

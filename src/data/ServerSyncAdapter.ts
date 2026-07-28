@@ -356,7 +356,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // read (accountId present) is a real error and still throws below.
       if (accountId === undefined && res.status === 400) {
         const empty = emptyAppData();
-        if (myGen === this.loadGen) this.seedSnapshot(empty);
+        if (myGen === this.loadGen) {
+          this.seedSnapshot(empty);
+          setOfflineReadState(false);
+        }
         return empty;
       }
       if (!res.ok) {

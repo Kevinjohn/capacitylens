@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 interface LockState {
   held: ReadonlySet<string>;
+  active: boolean;
 }
 
 /**
@@ -15,7 +16,8 @@ export class KeyedOperationLock {
 
   async withKeys<T>(keys: readonly string[], operation: () => Promise<T> | T): Promise<T> {
     const wanted = [...new Set(keys.filter(Boolean))].sort();
-    const held = this.context.getStore()?.held ?? new Set<string>();
+    const inherited = this.context.getStore();
+    const held = inherited?.active === true ? inherited.held : new Set<string>();
     const missing = wanted.filter((key) => !held.has(key));
     if (missing.length === 0) return operation();
 
@@ -46,9 +48,14 @@ export class KeyedOperationLock {
       });
     }
 
+    const state: LockState = { held: new Set([...held, ...missing]), active: true };
     try {
-      return await this.context.run({ held: new Set([...held, ...missing]) }, async () => operation());
+      return await this.context.run(state, async () => operation());
     } finally {
+      // Async resources spawned inside the operation inherit this object. Mark it inactive before
+      // releasing the physical tails so a later continuation cannot mistake stale ALS context for
+      // locks that are no longer held.
+      state.active = false;
       for (const release of releases.reverse()) release();
     }
   }
