@@ -32,8 +32,8 @@ import {
   initializeOpenDb,
   insertAll,
   loadState,
-  openDb,
-  openDbConnection,
+  openDb as openDbRaw,
+  openDbConnection as openDbConnectionRaw,
   planDatabaseMigrations,
 } from "./db";
 import { seed } from "@capacitylens/shared/data/seed";
@@ -44,6 +44,16 @@ import { seed } from "@capacitylens/shared/data/seed";
 // in-flight snapshot (the shutdown path closes the DB right after).
 
 const temporaryDirectories = new Set<string>();
+const openDatabases = new Set<DatabaseSync>();
+const trackDatabase = <T extends DatabaseSync>(db: T): T => {
+  openDatabases.add(db);
+  return db;
+};
+const openDb = (...args: Parameters<typeof openDbRaw>) =>
+  trackDatabase(openDbRaw(...args));
+const openDbConnection = (
+  ...args: Parameters<typeof openDbConnectionRaw>
+) => trackDatabase(openDbConnectionRaw(...args));
 const tempDir = (): string => {
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-backup-test-"));
   temporaryDirectories.add(dir);
@@ -51,6 +61,10 @@ const tempDir = (): string => {
 };
 
 afterEach(() => {
+  for (const db of openDatabases) {
+    if (db.isOpen) db.close();
+  }
+  openDatabases.clear();
   for (const dir of temporaryDirectories)
     rmSync(dir, { recursive: true, force: true });
   temporaryDirectories.clear();
@@ -145,7 +159,7 @@ describe("pre-migration rollback snapshot", () => {
     const rollbacks = join(work, "rollbacks");
     mkdirSync(rollbacks);
     chmodSync(rollbacks, 0o777);
-    const db = new DatabaseSync(dbPath);
+    const db = trackDatabase(new DatabaseSync(dbPath));
     db.exec(
       "CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;",
     );
@@ -195,7 +209,9 @@ describe("pre-migration rollback snapshot", () => {
     ).toBe(DB_SCHEMA_VERSION);
     db.close();
 
-    const rollback = new DatabaseSync(snapshot!, { readOnly: true });
+    const rollback = trackDatabase(
+      new DatabaseSync(snapshot!, { readOnly: true }),
+    );
     expect(
       (
         rollback.prepare(`PRAGMA user_version`).get() as {
@@ -252,7 +268,7 @@ describe("pre-migration rollback snapshot", () => {
       const dir = tempDir();
       const dbPath = join(dir, "capacitylens.db");
       const rollbacks = join(dir, "rollbacks");
-      const db = new DatabaseSync(dbPath);
+      const db = trackDatabase(new DatabaseSync(dbPath));
       const steps: string[] = [];
       const orderedStages = [
         "chmod-file",
@@ -319,7 +335,7 @@ describe("pre-migration rollback snapshot", () => {
     const dir = tempDir();
     const dbPath = join(dir, "capacitylens.db");
     const rollbacks = join(dir, "rollbacks");
-    const db = new DatabaseSync(dbPath);
+    const db = trackDatabase(new DatabaseSync(dbPath));
     db.exec(
       "CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;",
     );
@@ -360,7 +376,9 @@ describe("pre-migration rollback snapshot", () => {
     expect(
       readdirSync(rollbacks).filter((file) => file.endsWith(".tmp")),
     ).toEqual([]);
-    const refreshed = new DatabaseSync(second!, { readOnly: true });
+    const refreshed = trackDatabase(
+      new DatabaseSync(second!, { readOnly: true }),
+    );
     expect(
       (
         refreshed.prepare("SELECT COUNT(*) AS n FROM example").get() as {

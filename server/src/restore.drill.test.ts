@@ -1,12 +1,19 @@
 import { afterEach, describe, it, expect } from 'vitest'
+import { DatabaseSync } from 'node:sqlite'
 import { mkdtempSync, writeFileSync, copyFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { startBackups } from './backup'
-import { openDb, loadState, insertAll } from './db'
+import { openDb as openDbRaw, loadState, insertAll } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
 
 const temporaryDirectories = new Set<string>()
+const openDatabases = new Set<DatabaseSync>()
+const openDb = (...args: Parameters<typeof openDbRaw>) => {
+  const db = openDbRaw(...args)
+  openDatabases.add(db)
+  return db
+}
 const tempDir = (): string => {
   const dir = mkdtempSync(join(tmpdir(), 'capacitylens-restore-drill-'))
   temporaryDirectories.add(dir)
@@ -14,6 +21,10 @@ const tempDir = (): string => {
 }
 
 afterEach(() => {
+  for (const db of openDatabases) {
+    if (db.isOpen) db.close()
+  }
+  openDatabases.clear()
   for (const dir of temporaryDirectories) rmSync(dir, { recursive: true, force: true })
   temporaryDirectories.clear()
 })
