@@ -57,9 +57,10 @@ only when repeated gate results show stable headroom. The canonical policy is re
 `gate:server` checks the Node/SQLite workspace. GitHub CI divides ordinary server tests into four
 parallel, bounded shards, each with one Vitest worker thread. This bounds SQLite contention and
 turns a stuck worker into a named shard failure within four minutes rather than a silent whole-job
-timeout. The process-heavy migration regression runs separately in a dedicated single-worker fork,
-so a native resource failure remains isolated and reports its assertion instead of stranding the
-complete unit run.
+timeout. The AsyncLocalStorage/lock-heavy account-flow conformance file runs in the independent
+account-conformance process pool, and the process-heavy migration regression runs separately in a
+dedicated single-worker fork. Native resource failures therefore remain isolated and report their
+assertion instead of stranding the complete unit run.
 Default E2E runs demo, database-backed and password-auth flows in Chromium.
 Both root and shared Vitest projects pin `TZ=UTC`; timezone-specific helper coverage must set its
 zone deliberately in an isolated child process rather than inheriting a maintainer's machine.
