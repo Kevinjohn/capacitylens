@@ -56,7 +56,10 @@ test.describe('getting started checklist', () => {
   })
 
   test('the overflowing card scrolls with a pointer wheel at a short viewport', async ({ page }) => {
-    await page.setViewportSize({ width: 1000, height: 320 })
+    // Keep the available panel height below the card's compact WebKit rendering too. At 320px
+    // WebKit can fit the same content that overflows in Chromium, so that viewport did not
+    // actually exercise the scrolling contract on every supported browser.
+    await page.setViewportSize({ width: 1000, height: 240 })
     await openNewCompany(page, 'Fresh Co')
     const card = page.getByTestId('getting-started')
     await expect(card).toBeVisible()
