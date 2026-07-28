@@ -238,6 +238,13 @@ This is the short, present-tense record of decisions that constrain future work.
 - Local green gates remain the developer source of truth. The public repository's workflows run
   automatically for pull requests, `main`, release tags and their documented scheduled canaries;
   `workflow_dispatch` supports deliberate reruns.
+- Server test-process exit is part of the test result. Ordinary server test files run in fresh,
+  bounded Vitest processes distributed across four CI shards; account-flow conformance,
+  credential-onboarding crash durability and migration rehearsal retain their dedicated process
+  boundaries. A log containing only passing assertions is not green until the owning process exits.
+  Do not restore cross-file worker reuse or raise outer job timeouts to hide a leaked SQLite handle,
+  Fastify instance, timer, listener, compiler helper or child process. Fix the owner or give an
+  intentionally process-heavy suite an explicit, required isolation boundary.
 - CodeQL runs in the public-repository security workflow. Private-repository runner/upload
   limitations are no longer part of the active CI policy.
 - Dependabot continues its monthly root-workspace updates independently of the runner policy.

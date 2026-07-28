@@ -134,6 +134,32 @@ step runtimes so a leaked native handle cannot consume the complete job timeout.
 run even when another category fails, avoiding a red application test hiding an account, migration
 or dependency result. Coverage is uploaded when the repository has a `CODECOV_TOKEN` secret.
 
+### Server tests that pass but do not exit
+
+Treat process exit as an assertion. The characteristic failure is a list of green test files or
+passing assertions followed by silence until GNU `timeout` returns 124; an inner child terminated by
+SIGTERM commonly reports 143. GitHub's orphan-process cleanup may additionally name `MainThread`,
+`esbuild` or another descendant. This is a lifecycle defect, not evidence that the suite needs a
+larger timeout.
+
+The ordinary server runner discovers test files under `server/src`, removes the three deliberately
+isolated suites, sorts the remainder, distributes them across four shards and launches one fresh
+Vitest process per file. To inspect or reproduce the same boundary:
+
+```bash
+pnpm --filter capacitylens-server test:unit-shard -- 3/4 --list
+pnpm --filter capacitylens-server test:unit-shard -- 3/4
+pnpm --filter capacitylens-server exec vitest run src/example.test.ts --pool=forks --no-file-parallelism
+```
+
+Start with the last announced filename and inspect every owned Fastify instance, SQLite connection,
+timer, process signal listener and spawned child. Use `registerServerFixtureCleanup()` for ordinary
+app/database fixtures. Subprocess tests must bound the child itself and avoid captured stdio pipes
+when a compiler or other descendant can inherit them; temporary-file capture is the established
+entrypoint-test pattern. A process-heavy test that intentionally exercises termination may receive a
+dedicated required job, but passing assertions must never be manufactured with forced exits, weaker
+cleanup, thread-pool reuse or a larger outer timeout.
+
 The `e2e` workflow runs cross-browser behavior and strict OIDC/Dex conformance as independent jobs.
 Each Playwright phase writes a distinct HTML report, JUnit result and trace directory; failed jobs
 retain those artifacts for seven days, and the OIDC artifact includes timestamped Dex logs. Docker
