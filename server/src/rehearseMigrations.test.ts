@@ -14,6 +14,37 @@ const fixture = fileURLToPath(
 );
 const temporaryDirectories: string[] = [];
 
+interface VerificationSnapshot {
+  linkedCount: number;
+  linkedValue: string | undefined;
+  values: Array<{ value: string }>;
+}
+
+function readVerificationSnapshot(path: string): VerificationSnapshot {
+  const db = new DatabaseSync(path, { readOnly: true });
+  try {
+    const linked = db
+      .prepare(
+        `
+          SELECT ceremony.value
+            FROM verification AS ceremony
+            JOIN user AS principal ON principal.id = ceremony.value
+        `,
+      )
+      .all() as Array<{ value: string }>;
+    return {
+      linkedCount: linked.length,
+      linkedValue: linked[0]?.value,
+      values: db
+        .prepare(`SELECT value FROM verification ORDER BY id`)
+        .all() as Array<{ value: string }>,
+    };
+  } finally {
+    // A failed assertion must not strand a native SQLite handle in the Vitest worker.
+    db.close();
+  }
+}
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
@@ -29,8 +60,11 @@ describe("migration rehearsal", () => {
     const source = join(directory, "v12-with-future-column.db");
     copyFileSync(fixture, source);
     const prepared = new DatabaseSync(source);
-    prepared.exec(`ALTER TABLE account ADD COLUMN futureSecret TEXT`);
-    prepared.close();
+    try {
+      prepared.exec(`ALTER TABLE account ADD COLUMN futureSecret TEXT`);
+    } finally {
+      prepared.close();
+    }
 
     const result = spawnSync(
       process.execPath,
@@ -65,32 +99,35 @@ describe("migration rehearsal", () => {
     copyFileSync(fixture, source);
 
     const prepared = new DatabaseSync(source);
-    const member = prepared
-      .prepare(
-        `SELECT userId FROM account_members WHERE status = 'active' ORDER BY userId LIMIT 1`,
-      )
-      .get() as { userId: string };
-    const insertCeremony = prepared.prepare(`
-      INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    insertCeremony.run(
-      "synthetic-reset",
-      "synthetic-reset-identifier",
-      member.userId,
-      "2026-08-01T00:00:00.000Z",
-      "2026-07-01T00:00:00.000Z",
-      "2026-07-01T00:00:00.000Z",
-    );
-    insertCeremony.run(
-      "synthetic-unlinked",
-      "synthetic-unlinked-identifier",
-      "source-only-ceremony-value",
-      "2026-08-01T00:00:00.000Z",
-      "2026-07-01T00:00:00.000Z",
-      "2026-07-01T00:00:00.000Z",
-    );
-    prepared.close();
+    try {
+      const member = prepared
+        .prepare(
+          `SELECT userId FROM account_members WHERE status = 'active' ORDER BY userId LIMIT 1`,
+        )
+        .get() as { userId: string };
+      const insertCeremony = prepared.prepare(`
+        INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      insertCeremony.run(
+        "synthetic-reset",
+        "synthetic-reset-identifier",
+        member.userId,
+        "2026-08-01T00:00:00.000Z",
+        "2026-07-01T00:00:00.000Z",
+        "2026-07-01T00:00:00.000Z",
+      );
+      insertCeremony.run(
+        "synthetic-unlinked",
+        "synthetic-unlinked-identifier",
+        "source-only-ceremony-value",
+        "2026-08-01T00:00:00.000Z",
+        "2026-07-01T00:00:00.000Z",
+        "2026-07-01T00:00:00.000Z",
+      );
+    } finally {
+      prepared.close();
+    }
 
     const result = spawnSync(
       process.execPath,
@@ -115,58 +152,21 @@ describe("migration rehearsal", () => {
       ?.trim();
     expect(retained).toBeTruthy();
 
-    const anonymised = new DatabaseSync(
+    // Read and close both native handles before asserting. If the observed state is wrong, Vitest
+    // can now report the values and terminate instead of waiting for the job-level timeout.
+    const anonymised = readVerificationSnapshot(
       join(retained!, "anonymised-source.db"),
-      { readOnly: true },
     );
-    expect(
-      (
-        anonymised
-          .prepare(
-            `
-      SELECT COUNT(*) AS n
-        FROM verification AS ceremony
-        JOIN user AS principal ON principal.id = ceremony.value
-    `,
-          )
-          .get() as { n: number }
-      ).n,
-    ).toBe(1);
-    expect(
-      (
-        anonymised
-          .prepare(
-            `
-      SELECT ceremony.value
-        FROM verification AS ceremony
-        JOIN user AS principal ON principal.id = ceremony.value
-    `,
-          )
-          .get() as { value: string }
-      ).value,
-    ).toMatch(/^rehearsal-user-/);
-    expect(
-      anonymised.prepare(`SELECT value FROM verification ORDER BY id`).all(),
-    ).not.toContainEqual({ value: "source-only-ceremony-value" });
-    anonymised.close();
+    const migrated = readVerificationSnapshot(join(retained!, "happy.db"));
 
-    const migrated = new DatabaseSync(join(retained!, "happy.db"), {
-      readOnly: true,
+    expect(anonymised.linkedCount).toBe(1);
+    expect(anonymised.linkedValue).toMatch(/^rehearsal-user-/);
+    expect(anonymised.values).not.toContainEqual({
+      value: "source-only-ceremony-value",
     });
-    expect(
-      (
-        migrated.prepare(`SELECT COUNT(*) AS n FROM verification`).get() as {
-          n: number;
-        }
-      ).n,
-    ).toBe(1);
-    expect(
-      (
-        migrated.prepare(`SELECT value FROM verification`).get() as {
-          value: string;
-        }
-      ).value,
-    ).toMatch(/^rehearsal-dangling-principal-/);
-    migrated.close();
+    expect(migrated.values).toHaveLength(1);
+    expect(migrated.values[0]?.value).toMatch(
+      /^rehearsal-dangling-principal-/,
+    );
   });
 });

@@ -113,7 +113,14 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run gate:server
+      - name: Check cryptographic implementation inventory
+        run: pnpm run security:crypto-inventory
+      - name: Type-check server
+        run: pnpm --filter capacitylens-server type-check
+      - name: Run server unit tests
+        run: timeout --signal=TERM --kill-after=30s 8m pnpm --filter capacitylens-server test:unit
+      - name: Lint server and shared packages
+        run: pnpm exec eslint server shared --max-warnings 0
 
   account-conformance:
     name: Account boundary · ports · policies · architecture
@@ -145,7 +152,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run rehearse:migrations
+      - name: Rehearse the released database migration
+        run: timeout --signal=TERM --kill-after=30s 7m pnpm run rehearse:migrations
+      - name: Run migration regression tests in isolation
+        run: timeout --signal=TERM --kill-after=30s 7m pnpm --filter capacitylens-server test:migrations
 
   production-audit:
     name: Production dependency audit
