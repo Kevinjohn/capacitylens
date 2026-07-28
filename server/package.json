@@ -16,7 +16,7 @@
     "start:oidc-e2e": "node scripts/check-node.mjs && rm -f .oidc-e2e.db .oidc-e2e.db-wal .oidc-e2e.db-shm && PORT=8897 CAPACITYLENS_DB=.oidc-e2e.db SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=hosted-oidc-only SMALLSASS_ACCOUNT_MODE=sso SMALLSASS_ACCOUNT_SECRET=capacitylens-oidc-e2e-secret-0123456789abcdef SMALLSASS_ACCOUNT_PUBLIC_URL=http://localhost:5473 SMALLSASS_ACCOUNT_OIDC_CLIENT_ID=capacitylens-e2e SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET=capacitylens-e2e-secret SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL=http://127.0.0.1:5557/dex/.well-known/openid-configuration SMALLSASS_ACCOUNT_OIDC_ISSUER=http://127.0.0.1:5556/dex SMALLSASS_ACCOUNT_OIDC_SCOPES='openid profile email' SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS=oidc-owner@example.com CAPACITYLENS_CORS_ORIGIN=http://localhost:5473,http://127.0.0.1:5473 tsx src/index.ts",
     "rehearse:migrations": "node scripts/check-node.mjs && tsx scripts/rehearse-migrations.ts",
     "test": "pnpm run test:unit && pnpm run test:migrations",
-    "test:unit": "vitest run --exclude src/rehearseMigrations.test.ts",
+    "test:unit": "vitest run --exclude src/rehearseMigrations.test.ts --pool=threads --maxWorkers=2",
     "test:migrations": "vitest run src/rehearseMigrations.test.ts --pool=forks --no-file-parallelism --reporter=verbose",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit"

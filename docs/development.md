@@ -54,9 +54,11 @@ before/after coverage or raw+gzip entry size and explain why the added tested be
 cost is justified; changing a number only to restore green is not acceptable. Tighten a boundary
 only when repeated gate results show stable headroom. The canonical policy is recorded in
 `DECISIONS.md`.
-`gate:server` checks the Node/SQLite workspace. Its process-heavy migration regression runs after
-the ordinary server unit pool in a dedicated single-worker Vitest invocation, so a native resource
-failure remains isolated and reports its assertion instead of stranding the complete unit run.
+`gate:server` checks the Node/SQLite workspace. Ordinary server tests use at most two Vitest worker
+threads, which bounds SQLite contention and lets Vitest terminate a worker even if failed test
+cleanup strands a native handle. The process-heavy migration regression runs afterward in a
+dedicated single-worker fork, so a native resource failure remains isolated and reports its
+assertion instead of stranding the complete unit run.
 Default E2E runs demo, database-backed and password-auth flows in Chromium.
 Both root and shared Vitest projects pin `TZ=UTC`; timezone-specific helper coverage must set its
 zone deliberately in an isolated child process rather than inheriting a maintainer's machine.
