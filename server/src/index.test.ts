@@ -5,6 +5,7 @@ import {
   openSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -70,17 +71,25 @@ describe("server entrypoint startup refusals", () => {
     expect(result.stderr).not.toContain("at buildApp");
   });
 
-  it("frames an unwritable configured backup directory", () => {
-    const backupDir = `/proc/capacitylens-backup-startup-${process.pid}`;
-    const result = boot({
-      CAPACITYLENS_CORS_ORIGIN: "http://localhost:5173",
-      CAPACITYLENS_BACKUP_DIR: backupDir,
-    });
-
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      `capacitylens-server: refusing to start — CAPACITYLENS_BACKUP_DIR=${JSON.stringify(backupDir)} could not be initialized:`,
+  it("frames a configured backup path that is not a directory", () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), "capacitylens-backup-refusal-test-"),
     );
-    expect(result.stderr).not.toContain("at startBackups");
+    const backupDir = join(directory, "not-a-directory");
+    writeFileSync(backupDir, "filesystem obstruction");
+    try {
+      const result = boot({
+        CAPACITYLENS_CORS_ORIGIN: "http://localhost:5173",
+        CAPACITYLENS_BACKUP_DIR: backupDir,
+      });
+
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stderr).toContain(
+        `capacitylens-server: refusing to start — CAPACITYLENS_BACKUP_DIR=${JSON.stringify(backupDir)} could not be initialized:`,
+      );
+      expect(result.stderr).not.toContain("at startBackups");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
