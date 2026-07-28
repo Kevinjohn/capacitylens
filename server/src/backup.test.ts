@@ -21,12 +21,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import {
-  formatBackupStartupFailure,
-  parseBackupConfig,
-  startBackups,
-  writePreMigrationBackup,
-} from "./backup";
+import { formatBackupStartupFailure, parseBackupConfig, startBackups, writePreMigrationBackup } from "./backup";
 import {
   DB_SCHEMA_VERSION,
   initializeOpenDb,
@@ -49,11 +44,9 @@ const trackDatabase = <T extends DatabaseSync>(db: T): T => {
   openDatabases.add(db);
   return db;
 };
-const openDb = (...args: Parameters<typeof openDbRaw>) =>
-  trackDatabase(openDbRaw(...args));
-const openDbConnection = (
-  ...args: Parameters<typeof openDbConnectionRaw>
-) => trackDatabase(openDbConnectionRaw(...args));
+const openDb = (...args: Parameters<typeof openDbRaw>) => trackDatabase(openDbRaw(...args));
+const openDbConnection = (...args: Parameters<typeof openDbConnectionRaw>) =>
+  trackDatabase(openDbConnectionRaw(...args));
 const tempDir = (): string => {
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-backup-test-"));
   temporaryDirectories.add(dir);
@@ -65,8 +58,7 @@ afterEach(() => {
     if (db.isOpen) db.close();
   }
   openDatabases.clear();
-  for (const dir of temporaryDirectories)
-    rmSync(dir, { recursive: true, force: true });
+  for (const dir of temporaryDirectories) rmSync(dir, { recursive: true, force: true });
   temporaryDirectories.clear();
 });
 
@@ -160,15 +152,9 @@ describe("pre-migration rollback snapshot", () => {
     mkdirSync(rollbacks);
     chmodSync(rollbacks, 0o777);
     const db = trackDatabase(new DatabaseSync(dbPath));
-    db.exec(
-      "CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;",
-    );
+    db.exec("CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;");
 
-    await writePreMigrationBackup(
-      db,
-      { dbPath, fromVersion: 7, toVersion: 8, dir: rollbacks },
-      () => {},
-    );
+    await writePreMigrationBackup(db, { dbPath, fromVersion: 7, toVersion: 8, dir: rollbacks }, () => {});
     db.close();
 
     expect(statSync(rollbacks).mode & 0o777).toBe(0o700);
@@ -179,10 +165,7 @@ describe("pre-migration rollback snapshot", () => {
     const dbPath = join(dir, "capacitylens.db");
     // Use the retained released v7 image. Relabelling a current openDb() file as v7 fabricates
     // future columns that no real v7 installation contained and correctly fails version assertions.
-    copyFileSync(
-      join(process.cwd(), "src", "fixtures", "databases", "v7-off.db"),
-      dbPath,
-    );
+    copyFileSync(join(process.cwd(), "src", "fixtures", "databases", "v7-off.db"), dbPath);
 
     const db = openDbConnection(dbPath);
     const plan = planDatabaseMigrations(db);
@@ -203,15 +186,10 @@ describe("pre-migration rollback snapshot", () => {
     expect(snapshot).not.toBeNull();
 
     initializeOpenDb(db, dbPath);
-    expect(
-      (db.prepare(`PRAGMA user_version`).get() as { user_version: number })
-        .user_version,
-    ).toBe(DB_SCHEMA_VERSION);
+    expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION);
     db.close();
 
-    const rollback = trackDatabase(
-      new DatabaseSync(snapshot!, { readOnly: true }),
-    );
+    const rollback = trackDatabase(new DatabaseSync(snapshot!, { readOnly: true }));
     expect(
       (
         rollback.prepare(`PRAGMA user_version`).get() as {
@@ -233,10 +211,7 @@ describe("pre-migration rollback snapshot", () => {
         }
       ).n,
     ).toBeGreaterThan(0);
-    expect(
-      (rollback.prepare(`PRAGMA quick_check`).get() as { quick_check: string })
-        .quick_check,
-    ).toBe("ok");
+    expect((rollback.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe("ok");
     expect(
       (
         rollback.prepare(`PRAGMA journal_mode`).get() as {
@@ -270,61 +245,33 @@ describe("pre-migration rollback snapshot", () => {
       const rollbacks = join(dir, "rollbacks");
       const db = trackDatabase(new DatabaseSync(dbPath));
       const steps: string[] = [];
-      const orderedStages = [
-        "chmod-file",
-        "sync-file",
-        "rename",
-        "sync-directory",
-      ] as const;
-      const runStage = (
-        stage: (typeof orderedStages)[number],
-        operation: () => void,
-      ): void => {
+      const orderedStages = ["chmod-file", "sync-file", "rename", "sync-directory"] as const;
+      const runStage = (stage: (typeof orderedStages)[number], operation: () => void): void => {
         steps.push(stage);
-        if (stage === failureStage)
-          throw new Error(`simulated ${stage} failure`);
+        if (stage === failureStage) throw new Error(`simulated ${stage} failure`);
         operation();
       };
       const initialize = vi.fn();
       const log = vi.fn();
-      db.exec(
-        "CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;",
-      );
+      db.exec("CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;");
 
       try {
         await expect(
           (async () => {
-            await writePreMigrationBackup(
-              db,
-              { dbPath, fromVersion: 7, toVersion: 19, dir: rollbacks },
-              log,
-              {
-                chmod: (path, mode) =>
-                  runStage("chmod-file", () => chmodSync(path, mode)),
-                syncFile: (path) =>
-                  runStage("sync-file", () => syncTestPath(path)),
-                rename: (from, to) =>
-                  runStage("rename", () => renameSync(from, to)),
-                syncDirectory: (path) =>
-                  runStage("sync-directory", () => syncTestPath(path)),
-              },
-            );
+            await writePreMigrationBackup(db, { dbPath, fromVersion: 7, toVersion: 19, dir: rollbacks }, log, {
+              chmod: (path, mode) => runStage("chmod-file", () => chmodSync(path, mode)),
+              syncFile: (path) => runStage("sync-file", () => syncTestPath(path)),
+              rename: (from, to) => runStage("rename", () => renameSync(from, to)),
+              syncDirectory: (path) => runStage("sync-directory", () => syncTestPath(path)),
+            });
             initialize();
           })(),
         ).rejects.toThrow(`simulated ${failureStage} failure`);
 
-        expect(steps).toEqual(
-          orderedStages.slice(0, orderedStages.indexOf(failureStage) + 1),
-        );
+        expect(steps).toEqual(orderedStages.slice(0, orderedStages.indexOf(failureStage) + 1));
         expect(initialize).not.toHaveBeenCalled();
-        expect(log).not.toHaveBeenCalledWith(
-          expect.stringContaining("pre-migration backup written"),
-        );
-        expect(
-          existsSync(
-            join(rollbacks, "capacitylens-pre-migration-v7-to-v19.db.tmp"),
-          ),
-        ).toBe(false);
+        expect(log).not.toHaveBeenCalledWith(expect.stringContaining("pre-migration backup written"));
+        expect(existsSync(join(rollbacks, "capacitylens-pre-migration-v7-to-v19.db.tmp"))).toBe(false);
       } finally {
         db.close();
       }
@@ -336,32 +283,20 @@ describe("pre-migration rollback snapshot", () => {
     const dbPath = join(dir, "capacitylens.db");
     const rollbacks = join(dir, "rollbacks");
     const db = trackDatabase(new DatabaseSync(dbPath));
-    db.exec(
-      "CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;",
-    );
-    db.prepare("INSERT INTO example (value) VALUES (?)").run(
-      "before-first-attempt",
-    );
+    db.exec("CREATE TABLE example (value TEXT NOT NULL); PRAGMA user_version = 7;");
+    db.prepare("INSERT INTO example (value) VALUES (?)").run("before-first-attempt");
     mkdirSync(rollbacks);
     writeFileSync(
-      join(
-        rollbacks,
-        "capacitylens-pre-migration-v7-to-v16-20260715-120000-123.db",
-      ),
+      join(rollbacks, "capacitylens-pre-migration-v7-to-v16-20260715-120000-123.db"),
       "legacy crash-loop artifact",
     );
-    writeFileSync(
-      join(rollbacks, "capacitylens-pre-migration-v7-to-v16.db.tmp"),
-      "torn stable refresh",
-    );
+    writeFileSync(join(rollbacks, "capacitylens-pre-migration-v7-to-v16.db.tmp"), "torn stable refresh");
     const first = await writePreMigrationBackup(
       db,
       { dbPath, fromVersion: 7, toVersion: 16, dir: rollbacks },
       () => {},
     );
-    db.prepare("INSERT INTO example (value) VALUES (?)").run(
-      "before-second-attempt",
-    );
+    db.prepare("INSERT INTO example (value) VALUES (?)").run("before-second-attempt");
     const second = await writePreMigrationBackup(
       db,
       { dbPath, fromVersion: 7, toVersion: 16, dir: rollbacks },
@@ -370,15 +305,11 @@ describe("pre-migration rollback snapshot", () => {
     db.close();
 
     expect(second).toBe(first);
-    expect(
-      readdirSync(rollbacks).filter((file) => file.endsWith(".db")),
-    ).toEqual(["capacitylens-pre-migration-v7-to-v16.db"]);
-    expect(
-      readdirSync(rollbacks).filter((file) => file.endsWith(".tmp")),
-    ).toEqual([]);
-    const refreshed = trackDatabase(
-      new DatabaseSync(second!, { readOnly: true }),
-    );
+    expect(readdirSync(rollbacks).filter((file) => file.endsWith(".db"))).toEqual([
+      "capacitylens-pre-migration-v7-to-v16.db",
+    ]);
+    expect(readdirSync(rollbacks).filter((file) => file.endsWith(".tmp"))).toEqual([]);
+    const refreshed = trackDatabase(new DatabaseSync(second!, { readOnly: true }));
     expect(
       (
         refreshed.prepare("SELECT COUNT(*) AS n FROM example").get() as {
@@ -407,9 +338,7 @@ describe("startBackups", () => {
     const message = formatBackupStartupFailure(dir, failure);
     expect(message).toContain(`CAPACITYLENS_BACKUP_DIR=${JSON.stringify(dir)}`);
     expect(message).toMatch(/ENOTDIR|not a directory/i);
-    expect(message).toContain(
-      "CAPACITYLENS_BACKUP_DIR= to disable scheduled backups",
-    );
+    expect(message).toContain("CAPACITYLENS_BACKUP_DIR= to disable scheduled backups");
   });
 
   it("tightens an existing scheduled-backup directory to mode 0700", async () => {
@@ -417,12 +346,7 @@ describe("startBackups", () => {
     chmodSync(dir, 0o777);
     const db = openDb(":memory:");
 
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
     await backups.stop();
 
     expect(statSync(dir).mode & 0o777).toBe(0o700);
@@ -433,12 +357,7 @@ describe("startBackups", () => {
     const db = openDb(":memory:");
     insertAll(db, seed());
     const log = vi.fn();
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      log,
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, log, tickingClock());
     const file = await backups.snapshotNow();
     await backups.stop();
 
@@ -462,32 +381,24 @@ describe("startBackups", () => {
     writeFileSync(oldSnapshot, "old recovery point");
     const db = openDb(":memory:");
     const stages: string[] = [];
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 1 },
-      () => {},
-      tickingClock(),
-      {
-        chmod: (path, mode) => {
-          stages.push("chmod-file");
-          chmodSync(path, mode);
-        },
-        syncFile: (path) => {
-          stages.push("sync-file");
-          syncTestPath(path);
-        },
-        rename: (from, to) => {
-          stages.push("rename");
-          renameSync(from, to);
-        },
-        syncDirectory: (path) => {
-          stages.push(
-            `sync-directory:${existsSync(oldSnapshot) ? "before-retention" : "after-retention"}`,
-          );
-          syncTestPath(path);
-        },
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, tickingClock(), {
+      chmod: (path, mode) => {
+        stages.push("chmod-file");
+        chmodSync(path, mode);
       },
-    );
+      syncFile: (path) => {
+        stages.push("sync-file");
+        syncTestPath(path);
+      },
+      rename: (from, to) => {
+        stages.push("rename");
+        renameSync(from, to);
+      },
+      syncDirectory: (path) => {
+        stages.push(`sync-directory:${existsSync(oldSnapshot) ? "before-retention" : "after-retention"}`);
+        syncTestPath(path);
+      },
+    });
 
     await backups.stop();
 
@@ -509,40 +420,22 @@ describe("startBackups", () => {
       writeFileSync(oldSnapshot, "old recovery point");
       const db = openDb(":memory:");
       const log = vi.fn();
-      const failAt = (
-        stage: typeof failureStage,
-        operation: () => void,
-      ): void => {
-        if (stage === failureStage)
-          throw new Error(`simulated ${stage} failure`);
+      const failAt = (stage: typeof failureStage, operation: () => void): void => {
+        if (stage === failureStage) throw new Error(`simulated ${stage} failure`);
         operation();
       };
-      const backups = startBackups(
-        db,
-        { dir, intervalMin: 60, keep: 1 },
-        log,
-        tickingClock(),
-        {
-          chmod: (path, mode) =>
-            failAt("chmod-file", () => chmodSync(path, mode)),
-          syncFile: (path) => failAt("sync-file", () => syncTestPath(path)),
-          rename: (from, to) => failAt("rename", () => renameSync(from, to)),
-          syncDirectory: (path) =>
-            failAt("sync-directory", () => syncTestPath(path)),
-        },
-      );
+      const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, log, tickingClock(), {
+        chmod: (path, mode) => failAt("chmod-file", () => chmodSync(path, mode)),
+        syncFile: (path) => failAt("sync-file", () => syncTestPath(path)),
+        rename: (from, to) => failAt("rename", () => renameSync(from, to)),
+        syncDirectory: (path) => failAt("sync-directory", () => syncTestPath(path)),
+      });
 
       await backups.stop();
 
       expect(existsSync(oldSnapshot)).toBe(true);
-      expect(log).toHaveBeenCalledWith(
-        expect.stringContaining(
-          `backup FAILED — simulated ${failureStage} failure`,
-        ),
-      );
-      expect(log).not.toHaveBeenCalledWith(
-        expect.stringContaining("backup written"),
-      );
+      expect(log).toHaveBeenCalledWith(expect.stringContaining(`backup FAILED — simulated ${failureStage} failure`));
+      expect(log).not.toHaveBeenCalledWith(expect.stringContaining("backup written"));
     },
   );
 
@@ -550,12 +443,7 @@ describe("startBackups", () => {
     const dir = tempDir();
     writeFileSync(join(dir, "not-a-snapshot.txt"), "keep me");
     const db = openDb(":memory:");
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 2 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 2 }, () => {}, tickingClock());
     await backups.snapshotNow();
     await backups.snapshotNow();
     await backups.snapshotNow();
@@ -576,14 +464,8 @@ describe("startBackups", () => {
     const db = openDb(":memory:");
     const instants = ["2026-10-25T00:59:59.900Z", "2026-10-25T01:00:00.100Z"];
     let nextInstant = 0;
-    const clock = () =>
-      new Date(instants[Math.min(nextInstant++, instants.length - 1)]);
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 1 },
-      () => {},
-      clock,
-    );
+    const clock = () => new Date(instants[Math.min(nextInstant++, instants.length - 1)]);
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, clock);
     try {
       const newest = await backups.snapshotNow();
       expect(existsSync(newest)).toBe(true);
@@ -599,28 +481,19 @@ describe("startBackups", () => {
     const livePath = join(dir, "capacitylens-20000101-000000-000.db");
     const db = openDb(livePath);
     insertAll(db, seed());
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 1 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, tickingClock());
 
     await backups.snapshotNow();
     await backups.stop();
 
     expect(existsSync(livePath)).toBe(true);
-    expect(loadState(db).accounts.map((account) => account.name)).toContain(
-      "Studio North",
-    );
+    expect(loadState(db).accounts.map((account) => account.name)).toContain("Studio North");
     const files = snapshots(dir);
     expect(files).toContain(basename(livePath));
     expect(files.filter((file) => file !== basename(livePath))).toHaveLength(1);
     db.close();
     const reopened = openDb(livePath);
-    expect(
-      loadState(reopened).accounts.map((account) => account.name),
-    ).toContain("Studio North");
+    expect(loadState(reopened).accounts.map((account) => account.name)).toContain("Studio North");
     reopened.close();
   });
 
@@ -631,21 +504,14 @@ describe("startBackups", () => {
     const db = openDb(livePath);
     insertAll(db, seed());
     linkSync(livePath, alias);
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 1 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, () => {}, tickingClock());
 
     await backups.snapshotNow();
     await backups.stop();
 
     expect(existsSync(alias)).toBe(true);
     expect(statSync(alias).ino).toBe(statSync(livePath).ino);
-    expect(
-      snapshots(dir).filter((file) => file !== basename(alias)),
-    ).toHaveLength(1);
+    expect(snapshots(dir).filter((file) => file !== basename(alias))).toHaveLength(1);
     db.close();
   });
 
@@ -654,12 +520,7 @@ describe("startBackups", () => {
     const db = openDb(":memory:");
     insertAll(db, seed());
     const log = vi.fn();
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 1 },
-      log,
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, log, tickingClock());
 
     // Queue behind the start-up shot and retain this second, verified snapshot as the sole known-
     // good recovery point. The invalid attempt below would previously replace it under keep=1.
@@ -677,20 +538,12 @@ describe("startBackups", () => {
     ).run("orphan-client", "missing-account", "Orphan", "#111111", "t", "t");
     db.exec("PRAGMA foreign_keys = ON");
 
-    await expect(backups.snapshotNow()).rejects.toThrow(
-      /scheduled snapshot.*foreign_key_check.*1 violation/i,
-    );
+    await expect(backups.snapshotNow()).rejects.toThrow(/scheduled snapshot.*foreign_key_check.*1 violation/i);
     await backups.stop();
 
     expect(snapshots(dir)).toEqual([basename(healthy)]);
-    expect(readdirSync(dir).filter((file) => file.includes(".tmp"))).toEqual(
-      [],
-    );
-    expect(
-      log.mock.calls.filter(([message]) =>
-        String(message).includes("backup written"),
-      ),
-    ).toHaveLength(2);
+    expect(readdirSync(dir).filter((file) => file.includes(".tmp"))).toEqual([]);
+    expect(log.mock.calls.filter(([message]) => String(message).includes("backup written"))).toHaveLength(2);
   });
 
   it("never reuses a filename, even when the clock does not advance (monotonic stamp bump)", async () => {
@@ -699,12 +552,7 @@ describe("startBackups", () => {
     // A FROZEN clock is the worst case: without the monotonic bump every snapshot would target
     // the same file and silently overwrite the previous one.
     const frozen = () => new Date("2026-06-13T00:00:00");
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      frozen,
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
     const a = await backups.snapshotNow();
     const b = await backups.snapshotNow();
     await backups.stop();
@@ -719,22 +567,13 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     const log = vi.fn();
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 1, keep: 48 },
-      log,
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 1, keep: 48 }, log, tickingClock());
     try {
       // The start-up snapshot is suspended at its async write (no microtask has run yet); firing
       // the first interval tick NOW must hit the in-flight guard — skipped, with a loud notice.
       vi.advanceTimersByTime(60_000);
-      expect(log).toHaveBeenCalledWith(
-        expect.stringContaining("backup skipped"),
-      );
-      expect(log).toHaveBeenCalledWith(
-        expect.stringContaining("still in flight"),
-      );
+      expect(log).toHaveBeenCalledWith(expect.stringContaining("backup skipped"));
+      expect(log).toHaveBeenCalledWith(expect.stringContaining("still in flight"));
     } finally {
       // stop() awaits the in-flight start-up snapshot; its write is real I/O, not timer-driven,
       // so it settles fine under fake timers.
@@ -749,16 +588,8 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     // 0.0005 min = 30ms — the injected tiny interval from the activity spec.
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 0.0005, keep: 48 },
-      () => {},
-      tickingClock(),
-    );
-    await vi.waitFor(
-      () => expect(snapshots(dir).length).toBeGreaterThanOrEqual(3),
-      { timeout: 5000 },
-    );
+    const backups = startBackups(db, { dir, intervalMin: 0.0005, keep: 48 }, () => {}, tickingClock());
+    await vi.waitFor(() => expect(snapshots(dir).length).toBeGreaterThanOrEqual(3), { timeout: 5000 });
     await backups.stop();
     const after = snapshots(dir).length;
     await new Promise((r) => setTimeout(r, 120));
@@ -770,12 +601,7 @@ describe("startBackups", () => {
     const db = openDb(":memory:");
     insertAll(db, seed());
     const log = vi.fn();
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      log,
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, log, tickingClock());
     // The start-up snapshot is still suspended at its async write (no microtask has run yet).
     // stop() must wait it out: the shutdown path (index.ts) closes the DB immediately after,
     // and closing under a running backup can leave a truncated file behind a snapshot name.
@@ -795,21 +621,11 @@ describe("startBackups", () => {
     // monotonic floor resets to 0, so the second instance would reuse the first one's stamp
     // and silently overwrite its file on the node:sqlite backup path.
     const frozen = () => new Date("2026-06-13T01:00:00");
-    const first = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      frozen,
-    );
+    const first = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
     const before = await first.snapshotNow();
     await first.stop();
     // "Restart": a fresh instance over the same dir must seed its floor from the files on disk.
-    const second = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      frozen,
-    );
+    const second = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
     const after = await second.snapshotNow();
     await second.stop();
 
@@ -825,33 +641,21 @@ describe("startBackups", () => {
     // existsSync loop stands between the first snapshot and silently clobbering that file.
     const occupied = join(dir, "capacitylens-utc-20260613-010000-001.db");
     writeFileSync(occupied, "PRE-EXISTING SNAPSHOT — MUST SURVIVE");
-    writeFileSync(
-      join(dir, "capacitylens-utc-20260613-010000.db"),
-      "second-precision snapshot (seeds the floor)",
-    );
+    writeFileSync(join(dir, "capacitylens-utc-20260613-010000.db"), "second-precision snapshot (seeds the floor)");
     const db = openDb(":memory:");
     const frozen = () => new Date("2026-06-13T01:00:00Z");
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      frozen,
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen);
     const written = await backups.snapshotNow();
     await backups.stop();
 
     // The occupied name was never reused, let alone overwritten.
     expect(written).not.toBe(occupied);
-    expect(readFileSync(occupied, "utf8")).toBe(
-      "PRE-EXISTING SNAPSHOT — MUST SURVIVE",
-    );
+    expect(readFileSync(occupied, "utf8")).toBe("PRE-EXISTING SNAPSHOT — MUST SURVIVE");
     // Start-up shot + manual both landed on fresh names past the collision (…-002 / …-003).
     await vi.waitFor(() =>
-      expect(
-        readdirSync(dir).filter((f) =>
-          /^capacitylens-(?:utc-)?\d{8}-\d{6}(-\d{3})?\.db$/.test(f),
-        ),
-      ).toHaveLength(4),
+      expect(readdirSync(dir).filter((f) => /^capacitylens-(?:utc-)?\d{8}-\d{6}(-\d{3})?\.db$/.test(f))).toHaveLength(
+        4,
+      ),
     );
   });
 
@@ -862,20 +666,11 @@ describe("startBackups", () => {
     const stale = join(dir, "capacitylens-20260613-000000-000.db.tmp");
     const fresh = join(dir, "capacitylens-20260613-000000-001.db.tmp");
     writeFileSync(stale, "torn write from a crash");
-    utimesSync(
-      stale,
-      new Date(Date.now() - 2 * 60 * 60_000),
-      new Date(Date.now() - 2 * 60 * 60_000),
-    );
+    utimesSync(stale, new Date(Date.now() - 2 * 60 * 60_000), new Date(Date.now() - 2 * 60 * 60_000));
     writeFileSync(fresh, "live write from a sibling instance");
     writeFileSync(join(dir, "not-a-snapshot.txt"), "keep me");
     const db = openDb(":memory:");
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
     await backups.stop();
 
     const files = readdirSync(dir);
@@ -893,35 +688,19 @@ describe("startBackups", () => {
     // top level with no guard above it, so an unguarded throw here would kill the daemon at
     // boot; the sweep must warn, skip the entry, and carry on (named to sort FIRST, so an
     // unguarded loop would have aborted before reaching the genuinely stale file below).
-    symlinkSync(
-      join(dir, "does-not-exist"),
-      join(dir, "capacitylens-20260101-000000-000.db.tmp"),
-    );
+    symlinkSync(join(dir, "does-not-exist"), join(dir, "capacitylens-20260101-000000-000.db.tmp"));
     const stale = join(dir, "capacitylens-20260102-000000-000.db.tmp");
     writeFileSync(stale, "torn write from a crash");
-    utimesSync(
-      stale,
-      new Date(Date.now() - 2 * 60 * 60_000),
-      new Date(Date.now() - 2 * 60 * 60_000),
-    );
+    utimesSync(stale, new Date(Date.now() - 2 * 60 * 60_000), new Date(Date.now() - 2 * 60 * 60_000));
     const log = vi.fn();
     const db = openDb(":memory:");
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      log,
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, log, tickingClock());
     await backups.stop();
 
-    expect(log).toHaveBeenCalledWith(
-      expect.stringContaining("start-up sweep skipped"),
-    );
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("start-up sweep skipped"));
     // The bad entry was an isolated skip: the stale tmp beyond it was still swept, and the
     // boot completed all the way to the start-up snapshot.
-    expect(readdirSync(dir)).not.toContain(
-      "capacitylens-20260102-000000-000.db.tmp",
-    );
+    expect(readdirSync(dir)).not.toContain("capacitylens-20260102-000000-000.db.tmp");
     expect(snapshots(dir)).toHaveLength(1);
   });
 
@@ -935,18 +714,11 @@ describe("startBackups", () => {
     mkdirSync(join(dir, "capacitylens-20200101-000000-000.db"));
     const log = vi.fn();
     const db = openDb(":memory:");
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 1 },
-      log,
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 1 }, log, tickingClock());
     await expect(backups.snapshotNow()).resolves.toMatch(/\.db$/);
     await backups.stop();
 
-    expect(log).toHaveBeenCalledWith(
-      expect.stringContaining("retention failed to remove"),
-    );
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("retention failed to remove"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("backup written"));
     // The unremovable entry is skipped in place (retried next prune), not a fatal.
     expect(readdirSync(dir)).toContain("capacitylens-20200101-000000-000.db");
@@ -955,12 +727,7 @@ describe("startBackups", () => {
   it("a failed snapshot removes its temp file and surfaces the original error", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
     // Let the start-up shot finish cleanly (snapshotNow queues behind it), THEN break the DB:
     // backup()/VACUUM INTO on a closed handle is a realistic mid-write fault.
     await backups.snapshotNow();
@@ -981,12 +748,7 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     insertAll(db, seed());
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
     // Fire two overlapping calls without awaiting (both also overlap the start-up shot). An
     // unserialized implementation would run two writers at once and let the newer call null the
     // guard stop() awaits while the older still runs — shutdown would close the DB under it.
@@ -1011,9 +773,7 @@ describe("startBackups", () => {
     const files = snapshots(dir);
     expect(files).toHaveLength(3);
     for (const f of files) {
-      expect(
-        loadState(openDb(join(dir, f))).accounts.map((x) => x.name),
-      ).toContain("Studio North");
+      expect(loadState(openDb(join(dir, f))).accounts.map((x) => x.name)).toContain("Studio North");
     }
   });
 
@@ -1021,12 +781,7 @@ describe("startBackups", () => {
     const dir = tempDir();
     const db = openDb(":memory:");
     insertAll(db, seed());
-    const backups = startBackups(
-      db,
-      { dir, intervalMin: 60, keep: 48 },
-      () => {},
-      tickingClock(),
-    );
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
     const order: string[] = [];
     // Queued behind the start-up shot, NOT awaited — stop() begins while both are pending.
     const a = backups.snapshotNow().then((f) => {
@@ -1037,9 +792,7 @@ describe("startBackups", () => {
     // Chained while stop() is already draining: the pre-fix stop() awaited only the promise it
     // captured at the moment of the await, so a call here would run AFTER stop() resolved —
     // i.e. under the DB close. It is refused instead, loudly, and writes nothing.
-    await expect(backups.snapshotNow()).rejects.toThrow(
-      /snapshot refused during shutdown/,
-    );
+    await expect(backups.snapshotNow()).rejects.toThrow(/snapshot refused during shutdown/);
     await stopped;
 
     // stop() resolved only after the whole accepted chain finished.

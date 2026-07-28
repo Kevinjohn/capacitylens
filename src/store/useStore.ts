@@ -1,11 +1,7 @@
-import { create } from 'zustand'
-import { newId } from '@capacitylens/shared/lib/id'
-import {
-  addDaysISO,
-  startOfWeekISO,
-  todayISO,
-} from '@capacitylens/shared/lib/dateMath'
-import { PAST_BUFFER_DAYS, type WeeksZoom } from '../lib/schedulerConfig'
+import { create } from "zustand";
+import { newId } from "@capacitylens/shared/lib/id";
+import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { PAST_BUFFER_DAYS, type WeeksZoom } from "../lib/schedulerConfig";
 import {
   deleteClientCascade,
   deleteDisciplineCascade,
@@ -13,7 +9,7 @@ import {
   deleteProjectCascade,
   deleteResourceCascade,
   deleteActivityCascade,
-} from '@capacitylens/shared/lib/integrity'
+} from "@capacitylens/shared/lib/integrity";
 import {
   assertActivityProjectAllowsDependents,
   assertAllocationRefs,
@@ -25,7 +21,7 @@ import {
   deleteAccountCascade,
   findOwned as findOwnedIn,
   remapAndValidateImport,
-} from '@capacitylens/shared/domain/mutations'
+} from "@capacitylens/shared/domain/mutations";
 import {
   archive,
   canPurge,
@@ -33,25 +29,15 @@ import {
   PURGE_MIN_AGE_DAYS,
   softDelete,
   unarchive,
-} from '@capacitylens/shared/domain/lifecycle'
-import { m } from '@/i18n'
-import { type BarLabelPrefs, type UtilizationPrefs } from '../lib/displayPrefs'
-import type { ThemePref } from '../lib/theme'
-import type { Role } from '@capacitylens/shared/domain/access'
-import {
-  buildInternalClient,
-  isBuiltinClient,
-} from '@capacitylens/shared/data/internalClient'
-import {
-  clampHoursPerDay,
-  clampWorkingHoursPerDay,
-  emptyAppData,
-} from '@capacitylens/shared/types/entities'
-import {
-  NEUTRAL_COLOR,
-  snapToPresetColor,
-} from '@capacitylens/shared/lib/color'
-import { timeZoneFor, weekStartsOnFor } from './selectors'
+} from "@capacitylens/shared/domain/lifecycle";
+import { m } from "@/i18n";
+import { type BarLabelPrefs, type UtilizationPrefs } from "../lib/displayPrefs";
+import type { ThemePref } from "../lib/theme";
+import type { Role } from "@capacitylens/shared/domain/access";
+import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/internalClient";
+import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from "@capacitylens/shared/types/entities";
+import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
+import { timeZoneFor, weekStartsOnFor } from "./selectors";
 import type {
   Account,
   Allocation,
@@ -68,9 +54,9 @@ import type {
   Activity,
   TimeOff,
   Weekday,
-} from '@capacitylens/shared/types/entities'
-import { createRuntimeSlice } from './slices/runtimeSlice'
-import { createSchedulerSlice } from './slices/schedulerSlice'
+} from "@capacitylens/shared/types/entities";
+import { createRuntimeSlice } from "./slices/runtimeSlice";
+import { createSchedulerSlice } from "./slices/schedulerSlice";
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -82,18 +68,15 @@ import { createSchedulerSlice } from './slices/schedulerSlice'
 // would break the "exactly one Internal per account" invariant the scheduler / migrate / import all
 // rely on. Excluding the field at the type level is the guard; the store also strips it defensively at
 // runtime (see addClient/updateClient).
-export type Draft<T extends Entity> = Omit<
-  T,
-  'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin'
->
-export type Patch<T extends Entity> = Partial<Draft<T>>
+export type Draft<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
+export type Patch<T extends Entity> = Partial<Draft<T>>;
 
 // The three entity tables that carry the lifecycle tombstones (`archivedAt`/`deletedAt`, P2.1) and so
 // can travel the Active → Archived → Soft-deleted → Purged machine (`shared/src/domain/lifecycle.ts`).
 // MIRRORS the server's lifecycle-route entity union so the LOCAL store actions below and the server's
 // dedicated routes (P2.5a) operate over the IDENTICAL set — phases/activities/allocations/timeOff/
 // disciplines/accounts have no tombstone and are deliberately excluded.
-export type LifecycleEntity = 'resources' | 'clients' | 'projects'
+export type LifecycleEntity = "resources" | "clients" | "projects";
 
 /**
  * A toast message + severity. Three tones, mapped to two dismissal behaviours by the AppShell
@@ -108,8 +91,8 @@ export type LifecycleEntity = 'resources' | 'clients' | 'projects'
  *    and carries the danger `.toast-error` accent.
  */
 export interface Notice {
-  message: string
-  tone: 'info' | 'warning' | 'error'
+  message: string;
+  tone: "info" | "warning" | "error";
 }
 
 /**
@@ -129,38 +112,38 @@ export interface Notice {
  *   the account selectable but must never be presented as the fail-closed Viewer projection.
  */
 export interface AccountSummary {
-  id: ID
-  name: string
-  role: Role
-  roleStatus?: 'resolved' | 'unavailable'
+  id: ID;
+  name: string;
+  role: Role;
+  roleStatus?: "resolved" | "unavailable";
 }
 
 /** Outcome of an import: how many records landed vs. were dropped as invalid
  *  (broken date range / dangling ref). Lets the UI report the delta honestly. */
 export interface ImportSummary {
-  imported: number
-  skipped: number
+  imported: number;
+  skipped: number;
 }
 
 // Re-exported for convenience.
-export type { WeeksZoom }
+export type { WeeksZoom };
 
 export interface Filters {
-  disciplineId: ID | null
-  clientId: ID | null
-  projectId: ID | null
+  disciplineId: ID | null;
+  clientId: ID | null;
+  projectId: ID | null;
   /** Activity lens: a specific internal/cross-project activity. Mutually exclusive with the
    *  client/project lens and with `activityKind` (enforced in setFilters). */
-  activityId: ID | null
+  activityId: ID | null;
   /** Activity lens: ALL activities of a kind ('Internal — All' / 'Cross-project — All'). Mutually
    *  exclusive with the client/project lens and with `activityId`. */
-  activityKind: 'internal' | 'repeatable' | null
-  search: string
-  hideTentative: boolean
+  activityKind: "internal" | "repeatable" | null;
+  search: string;
+  hideTentative: boolean;
   /** When a client/project/activity filter is active, ALSO show resources with no work on it
    *  (dimmed) so you can see who's free to staff. Off (the default) = filtering
    *  hides them, leaving only the matching resources' rows. */
-  showUnmatched: boolean
+  showUnmatched: boolean;
 }
 
 export const emptyFilters = (): Filters => ({
@@ -169,10 +152,10 @@ export const emptyFilters = (): Filters => ({
   projectId: null,
   activityId: null,
   activityKind: null,
-  search: '',
+  search: "",
   hideTentative: false,
   showUnmatched: false,
-})
+});
 
 export function hasActiveFilters(f: Filters): boolean {
   return (
@@ -181,68 +164,68 @@ export function hasActiveFilters(f: Filters): boolean {
     !!f.projectId ||
     !!f.activityId ||
     !!f.activityKind ||
-    f.search.trim() !== '' ||
+    f.search.trim() !== "" ||
     f.hideTentative
-  )
+  );
 }
 
 /** What a draw-on-a-lane gesture creates. */
-export type DrawMode = 'work' | 'timeoff'
+export type DrawMode = "work" | "timeoff";
 
 export interface SchedulerUI {
-  zoom: WeeksZoom // number of weeks visible; day-column width is derived from it
-  originDate: ISODate
-  rangeDays: number
-  focusDate: ISODate // the date the grid scrolls to when recenterToken bumps
-  drawMode: DrawMode // draw-to-create makes an allocation ('work') or time off
-  selectedAllocationId: ID | null
-  filters: Filters
-  collapsedGroups: string[] // discipline group keys that are collapsed
-  recenterToken: number // bumped to ask the grid to scroll focusDate back into view
+  zoom: WeeksZoom; // number of weeks visible; day-column width is derived from it
+  originDate: ISODate;
+  rangeDays: number;
+  focusDate: ISODate; // the date the grid scrolls to when recenterToken bumps
+  drawMode: DrawMode; // draw-to-create makes an allocation ('work') or time off
+  selectedAllocationId: ID | null;
+  filters: Filters;
+  collapsedGroups: string[]; // discipline group keys that are collapsed
+  recenterToken: number; // bumped to ask the grid to scroll focusDate back into view
   /** Transient resource-row jump. Each request starts unconsumed; SchedulerGrid consumes it only
    *  after finding and scrolling the row, so a temporarily hidden row can retry without replaying
    *  after success. Token-per-request supports repeated jumps to the same id. Never persisted or
    *  placed on the undo stack. */
-  scrollToResource: { id: ID; token: number; consumed: boolean } | null
+  scrollToResource: { id: ID; token: number; consumed: boolean } | null;
 }
 
 export interface StoreState {
-  data: AppData
-  ui: SchedulerUI
-  hydrated: boolean
+  data: AppData;
+  ui: SchedulerUI;
+  hydrated: boolean;
   /** The tenant currently in view. Null = no account chosen (show the picker). Never persisted. */
-  activeAccountId: ID | null
+  activeAccountId: ID | null;
   /** The account that was active before switching to the picker — lets the picker
    *  offer a "back" escape after an accidental "Switch company". Never persisted. */
-  previousAccountId: ID | null
+  previousAccountId: ID | null;
   /** The server-sourced list of accounts this login may open (P1.13) — the AccountPicker's data
    *  source. Set by useAccountSummaries: in server mode from `GET /api/accounts` (the login's
    *  memberships); in the demo build derived from `data.accounts`. SEPARATE from `data` because in
    *  server mode `data` holds only the ACTIVE account's slice, so it can't list the other tenants.
    *  Never persisted. */
-  accountSummaries: AccountSummary[]
+  accountSummaries: AccountSummary[];
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    *  response cannot overwrite a create/delete/join result. Transient and never persisted. */
-  accountSummariesRequestId: number
-  past: AppData[]
-  future: AppData[]
-  persistError: boolean
+  accountSummariesRequestId: number;
+  past: AppData[];
+  future: AppData[];
+  persistError: boolean;
   /** True when stored data existed but could not be read (corrupt JSON / failed
    *  migrate). Distinct from persistError (a WRITE failure): on a load error the
    *  app renders empty and autosave is intentionally NOT attached, so a recovery
    *  UI can offer reset/import/export without overwriting the unreadable bytes. */
-  loadError: boolean
+  loadError: boolean;
   /** True when a REMOTE load failed (server down / network error) — distinct from
    *  loadError (corrupt LOCAL bytes). The app renders empty with no autosave attached,
    *  and a connection-error screen offers a retry. Clearing local storage (the
    *  StorageRecovery path) can't recover a server-backed app, so the two are kept apart. */
-  connectionError: boolean
+  connectionError: boolean;
   /** User message (e.g. a rejected drag, or a clamp advisory) + its severity, as ONE value so the
    *  two can't desync. 'info' auto-dismisses (~4s); 'warning' and 'error' persist until dismissed —
    *  'warning' for a data-mutating advisory the user must notice (a fixed short timer on it fails
    *  WCAG 2.2.1), 'error' for a failure (an error that vanishes before it's read is useless). See
    *  {@link Notice}. Null = no notice. */
-  notice: Notice | null
+  notice: Notice | null;
   /** Latest screen-reader capacity announcement (WCAG 4.1.3) + a monotonically-rising `seq`.
    *  A keyboard-committed allocation edit (move/resize) recomputes over-capacity, which mutates the
    *  silent per-row sr-only summary while focus stays on the bar — leaving a screen-reader user with
@@ -251,55 +234,55 @@ export interface StoreState {
    *  guarantees re-announcement even when consecutive edits yield the SAME text (an aria-live region
    *  re-reads only on a content change). Transient: never persisted, never on the undo stack. POINTER
    *  drags do NOT set this — they give sighted feedback and would be noise for everyone. Null = none yet. */
-  srAnnouncement: { text: string; seq: number } | null
+  srAnnouncement: { text: string; seq: number } | null;
   /** True while any registered form/operation has unsaved work — drives the unsaved-changes guards
    *  (modal backdrop/Escape, beforeunload). Derived from source ownership, never persisted. */
-  dirtyForm: boolean
+  dirtyForm: boolean;
   /** Internal owner set from which dirtyForm is derived. Transient and never persisted. */
-  dirtyFormSources: ReadonlySet<symbol>
+  dirtyFormSources: ReadonlySet<symbol>;
   /** The allocation currently being dragged/resized, or null. Transient UI (like
    *  dirtyForm) — never persisted, never on the undo stack. Lets the scheduler PIN the
    *  dragged row so a mid-gesture vertical scroll can't virtualise it out and orphan the
    *  drag (the document pointer listeners would be torn down on unmount). */
-  draggingAllocationId: ID | null
+  draggingAllocationId: ID | null;
   /** Colour-scheme preference. Device-global, not part of account data: kept in the
    *  store only for reactivity, persisted to its own localStorage key by setTheme. */
-  theme: ThemePref
+  theme: ThemePref;
   /** Utilisation display toggles. Device-global like `theme`, persisted to their
    *  own localStorage key — not part of account data. */
-  utilizationPrefs: UtilizationPrefs
+  utilizationPrefs: UtilizationPrefs;
   /** Allocation-bar label toggles (client/project context before the activity name).
    *  Device-global like `utilizationPrefs`, own localStorage key. */
-  barLabelPrefs: BarLabelPrefs
+  barLabelPrefs: BarLabelPrefs;
   /** Sidebar open (labels) vs collapsed (icon rail). Device-global like `theme`,
    *  own localStorage key; the first-run default is viewport-derived (collapsed
    *  on small screens, open on desktop). */
-  sidebarOpen: boolean
+  sidebarOpen: boolean;
   /** Shrink the weekend (Sat/Sun) columns on the schedule to a sliver. Device-global like
    *  `theme`, own localStorage key, NOT in AppData/export — and defaults ON. */
-  minimiseWeekends: boolean
+  minimiseWeekends: boolean;
   /** After a FREE horizontal scroll settles, floor the grid's left edge to the current week's
    *  first day. Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults
    *  ON. Governs FREE SCROLL ONLY — the navigation snap (zoom / Prev-Next / date-picker) is always
    *  on, independent of this flag. */
-  snapToWeekStart: boolean
+  snapToWeekStart: boolean;
   /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
    *  the account picker so a viewer sees "log in first, then pick a company". Device-global
    *  like `theme` (own localStorage key, NOT in AppData/export), defaults OFF (signed out).
    *  NOT real auth — the real seam is `src/auth/`; the gate is active only when that auth is
    *  off. See `src/components/FakeSignIn.tsx`. */
-  fakeSignedIn: boolean
+  fakeSignedIn: boolean;
   /** Whether the post-login "What CapacityLens is" intro page has been dismissed on this device.
    *  Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF so
    *  the intro shows once on first contact (after a company is chosen), then stays dismissed.
    *  Frequency is once per device by design (DECISIONS.md). See `src/components/IntroPage.tsx`. */
-  introSeen: boolean
+  introSeen: boolean;
   /** Whether the schedule's first-run "Getting started" checklist card has been dismissed on this
    *  device. Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF
    *  so the checklist shows on first contact. The card also self-hides once every step is complete
    *  (derived live from scoped data) — this flag records only an explicit dismissal.
    *  See `src/components/GettingStarted.tsx`. */
-  gettingStartedDismissed: boolean
+  gettingStartedDismissed: boolean;
   /** The caller's resolved {@link Role} for the ACTIVE account, or null. Set by PermissionProvider
    *  (P1.12) once it resolves the role from `GET /api/accounts`; null in OFF/local/not-fetched.
    *  Transient (never persisted, never on the undo stack). It powers ONLY the defense-in-depth
@@ -307,74 +290,71 @@ export interface StoreState {
    *  so an ungated affordance or an optimistic write that the server would 403 can't desync local
    *  state. The server 403 (P1.5) is the TRUE security backstop — this is UX/defense-in-depth, NOT
    *  the access boundary, which is why ANY non-'viewer' value (incl. null = OFF/local) stays editable. */
-  activeRole: Role | null
+  activeRole: Role | null;
   /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
    *  the current directory-request owner re-reads the caller's effective role/list without an
    *  account switch or page reload. Transient: never persisted or included in undo history. */
-  membershipRevision: number
+  membershipRevision: number;
 
-  addAccount: (input: Draft<Account>) => Account | null
-  updateAccount: (id: ID, patch: Patch<Account>) => void
-  deleteAccount: (id: ID) => void
-  setActiveAccount: (id: ID | null) => void
+  addAccount: (input: Draft<Account>) => Account | null;
+  updateAccount: (id: ID, patch: Patch<Account>) => void;
+  deleteAccount: (id: ID) => void;
+  setActiveAccount: (id: ID | null) => void;
   /** Start one server-directory read and return its monotonic identity. */
-  beginAccountSummariesRequest: () => number
+  beginAccountSummariesRequest: () => number;
   /** Replace the picker list. A request-bound result applies only while it is still the latest;
    *  an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
-  setAccountSummaries: (list: AccountSummary[], requestId?: number) => boolean
+  setAccountSummaries: (list: AccountSummary[], requestId?: number) => boolean;
 
-  replaceAll: (data: AppData) => void
+  replaceAll: (data: AppData) => void;
   /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
    *  summary of how many records were brought in vs. dropped as invalid. */
-  importData: (data: AppData) => ImportSummary
-  setHydrated: (v: boolean) => void
-  setPersistError: (v: boolean) => void
-  setLoadError: (v: boolean) => void
-  setConnectionError: (v: boolean) => void
-  setNotice: (
-    message: string | null,
-    tone?: 'info' | 'warning' | 'error',
-  ) => void
+  importData: (data: AppData) => ImportSummary;
+  setHydrated: (v: boolean) => void;
+  setPersistError: (v: boolean) => void;
+  setLoadError: (v: boolean) => void;
+  setConnectionError: (v: boolean) => void;
+  setNotice: (message: string | null, tone?: "info" | "warning" | "error") => void;
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
    *  so the SAME text re-announces (an aria-live region re-reads only on a content change). Call
    *  ONLY after a successful KEYBOARD-committed allocation edit — pointer drags give sighted
    *  feedback and must not announce. Transient, never persisted/undone. */
-  announceCapacity: (text: string) => void
-  setDirtyForm: (v: boolean) => void
+  announceCapacity: (text: string) => void;
+  setDirtyForm: (v: boolean) => void;
   /** Publish or clear one component's dirty contribution without disturbing another owner. */
-  setDirtyFormSource: (source: symbol, dirty: boolean) => void
+  setDirtyFormSource: (source: symbol, dirty: boolean) => void;
   /** Mark/clear the allocation being dragged (drives the grid's drag-pin). */
-  setDraggingAllocation: (id: ID | null) => void
+  setDraggingAllocation: (id: ID | null) => void;
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
-  setTheme: (pref: ThemePref) => void
+  setTheme: (pref: ThemePref) => void;
   /** Toggle a single utilisation display preference: persist and update state. */
-  setUtilizationPref: (key: keyof UtilizationPrefs, value: boolean) => void
+  setUtilizationPref: (key: keyof UtilizationPrefs, value: boolean) => void;
   /** Toggle a single bar-label display preference: persist and update state. */
-  setBarLabelPref: (key: keyof BarLabelPrefs, value: boolean) => void
+  setBarLabelPref: (key: keyof BarLabelPrefs, value: boolean) => void;
   /** Open/collapse the sidebar: persist the choice and update state. */
-  setSidebarOpen: (open: boolean) => void
+  setSidebarOpen: (open: boolean) => void;
   /** Toggle the minimise-weekends preference: persist and update state. */
-  setMinimiseWeekends: (value: boolean) => void
+  setMinimiseWeekends: (value: boolean) => void;
   /** Toggle the snap-to-week-start preference: persist and update state. */
-  setSnapToWeekStart: (value: boolean) => void
+  setSnapToWeekStart: (value: boolean) => void;
   /** Set the cosmetic fake-sign-in state: persist and update state. */
-  setFakeSignedIn: (value: boolean) => void
+  setFakeSignedIn: (value: boolean) => void;
   /** Mark the post-login intro page as seen on this device: persist and update state. */
-  setIntroSeen: (value: boolean) => void
+  setIntroSeen: (value: boolean) => void;
   /** Mark the "Getting started" checklist as dismissed on this device: persist and update state. */
-  setGettingStartedDismissed: (value: boolean) => void
+  setGettingStartedDismissed: (value: boolean) => void;
   /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it
    *  resolves/changes the role (incl. back to null on OFF/local/account-switch). Plain transient
    *  state: never persisted, never on the undo stack. Drives ONLY the defense-in-depth write guard. */
-  setActiveRole: (role: Role | null) => void
+  setActiveRole: (role: Role | null) => void;
   /** Invalidate all client projections derived from account membership. */
-  invalidateMemberships: () => void
+  invalidateMemberships: () => void;
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
    *  clear the device-global flag so the demo sign-in shows again. Cosmetic only — never
    *  touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
-  signOutDemo: () => void
-  undo: () => void
-  redo: () => void
+  signOutDemo: () => void;
+  undo: () => void;
+  redo: () => void;
 
   // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / activities /
   // allocations / time off). CONTRACT — identical for every add*/update*/delete* below, and
@@ -388,36 +368,36 @@ export interface StoreState {
   //    a drag committed after an undo removed the row). That's a benign race, not corruption.
   //  • Callers that take USER INPUT must wrap the call in try/catch and surface e.message (see
   //    TimeOffForm / AllocationModal). A throw left uncaught surfaces only as a React error.
-  addDiscipline: (input: Draft<Discipline>) => Discipline
-  updateDiscipline: (id: ID, patch: Patch<Discipline>) => void
-  deleteDiscipline: (id: ID) => void
+  addDiscipline: (input: Draft<Discipline>) => Discipline;
+  updateDiscipline: (id: ID, patch: Patch<Discipline>) => void;
+  deleteDiscipline: (id: ID) => void;
 
-  addResource: (input: Draft<Resource>) => Resource
-  updateResource: (id: ID, patch: Patch<Resource>) => void
+  addResource: (input: Draft<Resource>) => Resource;
+  updateResource: (id: ID, patch: Patch<Resource>) => void;
 
-  addClient: (input: Draft<Client>) => Client
-  updateClient: (id: ID, patch: Patch<Client>) => void
+  addClient: (input: Draft<Client>) => Client;
+  updateClient: (id: ID, patch: Patch<Client>) => void;
 
-  addProject: (input: Draft<Project>) => Project
-  updateProject: (id: ID, patch: Patch<Project>) => void
+  addProject: (input: Draft<Project>) => Project;
+  updateProject: (id: ID, patch: Patch<Project>) => void;
 
-  addPhase: (input: Draft<Phase>) => Phase
-  updatePhase: (id: ID, patch: Patch<Phase>) => void
-  deletePhase: (id: ID) => void
+  addPhase: (input: Draft<Phase>) => Phase;
+  updatePhase: (id: ID, patch: Patch<Phase>) => void;
+  deletePhase: (id: ID) => void;
 
-  addActivity: (input: Draft<Activity>) => Activity
-  updateActivity: (id: ID, patch: Patch<Activity>) => void
-  deleteActivity: (id: ID) => void
+  addActivity: (input: Draft<Activity>) => Activity;
+  updateActivity: (id: ID, patch: Patch<Activity>) => void;
+  deleteActivity: (id: ID) => void;
 
-  addAllocation: (input: Draft<Allocation>) => Allocation
+  addAllocation: (input: Draft<Allocation>) => Allocation;
   /** Apply an allocation patch. False means the write was deliberately refused as a Viewer or the
    * target disappeared before commit; validation/tenancy violations still throw. */
-  updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean
-  deleteAllocation: (id: ID) => void
+  updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean;
+  deleteAllocation: (id: ID) => void;
 
-  addTimeOff: (input: Draft<TimeOff>) => TimeOff
-  updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void
-  deleteTimeOff: (id: ID) => void
+  addTimeOff: (input: Draft<TimeOff>) => TimeOff;
+  updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void;
+  deleteTimeOff: (id: ID) => void;
 
   // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the three
   // tombstone-carrying tables (resources / clients / projects). These are the DEMO-build / OFF path —
@@ -430,71 +410,66 @@ export interface StoreState {
   // state (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
   /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow — `archive` throws
    *  if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
-  archiveEntity: (entity: LifecycleEntity, id: ID) => void
+  archiveEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Un-archive an entity (archived → active). DEMO-build path; `unarchive` throws if the row isn't
    *  archived. @param entity which tombstone table. @param id the row to restore. */
-  unarchiveEntity: (entity: LifecycleEntity, id: ID) => void
+  unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Soft-delete an entity (archived → deleted tombstone). DEMO-build path; `softDelete` throws unless
    *  the row is archived first (the lifecycle requires prior archival). For a `resources` row the
    *  tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
    *  no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
-  softDeleteEntity: (entity: LifecycleEntity, id: ID) => void
+  softDeleteEntity: (entity: LifecycleEntity, id: ID) => void;
   /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). DEMO-build path.
    *  Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
    *  it does NOT mutate and surfaces an error notice instead of throwing (a refused affordance, not a
    *  bug). @param entity which tombstone table. @param id the tombstone to purge. */
-  purgeEntity: (entity: LifecycleEntity, id: ID) => void
+  purgeEntity: (entity: LifecycleEntity, id: ID) => void;
 
-  setZoom: (zoom: WeeksZoom) => void
-  setOriginDate: (date: ISODate) => void
-  panDays: (delta: number) => void
-  goToToday: () => void
-  goToDate: (date: ISODate) => void
-  setDrawMode: (mode: DrawMode) => void
-  selectAllocation: (id: ID | null) => void
-  setFilters: (patch: Partial<Filters>) => void
-  clearFilters: () => void
-  toggleGroup: (key: string) => void
+  setZoom: (zoom: WeeksZoom) => void;
+  setOriginDate: (date: ISODate) => void;
+  panDays: (delta: number) => void;
+  goToToday: () => void;
+  goToDate: (date: ISODate) => void;
+  setDrawMode: (mode: DrawMode) => void;
+  selectAllocation: (id: ID | null) => void;
+  setFilters: (patch: Partial<Filters>) => void;
+  clearFilters: () => void;
+  toggleGroup: (key: string) => void;
   /** Clear schedule filters (so the resource row is visible) then set
    *  scrollToResource — SchedulerGrid watches this to scroll the row into view.
    *  Transient UI: NOT persisted, NOT on the undo stack. */
-  jumpToResource: (id: ID) => void
+  jumpToResource: (id: ID) => void;
   /** Mark one exact resource-jump token consumed after its row was scrolled into view. A stale
    *  acknowledgement never consumes a newer request. */
-  consumeResourceJump: (token: number) => void
+  consumeResourceJump: (token: number) => void;
 }
 
 const stamp = () => {
-  const now = new Date().toISOString()
-  return { createdAt: now, updatedAt: now }
-}
-const touch = () => new Date().toISOString()
-const MAX_DATE_MS = 8_640_000_000_000_000
+  const now = new Date().toISOString();
+  return { createdAt: now, updatedAt: now };
+};
+const touch = () => new Date().toISOString();
+const MAX_DATE_MS = 8_640_000_000_000_000;
 // Take an ARRAY, not rest args: the whole-tenant callers (nextDataRevision, prepareHistoryTarget)
 // pass one timestamp per row, and spreading tens of thousands of rows as function arguments can
 // overflow the engine's argument limit (RangeError), failing an undo/redo or cascade-delete
 // outright. Iterating an array is unbounded-safe. `touchAfter` keeps the ergonomic variadic shape
 // for the many few-arg callers by delegating here.
 const touchAfterAll = (timestamps: Array<string | undefined>): string => {
-  let next = Date.now()
+  let next = Date.now();
   for (const value of timestamps) {
-    if (!value) continue
-    const parsed = Date.parse(value)
+    if (!value) continue;
+    const parsed = Date.parse(value);
     // The maximum representable Date is valid ISO input but has no representable successor.
     // Treat that boundary as an unsupported revision floor instead of constructing Invalid Date.
-    if (Number.isFinite(parsed) && parsed >= next && parsed < MAX_DATE_MS)
-      next = parsed + 1
+    if (Number.isFinite(parsed) && parsed >= next && parsed < MAX_DATE_MS) next = parsed + 1;
   }
-  return new Date(next).toISOString()
-}
-const touchAfter = (...timestamps: Array<string | undefined>): string =>
-  touchAfterAll(timestamps)
+  return new Date(next).toISOString();
+};
+const touchAfter = (...timestamps: Array<string | undefined>): string => touchAfterAll(timestamps);
 const dataTimestamps = (data: AppData): string[] =>
-  (Object.values(data) as Entity[][]).flatMap((rows) =>
-    rows.map((row) => row.updatedAt),
-  )
-const nextDataRevision = (data: AppData): string =>
-  touchAfterAll(dataTimestamps(data))
+  (Object.values(data) as Entity[][]).flatMap((rows) => rows.map((row) => row.updatedAt));
+const nextDataRevision = (data: AppData): string => touchAfterAll(dataTimestamps(data));
 
 /**
  * Undo/redo restores historical values, but `updatedAt` is a synchronization revision rather than
@@ -503,24 +478,19 @@ const nextDataRevision = (data: AppData): string =>
  * stale. Rows recreated from deletion need no stamp because the server has no current row to beat.
  */
 function prepareHistoryTarget(current: AppData, target: AppData): AppData {
-  const now = touchAfterAll(
-    dataTimestamps(current).concat(dataTimestamps(target)),
-  )
+  const now = touchAfterAll(dataTimestamps(current).concat(dataTimestamps(target)));
   const retime = <T extends Entity>(beforeRows: T[], targetRows: T[]): T[] => {
     // Immutable mutations structurally share every untouched table. Preserve that array wholesale;
     // even within a changed table, untouched rows retain object identity and need no serialization.
-    if (beforeRows === targetRows) return targetRows
-    const beforeById = new Map(beforeRows.map((row) => [row.id, row]))
-    const content = (row: T): string =>
-      JSON.stringify({ ...row, updatedAt: undefined })
+    if (beforeRows === targetRows) return targetRows;
+    const beforeById = new Map(beforeRows.map((row) => [row.id, row]));
+    const content = (row: T): string => JSON.stringify({ ...row, updatedAt: undefined });
     return targetRows.map((row) => {
-      const before = beforeById.get(row.id)
-      if (before === row) return row
-      return before && content(before) !== content(row)
-        ? { ...row, updatedAt: now }
-        : row
-    })
-  }
+      const before = beforeById.get(row.id);
+      if (before === row) return row;
+      return before && content(before) !== content(row) ? { ...row, updatedAt: now } : row;
+    });
+  };
   return {
     accounts: retime(current.accounts, target.accounts),
     disciplines: retime(current.disciplines, target.disciplines),
@@ -531,33 +501,24 @@ function prepareHistoryTarget(current: AppData, target: AppData): AppData {
     activities: retime(current.activities, target.activities),
     allocations: retime(current.allocations, target.allocations),
     timeOff: retime(current.timeOff, target.timeOff),
-  }
+  };
 }
 
 /** True when a server refresh republishes the same authoritative entity revisions. */
-function hasSameEntityRevisions(
-  current: AppData,
-  replacement: AppData,
-): boolean {
+function hasSameEntityRevisions(current: AppData, replacement: AppData): boolean {
   for (const key of Object.keys(current) as Array<keyof AppData>) {
-    const currentRows = current[key]
-    const replacementRows = replacement[key]
-    if (currentRows.length !== replacementRows.length) return false
-    const replacementRevisions = new Map(
-      replacementRows.map((row) => [row.id, row.updatedAt]),
-    )
-    if (
-      currentRows.some(
-        (row) => replacementRevisions.get(row.id) !== row.updatedAt,
-      )
-    ) {
-      return false
+    const currentRows = current[key];
+    const replacementRows = replacement[key];
+    if (currentRows.length !== replacementRows.length) return false;
+    const replacementRevisions = new Map(replacementRows.map((row) => [row.id, row.updatedAt]));
+    if (currentRows.some((row) => replacementRevisions.get(row.id) !== row.updatedAt)) {
+      return false;
     }
   }
-  return true
+  return true;
 }
 
-const HISTORY_LIMIT = 50
+const HISTORY_LIMIT = 50;
 
 export const useStore = create<StoreState>()((set, get, store) => {
   // Every data mutation goes through mutate(): it snapshots the previous data
@@ -573,40 +534,32 @@ export const useStore = create<StoreState>()((set, get, store) => {
       data: producer(s.data),
       past: [...s.past, s.data].slice(-HISTORY_LIMIT),
       future: [],
-    }))
+    }));
 
   // Erasure/purge actions must not leave a recoverable pre-erasure snapshot in memory. They also
   // cannot honestly be undoable, so clear both history directions as part of the same state write.
   const mutateIrreversible = (producer: (d: AppData) => AppData) =>
-    set((s) => ({ data: producer(s.data), past: [], future: [] }))
+    set((s) => ({ data: producer(s.data), past: [], future: [] }));
 
-  const updateById = <T extends Entity>(
-    list: T[],
-    id: ID,
-    patch: Partial<Omit<T, keyof Entity>>,
-  ): T[] =>
-    list.map((x) =>
-      x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x,
-    )
+  const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
+    list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x));
 
   // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
   // account must either exist in the published data or in the server-authorised summaries while a
   // switch is loading its slice (mid-switch edits are deliberately rebased by persist.ts). An id in
   // neither source is dead, so fail loudly rather than stamp an orphan accountId into the slice.
   const requireAccount = (): ID => {
-    const state = get()
-    const id = state.activeAccountId
-    if (!id) throw new Error('No active account — cannot mutate scoped data.')
+    const state = get();
+    const id = state.activeAccountId;
+    if (!id) throw new Error("No active account — cannot mutate scoped data.");
     if (
       !state.data.accounts.some((account) => account.id === id) &&
       !state.accountSummaries.some((account) => account.id === id)
     ) {
-      throw new Error(
-        'The active account is not loaded — cannot mutate scoped data.',
-      )
+      throw new Error("The active account is not loaded — cannot mutate scoped data.");
     }
-    return id
-  }
+    return id;
+  };
 
   // Defense-in-depth viewer guard (P1.12). It is INERT unless the active role is EXACTLY 'viewer':
   // every other value — null (OFF/local/not-fetched), 'owner', 'admin', 'editor' — permits, so the
@@ -616,22 +569,19 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // NOT the security boundary — the server 403 (P1.5) is the true backstop; we never throw here (a
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
-    if (get().activeRole !== 'viewer') return false
-    get().setNotice(m.notice_viewer_read_only(), 'error')
-    return true
-  }
+    if (get().activeRole !== "viewer") return false;
+    get().setNotice(m.notice_viewer_read_only(), "error");
+    return true;
+  };
 
   // Tenancy + integrity rules now live in src/domain/mutations.ts (pure, shared
   // with a future server). findOwned is wrapped here to inject the active account
   // so the call sites stay terse; assertAllocation keeps its legacy name locally.
   // assertScopedRefs / assertDateRange / assertResourceExists are used directly
   // from the import above.
-  const findOwned = <K extends ScopedEntityKey>(
-    d: AppData,
-    key: K,
-    id: ID,
-  ): AppData[K][number] | null => findOwnedIn(d, requireAccount(), key, id)
-  const assertAllocation = assertAllocationRefs
+  const findOwned = <K extends ScopedEntityKey>(d: AppData, key: K, id: ID): AppData[K][number] | null =>
+    findOwnedIn(d, requireAccount(), key, id);
+  const assertAllocation = assertAllocationRefs;
 
   // Value-level integrity backstop: a resource with zero working days has no capacity
   // any day. The form guards this, but the store is the last line so no path can persist
@@ -643,11 +593,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       new Set(days).size !== days.length ||
       days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
     ) {
-      throw new Error(
-        'At least one working day is required, using unique whole-number weekdays from 0 to 6.',
-      )
+      throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");
     }
-  }
+  };
   // Write-time colour guard: snaps a bad/legacy colour to its NEAREST palette preset via the
   // shared snapToPresetColor mapper — the SAME mapper the server's sanitizeWrite('accounts') and
   // the one-time snap-legacy-account-colors migration use, so client and server can never
@@ -660,21 +608,14 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // an assert* throw). A rejected write must not silently substitute a colour the caller never
   // asked for onto an entity that was never saved; see the CRUD contract note on StoreState.
   const snapColor = (color: unknown, allowNeutral = false): string =>
-    allowNeutral && color === NEUTRAL_COLOR
-      ? (color as string)
-      : snapToPresetColor(color)
+    allowNeutral && color === NEUTRAL_COLOR ? (color as string) : snapToPresetColor(color);
 
   // Collapses the `patch.color === undefined ? patch : { ...patch, color: snapColor(...) }`
   // idiom that used to be copy-pasted across every update* action (P#: colour-repair
   // consolidation). Returns the SAME object reference when there's no colour to repair, so a
   // colourless edit doesn't pay for a needless clone.
-  const withSnappedColor = <T extends { color?: unknown }>(
-    patch: T,
-    allowNeutral = false,
-  ): T =>
-    patch.color === undefined
-      ? patch
-      : { ...patch, color: snapColor(patch.color, allowNeutral) }
+  const withSnappedColor = <T extends { color?: unknown }>(patch: T, allowNeutral = false): T =>
+    patch.color === undefined ? patch : { ...patch, color: snapColor(patch.color, allowNeutral) };
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
@@ -692,8 +633,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createSchedulerSlice(emptyFilters)(set, get, store),
 
     addAccount: (input) => {
-      if (blockedByViewer()) return null
-      const ts = stamp()
+      if (blockedByViewer()) return null;
+      const ts = stamp();
       // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
       // scheduling with disciplines OFF, placeholder + external features hidden, and Internal work
       // grey. `...input`
@@ -702,25 +643,25 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // selectors). placeholdersEnabled/externalEnabled were device-global prefs and are now
       // per-account, mirroring disciplinesEnabled.
       const e: Account = {
-        schedulingMode: 'days',
+        schedulingMode: "days",
         disciplinesEnabled: false,
         placeholdersEnabled: false,
         externalEnabled: false,
-        internalColourMode: 'grey',
+        internalColourMode: "grey",
         ...input,
         color: snapColor(input.color),
         id: newId(),
         ...ts,
-      }
+      };
       // Every new account gets its built-in "Internal" client (one per account; see
       // internalClient.ts). Created atomically with the account so the one-per-account invariant
       // holds the instant the tenant exists — matching seed() and the v5→v6 migrate.
-      const internal = buildInternalClient(e.id, ts.createdAt)
+      const internal = buildInternalClient(e.id, ts.createdAt);
       mutate((d) => ({
         ...d,
         accounts: [...d.accounts, e],
         clients: [...d.clients, internal],
-      }))
+      }));
       // Keep the picker's list in lockstep (P1.13). This action now runs only in the DEMO build —
       // server-mode create goes through the AccountPicker's dedicated POST /api/orgs path, not here —
       // so this append is the demo bookkeeping that keeps the picker synchronously fresh before the
@@ -730,34 +671,29 @@ export const useStore = create<StoreState>()((set, get, store) => {
         accountSummariesRequestId: s.accountSummariesRequestId + 1,
         accountSummaries: s.accountSummaries.some((a) => a.id === e.id)
           ? s.accountSummaries
-          : [
-              ...s.accountSummaries,
-              { id: e.id, name: e.name, role: 'owner' as const },
-            ],
-      }))
-      return e
+          : [...s.accountSummaries, { id: e.id, name: e.name, role: "owner" as const }],
+      }));
+      return e;
     },
     updateAccount: (id, patch) => {
-      if (blockedByViewer()) return
-      const state = get()
-      const existing = state.data.accounts.find((account) => account.id === id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const state = get();
+      const existing = state.data.accounts.find((account) => account.id === id);
+      if (!existing) return;
       if (state.activeAccountId !== id) {
-        throw new Error(
-          'Cannot update a company other than the active company.',
-        )
+        throw new Error("Cannot update a company other than the active company.");
       }
       mutate((d) => ({
         ...d,
         accounts: updateById(d.accounts, id, withSnappedColor(patch)),
-      }))
+      }));
     },
     // Cascade-drop every scoped entity belonging to this account; if it was the
     // active one, fall back to the picker.
     deleteAccount: (id) => {
-      if (blockedByViewer()) return
-      if (!get().data.accounts.some((account) => account.id === id)) return
-      mutateIrreversible((d) => deleteAccountCascade(d, id))
+      if (blockedByViewer()) return;
+      if (!get().data.accounts.some((account) => account.id === id)) return;
+      mutateIrreversible((d) => deleteAccountCascade(d, id));
       // Drop it from the picker's list too (P1.13). This action now runs only in the DEMO build —
       // server-mode delete goes through the AccountPicker's dedicated DELETE /api/accounts/:id route,
       // not here — so this filter is the demo bookkeeping that keeps the picker synchronously fresh
@@ -765,8 +701,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
       set((s) => ({
         accountSummaries: s.accountSummaries.filter((a) => a.id !== id),
         accountSummariesRequestId: s.accountSummariesRequestId + 1,
-      }))
-      if (get().activeAccountId === id) get().setActiveAccount(null)
+      }));
+      if (get().activeAccountId === id) get().setActiveAccount(null);
     },
     // Switching tenant resets per-account view state and history — undo must never
     // cross an account boundary, and the previous account's filters/selection don't apply.
@@ -781,39 +717,34 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // not-yet-loaded tenant is absent from data but present in the summaries the picker showed). The
       // persist switch orchestrator then loads that account's slice into `data`; this validation only
       // proves the id is one the login may open, not that its data is loaded yet.
-      let id = rawId
-      let unknownAccount = false
+      let id = rawId;
+      let unknownAccount = false;
       if (
         id !== null &&
         !get().data.accounts.some((a) => a.id === id) &&
         !get().accountSummaries.some((a) => a.id === id)
       ) {
-        console.warn(
-          `setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`,
-        )
-        unknownAccount = true
-        id = null
+        console.warn(`setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`);
+        unknownAccount = true;
+        id = null;
       }
       set((s) => {
-        const switchingAccount = id !== s.activeAccountId
+        const switchingAccount = id !== s.activeAccountId;
         // Open the switched-into company on the current week (mirrors defaultUI) rather
         // than inheriting the previous tenant's panned origin/focus. The account's tz/weekStartsOn
         // come from its slice when loaded; in server mode the slice loads a frame later (the switch
         // orchestrator awaits the fetch), so fall back to the existing defaults for that one frame
         // (an acceptable transient — the grid re-anchors when the slice arrives via replaceAll).
-        const tz = timeZoneFor(s.data, id)
-        const wso = weekStartsOnFor(s.data, id)
-        const weekStart = startOfWeekISO(todayISO(tz), wso)
+        const tz = timeZoneFor(s.data, id);
+        const wso = weekStartsOnFor(s.data, id);
+        const weekStart = startOfWeekISO(todayISO(tz), wso);
         return {
           activeAccountId: id,
           // A concrete role means membership enforcement is active. Publish the new tenant with a
           // conservative Viewer role in this SAME store transition so no imperative subscriber can
           // observe it under the prior tenant's authority; PermissionProvider replaces it only
           // after resolving this account. null is the deliberate OFF/demo mode and stays editable.
-          activeRole:
-            id !== s.activeAccountId && s.activeRole !== null
-              ? 'viewer'
-              : s.activeRole,
+          activeRole: id !== s.activeAccountId && s.activeRole !== null ? "viewer" : s.activeRole,
           // Remember where we came from when dropping to the picker (id === null) so it
           // can offer a "back" escape; clear it once a tenant is actually chosen.
           previousAccountId: id === null ? s.activeAccountId : null,
@@ -827,7 +758,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
                 notice: unknownAccount
                   ? {
                       message: m.notice_company_not_found(),
-                      tone: 'error' as const,
+                      tone: "error" as const,
                     }
                   : null,
                 srAnnouncement: null,
@@ -845,45 +776,40 @@ export const useStore = create<StoreState>()((set, get, store) => {
             originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
             focusDate: weekStart,
           },
-        }
-      })
+        };
+      });
     },
 
     // Plain transient state (NOT mutate): never on the undo/redo stack or in AppData/export.
     beginAccountSummariesRequest: () => {
-      const requestId = get().accountSummariesRequestId + 1
-      set({ accountSummariesRequestId: requestId })
-      return requestId
+      const requestId = get().accountSummariesRequestId + 1;
+      set({ accountSummariesRequestId: requestId });
+      return requestId;
     },
     setAccountSummaries: (list, requestId) => {
       if (requestId !== undefined) {
-        if (requestId !== get().accountSummariesRequestId) return false
-        set({ accountSummaries: list })
-        return true
+        if (requestId !== get().accountSummariesRequestId) return false;
+        set({ accountSummaries: list });
+        return true;
       }
       // A direct mutation (optimistic create/delete, demo derivation or test setup) is newer than
       // every response already in flight, so advance the same sequence before publishing it.
       set((state) => ({
         accountSummaries: list,
         accountSummariesRequestId: state.accountSummariesRequestId + 1,
-      }))
-      return true
+      }));
+      return true;
     },
 
     replaceAll: (data) =>
       set((state) => {
         const previouslyHadActiveAccount = state.activeAccountId
-          ? state.data.accounts.some(
-              (candidate) => candidate.id === state.activeAccountId,
-            )
-          : false
+          ? state.data.accounts.some((candidate) => candidate.id === state.activeAccountId)
+          : false;
         const account = state.activeAccountId
-          ? data.accounts.find(
-              (candidate) => candidate.id === state.activeAccountId,
-            )
-          : undefined
-        const unchangedActiveSlice =
-          previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data)
+          ? data.accounts.find((candidate) => candidate.id === state.activeAccountId)
+          : undefined;
+        const unchangedActiveSlice = previouslyHadActiveAccount && hasSameEntityRevisions(state.data, data);
         // A replacement is a publication boundary: never retain an active id that the newly
         // published slice does not contain. This can happen after membership revocation, a malformed
         // response, recovery, or a direct store call. Clear the selection in the SAME state write so
@@ -898,7 +824,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
             activeRole: null,
             notice: {
               message: m.notice_company_not_found(),
-              tone: 'error' as const,
+              tone: "error" as const,
             },
             past: [],
             future: [],
@@ -908,7 +834,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
               collapsedGroups: [],
               selectedAllocationId: null,
             },
-          }
+          };
         }
         // Same-account refreshes reconcile server state in the background and must preserve the
         // week the user is viewing. Re-anchor only when setActiveAccount had to use its temporary
@@ -918,14 +844,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
           // authoritative revisions prove that no row changed. Preserve undo/redo only in that
           // exact case. Any remote addition, deletion or revision change clears history because a
           // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
-          return unchangedActiveSlice
-            ? { data }
-            : { data, past: [], future: [] }
+          return unchangedActiveSlice ? { data } : { data, past: [], future: [] };
         }
-        const weekStart = startOfWeekISO(
-          todayISO(timeZoneFor(data, account.id)),
-          weekStartsOnFor(data, account.id),
-        )
+        const weekStart = startOfWeekISO(todayISO(timeZoneFor(data, account.id)), weekStartsOnFor(data, account.id));
         return {
           data,
           past: [],
@@ -935,7 +856,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
             originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
             focusDate: weekStart,
           },
-        }
+        };
       }),
     // Replace only the active account's slice; other accounts and the account
     // list itself are untouched. Undoable via ⌘Z.
@@ -946,21 +867,16 @@ export const useStore = create<StoreState>()((set, get, store) => {
     // id GLOBALLY (updateById / cascade scan all accounts), so a shared id would
     // let an edit in one account silently rewrite another's row.
     importData: (incoming) => {
-      const accountId = requireAccount()
+      const accountId = requireAccount();
       // Viewer no-op (P1.12 defense-in-depth): a read-only user can't replace the account slice.
       // Return a zero-effect summary (nothing imported/skipped) so the caller reports honestly.
-      if (blockedByViewer()) return { imported: 0, skipped: 0 }
-      const result = remapAndValidateImport(
-        get().data,
-        accountId,
-        incoming,
-        touch(),
-      )
+      if (blockedByViewer()) return { imported: 0, skipped: 0 };
+      const result = remapAndValidateImport(get().data, accountId, incoming, touch());
       // Refuse a zero-record import rather than wiping the account's existing slice.
       // Replacing a company's data with nothing is never the intent (delete is the
       // explicit path for that), and a truncated/empty file otherwise slips past the
       // shape-only file guard and silently clears the account.
-      if (result.imported === 0) return { imported: 0, skipped: result.skipped }
+      if (result.imported === 0) return { imported: 0, skipped: result.skipped };
       set((state) => ({
         data: result.data,
         past: [...state.past, state.data].slice(-HISTORY_LIMIT),
@@ -979,33 +895,33 @@ export const useStore = create<StoreState>()((set, get, store) => {
             activityKind: null,
           },
         },
-      }))
-      return { imported: result.imported, skipped: result.skipped }
+      }));
+      return { imported: result.imported, skipped: result.skipped };
     },
 
     undo: () => {
-      if (blockedByViewer()) return
+      if (blockedByViewer()) return;
       set((s) => {
-        if (s.past.length === 0) return {}
-        const previous = prepareHistoryTarget(s.data, s.past[s.past.length - 1])
+        if (s.past.length === 0) return {};
+        const previous = prepareHistoryTarget(s.data, s.past[s.past.length - 1]);
         return {
           data: previous,
           past: s.past.slice(0, -1),
           future: [s.data, ...s.future].slice(0, HISTORY_LIMIT),
-        }
-      })
+        };
+      });
     },
     redo: () => {
-      if (blockedByViewer()) return
+      if (blockedByViewer()) return;
       set((s) => {
-        if (s.future.length === 0) return {}
-        const next = prepareHistoryTarget(s.data, s.future[0])
+        if (s.future.length === 0) return {};
+        const next = prepareHistoryTarget(s.data, s.future[0]);
         return {
           data: next,
           future: s.future.slice(1),
           past: [...s.past, s.data].slice(-HISTORY_LIMIT),
-        }
-      })
+        };
+      });
     },
 
     addDiscipline: (input) => {
@@ -1014,32 +930,32 @@ export const useStore = create<StoreState>()((set, get, store) => {
         id: newId(),
         accountId: requireAccount(),
         ...stamp(),
-      }
+      };
       // Viewer no-op (P1.12 defense-in-depth): return the entity so the return type holds, but skip
       // the persist AND the colour snap — nothing lands in state, so the caller gets back exactly
       // what they submitted, not a value we silently changed on their behalf. Server 403 is the
       // real backstop; see blockedByViewer.
-      if (blockedByViewer()) return e
-      const safe = withSnappedColor(e)
-      mutate((d) => ({ ...d, disciplines: [...d.disciplines, safe] }))
-      return safe
+      if (blockedByViewer()) return e;
+      const safe = withSnappedColor(e);
+      mutate((d) => ({ ...d, disciplines: [...d.disciplines, safe] }));
+      return safe;
     },
     updateDiscipline: (id, patch) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'disciplines', id)) return
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, "disciplines", id)) return;
       mutate((d) => ({
         ...d,
         disciplines: updateById(d.disciplines, id, withSnappedColor(patch)),
-      }))
+      }));
     },
     deleteDiscipline: (id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'disciplines', id)) return
-      mutate((d) => deleteDisciplineCascade(d, id, nextDataRevision(d)))
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, "disciplines", id)) return;
+      mutate((d) => deleteDisciplineCascade(d, id, nextDataRevision(d)));
     },
 
     addResource: (input) => {
-      const accountId = requireAccount()
+      const accountId = requireAccount();
       // Viewer no-op (P1.12 defense-in-depth): gate BEFORE the integrity asserts so a read-only user's
       // optimistic write neither validates nor persists. Build the (clamped) entity so the return type
       // holds; it never lands in state. Server 403 is the real backstop; see blockedByViewer.
@@ -1049,69 +965,47 @@ export const useStore = create<StoreState>()((set, get, store) => {
         id: newId(),
         accountId,
         ...stamp(),
-      }
-      if (blockedByViewer()) return e
-      assertScopedRefs(get().data, accountId, 'resources', input)
-      assertWorkingDays(input.workingDays)
+      };
+      if (blockedByViewer()) return e;
+      assertScopedRefs(get().data, accountId, "resources", input);
+      assertWorkingDays(input.workingDays);
       // Clamp working hours/day (the store is the last line; the form caps it, but a non-form
       // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a
       // resource works a positive day) — distinct from an allocation, where 0 is legal.
       //
       // Colour snap runs LAST, right before persisting — never before the asserts above, so a
       // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
-      const safe = withSnappedColor(e, e.kind === 'external')
-      mutate((d) => ({ ...d, resources: [...d.resources, safe] }))
-      return safe
+      const safe = withSnappedColor(e, e.kind === "external");
+      mutate((d) => ({ ...d, resources: [...d.resources, safe] }));
+      return safe;
     },
     updateResource: (id, patch) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, 'resources', id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const existing = findOwned(get().data, "resources", id);
+      if (!existing) return;
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
       // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
       // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
-      assertScopedRefs(
-        get().data,
-        existing.accountId,
-        'resources',
-        patch,
-        existing,
-      )
+      assertScopedRefs(get().data, existing.accountId, "resources", patch, existing);
       // Flipping a resource to external while it still owns loaded work / time-off would orphan those
       // dependents (the scheduler hides external capacity + time-off). Reject the flip on the MERGED
       // kind, throw-before-mutate so the failure is atomic. A no-op when the resource isn't becoming
       // external. Mirrors the server's validateWrite resources branch — same shared assert, no drift.
-      assertResourceProjectAllowsDependents(
-        get().data,
-        existing.accountId,
-        id,
-        { ...existing, ...patch },
-        existing,
-      )
-      assertResourceKindAllowsDependents(
-        get().data,
-        existing.accountId,
-        id,
-        patch.kind ?? existing.kind,
-      )
-      if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays)
-      const colorPatch = withSnappedColor(
-        patch,
-        (patch.kind ?? existing.kind) === 'external',
-      )
+      assertResourceProjectAllowsDependents(get().data, existing.accountId, id, { ...existing, ...patch }, existing);
+      assertResourceKindAllowsDependents(get().data, existing.accountId, id, patch.kind ?? existing.kind);
+      if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
+      const colorPatch = withSnappedColor(patch, (patch.kind ?? existing.kind) === "external");
       const safePatch =
         patch.workingHoursPerDay !== undefined
           ? {
               ...colorPatch,
-              workingHoursPerDay: clampWorkingHoursPerDay(
-                patch.workingHoursPerDay,
-              ),
+              workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay),
             }
-          : colorPatch
+          : colorPatch;
       mutate((d) => ({
         ...d,
         resources: updateById(d.resources, id, safePatch),
-      }))
+      }));
     },
 
     addClient: (input) => {
@@ -1121,123 +1015,104 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
       // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
       // break the "exactly one Internal per account" invariant. See Draft<Client>.
-      const stripped: Record<string, unknown> = { ...input }
-      delete stripped.builtin
+      const stripped: Record<string, unknown> = { ...input };
+      delete stripped.builtin;
       const e: Client = {
         ...(stripped as Draft<Client>),
         id: newId(),
         accountId: requireAccount(),
         ...stamp(),
-      }
+      };
       // Viewer no-op (P1.12 defense-in-depth): return the entity for the return type, skip the
       // persist AND the colour snap — a rejected write must not silently substitute a colour onto
       // an entity that was never saved.
-      if (blockedByViewer()) return e
-      const safe = withSnappedColor(e)
-      mutate((d) => ({ ...d, clients: [...d.clients, safe] }))
-      return safe
+      if (blockedByViewer()) return e;
+      const safe = withSnappedColor(e);
+      mutate((d) => ({ ...d, clients: [...d.clients, safe] }));
+      return safe;
     },
     updateClient: (id, patch) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, 'clients', id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const existing = findOwned(get().data, "clients", id);
+      if (!existing) return;
       // The built-in Internal client is protected: it can't be renamed (or recoloured) — it's a
       // fixed bucket. Throw a display-safe message (the form catches + surfaces it; the UI also
       // hides the affordance). Surface, don't swallow — see DEFENSIVE-CODING.md.
-      if (isBuiltinClient(existing))
-        throw new Error(
-          'The Internal client is built in and cannot be renamed.',
-        )
+      if (isBuiltinClient(existing)) throw new Error("The Internal client is built in and cannot be renamed.");
       // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
       // untyped/cast patch can't PROMOTE a normal client to a second builtin (same invariant as above —
       // store-strip enforcement point (1); canonical doc in shared/src/data/internalClient.ts).
-      const stripped: Record<string, unknown> = { ...patch }
-      delete stripped.builtin
+      const stripped: Record<string, unknown> = { ...patch };
+      delete stripped.builtin;
       mutate((d) => ({
         ...d,
-        clients: updateById(
-          d.clients,
-          id,
-          withSnappedColor(stripped as Patch<Client>),
-        ),
-      }))
+        clients: updateById(d.clients, id, withSnappedColor(stripped as Patch<Client>)),
+      }));
     },
 
     addProject: (input) => {
-      const accountId = requireAccount()
-      const e: Project = { ...input, id: newId(), accountId, ...stamp() }
+      const accountId = requireAccount();
+      const e: Project = { ...input, id: newId(), accountId, ...stamp() };
       // Viewer no-op (P1.12 defense-in-depth): gate before the asserts AND the colour snap; build
       // the entity, skip the persist — a rejected write must not silently substitute a colour onto
       // an entity that was never saved.
-      if (blockedByViewer()) return e
-      assertScopedRefs(get().data, accountId, 'projects', input)
-      const safe = withSnappedColor(e)
-      mutate((d) => ({ ...d, projects: [...d.projects, safe] }))
-      return safe
+      if (blockedByViewer()) return e;
+      assertScopedRefs(get().data, accountId, "projects", input);
+      const safe = withSnappedColor(e);
+      mutate((d) => ({ ...d, projects: [...d.projects, safe] }));
+      return safe;
     },
     updateProject: (id, patch) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, 'projects', id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const existing = findOwned(get().data, "projects", id);
+      if (!existing) return;
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
       // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
       // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
-      assertScopedRefs(
-        get().data,
-        existing.accountId,
-        'projects',
-        patch,
-        existing,
-      )
+      assertScopedRefs(get().data, existing.accountId, "projects", patch, existing);
       mutate((d) => ({
         ...d,
         projects: updateById(d.projects, id, withSnappedColor(patch)),
-      }))
+      }));
     },
 
     addPhase: (input) => {
-      const accountId = requireAccount()
-      const e: Phase = { ...input, id: newId(), accountId, ...stamp() }
+      const accountId = requireAccount();
+      const e: Phase = { ...input, id: newId(), accountId, ...stamp() };
       // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e
-      assertScopedRefs(get().data, accountId, 'phases', input)
-      mutate((d) => ({ ...d, phases: [...d.phases, e] }))
-      return e
+      if (blockedByViewer()) return e;
+      assertScopedRefs(get().data, accountId, "phases", input);
+      mutate((d) => ({ ...d, phases: [...d.phases, e] }));
+      return e;
     },
     updatePhase: (id, patch) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, 'phases', id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const existing = findOwned(get().data, "phases", id);
+      if (!existing) return;
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
       // archived-parent rationale as updateProject above.
-      assertScopedRefs(
-        get().data,
-        existing.accountId,
-        'phases',
-        patch,
-        existing,
-      )
-      mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) }))
+      assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
+      mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) }));
     },
     deletePhase: (id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'phases', id)) return
-      mutate((d) => deletePhaseCascade(d, id, nextDataRevision(d)))
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, "phases", id)) return;
+      mutate((d) => deletePhaseCascade(d, id, nextDataRevision(d)));
     },
 
     addActivity: (input) => {
-      const accountId = requireAccount()
-      const e: Activity = { ...input, id: newId(), accountId, ...stamp() }
+      const accountId = requireAccount();
+      const e: Activity = { ...input, id: newId(), accountId, ...stamp() };
       // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e
-      assertScopedRefs(get().data, accountId, 'activities', input)
-      mutate((d) => ({ ...d, activities: [...d.activities, e] }))
-      return e
+      if (blockedByViewer()) return e;
+      assertScopedRefs(get().data, accountId, "activities", input);
+      mutate((d) => ({ ...d, activities: [...d.activities, e] }));
+      return e;
     },
     updateActivity: (id, patch) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, 'activities', id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const existing = findOwned(get().data, "activities", id);
+      if (!existing) return;
       // Validate the MERGED row (like updateAllocation), not the raw patch: a partial patch
       // touching only projectId OR only phaseId must still be checked for activity↔phase coherence
       // against the row's OTHER field — else a phaseId-only patch is wrongly rejected, or a
@@ -1245,55 +1120,37 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
       // projectId whose project is ARCHIVED (absent from the server-mode active-only slice) must
       // not block an unrelated edit; a CHANGED projectId is still validated strictly.
-      const merged = { ...existing, ...patch }
-      assertScopedRefs(
-        get().data,
-        existing.accountId,
-        'activities',
-        merged,
-        existing,
-      )
-      assertActivityProjectAllowsDependents(
-        get().data,
-        existing.accountId,
-        id,
-        merged,
-        existing,
-      )
-      mutate((d) => ({ ...d, activities: updateById(d.activities, id, patch) }))
+      const merged = { ...existing, ...patch };
+      assertScopedRefs(get().data, existing.accountId, "activities", merged, existing);
+      assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
+      mutate((d) => ({ ...d, activities: updateById(d.activities, id, patch) }));
     },
     deleteActivity: (id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'activities', id)) return
-      mutate((d) => deleteActivityCascade(d, id))
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, "activities", id)) return;
+      mutate((d) => deleteActivityCascade(d, id));
     },
 
     addAllocation: (input) => {
-      const accountId = requireAccount()
+      const accountId = requireAccount();
       const e: Allocation = {
         ...input,
         hoursPerDay: clampHoursPerDay(input.hoursPerDay),
         id: newId(),
         accountId,
         ...stamp(),
-      }
+      };
       // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e
-      assertAllocation(
-        get().data,
-        accountId,
-        input.resourceId,
-        input.activityId,
-        input.hoursPerDay,
-      )
-      assertDateRange(input.startDate, input.endDate)
-      mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
-      return e
+      if (blockedByViewer()) return e;
+      assertAllocation(get().data, accountId, input.resourceId, input.activityId, input.hoursPerDay);
+      assertDateRange(input.startDate, input.endDate);
+      mutate((d) => ({ ...d, allocations: [...d.allocations, e] }));
+      return e;
     },
     updateAllocation: (id, patch) => {
-      if (blockedByViewer()) return false
-      const existing = findOwned(get().data, 'allocations', id)
-      if (!existing) return false // stale id (e.g. drag committed after an undo) → no-op
+      if (blockedByViewer()) return false;
+      const existing = findOwned(get().data, "allocations", id);
+      if (!existing) return false; // stale id (e.g. drag committed after an undo) → no-op
       // Always re-validate the EFFECTIVE MERGED row (patch ?? existing), not just when one of the
       // ref/load fields is in the patch. The server re-runs assertAllocationRefs on the full merged
       // row on EVERY write (PATCH/PUT merge {...existing, ...patch}), so a note/status/date-only edit
@@ -1308,69 +1165,56 @@ export const useStore = create<StoreState>()((set, get, store) => {
         patch.activityId ?? existing.activityId,
         patch.hoursPerDay ?? existing.hoursPerDay,
         existing,
-      )
+      );
       // Validate the EFFECTIVE range (merged with the existing row), so a
       // note/status/reassign-only patch isn't rejected for omitting dates.
-      assertDateRange(
-        patch.startDate ?? existing.startDate,
-        patch.endDate ?? existing.endDate,
-      )
+      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate);
       // Clamp hours/day on the way in (a drag-resize rescale can exceed a real day).
       const safePatch =
-        patch.hoursPerDay !== undefined
-          ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
-          : patch
+        patch.hoursPerDay !== undefined ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch;
       mutate((d) => ({
         ...d,
         allocations: updateById(d.allocations, id, safePatch),
-      }))
-      return true
+      }));
+      return true;
     },
     deleteAllocation: (id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'allocations', id)) return
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, "allocations", id)) return;
       mutate((d) => ({
         ...d,
         allocations: d.allocations.filter((a) => a.id !== id),
-      }))
+      }));
     },
 
     addTimeOff: (input) => {
-      const accountId = requireAccount()
-      const e: TimeOff = { ...input, id: newId(), accountId, ...stamp() }
+      const accountId = requireAccount();
+      const e: TimeOff = { ...input, id: newId(), accountId, ...stamp() };
       // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e
-      assertResourceExists(get().data, accountId, input.resourceId)
-      assertDateRange(input.startDate, input.endDate)
-      mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }))
-      return e
+      if (blockedByViewer()) return e;
+      assertResourceExists(get().data, accountId, input.resourceId);
+      assertDateRange(input.startDate, input.endDate);
+      mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }));
+      return e;
     },
     updateTimeOff: (id, patch) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, 'timeOff', id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const existing = findOwned(get().data, "timeOff", id);
+      if (!existing) return;
       // Always re-validate the EFFECTIVE MERGED resource (patch ?? existing), not just when the patch
       // touches resourceId. The server re-runs assertResourceExists on the full merged row on EVERY
       // write, so a type/date/note-only edit of time-off on a now-EXTERNAL resource (legacy data, or
       // after a resource kind-flip) would 400 on the server while succeeding here — diverging local and
       // synced state. Matching the merged-row check makes the store reject exactly what the server does.
       // It's a pure read — a date-only patch on a valid (non-external) resource still passes.
-      assertResourceExists(
-        get().data,
-        existing.accountId,
-        patch.resourceId ?? existing.resourceId,
-        existing,
-      )
-      assertDateRange(
-        patch.startDate ?? existing.startDate,
-        patch.endDate ?? existing.endDate,
-      )
-      mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }))
+      assertResourceExists(get().data, existing.accountId, patch.resourceId ?? existing.resourceId, existing);
+      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate);
+      mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }));
     },
     deleteTimeOff: (id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'timeOff', id)) return
-      mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }))
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, "timeOff", id)) return;
+      mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }));
     },
 
     // --- Data-lifecycle actions (P2.5b DEMO-build path). See the StoreState block above for the
@@ -1382,53 +1226,45 @@ export const useStore = create<StoreState>()((set, get, store) => {
     // phases/activities/allocations). Single-sourced from shared/lib/integrity.ts so the purge cascade
     // can't drift from the cascade the other tables' delete* actions use.
     archiveEntity: (entity, id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, entity, id)) return
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, entity, id)) return;
       // Reject the built-in Internal client — a fixed bucket that may not be archived (mirrors the
       // builtin guard in updateClient/purgeEntity). Throw a display-safe message; the caller surfaces.
-      if (entity === 'clients') {
-        const existing = findOwned(get().data, 'clients', id)
+      if (entity === "clients") {
+        const existing = findOwned(get().data, "clients", id);
         if (existing && isBuiltinClient(existing))
-          throw new Error(
-            'The Internal client is built in and cannot be archived.',
-          )
+          throw new Error("The Internal client is built in and cannot be archived.");
       }
       // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
       // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
       mutate((d) => ({
         ...d,
         [entity]: d[entity].map((e) => {
-          if (e.id !== id) return e
-          const now = touchAfter(e.updatedAt)
-          return { ...archive(e, now), updatedAt: now }
+          if (e.id !== id) return e;
+          const now = touchAfter(e.updatedAt);
+          return { ...archive(e, now), updatedAt: now };
         }),
-      }))
+      }));
     },
     unarchiveEntity: (entity, id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, entity, id)) return
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, entity, id)) return;
       // No builtin guard: the Internal client can never reach 'archived' (archiveEntity rejects it), so
       // unarchive() would throw 'not archived' anyway. unarchive() THROWS if the row isn't archived.
       mutate((d) => ({
         ...d,
-        [entity]: d[entity].map((e) =>
-          e.id === id
-            ? { ...unarchive(e), updatedAt: touchAfter(e.updatedAt) }
-            : e,
-        ),
-      }))
+        [entity]: d[entity].map((e) => (e.id === id ? { ...unarchive(e), updatedAt: touchAfter(e.updatedAt) } : e)),
+      }));
     },
     softDeleteEntity: (entity, id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, entity, id)) return
+      if (blockedByViewer()) return;
+      if (!findOwned(get().data, entity, id)) return;
       // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
       // for a display-safe message and parity with the delete path.
-      if (entity === 'clients') {
-        const existing = findOwned(get().data, 'clients', id)
+      if (entity === "clients") {
+        const existing = findOwned(get().data, "clients", id);
         if (existing && isBuiltinClient(existing))
-          throw new Error(
-            'The Internal client is built in and cannot be deleted.',
-          )
+          throw new Error("The Internal client is built in and cannot be deleted.");
       }
       // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
       // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
@@ -1436,15 +1272,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
       mutateIrreversible((d) => ({
         ...d,
         [entity]: d[entity].map((e) => {
-          if (e.id !== id) return e
-          const now = touchAfter(e.updatedAt)
-          const t = softDelete(e, now)
-          const revision = t.deletedAt ?? now
-          return entity === 'resources'
+          if (e.id !== id) return e;
+          const now = touchAfter(e.updatedAt);
+          const t = softDelete(e, now);
+          const revision = t.deletedAt ?? now;
+          return entity === "resources"
             ? { ...obfuscateResource(t as Resource), updatedAt: revision }
-            : { ...t, updatedAt: revision }
+            : { ...t, updatedAt: revision };
         }),
-        ...(entity === 'resources'
+        ...(entity === "resources"
           ? {
               allocations: d.allocations.map((a) =>
                 a.resourceId === id
@@ -1466,21 +1302,19 @@ export const useStore = create<StoreState>()((set, get, store) => {
               ),
             }
           : {}),
-      }))
+      }));
     },
     purgeEntity: (entity, id) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, entity, id)
-      if (!existing) return
+      if (blockedByViewer()) return;
+      const existing = findOwned(get().data, entity, id);
+      if (!existing) return;
       // The built-in Internal client cannot be purged — every account must keep exactly one. Re-fetch
       // with the literal 'clients' key so the narrowed Client type satisfies isBuiltinClient (matches
       // archiveEntity/softDeleteEntity).
-      if (entity === 'clients') {
-        const client = findOwned(get().data, 'clients', id)
+      if (entity === "clients") {
+        const client = findOwned(get().data, "clients", id);
         if (client && isBuiltinClient(client))
-          throw new Error(
-            'The Internal client is built in and cannot be deleted.',
-          )
+          throw new Error("The Internal client is built in and cannot be deleted.");
       }
       // Enforce the grace window: canPurge is false unless this is a soft-deleted tombstone aged at
       // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
@@ -1488,21 +1322,16 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would let
       // the client stay up to ~24h more conservative than the server's own boundary check.
       if (!canPurge(existing, new Date().toISOString())) {
-        get().setNotice(
-          m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }),
-          'error',
-        )
-        return
+        get().setNotice(m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }), "error");
+        return;
       }
       // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the
       // regular delete* actions use (single-sourced from shared/lib/integrity.ts — no drift).
       mutateIrreversible((d) => {
-        if (entity === 'resources') return deleteResourceCascade(d, id)
-        const now = nextDataRevision(d)
-        return entity === 'clients'
-          ? deleteClientCascade(d, id, now)
-          : deleteProjectCascade(d, id, now)
-      })
+        if (entity === "resources") return deleteResourceCascade(d, id);
+        const now = nextDataRevision(d);
+        return entity === "clients" ? deleteClientCascade(d, id, now) : deleteProjectCascade(d, id, now);
+      });
     },
-  }
-})
+  };
+});

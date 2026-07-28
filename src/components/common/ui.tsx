@@ -12,7 +12,7 @@
 //   ./badges            ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
 //   ./SegmentedControl  SegmentedControl, SegmentedOption  (the pill radio-group chooser)
 
-export * from './dialogs'
-export * from './fields'
-export * from './badges'
-export * from './SegmentedControl'
+export * from "./dialogs";
+export * from "./fields";
+export * from "./badges";
+export * from "./SegmentedControl";

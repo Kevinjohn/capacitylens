@@ -15,44 +15,21 @@ import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateName } from "../../lib/validation";
-import {
-  Avatar,
-  ConfirmDialog,
-  ListPage,
-  SegmentedControl,
-  SwitchField,
-  TextField,
-} from "../common/ui";
+import { Avatar, ConfirmDialog, ListPage, SegmentedControl, SwitchField, TextField } from "../common/ui";
 import { SecuritySection } from "./SecuritySection";
 import { ArchivedSection } from "./ArchivedSection";
 import { supportedTimeZones, timeZoneOptionLabel } from "../../lib/timezones";
 import { externalExplainer } from "../../lib/externalCopy";
 import { m } from "@/i18n";
 import type { ThemePref } from "../../lib/theme";
-import type {
-  InternalColourMode,
-  SchedulingMode,
-} from "@capacitylens/shared/types/entities";
+import type { InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useCanEdit } from "../../auth/permissionContext";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Field, FieldLabel } from "../ui/field";
 import { timeZoneFor, weekStartsOnFor } from "../../store/selectors";
 import { useOfflineState } from "../../data/useOfflineState";
@@ -117,14 +94,7 @@ function ToggleRow({
   onToggle: () => void;
   disabled?: boolean;
 }) {
-  return (
-    <SwitchField
-      label={label}
-      checked={on}
-      onChange={onToggle}
-      disabled={disabled}
-    />
-  );
+  return <SwitchField label={label} checked={on} onChange={onToggle} disabled={disabled} />;
 }
 
 function SettingsCard({
@@ -172,30 +142,22 @@ export function SettingsView() {
   const snapToWeekStart = useStore((s) => s.snapToWeekStart);
   const setSnapToWeekStart = useStore((s) => s.setSnapToWeekStart);
 
-  const schedulingMode: SchedulingMode =
-    activeAccount?.schedulingMode ?? "hourly";
+  const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? "hourly";
   const weekStartsOn = weekStartsOnFor(data, activeAccountId);
   const timezone = timeZoneFor(data, activeAccountId);
   const disciplinesEnabled: boolean = activeAccount?.disciplinesEnabled ?? true;
   // Per-account view prefs (default OFF — absent reads as hidden), mirroring disciplinesEnabled
   // above. activeAccount is guaranteed non-null past the `if (!activeAccount) return null` below.
-  const placeholdersEnabled: boolean =
-    activeAccount?.placeholdersEnabled ?? false;
+  const placeholdersEnabled: boolean = activeAccount?.placeholdersEnabled ?? false;
   const externalEnabled: boolean = activeAccount?.externalEnabled ?? false;
-  const internalColourMode: InternalColourMode =
-    activeAccount?.internalColourMode ?? "grey";
+  const internalColourMode: InternalColourMode = activeAccount?.internalColourMode ?? "grey";
   // Per-account schedule view prefs (default ON — absent reads as shown/enabled, `?? true`, like
   // disciplinesEnabled above and NOT the placeholders/external `?? false`).
-  const showInternalProjects: boolean =
-    activeAccount?.showInternalProjects ?? true;
-  const showInternalActivities: boolean =
-    activeAccount?.showInternalActivities ?? true;
-  const inlineActivityCreateEnabled: boolean =
-    activeAccount?.inlineActivityCreateEnabled ?? true;
+  const showInternalProjects: boolean = activeAccount?.showInternalProjects ?? true;
+  const showInternalActivities: boolean = activeAccount?.showInternalActivities ?? true;
+  const inlineActivityCreateEnabled: boolean = activeAccount?.inlineActivityCreateEnabled ?? true;
   const allZones = supportedTimeZones();
-  const tzOptions = allZones.includes(timezone)
-    ? allZones
-    : [timezone, ...allZones];
+  const tzOptions = allZones.includes(timezone) ? allZones : [timezone, ...allZones];
 
   const accountName = activeAccount?.name ?? "";
   const [name, setName] = useState(accountName);
@@ -217,10 +179,7 @@ export function SettingsView() {
       clearCapacitylensLocalStorage();
     } catch (e) {
       setConfirmingClear(false);
-      setNotice(
-        m.settings_err_clear_storage({ error: errorMessage(e) }),
-        "error",
-      );
+      setNotice(m.settings_err_clear_storage({ error: errorMessage(e) }), "error");
       return;
     }
     // Reload so the app re-initialises from the server or a fresh in-memory demo.
@@ -243,12 +202,7 @@ export function SettingsView() {
         if (activeAccountId) await cacheAccountSlice(activeAccountId, data);
       }
       setOfflineEnabledState(next);
-      setNotice(
-        next
-          ? m.settings_offline_enabled_notice()
-          : m.settings_offline_disabled_notice(),
-        "info",
-      );
+      setNotice(next ? m.settings_offline_enabled_notice() : m.settings_offline_disabled_notice(), "info");
     } catch (e) {
       let surfaced: unknown = e;
       if (next) {
@@ -258,17 +212,11 @@ export function SettingsView() {
         try {
           await setOfflineReadEnabled(false);
         } catch (rollbackError) {
-          surfaced = new AggregateError(
-            [e, rollbackError],
-            m.settings_offline_cleanup_incomplete(),
-          );
+          surfaced = new AggregateError([e, rollbackError], m.settings_offline_cleanup_incomplete());
         }
       }
       setOfflineEnabledState(offlineReadEnabled());
-      setNotice(
-        m.settings_offline_error({ error: errorMessage(surfaced) }),
-        "error",
-      );
+      setNotice(m.settings_offline_error({ error: errorMessage(surfaced) }), "error");
     }
   };
 
@@ -328,21 +276,14 @@ export function SettingsView() {
             />
             <FieldError id={errorId}>{error}</FieldError>
             <div className="flex justify-end">
-              <Button
-                size="sm"
-                onClick={saveName}
-                disabled={!canEdit || nameUnchanged}
-              >
+              <Button size="sm" onClick={saveName} disabled={!canEdit || nameUnchanged}>
                 {m.settings_save()}
               </Button>
             </div>
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_scheduling_heading()}
-          description={m.settings_scheduling_intro()}
-        >
+        <SettingsCard title={m.settings_scheduling_heading()} description={m.settings_scheduling_intro()}>
           <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-muted-foreground">
             <li>
               <strong>{m.settings_scheduling_hours_strong()}</strong>
@@ -369,16 +310,11 @@ export function SettingsView() {
           />
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_calendar_heading()}
-          description={m.settings_calendar_intro()}
-        >
+        <SettingsCard title={m.settings_calendar_heading()} description={m.settings_calendar_intro()}>
           {/* P1.14: language/week-start/time zone are captured when the company is created and FROZEN
               thereafter (the server returns 409 on a change). Disabled here, not removed, so the
               chosen values stay visible. */}
-          <p className="text-xs text-muted-foreground">
-            {m.settings_calendar_frozen_hint()}
-          </p>
+          <p className="text-xs text-muted-foreground">{m.settings_calendar_frozen_hint()}</p>
           <div className="flex flex-col gap-3">
             <Field>
               <FieldLabel>{m.settings_week_start_label()}</FieldLabel>
@@ -394,14 +330,8 @@ export function SettingsView() {
               />
             </Field>
             <Field data-disabled>
-              <FieldLabel htmlFor="timezone-select">
-                {m.settings_timezone_label()}
-              </FieldLabel>
-              <Select
-                value={timezone}
-                disabled
-                onValueChange={(value) => updateSetting({ timezone: value })}
-              >
+              <FieldLabel htmlFor="timezone-select">{m.settings_timezone_label()}</FieldLabel>
+              <Select value={timezone} disabled onValueChange={(value) => updateSetting({ timezone: value })}>
                 <SelectTrigger id="timezone-select">
                   <SelectValue />
                 </SelectTrigger>
@@ -409,10 +339,7 @@ export function SettingsView() {
                   <SelectGroup>
                     {tzOptions.map((tz) => (
                       <SelectItem key={tz} value={tz}>
-                        {timeZoneOptionLabel(
-                          tz,
-                          tz === "Etc/GMT" ? m.settings_timezone_gmt() : tz,
-                        )}
+                        {timeZoneOptionLabel(tz, tz === "Etc/GMT" ? m.settings_timezone_gmt() : tz)}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -423,36 +350,25 @@ export function SettingsView() {
               {/* Language is English-only until P1.5.1 (Paraglide); a read-only row, frozen like the
                   two above. Shown so the company's chosen language is visible even though it can't change. */}
               <FieldLabel>{m.settings_language_label()}</FieldLabel>
-              <p
-                className="text-sm text-muted-foreground"
-                data-testid="settings-language"
-              >
+              <p className="text-sm text-muted-foreground" data-testid="settings-language">
                 {m.settings_language_value()}
               </p>
             </Field>
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_disciplines_heading()}
-          description={m.settings_disciplines_intro()}
-        >
+        <SettingsCard title={m.settings_disciplines_heading()} description={m.settings_disciplines_intro()}>
           <div>
             <ToggleRow
               label={m.settings_disciplines_toggle()}
               on={disciplinesEnabled}
-              onToggle={() =>
-                updateSetting({ disciplinesEnabled: !disciplinesEnabled })
-              }
+              onToggle={() => updateSetting({ disciplinesEnabled: !disciplinesEnabled })}
               disabled={!canEdit}
             />
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_schedule_heading()}
-          description={m.settings_schedule_intro()}
-        >
+        <SettingsCard title={m.settings_schedule_heading()} description={m.settings_schedule_intro()}>
           <div className="flex flex-col gap-3">
             <ToggleRow
               label={m.settings_schedule_minimise_weekends()}
@@ -467,10 +383,7 @@ export function SettingsView() {
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_internal_colours_heading()}
-          description={m.settings_internal_colours_intro()}
-        >
+        <SettingsCard title={m.settings_internal_colours_heading()} description={m.settings_internal_colours_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_internal_colours_aria()}
             value={internalColourMode}
@@ -483,17 +396,12 @@ export function SettingsView() {
           />
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_placeholders_heading()}
-          description={m.settings_placeholders_intro()}
-        >
+        <SettingsCard title={m.settings_placeholders_heading()} description={m.settings_placeholders_intro()}>
           <div>
             <ToggleRow
               label={m.settings_placeholders_toggle()}
               on={placeholdersEnabled}
-              onToggle={() =>
-                updateSetting({ placeholdersEnabled: !placeholdersEnabled })
-              }
+              onToggle={() => updateSetting({ placeholdersEnabled: !placeholdersEnabled })}
               disabled={!canEdit}
             />
           </div>
@@ -514,9 +422,7 @@ export function SettingsView() {
             <ToggleRow
               label={m.settings_external_toggle()}
               on={externalEnabled}
-              onToggle={() =>
-                updateSetting({ externalEnabled: !externalEnabled })
-              }
+              onToggle={() => updateSetting({ externalEnabled: !externalEnabled })}
               disabled={!canEdit}
             />
           </div>
@@ -530,9 +436,7 @@ export function SettingsView() {
             <ToggleRow
               label={m.settings_show_internal_projects_toggle()}
               on={showInternalProjects}
-              onToggle={() =>
-                updateSetting({ showInternalProjects: !showInternalProjects })
-              }
+              onToggle={() => updateSetting({ showInternalProjects: !showInternalProjects })}
               disabled={!canEdit}
             />
             <ToggleRow
@@ -548,10 +452,7 @@ export function SettingsView() {
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_activity_create_heading()}
-          description={m.settings_activity_create_intro()}
-        >
+        <SettingsCard title={m.settings_activity_create_heading()} description={m.settings_activity_create_intro()}>
           <div>
             <ToggleRow
               label={m.settings_inline_activity_create_toggle()}
@@ -566,49 +467,34 @@ export function SettingsView() {
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_bar_labels_heading()}
-          description={m.settings_bar_labels_intro()}
-        >
+        <SettingsCard title={m.settings_bar_labels_heading()} description={m.settings_bar_labels_intro()}>
           <div className="flex flex-col gap-3">
             {BAR_LABEL_OPTIONS.map((opt) => (
               <ToggleRow
                 key={opt.key}
                 label={opt.label()}
                 on={barLabelPrefs[opt.key]}
-                onToggle={() =>
-                  setBarLabelPref(opt.key, !barLabelPrefs[opt.key])
-                }
+                onToggle={() => setBarLabelPref(opt.key, !barLabelPrefs[opt.key])}
               />
             ))}
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_utilisation_heading()}
-          description={m.settings_utilisation_intro()}
-        >
+        <SettingsCard title={m.settings_utilisation_heading()} description={m.settings_utilisation_intro()}>
           <div className="flex flex-col gap-3">
             {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
-            {UTILIZATION_OPTIONS.filter(
-              (opt) => disciplinesEnabled || opt.key !== "showDiscipline",
-            ).map((opt) => (
+            {UTILIZATION_OPTIONS.filter((opt) => disciplinesEnabled || opt.key !== "showDiscipline").map((opt) => (
               <ToggleRow
                 key={opt.key}
                 label={opt.label()}
                 on={utilizationPrefs[opt.key]}
-                onToggle={() =>
-                  setUtilizationPref(opt.key, !utilizationPrefs[opt.key])
-                }
+                onToggle={() => setUtilizationPref(opt.key, !utilizationPrefs[opt.key])}
               />
             ))}
           </div>
         </SettingsCard>
 
-        <SettingsCard
-          title={m.settings_appearance_heading()}
-          description={m.settings_appearance_intro()}
-        >
+        <SettingsCard title={m.settings_appearance_heading()} description={m.settings_appearance_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_appearance_aria()}
             value={theme}
@@ -621,15 +507,8 @@ export function SettingsView() {
         </SettingsCard>
 
         {serverMode && authMode !== "off" && user && (
-          <SettingsCard
-            title={m.settings_offline_heading()}
-            description={m.settings_offline_description()}
-          >
-            <ToggleRow
-              label={m.settings_offline_toggle()}
-              on={offlineEnabled}
-              onToggle={() => void toggleOffline()}
-            />
+          <SettingsCard title={m.settings_offline_heading()} description={m.settings_offline_description()}>
+            <ToggleRow label={m.settings_offline_toggle()} on={offlineEnabled} onToggle={() => void toggleOffline()} />
             {offlineEnabled && offlineState.cacheWriteFailed && (
               <p role="status" className="text-sm text-danger">
                 {m.settings_offline_write_failed()}
@@ -672,26 +551,17 @@ export function SettingsView() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <Avatar
-                  name={
-                    user?.name ?? user?.email ?? m.settings_signed_in_unknown()
-                  }
+                  name={user?.name ?? user?.email ?? m.settings_signed_in_unknown()}
                   color={DEFAULT_COLORS.account}
                   imageUrl={user?.image ?? undefined}
                 />
                 <p className="text-sm text-muted-foreground">
                   {m.settings_signed_in_as({
-                    who:
-                      user?.email ??
-                      user?.name ??
-                      m.settings_signed_in_unknown(),
+                    who: user?.email ?? user?.name ?? m.settings_signed_in_unknown(),
                   })}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void signOut()}
-              >
+              <Button size="sm" variant="outline" onClick={() => void signOut()}>
                 {m.settings_account_sign_out()}
               </Button>
             </div>
@@ -713,11 +583,7 @@ export function SettingsView() {
           <p className="flex items-center gap-3 text-xs text-muted-foreground">
             {stamp && <span data-testid="build-stamp">{stamp}</span>}
             {feedback && (
-              <a
-                data-testid="send-feedback"
-                href={feedback}
-                className="underline underline-offset-2 hover:text-ink"
-              >
+              <a data-testid="send-feedback" href={feedback} className="underline underline-offset-2 hover:text-ink">
                 {m.settings_feedback_link()}
               </a>
             )}

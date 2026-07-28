@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { m } from '@/i18n'
-import { errorMessage } from '../../lib/errorMessage'
-import { teamAccessClient, type TeamInvitation, type TeamMember } from '../../account/teamAccessClient'
-import type { FieldError } from '../../hooks/useFieldError'
+import { useCallback, useEffect, useRef, useState } from "react";
+import { m } from "@/i18n";
+import { errorMessage } from "../../lib/errorMessage";
+import { teamAccessClient, type TeamInvitation, type TeamMember } from "../../account/teamAccessClient";
+import type { FieldError } from "../../hooks/useFieldError";
 
 interface TeamDirectoryOptions {
-  enabled: boolean
-  activeAccountId: string | null
-  offlineReadOnly: boolean
-  fail: FieldError['fail']
-  onInvitesLoaded?: (invites: TeamInvitation[]) => void
+  enabled: boolean;
+  activeAccountId: string | null;
+  offlineReadOnly: boolean;
+  fail: FieldError["fail"];
+  onInvitesLoaded?: (invites: TeamInvitation[]) => void;
 }
 
 /** Owns authoritative directory reads, self-gating, reload generations and action exclusion. */
@@ -21,72 +21,74 @@ export function useTeamDirectory({
   onInvitesLoaded,
 }: TeamDirectoryOptions) {
   const [directory, setDirectory] = useState<{
-    accountId: string | null
-    members: TeamMember[] | null
-    invites: TeamInvitation[]
-    gate: 'loading' | 'shown' | 'hidden' | 'error'
-  }>({ accountId: null, members: null, invites: [], gate: 'loading' })
-  const directoryRef = useRef(directory)
-  const [reloadKey, setReloadKey] = useState(0)
-  const requestGeneration = useRef(0)
-  const actionLock = useRef<string | null>(null)
-  const [busyAction, setBusyAction] = useState<string | null>(null)
+    accountId: string | null;
+    members: TeamMember[] | null;
+    invites: TeamInvitation[];
+    gate: "loading" | "shown" | "hidden" | "error";
+  }>({ accountId: null, members: null, invites: [], gate: "loading" });
+  const directoryRef = useRef(directory);
+  const [reloadKey, setReloadKey] = useState(0);
+  const requestGeneration = useRef(0);
+  const actionLock = useRef<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
-  const reload = useCallback(() => setReloadKey((key) => key + 1), [])
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
   const beginAction = useCallback((key: string): boolean => {
-    if (actionLock.current !== null) return false
-    actionLock.current = key
-    setBusyAction(key)
-    return true
-  }, [])
+    if (actionLock.current !== null) return false;
+    actionLock.current = key;
+    setBusyAction(key);
+    return true;
+  }, []);
   const endAction = useCallback(() => {
-    actionLock.current = null
-    setBusyAction(null)
-  }, [])
+    actionLock.current = null;
+    setBusyAction(null);
+  }, []);
 
   useEffect(() => {
-    directoryRef.current = directory
-  }, [directory])
+    directoryRef.current = directory;
+  }, [directory]);
 
   useEffect(() => {
-    if (!enabled || !activeAccountId || offlineReadOnly) return
-    const currentDirectory = directoryRef.current
+    if (!enabled || !activeAccountId || offlineReadOnly) return;
+    const currentDirectory = directoryRef.current;
     const hadAuthorizedDirectory =
-      currentDirectory.accountId === activeAccountId && currentDirectory.members !== null && currentDirectory.gate !== 'hidden'
-    const generation = ++requestGeneration.current
-    let cancelled = false
-    const current = () => !cancelled && requestGeneration.current === generation
+      currentDirectory.accountId === activeAccountId &&
+      currentDirectory.members !== null &&
+      currentDirectory.gate !== "hidden";
+    const generation = ++requestGeneration.current;
+    let cancelled = false;
+    const current = () => !cancelled && requestGeneration.current === generation;
 
     void (async () => {
-      let membersLoaded = false
+      let membersLoaded = false;
       try {
-        const membersResult = await teamAccessClient.listMembers(activeAccountId)
-        if (membersResult.kind === 'rejected' && membersResult.status === 403) {
+        const membersResult = await teamAccessClient.listMembers(activeAccountId);
+        if (membersResult.kind === "rejected" && membersResult.status === 403) {
           if (current()) {
             if (hadAuthorizedDirectory) {
-              setDirectory((previous) => ({ ...previous, gate: 'error' }))
-              fail(null, m.settings_members_err_access_changed())
+              setDirectory((previous) => ({ ...previous, gate: "error" }));
+              fail(null, m.settings_members_err_access_changed());
             } else {
-              setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: 'hidden' })
+              setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: "hidden" });
             }
           }
-          return
+          return;
         }
-        if (membersResult.kind === 'invalid') {
-          throw new Error('The server returned an invalid members response.')
+        if (membersResult.kind === "invalid") {
+          throw new Error("The server returned an invalid members response.");
         }
-        if (membersResult.kind !== 'ok') {
-          if (!current()) return
-          setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: 'error' })
+        if (membersResult.kind !== "ok") {
+          if (!current()) return;
+          setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: "error" });
           fail(
             null,
-            membersResult.kind === 'rejected' && membersResult.message
+            membersResult.kind === "rejected" && membersResult.message
               ? membersResult.message
               : m.settings_members_err_load({ status: membersResult.status }),
-          )
-          return
+          );
+          return;
         }
-        if (!current()) return
+        if (!current()) return;
         setDirectory((previous) => ({
           accountId: activeAccountId,
           members: membersResult.value,
@@ -94,58 +96,58 @@ export function useTeamDirectory({
           // flight. On an account switch, the old list is both hidden by the account key below and
           // discarded here before this account's separately-authorized invite read completes.
           invites: previous.accountId === activeAccountId ? previous.invites : [],
-          gate: 'shown',
-        }))
-        membersLoaded = true
+          gate: "shown",
+        }));
+        membersLoaded = true;
 
-        const invitationsResult = await teamAccessClient.listInvitations(activeAccountId)
-        if (invitationsResult.kind === 'invalid') {
-          throw new Error('The server returned an invalid invites response.')
+        const invitationsResult = await teamAccessClient.listInvitations(activeAccountId);
+        if (invitationsResult.kind === "invalid") {
+          throw new Error("The server returned an invalid invites response.");
         }
-        if (invitationsResult.kind !== 'ok') {
-          if (!current()) return
+        if (invitationsResult.kind !== "ok") {
+          if (!current()) return;
           fail(
             null,
-            invitationsResult.kind === 'rejected' && invitationsResult.message
+            invitationsResult.kind === "rejected" && invitationsResult.message
               ? invitationsResult.message
               : m.settings_invites_err_load({ status: invitationsResult.status }),
-          )
-          return
+          );
+          return;
         }
         if (current()) {
-          setDirectory((previous) => previous.accountId === activeAccountId
-            ? { ...previous, invites: invitationsResult.value }
-            : previous)
-          onInvitesLoaded?.(invitationsResult.value)
+          setDirectory((previous) =>
+            previous.accountId === activeAccountId ? { ...previous, invites: invitationsResult.value } : previous,
+          );
+          onInvitesLoaded?.(invitationsResult.value);
         }
       } catch (error) {
-        if (!current()) return
+        if (!current()) return;
         if (!membersLoaded) {
-          setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: 'error' })
+          setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: "error" });
         }
-        fail(null, m.settings_err_server({ error: errorMessage(error) }))
+        fail(null, m.settings_err_server({ error: errorMessage(error) }));
       }
-    })()
+    })();
 
     return () => {
-      cancelled = true
-    }
-  }, [enabled, activeAccountId, reloadKey, fail, offlineReadOnly, onInvitesLoaded])
+      cancelled = true;
+    };
+  }, [enabled, activeAccountId, reloadKey, fail, offlineReadOnly, onInvitesLoaded]);
 
-  const currentAccountLoaded = directory.accountId === activeAccountId
+  const currentAccountLoaded = directory.accountId === activeAccountId;
 
   const replaceDirectory = useCallback((members: TeamMember[], invites: TeamInvitation[]) => {
-    setDirectory((previous) => ({ ...previous, members, invites }))
-  }, [])
+    setDirectory((previous) => ({ ...previous, members, invites }));
+  }, []);
 
   return {
     members: currentAccountLoaded ? directory.members : null,
     invites: currentAccountLoaded ? directory.invites : [],
-    gate: currentAccountLoaded ? directory.gate : 'loading',
+    gate: currentAccountLoaded ? directory.gate : "loading",
     replaceDirectory,
     reload,
     busyAction,
     beginAction,
     endAction,
-  }
+  };
 }

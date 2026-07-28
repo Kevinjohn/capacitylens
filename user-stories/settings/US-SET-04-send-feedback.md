@@ -4,20 +4,23 @@
 
 > **Flag-gated:** the link only exists in builds made with `VITE_CAPACITYLENS_FEEDBACK_MAILTO`
 > set (the deploy script sets it to the owner's address). The default dev/local build
-> renders nothing, so the only part runnable against `pnpm run dev` is the *absence*
+> renders nothing, so the only part runnable against `pnpm run dev` is the _absence_
 > check — which is what the linked E2E asserts. Pairs with [US-SET-03](US-SET-03-build-stamp.md).
 
 ## Goal
+
 Report a problem in one click, with the email already pinned to the exact build it
 happened on.
 
 ## Why
+
 Tester reports arrive by email this round (no Sentry — Phase 0 decision). A bare "it
-broke" mail costs a round-trip to ask *which build*; pre-filling the subject with the
+broke" mail costs a round-trip to ask _which build_; pre-filling the subject with the
 build stamp (`CapacityLens feedback — build a1b2c3d · server`) makes every report attributable
 on arrival.
 
 ## How (end-to-end, hosted demo)
+
 **Precondition:** the deployed site, signed in past Basic Auth; click **Settings**.
 
 1. Scroll to the footer below **Appearance**: next to the build stamp sits a
@@ -31,6 +34,7 @@ on arrival.
 4. Confirm there is **no** Send feedback link (and no footer at all).
 
 ## Acceptance criteria
+
 - With `VITE_CAPACITYLENS_FEEDBACK_MAILTO=<addr>` baked into the build, Settings shows a
   **Send feedback** `mailto:` link beside the build stamp when `<addr>` is one valid email address;
   the recipient is URI-encoded so reserved characters remain part of the mailbox.

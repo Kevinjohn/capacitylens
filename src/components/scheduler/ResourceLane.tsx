@@ -1,16 +1,16 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath'
-import { useStore } from '../../store/useStore'
-import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
-import { Plus } from 'lucide-react'
-import { AllocationBar } from './AllocationBar'
-import { LAYOUT } from './layout'
-import type { ColumnGeometry } from './columnGeometry'
-import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
-import type { ID, ISODate } from '@capacitylens/shared/types/entities'
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { useStore } from "../../store/useStore";
+import { DAY_COLUMN_MIN_WIDTH } from "../../lib/schedulerConfig";
+import { Plus } from "lucide-react";
+import { AllocationBar } from "./AllocationBar";
+import { LAYOUT } from "./layout";
+import type { ColumnGeometry } from "./columnGeometry";
+import type { BarLayout, DayState, TimeOffBlock } from "./schedulerModel";
+import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 
 /** Min pointer travel to treat a lane gesture as a draw (vs a bare click). */
-const DRAW_THRESHOLD_PX = 4
+const DRAW_THRESHOLD_PX = 4;
 
 /**
  * The lane's allocation bars, wrapped in ONE transparent layer that carries the time-off-mode
@@ -43,22 +43,22 @@ const BarsLayer = memo(function BarsLayer({
   indexAtClientX,
   onEdit,
 }: {
-  bars: BarLayout[]
-  geom: ColumnGeometry
-  indexAtClientX: (clientX: number) => number
+  bars: BarLayout[];
+  geom: ColumnGeometry;
+  indexAtClientX: (clientX: number) => number;
   // Absent for a Viewer (P1.12): the bars then render display-only (AllocationBar attaches no
   // drag/resize and opens no edit modal). Present for an editor — the stable memoised callback.
-  onEdit?: (allocationId: ID) => void
+  onEdit?: (allocationId: ID) => void;
 }) {
-  const inertInTimeOff = useStore((s) => s.ui.drawMode === 'timeoff')
+  const inertInTimeOff = useStore((s) => s.ui.drawMode === "timeoff");
   return (
     <div className="absolute inset-0" inert={inertInTimeOff || undefined}>
       {bars.map((bar) => (
         <AllocationBar key={bar.allocation.id} bar={bar} geom={geom} indexAtClientX={indexAtClientX} onEdit={onEdit} />
       ))}
     </div>
-  )
-})
+  );
+});
 
 // Memoised so a sibling lane's draw gesture (per-pointermove setDraw) and grid-level
 // UI re-renders (e.g. opening a modal) don't re-render every lane + its bars. Its
@@ -80,38 +80,38 @@ export const ResourceLane = memo(function ResourceLane({
   onEdit,
   onDraw,
 }: {
-  resourceId: ID
+  resourceId: ID;
   /** Accessible name for the lane's role="gridcell" (e.g. "Tyler Nix timeline"). The cell is
    *  column 2 of the grid; naming it keeps the 2-column structure honest (WCAG 1.3.1) without
    *  echoing the rowheader's sr-only capacity summary. */
-  ariaLabel: string
-  days: ISODate[]
-  dayStates: DayState[]
-  timeOff: TimeOffBlock[]
-  todayX: number | null
+  ariaLabel: string;
+  days: ISODate[];
+  dayStates: DayState[];
+  timeOff: TimeOffBlock[];
+  todayX: number | null;
   // dayWidth still gates the density thresholds (per-day columns / weekday tint); the
   // pixel POSITIONS all come from geom, which may narrow weekend columns.
-  dayWidth: number
-  geom: ColumnGeometry
-  origin: ISODate
-  rowHeight: number
-  bars: BarLayout[]
-  placeholder?: boolean
-  weekStartsOn: 0 | 1
+  dayWidth: number;
+  geom: ColumnGeometry;
+  origin: ISODate;
+  rowHeight: number;
+  bars: BarLayout[];
+  placeholder?: boolean;
+  weekStartsOn: 0 | 1;
   // Both ABSENT for a Viewer (P1.12): the lane then renders display-only — no draw-to-create gesture,
   // no hover "+" hint, and its bars get no edit/drag/resize. Present for an editor (null/owner/admin/
   // editor, incl. OFF/local) — the stable memoised callbacks, byte-identical to today.
-  onEdit?: (allocationId: ID) => void
-  onDraw?: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void
+  onEdit?: (allocationId: ID) => void;
+  onDraw?: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void;
 }) {
-  const laneRef = useRef<HTMLDivElement>(null)
-  const [draw, setDraw] = useState<{ a: number; b: number } | null>(null)
+  const laneRef = useRef<HTMLDivElement>(null);
+  const [draw, setDraw] = useState<{ a: number; b: number } | null>(null);
   // The day cell under the mouse, for the hover "+" hint. Only updates when the
   // pointer CROSSES a day boundary (setState bails on the same index), so plain
   // mousemove within a cell doesn't re-render the lane.
-  const [hoverDay, setHoverDay] = useState<number | null>(null)
-  const teardownRef = useRef<(() => void) | null>(null)
-  useEffect(() => () => teardownRef.current?.(), [])
+  const [hoverDay, setHoverDay] = useState<number | null>(null);
+  const teardownRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => teardownRef.current?.(), []);
 
   // Wrapped in useCallback (keyed on geom) so the identity is STABLE across a re-render that
   // isn't a real geometry change. `indexAt` is handed down (as `indexAtClientX`) to BarsLayer →
@@ -124,83 +124,83 @@ export const ResourceLane = memo(function ResourceLane({
   // only when the columns genuinely change.
   const indexAt = useCallback(
     (clientX: number): number => {
-      const rect = laneRef.current?.getBoundingClientRect()
-      if (!rect) return 0
+      const rect = laneRef.current?.getBoundingClientRect();
+      if (!rect) return 0;
       // geom.indexAt is the exact inverse of the column layout AND clamps to [0, days.length-1]:
       // a pointerup can land outside the lane (the gesture is tracked on the document, so the
       // pointer may release past either edge), and bounding the untrusted coord here means
       // addDaysISO(origin, idx) always gets a valid offset inside the visible window — a drop
       // past the edge snaps to the first/last day, never an off-window date. This is the SINGLE
       // pointer→day inverse, shared with the bars' drag math (passed to AllocationBar below).
-      return geom.indexAt(clientX - rect.left)
+      return geom.indexAt(clientX - rect.left);
     },
     [geom],
-  )
+  );
 
   const onPointerDown = (e: React.PointerEvent) => {
     // Viewer (P1.12): no create callback → no draw gesture at all. Bail before any listener is bound
     // so an empty-space press on a read-only lane does nothing (and never starts a ghost).
-    if (!onDraw) return
-    if (e.button !== 0) return
+    if (!onDraw) return;
+    if (e.button !== 0) return;
     // Ignore a re-entrant pointerdown (a second finger / pen) while a draw is
     // already live — otherwise its document listeners would leak (overwriting
     // teardownRef) and a single pointerup could fire onDraw twice. Mirrors the
     // guard in useDragResize.
-    if (teardownRef.current) return
-    const pointerId = e.pointerId // only react to THIS pointer's move/up/cancel
+    if (teardownRef.current) return;
+    const pointerId = e.pointerId; // only react to THIS pointer's move/up/cancel
     // Guarded because synthetic/older events may omit pointerId (treat a missing
     // id as "the active pointer").
-    const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId
-    const startX = e.clientX
-    const start = indexAt(e.clientX)
-    setDraw({ a: start, b: start })
+    const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId;
+    const startX = e.clientX;
+    const start = indexAt(e.clientX);
+    setDraw({ a: start, b: start });
     const onMove = (ev: PointerEvent) => {
-      if (fromOtherPointer(ev)) return
-      setDraw({ a: start, b: indexAt(ev.clientX) })
-    }
+      if (fromOtherPointer(ev)) return;
+      setDraw({ a: start, b: indexAt(ev.clientX) });
+    };
     const detach = () => {
-      document.removeEventListener('pointermove', onMove)
-      document.removeEventListener('pointerup', onUp)
-      document.removeEventListener('pointercancel', onCancel)
-      document.removeEventListener('keydown', onKeyDown)
-      teardownRef.current = null
-    }
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onCancel);
+      document.removeEventListener("keydown", onKeyDown);
+      teardownRef.current = null;
+    };
     const onUp = (ev: PointerEvent) => {
-      if (fromOtherPointer(ev)) return
-      detach()
-      setDraw(null)
+      if (fromOtherPointer(ev)) return;
+      detach();
+      setDraw(null);
       // A clean click (sub-threshold) creates a SINGLE-day allocation on the clicked
       // day — the most common case, and previously impossible (you had to find the
       // tiny row "+"). A multi-day drag spans clicked-start → release. Grabbing a bar
       // never reaches here (the bar stops propagation), so this only fires on empty space.
       if (Math.abs(ev.clientX - startX) < DRAW_THRESHOLD_PX) {
-        const day = addDaysISO(origin, start)
-        onDraw(resourceId, day, day)
-        return
+        const day = addDaysISO(origin, start);
+        onDraw(resourceId, day, day);
+        return;
       }
-      const end = indexAt(ev.clientX)
-      onDraw(resourceId, addDaysISO(origin, Math.min(start, end)), addDaysISO(origin, Math.max(start, end)))
-    }
+      const end = indexAt(ev.clientX);
+      onDraw(resourceId, addDaysISO(origin, Math.min(start, end)), addDaysISO(origin, Math.max(start, end)));
+    };
     const onCancel = (ev: PointerEvent) => {
-      if (fromOtherPointer(ev)) return
+      if (fromOtherPointer(ev)) return;
       // Browser took over the gesture (e.g. to scroll): drop the ghost, don't create.
-      detach()
-      setDraw(null)
-    }
+      detach();
+      setDraw(null);
+    };
     // Keyboard escape hatch: mirrors onCancel — a draw-to-create gesture is pointer-only, so
     // Escape is otherwise the one platform-standard "back out" gesture with no way in. Drop the
     // ghost rather than commit whatever span was last previewed.
     const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key !== 'Escape') return
-      detach()
-      setDraw(null)
-    }
-    document.addEventListener('pointermove', onMove)
-    document.addEventListener('pointerup', onUp)
-    document.addEventListener('pointercancel', onCancel)
-    document.addEventListener('keydown', onKeyDown)
-    teardownRef.current = detach
-  }
+      if (ev.key !== "Escape") return;
+      detach();
+      setDraw(null);
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onCancel);
+    document.addEventListener("keydown", onKeyDown);
+    teardownRef.current = detach;
+  };
 
   return (
     <div
@@ -214,10 +214,10 @@ export const ResourceLane = memo(function ResourceLane({
       style={{ width: geom.totalWidth, height: rowHeight }}
       onPointerDown={onPointerDown}
       onPointerMove={(e) => {
-        if (!onDraw) return // Viewer (P1.12): no create → no hover "+" hint to track.
-        if (e.pointerType !== 'mouse') return // touch/pen have no hover state
-        const i = indexAt(e.clientX)
-        setHoverDay((prev) => (prev === i ? prev : i))
+        if (!onDraw) return; // Viewer (P1.12): no create → no hover "+" hint to track.
+        if (e.pointerType !== "mouse") return; // touch/pen have no hover state
+        const i = indexAt(e.clientX);
+        setHoverDay((prev) => (prev === i ? prev : i));
       }}
       onPointerLeave={() => setHoverDay(null)}
     >
@@ -230,16 +230,16 @@ export const ResourceLane = memo(function ResourceLane({
           days get a barely-there hairline so Mon/Tue/Wed read as columns — fine zoom
           only, same DOM-weight rule as the weekend tint below. */}
       {days.map((d, i) => {
-        if (i === 0) return null
-        const weekStart = weekdayOf(d) === weekStartsOn
-        if (!weekStart && dayWidth < DAY_COLUMN_MIN_WIDTH) return null
+        if (i === 0) return null;
+        const weekStart = weekdayOf(d) === weekStartsOn;
+        if (!weekStart && dayWidth < DAY_COLUMN_MIN_WIDTH) return null;
         return (
           <div
             key={`w-${d}`}
-            className={`absolute top-0 h-full border-l ${weekStart ? 'border-line' : 'border-line-faint'}`}
+            className={`absolute top-0 h-full border-l ${weekStart ? "border-line" : "border-line-faint"}`}
             style={{ left: geom.x(i) }}
           />
-        )
+        );
       })}
 
       {/* weekend / unavailable tint — only at fine zoom (keeps the DOM light when zoomed out) */}
@@ -293,14 +293,14 @@ export const ResourceLane = memo(function ResourceLane({
             left: b.x,
             width: b.width,
             background:
-              'repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 28%, transparent) 0 5px, transparent 5px 10px)',
+              "repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 28%, transparent) 0 5px, transparent 5px 10px)",
           }}
         >
           {/* The specific time-off label is always available to AT (it's dropped from the VISIBLE label
               below at narrow widths). The per-row sr-only summary only counts time-off periods; this
               names them. aria-hidden on the visible label so the name isn't read twice when it IS shown. */}
           <span className="sr-only">{b.label}</span>
-          <span aria-hidden>{b.width > 44 ? b.label : ''}</span>
+          <span aria-hidden>{b.width > 44 ? b.label : ""}</span>
         </div>
       ))}
 
@@ -338,8 +338,12 @@ export const ResourceLane = memo(function ResourceLane({
 
       {/* today line */}
       {todayX !== null && (
-        <div data-testid="today-line" className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-brand" style={{ left: todayX }} />
+        <div
+          data-testid="today-line"
+          className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-brand"
+          style={{ left: todayX }}
+        />
       )}
     </div>
-  )
-})
+  );
+});

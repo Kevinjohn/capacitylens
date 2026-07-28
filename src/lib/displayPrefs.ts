@@ -15,51 +15,51 @@
 
 // All keys below carry the shared brand prefix (defined once in shared/src/brand.ts) so clearing /
 // migrating by prefix catches every one of them.
-import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
+import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 
 export interface UtilizationPrefs {
   /** Show the account-wide utilisation summary. */
-  showTotal: boolean
+  showTotal: boolean;
   /** Show per-discipline utilisation. */
-  showDiscipline: boolean
+  showDiscipline: boolean;
   /** Show per-person (per-resource) utilisation. */
-  showPersonal: boolean
+  showPersonal: boolean;
 }
 
 export const DEFAULT_UTILIZATION_PREFS: UtilizationPrefs = {
   showTotal: true,
   showDiscipline: true,
   showPersonal: true,
-}
+};
 
-const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`;
 
 /** Read the saved preferences, falling back to the defaults for anything missing
  *  or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
 export function readStoredUtilizationPrefs(): UtilizationPrefs {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<UtilizationPrefs>
+      const parsed = JSON.parse(raw) as Partial<UtilizationPrefs>;
       return {
-        showTotal: typeof parsed.showTotal === 'boolean' ? parsed.showTotal : DEFAULT_UTILIZATION_PREFS.showTotal,
+        showTotal: typeof parsed.showTotal === "boolean" ? parsed.showTotal : DEFAULT_UTILIZATION_PREFS.showTotal,
         showDiscipline:
-          typeof parsed.showDiscipline === 'boolean' ? parsed.showDiscipline : DEFAULT_UTILIZATION_PREFS.showDiscipline,
+          typeof parsed.showDiscipline === "boolean" ? parsed.showDiscipline : DEFAULT_UTILIZATION_PREFS.showDiscipline,
         showPersonal:
-          typeof parsed.showPersonal === 'boolean' ? parsed.showPersonal : DEFAULT_UTILIZATION_PREFS.showPersonal,
-      }
+          typeof parsed.showPersonal === "boolean" ? parsed.showPersonal : DEFAULT_UTILIZATION_PREFS.showPersonal,
+      };
     }
   } catch {
     // storage blocked or malformed JSON — fall through to the defaults
   }
-  return { ...DEFAULT_UTILIZATION_PREFS }
+  return { ...DEFAULT_UTILIZATION_PREFS };
 }
 
 /** Persist the preferences. Best-effort: if storage is unavailable the in-memory
  *  store still honours the choice for this session. */
 export function writeStoredUtilizationPrefs(prefs: UtilizationPrefs): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
   } catch {
     // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
@@ -67,40 +67,40 @@ export function writeStoredUtilizationPrefs(prefs: UtilizationPrefs): void {
 
 export interface BarLabelPrefs {
   /** Prefix the allocation bar's label with the client name. */
-  showClient: boolean
+  showClient: boolean;
   /** Prefix the allocation bar's label with the project name. */
-  showProject: boolean
+  showProject: boolean;
 }
 
 export const DEFAULT_BAR_LABEL_PREFS: BarLabelPrefs = {
   showClient: true,
   showProject: true,
-}
+};
 
-const BAR_LABEL_STORAGE_KEY = `${STORAGE_KEY_PREFIX}barLabelPrefs`
+const BAR_LABEL_STORAGE_KEY = `${STORAGE_KEY_PREFIX}barLabelPrefs`;
 
 /** Read the saved bar-label preferences — same tolerant fallback behaviour as
  *  readStoredUtilizationPrefs. */
 export function readStoredBarLabelPrefs(): BarLabelPrefs {
   try {
-    const raw = localStorage.getItem(BAR_LABEL_STORAGE_KEY)
+    const raw = localStorage.getItem(BAR_LABEL_STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<BarLabelPrefs>
+      const parsed = JSON.parse(raw) as Partial<BarLabelPrefs>;
       return {
-        showClient: typeof parsed.showClient === 'boolean' ? parsed.showClient : DEFAULT_BAR_LABEL_PREFS.showClient,
-        showProject: typeof parsed.showProject === 'boolean' ? parsed.showProject : DEFAULT_BAR_LABEL_PREFS.showProject,
-      }
+        showClient: typeof parsed.showClient === "boolean" ? parsed.showClient : DEFAULT_BAR_LABEL_PREFS.showClient,
+        showProject: typeof parsed.showProject === "boolean" ? parsed.showProject : DEFAULT_BAR_LABEL_PREFS.showProject,
+      };
     }
   } catch {
     // storage blocked or malformed JSON — fall through to the defaults
   }
-  return { ...DEFAULT_BAR_LABEL_PREFS }
+  return { ...DEFAULT_BAR_LABEL_PREFS };
 }
 
 /** Persist the bar-label preferences. Best-effort, like writeStoredUtilizationPrefs. */
 export function writeStoredBarLabelPrefs(prefs: BarLabelPrefs): void {
   try {
-    localStorage.setItem(BAR_LABEL_STORAGE_KEY, JSON.stringify(prefs))
+    localStorage.setItem(BAR_LABEL_STORAGE_KEY, JSON.stringify(prefs));
   } catch {
     // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
@@ -110,29 +110,29 @@ export function writeStoredBarLabelPrefs(prefs: BarLabelPrefs): void {
 // read: null means "the user has never chosen", and the caller falls back to the
 // viewport-derived default below instead of a fixed boolean.
 
-const SIDEBAR_STORAGE_KEY = `${STORAGE_KEY_PREFIX}sidebar`
+const SIDEBAR_STORAGE_KEY = `${STORAGE_KEY_PREFIX}sidebar`;
 
 /** Small-screen query for the sidebar's first-run default. Phone-portrait widths
  *  OR phone-landscape heights count as small — a landscape phone is the app's
  *  recommended orientation and still shouldn't spend 192px on a menu. */
-export const SMALL_VIEWPORT_QUERY = '(max-width: 767px), (max-height: 480px)'
+export const SMALL_VIEWPORT_QUERY = "(max-width: 767px), (max-height: 480px)";
 
 /** The user's explicit sidebar choice, or null if they've never toggled it. */
 export function readStoredSidebarOpen(): boolean | null {
   try {
-    const raw = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-    if (raw === 'open') return true
-    if (raw === 'closed') return false
+    const raw = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (raw === "open") return true;
+    if (raw === "closed") return false;
   } catch {
     // storage blocked — fall through to "no choice"
   }
-  return null
+  return null;
 }
 
 /** Persist the sidebar choice. Best-effort, like the prefs above. */
 export function writeStoredSidebarOpen(open: boolean): void {
   try {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? 'open' : 'closed')
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? "open" : "closed");
   } catch {
     // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
@@ -142,13 +142,13 @@ export function writeStoredSidebarOpen(open: boolean): void {
  *  non-browser environments (jsdom has no matchMedia) where it defaults open. */
 export function defaultSidebarOpen(): boolean {
   try {
-    if (typeof window.matchMedia === 'function') {
-      return !window.matchMedia(SMALL_VIEWPORT_QUERY).matches
+    if (typeof window.matchMedia === "function") {
+      return !window.matchMedia(SMALL_VIEWPORT_QUERY).matches;
     }
   } catch {
     // matchMedia unavailable — treat as a large screen
   }
-  return true
+  return true;
 }
 
 // Shared shape for the simple device-global on/off flags below (minimise-weekends and
@@ -161,19 +161,19 @@ export function defaultSidebarOpen(): boolean {
  *  unrecognised, or when storage is unavailable. */
 function readBoolPref(key: string, fallback: boolean): boolean {
   try {
-    const raw = localStorage.getItem(key)
-    if (raw === 'on') return true
-    if (raw === 'off') return false
+    const raw = localStorage.getItem(key);
+    if (raw === "on") return true;
+    if (raw === "off") return false;
   } catch {
     // storage blocked — fall through to the fallback
   }
-  return fallback
+  return fallback;
 }
 
 /** Persist an on/off flag as 'on'/'off' under `key`. Best-effort, like the prefs above. */
 function writeBoolPref(key: string, on: boolean): void {
   try {
-    localStorage.setItem(key, on ? 'on' : 'off')
+    localStorage.setItem(key, on ? "on" : "off");
   } catch {
     // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
@@ -183,17 +183,17 @@ function writeBoolPref(key: string, on: boolean): void {
 // Device-global like the prefs above (own key, not account data), but DEFAULTS ON — the owner's
 // stated default. A plain on/off string (like the sidebar) rather than JSON: it's a single bool.
 
-const MINIMISE_WEEKENDS_STORAGE_KEY = `${STORAGE_KEY_PREFIX}minimiseWeekends`
+const MINIMISE_WEEKENDS_STORAGE_KEY = `${STORAGE_KEY_PREFIX}minimiseWeekends`;
 
 /** The saved "minimise weekends" choice; defaults to TRUE (on) when unset, unrecognised, or
  *  when storage is unavailable. */
 export function readStoredMinimiseWeekends(): boolean {
-  return readBoolPref(MINIMISE_WEEKENDS_STORAGE_KEY, true)
+  return readBoolPref(MINIMISE_WEEKENDS_STORAGE_KEY, true);
 }
 
 /** Persist the "minimise weekends" choice. Best-effort, like the prefs above. */
 export function writeStoredMinimiseWeekends(on: boolean): void {
-  writeBoolPref(MINIMISE_WEEKENDS_STORAGE_KEY, on)
+  writeBoolPref(MINIMISE_WEEKENDS_STORAGE_KEY, on);
 }
 
 // "Snap to week start": after a FREE horizontal scroll settles, the schedule floors its left edge
@@ -203,17 +203,17 @@ export function writeStoredMinimiseWeekends(on: boolean): void {
 // SCROLL ONLY; the navigation snap (zoom / Prev-Next / date-picker) is always on, independent of
 // this flag. A plain on/off string (like minimiseWeekends) — it's a single bool.
 
-const SNAP_TO_WEEK_START_STORAGE_KEY = `${STORAGE_KEY_PREFIX}snapToWeekStart`
+const SNAP_TO_WEEK_START_STORAGE_KEY = `${STORAGE_KEY_PREFIX}snapToWeekStart`;
 
 /** The saved "snap to week start" choice; defaults to TRUE (on) when unset, unrecognised, or
  *  when storage is unavailable. */
 export function readStoredSnapToWeekStart(): boolean {
-  return readBoolPref(SNAP_TO_WEEK_START_STORAGE_KEY, true)
+  return readBoolPref(SNAP_TO_WEEK_START_STORAGE_KEY, true);
 }
 
 /** Persist the "snap to week start" choice. Best-effort, like the prefs above. */
 export function writeStoredSnapToWeekStart(on: boolean): void {
-  writeBoolPref(SNAP_TO_WEEK_START_STORAGE_KEY, on)
+  writeBoolPref(SNAP_TO_WEEK_START_STORAGE_KEY, on);
 }
 
 // "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
@@ -223,17 +223,17 @@ export function writeStoredSnapToWeekStart(on: boolean): void {
 // flipped on by the demo sign-in screen and cleared by "Sign out". See
 // `src/components/FakeSignIn.tsx` and DECISIONS.md.
 
-const FAKE_SIGNED_IN_STORAGE_KEY = `${STORAGE_KEY_PREFIX}fakeSignedIn`
+const FAKE_SIGNED_IN_STORAGE_KEY = `${STORAGE_KEY_PREFIX}fakeSignedIn`;
 
 /** The saved fake-sign-in state; defaults to FALSE (signed out → show the demo sign-in)
  *  when unset, unrecognised, or when storage is unavailable. */
 export function readStoredFakeSignedIn(): boolean {
-  return readBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, false)
+  return readBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, false);
 }
 
 /** Persist the fake-sign-in state. Best-effort, like the prefs above. */
 export function writeStoredFakeSignedIn(on: boolean): void {
-  writeBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, on)
+  writeBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, on);
 }
 
 // "Intro seen": whether the post-login "What CapacityLens is" intermediary page has been dismissed on
@@ -242,17 +242,17 @@ export function writeStoredFakeSignedIn(on: boolean): void {
 // once per device by design (see DECISIONS.md). See
 // `src/components/IntroPage.tsx`.
 
-const INTRO_SEEN_STORAGE_KEY = `${STORAGE_KEY_PREFIX}introSeen`
+const INTRO_SEEN_STORAGE_KEY = `${STORAGE_KEY_PREFIX}introSeen`;
 
 /** The saved "intro seen" state; defaults to FALSE (not yet seen → show the intro) when unset,
  *  unrecognised, or when storage is unavailable. */
 export function readStoredIntroSeen(): boolean {
-  return readBoolPref(INTRO_SEEN_STORAGE_KEY, false)
+  return readBoolPref(INTRO_SEEN_STORAGE_KEY, false);
 }
 
 /** Persist the "intro seen" state. Best-effort, like the prefs above. */
 export function writeStoredIntroSeen(on: boolean): void {
-  writeBoolPref(INTRO_SEEN_STORAGE_KEY, on)
+  writeBoolPref(INTRO_SEEN_STORAGE_KEY, on);
 }
 
 // "Getting started dismissed": whether the schedule's first-run "Getting started" checklist card
@@ -262,15 +262,15 @@ export function writeStoredIntroSeen(on: boolean): void {
 // content is derived live from scoped data, only the dismissal is a device pref. See
 // `src/components/GettingStarted.tsx`.
 
-const GETTING_STARTED_DISMISSED_STORAGE_KEY = `${STORAGE_KEY_PREFIX}gettingStartedDismissed`
+const GETTING_STARTED_DISMISSED_STORAGE_KEY = `${STORAGE_KEY_PREFIX}gettingStartedDismissed`;
 
 /** The saved "getting started dismissed" state; defaults to FALSE (not dismissed → show the
  *  checklist) when unset, unrecognised, or when storage is unavailable. */
 export function readStoredGettingStartedDismissed(): boolean {
-  return readBoolPref(GETTING_STARTED_DISMISSED_STORAGE_KEY, false)
+  return readBoolPref(GETTING_STARTED_DISMISSED_STORAGE_KEY, false);
 }
 
 /** Persist the "getting started dismissed" state. Best-effort, like the prefs above. */
 export function writeStoredGettingStartedDismissed(on: boolean): void {
-  writeBoolPref(GETTING_STARTED_DISMISSED_STORAGE_KEY, on)
+  writeBoolPref(GETTING_STARTED_DISMISSED_STORAGE_KEY, on);
 }

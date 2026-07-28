@@ -3,11 +3,13 @@
 **Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "archiving a project hides it from the list, restorable with undo"
 
 ## Goal
+
 Remove a project from the active views **reversibly** — archive it (with a clear warning and one-step
 undo) so the project and its phases/activities/allocations are retained and it can be restored, or
 later permanently deleted from Settings → Archived & deleted.
 
 ## Why
+
 When a project pauses or is cancelled, the manager wants it off the schedule in one step — but without
 destroying its scheduled work. Archiving hides the project from the active views while keeping its
 data; soft-delete and permanent removal (which DO cascade to phases/activities/allocations and unbind
@@ -15,9 +17,11 @@ placeholders) are separate, later steps reached from Settings → Archived & del
 reversible, so the action is undoable.
 
 ## How (end-to-end)
+
 **Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project
-Lightning** has phases (*Discovery*, *Build*), activities (*Wireframes*, *Visual Design*, *CMS
-Review*) and allocations.
+Lightning** has phases (_Discovery_, _Build_), activities (_Wireframes_, _Visual Design_, _CMS
+Review_) and allocations.
+
 1. On the **Project Lightning** row, click the **Archive Project Lightning** (trash) icon. The
    "Archive project?" confirmation dialog opens.
 2. Read the dialog: it explains the project will be hidden from the schedule and can be restored or
@@ -26,6 +30,7 @@ Review*) and allocations.
 4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Project Lightning returns to the list.
 
 ## Acceptance criteria
+
 - ✅ The confirmation dialog is titled **Archive project?** and explains the project is hidden from the
   schedule and is restorable from Settings → Archived & deleted.
 - ✅ After confirming, **Project Lightning** is gone from the Projects management list (archived, not

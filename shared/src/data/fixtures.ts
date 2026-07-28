@@ -1,8 +1,8 @@
 // Fully-populated test fixtures — EVERY optional field set to a non-default value.
 // Used by the server round-trip tests (server/src/app.test.ts) and available for
 // future app-level tests. Pure data, no behaviour.
-import { externalCapacityDefaults } from '../types/entities'
-import { NEUTRAL_COLOR } from '../lib/color'
+import { externalCapacityDefaults } from "../types/entities";
+import { NEUTRAL_COLOR } from "../lib/color";
 import type {
   Account,
   Allocation,
@@ -13,26 +13,26 @@ import type {
   Resource,
   Activity,
   TimeOff,
-} from '../types/entities'
+} from "../types/entities";
 
-const TS1 = '2026-01-01T00:00:00.000Z'
-const TS2 = '2026-06-01T12:00:00.000Z'
+const TS1 = "2026-01-01T00:00:00.000Z";
+const TS2 = "2026-06-01T12:00:00.000Z";
 
 export const FIXTURE_ACCOUNT: Account = {
-  id: 'fix-a1',
-  name: 'Fixture Studio',
-  color: '#2d75da',
-  schedulingMode: 'days',
-  timezone: 'Europe/London',
+  id: "fix-a1",
+  name: "Fixture Studio",
+  color: "#2d75da",
+  schedulingMode: "days",
+  timezone: "Europe/London",
   weekStartsOn: 0,
-  language: 'en',
+  language: "en",
   disciplinesEnabled: false,
   // Both true (the NON-default — absent reads as false/hidden) so the server round-trip test
   // proves the new optional boolean columns persist a PRESENT value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
   // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
-  internalColourMode: 'palette',
+  internalColourMode: "palette",
   // All three default to true when absent. Persist explicit false values so the full-fixture
   // round-trip detects a dropped column or accidental default substitution.
   showInternalProjects: false,
@@ -40,15 +40,15 @@ export const FIXTURE_ACCOUNT: Account = {
   inlineActivityCreateEnabled: false,
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_CLIENT: Client = {
-  id: 'fix-c1',
-  accountId: 'fix-a1',
-  name: 'Fixture Client',
-  color: '#da2d92',
+  id: "fix-c1",
+  accountId: "fix-a1",
+  name: "Fixture Client",
+  color: "#da2d92",
   isPrivate: true,
-  codeName: 'Fixture Northstar',
+  codeName: "Fixture Northstar",
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the account lifecycle path.
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
@@ -57,133 +57,133 @@ export const FIXTURE_CLIENT: Client = {
   deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_DISCIPLINE: Discipline = {
-  id: 'fix-d1',
-  accountId: 'fix-a1',
-  name: 'Fixture Discipline',
-  color: '#2d75da',
+  id: "fix-d1",
+  accountId: "fix-a1",
+  name: "Fixture Discipline",
+  color: "#2d75da",
   sortOrder: 7,
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_PROJECT: Project = {
-  id: 'fix-p1',
-  accountId: 'fix-a1',
-  name: 'Fixture Project',
-  clientId: 'fix-c1',
-  color: '#2d75da',
+  id: "fix-p1",
+  accountId: "fix-a1",
+  name: "Fixture Project",
+  clientId: "fix-c1",
+  color: "#2d75da",
   isPrivate: true,
-  codeName: 'Fixture Aurora',
+  codeName: "Fixture Aurora",
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_PHASE: Phase = {
-  id: 'fix-ph1',
-  accountId: 'fix-a1',
-  name: 'Fixture Phase',
-  projectId: 'fix-p1',
+  id: "fix-ph1",
+  accountId: "fix-a1",
+  name: "Fixture Phase",
+  projectId: "fix-p1",
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_RESOURCE: Resource = {
-  id: 'fix-r1',
-  accountId: 'fix-a1',
-  kind: 'placeholder',
-  name: 'Fixture Placeholder',
-  role: 'Fixture Role',
-  disciplineId: 'fix-d1',
-  employmentType: 'contractor',
+  id: "fix-r1",
+  accountId: "fix-a1",
+  kind: "placeholder",
+  name: "Fixture Placeholder",
+  role: "Fixture Role",
+  disciplineId: "fix-d1",
+  employmentType: "contractor",
   workingHoursPerDay: 6,
   workingDays: [1, 2, 3],
-  projectId: 'fix-p1',
-  color: '#3ace6b',
+  projectId: "fix-p1",
+  color: "#3ace6b",
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 /** The external / 3rd-party kind: a company name + optional descriptor, and NO discipline or
  *  project binding (externals carry unused silent-default working hours/days). Proves `kind`
  *  round-trips through the server with the optional FK columns left NULL. */
 export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
-  id: 'fix-r2',
-  accountId: 'fix-a1',
-  kind: 'external',
-  name: 'Fixture External Co',
-  role: 'Fixture Partner',
+  id: "fix-r2",
+  accountId: "fix-a1",
+  kind: "external",
+  name: "Fixture External Co",
+  role: "Fixture Partner",
   ...externalCapacityDefaults(),
   color: NEUTRAL_COLOR,
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_ACTIVITY: Activity = {
-  id: 'fix-t1',
-  accountId: 'fix-a1',
-  name: 'Fixture Activity',
-  kind: 'project',
-  projectId: 'fix-p1',
-  phaseId: 'fix-ph1',
+  id: "fix-t1",
+  accountId: "fix-a1",
+  name: "Fixture Activity",
+  kind: "project",
+  projectId: "fix-p1",
+  phaseId: "fix-ph1",
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 /** The internal & repeatable kinds: project-less by definition, so they OMIT projectId /
  *  phaseId entirely (not null — absent). Prove all three ActivityKind values round-trip through
  *  the server with the optional FK columns left NULL. */
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
-  id: 'fix-t2',
-  accountId: 'fix-a1',
-  name: 'Fixture Internal Activity',
-  kind: 'internal',
+  id: "fix-t2",
+  accountId: "fix-a1",
+  name: "Fixture Internal Activity",
+  kind: "internal",
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
-  id: 'fix-t3',
-  accountId: 'fix-a1',
-  name: 'Fixture Repeatable Activity',
-  kind: 'repeatable',
+  id: "fix-t3",
+  accountId: "fix-a1",
+  name: "Fixture Repeatable Activity",
+  kind: "repeatable",
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_ALLOCATION: Allocation = {
-  id: 'fix-al1',
-  accountId: 'fix-a1',
-  resourceId: 'fix-r1',
-  activityId: 'fix-t1',
-  startDate: '2026-02-01',
-  endDate: '2026-02-28',
+  id: "fix-al1",
+  accountId: "fix-a1",
+  resourceId: "fix-r1",
+  activityId: "fix-t1",
+  startDate: "2026-02-01",
+  endDate: "2026-02-28",
   hoursPerDay: 0,
-  status: 'tentative',
-  note: 'Fixture note',
+  status: "tentative",
+  note: "Fixture note",
   ignoreWeekends: true,
   createdAt: TS1,
   updatedAt: TS2,
-}
+};
 
 export const FIXTURE_TIMEOFF: TimeOff = {
-  id: 'fix-to1',
-  accountId: 'fix-a1',
-  resourceId: 'fix-r1',
-  startDate: '2026-03-01',
-  endDate: '2026-03-05',
-  type: 'sick',
-  note: 'Fixture sick note',
+  id: "fix-to1",
+  accountId: "fix-a1",
+  resourceId: "fix-r1",
+  startDate: "2026-03-01",
+  endDate: "2026-03-05",
+  type: "sick",
+  note: "Fixture sick note",
   createdAt: TS1,
   updatedAt: TS2,
-}
+};

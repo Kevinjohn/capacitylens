@@ -1,12 +1,12 @@
-import type { Db } from './db'
-import { deleteRow } from './db'
-import { forgetWorkspaceSyncProvenance } from './syncOrdering'
+import type { Db } from "./db";
+import { deleteRow } from "./db";
+import { forgetWorkspaceSyncProvenance } from "./syncOrdering";
 
 interface CrossTenantErasureEdge {
-  relationship: string
-  parentId: string
-  childId: string
-  childAccountId: string
+  relationship: string;
+  parentId: string;
+  childId: string;
+  childAccountId: string;
 }
 
 /**
@@ -65,7 +65,7 @@ const CROSS_TENANT_ERASURE_EDGE_SQL = `
     JOIN timeOff AS child ON child.resourceId = parent.id
    WHERE parent.accountId = ?1 AND child.accountId <> ?1
   LIMIT 1
-`
+`;
 
 export class TenantErasureIntegrityError extends Error {
   constructor(
@@ -74,17 +74,15 @@ export class TenantErasureIntegrityError extends Error {
   ) {
     super(
       `Workspace erasure refused: ${edge.relationship} crosses from workspace ` +
-      `"${workspaceId}" to "${edge.childAccountId}" (parent "${edge.parentId}", child "${edge.childId}").`,
-    )
-    this.name = 'TenantErasureIntegrityError'
+        `"${workspaceId}" to "${edge.childAccountId}" (parent "${edge.parentId}", child "${edge.childId}").`,
+    );
+    this.name = "TenantErasureIntegrityError";
   }
 }
 
 function assertErasureStaysWithinWorkspace(db: Db, workspaceId: string): void {
-  const edge = db.prepare(CROSS_TENANT_ERASURE_EDGE_SQL).get(workspaceId) as
-    | CrossTenantErasureEdge
-    | undefined
-  if (edge) throw new TenantErasureIntegrityError(workspaceId, edge)
+  const edge = db.prepare(CROSS_TENANT_ERASURE_EDGE_SQL).get(workspaceId) as CrossTenantErasureEdge | undefined;
+  if (edge) throw new TenantErasureIntegrityError(workspaceId, edge);
 }
 
 /**
@@ -96,9 +94,9 @@ function assertErasureStaysWithinWorkspace(db: Db, workspaceId: string): void {
  */
 export function eraseWorkspaceProductDataInTx(db: Db, workspaceId: string): void {
   if (!db.isTransaction) {
-    throw new Error('Workspace product-data erasure must run inside an existing transaction.')
+    throw new Error("Workspace product-data erasure must run inside an existing transaction.");
   }
-  assertErasureStaysWithinWorkspace(db, workspaceId)
-  forgetWorkspaceSyncProvenance(db, workspaceId)
-  deleteRow(db, 'accounts', workspaceId)
+  assertErasureStaysWithinWorkspace(db, workspaceId);
+  forgetWorkspaceSyncProvenance(db, workspaceId);
+  deleteRow(db, "accounts", workspaceId);
 }

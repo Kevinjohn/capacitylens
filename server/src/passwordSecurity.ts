@@ -1,14 +1,6 @@
-import {
-  createHash,
-  randomBytes,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { BoundedWorkQueue } from "./workQueue";
-import {
-  currentRequestAbortSignal,
-  reportCurrentRequestQueueSaturation,
-} from "./requestAbort";
+import { currentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
 
 // OWASP Password Storage Cheat Sheet minimum scrypt profile: N=2^17, r=8, p=1.
 // The format is versioned so parameters can be raised and legacy Better Auth hashes can be
@@ -30,8 +22,7 @@ const hibpQueue = new BoundedWorkQueue(
   "Breached-password checking is temporarily at capacity.",
   {
     maxWaitMs: MAX_PASSWORD_QUEUE_WAIT_MS,
-    onSaturated: (reason) =>
-      reportCurrentRequestQueueSaturation("hibp", reason),
+    onSaturated: (reason) => reportCurrentRequestQueueSaturation("hibp", reason),
   },
 );
 const scryptQueue = new BoundedWorkQueue(
@@ -40,8 +31,7 @@ const scryptQueue = new BoundedWorkQueue(
   "Password processing is temporarily at capacity.",
   {
     maxWaitMs: MAX_PASSWORD_QUEUE_WAIT_MS,
-    onSaturated: (reason) =>
-      reportCurrentRequestQueueSaturation("scrypt", reason),
+    onSaturated: (reason) => reportCurrentRequestQueueSaturation("scrypt", reason),
   },
 );
 
@@ -50,27 +40,15 @@ export interface PasswordHasher {
   verify(input: { hash: string; password: string }): Promise<boolean>;
 }
 
-function derive(
-  password: string,
-  salt: Buffer,
-  n: number,
-  r: number,
-  p: number,
-): Promise<Buffer> {
+function derive(password: string, salt: Buffer, n: number, r: number, p: number): Promise<Buffer> {
   const signal = currentRequestAbortSignal();
   return scryptQueue.run(
     () =>
       new Promise((resolve, reject) => {
-        scryptCallback(
-          password,
-          salt,
-          KEY_BYTES,
-          { N: n, r, p, maxmem: 256 * 1024 * 1024 },
-          (error, key) => {
-            if (error) reject(error);
-            else resolve(key);
-          },
-        );
+        scryptCallback(password, salt, KEY_BYTES, { N: n, r, p, maxmem: 256 * 1024 * 1024 }, (error, key) => {
+          if (error) reject(error);
+          else resolve(key);
+        });
       }),
     signal,
   );
@@ -93,13 +71,7 @@ export function scryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
         const parsedN = Number(fields[1]);
         const r = Number(fields[2]);
         const p = Number(fields[3]);
-        if (
-          ![parsedN, r, p].every(Number.isSafeInteger) ||
-          parsedN < 2 ||
-          r < 1 ||
-          p < 1
-        )
-          return false;
+        if (![parsedN, r, p].every(Number.isSafeInteger) || parsedN < 2 || r < 1 || p < 1) return false;
         let salt: Buffer;
         let expected: Buffer;
         try {
@@ -127,20 +99,10 @@ export function scryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
       // password to NFKC before hashing. Compatibility is verify-only; every new/change/reset hash
       // uses the exact password bytes and the stronger versioned profile above.
       const legacy = hash.split(":");
-      if (
-        legacy.length !== 2 ||
-        !/^[0-9a-f]{32}$/i.test(legacy[0]) ||
-        !/^[0-9a-f]{128}$/i.test(legacy[1])
-      )
+      if (legacy.length !== 2 || !/^[0-9a-f]{32}$/i.test(legacy[0]) || !/^[0-9a-f]{128}$/i.test(legacy[1]))
         return false;
       const expected = Buffer.from(legacy[1], "hex");
-      const actual = await derive(
-        password.normalize("NFKC"),
-        Buffer.from(legacy[0], "utf8"),
-        2 ** 14,
-        16,
-        1,
-      );
+      const actual = await derive(password.normalize("NFKC"), Buffer.from(legacy[0], "utf8"), 2 ** 14, 16, 1);
       return timingSafeEqual(actual, expected);
     },
   };
@@ -167,9 +129,7 @@ async function boundedResponseText(response: Response): Promise<string> {
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > MAX_HIBP_RESPONSE_BYTES) {
     await response.body?.cancel();
-    throw new RangeError(
-      "Breached-password response exceeded the configured limit.",
-    );
+    throw new RangeError("Breached-password response exceeded the configured limit.");
   }
   if (!response.body) return "";
   const reader = response.body.getReader();
@@ -182,9 +142,7 @@ async function boundedResponseText(response: Response): Promise<string> {
     bytes += chunk.value.byteLength;
     if (bytes > MAX_HIBP_RESPONSE_BYTES) {
       await reader.cancel();
-      throw new RangeError(
-        "Breached-password response exceeded the configured limit.",
-      );
+      throw new RangeError("Breached-password response exceeded the configured limit.");
     }
     text += decoder.decode(chunk.value, { stream: true });
   }
@@ -196,11 +154,7 @@ export function assertNoContextSpecificPassword(
   contextWords: readonly string[] = PASSWORD_CONTEXT_WORDS,
 ): void {
   const lowered = password.toLocaleLowerCase("en-GB");
-  if (
-    contextWords.some((word) =>
-      lowered.includes(word.toLocaleLowerCase("en-GB")),
-    )
-  ) {
+  if (contextWords.some((word) => lowered.includes(word.toLocaleLowerCase("en-GB")))) {
     throw new PasswordPolicyError(
       "Choose a password that does not contain the product name or an administrative role.",
     );
@@ -211,14 +165,8 @@ export function assertNoContextSpecificPassword(
  * Pwned Passwords range lookup: only the first five SHA-1 characters leave the process (k-anonymity).
  * A failed lookup fails password creation closed; sign-in verification never calls the service.
  */
-export async function assertPasswordNotBreached(
-  password: string,
-  fetcher: typeof fetch = fetch,
-): Promise<void> {
-  const digest = createHash("sha1")
-    .update(password, "utf8")
-    .digest("hex")
-    .toUpperCase();
+export async function assertPasswordNotBreached(password: string, fetcher: typeof fetch = fetch): Promise<void> {
+  const digest = createHash("sha1").update(password, "utf8").digest("hex").toUpperCase();
   const prefix = digest.slice(0, 5);
   const suffix = digest.slice(5);
   let responseText: string;
@@ -226,21 +174,16 @@ export async function assertPasswordNotBreached(
     const requestSignal = currentRequestAbortSignal();
     responseText = await hibpQueue.run(async () => {
       const timeoutSignal = AbortSignal.timeout(5_000);
-      const response = await fetcher(
-        `https://api.pwnedpasswords.com/range/${prefix}`,
-        {
-          headers: {
-            "Add-Padding": "true",
-            "User-Agent": "CapacityLens password checker",
-          },
-          signal: requestSignal
-            ? AbortSignal.any([requestSignal, timeoutSignal])
-            : timeoutSignal,
-          // The destination is fixed. Do not let a compromised endpoint turn an HTTP redirect into
-          // an application-layer SSRF primitive; an unexpected redirect fails closed like an outage.
-          redirect: "error",
+      const response = await fetcher(`https://api.pwnedpasswords.com/range/${prefix}`, {
+        headers: {
+          "Add-Padding": "true",
+          "User-Agent": "CapacityLens password checker",
         },
-      );
+        signal: requestSignal ? AbortSignal.any([requestSignal, timeoutSignal]) : timeoutSignal,
+        // The destination is fixed. Do not let a compromised endpoint turn an HTTP redirect into
+        // an application-layer SSRF primitive; an unexpected redirect fails closed like an outage.
+        redirect: "error",
+      });
       if (!response.ok) {
         await response.body?.cancel();
         throw new PasswordPolicyDependencyError(
@@ -250,10 +193,9 @@ export async function assertPasswordNotBreached(
       try {
         return await boundedResponseText(response);
       } catch (cause) {
-        throw new PasswordPolicyDependencyError(
-          "The breached-password response was invalid; try again later.",
-          { cause },
-        );
+        throw new PasswordPolicyDependencyError("The breached-password response was invalid; try again later.", {
+          cause,
+        });
       }
     }, requestSignal);
   } catch (cause) {
@@ -263,11 +205,6 @@ export async function assertPasswordNotBreached(
       { cause },
     );
   }
-  const found = responseText
-    .split(/\r?\n/)
-    .some((line) => line.split(":", 1)[0]?.toUpperCase() === suffix);
-  if (found)
-    throw new PasswordPolicyError(
-      "This password appears in a known breach. Choose a different password.",
-    );
+  const found = responseText.split(/\r?\n/).some((line) => line.split(":", 1)[0]?.toUpperCase() === suffix);
+  if (found) throw new PasswordPolicyError("This password appears in a known breach. Choose a different password.");
 }

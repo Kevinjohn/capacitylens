@@ -28,9 +28,7 @@ describe("loadInternalTls", () => {
   });
 
   it("loads both files and pins the minimum protocol to TLS 1.2", () => {
-    const read = vi.fn((path: string) =>
-      Buffer.from(path.endsWith(".crt") ? "certificate" : "key"),
-    );
+    const read = vi.fn((path: string) => Buffer.from(path.endsWith(".crt") ? "certificate" : "key"));
     expect(
       loadInternalTls(
         {
@@ -87,18 +85,13 @@ describe("loadInternalTls", () => {
 
   it("reports ok, renewal-window and expired states at exact boundaries", () => {
     const now = Date.parse("2026-01-01T00:00:00.000Z");
-    const expiry = (seconds: number) =>
-      new Date(now + seconds * 1_000).toISOString();
+    const expiry = (seconds: number) => new Date(now + seconds * 1_000).toISOString();
 
-    expect(
-      internalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS + 1), now),
-    ).toMatchObject({
+    expect(internalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS + 1), now)).toMatchObject({
       status: "ok",
       daysRemaining: 31,
     });
-    expect(
-      internalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS), now),
-    ).toMatchObject({
+    expect(internalTlsHealth(expiry(INTERNAL_TLS_RENEW_BEFORE_SECONDS), now)).toMatchObject({
       status: "expiring",
       daysRemaining: 30,
     });
@@ -109,26 +102,18 @@ describe("loadInternalTls", () => {
   });
 
   it("uses the same renewal boundary as the certificate initializer", () => {
-    const script = readFileSync(
-      new URL("../../scripts/internal-tls.sh", import.meta.url),
-      "utf8",
-    );
+    const script = readFileSync(new URL("../../scripts/internal-tls.sh", import.meta.url), "utf8");
     expect(script).toContain(
       `RENEW_BEFORE_SECONDS=\${CAPACITYLENS_INTERNAL_TLS_RENEW_BEFORE_SECONDS:-${INTERNAL_TLS_RENEW_BEFORE_SECONDS}}`,
     );
   });
 
   it("repairs certificate permissions before accepting an existing valid set", () => {
-    const script = readFileSync(
-      new URL("../../scripts/internal-tls.sh", import.meta.url),
-      "utf8",
-    );
+    const script = readFileSync(new URL("../../scripts/internal-tls.sh", import.meta.url), "utf8");
     expect(script).toMatch(
       /if certificate_set_is_usable; then\s+repair_certificate_permissions\s+echo "capacitylens-internal-tls: existing certificate set is valid"/,
     );
     expect(script).toContain('chown 1000:1000 "$API_KEY" "$API_CERT"');
-    expect(script).toMatch(
-      /mv -f "\$WORK_DIR\/api\.crt" "\$API_CERT"\s+[^]*repair_certificate_permissions/,
-    );
+    expect(script).toMatch(/mv -f "\$WORK_DIR\/api\.crt" "\$API_CERT"\s+[^]*repair_certificate_permissions/);
   });
 });

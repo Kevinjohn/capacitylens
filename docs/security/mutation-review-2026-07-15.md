@@ -29,16 +29,16 @@ artifact rather than a committed assurance record; this document preserves the r
 
 ## Result
 
-| Metric | First post-fix baseline | Final reviewed run |
-|---|---:|---:|
-| Mutants | 2,988 | 2,988 |
-| Killed by assertions | 2,746 | 2,763 |
-| Timed out | 11 | 11 |
-| Survived | 192 | 177 |
-| No coverage | 39 | 37 |
-| Errors | 0 | 0 |
-| Total mutation score | 92.27% | **92.84%** |
-| Covered-code score | 93.49% | **94.00%** |
+| Metric               | First post-fix baseline | Final reviewed run |
+| -------------------- | ----------------------: | -----------------: |
+| Mutants              |                   2,988 |              2,988 |
+| Killed by assertions |                   2,746 |              2,763 |
+| Timed out            |                      11 |                 11 |
+| Survived             |                     192 |                177 |
+| No coverage          |                      39 |                 37 |
+| Errors               |                       0 |                  0 |
+| Total mutation score |                  92.27% |         **92.84%** |
+| Covered-code score   |                  93.49% |         **94.00%** |
 
 The final run improves the baseline by 17 assertion kills, 15 fewer survivors and two fewer
 uncovered mutants. The shared domain core scores 95.14%; `mutations.ts` scores 96.03% with no
@@ -48,18 +48,18 @@ points.
 
 ## Survivor triage
 
-| Area | Review outcome |
-|---|---|
-| `shared/src/domain/tenancy.ts` | 100% mutation score. The direct tenant predicates have no surviving or uncovered mutants. |
-| Access rank guards | Surviving guard mutants are behaviorally equivalent: JavaScript rank comparison with an unknown value already returns false. Exhaustive role/action oracles and untyped-boundary cases still prove fail-closed behavior. |
-| Allocation/reference validation | A real missing/cross-account project defect and inactive-reference assertion gaps were fixed. Missing, cross-account and archived parents now exercise fail-closed throw branches at both the specialized allocation validator and generic scoped write boundary. |
-| Private-name projection | Missing/non-string/empty code names now assert the neutral `"Confidential"` projection and prove the real name is absent; quote normalization asserts repeated smart/straight outer marks. |
-| Import and lifecycle repair | Adversarial privacy values, ordinary/built-in colour, blank/invalid timestamps and equal archive/delete boundaries are pinned. Remaining helper-condition survivors either converge on the same repaired output or guard an unreachable type-exhaustive default. |
-| Referential cascades | Tests now prove that surviving rows retain identity and receive the caller's revision when a foreign key is cleared. |
-| Date and working-day validation | Prefix/suffix date junk, duplicate/fractional/out-of-range weekdays and custom error-field routing are now explicit. |
-| API error parsing | Direct tests cover unreadable JSON, null, primitives, arrays, empty/non-string error values and valid server text. |
-| Scheduler/layout/timezone/tour helpers | Remaining survivors or uncovered mutants here are product-behavior/test-quality debt, not authorization or confidentiality controls. They remain visible in the HTML report and must not be described as security coverage. |
-| Timed-out mutants | Stryker counts these as detected, but they are weaker diagnostic evidence than an assertion kill. Reviewed timeouts are in date/layout/fuzzy/virtualization logic, outside the security boundary. |
+| Area                                   | Review outcome                                                                                                                                                                                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/src/domain/tenancy.ts`         | 100% mutation score. The direct tenant predicates have no surviving or uncovered mutants.                                                                                                                                                                         |
+| Access rank guards                     | Surviving guard mutants are behaviorally equivalent: JavaScript rank comparison with an unknown value already returns false. Exhaustive role/action oracles and untyped-boundary cases still prove fail-closed behavior.                                          |
+| Allocation/reference validation        | A real missing/cross-account project defect and inactive-reference assertion gaps were fixed. Missing, cross-account and archived parents now exercise fail-closed throw branches at both the specialized allocation validator and generic scoped write boundary. |
+| Private-name projection                | Missing/non-string/empty code names now assert the neutral `"Confidential"` projection and prove the real name is absent; quote normalization asserts repeated smart/straight outer marks.                                                                        |
+| Import and lifecycle repair            | Adversarial privacy values, ordinary/built-in colour, blank/invalid timestamps and equal archive/delete boundaries are pinned. Remaining helper-condition survivors either converge on the same repaired output or guard an unreachable type-exhaustive default.  |
+| Referential cascades                   | Tests now prove that surviving rows retain identity and receive the caller's revision when a foreign key is cleared.                                                                                                                                              |
+| Date and working-day validation        | Prefix/suffix date junk, duplicate/fractional/out-of-range weekdays and custom error-field routing are now explicit.                                                                                                                                              |
+| API error parsing                      | Direct tests cover unreadable JSON, null, primitives, arrays, empty/non-string error values and valid server text.                                                                                                                                                |
+| Scheduler/layout/timezone/tour helpers | Remaining survivors or uncovered mutants here are product-behavior/test-quality debt, not authorization or confidentiality controls. They remain visible in the HTML report and must not be described as security coverage.                                       |
+| Timed-out mutants                      | Stryker counts these as detected, but they are weaker diagnostic evidence than an assertion kill. Reviewed timeouts are in date/layout/fuzzy/virtualization logic, outside the security boundary.                                                                 |
 
 ## Acceptance and follow-up
 

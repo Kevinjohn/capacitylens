@@ -21,19 +21,9 @@ describe("createShutdownHandler", () => {
     );
     const listenError = new Error("EADDRINUSE");
 
-    await handleListenFailure(
-      listenError,
-      shutdown,
-      (error) => void order.push(`log ${(error as Error).message}`),
-    );
+    await handleListenFailure(listenError, shutdown, (error) => void order.push(`log ${(error as Error).message}`));
 
-    expect(order).toEqual([
-      "log EADDRINUSE",
-      "backups.stop",
-      "app.close",
-      "db.close",
-      "exit 1",
-    ]);
+    expect(order).toEqual(["log EADDRINUSE", "backups.stop", "app.close", "db.close", "exit 1"]);
   });
 
   it("closes the app (drain) before the db, then exits 0", async () => {
@@ -74,11 +64,7 @@ describe("createShutdownHandler", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = vi.fn();
     const dbClose = vi.fn();
-    const handler = createShutdownHandler(
-      { close: () => new Promise(() => {}) },
-      { close: dbClose },
-      exit,
-    );
+    const handler = createShutdownHandler({ close: () => new Promise(() => {}) }, { close: dbClose }, exit);
 
     void handler();
     await vi.advanceTimersByTimeAsync(DEFAULT_SHUTDOWN_DEADLINE_MS);
@@ -141,15 +127,9 @@ describe("createShutdownHandler", () => {
     let releaseBackground!: () => void;
     let releaseRequestDrain!: () => void;
     let reportBackgroundFinished!: () => void;
-    const backgroundHeld = new Promise<void>(
-      (resolve) => (releaseBackground = resolve),
-    );
-    const requestDrainHeld = new Promise<void>(
-      (resolve) => (releaseRequestDrain = resolve),
-    );
-    const backgroundFinished = new Promise<void>(
-      (resolve) => (reportBackgroundFinished = resolve),
-    );
+    const backgroundHeld = new Promise<void>((resolve) => (releaseBackground = resolve));
+    const requestDrainHeld = new Promise<void>((resolve) => (releaseRequestDrain = resolve));
+    const backgroundFinished = new Promise<void>((resolve) => (reportBackgroundFinished = resolve));
     const order: string[] = [];
     const handler = createShutdownHandler(
       {
@@ -174,11 +154,7 @@ describe("createShutdownHandler", () => {
 
     releaseBackground();
     await backgroundFinished;
-    expect(order).toEqual([
-      "backups.stop started",
-      "app.close started",
-      "backups.stop finished",
-    ]);
+    expect(order).toEqual(["backups.stop started", "app.close started", "backups.stop finished"]);
 
     releaseRequestDrain();
     await pending;
@@ -246,11 +222,7 @@ describe("createLastResortErrorHandler", () => {
     });
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = vi.fn();
-    const shutdown = createShutdownHandler(
-      { close: () => drain },
-      { close: vi.fn() },
-      exit,
-    );
+    const shutdown = createShutdownHandler({ close: () => drain }, { close: vi.fn() }, exit);
     const first = shutdown(0, "signal:SIGTERM");
     const lastResort = createLastResortErrorHandler(shutdown, vi.fn(), vi.fn());
 
@@ -270,29 +242,19 @@ describe("createLastResortErrorHandler", () => {
     const shutdown = vi.fn(async () => {});
     const securityLog = vi.fn();
     const logError = vi.fn();
-    const handler = createLastResortErrorHandler(
-      shutdown,
-      securityLog,
-      logError,
-    );
+    const handler = createLastResortErrorHandler(shutdown, securityLog, logError);
     const error = new Error("sensitive implementation detail");
 
     await handler("uncaught_exception", error);
 
-    expect(logError).toHaveBeenCalledWith(
-      "capacitylens-server: last-resort uncaught_exception",
-      error,
-    );
+    expect(logError).toHaveBeenCalledWith("capacitylens-server: last-resort uncaught_exception", error);
     expect(securityLog).toHaveBeenCalledWith({
       event: "process_failure",
       outcome: "failure",
       kind: "uncaught_exception",
     });
     expect(JSON.stringify(securityLog.mock.calls)).not.toContain(error.message);
-    expect(shutdown).toHaveBeenCalledWith(
-      1,
-      "process_failure:uncaught_exception",
-    );
+    expect(shutdown).toHaveBeenCalledWith(1, "process_failure:uncaught_exception");
   });
 
   it("still drains if security forwarding fails and normalizes a non-Error rejection", async () => {
@@ -301,20 +263,13 @@ describe("createLastResortErrorHandler", () => {
       throw new Error("collector unavailable");
     });
     const logError = vi.fn();
-    const handler = createLastResortErrorHandler(
-      shutdown,
-      securityLog,
-      logError,
-    );
+    const handler = createLastResortErrorHandler(shutdown, securityLog, logError);
 
     await handler("unhandled_rejection", "rejected value");
 
     expect(logError.mock.calls[0]?.[1]).toMatchObject({
       message: "Non-Error rejection: rejected value",
     });
-    expect(shutdown).toHaveBeenCalledWith(
-      1,
-      "process_failure:unhandled_rejection",
-    );
+    expect(shutdown).toHaveBeenCalledWith(1, "process_failure:unhandled_rejection");
   });
 });

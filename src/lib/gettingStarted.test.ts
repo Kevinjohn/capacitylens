@@ -39,10 +39,7 @@ describe("deriveGettingStartedSteps", () => {
 
   it("counts a real (non-builtin) client", () => {
     const data = dataWith({
-      clients: [
-        buildInternalClient("a1", NOW),
-        { ...FIXTURE_CLIENT, archivedAt: undefined, deletedAt: undefined },
-      ],
+      clients: [buildInternalClient("a1", NOW), { ...FIXTURE_CLIENT, archivedAt: undefined, deletedAt: undefined }],
     });
     expect(deriveGettingStartedSteps(data).client).toBe(true);
   });
@@ -50,22 +47,15 @@ describe("deriveGettingStartedSteps", () => {
   it("relies on the caller to remove deleted clients from its active projection", () => {
     // deriveGettingStartedSteps deliberately classifies only row kind/presence. Its production
     // caller passes useActiveScopedData(), so a tombstone never reaches this function there.
-    expect(
-      deriveGettingStartedSteps(dataWith({ clients: [FIXTURE_CLIENT] })).client,
-    ).toBe(true);
+    expect(deriveGettingStartedSteps(dataWith({ clients: [FIXTURE_CLIENT] })).client).toBe(true);
   });
 
   it.each([
     ["placeholder", FIXTURE_PLACEHOLDER],
     ["external", FIXTURE_RESOURCE_EXTERNAL],
-  ] as const)(
-    "does not count %s resources as the first person",
-    (_label, resource) => {
-      expect(
-        deriveGettingStartedSteps(dataWith({ resources: [resource] })).person,
-      ).toBe(false);
-    },
-  );
+  ] as const)("does not count %s resources as the first person", (_label, resource) => {
+    expect(deriveGettingStartedSteps(dataWith({ resources: [resource] })).person).toBe(false);
+  });
 
   it("ticks each remaining step off its own slice", () => {
     const person = {
@@ -90,9 +80,7 @@ describe("deriveGettingStartedSteps", () => {
 
 describe("allStepsDone", () => {
   it("is true only when every step is complete", () => {
-    expect(
-      allStepsDone({ client: true, project: true, person: true, assign: true }),
-    ).toBe(true);
+    expect(allStepsDone({ client: true, project: true, person: true, assign: true })).toBe(true);
   });
 
   it.each([

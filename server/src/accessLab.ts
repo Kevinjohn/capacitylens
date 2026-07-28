@@ -7,9 +7,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 
 export const ACCESS_LAB_ACCOUNT_ID = "a-studio";
 export const ACCESS_LAB_PASSWORD = "access-lab-password-2026";
-export const ACCESS_LAB_DB_PATH = fileURLToPath(
-  new URL("../.access-lab.db", import.meta.url),
-);
+export const ACCESS_LAB_DB_PATH = fileURLToPath(new URL("../.access-lab.db", import.meta.url));
 
 /** Resolve and verify the one database the destructive lab setup may initialise. */
 export function resolveAccessLabDbPath(
@@ -18,16 +16,12 @@ export function resolveAccessLabDbPath(
 ): string {
   const resolved = resolve(configuredPath ?? "");
   if (resolved !== ACCESS_LAB_DB_PATH) {
-    throw new Error(
-      `Access-lab setup refuses every database except ${ACCESS_LAB_DB_PATH}.`,
-    );
+    throw new Error(`Access-lab setup refuses every database except ${ACCESS_LAB_DB_PATH}.`);
   }
   // lstat inspects the directory entry rather than following it. A direct setup invocation must
   // never turn the pinned repository fixture name into a write-through link to another database.
   if (inspectPath(resolved, { throwIfNoEntry: false })?.isSymbolicLink()) {
-    throw new Error(
-      "Access-lab setup refuses a symbolic-link database fixture.",
-    );
+    throw new Error("Access-lab setup refuses a symbolic-link database fixture.");
   }
   return resolved;
 }
@@ -52,37 +46,17 @@ export function buildAccessLabData(): AppData {
   const source = seedForCurrentWeek();
   return {
     accounts: source.accounts.filter((row) => row.id === ACCESS_LAB_ACCOUNT_ID),
-    disciplines: source.disciplines.filter(
-      (row) => row.accountId === ACCESS_LAB_ACCOUNT_ID,
-    ),
-    resources: source.resources.filter(
-      (row) => row.accountId === ACCESS_LAB_ACCOUNT_ID,
-    ),
+    disciplines: source.disciplines.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
+    resources: source.resources.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
     clients: source.clients
       .filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID)
-      .map((row) =>
-        row.id === "c-acme"
-          ? { ...row, isPrivate: true, codeName: "Northstar" }
-          : row,
-      ),
+      .map((row) => (row.id === "c-acme" ? { ...row, isPrivate: true, codeName: "Northstar" } : row)),
     projects: source.projects
       .filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID)
-      .map((row) =>
-        row.id === "p-acme"
-          ? { ...row, isPrivate: true, codeName: "Aurora" }
-          : row,
-      ),
-    phases: source.phases.filter(
-      (row) => row.accountId === ACCESS_LAB_ACCOUNT_ID,
-    ),
-    activities: source.activities.filter(
-      (row) => row.accountId === ACCESS_LAB_ACCOUNT_ID,
-    ),
-    allocations: source.allocations.filter(
-      (row) => row.accountId === ACCESS_LAB_ACCOUNT_ID,
-    ),
-    timeOff: source.timeOff.filter(
-      (row) => row.accountId === ACCESS_LAB_ACCOUNT_ID,
-    ),
+      .map((row) => (row.id === "p-acme" ? { ...row, isPrivate: true, codeName: "Aurora" } : row)),
+    phases: source.phases.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
+    activities: source.activities.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
+    allocations: source.allocations.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
+    timeOff: source.timeOff.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
   };
 }

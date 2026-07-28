@@ -1,4 +1,4 @@
-import type { LaneLayout } from '../../lib/lanePacking'
+import type { LaneLayout } from "../../lib/lanePacking";
 
 // Fixed pixel geometry for the scheduler. dayWidth is dynamic (zoom) and lives in
 // the store; everything here is constant.
@@ -19,10 +19,10 @@ export const LAYOUT = {
   // user bumps their font size — instead of clipping the weekday labels.
   headerHeight: 44,
   groupHeaderHeight: 30,
-}
+};
 
 export const laneLayout: LaneLayout = {
   barHeight: LAYOUT.barHeight,
   laneGap: LAYOUT.laneGap,
   rowPadding: LAYOUT.rowPadding,
-}
+};

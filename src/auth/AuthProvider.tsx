@@ -1,12 +1,4 @@
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { isServerConfigured } from "../data/apiConfig";
 import {
@@ -24,22 +16,11 @@ import {
   type AuthUser,
 } from "./authContext";
 import { validateAuthUser } from "./validateAuthUser";
-import {
-  reauthPending,
-  resolveReauth,
-  subscribeReauth,
-} from "./reauthCoordinator";
-import {
-  clearExternalSignInError,
-  hasExternalSignInError,
-} from "./externalSignInError";
+import { reauthPending, resolveReauth, subscribeReauth } from "./reauthCoordinator";
+import { clearExternalSignInError, hasExternalSignInError } from "./externalSignInError";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
-import {
-  cacheAuthSnapshot,
-  readCachedAuthSnapshot,
-  setOfflineReadState,
-} from "../data/offlineCache";
+import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "../data/offlineCache";
 import { isTransportFailure } from "../data/requestTimeout";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { signOutAndReload } from "./signOut";
@@ -51,9 +32,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 // exactly as today; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
 
-const LoginScreen = lazy(() =>
-  import("./LoginScreen").then((m) => ({ default: m.LoginScreen })),
-);
+const LoginScreen = lazy(() => import("./LoginScreen").then((m) => ({ default: m.LoginScreen })));
 const MfaEnrollmentScreen = lazy(() =>
   import("./MfaEnrollmentScreen").then((m) => ({
     default: m.MfaEnrollmentScreen,
@@ -62,9 +41,7 @@ const MfaEnrollmentScreen = lazy(() =>
 // Lazy so Better Auth's client (pulled in by ReauthDialog) never enters the main bundle — the same
 // discipline as LoginScreen. The step-up dialog only exists in an auth-on session that hits a
 // SESSION_NOT_FRESH 403 (DEFECT B).
-const ReauthDialog = lazy(() =>
-  import("./ReauthDialog").then((m) => ({ default: m.ReauthDialog })),
-);
+const ReauthDialog = lazy(() => import("./ReauthDialog").then((m) => ({ default: m.ReauthDialog })));
 
 type Status =
   | { kind: "checking" }
@@ -123,9 +100,7 @@ function isAuthProvider(v: unknown): v is AuthProviderInfo {
     provider.id.length > 0 &&
     typeof provider.label === "string" &&
     provider.label.length > 0 &&
-    (provider.kind === "oidc" ||
-      (provider.kind === "social" &&
-        isSupportedSocialProviderId(provider.id))) &&
+    (provider.kind === "oidc" || (provider.kind === "social" && isSupportedSocialProviderId(provider.id))) &&
     typeof provider.experimental === "boolean"
   );
 }
@@ -138,35 +113,21 @@ function providersFrom(v: unknown): AuthProviderInfo[] {
       providers.push(candidate);
       continue;
     }
-    const record =
-      candidate && typeof candidate === "object"
-        ? (candidate as Record<string, unknown>)
-        : null;
+    const record = candidate && typeof candidate === "object" ? (candidate as Record<string, unknown>) : null;
     const candidateId = record?.id;
     const summary = record
       ? {
-          id:
-            typeof candidateId === "string"
-              ? candidateId.slice(0, 128)
-              : "[invalid]",
-          kind:
-            typeof record.kind === "string"
-              ? record.kind.slice(0, 32)
-              : typeof record.kind,
+          id: typeof candidateId === "string" ? candidateId.slice(0, 128) : "[invalid]",
+          kind: typeof record.kind === "string" ? record.kind.slice(0, 32) : typeof record.kind,
         }
       : { id: "[invalid]", kind: typeof candidate };
-    console.warn(
-      "AuthProvider: dropped an unsupported or malformed /api/auth/me provider",
-      summary,
-    );
+    console.warn("AuthProvider: dropped an unsupported or malformed /api/auth/me provider", summary);
   }
   const identities = new Set<string>();
   for (const provider of providers) {
     const identity = `${provider.kind}:${provider.id}`;
     if (identities.has(identity)) {
-      console.warn(
-        "AuthProvider: /api/auth/me returned duplicate provider identities; ignoring the provider list",
-      );
+      console.warn("AuthProvider: /api/auth/me returned duplicate provider identities; ignoring the provider list");
       return [];
     }
     identities.add(identity);
@@ -185,9 +146,7 @@ function boolFieldOr(v: unknown, fallback: boolean): boolean {
  *  and transport/status/shape failures map to an explicit error. Boot must never reinterpret a
  *  broken authentication service as auth-off; mid-session callers may retain their last snapshot.
  *  Module-scope so the component's effects only subscribe to its result. */
-async function fetchAuthStatus(
-  acceptEffects: () => boolean,
-): Promise<Status | null> {
+async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | null> {
   try {
     const res = await accountClient.me();
     if (res.status === 401) {
@@ -210,8 +169,7 @@ async function fetchAuthStatus(
       // Only an explicit 'sso' selects the SSO form; anything else (missing, junk, or 'password')
       // falls back to the password sign-in form — the safe default that always offers a way in.
       const rawAuthMode = loginBody?.authMode;
-      const authMode: "password" | "sso" =
-        rawAuthMode === "sso" ? "sso" : "password";
+      const authMode: "password" | "sso" = rawAuthMode === "sso" ? "sso" : "password";
       // DEGRADED (distinct from the ordinary "old server omits providers" compatibility case
       // above): the body couldn't be trusted at ALL — non-JSON/HTML/empty (loginBody null), or a
       // junk authMode value that isn't even a recognizable 'password'/'sso' (rather than simply
@@ -220,10 +178,7 @@ async function fetchAuthStatus(
       // an SSO-only instance behind a broken proxy doesn't look like a silently misconfigured
       // password-only one. An absent authMode (a well-formed but older body) is NOT degraded.
       const degraded =
-        loginBody === null ||
-        (rawAuthMode !== undefined &&
-          rawAuthMode !== "password" &&
-          rawAuthMode !== "sso");
+        loginBody === null || (rawAuthMode !== undefined && rawAuthMode !== "password" && rawAuthMode !== "sso");
       if (acceptEffects()) setOfflineReadState(false);
       return {
         kind: "login",
@@ -245,10 +200,7 @@ async function fetchAuthStatus(
       const body: unknown = await res.json();
       const rawMode = (body as { authMode?: unknown } | null)?.authMode;
       if (!isAuthMode(rawMode)) {
-        console.warn(
-          "AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned",
-          body,
-        );
+        console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned", body);
         return { kind: "error", message: m.auth_service_invalid_response() };
       }
       const rawUser = (body as { user?: unknown } | null)?.user;
@@ -257,30 +209,17 @@ async function fetchAuthStatus(
       // Auth-off retains the deliberately smaller demo-user compatibility shape.
       const user = validateAuthUser(rawUser, rawMode !== "off");
       if (rawMode !== "off" && !user) {
-        console.warn(
-          "AuthProvider: /api/auth/me returned auth-on without a valid user",
-          body,
-        );
+        console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", body);
         return { kind: "error", message: m.auth_service_invalid_response() };
       }
       // Company-creation capability: the server computes both fields (canCreateAccount mirrors the
       // POST /api/orgs gate — the instance cap AND the caller's owner/admin standing), fail-open to
       // `true` when absent (an older server, or a response shape we don't recognise) — see
       // boolFieldOr and AuthContextValue.canCreateAccount.
-      const canCreateAccount = boolFieldOr(
-        (body as { canCreateAccount?: unknown } | null)?.canCreateAccount,
-        true,
-      );
-      const multiAccount = boolFieldOr(
-        (body as { multiAccount?: unknown } | null)?.multiAccount,
-        true,
-      );
+      const canCreateAccount = boolFieldOr((body as { canCreateAccount?: unknown } | null)?.canCreateAccount, true);
+      const multiAccount = boolFieldOr((body as { multiAccount?: unknown } | null)?.multiAccount, true);
       const mfaRequired =
-        rawMode === "password" &&
-        boolFieldOr(
-          (body as { mfaRequired?: unknown } | null)?.mfaRequired,
-          false,
-        );
+        rawMode === "password" && boolFieldOr((body as { mfaRequired?: unknown } | null)?.mfaRequired, false);
       const next: Status = {
         kind: "pass",
         authMode: rawMode,
@@ -291,27 +230,19 @@ async function fetchAuthStatus(
         // The authenticated /me also advertises the configured SSO providers (server app.ts). We
         // carry them so the SESSION_NOT_FRESH step-up dialog can offer the SAME provider re-auth
         // route the login screen uses (DEFECT B). Off-spec entries are dropped (providersFrom).
-        providers: providersFrom(
-          (body as { providers?: unknown } | null)?.providers,
-        ),
+        providers: providersFrom((body as { providers?: unknown } | null)?.providers),
       };
       // A live identity check does not prove the currently rendered tenant slice is live. Preserve
       // its offline/read-only marker until ServerSyncAdapter successfully reloads that slice; only
       // a boot/picker with no active slice can be marked online from identity state alone.
-      if (acceptEffects() && useStore.getState().activeAccountId === null)
-        setOfflineReadState(false);
+      if (acceptEffects() && useStore.getState().activeAccountId === null) setOfflineReadState(false);
       if (next.user && acceptEffects()) {
         void cacheAuthSnapshot({
           authMode: next.authMode,
           user: next.user,
           canCreateAccount: next.canCreateAccount,
           multiAccount: next.multiAccount,
-        }).catch((error) =>
-          console.warn(
-            "AuthProvider: the offline identity snapshot could not be updated",
-            error,
-          ),
-        );
+        }).catch((error) => console.warn("AuthProvider: the offline identity snapshot could not be updated", error));
       }
       return next;
     }
@@ -342,18 +273,13 @@ async function fetchAuthStatus(
           };
         }
       } catch (cacheError) {
-        console.warn(
-          "AuthProvider: the offline identity snapshot could not be read",
-          cacheError,
-        );
+        console.warn("AuthProvider: the offline identity snapshot could not be read", cacheError);
       }
     }
     console.warn("AuthProvider: /api/auth/me check failed", err);
     return {
       kind: "error",
-      message: transportFailure
-        ? m.auth_service_unreachable()
-        : m.auth_service_invalid_response(),
+      message: transportFailure ? m.auth_service_unreachable() : m.auth_service_invalid_response(),
     };
   }
 }
@@ -378,21 +304,13 @@ function ReauthMount({
   useEffect(() => () => resolveReauth(false), []);
   if (!pending) return null;
   return (
-    <Suspense
-      fallback={<AuthLoading message={m.auth_loading_confirmation()} overlay />}
-    >
+    <Suspense fallback={<AuthLoading message={m.auth_loading_confirmation()} overlay />}>
       <ReauthDialog authMode={authMode} user={user} providers={providers} />
     </Suspense>
   );
 }
 
-function AuthLoading({
-  message,
-  overlay = false,
-}: {
-  message: string;
-  overlay?: boolean;
-}) {
+function AuthLoading({ message, overlay = false }: { message: string; overlay?: boolean }) {
   const status = (
     <p
       role="status"
@@ -403,13 +321,9 @@ function AuthLoading({
     </p>
   );
   return overlay ? (
-    <div className="fixed inset-0 z-(--z-index-modal) flex items-center justify-center bg-black/40 p-6">
-      {status}
-    </div>
+    <div className="fixed inset-0 z-(--z-index-modal) flex items-center justify-center bg-black/40 p-6">{status}</div>
   ) : (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      {status}
-    </main>
+    <main className="flex min-h-screen items-center justify-center p-6">{status}</main>
   );
 }
 
@@ -422,11 +336,7 @@ function AuthenticatedExternalSignInFailure() {
 
   useEffect(() => {
     if (!failed) return;
-    window.history.replaceState(
-      window.history.state,
-      "",
-      clearExternalSignInError(window.location.href),
-    );
+    window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
     setNotice(m.login_sso_failed(), "error");
   }, [failed, setNotice]);
 
@@ -466,9 +376,7 @@ export function AuthProvider({
   const persistError = useStore((s) => s.persistError);
   const tenantAccessSignalled = useRef(false);
 
-  const tenantAccessReady =
-    status.kind === "pass" &&
-    !(status.authMode === "password" && status.mfaRequired);
+  const tenantAccessReady = status.kind === "pass" && !(status.authMode === "password" && status.mfaRequired);
   useEffect(() => {
     if (!tenantAccessReady) {
       tenantAccessSignalled.current = false;
@@ -493,38 +401,28 @@ export function AuthProvider({
    *    render the auth error boundary and are never converted to auth-off.
    *  - 'keep-previous' (every mid-session re-check): keep the current snapshot with a warn
    *    breadcrumb — stale beats resetting a live session's user/authMode to 'off'. */
-  const checkAuth = useCallback(
-    (onNull: "fail-open" | "keep-previous"): Promise<void> => {
-      const requestId = ++authRequestSeq.current;
-      // .then (not await) so setStatus runs in a plain callback — the same shape as subscribing to
-      // an external system, which is what this is (react-hooks/set-state-in-effect is happy with it).
-      return fetchAuthStatus(() => requestId === authRequestSeq.current).then(
-        (next) => {
-          if (requestId !== authRequestSeq.current) return; // superseded by a newer check — drop, don't clobber
-          if (
-            next === null ||
-            (next.kind === "error" && onNull === "keep-previous")
-          ) {
-            if (onNull === "fail-open") {
-              setStatus(passOpen("off", null));
-            } else {
-              console.warn(
-                "AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot",
-              );
-            }
-            return;
-          }
-          if (next.kind === "login") {
-            clearStoredAccountCommands();
-          } else if (next.kind === "pass") {
-            bindStoredAccountCommandsToIdentity(next.user?.id ?? "auth-off");
-          }
-          setStatus(next);
-        },
-      );
-    },
-    [],
-  );
+  const checkAuth = useCallback((onNull: "fail-open" | "keep-previous"): Promise<void> => {
+    const requestId = ++authRequestSeq.current;
+    // .then (not await) so setStatus runs in a plain callback — the same shape as subscribing to
+    // an external system, which is what this is (react-hooks/set-state-in-effect is happy with it).
+    return fetchAuthStatus(() => requestId === authRequestSeq.current).then((next) => {
+      if (requestId !== authRequestSeq.current) return; // superseded by a newer check — drop, don't clobber
+      if (next === null || (next.kind === "error" && onNull === "keep-previous")) {
+        if (onNull === "fail-open") {
+          setStatus(passOpen("off", null));
+        } else {
+          console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
+        }
+        return;
+      }
+      if (next.kind === "login") {
+        clearStoredAccountCommands();
+      } else if (next.kind === "pass") {
+        bindStoredAccountCommandsToIdentity(next.user?.id ?? "auth-off");
+      }
+      setStatus(next);
+    });
+  }, []);
 
   useEffect(() => {
     if (!serverMode) return; // demo build: no auth request, ever
@@ -569,15 +467,12 @@ export function AuthProvider({
   }, []);
   const publicEntry = publicAuthEntryForPath(window.location.pathname);
 
-  if (status.kind === "checking")
-    return <AuthLoading message={m.auth_checking_session()} />;
+  if (status.kind === "checking") return <AuthLoading message={m.auth_checking_session()} />;
   if (status.kind === "error") {
     return (
       <main className="flex min-h-screen items-center justify-center p-6">
         <div className="max-w-md text-center">
-          <h1 className="text-xl font-semibold">
-            {m.auth_verify_session_failed()}
-          </h1>
+          <h1 className="text-xl font-semibold">{m.auth_verify_session_failed()}</h1>
           <p role="alert" className="mt-2 text-muted-foreground">
             {status.message}
           </p>
@@ -680,11 +575,7 @@ export function AuthProvider({
           security-sensitive action hits a SESSION_NOT_FRESH 403. Auth-on only — 'off' never 403s
           on freshness, so it needs no step-up UI (and this keeps the off/demo path unchanged). */}
       {status.authMode !== "off" && (
-        <ReauthMount
-          authMode={status.authMode}
-          user={status.user}
-          providers={status.providers}
-        />
+        <ReauthMount authMode={status.authMode} user={status.user} providers={status.providers} />
       )}
     </AuthContext.Provider>
   );

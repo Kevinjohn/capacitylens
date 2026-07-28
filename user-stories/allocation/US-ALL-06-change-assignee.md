@@ -3,18 +3,23 @@
 **Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "reassigns an allocation to another resource via the dialog"
 
 ## Goal
+
 Reassign an existing allocation to a different resource from the edit dialog, moving its bar to that resource's row.
 
 ## Why
+
 Work gets handed over — someone goes on leave, a freelancer takes an activity, or a placeholder is filled by a real hire. The manager needs to reassign a booking without recreating it, preserving its dates, hours, status and note.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a *Brand System* bar on the **Pam Gonzalez** row.
-1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = *Pam Gonzalez*.
-2. Change **Assignee** to *Nike Spiros*.
+
+**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a _Brand System_ bar on the **Pam Gonzalez** row.
+
+1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = _Pam Gonzalez_.
+2. Change **Assignee** to _Nike Spiros_.
 3. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
+
 - ✅ After Save, the **Brand System** bar no longer appears on the **Pam Gonzalez** row and now appears on the **Nike Spiros** row (`data-resource-id="r-nike"`).
 - ✅ The bar keeps its activity, dates, hours/day, status and note — only the resource changed.
 - ✅ Pressing **⌘Z** moves the bar back to **Pam Gonzalez**.

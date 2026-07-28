@@ -1,12 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MembersSection } from "./MembersSection";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
@@ -49,10 +42,7 @@ interface RawMember {
 function mockFetch(members: RawMember[] | { status: number }) {
   return vi.fn(async (url: string, init?: RequestInit) => {
     const u = String(url);
-    if (
-      u.endsWith("/members") &&
-      (!init || init.method === undefined || init.method === "GET")
-    ) {
+    if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
       if ("status" in members) {
         return {
           ok: false,
@@ -77,23 +67,15 @@ function mockFetch(members: RawMember[] | { status: number }) {
         }),
       } as unknown as Response;
     }
-    if (
-      u.endsWith("/invites") &&
-      (!init || init.method === undefined || init.method === "GET")
-    ) {
+    if (u.endsWith("/invites") && (!init || init.method === undefined || init.method === "GET")) {
       return {
         ok: true,
         status: 200,
         json: async () => ({ invites: [] }),
       } as unknown as Response;
     }
-    if (
-      u.endsWith("/api/accounts") &&
-      (!init || init.method === undefined || init.method === "GET")
-    ) {
-      const self = Array.isArray(members)
-        ? members.find((member) => member.isSelf)
-        : null;
+    if (u.endsWith("/api/accounts") && (!init || init.method === undefined || init.method === "GET")) {
+      const self = Array.isArray(members) ? members.find((member) => member.isSelf) : null;
       return {
         ok: true,
         status: 200,
@@ -148,47 +130,44 @@ describe("MembersSection — self-gate", () => {
   it("hides the previous account directory while the next account is authorizing", async () => {
     const nextAccountId = "acc_second";
     let resolveNextMembers: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn(
-      async (url: string, init?: RequestInit): Promise<Response> => {
-        const target = String(url);
-        const isRead =
-          !init || init.method === undefined || init.method === "GET";
-        if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              members: [
-                {
-                  userId: "first-owner",
-                  role: "owner",
-                  status: "active",
-                  createdAt: "2026-01-01T00:00:00.000Z",
-                  name: null,
-                  email: "first@example.test",
-                  isSelf: true,
-                  mayResetPassword: false,
-                  mayRevokeSessions: false,
-                },
-              ],
-            }),
-          } as Response;
-        }
-        if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
-          return await new Promise<Response>((resolve) => {
-            resolveNextMembers = resolve;
-          });
-        }
-        if (target.endsWith("/invites") && isRead) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ invites: [] }),
-          } as Response;
-        }
-        throw new Error(`Unexpected request: ${target}`);
-      },
-    );
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url);
+      const isRead = !init || init.method === undefined || init.method === "GET";
+      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [
+              {
+                userId: "first-owner",
+                role: "owner",
+                status: "active",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                name: null,
+                email: "first@example.test",
+                isSelf: true,
+                mayResetPassword: false,
+                mayRevokeSessions: false,
+              },
+            ],
+          }),
+        } as Response;
+      }
+      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+        return await new Promise<Response>((resolve) => {
+          resolveNextMembers = resolve;
+        });
+      }
+      if (target.endsWith("/invites") && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ invites: [] }),
+        } as Response;
+      }
+      throw new Error(`Unexpected request: ${target}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     expect(await screen.findByText("first@example.test")).toBeInTheDocument();
@@ -221,9 +200,7 @@ describe("MembersSection — self-gate", () => {
   });
 
   it("defers privileged directory reads while offline and refreshes them on recovery", async () => {
-    const fetchMock = mockFetch([
-      { userId: "me", role: "owner", isSelf: true },
-    ]);
+    const fetchMock = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
     vi.stubGlobal("fetch", fetchMock);
     setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
     renderSection();
@@ -244,14 +221,8 @@ describe("MembersSection — self-gate", () => {
     vi.stubGlobal("fetch", mockFetch({ status: 403 }));
     const { container } = renderSection();
     // Give the effect a tick to resolve the 403, then assert nothing rendered.
-    await waitFor(() =>
-      expect(
-        container.querySelector('[data-testid="members-section"]'),
-      ).toBeNull(),
-    );
-    expect(
-      screen.queryByRole("heading", { name: "Members" }),
-    ).not.toBeInTheDocument();
+    await waitFor(() => expect(container.querySelector('[data-testid="members-section"]')).toBeNull());
+    expect(screen.queryByRole("heading", { name: "Members" })).not.toBeInTheDocument();
   });
 
   it("surfaces and retries a 403 after the directory was already authorized", async () => {
@@ -279,9 +250,7 @@ describe("MembersSection — self-gate", () => {
     expect(await screen.findByTestId("member-row")).toHaveTextContent("me@x.io");
     await user.click(screen.getByTestId("invite-submit"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      m.settings_members_err_access_changed(),
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_access_changed());
     expect(screen.queryByTestId("member-row")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
@@ -322,9 +291,7 @@ describe("MembersSection — self-gate", () => {
     );
     renderSection();
 
-    expect(
-      await screen.findByText(/invalid members response/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/invalid members response/i)).toBeInTheDocument();
     expect(screen.queryByTestId("member-row")).not.toBeInTheDocument();
   });
 
@@ -334,8 +301,7 @@ describe("MembersSection — self-gate", () => {
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         const target = String(url);
-        const isRead =
-          !init || init.method === undefined || init.method === "GET";
+        const isRead = !init || init.method === undefined || init.method === "GET";
         if (target.endsWith("/invites") && isRead) {
           return { ok: false, status: 503, json: async () => ({}) } as Response;
         }
@@ -345,12 +311,8 @@ describe("MembersSection — self-gate", () => {
     renderSection();
 
     expect(await screen.findByText("me@x.io")).toBeInTheDocument();
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Could not load invites (503).",
-    );
-    expect(
-      screen.queryByText("Could not load members (503)."),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not load invites (503).");
+    expect(screen.queryByText("Could not load members (503).")).not.toBeInTheDocument();
   });
 });
 
@@ -369,9 +331,7 @@ describe("MembersSection — admin affordances", () => {
     fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Admin" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Editor" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("option", { name: "Owner" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
   });
 
   it("marks and describes an invalid invitation pre-authorisation email", async () => {
@@ -399,14 +359,10 @@ describe("MembersSection — admin affordances", () => {
     expect(ownerRow).toBeTruthy();
     // No role <select> and no Remove button on the owner row for an admin.
     expect(within(ownerRow).queryByRole("combobox")).not.toBeInTheDocument();
-    expect(
-      within(ownerRow).queryByTestId("member-remove"),
-    ).not.toBeInTheDocument();
+    expect(within(ownerRow).queryByTestId("member-remove")).not.toBeInTheDocument();
 
     // The editor row, by contrast, IS manageable by the admin.
-    const editorRow = rows.find((r) =>
-      within(r).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
     expect(within(editorRow).getByRole("combobox")).toBeInTheDocument();
     expect(within(editorRow).getByTestId("member-remove")).toBeInTheDocument();
   });
@@ -423,9 +379,7 @@ describe("MembersSection — admin affordances", () => {
     await user.click(within(editorRow).getByTestId("member-remove"));
 
     const dialog = screen.getByRole("alertdialog");
-    expect(
-      within(dialog).getByText(/theeditor@x\.io will immediately lose access/),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByText(/theeditor@x\.io will immediately lose access/)).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/members/theeditor"),
       expect.objectContaining({ method: "DELETE" }),
@@ -440,55 +394,39 @@ describe("MembersSection — admin affordances", () => {
   });
 
   it.each([
-    [
-      "member-reset-password",
-      /revoke any existing reset link for theeditor@x\.io/i,
-    ],
+    ["member-reset-password", /revoke any existing reset link for theeditor@x\.io/i],
     ["member-revoke-sessions", /sign theeditor@x\.io out of every active/i],
-  ])(
-    "waits for confirmation before dispatching %s",
-    async (testId, consequence) => {
-      const user = userEvent.setup();
-      const actionableMembers = members.map((member) =>
-        member.userId === "theeditor"
-          ? { ...member, mayResetPassword: true, mayRevokeSessions: true }
-          : member,
-      );
-      const fetchMock = mockFetch(actionableMembers);
-      vi.stubGlobal("fetch", fetchMock);
-      renderSection();
-      const editorRow = (await screen.findAllByTestId("member-row")).find(
-        (row) => within(row).queryByText(/theeditor@x\.io/),
-      )!;
+  ])("waits for confirmation before dispatching %s", async (testId, consequence) => {
+    const user = userEvent.setup();
+    const actionableMembers = members.map((member) =>
+      member.userId === "theeditor" ? { ...member, mayResetPassword: true, mayRevokeSessions: true } : member,
+    );
+    const fetchMock = mockFetch(actionableMembers);
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
+      within(row).queryByText(/theeditor@x\.io/),
+    )!;
 
-      await user.click(within(editorRow).getByTestId(testId));
+    await user.click(within(editorRow).getByTestId(testId));
 
-      const dialog = screen.getByRole("alertdialog");
-      expect(within(dialog).getByText(consequence)).toBeInTheDocument();
-      expect(
-        fetchMock.mock.calls.filter(
-          ([, init]) => init?.method && init.method !== "GET",
-        ),
-      ).toEqual([]);
-      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    },
-  );
+    const dialog = screen.getByRole("alertdialog");
+    expect(within(dialog).getByText(consequence)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET")).toEqual([]);
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  });
 
   it("uses the message catalogue for session revocation controls and success notices", async () => {
     const user = userEvent.setup();
     const actionableMembers = members.map((member) =>
-      member.userId === "theeditor"
-        ? { ...member, mayRevokeSessions: true }
-        : member,
+      member.userId === "theeditor" ? { ...member, mayRevokeSessions: true } : member,
     );
     vi.stubGlobal("fetch", mockFetch(actionableMembers));
     renderSection();
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
       within(row).queryByText(/theeditor@x\.io/),
     )!;
-    const revokeButton = within(editorRow).getByTestId(
-      "member-revoke-sessions",
-    );
+    const revokeButton = within(editorRow).getByTestId("member-revoke-sessions");
 
     expect(revokeButton).toHaveTextContent(m.settings_member_revoke_sessions());
     await user.click(revokeButton);
@@ -498,28 +436,19 @@ describe("MembersSection — admin affordances", () => {
       }),
     );
 
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toBe(
-        m.settings_members_sessions_revoked(),
-      ),
-    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe(m.settings_members_sessions_revoked()));
   });
 
   it("uses the message catalogue for the generic session revocation failure", async () => {
     const user = userEvent.setup();
     const actionableMembers = members.map((member) =>
-      member.userId === "theeditor"
-        ? { ...member, mayRevokeSessions: true }
-        : member,
+      member.userId === "theeditor" ? { ...member, mayRevokeSessions: true } : member,
     );
     const reads = mockFetch(actionableMembers);
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (
-          String(url).endsWith("/members/theeditor/revoke-sessions") &&
-          init?.method === "POST"
-        ) {
+        if (String(url).endsWith("/members/theeditor/revoke-sessions") && init?.method === "POST") {
           return { ok: false, status: 400, json: async () => ({}) } as Response;
         }
         return reads(url, init);
@@ -537,9 +466,7 @@ describe("MembersSection — admin affordances", () => {
       }),
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      m.settings_members_err_revoke_sessions({ status: 400 }),
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_revoke_sessions({ status: 400 }));
   });
 
   it("spells out access and reload consequences for self-targeted actions", async () => {
@@ -550,16 +477,10 @@ describe("MembersSection — admin affordances", () => {
     ];
     vi.stubGlobal("fetch", mockFetch(selfMembers));
     renderSection();
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/me@x\.io/),
-    )!;
+    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
 
     await user.click(within(selfRow).getByTestId("member-remove"));
-    expect(
-      within(screen.getByRole("alertdialog")).getByText(
-        /return to the company picker/i,
-      ),
-    ).toBeInTheDocument();
+    expect(within(screen.getByRole("alertdialog")).getByText(/return to the company picker/i)).toBeInTheDocument();
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Cancel",
@@ -567,11 +488,7 @@ describe("MembersSection — admin affordances", () => {
     );
 
     await user.click(within(selfRow).getByTestId("member-revoke-sessions"));
-    expect(
-      within(screen.getByRole("alertdialog")).getByText(
-        /this browser.*reload into sign-in/i,
-      ),
-    ).toBeInTheDocument();
+    expect(within(screen.getByRole("alertdialog")).getByText(/this browser.*reload into sign-in/i)).toBeInTheDocument();
   });
 
   it("explains and confirms a role change before sending it", async () => {
@@ -581,29 +498,18 @@ describe("MembersSection — admin affordances", () => {
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection();
     const rows = await screen.findAllByTestId("member-row");
-    const editorRow = rows.find((r) =>
-      within(r).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
 
     fireEvent.keyDown(within(editorRow).getByRole("combobox"), {
       key: "ArrowDown",
     });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
     const dialog = screen.getByRole("alertdialog");
-    expect(
-      within(dialog).getByText(/theeditor@x\.io will become Viewer/),
-    ).toBeInTheDocument();
-    expect(
-      within(dialog).getByText(/Read-only schedule access/),
-    ).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining("/members/theeditor"),
-      expect.anything(),
-    );
+    expect(within(dialog).getByText(/theeditor@x\.io will become Viewer/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Read-only schedule access/)).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/members/theeditor"), expect.anything());
 
-    await user.click(
-      within(dialog).getByRole("button", { name: "Change role" }),
-    );
+    await user.click(within(dialog).getByRole("button", { name: "Change role" }));
     expect(fetchMock).toHaveBeenCalledWith(
       `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
       expect.objectContaining({
@@ -621,12 +527,15 @@ describe("MembersSection — admin affordances", () => {
     const patchResponse = new Promise<Response>((resolve) => {
       releasePatch = () => resolve(new Response(null, { status: 204 }));
     });
-    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).endsWith("/members/theeditor") && init?.method === "PATCH") {
-        return patchResponse;
-      }
-      return fallback(url, init);
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (String(url).endsWith("/members/theeditor") && init?.method === "PATCH") {
+          return patchResponse;
+        }
+        return fallback(url, init);
+      }),
+    );
     renderSection();
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
       within(row).queryByText(/theeditor@x\.io/),
@@ -636,15 +545,11 @@ describe("MembersSection — admin affordances", () => {
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
     await user.click(screen.getByRole("button", { name: "Change role" }));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "true"),
-    );
+    await waitFor(() => expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "true"));
     expect(screen.getByRole("status")).toHaveTextContent(m.settings_members_updating());
 
     releasePatch();
-    await waitFor(() =>
-      expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "false"),
-    );
+    await waitFor(() => expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "false"));
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
@@ -655,9 +560,7 @@ describe("MembersSection — admin affordances", () => {
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection({ refreshAuth });
 
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/me@x\.io/),
-    )!;
+    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
     fireEvent.keyDown(within(selfRow).getByRole("combobox"), {
       key: "ArrowDown",
     });
@@ -668,9 +571,7 @@ describe("MembersSection — admin affordances", () => {
       }),
     );
 
-    await waitFor(() =>
-      expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1),
-    );
+    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
     expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
   });
@@ -684,9 +585,7 @@ describe("MembersSection — admin affordances", () => {
     });
     renderSection();
 
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/me@x\.io/),
-    )!;
+    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
     fireEvent.keyDown(within(selfRow).getByRole("combobox"), {
       key: "ArrowDown",
     });
@@ -698,9 +597,7 @@ describe("MembersSection — admin affordances", () => {
     );
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(useStore.getState().notice?.message).toMatch(
-      /could not be safely refreshed/i,
-    );
+    expect(useStore.getState().notice?.message).toMatch(/could not be safely refreshed/i);
   });
 });
 
@@ -729,32 +626,15 @@ describe("MembersSection — owner affordances", () => {
     renderSection();
     await screen.findByTestId("members-section");
 
-    for (const member of [
-      "Alice Editor (alice@example.test)",
-      "Bob Viewer (bob@example.test)",
-    ]) {
-      expect(
-        screen.getByRole("combobox", { name: `Member role for ${member}` }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: `Reset password for ${member}` }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: `Revoke sessions for ${member}` }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: `Remove ${member}` }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: `Transfer ownership to ${member}` }),
-      ).toBeInTheDocument();
+    for (const member of ["Alice Editor (alice@example.test)", "Bob Viewer (bob@example.test)"]) {
+      expect(screen.getByRole("combobox", { name: `Member role for ${member}` })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `Reset password for ${member}` })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `Revoke sessions for ${member}` })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `Remove ${member}` })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `Transfer ownership to ${member}` })).toBeInTheDocument();
     }
-    expect(
-      screen.queryByRole("combobox", { name: "Member role" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Remove" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Member role" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
   });
 
   it("never offers Owner as an ordinary role, even to the Owner", async () => {
@@ -768,9 +648,7 @@ describe("MembersSection — owner affordances", () => {
     await screen.findByTestId("members-section");
 
     fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
-    expect(
-      screen.queryByRole("option", { name: "Owner" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
     const rows = await screen.findAllByTestId("member-row");
@@ -779,9 +657,7 @@ describe("MembersSection — owner affordances", () => {
     fireEvent.keyDown(within(editorRow).getByRole("combobox"), {
       key: "ArrowDown",
     });
-    expect(
-      screen.queryByRole("option", { name: "Owner" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
   });
 
   it("keeps the single Owner outside ordinary role and removal controls", async () => {
@@ -795,15 +671,9 @@ describe("MembersSection — owner affordances", () => {
 
     const rows = await screen.findAllByTestId("member-row");
     const soleOwnerRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
-    expect(
-      within(soleOwnerRow).getByText(/Owner — transfer to change/),
-    ).toBeInTheDocument();
-    expect(
-      within(soleOwnerRow).queryByRole("combobox"),
-    ).not.toBeInTheDocument();
-    expect(
-      within(soleOwnerRow).queryByTestId("member-remove"),
-    ).not.toBeInTheDocument();
+    expect(within(soleOwnerRow).getByText(/Owner — transfer to change/)).toBeInTheDocument();
+    expect(within(soleOwnerRow).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(soleOwnerRow).queryByTestId("member-remove")).not.toBeInTheDocument();
   });
 });
 
@@ -822,9 +692,7 @@ describe("MembersSection — transfer ownership", () => {
     const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
     // The atomic hand-over is offered on an eligible target, never on the caller.
     expect(within(edRow).getByTestId("member-make-owner")).toBeInTheDocument();
-    expect(
-      within(selfRow).queryByTestId("member-make-owner"),
-    ).not.toBeInTheDocument();
+    expect(within(selfRow).queryByTestId("member-make-owner")).not.toBeInTheDocument();
   });
 
   it("an admin never sees the transfer action", async () => {
@@ -850,15 +718,10 @@ describe("MembersSection — transfer ownership", () => {
     renderSection({ refreshAuth });
     await screen.findByTestId("members-section");
 
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) =>
-      within(r).queryByText(/ed@x\.io/),
-    )!;
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
     await user.click(within(edRow).getByTestId("member-make-owner"));
     expect(screen.getByText(/You will become an Admin/)).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining("/transfer-ownership"),
-      expect.anything(),
-    );
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/transfer-ownership"), expect.anything());
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Transfer ownership",
@@ -871,9 +734,7 @@ describe("MembersSection — transfer ownership", () => {
         body: JSON.stringify({ toUserId: "ed" }),
       }),
     );
-    await waitFor(() =>
-      expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1),
-    );
+    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
     expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
   });
@@ -882,10 +743,7 @@ describe("MembersSection — transfer ownership", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const u = String(url);
-      if (
-        u.endsWith("/members") &&
-        (!init || init.method === undefined || init.method === "GET")
-      ) {
+      if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
         return {
           ok: true,
           status: 200,
@@ -917,10 +775,7 @@ describe("MembersSection — transfer ownership", () => {
           }),
         } as unknown as Response;
       }
-      if (
-        u.endsWith("/invites") &&
-        (!init || init.method === undefined || init.method === "GET")
-      ) {
+      if (u.endsWith("/invites") && (!init || init.method === undefined || init.method === "GET")) {
         return {
           ok: true,
           status: 200,
@@ -946,9 +801,7 @@ describe("MembersSection — transfer ownership", () => {
     renderSection();
     await screen.findByTestId("members-section");
 
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) =>
-      within(r).queryByText(/ed@x\.io/),
-    )!;
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
     await user.click(within(edRow).getByTestId("member-make-owner"));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -956,9 +809,7 @@ describe("MembersSection — transfer ownership", () => {
       }),
     );
     // The server's own message is preferred over the generic fallback (body.error ?? …).
-    expect(
-      await screen.findByText("Only the owner can transfer ownership."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Only the owner can transfer ownership.")).toBeInTheDocument();
   });
 
   it("reconciles an unknown self-demotion even after member reads become forbidden", async () => {
@@ -975,15 +826,10 @@ describe("MembersSection — transfer ownership", () => {
         return {
           ok: true,
           status: 200,
-          json: async () => [
-            { id: DEFAULT_ACCOUNT_ID, name: "Studio North", role: "editor" },
-          ],
+          json: async () => [{ id: DEFAULT_ACCOUNT_ID, name: "Studio North", role: "editor" }],
         } as unknown as Response;
       }
-      if (
-        u.endsWith("/members") &&
-        (!init || init.method === undefined || init.method === "GET")
-      ) {
+      if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
         if (mutationDispatched) {
           return {
             ok: false,
@@ -1053,9 +899,7 @@ describe("MembersSection — transfer ownership", () => {
     renderSection({ refreshAuth });
     await screen.findByTestId("members-section");
 
-    const self = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/me@x\.io/),
-    )!;
+    const self = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
     fireEvent.keyDown(within(self).getByRole("combobox"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Editor" }));
     await user.click(
@@ -1064,15 +908,11 @@ describe("MembersSection — transfer ownership", () => {
       }),
     );
 
-    await waitFor(() =>
-      expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1),
-    );
+    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
     expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
-    expect(useStore.getState().notice?.message).toMatch(
-      /Your access was refreshed; verify the result/i,
-    );
+    expect(useStore.getState().notice?.message).toMatch(/Your access was refreshed; verify the result/i);
     expect(useStore.getState().notice?.message).not.toMatch(/Reload the page/i);
   });
 
@@ -1083,11 +923,7 @@ describe("MembersSection — transfer ownership", () => {
       { userId: "ed", role: "editor" },
     ]);
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-      if (
-        init?.method === "POST" ||
-        init?.method === "DELETE" ||
-        init?.method === "PATCH"
-      ) {
+      if (init?.method === "POST" || init?.method === "DELETE" || init?.method === "PATCH") {
         return new Promise<Response>((resolve) => {
           release = () =>
             resolve({
@@ -1101,9 +937,7 @@ describe("MembersSection — transfer ownership", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/ed@x\.io/),
-    )!;
+    const editorRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/ed@x\.io/))!;
 
     fireEvent.click(within(editorRow).getByTestId("member-make-owner"));
     fireEvent.click(
@@ -1113,9 +947,7 @@ describe("MembersSection — transfer ownership", () => {
     );
     fireEvent.click(within(editorRow).getByTestId("member-remove"));
 
-    const mutations = fetchMock.mock.calls.filter(
-      ([, init]) => init?.method && init.method !== "GET",
-    );
+    const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
     expect(mutations).toHaveLength(1);
     expect(String(mutations[0][0])).toContain("/transfer-ownership");
     release!();
@@ -1133,10 +965,7 @@ describe("MembersSection — invite mint", () => {
     const reads = mockFetch(members);
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const target = String(url);
-      if (
-        target.endsWith("/members/editor/reset-password") &&
-        init?.method === "POST"
-      ) {
+      if (target.endsWith("/members/editor/reset-password") && init?.method === "POST") {
         return {
           ok: true,
           status: 201,
@@ -1167,24 +996,14 @@ describe("MembersSection — invite mint", () => {
         name: "Reset password",
       }),
     );
-    expect(await screen.findByTestId("reset-link")).toHaveTextContent(
-      "/reset-password/reset%2Fpart%3Fx%23y",
-    );
+    expect(await screen.findByTestId("reset-link")).toHaveTextContent("/reset-password/reset%2Fpart%3Fx%23y");
 
     await user.click(screen.getByTestId("invite-submit"));
-    expect(await screen.findByTestId("invite-link")).toHaveTextContent(
-      "/invite/invite%2Fpart%3Fx%23y",
-    );
+    expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/invite%2Fpart%3Fx%23y");
 
-    expect(
-      screen.getByRole("button", { name: "Copy reset link for editor@x.io" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Copy invitation link" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Copy" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy reset link for editor@x.io" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy invitation link" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
 
     await user.click(within(editorRow).getByTestId("member-remove"));
     await user.click(
@@ -1192,28 +1011,19 @@ describe("MembersSection — invite mint", () => {
         name: "Remove",
       }),
     );
-    await waitFor(() =>
-      expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument());
     expect(screen.getByTestId("invite-link")).toBeInTheDocument();
   });
 
   it("shows the selected invite role consequences before creating the link", async () => {
-    vi.stubGlobal(
-      "fetch",
-      mockFetch([{ userId: "me", role: "owner", isSelf: true }]),
-    );
+    vi.stubGlobal("fetch", mockFetch([{ userId: "me", role: "owner", isSelf: true }]));
     renderSection();
     await screen.findByTestId("members-section");
 
-    expect(screen.getByTestId("invite-role-summary")).toHaveTextContent(
-      /Can edit scheduling data/,
-    );
+    expect(screen.getByTestId("invite-role-summary")).toHaveTextContent(/Can edit scheduling data/);
     fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    expect(screen.getByTestId("invite-role-summary")).toHaveTextContent(
-      /Read-only schedule access/,
-    );
+    expect(screen.getByTestId("invite-role-summary")).toHaveTextContent(/Read-only schedule access/);
   });
 
   it("shows the invite link ONCE on a 201, built from the returned token", async () => {
@@ -1241,10 +1051,7 @@ describe("MembersSection — invite mint", () => {
           }),
         } as unknown as Response;
       }
-      if (
-        u.endsWith("/invites") &&
-        (!init || init.method === "GET" || init.method === undefined)
-      ) {
+      if (u.endsWith("/invites") && (!init || init.method === "GET" || init.method === undefined)) {
         return {
           ok: true,
           status: 200,
@@ -1275,60 +1082,55 @@ describe("MembersSection — invite mint", () => {
 
   it("discards account-local bearer links and controls immediately when the account changes", async () => {
     const nextAccountId = "acc_second";
-    const fetchMock = vi.fn(
-      async (url: string, init?: RequestInit): Promise<Response> => {
-        const target = String(url);
-        const isRead =
-          !init || init.method === undefined || init.method === "GET";
-        if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              members: [
-                {
-                  userId: "me",
-                  role: "owner",
-                  status: "active",
-                  createdAt: "2026-01-01T00:00:00.000Z",
-                  name: null,
-                  email: "me@x.io",
-                  isSelf: true,
-                  mayResetPassword: false,
-                  mayRevokeSessions: false,
-                },
-              ],
-            }),
-          } as Response;
-        }
-        if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
-          return await new Promise<Response>(() => {});
-        }
-        if (target.endsWith("/invites") && isRead) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ invites: [] }),
-          } as Response;
-        }
-        if (target.endsWith("/api/invites") && init?.method === "POST") {
-          return {
-            ok: true,
-            status: 201,
-            json: async () => ({ id: "inv-new", token: "ACCOUNT_A_TOKEN" }),
-          } as Response;
-        }
-        throw new Error(`Unexpected request: ${target}`);
-      },
-    );
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url);
+      const isRead = !init || init.method === undefined || init.method === "GET";
+      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [
+              {
+                userId: "me",
+                role: "owner",
+                status: "active",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                name: null,
+                email: "me@x.io",
+                isSelf: true,
+                mayResetPassword: false,
+                mayRevokeSessions: false,
+              },
+            ],
+          }),
+        } as Response;
+      }
+      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+        return await new Promise<Response>(() => {});
+      }
+      if (target.endsWith("/invites") && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ invites: [] }),
+        } as Response;
+      }
+      if (target.endsWith("/api/invites") && init?.method === "POST") {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ id: "inv-new", token: "ACCOUNT_A_TOKEN" }),
+        } as Response;
+      }
+      throw new Error(`Unexpected request: ${target}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     await screen.findByTestId("members-section");
 
     fireEvent.click(screen.getByTestId("invite-submit"));
-    expect(await screen.findByTestId("invite-link")).toHaveTextContent(
-      "/invite/ACCOUNT_A_TOKEN",
-    );
+    expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/ACCOUNT_A_TOKEN");
 
     act(() => useStore.setState({ activeAccountId: nextAccountId }));
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
@@ -1347,52 +1149,49 @@ describe("MembersSection — invite mint", () => {
     vi.spyOn(navigator, "clipboard", "get").mockReturnValue({
       writeText,
     } as unknown as Clipboard);
-    const fetchMock = vi.fn(
-      async (url: string, init?: RequestInit): Promise<Response> => {
-        const target = String(url);
-        const isRead =
-          !init || init.method === undefined || init.method === "GET";
-        if (target.endsWith("/members") && isRead) {
-          const second = target.includes(`/${nextAccountId}/`);
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              members: [
-                {
-                  userId: second ? "second-owner" : "me",
-                  role: "owner",
-                  status: "active",
-                  createdAt: "2026-01-01T00:00:00.000Z",
-                  name: null,
-                  email: second ? "second@example.test" : "me@x.io",
-                  isSelf: true,
-                  mayResetPassword: false,
-                  mayRevokeSessions: false,
-                },
-              ],
-            }),
-          } as Response;
-        }
-        if (target.endsWith("/invites") && isRead) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ invites: [] }),
-          } as Response;
-        }
-        if (target.endsWith("/api/invites") && init?.method === "POST") {
-          return {
-            ok: true,
-            status: 201,
-            // Omit the optional id so the write-once link remains visible while this test isolates
-            // the clipboard completion race rather than authoritative invite-list reconciliation.
-            json: async () => ({ token: "ACCOUNT_A_TOKEN" }),
-          } as Response;
-        }
-        throw new Error(`Unexpected request: ${target}`);
-      },
-    );
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url);
+      const isRead = !init || init.method === undefined || init.method === "GET";
+      if (target.endsWith("/members") && isRead) {
+        const second = target.includes(`/${nextAccountId}/`);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [
+              {
+                userId: second ? "second-owner" : "me",
+                role: "owner",
+                status: "active",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                name: null,
+                email: second ? "second@example.test" : "me@x.io",
+                isSelf: true,
+                mayResetPassword: false,
+                mayRevokeSessions: false,
+              },
+            ],
+          }),
+        } as Response;
+      }
+      if (target.endsWith("/invites") && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ invites: [] }),
+        } as Response;
+      }
+      if (target.endsWith("/api/invites") && init?.method === "POST") {
+        return {
+          ok: true,
+          status: 201,
+          // Omit the optional id so the write-once link remains visible while this test isolates
+          // the clipboard completion race rather than authoritative invite-list reconciliation.
+          json: async () => ({ token: "ACCOUNT_A_TOKEN" }),
+        } as Response;
+      }
+      throw new Error(`Unexpected request: ${target}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     await screen.findByTestId("members-section");
@@ -1400,9 +1199,7 @@ describe("MembersSection — invite mint", () => {
     fireEvent.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
     act(() => useStore.getState().setNotice(null));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Copy invitation link" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Copy invitation link" }));
     expect(writeText).toHaveBeenCalledOnce();
 
     act(() => useStore.setState({ activeAccountId: nextAccountId }));
@@ -1414,14 +1211,11 @@ describe("MembersSection — invite mint", () => {
 
   it("renders outstanding invite expiry on the viewer local calendar date", async () => {
     const expiresAt = "2026-12-01T00:00:00.000Z";
-    const localDate = vi
-      .spyOn(Date.prototype, "toLocaleDateString")
-      .mockReturnValue("LOCAL INVITE DATE");
+    const localDate = vi.spyOn(Date.prototype, "toLocaleDateString").mockReturnValue("LOCAL INVITE DATE");
     const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const target = String(url);
-      const isRead =
-        !init || init.method === undefined || init.method === "GET";
+      const isRead = !init || init.method === undefined || init.method === "GET";
       if (target.endsWith("/invites") && isRead) {
         return {
           ok: true,
@@ -1446,9 +1240,7 @@ describe("MembersSection — invite mint", () => {
 
     renderSection();
 
-    expect(
-      await screen.findByText(/expires LOCAL INVITE DATE/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/expires LOCAL INVITE DATE/)).toBeInTheDocument();
     expect(localDate).toHaveBeenCalledOnce();
     expect((localDate.mock.contexts[0] as Date).toISOString()).toBe(expiresAt);
   });
@@ -1466,8 +1258,7 @@ describe("MembersSection — invite mint", () => {
     const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const target = String(url);
-      const isRead =
-        !init || init.method === undefined || init.method === "GET";
+      const isRead = !init || init.method === undefined || init.method === "GET";
       if (target.endsWith("/invites") && isRead) {
         invitationReads += 1;
         return invitationReads === 1
@@ -1493,63 +1284,56 @@ describe("MembersSection — invite mint", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    expect(
-      await screen.findByText(/existing@example\.test/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/existing@example\.test/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("invite-submit"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Invite reload failed.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invite reload failed.");
     expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
   });
 
   it("ignores a late unknown mutation outcome after the user has switched accounts", async () => {
     const nextAccountId = "acc_second";
     let resolveCreate: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn(
-      async (url: string, init?: RequestInit): Promise<Response> => {
-        const target = String(url);
-        const isRead =
-          !init || init.method === undefined || init.method === "GET";
-        if (target.endsWith("/members") && isRead) {
-          const second = target.includes(`/${nextAccountId}/`);
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              members: [
-                {
-                  userId: second ? "second-owner" : "me",
-                  role: "owner",
-                  status: "active",
-                  createdAt: "2026-01-01T00:00:00.000Z",
-                  name: null,
-                  email: second ? "second@example.test" : "me@x.io",
-                  isSelf: true,
-                  mayResetPassword: false,
-                  mayRevokeSessions: false,
-                },
-              ],
-            }),
-          } as Response;
-        }
-        if (target.endsWith("/invites") && isRead) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ invites: [] }),
-          } as Response;
-        }
-        if (target.endsWith("/api/invites") && init?.method === "POST") {
-          return await new Promise<Response>((resolve) => {
-            resolveCreate = resolve;
-          });
-        }
-        throw new Error(`Unexpected request: ${target}`);
-      },
-    );
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url);
+      const isRead = !init || init.method === undefined || init.method === "GET";
+      if (target.endsWith("/members") && isRead) {
+        const second = target.includes(`/${nextAccountId}/`);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [
+              {
+                userId: second ? "second-owner" : "me",
+                role: "owner",
+                status: "active",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                name: null,
+                email: second ? "second@example.test" : "me@x.io",
+                isSelf: true,
+                mayResetPassword: false,
+                mayRevokeSessions: false,
+              },
+            ],
+          }),
+        } as Response;
+      }
+      if (target.endsWith("/invites") && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ invites: [] }),
+        } as Response;
+      }
+      if (target.endsWith("/api/invites") && init?.method === "POST") {
+        return await new Promise<Response>((resolve) => {
+          resolveCreate = resolve;
+        });
+      }
+      throw new Error(`Unexpected request: ${target}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     await screen.findByTestId("members-section");
@@ -1568,12 +1352,8 @@ describe("MembersSection — invite mint", () => {
     });
 
     expect(screen.getByText("second@example.test")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/first account outcome is unknown/i),
-    ).not.toBeInTheDocument();
-    expect(useStore.getState().notice?.message ?? "").not.toMatch(
-      /unknown outcome/i,
-    );
+    expect(screen.queryByText(/first account outcome is unknown/i)).not.toBeInTheDocument();
+    expect(useStore.getState().notice?.message ?? "").not.toMatch(/unknown outcome/i);
   });
 
   it("removes the write-once link when its invite is revoked", async () => {
@@ -1630,10 +1410,7 @@ describe("MembersSection — invite mint", () => {
           json: async () => ({}),
         } as unknown as Response;
       }
-      if (
-        u.endsWith("/invites") &&
-        (!init || init.method === "GET" || init.method === undefined)
-      ) {
+      if (u.endsWith("/invites") && (!init || init.method === "GET" || init.method === undefined)) {
         return {
           ok: true,
           status: 200,
@@ -1651,14 +1428,10 @@ describe("MembersSection — invite mint", () => {
     await screen.findByTestId("members-section");
 
     await user.click(screen.getByTestId("invite-submit"));
-    expect(await screen.findByTestId("invite-link")).toHaveTextContent(
-      "/invite/TOK123",
-    );
+    expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
     await user.click(await screen.findByTestId("invite-revoke"));
 
-    await waitFor(() =>
-      expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
   });
 
   it("refuses a malformed token response instead of constructing an undefined link", async () => {
@@ -1679,9 +1452,7 @@ describe("MembersSection — invite mint", () => {
 
     fireEvent.click(screen.getByTestId("invite-submit"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /one-time link was lost|unknown invite/i,
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(/one-time link was lost|unknown invite/i);
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
 });

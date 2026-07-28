@@ -3,16 +3,19 @@
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/settings-bar-labels.spec.ts` → "bars show client and project before the activity by default", "switches in Settings default on and strip the client, then the project, from bars"
 
 ## Goal
+
 Decide whether each bar on the schedule names its client and/or project before the activity, so the helicopter view carries as much (or as little) context as the studio wants.
 
 ## Why
-At a glance, "Wireframes" alone doesn't say *whose* wireframes. Prefixing the client and
+
+At a glance, "Wireframes" alone doesn't say _whose_ wireframes. Prefixing the client and
 project makes a busy schedule self-describing; a studio with one client per person may
 prefer to switch the prefixes off and keep bars short. The choice is per-browser (like the
 theme), not shared account data.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open on the Schedule (clock inside the seed window — see *Seed data* in REFERENCE.md).
+
+**Precondition:** Seeded app open on the Schedule (clock inside the seed window — see _Seed data_ in REFERENCE.md).
 
 1. Find Tyler's **Wireframes** bar. Its label reads **Acme Inc. · Project Lightning · Wireframes · 8h**.
 2. Open **Settings** (sidebar). In the **Allocation bars** section, find the **Show client name** and **Show project name** switches — both on.
@@ -22,6 +25,7 @@ theme), not shared account data.
 6. Return to **Schedule**. The bar now reads just **Wireframes · 8h**.
 
 ## Acceptance criteria
+
 - The Allocation bars section appears between Calendar and Utilisation in Settings.
 - Both switches default to **on** (`aria-checked="true"`).
 - With both on, a bar's label is `Client · Project · Activity` (then `· Nh` outside blocks mode).

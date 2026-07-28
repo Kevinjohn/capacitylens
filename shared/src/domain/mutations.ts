@@ -1,28 +1,16 @@
-import { newId } from '../lib/id'
-import {
-  validateAllocationAssignment,
-  validateDateRange,
-} from '../lib/integrity'
-import { sanitizeImportedRecord } from '../lib/sanitizeImport'
+import { newId } from "../lib/id";
+import { validateAllocationAssignment, validateDateRange } from "../lib/integrity";
+import { sanitizeImportedRecord } from "../lib/sanitizeImport";
 import {
   buildInternalClient,
   internalClientFor,
   INTERNAL_CLIENT_COLOR,
   INTERNAL_CLIENT_NAME,
-} from '../data/internalClient'
-import { belongsToAccount, notInAccount } from './tenancy'
-import { domainError } from './errors'
-import {
-  inspectLifecycleAncestry,
-  lifecycleStatus,
-  obfuscateResource,
-  type LifecycleAncestryRow,
-} from './lifecycle'
-import {
-  isExternalResource,
-  SCOPED_KEYS,
-  scopedTables,
-} from '../types/entities'
+} from "../data/internalClient";
+import { belongsToAccount, notInAccount } from "./tenancy";
+import { domainError } from "./errors";
+import { inspectLifecycleAncestry, lifecycleStatus, obfuscateResource, type LifecycleAncestryRow } from "./lifecycle";
+import { isExternalResource, SCOPED_KEYS, scopedTables } from "../types/entities";
 import type {
   Allocation,
   AppData,
@@ -35,7 +23,7 @@ import type {
   ScopedEntityKey,
   Activity,
   TimeOff,
-} from '../types/entities'
+} from "../types/entities";
 
 /**
  * Optional indexed view used by server batch validation. The browser/store callers keep using the
@@ -43,14 +31,11 @@ import type {
  * many operations does not repeatedly scan the same account slice.
  */
 export interface ValidationDataLookup {
-  row(
-    table: AppDataKey,
-    id: ID,
-  ): (Record<string, unknown> & { id: ID }) | undefined
-  allocationsForResource(accountId: ID, resourceId: ID): readonly Allocation[]
-  allocationsForActivity(accountId: ID, activityId: ID): readonly Allocation[]
-  resourceHasLoadedAllocation(accountId: ID, resourceId: ID): boolean
-  resourceHasTimeOff(accountId: ID, resourceId: ID): boolean
+  row(table: AppDataKey, id: ID): (Record<string, unknown> & { id: ID }) | undefined;
+  allocationsForResource(accountId: ID, resourceId: ID): readonly Allocation[];
+  allocationsForActivity(accountId: ID, activityId: ID): readonly Allocation[];
+  resourceHasLoadedAllocation(accountId: ID, resourceId: ID): boolean;
+  resourceHasTimeOff(accountId: ID, resourceId: ID): boolean;
 }
 
 const validationRow = (
@@ -59,11 +44,9 @@ const validationRow = (
   id: ID,
   lookup?: ValidationDataLookup,
 ): (Record<string, unknown> & { id: ID }) | undefined => {
-  if (lookup) return lookup.row(table, id)
-  return (
-    data[table] as unknown as (Record<string, unknown> & { id: ID })[]
-  ).find((row) => row.id === id)
-}
+  if (lookup) return lookup.row(table, id);
+  return (data[table] as unknown as (Record<string, unknown> & { id: ID })[]).find((row) => row.id === id);
+};
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
  * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
@@ -75,15 +58,12 @@ const isEffectivelyActive = (
   row: LifecycleAncestryRow,
   lookup?: ValidationDataLookup,
 ): boolean =>
-  lifecycleStatus(row) === 'active' &&
+  lifecycleStatus(row) === "active" &&
   inspectLifecycleAncestry(
     table,
     row,
-    (parentTable, id) =>
-      validationRow(data, parentTable, id, lookup) as
-        | LifecycleAncestryRow
-        | undefined,
-  ).visible
+    (parentTable, id) => validationRow(data, parentTable, id, lookup) as LifecycleAncestryRow | undefined,
+  ).visible;
 
 // Pure, environment-agnostic domain mutations + integrity assertions extracted
 // from the Zustand store so the SAME logic can run on a future server (and be
@@ -109,15 +89,12 @@ export function findOwned<K extends ScopedEntityKey>(
   key: K,
   id: ID,
 ): AppData[K][number] | null {
-  const row = (data[key] as ScopedEntity[]).find((e) => e.id === id)
-  if (!row) return null
+  const row = (data[key] as ScopedEntity[]).find((e) => e.id === id);
+  if (!row) return null;
   if (!belongsToAccount(row, accountId)) {
-    domainError(
-      'record_wrong_account',
-      'That record does not belong to the active company.',
-    )
+    domainError("record_wrong_account", "That record does not belong to the active company.");
   }
-  return row as AppData[K][number]
+  return row as AppData[K][number];
 }
 
 /**
@@ -145,104 +122,72 @@ export function assertScopedRefs(
   lookup?: ValidationDataLookup,
   options: { fullRow?: boolean } = {},
 ): void {
-  const present = (field: string) =>
-    rec[field] !== undefined && rec[field] !== null
-  const supplied = (field: string) =>
-    Object.prototype.hasOwnProperty.call(rec, field)
+  const present = (field: string) => rec[field] !== undefined && rec[field] !== null;
+  const supplied = (field: string) => Object.prototype.hasOwnProperty.call(rec, field);
   // Reading loose field names off the stored row is safe — an absent field is undefined, which can
   // only ever equal an equally-absent patch field (a no-op skip). The widened accepted type lets
   // call sites pass a typed entity (interfaces lack the implicit index signature) without a copy.
-  const prev = existing as Record<string, unknown> | undefined
+  const prev = existing as Record<string, unknown> | undefined;
   // Unchanged-on-update: see the doc comment — an id identical to the stored row's was
   // already proven in-account at its own write time.
-  const unchanged = (field: string) =>
-    prev !== undefined && rec[field] === prev[field]
+  const unchanged = (field: string) => prev !== undefined && rec[field] === prev[field];
   const inAccount = (table: ScopedEntityKey, id: unknown): boolean => {
-    if (typeof id !== 'string') return false
-    const entity = validationRow(data, table, id, lookup) as
-      | ScopedEntity
-      | undefined
+    if (typeof id !== "string") return false;
+    const entity = validationRow(data, table, id, lookup) as ScopedEntity | undefined;
     return (
       entity !== undefined &&
       belongsToAccount(entity, accountId) &&
-      isEffectivelyActive(
-        data,
-        table,
-        entity as unknown as LifecycleAncestryRow,
-        lookup,
-      )
-    )
-  }
+      isEffectivelyActive(data, table, entity as unknown as LifecycleAncestryRow, lookup)
+    );
+  };
   const need = (field: string, table: ScopedEntityKey, msg: string) => {
     if (present(field) && !unchanged(field) && !inAccount(table, rec[field])) {
-      domainError('reference_wrong_account', msg)
+      domainError("reference_wrong_account", msg);
     }
-  }
+  };
   const needRequired = (field: string, table: ScopedEntityKey, msg: string) => {
     if (!present(field)) {
       // Only an omitted field on a genuine partial update inherits its stored parent. Creates and
       // full server rows must be self-contained; an explicitly supplied null/undefined is a clear
       // attempt and must not flow down to a database NOT NULL diagnostic.
-      if (
-        existing === undefined ||
-        options.fullRow === true ||
-        supplied(field)
-      ) {
-        domainError('reference_wrong_account', msg)
+      if (existing === undefined || options.fullRow === true || supplied(field)) {
+        domainError("reference_wrong_account", msg);
       }
-      return
+      return;
     }
-    need(field, table, msg)
-  }
+    need(field, table, msg);
+  };
   switch (key) {
-    case 'projects':
-      needRequired(
-        'clientId',
-        'clients',
-        'Project must reference a client in this company.',
-      )
-      break
-    case 'phases':
-      needRequired(
-        'projectId',
-        'projects',
-        'Phase must reference a project in this company.',
-      )
-      break
-    case 'activities': {
+    case "projects":
+      needRequired("clientId", "clients", "Project must reference a client in this company.");
+      break;
+    case "phases":
+      needRequired("projectId", "projects", "Phase must reference a project in this company.");
+      break;
+    case "activities": {
       // Activity.kind coherence, checked first: a project-specific ('project') activity MUST carry a project; an
       // internal/cross-project ('repeatable') activity is project-less by definition, so it may carry NEITHER a
       // project nor a phase. (Only enforced when kind is present — a partial patch that doesn't
       // touch kind is validated against the merged row by the store, which always has it.)
-      if (present('kind')) {
-        const kind = rec.kind
-        if (kind === 'project') {
-          if (!present('projectId')) {
-            domainError(
-              'activity_project_required',
-              'A project-specific activity must be assigned to a project.',
-            )
+      if (present("kind")) {
+        const kind = rec.kind;
+        if (kind === "project") {
+          if (!present("projectId")) {
+            domainError("activity_project_required", "A project-specific activity must be assigned to a project.");
           }
-        } else if (kind === 'internal' || kind === 'repeatable') {
-          if (present('projectId')) {
+        } else if (kind === "internal" || kind === "repeatable") {
+          if (present("projectId")) {
             domainError(
-              'activity_project_forbidden',
-              'An internal or cross-project activity cannot belong to a project.',
-            )
+              "activity_project_forbidden",
+              "An internal or cross-project activity cannot belong to a project.",
+            );
           }
-          if (present('phaseId')) {
-            domainError(
-              'activity_phase_forbidden',
-              'An internal or cross-project activity cannot belong to a phase.',
-            )
+          if (present("phaseId")) {
+            domainError("activity_phase_forbidden", "An internal or cross-project activity cannot belong to a phase.");
           }
         }
       }
-      need(
-        'projectId',
-        'projects',
-        'Activity must reference a project in this company.',
-      )
+      need("projectId", "projects", "Activity must reference a project in this company.");
       // A phase belongs to exactly one project, so an activity's phase must be a phase OF
       // the activity's own project — otherwise the activity is silently double-bound to two
       // projects, and deleting the phase's project orphans the activity's phaseId.
@@ -250,55 +195,35 @@ export function assertScopedRefs(
       // at its own write time, and in server mode a phase under an archived project may be
       // absent from the active-only slice (same rationale as `unchanged` above). Touching
       // EITHER id re-runs the full coherence check.
-      if (
-        present('phaseId') &&
-        !(unchanged('phaseId') && unchanged('projectId'))
-      ) {
+      if (present("phaseId") && !(unchanged("phaseId") && unchanged("projectId"))) {
         // Resolve the in-account phase ONCE: its absence is the "belong to this company"
         // failure (same check `need` would do), and its projectId feeds the coherence
         // check below — no second scan of data.phases.
         const phase =
-          typeof rec.phaseId === 'string'
-            ? (validationRow(data, 'phases', rec.phaseId, lookup) as
-                | AppData['phases'][number]
-                | undefined)
-            : undefined
-        const ownedPhase =
-          phase && belongsToAccount(phase, accountId) ? phase : undefined
+          typeof rec.phaseId === "string"
+            ? (validationRow(data, "phases", rec.phaseId, lookup) as AppData["phases"][number] | undefined)
+            : undefined;
+        const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
         if (!ownedPhase) {
-          domainError(
-            'activity_phase_wrong_account',
-            'Activity phase must belong to this company.',
-          )
+          domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
         }
-        if (!present('projectId')) {
+        if (!present("projectId")) {
           domainError(
-            'activity_phase_project_required',
-            'An activity with a phase must also belong to that phase’s project.',
-          )
+            "activity_phase_project_required",
+            "An activity with a phase must also belong to that phase’s project.",
+          );
         }
         if (ownedPhase.projectId !== rec.projectId) {
-          domainError(
-            'activity_phase_project_mismatch',
-            'Activity phase must belong to the activity’s project.',
-          )
+          domainError("activity_phase_project_mismatch", "Activity phase must belong to the activity’s project.");
         }
       }
-      break
+      break;
     }
-    case 'resources':
+    case "resources":
       // disciplineId applies to any resource; projectId is the placeholder-only binding FK (see Resource.projectId) — both optional, so need() only fires when present.
-      need(
-        'disciplineId',
-        'disciplines',
-        'Resource discipline must belong to this company.',
-      )
-      need(
-        'projectId',
-        'projects',
-        'Placeholder project must belong to this company.',
-      )
-      break
+      need("disciplineId", "disciplines", "Resource discipline must belong to this company.");
+      need("projectId", "projects", "Placeholder project must belong to this company.");
+      break;
     // allocations / timeOff: their refs are checked by assertAllocationRefs /
     // assertResourceExists (scoped to the active account), below.
   }
@@ -319,81 +244,50 @@ export function assertAllocationRefs(
   resourceId: ID,
   activityId: ID,
   hoursPerDay: number,
-  existing?: Pick<Allocation, 'resourceId' | 'activityId'>,
+  existing?: Pick<Allocation, "resourceId" | "activityId">,
   lookup?: ValidationDataLookup,
 ): void {
-  const resourceRow = validationRow(data, 'resources', resourceId, lookup) as
-    | Resource
-    | undefined
-  const activityRow = validationRow(data, 'activities', activityId, lookup) as
-    | Activity
-    | undefined
-  const resource =
-    resourceRow && belongsToAccount(resourceRow, accountId)
-      ? resourceRow
-      : undefined
-  const activity =
-    activityRow && belongsToAccount(activityRow, accountId)
-      ? activityRow
-      : undefined
+  const resourceRow = validationRow(data, "resources", resourceId, lookup) as Resource | undefined;
+  const activityRow = validationRow(data, "activities", activityId, lookup) as Activity | undefined;
+  const resource = resourceRow && belongsToAccount(resourceRow, accountId) ? resourceRow : undefined;
+  const activity = activityRow && belongsToAccount(activityRow, accountId) ? activityRow : undefined;
   if (!resource || !activity) {
     domainError(
-      'allocation_references_invalid',
-      'Allocation must reference an existing resource and activity in this company.',
-    )
+      "allocation_references_invalid",
+      "Allocation must reference an existing resource and activity in this company.",
+    );
   }
   if (
     existing?.resourceId !== resourceId &&
-    !isEffectivelyActive(
-      data,
-      'resources',
-      resource as unknown as LifecycleAncestryRow,
-      lookup,
-    )
+    !isEffectivelyActive(data, "resources", resource as unknown as LifecycleAncestryRow, lookup)
   ) {
-    domainError(
-      'allocation_resource_inactive',
-      'Allocation must reference an active resource in this company.',
-    )
+    domainError("allocation_resource_inactive", "Allocation must reference an active resource in this company.");
   }
   const projectRow = activity.projectId
-    ? (validationRow(data, 'projects', activity.projectId, lookup) as
-        | AppData['projects'][number]
-        | undefined)
-    : undefined
-  const project =
-    projectRow && belongsToAccount(projectRow, accountId)
-      ? projectRow
-      : undefined
+    ? (validationRow(data, "projects", activity.projectId, lookup) as AppData["projects"][number] | undefined)
+    : undefined;
+  const project = projectRow && belongsToAccount(projectRow, accountId) ? projectRow : undefined;
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
   if (activity.projectId !== undefined && project === undefined) {
     domainError(
-      'allocation_project_inactive',
-      'Allocation must reference an activity under an active project in this company.',
-    )
+      "allocation_project_inactive",
+      "Allocation must reference an activity under an active project in this company.",
+    );
   }
   if (
     existing?.activityId !== activityId &&
-    !isEffectivelyActive(
-      data,
-      'activities',
-      activity as unknown as LifecycleAncestryRow,
-      lookup,
-    )
+    !isEffectivelyActive(data, "activities", activity as unknown as LifecycleAncestryRow, lookup)
   ) {
-    domainError(
-      'allocation_activity_inactive',
-      'Allocation must reference an activity under an active project.',
-    )
+    domainError("allocation_activity_inactive", "Allocation must reference an activity under an active project.");
   }
-  const v = validateAllocationAssignment(resource, activity.projectId)
+  const v = validateAllocationAssignment(resource, activity.projectId);
   // `errors[0]` is guaranteed present: every validator sets ok=false and pushes a message in the
   // same step, so `!v.ok` always implies a non-empty `errors` array. (Documented coupling between
   // ValidationResult.ok and errors — don't split the two without revisiting this read.)
-  if (!v.ok) domainError(v.codes[0], v.errors[0])
+  if (!v.ok) domainError(v.codes[0], v.errors[0]);
   // External / 3rd parties have NO capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only — enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
@@ -401,10 +295,7 @@ export function assertAllocationRefs(
   // to 0 instead of dropping the booking, which is still valid. Always checked: `hoursPerDay` is a
   // required parameter, so no caller can opt out of the rule.
   if (hoursPerDay !== 0 && isExternalResource(resource)) {
-    domainError(
-      'external_allocation_hours',
-      'An external / 3rd-party resource’s allocation can’t carry hours.',
-    )
+    domainError("external_allocation_hours", "An external / 3rd-party resource’s allocation can’t carry hours.");
   }
 }
 
@@ -433,23 +324,20 @@ export function assertResourceKindAllowsDependents(
   mergedKind: unknown,
   lookup?: ValidationDataLookup,
 ): void {
-  if (!isExternalResource({ kind: mergedKind as Resource['kind'] })) return
+  if (!isExternalResource({ kind: mergedKind as Resource["kind"] })) return;
   // A loaded allocation OR any time-off both vanish from the scheduler once the resource is external.
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
-  const owns = (e: Allocation | TimeOff) =>
-    e.resourceId === resourceId && belongsToAccount(e, accountId)
+  const owns = (e: Allocation | TimeOff) => e.resourceId === resourceId && belongsToAccount(e, accountId);
   const hasLoadedAllocation = lookup
     ? lookup.resourceHasLoadedAllocation(accountId, resourceId)
-    : data.allocations.some((a) => owns(a) && a.hoursPerDay !== 0)
-  const hasTimeOff = lookup
-    ? lookup.resourceHasTimeOff(accountId, resourceId)
-    : data.timeOff.some((t) => owns(t))
+    : data.allocations.some((a) => owns(a) && a.hoursPerDay !== 0);
+  const hasTimeOff = lookup ? lookup.resourceHasTimeOff(accountId, resourceId) : data.timeOff.some((t) => owns(t));
   if (hasLoadedAllocation || hasTimeOff) {
     domainError(
-      'resource_external_dependents',
-      'Reassign or remove this resource’s work and time off before making it external.',
-    )
+      "resource_external_dependents",
+      "Reassign or remove this resource’s work and time off before making it external.",
+    );
   }
 }
 
@@ -470,43 +358,23 @@ export function assertResourceProjectAllowsDependents(
   existing?: Resource,
   lookup?: ValidationDataLookup,
 ): void {
-  if (
-    existing !== undefined &&
-    merged.kind === existing.kind &&
-    merged.projectId === existing.projectId
-  )
-    return
+  if (existing !== undefined && merged.kind === existing.kind && merged.projectId === existing.projectId) return;
 
   const allocations = lookup
     ? lookup.allocationsForResource(accountId, resourceId)
     : data.allocations.filter(
-        (allocation) =>
-          allocation.accountId === accountId &&
-          allocation.resourceId === resourceId,
-      )
+        (allocation) => allocation.accountId === accountId && allocation.resourceId === resourceId,
+      );
   for (const allocation of allocations) {
-    const activityRow = validationRow(
-      data,
-      'activities',
-      allocation.activityId,
-      lookup,
-    ) as Activity | undefined
-    const activity =
-      activityRow && belongsToAccount(activityRow, accountId)
-        ? activityRow
-        : undefined
-    if (!activity) continue
-    const wasValid =
-      existing === undefined ||
-      validateAllocationAssignment(existing, activity.projectId).ok
-    if (
-      wasValid &&
-      !validateAllocationAssignment(merged, activity.projectId).ok
-    ) {
+    const activityRow = validationRow(data, "activities", allocation.activityId, lookup) as Activity | undefined;
+    const activity = activityRow && belongsToAccount(activityRow, accountId) ? activityRow : undefined;
+    if (!activity) continue;
+    const wasValid = existing === undefined || validateAllocationAssignment(existing, activity.projectId).ok;
+    if (wasValid && !validateAllocationAssignment(merged, activity.projectId).ok) {
       domainError(
-        'placeholder_project_dependents',
-        'Reassign or remove this placeholder’s work before changing its bound project.',
-      )
+        "placeholder_project_dependents",
+        "Reassign or remove this placeholder’s work before changing its bound project.",
+      );
     }
   }
 }
@@ -524,47 +392,29 @@ export function assertActivityProjectAllowsDependents(
   existing?: Activity,
   lookup?: ValidationDataLookup,
 ): void {
-  if (existing !== undefined && merged.projectId === existing.projectId) return
+  if (existing !== undefined && merged.projectId === existing.projectId) return;
 
   const allocations = lookup
     ? lookup.allocationsForActivity(accountId, activityId)
     : data.allocations.filter(
-        (allocation) =>
-          allocation.accountId === accountId &&
-          allocation.activityId === activityId,
-      )
+        (allocation) => allocation.accountId === accountId && allocation.activityId === activityId,
+      );
   for (const allocation of allocations) {
-    const resourceRow = validationRow(
-      data,
-      'resources',
-      allocation.resourceId,
-      lookup,
-    ) as Resource | undefined
-    const resource =
-      resourceRow && belongsToAccount(resourceRow, accountId)
-        ? resourceRow
-        : undefined
-    if (!resource) continue
-    const wasValid =
-      existing === undefined ||
-      validateAllocationAssignment(resource, existing.projectId).ok
-    if (
-      wasValid &&
-      !validateAllocationAssignment(resource, merged.projectId).ok
-    ) {
-      domainError(
-        'activity_project_dependents',
-        'Reassign placeholder work before changing this activity’s project.',
-      )
+    const resourceRow = validationRow(data, "resources", allocation.resourceId, lookup) as Resource | undefined;
+    const resource = resourceRow && belongsToAccount(resourceRow, accountId) ? resourceRow : undefined;
+    if (!resource) continue;
+    const wasValid = existing === undefined || validateAllocationAssignment(resource, existing.projectId).ok;
+    if (wasValid && !validateAllocationAssignment(resource, merged.projectId).ok) {
+      domainError("activity_project_dependents", "Reassign placeholder work before changing this activity’s project.");
     }
   }
 }
 
 /** No allocation or time-off may persist an empty, malformed, or reversed range. */
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
-  const v = validateDateRange(startDate, endDate)
+  const v = validateDateRange(startDate, endDate);
   // errors[0] is safe — see assertAllocationRefs: !ok always implies at least one pushed message.
-  if (!v.ok) domainError(v.codes[0], v.errors[0])
+  if (!v.ok) domainError(v.codes[0], v.errors[0]);
 }
 
 /**
@@ -578,36 +428,19 @@ export function assertResourceExists(
   data: AppData,
   accountId: ID,
   resourceId: ID,
-  existing?: Pick<TimeOff, 'resourceId'>,
+  existing?: Pick<TimeOff, "resourceId">,
   lookup?: ValidationDataLookup,
 ): void {
-  const resourceRow = validationRow(data, 'resources', resourceId, lookup) as
-    | Resource
-    | undefined
-  const resource =
-    resourceRow && belongsToAccount(resourceRow, accountId)
-      ? resourceRow
-      : undefined
+  const resourceRow = validationRow(data, "resources", resourceId, lookup) as Resource | undefined;
+  const resource = resourceRow && belongsToAccount(resourceRow, accountId) ? resourceRow : undefined;
   if (!resource) {
-    domainError(
-      'time_off_resource_invalid',
-      'Time off must reference an existing resource in this company.',
-    )
+    domainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
   }
-  if (
-    existing?.resourceId !== resourceId &&
-    lifecycleStatus(resource) !== 'active'
-  ) {
-    domainError(
-      'time_off_resource_inactive',
-      'Time off must reference an active resource in this company.',
-    )
+  if (existing?.resourceId !== resourceId && lifecycleStatus(resource) !== "active") {
+    domainError("time_off_resource_inactive", "Time off must reference an active resource in this company.");
   }
   if (isExternalResource(resource)) {
-    domainError(
-      'time_off_external_resource',
-      'Time off can’t be recorded for an external / 3rd-party resource.',
-    )
+    domainError("time_off_external_resource", "Time off can’t be recorded for an external / 3rd-party resource.");
   }
 }
 
@@ -619,13 +452,13 @@ export function deleteAccountCascade(data: AppData, accountId: ID): AppData {
   const next: AppData = {
     ...data,
     accounts: data.accounts.filter((a) => a.id !== accountId),
-  }
-  const src = scopedTables(data)
-  const dst = scopedTables(next)
+  };
+  const src = scopedTables(data);
+  const dst = scopedTables(next);
   for (const key of SCOPED_KEYS) {
-    dst[key] = src[key].filter(notInAccount(accountId))
+    dst[key] = src[key].filter(notInAccount(accountId));
   }
-  return next
+  return next;
 }
 
 /**
@@ -649,25 +482,17 @@ export function remapAndValidateImport(
 ): { data: AppData; imported: number; skipped: number } {
   const incomingRows = Object.fromEntries(
     SCOPED_KEYS.map((key) => {
-      const rows = Array.isArray(incoming[key])
-        ? (incoming[key] as unknown[])
-        : []
+      const rows = Array.isArray(incoming[key]) ? (incoming[key] as unknown[]) : [];
       return [
         key,
-        rows.filter(
-          (row): row is Record<string, unknown> =>
-            !!row && typeof row === 'object' && !Array.isArray(row),
-        ),
-      ]
+        rows.filter((row): row is Record<string, unknown> => !!row && typeof row === "object" && !Array.isArray(row)),
+      ];
     }),
-  ) as Record<ScopedEntityKey, Array<Record<string, unknown>>>
+  ) as Record<ScopedEntityKey, Array<Record<string, unknown>>>;
   const malformedIncoming = SCOPED_KEYS.reduce(
-    (count, key) =>
-      count +
-      ((Array.isArray(incoming[key]) ? incoming[key].length : 0) -
-        incomingRows[key].length),
+    (count, key) => count + ((Array.isArray(incoming[key]) ? incoming[key].length : 0) - incomingRows[key].length),
     0,
-  )
+  );
   // FK remap tables, ONE PER ENTITY TYPE. A source id is only meaningful within its own
   // table, so a single GLOBAL map keyed on the bare id string would let a CROSS-TABLE id
   // collision (two records in different tables that corruptly share an id) misroute every
@@ -675,13 +500,13 @@ export function remapAndValidateImport(
   // Per-table maps resolve each FK against the table it actually references. FIRST
   // occurrence within a table wins; a record with a missing/non-string id is NOT keyed
   // (keying on `undefined` would collapse them all) — it gets a fresh id below.
-  const idMaps = Object.fromEntries(
-    SCOPED_KEYS.map((k) => [k, new Map<ID, ID>()]),
-  ) as Record<ScopedEntityKey, Map<ID, ID>>
+  const idMaps = Object.fromEntries(SCOPED_KEYS.map((k) => [k, new Map<ID, ID>()])) as Record<
+    ScopedEntityKey,
+    Map<ID, ID>
+  >;
   for (const key of SCOPED_KEYS) {
     for (const e of incomingRows[key]) {
-      if (typeof e.id === 'string' && !idMaps[key].has(e.id))
-        idMaps[key].set(e.id, newId())
+      if (typeof e.id === "string" && !idMaps[key].has(e.id)) idMaps[key].set(e.id, newId());
     }
   }
   // Each foreign-key field points at exactly one table, so a ref is remapped via THAT
@@ -689,18 +514,18 @@ export function remapAndValidateImport(
   // Type annotation ensures every value is a valid ScopedEntityKey — a typo or a
   // renamed table fails the type-check here rather than silently remapping to undefined.
   const FK_TARGET: Record<string, ScopedEntityKey> = {
-    disciplineId: 'disciplines',
-    projectId: 'projects',
-    clientId: 'clients',
-    phaseId: 'phases',
-    resourceId: 'resources',
-    activityId: 'activities',
-  }
-  const FK_FIELDS = Object.keys(FK_TARGET)
+    disciplineId: "disciplines",
+    projectId: "projects",
+    clientId: "clients",
+    phaseId: "phases",
+    resourceId: "resources",
+    activityId: "activities",
+  };
+  const FK_FIELDS = Object.keys(FK_TARGET);
   const remap = (field: string, ref: unknown): unknown => {
-    const m = idMaps[FK_TARGET[field]]
-    return typeof ref === 'string' && m.has(ref) ? m.get(ref) : ref
-  }
+    const m = idMaps[FK_TARGET[field]];
+    return typeof ref === "string" && m.has(ref) ? m.get(ref) : ref;
+  };
 
   // Remap every incoming scoped entity into the active account, then repair its
   // value-level fields (enums / numerics / colour). Keep them as loose records so
@@ -710,36 +535,33 @@ export function remapAndValidateImport(
   // so two rows can never collide on one primary key. Timestamps are stamped fresh
   // (`now`) — these records are newly created in this account, and a file missing
   // createdAt/updatedAt must not reach a server whose columns are NOT NULL.
-  const usedIds = new Set<ID>()
-  const brought: Record<string, Array<Record<string, unknown>>> = {}
+  const usedIds = new Set<ID>();
+  const brought: Record<string, Array<Record<string, unknown>>> = {};
   for (const key of SCOPED_KEYS) {
-    const ownIds = idMaps[key]
+    const ownIds = idMaps[key];
     brought[key] = incomingRows[key].map((e) => {
       // `ownIds.get(e.id) as ID` is sound: the FIRST loop above seeded this table's map with a
       // fresh id for EVERY record bearing a string id, so any record reaching here with a string
       // id is guaranteed to have an entry. A missing/non-string id falls to a fresh newId().
-      const mapped =
-        typeof e.id === 'string' ? (ownIds.get(e.id) as ID) : newId()
-      const newRecordId = usedIds.has(mapped) ? newId() : mapped
-      usedIds.add(newRecordId)
+      const mapped = typeof e.id === "string" ? (ownIds.get(e.id) as ID) : newId();
+      const newRecordId = usedIds.has(mapped) ? newId() : mapped;
+      usedIds.add(newRecordId);
       const copy: Record<string, unknown> = {
         ...e,
         id: newRecordId,
         accountId,
         createdAt: now,
         updatedAt: now,
-      }
+      };
       for (const f of FK_FIELDS) {
-        if (copy[f] !== undefined) copy[f] = remap(f, copy[f])
+        if (copy[f] !== undefined) copy[f] = remap(f, copy[f]);
       }
-      const sanitized = sanitizeImportedRecord(key, copy)
-      if (key === 'resources' && sanitized.deletedAt !== undefined) {
-        return obfuscateResource(
-          sanitized as unknown as Resource,
-        ) as unknown as Record<string, unknown>
+      const sanitized = sanitizeImportedRecord(key, copy);
+      if (key === "resources" && sanitized.deletedAt !== undefined) {
+        return obfuscateResource(sanitized as unknown as Resource) as unknown as Record<string, unknown>;
       }
-      return sanitized
-    })
+      return sanitized;
+    });
   }
 
   // Referential repair, parent-before-child so a child sees the SURVIVING parent set
@@ -749,10 +571,8 @@ export function remapAndValidateImport(
   // user data than the schema's CASCADE: a project activity whose project is absent survives as a
   // project-less repeatable activity (and loses its phase), as documented again in that pass below.
   // Every repair keeps a hand-edited file from reaching SQLite with an invalid reference.
-  const idSet = (rows: Array<Record<string, unknown>>) =>
-    new Set(rows.map((r) => r.id as string))
-  const has = (set: Set<string>, v: unknown): boolean =>
-    typeof v === 'string' && set.has(v)
+  const idSet = (rows: Array<Record<string, unknown>>) => new Set(rows.map((r) => r.id as string));
+  const has = (set: Set<string>, v: unknown): boolean => typeof v === "string" && set.has(v);
 
   // Built-in "Internal" client: every account must have EXACTLY ONE (seed / addAccount / migrate
   // guarantee it). This is the IMPORT-FOLD enforcement point (2) of the single-Internal invariant —
@@ -766,45 +586,41 @@ export function remapAndValidateImport(
   //   • keep the FIRST imported builtin (the per-record sanitizer re-stamps its name/colour and
   //     clears impossible lifecycle tombstones), and remap every OTHER imported builtin's id to
   //     that kept one (so anything they owned re-points at the single Internal).
-  const remappedBuiltinId = new Map<string, string>()
-  let keptInternalId: string | undefined
+  const remappedBuiltinId = new Map<string, string>();
+  let keptInternalId: string | undefined;
   brought.clients = brought.clients.filter((c) => {
-    if (c.builtin !== true) return true
+    if (c.builtin !== true) return true;
     if (keptInternalId === undefined) {
-      keptInternalId = c.id as string
-      c.name = INTERNAL_CLIENT_NAME
-      c.color = INTERNAL_CLIENT_COLOR
-      return true // this row becomes the account's single Internal
+      keptInternalId = c.id as string;
+      c.name = INTERNAL_CLIENT_NAME;
+      c.color = INTERNAL_CLIENT_COLOR;
+      return true; // this row becomes the account's single Internal
     }
-    remappedBuiltinId.set(c.id as string, keptInternalId) // a duplicate builtin → fold into the kept one
-    return false
-  })
+    remappedBuiltinId.set(c.id as string, keptInternalId); // a duplicate builtin → fold into the kept one
+    return false;
+  });
   // Re-point any FK that pointed at a folded-away imported builtin client at the single kept Internal
   // (projects.clientId is the only client FK). Done before the required-FK drop so the project keeps a
   // valid client and survives.
   const rewireBuiltin = (v: unknown): unknown =>
-    typeof v === 'string' && remappedBuiltinId.has(v)
-      ? remappedBuiltinId.get(v)
-      : v
-  for (const p of brought.projects) p.clientId = rewireBuiltin(p.clientId)
+    typeof v === "string" && remappedBuiltinId.has(v) ? remappedBuiltinId.get(v) : v;
+  for (const p of brought.projects) p.clientId = rewireBuiltin(p.clientId);
 
-  const clientIds = idSet(brought.clients)
-  const disciplineIds = idSet(brought.disciplines)
+  const clientIds = idSet(brought.clients);
+  const disciplineIds = idSet(brought.disciplines);
 
   // projects.clientId is REQUIRED → drop a project whose client didn't survive.
-  brought.projects = brought.projects.filter((p) => has(clientIds, p.clientId))
-  const projectIds = idSet(brought.projects)
+  brought.projects = brought.projects.filter((p) => has(clientIds, p.clientId));
+  const projectIds = idSet(brought.projects);
 
   // phases.projectId is REQUIRED → drop a phase whose project didn't survive.
-  brought.phases = brought.phases.filter((ph) => has(projectIds, ph.projectId))
-  const phaseIds = idSet(brought.phases)
+  brought.phases = brought.phases.filter((ph) => has(projectIds, ph.projectId));
+  const phaseIds = idSet(brought.phases);
 
   // resources: disciplineId / placeholder projectId are OPTIONAL → unbind if dangling.
   for (const r of brought.resources) {
-    if (r.disciplineId !== undefined && !has(disciplineIds, r.disciplineId))
-      r.disciplineId = undefined
-    if (r.projectId !== undefined && !has(projectIds, r.projectId))
-      r.projectId = undefined
+    if (r.disciplineId !== undefined && !has(disciplineIds, r.disciplineId)) r.disciplineId = undefined;
+    if (r.projectId !== undefined && !has(projectIds, r.projectId)) r.projectId = undefined;
   }
 
   // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
@@ -812,26 +628,22 @@ export function remapAndValidateImport(
   // carries. A project-specific activity whose project didn't survive can no longer BE project-specific, so it
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
   // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.
-  const phaseProject = new Map(
-    brought.phases.map((p) => [p.id as string, p.projectId]),
-  )
+  const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]));
   for (const act of brought.activities) {
-    if (act.kind === 'internal' || act.kind === 'repeatable') {
-      act.projectId = undefined
-      act.phaseId = undefined
-      continue
+    if (act.kind === "internal" || act.kind === "repeatable") {
+      act.projectId = undefined;
+      act.phaseId = undefined;
+      continue;
     }
-    if (act.projectId !== undefined && !has(projectIds, act.projectId))
-      act.projectId = undefined
+    if (act.projectId !== undefined && !has(projectIds, act.projectId)) act.projectId = undefined;
     if (act.projectId === undefined) {
-      act.phaseId = undefined
-      act.kind = 'repeatable'
+      act.phaseId = undefined;
+      act.kind = "repeatable";
     } else if (
       act.phaseId !== undefined &&
-      (!has(phaseIds, act.phaseId) ||
-        phaseProject.get(act.phaseId as string) !== act.projectId)
+      (!has(phaseIds, act.phaseId) || phaseProject.get(act.phaseId as string) !== act.projectId)
     ) {
-      act.phaseId = undefined
+      act.phaseId = undefined;
     }
   }
 
@@ -844,85 +656,59 @@ export function remapAndValidateImport(
   // stamped with id/accountId/timestamps, so reading them as typed entities for the referential
   // checks below is safe. Results are cast back to loose records afterwards so a dangling optional
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
-  const resources = new Map(
-    (brought.resources as unknown as Resource[]).map((r) => [r.id, r]),
-  )
-  const activities = new Map(
-    (brought.activities as unknown as Activity[]).map((act) => [act.id, act]),
-  )
+  const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]));
+  const activities = new Map((brought.activities as unknown as Activity[]).map((act) => [act.id, act]));
   // Single pass: resolve the owning resource ONCE per allocation and use it for BOTH the keep/drop
   // decision (date range + resource/activity existence + placeholder rule) AND the external-load
   // coercion below, so the two can never diverge.
-  brought.allocations = (brought.allocations as unknown as Allocation[]).reduce<
-    Allocation[]
-  >((kept, a) => {
-    if (!validateDateRange(a.startDate, a.endDate).ok) return kept
-    const resource = resources.get(a.resourceId)
-    const activity = activities.get(a.activityId)
-    if (!resource || !activity) return kept
-    if (!validateAllocationAssignment(resource, activity.projectId).ok)
-      return kept
+  brought.allocations = (brought.allocations as unknown as Allocation[]).reduce<Allocation[]>((kept, a) => {
+    if (!validateDateRange(a.startDate, a.endDate).ok) return kept;
+    const resource = resources.get(a.resourceId);
+    const activity = activities.get(a.activityId);
+    if (!resource || !activity) return kept;
+    if (!validateAllocationAssignment(resource, activity.projectId).ok) return kept;
     // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
     // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it
     // can't see the owning resource's kind — coerce it here, where the whole resource set is in
     // scope, so a hand-edited/legacy file can't land a non-zero load on a capacity-free resource.
-    let repaired =
-      isExternalResource(resource) && a.hoursPerDay !== 0
-        ? { ...a, hoursPerDay: 0 }
-        : a
+    let repaired = isExternalResource(resource) && a.hoursPerDay !== 0 ? { ...a, hoursPerDay: 0 } : a;
     // Resource deletion is an erasure boundary, not only a display-name transition. The normal
     // lifecycle route clears dependent free text; apply the same repair to legacy, restored or
     // hand-edited imports so a tombstone cannot reintroduce private project context.
     if (resource.deletedAt !== undefined && repaired.note !== undefined) {
-      repaired = { ...repaired, note: undefined }
+      repaired = { ...repaired, note: undefined };
     }
-    kept.push(repaired)
-    return kept
-  }, []) as unknown as Array<Record<string, unknown>>
-  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).reduce<TimeOff[]>(
-    (kept, t) => {
-      // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
-      // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
-      // same rule here keeps import from landing an invisible orphan a hand-edited file could carry.
-      const resource = resources.get(t.resourceId)
-      if (
-        resource === undefined ||
-        isExternalResource(resource) ||
-        !validateDateRange(t.startDate, t.endDate).ok
-      )
-        return kept
-      // Medical/absence detail is the most sensitive dependent free text. Match the lifecycle delete
-      // path by retaining the valid scheduling record while removing its note for a deleted person.
-      kept.push(
-        resource.deletedAt !== undefined && t.note !== undefined
-          ? { ...t, note: undefined }
-          : t,
-      )
-      return kept
-    },
-    [],
-  ) as unknown as Array<Record<string, unknown>>
+    kept.push(repaired);
+    return kept;
+  }, []) as unknown as Array<Record<string, unknown>>;
+  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).reduce<TimeOff[]>((kept, t) => {
+    // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
+    // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
+    // same rule here keeps import from landing an invisible orphan a hand-edited file could carry.
+    const resource = resources.get(t.resourceId);
+    if (resource === undefined || isExternalResource(resource) || !validateDateRange(t.startDate, t.endDate).ok)
+      return kept;
+    // Medical/absence detail is the most sensitive dependent free text. Match the lifecycle delete
+    // path by retaining the valid scheduling record while removing its note for a deleted person.
+    kept.push(resource.deletedAt !== undefined && t.note !== undefined ? { ...t, note: undefined } : t);
+    return kept;
+  }, []) as unknown as Array<Record<string, unknown>>;
 
-  const next: AppData = { ...data }
-  const srcKept = scopedTables(data)
-  const dst = scopedTables(next)
+  const next: AppData = { ...data };
+  const srcKept = scopedTables(data);
+  const dst = scopedTables(next);
   // Count only NON-builtin clients toward `imported`: the built-in Internal is infrastructure (every
   // account has exactly one regardless of the file), so a kept/folded/synthesised Internal must never
   // inflate "imported N". This also fixes the over-report when a pre-v6 FULL export was given a builtin
   // by migrate (run before this import) — that auto-added row reaches here as a kept builtin, and must
   // still not count. The matching `totalIncoming` below excludes incoming builtins for the same reason.
-  const countable = (
-    key: ScopedEntityKey,
-    rows: ReadonlyArray<Record<string, unknown>>,
-  ): number =>
-    key === 'clients'
-      ? rows.filter((c) => c.builtin !== true).length
-      : rows.length
-  let imported = 0
+  const countable = (key: ScopedEntityKey, rows: ReadonlyArray<Record<string, unknown>>): number =>
+    key === "clients" ? rows.filter((c) => c.builtin !== true).length : rows.length;
+  let imported = 0;
   for (const key of SCOPED_KEYS) {
-    const kept = srcKept[key].filter(notInAccount(accountId))
-    dst[key] = [...kept, ...(brought[key] as unknown as ScopedEntity[])]
-    imported += countable(key, brought[key])
+    const kept = srcKept[key].filter(notInAccount(accountId));
+    dst[key] = [...kept, ...(brought[key] as unknown as ScopedEntity[])];
+    imported += countable(key, brought[key]);
   }
   // Post-step (AFTER counting): guarantee the ACTIVE account ends with exactly one built-in Internal.
   // Import only replaces the active account's slice, so scope the ensure to it (every OTHER account
@@ -936,13 +722,10 @@ export function remapAndValidateImport(
     : {
         ...next,
         clients: [...next.clients, buildInternalClient(accountId, now)],
-      }
+      };
   // Everything that didn't land — a dropped parent, child, allocation or time-off — counts as skipped
   // (records merely unbound from a dangling optional FK still land). Incoming builtins are excluded
   // from BOTH sides so the auto-added Internal never shows up as imported or skipped.
-  const totalIncoming = SCOPED_KEYS.reduce(
-    (n, key) => n + countable(key, incomingRows[key]),
-    malformedIncoming,
-  )
-  return { data: result, imported, skipped: totalIncoming - imported }
+  const totalIncoming = SCOPED_KEYS.reduce((n, key) => n + countable(key, incomingRows[key]), malformedIncoming);
+  return { data: result, imported, skipped: totalIncoming - imported };
 }

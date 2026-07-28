@@ -7,9 +7,7 @@ import { IntroPage } from "./IntroPage";
 // skips elements that have element children, so a paragraph wrapping a <strong> needs an explicit
 // matcher on the whole textContent — which is exactly what we want to pin (copy + emphasis position).
 function paragraphWithText(text: string) {
-  return screen.getByText(
-    (_content, el) => el?.tagName === "P" && el.textContent === text,
-  );
+  return screen.getByText((_content, el) => el?.tagName === "P" && el.textContent === text);
 }
 
 // This test is the VERBATIM-COPY GUARD for the post-login intro page. The wording is placeholder
@@ -46,9 +44,7 @@ describe('IntroPage (post-login "What CapacityLens is")', () => {
     ).toBeInTheDocument();
 
     // Paragraph 3 — verbatim, no emphasis.
-    expect(
-      paragraphWithText("Keep it light. Plan your people, not your paperwork."),
-    ).toBeInTheDocument();
+    expect(paragraphWithText("Keep it light. Plan your people, not your paperwork.")).toBeInTheDocument();
 
     // The two emphasised phrases render inside <strong>.
     const resourcing = screen.getByText("resourcing tool");
@@ -57,9 +53,7 @@ describe('IntroPage (post-login "What CapacityLens is")', () => {
     expect(notPm.tagName).toBe("STRONG");
 
     // The Continue button.
-    expect(
-      screen.getByRole("button", { name: "Continue" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
     expect(screen.getByTestId("intro-continue")).toBeInTheDocument();
   });
 

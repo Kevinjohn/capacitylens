@@ -1,13 +1,7 @@
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 
 // Shown when bootstrap could not load state from the server (it's down or
 // unreachable). Distinct from StorageRecovery (corrupt LOCAL data): there is nothing

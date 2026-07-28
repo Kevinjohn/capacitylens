@@ -1,13 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import type { Db } from "./db";
 import { tx } from "./txn";
-import {
-  INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
-  SCHEMA_V8_SQL,
-  TABLES,
-  type ColumnSpec,
-  type TableSpec,
-} from "./tables";
+import { INTERNAL_CLIENT_UNIQUE_INDEX_SQL, SCHEMA_V8_SQL, TABLES, type ColumnSpec, type TableSpec } from "./tables";
 
 // Schema migration + assertion, extracted from db.ts. openDb() runs migrateSchema (bring
 // an existing file up to the current shape in place) and then assertSchemaCurrent (fail
@@ -30,12 +24,9 @@ const columns = (db: Db, table: string): ColumnInfo[] =>
   db.prepare(`PRAGMA table_info(${table})`).all() as unknown as ColumnInfo[];
 
 const schemaColumns = (db: Db, table: string): SchemaColumnInfo[] =>
-  db
-    .prepare(`PRAGMA table_xinfo(${table})`)
-    .all() as unknown as SchemaColumnInfo[];
+  db.prepare(`PRAGMA table_xinfo(${table})`).all() as unknown as SchemaColumnInfo[];
 
-const hasColumn = (db: Db, table: string, column: string): boolean =>
-  columns(db, table).some((c) => c.name === column);
+const hasColumn = (db: Db, table: string, column: string): boolean => columns(db, table).some((c) => c.name === column);
 
 const isNotNull = (db: Db, table: string, column: string): boolean =>
   columns(db, table).some((c) => c.name === column && c.notnull === 1);
@@ -44,13 +35,7 @@ const isNotNull = (db: Db, table: string, column: string): boolean =>
  *  empty column list for BOTH a missing table and a zero-column one — we need to tell them apart
  *  for the legacy rename below). */
 const tableExists = (db: Db, table: string): boolean =>
-  (
-    db
-      .prepare(
-        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
-      )
-      .all(table) as unknown[]
-  ).length > 0;
+  (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).all(table) as unknown[]).length > 0;
 
 const normalizeSchemaObjectSql = (sql: string): string =>
   sql
@@ -59,9 +44,7 @@ const normalizeSchemaObjectSql = (sql: string): string =>
     .replace(/\bIF NOT EXISTS\b\s*/i, "")
     .replace(/;$/, "");
 
-const expectedInternalClientIndexSql = normalizeSchemaObjectSql(
-  INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
-);
+const expectedInternalClientIndexSql = normalizeSchemaObjectSql(INTERNAL_CLIENT_UNIQUE_INDEX_SQL);
 
 /**
  * Materialise a historical table contract from its immutable DDL. This deliberately does not
@@ -86,25 +69,15 @@ function tableSpecsFromHistoricalSql(sql: string): Record<string, TableSpec> {
 
     return Object.fromEntries(
       tableNames.map((table) => {
-        const historicalColumns = db
-          .prepare(`PRAGMA table_info(${table})`)
-          .all() as unknown as ColumnInfo[];
+        const historicalColumns = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as ColumnInfo[];
         const versionedColumns = historicalColumns.map((column): ColumnSpec => {
           const sqlType = column.type.toUpperCase();
-          if (
-            sqlType !== "TEXT" &&
-            sqlType !== "INTEGER" &&
-            sqlType !== "REAL"
-          ) {
-            throw new Error(
-              `Unsupported historical column type ${table}.${column.name}: ${column.type}`,
-            );
+          if (sqlType !== "TEXT" && sqlType !== "INTEGER" && sqlType !== "REAL") {
+            throw new Error(`Unsupported historical column type ${table}.${column.name}: ${column.type}`);
           }
           return {
             name: column.name,
-            ...(column.notnull === 0 && column.pk === 0
-              ? { optional: true }
-              : {}),
+            ...(column.notnull === 0 && column.pk === 0 ? { optional: true } : {}),
             ...(sqlType === "INTEGER" || sqlType === "REAL" ? { sqlType } : {}),
           };
         });
@@ -173,16 +146,12 @@ export function renameLegacyActivityTables(db: Db): void {
  * activities rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
  * activities rebuild's drop/rename is safe.
  */
-function migrateSchemaVersion(
-  db: Db,
-  tableSpecs: Record<string, TableSpec>,
-): void {
+function migrateSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>): void {
   // Every additive optional column the selected version's spec has that an older table lacks.
   const additions: Array<[string, string]> = [];
   for (const [table, spec] of Object.entries(tableSpecs)) {
     for (const col of spec.columns) {
-      if (col.optional && !hasColumn(db, table, col.name))
-        additions.push([table, col.name]);
+      if (col.optional && !hasColumn(db, table, col.name)) additions.push([table, col.name]);
     }
   }
   // activities needs a rebuild when an OLD-shape constraint is still present: projectId was once
@@ -190,15 +159,13 @@ function migrateSchemaVersion(
   // that SQLite can't ALTER-ADD as NOT NULL to a table with rows. Either condition → rebuild
   // to the current shape (nullable projectId, kind backfilled from projectId presence).
   const activitiesHadKind = hasColumn(db, "activities", "kind");
-  const needsActivitiesRebuild =
-    isNotNull(db, "activities", "projectId") || !activitiesHadKind;
+  const needsActivitiesRebuild = isNotNull(db, "activities", "projectId") || !activitiesHadKind;
   if (additions.length === 0 && !needsActivitiesRebuild) return; // already current — nothing to do
 
   tx(db, () => {
     // Optional columns are nullable TEXT (json columns are TEXT too), so a plain ADD
     // COLUMN is safe: existing rows get NULL, which fromRow omits on read.
-    for (const [table, name] of additions)
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} TEXT`);
+    for (const [table, name] of additions) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} TEXT`);
     // SQLite can't relax a NOT NULL in place, so rebuild activities when the old constraint
     // is still there. Skipped entirely on a current-shape DB.
     if (needsActivitiesRebuild) rebuildActivitiesTable(db, activitiesHadKind);
@@ -254,9 +221,7 @@ function rebuildActivitiesTable(db: Db, sourceHasKind: boolean): void {
   // rebuild left dangling instead of committing a corrupt schema.
   const violations = db.prepare("PRAGMA foreign_key_check").all();
   if (violations.length > 0) {
-    throw new Error(
-      `activities table rebuild left ${violations.length} foreign-key violation(s)`,
-    );
+    throw new Error(`activities table rebuild left ${violations.length} foreign-key violation(s)`);
   }
 }
 
@@ -287,11 +252,7 @@ function rebuildActivitiesTable(db: Db, sourceHasKind: boolean): void {
  *      column, CHECK/UNIQUE constraint, trigger, STRICT or WITHOUT ROWID table option can reject an
  *      otherwise valid TABLES row, so startup refuses that unknown shape before accepting traffic.
  */
-function assertSchemaVersion(
-  db: Db,
-  tableSpecs: Record<string, TableSpec>,
-  allowCompatibleExtensions: boolean,
-): void {
+function assertSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>, allowCompatibleExtensions: boolean): void {
   const missing: string[] = [];
   const nullabilityProblems: string[] = [];
   const typeProblems: string[] = [];
@@ -323,21 +284,15 @@ function assertSchemaVersion(
       }
       const liveColumn = live.get(col.name)!;
       if (liveColumn.hidden !== 0) {
-        constraintProblems.push(
-          `${table}.${col.name} is unexpectedly generated or hidden`,
-        );
+        constraintProblems.push(`${table}.${col.name} is unexpectedly generated or hidden`);
       }
       const expectedType = col.sqlType ?? "TEXT";
       if (liveColumn.type.toUpperCase() !== expectedType) {
-        typeProblems.push(
-          `${table}.${col.name} (spec ${expectedType}, DB ${liveColumn.type || "untyped"})`,
-        );
+        typeProblems.push(`${table}.${col.name} (spec ${expectedType}, DB ${liveColumn.type || "untyped"})`);
       }
       const expectedPk = col.name === "id" ? 1 : 0;
       if (liveColumn.pk !== expectedPk) {
-        primaryKeyProblems.push(
-          `${table}.${col.name} (spec PK ${expectedPk}, DB PK ${liveColumn.pk})`,
-        );
+        primaryKeyProblems.push(`${table}.${col.name} (spec PK ${expectedPk}, DB PK ${liveColumn.pk})`);
       }
       if (col.name === "id") continue; // TEXT PRIMARY KEY: PRAGMA reports notnull=0 on older DDL
       const liveNotNull = liveColumn.notnull === 1;
@@ -357,19 +312,12 @@ function assertSchemaVersion(
         unexpectedRequired.push(`${table}.${column.name}`);
       }
       if (column.pk > 0) {
-        primaryKeyProblems.push(
-          `${table}.${column.name} is an unexpected primary-key column`,
-        );
+        primaryKeyProblems.push(`${table}.${column.name} is an unexpected primary-key column`);
       }
     }
 
     const tableInfo = tableOptions.get(table);
-    if (
-      tableInfo &&
-      (tableInfo.type !== "table" ||
-        tableInfo.wr !== 0 ||
-        tableInfo.strict !== 0)
-    ) {
+    if (tableInfo && (tableInfo.type !== "table" || tableInfo.wr !== 0 || tableInfo.strict !== 0)) {
       constraintProblems.push(
         `${table} has unsupported table options (type ${tableInfo.type}, ` +
           `WITHOUT ROWID ${tableInfo.wr}, STRICT ${tableInfo.strict})`,
@@ -377,20 +325,14 @@ function assertSchemaVersion(
     }
     const tableSql =
       (
-        db
-          .prepare(
-            `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`,
-          )
-          .get(table) as { sql: string | null } | undefined
+        db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as
+          { sql: string | null } | undefined
       )?.sql ?? "";
-    if (/\bCHECK\s*\(/i.test(tableSql))
-      constraintProblems.push(`${table} has an unexpected CHECK constraint`);
+    if (/\bCHECK\s*\(/i.test(tableSql)) constraintProblems.push(`${table} has an unexpected CHECK constraint`);
 
     const expectedUniqueIndexes =
       table === "clients"
-        ? new Map([
-            ["clients_one_builtin_per_account", expectedInternalClientIndexSql],
-          ])
+        ? new Map([["clients_one_builtin_per_account", expectedInternalClientIndexSql]])
         : new Map<string, string>();
     const actualUniqueIndexes = (
       db.prepare(`PRAGMA index_list(${table})`).all() as Array<{
@@ -402,47 +344,29 @@ function assertSchemaVersion(
     for (const index of actualUniqueIndexes) {
       const expectedSql = expectedUniqueIndexes.get(index.name);
       const actualSql = (
-        db
-          .prepare(
-            `SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
-          )
-          .get(index.name) as { sql: string | null } | undefined
+        db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`).get(index.name) as
+          { sql: string | null } | undefined
       )?.sql;
-      if (
-        !expectedSql ||
-        !actualSql ||
-        normalizeSchemaObjectSql(actualSql) !== expectedSql
-      ) {
-        constraintProblems.push(
-          `${table}.${index.name} is an unexpected or invalid UNIQUE constraint`,
-        );
+      if (!expectedSql || !actualSql || normalizeSchemaObjectSql(actualSql) !== expectedSql) {
+        constraintProblems.push(`${table}.${index.name} is an unexpected or invalid UNIQUE constraint`);
       }
       expectedUniqueIndexes.delete(index.name);
     }
     for (const name of expectedUniqueIndexes.keys()) {
-      constraintProblems.push(
-        `${table}.${name} expected UNIQUE constraint is missing`,
-      );
+      constraintProblems.push(`${table}.${name} expected UNIQUE constraint is missing`);
     }
 
     const unexpectedTriggers = (
-      db
-        .prepare(
-          `SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?`,
-        )
-        .all(table) as Array<{ name: string }>
+      db.prepare(`SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?`).all(table) as Array<{
+        name: string;
+      }>
     ).filter(({ name }) => !name.startsWith("capacitylens_tenant_"));
     for (const trigger of unexpectedTriggers) {
-      constraintProblems.push(
-        `${table}.${trigger.name} is an unexpected trigger`,
-      );
+      constraintProblems.push(`${table}.${trigger.name} is an unexpected trigger`);
     }
   }
   const problems: string[] = [];
-  const expectedForeignKeys: Record<
-    string,
-    Array<[string, string, string, string]>
-  > = {
+  const expectedForeignKeys: Record<string, Array<[string, string, string, string]>> = {
     clients: [["accountId", "accounts", "id", "CASCADE"]],
     disciplines: [["accountId", "accounts", "id", "CASCADE"]],
     projects: [
@@ -482,24 +406,13 @@ function assertSchemaVersion(
         to: string;
         on_delete: string;
       }>
-    ).map(
-      (fk) =>
-        [fk.from, fk.table, fk.to, fk.on_delete] as [
-          string,
-          string,
-          string,
-          string,
-        ],
-    );
+    ).map((fk) => [fk.from, fk.table, fk.to, fk.on_delete] as [string, string, string, string]);
     for (const wanted of expected) {
       if (!actual.some((got) => got.every((value, i) => value === wanted[i]))) {
-        foreignKeyProblems.push(
-          `${table}.${wanted[0]} -> ${wanted[1]}.${wanted[2]} ON DELETE ${wanted[3]}`,
-        );
+        foreignKeyProblems.push(`${table}.${wanted[0]} -> ${wanted[1]}.${wanted[2]} ON DELETE ${wanted[3]}`);
       }
     }
-    if (actual.length !== expected.length)
-      foreignKeyProblems.push(`${table} has unexpected foreign-key count`);
+    if (actual.length !== expected.length) foreignKeyProblems.push(`${table} has unexpected foreign-key count`);
   }
   if (missing.length > 0) {
     problems.push(
@@ -514,10 +427,8 @@ function assertSchemaVersion(
         `NOT NULL have drifted; reconcile them (a NOT NULL change to an existing table needs a rebuild)`,
     );
   }
-  if (typeProblems.length > 0)
-    problems.push(`declared-type mismatch: ${typeProblems.join("; ")}`);
-  if (primaryKeyProblems.length > 0)
-    problems.push(`primary-key mismatch: ${primaryKeyProblems.join("; ")}`);
+  if (typeProblems.length > 0) problems.push(`declared-type mismatch: ${typeProblems.join("; ")}`);
+  if (primaryKeyProblems.length > 0) problems.push(`primary-key mismatch: ${primaryKeyProblems.join("; ")}`);
   if (unexpectedColumns.length > 0) {
     problems.push(
       `unexpected versioned column(s): ${unexpectedColumns.join(", ")} — a released migration ` +
@@ -531,17 +442,13 @@ function assertSchemaVersion(
     );
   }
   if (constraintProblems.length > 0) {
-    problems.push(
-      `unexpected write constraint(s): ${constraintProblems.join("; ")}`,
-    );
+    problems.push(`unexpected write constraint(s): ${constraintProblems.join("; ")}`);
   }
   if (foreignKeyProblems.length > 0) {
     problems.push(`foreign-key mismatch: ${foreignKeyProblems.join("; ")}`);
   }
   if (problems.length > 0) {
-    throw new Error(
-      `DB schema does not match the current model — ${problems.join(". ")}.`,
-    );
+    throw new Error(`DB schema does not match the current model — ${problems.join(". ")}.`);
   }
 }
 

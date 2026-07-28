@@ -1,20 +1,16 @@
-import { useEffect, useId, useState } from 'react'
-import type { FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
-import { API_BASE, isServerConfigured } from '../data/apiConfig'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Field, FieldError, FieldGroup, FieldLabel } from '../components/ui/field'
-import { Card, CardContent } from '../components/ui/card'
-import { APP_NAME } from '@capacitylens/shared/brand'
-import {
-  MIN_PASSWORD_LENGTH,
-  MAX_PASSWORD_LENGTH,
-  passwordLengthFailure,
-} from '@capacitylens/shared/domain/password'
-import { messageForFailure } from './resetPasswordFailure'
-import { m } from '@/i18n'
-import { requestSignal } from '../data/requestTimeout'
+import { useEffect, useId, useState } from "react";
+import type { FormEvent } from "react";
+import { useParams } from "react-router-dom";
+import { API_BASE, isServerConfigured } from "../data/apiConfig";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/field";
+import { Card, CardContent } from "../components/ui/card";
+import { APP_NAME } from "@capacitylens/shared/brand";
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
+import { messageForFailure } from "./resetPasswordFailure";
+import { m } from "@/i18n";
+import { requestSignal } from "../data/requestTimeout";
 
 // Password-reset page for /reset-password/:token. The token arrives out-of-band — an
 // Owner/Admin minted it in Team & access and handed the link over directly (the app has no
@@ -30,12 +26,7 @@ import { requestSignal } from '../data/requestTimeout'
 // status.kind === 'login' branch there); the redeem endpoint sits under /api/auth/*, which the
 // server's requireUser preHandler already exempts.
 
-type State =
-  | { kind: 'form' }
-  | { kind: 'working' }
-  | { kind: 'done' }
-  | { kind: 'unknown' }
-  | { kind: 'local' } // the demo build (no server) — password reset is a server-mode feature
+type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" }; // the demo build (no server) — password reset is a server-mode feature
 
 /**
  * Reset-password page for `/reset-password/:token`.
@@ -48,76 +39,76 @@ type State =
  * request. Surface-not-swallow: every failure path lands on a visible message.
  */
 export function ResetPassword() {
-  const { token } = useParams<{ token: string }>()
-  const [state, setState] = useState<State>(() => (isServerConfigured() ? { kind: 'form' } : { kind: 'local' }))
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const { token } = useParams<{ token: string }>();
+  const [state, setState] = useState<State>(() => (isServerConfigured() ? { kind: "form" } : { kind: "local" }));
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
   // Stable ids so both inputs can point at the shared form-level error (WCAG 3.3.1) — the
   // LoginScreen idiom: describedby re-announces the reason as the user navigates back.
-  const passwordId = useId()
-  const confirmId = useId()
-  const errorId = useId()
+  const passwordId = useId();
+  const confirmId = useId();
+  const errorId = useId();
 
   // Per-route document.title (WCAG 2.4.2) — this route renders OUTSIDE AppShell (see router.tsx),
   // so the shell's nav-driven title effect never covers it (the InviteAccept idiom).
   useEffect(() => {
-    document.title = `${m.reset_title()} · ${APP_NAME}`
-  }, [])
+    document.title = `${m.reset_title()} · ${APP_NAME}`;
+  }, []);
 
   const submit = async (e: FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     // Defensive: the route shape guarantees a token; a hand-mangled URL still gets a clear message.
     if (!token) {
-      setError(m.reset_err_missing_token())
-      return
+      setError(m.reset_err_missing_token());
+      return;
     }
     // Pre-checks that save a round trip; the server re-enforces the length on redeem.
-    const lengthFailure = passwordLengthFailure(password)
-    if (lengthFailure === 'too-short') {
-      setError(m.reset_err_short({ min: MIN_PASSWORD_LENGTH }))
-      return
+    const lengthFailure = passwordLengthFailure(password);
+    if (lengthFailure === "too-short") {
+      setError(m.reset_err_short({ min: MIN_PASSWORD_LENGTH }));
+      return;
     }
-    if (lengthFailure === 'too-long') {
-      setError(m.reset_err_long({ max: MAX_PASSWORD_LENGTH }))
-      return
+    if (lengthFailure === "too-long") {
+      setError(m.reset_err_long({ max: MAX_PASSWORD_LENGTH }));
+      return;
     }
     if (password !== confirm) {
-      setError(m.reset_err_mismatch())
-      return
+      setError(m.reset_err_mismatch());
+      return;
     }
-    setError(null)
-    setState({ kind: 'working' })
+    setError(null);
+    setState({ kind: "working" });
     try {
       const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newPassword: password, token }),
         signal: requestSignal(),
-      })
+      });
       if (res.ok) {
-        setState({ kind: 'done' })
-        return
+        setState({ kind: "done" });
+        return;
       }
       // A proxy-generated timeout/5xx can arrive after the upstream consumed the one-use token and
       // changed the password. Do not reopen the form and invite a misleading retry; use the same
       // honest verification path as a transport failure.
       if (res.status === 408 || res.status >= 500) {
-        setError(null)
-        setState({ kind: 'unknown' })
-        return
+        setError(null);
+        setState({ kind: "unknown" });
+        return;
       }
-      const body = (await res.json().catch(() => ({}))) as { code?: string }
-      setError(messageForFailure(body, res.status))
-      setState({ kind: 'form' })
+      const body = (await res.json().catch(() => ({}))) as { code?: string };
+      setError(messageForFailure(body, res.status));
+      setState({ kind: "form" });
     } catch (err) {
       // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
       // message rather than a dead end, and log the real cause for debugging.
-      console.error('ResetPassword: reset request failed', err)
-      setError(null)
-      setState({ kind: 'unknown' })
+      console.error("ResetPassword: reset request failed", err);
+      setError(null);
+      setState({ kind: "unknown" });
     }
-  }
+  };
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
@@ -125,76 +116,74 @@ export function ResetPassword() {
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
           <h1 className="text-lg font-semibold text-ink">{m.reset_title()}</h1>
-          {state.kind !== 'done' && state.kind !== 'local' && (
+          {state.kind !== "done" && state.kind !== "local" && (
             <p className="text-sm text-muted-foreground">{m.reset_subtitle()}</p>
           )}
         </div>
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
-          {(state.kind === 'form' || state.kind === 'working') && (
-            <form onSubmit={(e) => void submit(e)} noValidate>
-              <FieldGroup className="gap-3">
-                <Field>
-                  <FieldLabel htmlFor={passwordId}>{m.reset_new_password()}</FieldLabel>
-                  <Input
-                  id={passwordId}
-                  data-testid="reset-new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  aria-describedby={error ? errorId : undefined}
-                  autoFocus
-                />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor={confirmId}>{m.reset_confirm_password()}</FieldLabel>
-                  <Input
-                  id={confirmId}
-                  data-testid="reset-confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  aria-describedby={error ? errorId : undefined}
-                />
-                </Field>
-              <FieldError id={errorId}>{error}</FieldError>
-              <div className="flex justify-end">
-                <Button size="sm" type="submit" data-testid="reset-submit" disabled={state.kind === 'working'}>
-                  {m.reset_submit()}
-                </Button>
-              </div>
-              {state.kind === 'working' && (
-                <p role="status" className="text-sm text-muted-foreground">
-                  {m.reset_working()}
+            {(state.kind === "form" || state.kind === "working") && (
+              <form onSubmit={(e) => void submit(e)} noValidate>
+                <FieldGroup className="gap-3">
+                  <Field>
+                    <FieldLabel htmlFor={passwordId}>{m.reset_new_password()}</FieldLabel>
+                    <Input
+                      id={passwordId}
+                      data-testid="reset-new-password"
+                      type="password"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-describedby={error ? errorId : undefined}
+                      autoFocus
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={confirmId}>{m.reset_confirm_password()}</FieldLabel>
+                    <Input
+                      id={confirmId}
+                      data-testid="reset-confirm-password"
+                      type="password"
+                      autoComplete="new-password"
+                      value={confirm}
+                      onChange={(e) => setConfirm(e.target.value)}
+                      aria-describedby={error ? errorId : undefined}
+                    />
+                  </Field>
+                  <FieldError id={errorId}>{error}</FieldError>
+                  <div className="flex justify-end">
+                    <Button size="sm" type="submit" data-testid="reset-submit" disabled={state.kind === "working"}>
+                      {m.reset_submit()}
+                    </Button>
+                  </div>
+                  {state.kind === "working" && (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      {m.reset_working()}
+                    </p>
+                  )}
+                </FieldGroup>
+              </form>
+            )}
+            {(state.kind === "done" || state.kind === "unknown") && (
+              <div className="flex flex-col gap-3">
+                <p role="status" data-testid="reset-success" className="text-sm font-medium text-ink">
+                  {state.kind === "done" ? m.reset_success() : m.reset_unknown_outcome()}
                 </p>
-              )}
-              </FieldGroup>
-            </form>
-          )}
-          {(state.kind === 'done' || state.kind === 'unknown') && (
-            <div className="flex flex-col gap-3">
-              <p role="status" data-testid="reset-success" className="text-sm font-medium text-ink">
-                {state.kind === 'done'
-                  ? m.reset_success()
-                  : m.reset_unknown_outcome()}
-              </p>
-              <div className="flex justify-end">
-                {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean
+                <div className="flex justify-end">
+                  {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean
                     boot is what re-runs AuthProvider's /me check and lands on the login screen. */}
-                <Button asChild size="sm">
-                  <a href="/">{m.reset_go_signin()}</a>
-                </Button>
+                  <Button asChild size="sm">
+                    <a href="/">{m.reset_go_signin()}</a>
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-          {state.kind === 'local' && (
-            <p className="text-sm text-muted-foreground">{m.reset_local_mode({ app: APP_NAME })}</p>
-          )}
+            )}
+            {state.kind === "local" && (
+              <p className="text-sm text-muted-foreground">{m.reset_local_mode({ app: APP_NAME })}</p>
+            )}
           </CardContent>
         </Card>
       </main>
     </div>
-  )
+  );
 }

@@ -16,17 +16,17 @@ claims that a subsystem was already audited.
 When something goes wrong, the error must end up somewhere a human (user, operator, or contributor)
 can see it. A `catch` block has exactly three legitimate jobs:
 
-1. **Re-throw with more context — and ALWAYS attach `{ cause: e }`** so the *full error chain*
+1. **Re-throw with more context — and ALWAYS attach `{ cause: e }`** so the _full error chain_
    survives, not just a re-worded message:
    `catch (e) { throw new Error(\`Corrupt JSON in ${table}.${col} (id=${id})\`, { cause: e }) }`.
-   ESLint's **`preserve-caught-error`** rule enforces this for native errors; it does **not** fire on
-   custom error classes or bare `catch {}`, so those are on you — our custom classes (`LoadError`,
-   `ValidationError`) take an `ErrorOptions` and forward the cause, and a bare `catch {` that
-   re-throws should bind the error (`catch (e)`) and pass it through.
+ESLint's **`preserve-caught-error`** rule enforces this for native errors; it does **not** fire on
+custom error classes or bare `catch {}`, so those are on you — our custom classes (`LoadError`,
+`ValidationError`) take an `ErrorOptions`and forward the cause, and a bare`catch {` that
+re-throws should bind the error (`catch (e)`) and pass it through.
 2. **Route it to a visible surface** — a thrown integrity message → a form `FieldError` / a `Toast` /
    the `ErrorBoundary`; a load failure → a typed `LoadError` that picks the right recovery screen;
    a server fault → the redaction funnel (`statusFor → fail`). The user is told what happened.
-3. **Degrade to a documented default** — and *only* for genuinely non-load-bearing state (see §5).
+3. **Degrade to a documented default** — and _only_ for genuinely non-load-bearing state (see §5).
 
 There is **no fourth job.** `catch {}` that drops the error, or `catch { return null }` on a data
 path, is the anti-goal: it turns a loud, fixable failure into invisible corruption. Prefer a loud,
@@ -50,13 +50,13 @@ Two tiers, kept separate:
   wrap the store mutation in `try/catch` and relay `errorMessage(e)` to a `FieldError`/`Toast`.
 
 So the flow is: **reject early with a value → throw at the boundary with a clear message → catch at
-the UI and show it.** Every new feature follows this. Don't put `try/catch` *inside* a validator,
+the UI and show it.** Every new feature follows this. Don't put `try/catch` _inside_ a validator,
 and don't let a store mutation throw past a form handler uncaught.
 
 **Typed, classified errors over stringly-typed ones:** `LoadError('corrupt' | 'unavailable')`
 routes recovery; `ValidationError` marks caller-fault (→ HTTP 400) vs a real bug (→ 500);
 `AuthConfigError` frames a boot refusal. Add to this vocabulary rather than `throw new Error` +
-string-sniffing — except where we already sniff a *library's* message (e.g. SQLite "constraint
+string-sniffing — except where we already sniff a _library's_ message (e.g. SQLite "constraint
 failed"), which must be pinned by a test.
 
 ---
@@ -66,15 +66,15 @@ failed"), which must be pinned by a test.
 Wrap the boundary where the world is untrusted or fallible. Every one of these should be guarded
 **and** surface on failure:
 
-| Boundary | Examples | On failure |
-|---|---|---|
-| **Parsing** | `JSON.parse`, `parseData`, `res.json()` | re-throw clear message / typed error |
-| **Storage I/O** | preference storage, IndexedDB offline cache, SQLite reads | classify, surface or fail closed |
-| **Network** | `fetch`, auth `getSession`, sign-in/out | `LoadError('unavailable')` / 503 / inline message |
-| **Untrusted input** | import payloads, `/api/*` bodies, an auth `/me` response | sanitize/validate, never trust an `as` cast |
-| **Runtime/env** | `crypto.randomUUID`, `Intl.DateTimeFormat(tz)`, `matchMedia`, `import.meta.env` | clear thrown message or documented default + `console.warn` |
-| **Store-mutation call sites** | `add*/update*/delete*` in form & gesture handlers | catch → `fail(null, e.message)` / `setNotice(msg,'error')` |
-| **Browser file ops** | `downloadTextFile` (backup-before-delete!) | **throw** — a failed backup never saves a partial file and surfaces loudly (the export itself stays optional) |
+| Boundary                      | Examples                                                                        | On failure                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Parsing**                   | `JSON.parse`, `parseData`, `res.json()`                                         | re-throw clear message / typed error                                                                          |
+| **Storage I/O**               | preference storage, IndexedDB offline cache, SQLite reads                       | classify, surface or fail closed                                                                              |
+| **Network**                   | `fetch`, auth `getSession`, sign-in/out                                         | `LoadError('unavailable')` / 503 / inline message                                                             |
+| **Untrusted input**           | import payloads, `/api/*` bodies, an auth `/me` response                        | sanitize/validate, never trust an `as` cast                                                                   |
+| **Runtime/env**               | `crypto.randomUUID`, `Intl.DateTimeFormat(tz)`, `matchMedia`, `import.meta.env` | clear thrown message or documented default + `console.warn`                                                   |
+| **Store-mutation call sites** | `add*/update*/delete*` in form & gesture handlers                               | catch → `fail(null, e.message)` / `setNotice(msg,'error')`                                                    |
+| **Browser file ops**          | `downloadTextFile` (backup-before-delete!)                                      | **throw** — a failed backup never saves a partial file and surfaces loudly (the export itself stays optional) |
 
 If you add a new one of these, guard it and pick a surface from §1.
 
@@ -87,16 +87,16 @@ would **hide data corruption** (the exact thing we're defending against) or add 
 real bugs. Each carries a short guard-comment in the code so the next contributor doesn't re-add it.
 
 - **Pure functions on the render hot path** — `resolveBarColor`, `buildSchedulerModel`,
-  `virtualWindow`, `lanePacking`, pure `gestureMath`, `fuzzyScore`. A throw here is a *programmer*
+  `virtualWindow`, `lanePacking`, pure `gestureMath`, `fuzzyScore`. A throw here is a _programmer_
   error, not user input. Wrapping it turns a visible zero-width-bar symptom into a blank grid.
   **Push the guard into the math instead** (see §6).
 - **The store's deliberate integrity throws** — `mutate`, the `assert*` helpers, `importData`,
-  `undo`/`redo`. Their *job* is to throw so no path can persist bad multi-tenant data. A `try/catch`
+  `undo`/`redo`. Their _job_ is to throw so no path can persist bad multi-tenant data. A `try/catch`
   around them converts the last-line data-safety guarantee into silent corruption.
 - **The server's re-throw points** — `validateWrite`'s re-tag, `tx()`'s rollback-and-rethrow,
   `drain()` advancing `lastSynced` only after a successful batch. Swallowing here lets invalid
   writes reach SQLite or drops unsynced data from future diffs.
-- **Total helpers** — `errorMessage(unknown): string` never throws; it's the *sink* for catches,
+- **Total helpers** — `errorMessage(unknown): string` never throws; it's the _sink_ for catches,
   not something to wrap.
 
 When in doubt: **if the function can't receive untrusted input and can't do I/O, it doesn't need a
@@ -106,17 +106,17 @@ When in doubt: **if the function can't receive untrusted input and can't do I/O,
 
 ## 5. The only acceptable swallows (and they must be commented)
 
-A bare `catch {}` is correct in exactly these shapes, each requiring a one-line *why*:
+A bare `catch {}` is correct in exactly these shapes, each requiring a one-line _why_:
 
 - **Page teardown** — `flushOnUnload().catch(() => {})`: the page is closing, nothing can act on
   the error, and a surviving reload re-diffs against the source of truth.
-- **A surfacing side-effect** — `/api/health` deep check: the `503` *is* the surfacing; logging
+- **A surfacing side-effect** — `/api/health` deep check: the `503` _is_ the surfacing; logging
   and re-throwing would defeat the uptime monitor.
 - **Device-global, non-tenant preferences** — `theme`, `utilizationPrefs`, `sidebar`, the rotate
   hint: a blocked/corrupt preference store falls back to a documented default. Losing a view-toggle
-  cannot corrupt account data, so swallow-to-default is right *here and only here*.
+  cannot corrupt account data, so swallow-to-default is right _here and only here_.
 - **Best-effort diagnostics** — `res.text().catch(() => '')` reading an error body: swallow the
-  *nice-to-have detail*, never the operation itself.
+  _nice-to-have detail_, never the operation itself.
 
 Everything else surfaces. If a fallback is genuinely correct but the cause would otherwise be
 invisible, **leave a breadcrumb** (`console.warn(e)`) — handled-but-logged satisfies the rule;
@@ -126,7 +126,7 @@ totally-silent does not.
 
 ## 6. Push guards into the pure core, not the call site
 
-The codebase's signature pattern: low-level pure math clamps bad values to a safe, *visible* result
+The codebase's signature pattern: low-level pure math clamps bad values to a safe, _visible_ result
 instead of throwing, so callers don't need defensive wrappers and corruption shows as a harmless
 symptom rather than a crash or a swallow.
 
@@ -146,11 +146,11 @@ We comment for the **junior contributor reading this cold**, and we explain **wh
 
 - **Every exported symbol gets TSDoc.** `shared/` is published (`@capacitylens/shared`) and imported by
   others — its public API is the highest priority. State **preconditions** ("input must be a
-  validated `ISODate` — see `isValidISODate`"), **`@throws`** (and what a throw *means* — e.g. "a
+  validated `ISODate` — see `isValidISODate`"), **`@throws`** (and what a throw _means_ — e.g. "a
   throw from `downloadTextFile` means the file was NOT saved; do not proceed with a dependent
   delete"), and **purity** ("returns a new `AppData`, never mutates").
-- **Document contracts invisible at the type level.** The store's CRUD actions *throw on a
-  tenancy/integrity violation and silently no-op on a stale id* — that's the single most important
+- **Document contracts invisible at the type level.** The store's CRUD actions _throw on a
+  tenancy/integrity violation and silently no-op on a stale id_ — that's the single most important
   thing a caller must know, and the type signature doesn't say it. Write it on the interface.
 - **Why-comments on non-obvious decisions and cross-file invariants** — especially where safety
   depends on something non-local ("this cast is sound because the row was just sanitized";
@@ -170,7 +170,7 @@ We comment for the **junior contributor reading this cold**, and we explain **wh
 
 ## 8. Drift-proofing stays type-level
 
-Where exhaustiveness can be a *compile* error, prefer that to a runtime check: `Record<Enum, …>`
+Where exhaustiveness can be a _compile_ error, prefer that to a runtime check: `Record<Enum, …>`
 maps, `const _exhaustive: never = key`, the `CheckColumns`/`UPSERT_ORDER` guards. A new enum member
 or entity field that misses a list should **fail the gate**, not fall back at runtime. Don't bolt a
 runtime default onto something the type system already guarantees — it's dead code that hides the

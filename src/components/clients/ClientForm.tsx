@@ -1,39 +1,38 @@
-import { useState } from 'react'
-import { useStore } from '../../store/useStore'
-import { useFieldError } from '../../hooks/useFieldError'
-import { errorMessage } from '../../lib/errorMessage'
-import { validateHex, validateName } from '../../lib/validation'
-import { normalizeCodeName } from '@capacitylens/shared/domain/privateNames'
-import { canSeePrivateNames } from '@capacitylens/shared/domain/access'
-import { useRole } from '../../auth/permissionContext'
-import { m } from '@/i18n'
-import { ColorField, Modal, RequiredLegend, SwitchField, TextField } from '../common/ui'
-import { Button } from '../ui/button'
-import { FieldError } from '../ui/field'
-import { DEFAULT_COLORS } from '../../lib/palette'
-import type { Client } from '@capacitylens/shared/types/entities'
+import { useState } from "react";
+import { useStore } from "../../store/useStore";
+import { useFieldError } from "../../hooks/useFieldError";
+import { errorMessage } from "../../lib/errorMessage";
+import { validateHex, validateName } from "../../lib/validation";
+import { normalizeCodeName } from "@capacitylens/shared/domain/privateNames";
+import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
+import { useRole } from "../../auth/permissionContext";
+import { m } from "@/i18n";
+import { ColorField, Modal, RequiredLegend, SwitchField, TextField } from "../common/ui";
+import { Button } from "../ui/button";
+import { FieldError } from "../ui/field";
+import { DEFAULT_COLORS } from "../../lib/palette";
+import type { Client } from "@capacitylens/shared/types/entities";
 
 /** Add (no `client`) or edit a client: name + preset colour. `onClose` fires on save or cancel. */
 export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {
-  const addClient = useStore((s) => s.addClient)
-  const updateClient = useStore((s) => s.updateClient)
-  const role = useRole()
-  const canManagePrivacy = role === null || canSeePrivateNames(role)
-  const protectedName = client?.isPrivate === true && !canManagePrivacy
-  const [name, setName] = useState(client?.name ?? '')
-  const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client)
-  const [isPrivate, setIsPrivate] = useState(client?.isPrivate ?? false)
-  const [codeName, setCodeName] = useState(client?.codeName ?? '')
-  const { error, errorField, errorId, fail } = useFieldError()
+  const addClient = useStore((s) => s.addClient);
+  const updateClient = useStore((s) => s.updateClient);
+  const role = useRole();
+  const canManagePrivacy = role === null || canSeePrivateNames(role);
+  const protectedName = client?.isPrivate === true && !canManagePrivacy;
+  const [name, setName] = useState(client?.name ?? "");
+  const [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client);
+  const [isPrivate, setIsPrivate] = useState(client?.isPrivate ?? false);
+  const [codeName, setCodeName] = useState(client?.codeName ?? "");
+  const { error, errorField, errorId, fail } = useFieldError();
 
   const submit = () => {
-    const trimmed = validateName(name, fail)
-    if (!trimmed) return
-    const cleanCodeName = isPrivate && canManagePrivacy
-      ? validateName(normalizeCodeName(codeName), fail, 'codeName')
-      : null
-    if (isPrivate && canManagePrivacy && !cleanCodeName) return
-    if (!validateHex(color, fail)) return
+    const trimmed = validateName(name, fail);
+    if (!trimmed) return;
+    const cleanCodeName =
+      isPrivate && canManagePrivacy ? validateName(normalizeCodeName(codeName), fail, "codeName") : null;
+    if (isPrivate && canManagePrivacy && !cleanCodeName) return;
+    if (!validateHex(color, fail)) return;
     // The store throws (with a display-safe message) on a tenancy/integrity rejection — surface it
     // as a form error rather than letting it escape as an uncaught React error. (See the store CRUD
     // contract.) Today the form's own validation precedes it, but the SQLite server seam adds real
@@ -42,24 +41,24 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
       const privacy = canManagePrivacy
         ? {
             isPrivate: isPrivate || undefined,
-            codeName: isPrivate ? cleanCodeName ?? undefined : undefined,
+            codeName: isPrivate ? (cleanCodeName ?? undefined) : undefined,
           }
-        : {}
+        : {};
       if (client) {
-        const current = useStore.getState().data.clients.find((candidate) => candidate.id === client.id)
+        const current = useStore.getState().data.clients.find((candidate) => candidate.id === client.id);
         if (!current || current.updatedAt !== client.updatedAt) {
-          fail(null, m.form_client_err_changed())
-          return
+          fail(null, m.form_client_err_changed());
+          return;
         }
-        updateClient(client.id, { name: trimmed, color, ...privacy })
+        updateClient(client.id, { name: trimmed, color, ...privacy });
       } else {
-        addClient({ name: trimmed, color, ...privacy })
+        addClient({ name: trimmed, color, ...privacy });
       }
-      onClose()
+      onClose();
     } catch (e) {
-      fail(null, errorMessage(e))
+      fail(null, errorMessage(e));
     }
-  }
+  };
 
   return (
     <Modal
@@ -71,11 +70,22 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
           <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button size="sm" type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">
+            {m.form_save()}
+          </Button>
         </>
       }
     >
-      <TextField label={m.form_client_name_label()} value={name} onChange={setName} autoFocus={!protectedName} required disabled={protectedName} invalid={errorField === 'name'} describedById={errorId} />
+      <TextField
+        label={m.form_client_name_label()}
+        value={name}
+        onChange={setName}
+        autoFocus={!protectedName}
+        required
+        disabled={protectedName}
+        invalid={errorField === "name"}
+        describedById={errorId}
+      />
       {protectedName && <p className="text-xs text-muted-foreground">{m.form_private_owner_only_hint()}</p>}
       {canManagePrivacy && (
         <SwitchField
@@ -93,15 +103,21 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
             onChange={setCodeName}
             placeholder={m.form_private_code_name_placeholder()}
             required
-            invalid={errorField === 'codeName'}
+            invalid={errorField === "codeName"}
             describedById={errorId}
           />
           <p className="text-xs text-muted-foreground">{m.form_private_code_name_hint()}</p>
         </>
       )}
-      <ColorField label={m.form_client_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      <ColorField
+        label={m.form_client_colour_label()}
+        value={color}
+        onChange={setColor}
+        invalid={errorField === "color"}
+        describedById={errorId}
+      />
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </Modal>
-  )
+  );
 }

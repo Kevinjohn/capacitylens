@@ -32,15 +32,9 @@ describe("OWASP password storage profile", () => {
     const hash = await hasher.hash(password);
     expect(hash).toMatch(/^scrypt-v1\$1024\$8\$1\$/);
     await expect(hasher.verify({ hash, password })).resolves.toBe(true);
-    await expect(
-      hasher.verify({ hash, password: password.normalize("NFKC") + "x" }),
-    ).resolves.toBe(false);
-    await expect(hasher.verify({ hash: "malformed", password })).resolves.toBe(
-      false,
-    );
-    await expect(
-      hasher.verify({ hash: "scrypt-v1$1024$8$1$bad$bad", password }),
-    ).resolves.toBe(false);
+    await expect(hasher.verify({ hash, password: password.normalize("NFKC") + "x" })).resolves.toBe(false);
+    await expect(hasher.verify({ hash: "malformed", password })).resolves.toBe(false);
+    await expect(hasher.verify({ hash: "scrypt-v1$1024$8$1$bad$bad", password })).resolves.toBe(false);
   });
 
   it("surfaces scrypt queue pressure instead of returning a false credential verdict", async () => {
@@ -50,9 +44,8 @@ describe("OWASP password storage profile", () => {
     const legacyShape = `${"ab".repeat(16)}:${"cd".repeat(64)}`;
 
     for (const hash of [versionedHash, legacyShape]) {
-      const occupying = Array.from(
-        { length: MAX_CONCURRENT_SCRYPT + MAX_QUEUED_SCRYPT },
-        (_, index) => hasher.hash(`queue-occupant-${index}`),
+      const occupying = Array.from({ length: MAX_CONCURRENT_SCRYPT + MAX_QUEUED_SCRYPT }, (_, index) =>
+        hasher.hash(`queue-occupant-${index}`),
       );
       try {
         await expect(hasher.verify({ hash, password })).rejects.toThrow(
@@ -65,12 +58,8 @@ describe("OWASP password storage profile", () => {
   });
 
   it("rejects documented context-specific words", () => {
-    expect(() =>
-      assertNoContextSpecificPassword("CapacityLens-is-great-2026"),
-    ).toThrow(/product name/i);
-    expect(() =>
-      assertNoContextSpecificPassword("correct horse battery staple"),
-    ).not.toThrow();
+    expect(() => assertNoContextSpecificPassword("CapacityLens-is-great-2026")).toThrow(/product name/i);
+    expect(() => assertNoContextSpecificPassword("correct horse battery staple")).not.toThrow();
   });
 });
 
@@ -111,19 +100,14 @@ describe("breached-password range check", () => {
     await vi.waitFor(() => expect(invocations).toBe(MAX_CONCURRENT_HIBP + 1));
     releases.splice(0).forEach((release) => release());
 
-    await expect(Promise.all([...active, useful])).resolves.toEqual(
-      Array(MAX_CONCURRENT_HIBP + 1).fill(undefined),
-    );
+    await expect(Promise.all([...active, useful])).resolves.toEqual(Array(MAX_CONCURRENT_HIBP + 1).fill(undefined));
     expect(invocations).toBe(MAX_CONCURRENT_HIBP + 1);
   });
 
   it("rejects a matching suffix without sending the password or full digest", async () => {
     let requested = "";
     let init: RequestInit | undefined;
-    const fetcher = (async (
-      input: string | URL | Request,
-      requestInit?: RequestInit,
-    ) => {
+    const fetcher = (async (input: string | URL | Request, requestInit?: RequestInit) => {
       requested = String(input);
       init = requestInit;
       // SHA-1("password") = 5BAA6 1E4C9B93F3F0682250B6CF8331B7EE68FD8
@@ -131,9 +115,7 @@ describe("breached-password range check", () => {
         status: 200,
       });
     }) as typeof fetch;
-    await expect(
-      assertPasswordNotBreached("password", fetcher),
-    ).rejects.toThrow(/known breach/i);
+    await expect(assertPasswordNotBreached("password", fetcher)).rejects.toThrow(/known breach/i);
     expect(requested.endsWith("/5BAA6")).toBe(true);
     expect(new URL(requested).pathname).not.toContain("password");
     expect(new URL(requested).pathname).not.toContain("1E4C9B93");
@@ -141,17 +123,12 @@ describe("breached-password range check", () => {
   });
 
   it("accepts a missing suffix and fails closed when the service is unavailable", async () => {
-    const clean = (async () =>
-      new Response("AAAA:1", { status: 200 })) as typeof fetch;
-    await expect(
-      assertPasswordNotBreached("not-in-the-response", clean),
-    ).resolves.toBeUndefined();
+    const clean = (async () => new Response("AAAA:1", { status: 200 })) as typeof fetch;
+    await expect(assertPasswordNotBreached("not-in-the-response", clean)).resolves.toBeUndefined();
     const down = (async () => {
       throw new Error("offline");
     }) as typeof fetch;
-    await expect(assertPasswordNotBreached("anything", down)).rejects.toThrow(
-      /temporarily unavailable/i,
-    );
+    await expect(assertPasswordNotBreached("anything", down)).rejects.toThrow(/temporarily unavailable/i);
   });
 
   it("fails closed before reading an oversized service response", async () => {
@@ -160,9 +137,7 @@ describe("breached-password range check", () => {
         status: 200,
         headers: { "Content-Length": String(MAX_HIBP_RESPONSE_BYTES + 1) },
       })) as typeof fetch;
-    await expect(
-      assertPasswordNotBreached("anything", oversized),
-    ).rejects.toThrow(/response was invalid/i);
+    await expect(assertPasswordNotBreached("anything", oversized)).rejects.toThrow(/response was invalid/i);
   });
 
   it("holds each queue slot until its bounded response body finishes", async () => {
@@ -183,9 +158,8 @@ describe("breached-password range check", () => {
       );
     }) as typeof fetch;
 
-    const attempts = Array.from(
-      { length: MAX_CONCURRENT_HIBP + MAX_QUEUED_HIBP },
-      (_, index) => assertPasswordNotBreached(`held-body-${index}`, fetcher),
+    const attempts = Array.from({ length: MAX_CONCURRENT_HIBP + MAX_QUEUED_HIBP }, (_, index) =>
+      assertPasswordNotBreached(`held-body-${index}`, fetcher),
     );
     const reportSaturation = vi.fn();
     const overflow = runWithRequestAbortSignal(
@@ -210,8 +184,6 @@ describe("breached-password range check", () => {
       await vi.waitFor(() => expect(fetcherInvocations).toBe(expectedStarted));
     }
     releaseBodies.splice(0).forEach((release) => release());
-    await expect(Promise.all(attempts)).resolves.toEqual(
-      Array(MAX_CONCURRENT_HIBP + MAX_QUEUED_HIBP).fill(undefined),
-    );
+    await expect(Promise.all(attempts)).resolves.toEqual(Array(MAX_CONCURRENT_HIBP + MAX_QUEUED_HIBP).fill(undefined));
   });
 });

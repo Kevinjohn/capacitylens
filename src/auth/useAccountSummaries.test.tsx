@@ -1,16 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render } from "@testing-library/react";
-import {
-  fetchAccountSummaries,
-  refreshAccountSummaries,
-  useAccountSummaries,
-} from "./useAccountSummaries";
+import { fetchAccountSummaries, refreshAccountSummaries, useAccountSummaries } from "./useAccountSummaries";
 import { useStore } from "../store/useStore";
-import {
-  offlineStateSnapshot,
-  readCachedAccountSummaries,
-  setOfflineReadState,
-} from "../data/offlineCache";
+import { offlineStateSnapshot, readCachedAccountSummaries, setOfflineReadState } from "../data/offlineCache";
 import { m } from "@/i18n";
 
 vi.mock("../data/offlineCache", async (importOriginal) => {
@@ -68,22 +60,14 @@ describe("fetchAccountSummaries — response classification", () => {
 
   it("a valid array -> validated summaries (off-spec rows dropped, not the whole list) + a warn per drop", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const body = [
-      { id: "a1", name: "Studio A", role: "editor" },
-      { bogus: true },
-    ];
+    const body = [{ id: "a1", name: "Studio A", role: "editor" }, { bogus: true }];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json(200, body)),
     );
-    await expect(fetchAccountSummaries()).resolves.toEqual([
-      { id: "a1", name: "Studio A", role: "editor" },
-    ]);
+    await expect(fetchAccountSummaries()).resolves.toEqual([{ id: "a1", name: "Studio A", role: "editor" }]);
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("dropped 1 malformed"),
-      body,
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), body);
     expect(useStore.getState().notice).toEqual({
       message: m.picker_accounts_incomplete(),
       tone: "warning",
@@ -103,9 +87,7 @@ describe("fetchAccountSummaries — response classification", () => {
     );
 
     await expect(fetchAccountSummaries()).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("duplicate account identities"),
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate account identities"));
   });
 
   it("does not mark a cached active slice online merely because the company directory responds", async () => {
@@ -113,9 +95,7 @@ describe("fetchAccountSummaries — response classification", () => {
     setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        json(200, [{ id: "a1", name: "Studio A", role: "owner" }]),
-      ),
+      vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),
     );
 
     await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
@@ -128,9 +108,7 @@ describe("fetchAccountSummaries — response classification", () => {
     setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        json(200, [{ id: "a1", name: "Studio A", role: "owner" }]),
-      ),
+      vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),
     );
 
     await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
@@ -151,9 +129,7 @@ describe("fetchAccountSummaries — response classification", () => {
       vi.fn(async () => json(503, { error: "down" })),
     );
 
-    await expect(fetchAccountSummaries()).resolves.toEqual([
-      { id: "a1", name: "Studio A", role: "owner" },
-    ]);
+    await expect(fetchAccountSummaries()).resolves.toEqual([{ id: "a1", name: "Studio A", role: "owner" }]);
 
     expect(offlineStateSnapshot()).toEqual({
       readOnly: false,
@@ -195,10 +171,7 @@ describe("fetchAccountSummaries — response classification", () => {
     await expect(fetchAccountSummaries()).resolves.toEqual([
       { id: "a1", name: "Studio A", role: "viewer", roleStatus: "unavailable" },
     ]);
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("unrecognized role"),
-      row,
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unrecognized role"), row);
   });
 
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
@@ -212,10 +185,7 @@ describe("fetchAccountSummaries — response classification", () => {
       vi.fn(async () => json(200, [null])),
     );
     await expect(fetchAccountSummaries()).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("dropped 1 malformed"),
-      [null],
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), [null]);
   });
 
   it('an id-only row is malformed too: [{"id":"a"}] -> null, not []', async () => {
@@ -254,9 +224,7 @@ describe("fetchAccountSummaries — response classification", () => {
       vi.fn(async () => json(503, { error: "down" })),
     );
 
-    await expect(
-      fetchAccountSummaries({ allowCachedFallback: false }),
-    ).resolves.toBeNull();
+    await expect(fetchAccountSummaries({ allowCachedFallback: false })).resolves.toBeNull();
     expect(readCachedAccountSummaries).not.toHaveBeenCalled();
   });
 
@@ -271,10 +239,7 @@ describe("fetchAccountSummaries — response classification", () => {
 
     await expect(fetchAccountSummaries()).resolves.toBeNull();
 
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("offline account list could not be read"),
-      cacheError,
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("offline account list could not be read"), cacheError);
   });
 });
 
@@ -297,9 +262,7 @@ describe("refreshAccountSummaries — shared request ordering", () => {
     earlier.resolve(json(200, [{ id: "old", name: "Older", role: "owner" }]));
     await earlierRefresh;
 
-    expect(useStore.getState().accountSummaries).toEqual([
-      { id: "new", name: "Newest", role: "owner" },
-    ]);
+    expect(useStore.getState().accountSummaries).toEqual([{ id: "new", name: "Newest", role: "owner" }]);
   });
 
   it("does not let an in-flight response overwrite a later direct list mutation", async () => {
@@ -310,19 +273,11 @@ describe("refreshAccountSummaries — shared request ordering", () => {
     );
     const refresh = refreshAccountSummaries();
 
-    useStore
-      .getState()
-      .setAccountSummaries([
-        { id: "created", name: "Just created", role: "owner" },
-      ]);
-    response.resolve(
-      json(200, [{ id: "old", name: "Before create", role: "owner" }]),
-    );
+    useStore.getState().setAccountSummaries([{ id: "created", name: "Just created", role: "owner" }]);
+    response.resolve(json(200, [{ id: "old", name: "Before create", role: "owner" }]));
     await refresh;
 
-    expect(useStore.getState().accountSummaries).toEqual([
-      { id: "created", name: "Just created", role: "owner" },
-    ]);
+    expect(useStore.getState().accountSummaries).toEqual([{ id: "created", name: "Just created", role: "owner" }]);
   });
 });
 
@@ -399,25 +354,19 @@ describe("useAccountSummaries — a malformed 200 leaves the existing list alone
 
   it("refetches account roles when membership projections are invalidated", async () => {
     let role = "owner";
-    const fetchMock = vi.fn(async () =>
-      json(200, [{ id: "a1", name: "Studio A", role }]),
-    );
+    const fetchMock = vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role }]));
     vi.stubGlobal("fetch", fetchMock);
     useStore.setState({ membershipRevision: 0 });
     render(<HookHost />);
 
     await act(async () => {
-      await vi.waitFor(() =>
-        expect(useStore.getState().accountSummaries[0]?.role).toBe("owner"),
-      );
+      await vi.waitFor(() => expect(useStore.getState().accountSummaries[0]?.role).toBe("owner"));
     });
     role = "admin";
     act(() => useStore.getState().invalidateMemberships());
 
     await act(async () => {
-      await vi.waitFor(() =>
-        expect(useStore.getState().accountSummaries[0]?.role).toBe("admin"),
-      );
+      await vi.waitFor(() => expect(useStore.getState().accountSummaries[0]?.role).toBe("admin"));
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

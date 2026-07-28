@@ -11,13 +11,7 @@
 // is ready for later locales without touching call sites.
 
 import { m } from "@/paraglide/messages.js";
-import {
-  baseLocale,
-  getLocale,
-  isLocale,
-  setLocale,
-  type Locale,
-} from "@/paraglide/runtime.js";
+import { baseLocale, getLocale, isLocale, setLocale, type Locale } from "@/paraglide/runtime.js";
 import { enGB } from "date-fns/locale";
 import type { Locale as DateFnsLocale } from "date-fns";
 
@@ -57,8 +51,7 @@ export function activeDateLocale(): DateFnsLocale {
  * @param language - The active Account's `language` field (e.g. `'en'`); `undefined` ⇒ baseLocale.
  */
 export function syncLocaleFromAccount(language: string | undefined): void {
-  const resolved: Locale =
-    language !== undefined && isLocale(language) ? language : baseLocale;
+  const resolved: Locale = language !== undefined && isLocale(language) ? language : baseLocale;
   // `setLocale` is typed `void | Promise<void>` (it becomes async only if a custom async strategy is
   // configured). Our strategies — `globalVariable`/`baseLocale` — are synchronous, so there is nothing
   // to await; `void` marks the non-promise return intentionally ignored (the repo's floating-promise

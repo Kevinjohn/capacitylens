@@ -1,6 +1,6 @@
-import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath'
-import type { ColumnGeometry } from './columnGeometry'
-import type { ISODate } from '@capacitylens/shared/types/entities'
+import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
+import type { ColumnGeometry } from "./columnGeometry";
+import type { ISODate } from "@capacitylens/shared/types/entities";
 
 // The "snap to week start" floor, extracted as a pure function so the scroll-idle behaviour in
 // SchedulerGrid is unit-testable without a measured DOM (in jsdom the grid container is never laid
@@ -52,12 +52,12 @@ export function weekStartSnapTarget(
 ): number | null {
   // An empty window has no meaningful week boundary. Treat it as already converged so this public
   // pure helper keeps its total-function contract even outside the guarded SchedulerGrid caller.
-  if (days.length === 0) return null
+  if (days.length === 0) return null;
 
   // `?? days[0]` covers an out-of-range index for custom geometry implementations.
-  const leftDay = days[geom.indexAt(Math.round(scrollLeft))] ?? days[0]
-  const target = geom.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn))
+  const leftDay = days[geom.indexAt(Math.round(scrollLeft))] ?? days[0];
+  const target = geom.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn));
   // Already aligned (within the sub-pixel band) → null so the caller no-ops. Math.abs, not a signed
   // compare, so a (never-expected) forward target also converges rather than oscillates.
-  return Math.abs(target - scrollLeft) <= epsilon ? null : target
+  return Math.abs(target - scrollLeft) <= epsilon ? null : target;
 }

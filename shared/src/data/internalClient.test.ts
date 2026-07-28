@@ -1,248 +1,320 @@
-import { describe, it, expect } from 'vitest'
-import { migrate } from './migrate'
-import { seed } from './seed'
-import { serializeData, parseData } from './transfer'
-import { ensureInternalClients, internalClientFor, buildInternalClient, wouldAddSecondBuiltin, INTERNAL_CLIENT_NAME } from './internalClient'
-import { emptyAppData } from '../types/entities'
-import type { Client } from '../types/entities'
-import { activeOnly } from '../domain/lifecycle'
+import { describe, it, expect } from "vitest";
+import { migrate } from "./migrate";
+import { seed } from "./seed";
+import { serializeData, parseData } from "./transfer";
+import {
+  ensureInternalClients,
+  internalClientFor,
+  buildInternalClient,
+  wouldAddSecondBuiltin,
+  INTERNAL_CLIENT_NAME,
+} from "./internalClient";
+import { emptyAppData } from "../types/entities";
+import type { Client } from "../types/entities";
+import { activeOnly } from "../domain/lifecycle";
 
-const TS = '2026-01-01T00:00:00.000Z'
+const TS = "2026-01-01T00:00:00.000Z";
 
-describe('built-in Internal client', () => {
-  it('seed gives every account exactly one builtin Internal client', () => {
-    const data = seed()
+describe("built-in Internal client", () => {
+  it("seed gives every account exactly one builtin Internal client", () => {
+    const data = seed();
     for (const account of data.accounts) {
-      const internal = data.clients.filter((c) => c.builtin === true && c.accountId === account.id)
-      expect(internal).toHaveLength(1)
-      expect(internal[0].name).toBe(INTERNAL_CLIENT_NAME)
+      const internal = data.clients.filter((c) => c.builtin === true && c.accountId === account.id);
+      expect(internal).toHaveLength(1);
+      expect(internal[0].name).toBe(INTERNAL_CLIENT_NAME);
     }
-  })
+  });
 
-  it('ensureInternalClients adds one Internal per account that lacks one, and is idempotent', () => {
+  it("ensureInternalClients adds one Internal per account that lacks one, and is idempotent", () => {
     const base = {
       ...emptyAppData(),
       accounts: [
-        { id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' },
-        { id: 'a2', createdAt: TS, updatedAt: TS, name: 'A2', color: '#222222' },
+        { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+        { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
       ],
-    }
-    const once = ensureInternalClients(base, TS)
-    expect(once.clients.filter((c) => c.builtin)).toHaveLength(2)
-    expect(internalClientFor(once.clients, 'a1')).toBeDefined()
-    expect(internalClientFor(once.clients, 'a2')).toBeDefined()
+    };
+    const once = ensureInternalClients(base, TS);
+    expect(once.clients.filter((c) => c.builtin)).toHaveLength(2);
+    expect(internalClientFor(once.clients, "a1")).toBeDefined();
+    expect(internalClientFor(once.clients, "a2")).toBeDefined();
     // Run again — no duplicate, and (no change) returns the SAME reference.
-    const twice = ensureInternalClients(once, TS)
-    expect(twice).toBe(once)
-    expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2)
-  })
+    const twice = ensureInternalClients(once, TS);
+    expect(twice).toBe(once);
+    expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
+  });
 
-  it('uses a collision-free id when an ordinary client already owns the generated id', () => {
+  it("uses a collision-free id when an ordinary client already owns the generated id", () => {
     const ordinary = {
-      id: 'internal:a1', accountId: 'a1', createdAt: TS, updatedAt: TS,
-      name: 'Ordinary', color: '#111111',
-    } as Client
+      id: "internal:a1",
+      accountId: "a1",
+      createdAt: TS,
+      updatedAt: TS,
+      name: "Ordinary",
+      color: "#111111",
+    } as Client;
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
-      clients: [ordinary, { ...ordinary, id: 'internal:a1:1', name: 'Also ordinary' }],
-    }
+      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      clients: [ordinary, { ...ordinary, id: "internal:a1:1", name: "Also ordinary" }],
+    };
 
-    const repaired = ensureInternalClients(data, TS)
+    const repaired = ensureInternalClients(data, TS);
 
-    expect(repaired.clients).toHaveLength(3)
-    expect(new Set(repaired.clients.map(({ id }) => id)).size).toBe(3)
-    expect(internalClientFor(repaired.clients, 'a1')?.id).toBe('internal:a1:2')
-    expect(repaired.clients).toContain(ordinary)
-    expect(ensureInternalClients(repaired, TS)).toBe(repaired)
-  })
+    expect(repaired.clients).toHaveLength(3);
+    expect(new Set(repaired.clients.map(({ id }) => id)).size).toBe(3);
+    expect(internalClientFor(repaired.clients, "a1")?.id).toBe("internal:a1:2");
+    expect(repaired.clients).toContain(ordinary);
+    expect(ensureInternalClients(repaired, TS)).toBe(repaired);
+  });
 
-  it('deterministically folds duplicate builtins and rewires their projects', () => {
-    const generated = { ...buildInternalClient('a1', TS), id: 'internal:a1' }
+  it("deterministically folds duplicate builtins and rewires their projects", () => {
+    const generated = { ...buildInternalClient("a1", TS), id: "internal:a1" };
     const duplicate: Client = {
-      ...buildInternalClient('a1', '2025-01-01T00:00:00.000Z'),
-      id: 'legacy-internal',
-    }
+      ...buildInternalClient("a1", "2025-01-01T00:00:00.000Z"),
+      id: "legacy-internal",
+    };
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [duplicate, generated],
-      projects: [{ id: 'p1', accountId: 'a1', clientId: duplicate.id, createdAt: TS, updatedAt: TS, name: 'P', color: '#111111' }],
-    }
+      projects: [
+        {
+          id: "p1",
+          accountId: "a1",
+          clientId: duplicate.id,
+          createdAt: TS,
+          updatedAt: TS,
+          name: "P",
+          color: "#111111",
+        },
+      ],
+    };
 
-    const repaired = ensureInternalClients(data, TS)
+    const repaired = ensureInternalClients(data, TS);
 
-    expect(repaired.clients.filter((client) => client.builtin)).toEqual([generated])
-    expect(repaired.projects[0].clientId).toBe(generated.id)
-    expect(repaired.projects[0].updatedAt).toBe('2026-01-01T00:00:00.001Z')
-    expect(ensureInternalClients(repaired, TS)).toBe(repaired)
-  })
+    expect(repaired.clients.filter((client) => client.builtin)).toEqual([generated]);
+    expect(repaired.projects[0].clientId).toBe(generated.id);
+    expect(repaired.projects[0].updatedAt).toBe("2026-01-01T00:00:00.001Z");
+    expect(ensureInternalClients(repaired, TS)).toBe(repaired);
+  });
 
-  it('folds duplicate builtins that share the same primary id', () => {
-    const retained = buildInternalClient('a1', TS)
-    const duplicate = { ...retained, createdAt: '2026-01-02T00:00:00.000Z' }
+  it("folds duplicate builtins that share the same primary id", () => {
+    const retained = buildInternalClient("a1", TS);
+    const duplicate = { ...retained, createdAt: "2026-01-02T00:00:00.000Z" };
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [retained, duplicate],
-      projects: [{
-        id: 'p1', accountId: 'a1', clientId: retained.id, createdAt: TS, updatedAt: TS,
-        name: 'P', color: '#111111',
-      }],
-    }
+      projects: [
+        {
+          id: "p1",
+          accountId: "a1",
+          clientId: retained.id,
+          createdAt: TS,
+          updatedAt: TS,
+          name: "P",
+          color: "#111111",
+        },
+      ],
+    };
 
-    const repaired = ensureInternalClients(data, TS)
+    const repaired = ensureInternalClients(data, TS);
 
-    expect(repaired.clients).toEqual([retained])
-    expect(repaired.projects).toBe(data.projects)
-    expect(ensureInternalClients(repaired, TS)).toBe(repaired)
-  })
+    expect(repaired.clients).toEqual([retained]);
+    expect(repaired.projects).toBe(data.projects);
+    expect(ensureInternalClients(repaired, TS)).toBe(repaired);
+  });
 
-  it('bumps only rewired projects so updatedAt-based sync persists a duplicate fold', () => {
-    const generated = buildInternalClient('a1', TS)
-    const duplicate = { ...buildInternalClient('a1', TS), id: 'legacy-internal' }
+  it("bumps only rewired projects so updatedAt-based sync persists a duplicate fold", () => {
+    const generated = buildInternalClient("a1", TS);
+    const duplicate = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
     const rewired = {
-      id: 'p1', accountId: 'a1', clientId: duplicate.id, createdAt: TS, updatedAt: TS,
-      name: 'Rewired', color: '#111111',
-    }
-    const untouched = { ...rewired, id: 'p2', clientId: generated.id, name: 'Untouched' }
+      id: "p1",
+      accountId: "a1",
+      clientId: duplicate.id,
+      createdAt: TS,
+      updatedAt: TS,
+      name: "Rewired",
+      color: "#111111",
+    };
+    const untouched = { ...rewired, id: "p2", clientId: generated.id, name: "Untouched" };
 
-    const repaired = ensureInternalClients({
-      ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
-      clients: [generated, duplicate],
-      projects: [rewired, untouched],
-    }, TS)
+    const repaired = ensureInternalClients(
+      {
+        ...emptyAppData(),
+        accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+        clients: [generated, duplicate],
+        projects: [rewired, untouched],
+      },
+      TS,
+    );
 
-    expect(repaired.projects[0]).toMatchObject({ clientId: generated.id, updatedAt: '2026-01-01T00:00:00.001Z' })
-    expect(repaired.projects[1]).toBe(untouched)
-  })
+    expect(repaired.projects[0]).toMatchObject({ clientId: generated.id, updatedAt: "2026-01-01T00:00:00.001Z" });
+    expect(repaired.projects[1]).toBe(untouched);
+  });
 
-  it('stamps a REPAIRED retained builtin with a fresh updatedAt so the repair persists', () => {
+  it("stamps a REPAIRED retained builtin with a fresh updatedAt so the repair persists", () => {
     // ServerSyncAdapter.diffOps detects changes solely by updatedAt, so a name/colour correction that
     // left updatedAt untouched would be re-applied in memory on every load yet never emit a PUT.
-    const NOW = '2026-06-01T00:00:00.000Z'
+    const NOW = "2026-06-01T00:00:00.000Z";
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [
-        { id: 'internal:a1', accountId: 'a1', createdAt: TS, updatedAt: TS, name: 'JUNK NAME', color: '#000000', builtin: true } as Client,
+        {
+          id: "internal:a1",
+          accountId: "a1",
+          createdAt: TS,
+          updatedAt: TS,
+          name: "JUNK NAME",
+          color: "#000000",
+          builtin: true,
+        } as Client,
       ],
-    }
-    const internal = internalClientFor(ensureInternalClients(data, NOW).clients, 'a1')!
-    expect(internal.name).toBe(INTERNAL_CLIENT_NAME)
-    expect(internal.updatedAt).toBe(NOW)
-  })
+    };
+    const internal = internalClientFor(ensureInternalClients(data, NOW).clients, "a1")!;
+    expect(internal.name).toBe(INTERNAL_CLIENT_NAME);
+    expect(internal.updatedAt).toBe(NOW);
+  });
 
   it.each([
-    ['archived', { archivedAt: TS }],
-    ['deleted', { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }],
-  ] as const)('reactivates a retained %s built-in Internal client', (_state, tombstones) => {
-    const internal = { ...buildInternalClient('a1', TS), ...tombstones }
+    ["archived", { archivedAt: TS }],
+    ["deleted", { archivedAt: TS, deletedAt: "2026-01-02T00:00:00.000Z" }],
+  ] as const)("reactivates a retained %s built-in Internal client", (_state, tombstones) => {
+    const internal = { ...buildInternalClient("a1", TS), ...tombstones };
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [internal],
-    }
+    };
 
-    const repaired = ensureInternalClients(data, TS)
-    const retained = internalClientFor(repaired.clients, 'a1')!
+    const repaired = ensureInternalClients(data, TS);
+    const retained = internalClientFor(repaired.clients, "a1")!;
 
-    expect(repaired).not.toBe(data)
-    expect(retained).not.toHaveProperty('archivedAt')
-    expect(retained).not.toHaveProperty('deletedAt')
-    expect(retained.updatedAt).toBe('2026-01-01T00:00:00.001Z')
-    expect(activeOnly(repaired).clients).toEqual([retained])
-  })
+    expect(repaired).not.toBe(data);
+    expect(retained).not.toHaveProperty("archivedAt");
+    expect(retained).not.toHaveProperty("deletedAt");
+    expect(retained.updatedAt).toBe("2026-01-01T00:00:00.001Z");
+    expect(activeOnly(repaired).clients).toEqual([retained]);
+  });
 
-  it('forces a distinct, non-decreasing revision when the repair clock is equal or older', () => {
+  it("forces a distinct, non-decreasing revision when the repair clock is equal or older", () => {
     const repair = (updatedAt: string, now: string) => {
       const data = {
         ...emptyAppData(),
-        accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
-        clients: [{
-          id: 'internal:a1', accountId: 'a1', createdAt: TS, updatedAt,
-          name: 'JUNK NAME', color: '#000000', builtin: true,
-        } as Client],
-      }
-      return internalClientFor(ensureInternalClients(data, now).clients, 'a1')!.updatedAt
-    }
+        accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+        clients: [
+          {
+            id: "internal:a1",
+            accountId: "a1",
+            createdAt: TS,
+            updatedAt,
+            name: "JUNK NAME",
+            color: "#000000",
+            builtin: true,
+          } as Client,
+        ],
+      };
+      return internalClientFor(ensureInternalClients(data, now).clients, "a1")!.updatedAt;
+    };
 
-    expect(repair(TS, TS)).toBe('2026-01-01T00:00:00.001Z')
-    expect(repair('2027-01-01T00:00:00.000Z', TS)).toBe('2027-01-01T00:00:00.001Z')
-  })
+    expect(repair(TS, TS)).toBe("2026-01-01T00:00:00.001Z");
+    expect(repair("2027-01-01T00:00:00.000Z", TS)).toBe("2027-01-01T00:00:00.001Z");
+  });
 
-  it('leaves an already-canonical retained builtin updatedAt untouched (no phantom-write churn)', () => {
-    const NOW = '2026-06-01T00:00:00.000Z'
+  it("leaves an already-canonical retained builtin updatedAt untouched (no phantom-write churn)", () => {
+    const NOW = "2026-06-01T00:00:00.000Z";
     const data = {
       ...emptyAppData(),
       // a1 is canonical; a2 lacks a builtin, forcing the function past its no-op early return so the
       // retain/restamp map actually runs over a1.
       accounts: [
-        { id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' },
-        { id: 'a2', createdAt: TS, updatedAt: TS, name: 'A2', color: '#222222' },
+        { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+        { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
       ],
-      clients: [buildInternalClient('a1', TS)],
-    }
-    const repaired = ensureInternalClients(data, NOW)
-    expect(internalClientFor(repaired.clients, 'a2')).toBeDefined() // the function DID run
-    expect(internalClientFor(repaired.clients, 'a1')!.updatedAt).toBe(TS) // canonical row NOT restamped
-  })
+      clients: [buildInternalClient("a1", TS)],
+    };
+    const repaired = ensureInternalClients(data, NOW);
+    expect(internalClientFor(repaired.clients, "a2")).toBeDefined(); // the function DID run
+    expect(internalClientFor(repaired.clients, "a1")!.updatedAt).toBe(TS); // canonical row NOT restamped
+  });
 
-  it('migrate (v5→v6) backfills one Internal per account, idempotently and without duplicating a pre-existing one', () => {
+  it("migrate (v5→v6) backfills one Internal per account, idempotently and without duplicating a pre-existing one", () => {
     const blob = {
       schemaVersion: 5,
       data: {
         accounts: [
-          { id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' },
-          { id: 'a2', createdAt: TS, updatedAt: TS, name: 'A2', color: '#222222' },
+          { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+          { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
         ],
         // a1 already has a builtin Internal (must NOT be duplicated); a2 has none.
         clients: [
-          { id: 'pre-internal', accountId: 'a1', createdAt: TS, updatedAt: TS, name: 'Internal', color: '#9c3ace', builtin: true },
-          { id: 'acme', accountId: 'a1', createdAt: TS, updatedAt: TS, name: 'Acme', color: '#ef4444' },
+          {
+            id: "pre-internal",
+            accountId: "a1",
+            createdAt: TS,
+            updatedAt: TS,
+            name: "Internal",
+            color: "#9c3ace",
+            builtin: true,
+          },
+          { id: "acme", accountId: "a1", createdAt: TS, updatedAt: TS, name: "Acme", color: "#ef4444" },
         ],
       },
-    }
-    const out = migrate(blob)
+    };
+    const out = migrate(blob);
     // a1 keeps its single pre-existing Internal (id unchanged); a2 gets a fresh one.
-    expect(out.clients.filter((c) => c.builtin && c.accountId === 'a1')).toHaveLength(1)
-    expect(internalClientFor(out.clients, 'a1')?.id).toBe('pre-internal')
-    expect(out.clients.filter((c) => c.builtin && c.accountId === 'a2')).toHaveLength(1)
+    expect(out.clients.filter((c) => c.builtin && c.accountId === "a1")).toHaveLength(1);
+    expect(internalClientFor(out.clients, "a1")?.id).toBe("pre-internal");
+    expect(out.clients.filter((c) => c.builtin && c.accountId === "a2")).toHaveLength(1);
     // Re-running migrate over an already-v6 blob never adds another.
-    const again = migrate({ schemaVersion: 6, data: out })
-    expect(again.clients.filter((c) => c.builtin)).toHaveLength(2)
-  })
+    const again = migrate({ schemaVersion: 6, data: out });
+    expect(again.clients.filter((c) => c.builtin)).toHaveLength(2);
+  });
 
-  it('migrate does NOT add Internal clients to an account-less import slice', () => {
-    const out = migrate({ schemaVersion: 5, data: { accounts: [], clients: [{ id: 'c1', accountId: 'a1', createdAt: TS, updatedAt: TS, name: 'A', color: '#1' }] } })
-    expect(out.clients.filter((c) => c.builtin)).toHaveLength(0)
-  })
+  it("migrate does NOT add Internal clients to an account-less import slice", () => {
+    const out = migrate({
+      schemaVersion: 5,
+      data: {
+        accounts: [],
+        clients: [{ id: "c1", accountId: "a1", createdAt: TS, updatedAt: TS, name: "A", color: "#1" }],
+      },
+    });
+    expect(out.clients.filter((c) => c.builtin)).toHaveLength(0);
+  });
 
-  it('seed round-trips deep-equal through serialize → parse (migrate stays idempotent at the current version)', () => {
-    const data = seed()
-    expect(parseData(serializeData(data))).toEqual(data)
-  })
+  it("seed round-trips deep-equal through serialize → parse (migrate stays idempotent at the current version)", () => {
+    const data = seed();
+    expect(parseData(serializeData(data))).toEqual(data);
+  });
 
-  it('buildInternalClient uses the deterministic id and reserved name/colour with builtin:true', () => {
-    const c = buildInternalClient('a9', TS)
-    expect(c).toMatchObject({ accountId: 'a9', name: INTERNAL_CLIENT_NAME, builtin: true })
-    expect(c.id).toBe('internal:a9')
-  })
+  it("buildInternalClient uses the deterministic id and reserved name/colour with builtin:true", () => {
+    const c = buildInternalClient("a9", TS);
+    expect(c).toMatchObject({ accountId: "a9", name: INTERNAL_CLIENT_NAME, builtin: true });
+    expect(c.id).toBe("internal:a9");
+  });
 
   // wouldAddSecondBuiltin is the server-reject predicate (validate.ts). These cases pin it to the
   // exact inline check it replaced: `internalClientFor(...) && existing.id !== id` — including the
   // account-scoping that lets each account keep its own builtin.
-  it('wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte', () => {
-    const existing: Client = { id: 'c-int', accountId: 'a1', createdAt: TS, updatedAt: TS, name: 'Internal', color: '#9c3ace', builtin: true }
-    const clients = [existing]
+  it("wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte", () => {
+    const existing: Client = {
+      id: "c-int",
+      accountId: "a1",
+      createdAt: TS,
+      updatedAt: TS,
+      name: "Internal",
+      color: "#9c3ace",
+      builtin: true,
+    };
+    const clients = [existing];
     // No builtin yet for this account → first builtin is allowed.
-    expect(wouldAddSecondBuiltin([], 'a1', 'c-int')).toBe(false)
+    expect(wouldAddSecondBuiltin([], "a1", "c-int")).toBe(false);
     // A DIFFERENT id against an account that already has one → would be a second → reject.
-    expect(wouldAddSecondBuiltin(clients, 'a1', 'c-int2')).toBe(true)
+    expect(wouldAddSecondBuiltin(clients, "a1", "c-int2")).toBe(true);
     // The SAME id (updating the existing builtin) → not a second → allowed.
-    expect(wouldAddSecondBuiltin(clients, 'a1', 'c-int')).toBe(false)
+    expect(wouldAddSecondBuiltin(clients, "a1", "c-int")).toBe(false);
     // A different ACCOUNT that has no builtin → allowed (per-account scoping).
-    expect(wouldAddSecondBuiltin(clients, 'a2', 'c-int-2')).toBe(false)
-  })
-})
+    expect(wouldAddSecondBuiltin(clients, "a2", "c-int-2")).toBe(false);
+  });
+});

@@ -12,15 +12,7 @@ import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
 
 export function SchedulerToolbar() {
   // Viewer read-only (P1.12): a viewer has nothing to draw / mutate / undo, so the draw-mode toggle
@@ -49,24 +41,16 @@ export function SchedulerToolbar() {
   const disciplines = data.disciplines;
   const clients = data.clients;
   const projects = data.projects;
-  const clientNames = new Map(
-    clients.map((client) => [client.id, client.name]),
-  );
+  const clientNames = new Map(clients.map((client) => [client.id, client.name]));
   // The activity lens covers only the project-LESS kinds — project-specific activities are reached via the
   // Projects dropdown above.
-  const internalActivities = data.activities.filter(
-    (t) => t.kind === "internal",
-  );
-  const repeatableActivities = data.activities.filter(
-    (t) => t.kind === "repeatable",
-  );
+  const internalActivities = data.activities.filter((t) => t.kind === "internal");
+  const repeatableActivities = data.activities.filter((t) => t.kind === "repeatable");
 
   const activeAccountId = useStore((s) => s.activeAccountId);
   // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
   // also ignores filters.disciplineId in that case, so a stale value can't hide anyone).
-  const disciplinesEnabled = useStore((s) =>
-    disciplinesEnabledFor(s.data, s.activeAccountId),
-  );
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
   // Keep the input snappy locally; push to filters after a short pause.
@@ -134,10 +118,7 @@ export function SchedulerToolbar() {
   };
 
   return (
-    <div
-      data-testid="scheduler-toolbar"
-      className="@container border-b border-line bg-surface"
-    >
+    <div data-testid="scheduler-toolbar" className="@container border-b border-line bg-surface">
       {/* flex-wrap (mirrors the filters row below): at ~320 CSS px the title + nav + date + zoom +
           draw + undo/redo would otherwise pack onto one non-wrapping line and force horizontal
           scroll, failing WCAG 1.4.10 Reflow. Wrapping lets the chrome reflow into stacked lines
@@ -146,23 +127,13 @@ export function SchedulerToolbar() {
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => panDays(-7)}
-          title={m.scheduler_nav_prev_title()}
-        >
+        <Button size="sm" variant="outline" onClick={() => panDays(-7)} title={m.scheduler_nav_prev_title()}>
           <ChevronLeft data-icon="inline-start" /> {m.scheduler_nav_prev()}
         </Button>
         <Button size="sm" variant="outline" onClick={goToToday}>
           {m.scheduler_nav_today()}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => panDays(7)}
-          title={m.scheduler_nav_next_title()}
-        >
+        <Button size="sm" variant="outline" onClick={() => panDays(7)} title={m.scheduler_nav_next_title()}>
           {m.scheduler_nav_next()} <ChevronRight data-icon="inline-end" />
         </Button>
         <Input
@@ -254,17 +225,12 @@ export function SchedulerToolbar() {
               })
             }
           >
-            <SelectTrigger
-              aria-label={m.scheduler_filter_discipline_aria()}
-              className="w-auto"
-            >
+            <SelectTrigger aria-label={m.scheduler_filter_discipline_aria()} className="w-auto">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="all">
-                  {m.scheduler_filter_all_disciplines()}
-                </SelectItem>
+                <SelectItem value="all">{m.scheduler_filter_all_disciplines()}</SelectItem>
                 {disciplines.map((discipline) => (
                   <SelectItem key={discipline.id} value={discipline.id}>
                     {discipline.name}
@@ -276,21 +242,14 @@ export function SchedulerToolbar() {
         )}
         <Select
           value={filters.clientId ?? "all"}
-          onValueChange={(value) =>
-            setToolbarFilters({ clientId: value === "all" ? null : value })
-          }
+          onValueChange={(value) => setToolbarFilters({ clientId: value === "all" ? null : value })}
         >
-          <SelectTrigger
-            aria-label={m.scheduler_filter_client_aria()}
-            className="w-auto"
-          >
+          <SelectTrigger aria-label={m.scheduler_filter_client_aria()} className="w-auto">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="all">
-                {m.scheduler_filter_all_clients()}
-              </SelectItem>
+              <SelectItem value="all">{m.scheduler_filter_all_clients()}</SelectItem>
               {clients.map((client) => (
                 <SelectItem key={client.id} value={client.id}>
                   {client.name}
@@ -301,28 +260,19 @@ export function SchedulerToolbar() {
         </Select>
         <Select
           value={filters.projectId ?? "all"}
-          onValueChange={(value) =>
-            setToolbarFilters({ projectId: value === "all" ? null : value })
-          }
+          onValueChange={(value) => setToolbarFilters({ projectId: value === "all" ? null : value })}
         >
-          <SelectTrigger
-            aria-label={m.scheduler_filter_project_aria()}
-            className="w-auto"
-          >
+          <SelectTrigger aria-label={m.scheduler_filter_project_aria()} className="w-auto">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="all">
-                {m.scheduler_filter_all_projects()}
-              </SelectItem>
+              <SelectItem value="all">{m.scheduler_filter_all_projects()}</SelectItem>
               {projects.map((project) => {
                 const clientName = clientNames.get(project.clientId);
                 return (
                   <SelectItem key={project.id} value={project.id}>
-                    {clientName
-                      ? `${clientName} / ${project.name}`
-                      : project.name}
+                    {clientName ? `${clientName} / ${project.name}` : project.name}
                   </SelectItem>
                 );
               })}
@@ -333,11 +283,7 @@ export function SchedulerToolbar() {
           <Select
             // Encoded value: 'all' = all, 'kind:internal'/'kind:repeatable' = a whole group,
             // otherwise a specific activity id. An activityKind selection wins over a stale activityId.
-            value={
-              filters.activityKind
-                ? `kind:${filters.activityKind}`
-                : (filters.activityId ?? "all")
-            }
+            value={filters.activityKind ? `kind:${filters.activityKind}` : (filters.activityId ?? "all")}
             onValueChange={(value) => {
               if (value === "kind:internal")
                 setToolbarFilters({
@@ -356,26 +302,17 @@ export function SchedulerToolbar() {
                 });
             }}
           >
-            <SelectTrigger
-              aria-label={m.scheduler_filter_activity_aria()}
-              className="w-auto"
-            >
+            <SelectTrigger aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="all">
-                  {m.scheduler_filter_all_activities()}
-                </SelectItem>
+                <SelectItem value="all">{m.scheduler_filter_all_activities()}</SelectItem>
               </SelectGroup>
               {internalActivities.length > 0 && (
                 <SelectGroup>
-                  <SelectLabel>
-                    {m.scheduler_filter_internal_group()}
-                  </SelectLabel>
-                  <SelectItem value="kind:internal">
-                    {m.scheduler_filter_internal_all()}
-                  </SelectItem>
+                  <SelectLabel>{m.scheduler_filter_internal_group()}</SelectLabel>
+                  <SelectItem value="kind:internal">{m.scheduler_filter_internal_all()}</SelectItem>
                   {internalActivities.map((activity) => (
                     <SelectItem key={activity.id} value={activity.id}>
                       {activity.name}
@@ -385,12 +322,8 @@ export function SchedulerToolbar() {
               )}
               {repeatableActivities.length > 0 && (
                 <SelectGroup>
-                  <SelectLabel>
-                    {m.scheduler_filter_repeatable_group()}
-                  </SelectLabel>
-                  <SelectItem value="kind:repeatable">
-                    {m.scheduler_filter_repeatable_all()}
-                  </SelectItem>
+                  <SelectLabel>{m.scheduler_filter_repeatable_group()}</SelectLabel>
+                  <SelectItem value="kind:repeatable">{m.scheduler_filter_repeatable_all()}</SelectItem>
                   {repeatableActivities.map((activity) => (
                     <SelectItem key={activity.id} value={activity.id}>
                       {activity.name}
@@ -405,33 +338,18 @@ export function SchedulerToolbar() {
           <Checkbox
             id="hide-tentative"
             checked={filters.hideTentative}
-            onCheckedChange={(checked) =>
-              setToolbarFilters({ hideTentative: checked === true })
-            }
+            onCheckedChange={(checked) => setToolbarFilters({ hideTentative: checked === true })}
           />
-          <FieldLabel htmlFor="hide-tentative">
-            {m.scheduler_hide_tentative()}
-          </FieldLabel>
+          <FieldLabel htmlFor="hide-tentative">{m.scheduler_hide_tentative()}</FieldLabel>
         </Field>
-        {(filters.projectId ||
-          filters.clientId ||
-          filters.activityId ||
-          filters.activityKind) && (
-          <Field
-            orientation="horizontal"
-            className="w-auto gap-1.5"
-            title={m.scheduler_show_unallocated_title()}
-          >
+        {(filters.projectId || filters.clientId || filters.activityId || filters.activityKind) && (
+          <Field orientation="horizontal" className="w-auto gap-1.5" title={m.scheduler_show_unallocated_title()}>
             <Checkbox
               id="show-unmatched"
               checked={filters.showUnmatched}
-              onCheckedChange={(checked) =>
-                setToolbarFilters({ showUnmatched: checked === true })
-              }
+              onCheckedChange={(checked) => setToolbarFilters({ showUnmatched: checked === true })}
             />
-            <FieldLabel htmlFor="show-unmatched">
-              {m.scheduler_show_unallocated()}
-            </FieldLabel>
+            <FieldLabel htmlFor="show-unmatched">{m.scheduler_show_unallocated()}</FieldLabel>
           </Field>
         )}
         {hasActiveFilters(filters) && (

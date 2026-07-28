@@ -1,15 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  IDBFactory,
-  IDBObjectStore as FakeIDBObjectStore,
-} from "fake-indexeddb";
+import { IDBFactory, IDBObjectStore as FakeIDBObjectStore } from "fake-indexeddb";
 import { seed } from "@capacitylens/shared/data/seed";
-import {
-  SCOPED_KEYS,
-  emptyAppData,
-  scopedTables,
-  type AppData,
-} from "@capacitylens/shared/types/entities";
+import { SCOPED_KEYS, emptyAppData, scopedTables, type AppData } from "@capacitylens/shared/types/entities";
 import {
   cacheAccountSlice,
   cacheAccountSummaries,
@@ -93,10 +85,7 @@ async function getRaw(key: string): Promise<unknown> {
   });
   try {
     return await new Promise((resolve, reject) => {
-      const request = db
-        .transaction(STORE_NAME, "readonly")
-        .objectStore(STORE_NAME)
-        .get(key);
+      const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(key);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -117,15 +106,11 @@ function authSnapshot(userId: string) {
 function accountSlice(accountId: string): AppData {
   const source = seed();
   const slice = emptyAppData();
-  slice.accounts = source.accounts.filter(
-    (account) => account.id === accountId,
-  );
+  slice.accounts = source.accounts.filter((account) => account.id === accountId);
   const sourceTables = scopedTables(source);
   const sliceTables = scopedTables(slice);
   for (const key of SCOPED_KEYS) {
-    sliceTables[key] = sourceTables[key].filter(
-      (row) => row.accountId === accountId,
-    );
+    sliceTables[key] = sourceTables[key].filter((row) => row.accountId === accountId);
   }
   return slice;
 }
@@ -173,9 +158,7 @@ describe("offline preference", () => {
     request.onsuccess?.(new Event("success"));
     expect(close).toHaveBeenCalledOnce();
     expect(result.onversionchange).toBeTypeOf("function");
-    result.onversionchange?.(
-      new Event("versionchange") as IDBVersionChangeEvent,
-    );
+    result.onversionchange?.(new Event("versionchange") as IDBVersionChangeEvent);
     expect(close).toHaveBeenCalledTimes(2);
   });
 
@@ -191,9 +174,7 @@ describe("offline preference", () => {
         register: vi.fn().mockRejectedValue(new Error("registration denied")),
       },
     });
-    await expect(setOfflineReadEnabled(true)).rejects.toThrow(
-      "registration denied",
-    );
+    await expect(setOfflineReadEnabled(true)).rejects.toThrow("registration denied");
     expect(offlineReadEnabled()).toBe(false);
   });
 
@@ -322,13 +303,11 @@ describe("offline tenant cache", () => {
     const encryptionStarted = new Promise<void>((resolve) => {
       reportStarted = resolve;
     });
-    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(
-      async (algorithm, key, data) => {
-        reportStarted();
-        await encryptionGate;
-        return originalEncrypt(algorithm, key, data);
-      },
-    );
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (algorithm, key, data) => {
+      reportStarted();
+      await encryptionGate;
+      return originalEncrypt(algorithm, key, data);
+    });
 
     const liveIdentityWrite = cacheAuthSnapshot(authSnapshot("user-a"));
     await encryptionStarted;
@@ -337,18 +316,14 @@ describe("offline tenant cache", () => {
     await liveIdentityWrite;
 
     await cacheAccountSlice("a-studio", accountSlice("a-studio"));
-    await expect(
-      getRaw(`slice:${currentCacheNamespace()}:user-a:a-studio`),
-    ).resolves.toBeDefined();
+    await expect(getRaw(`slice:${currentCacheNamespace()}:user-a:a-studio`)).resolves.toBeDefined();
   });
 
   it("physically sweeps every expired envelope when cache maintenance next runs", async () => {
     const savedAt = new Date("2026-07-01T00:00:00.000Z").getTime();
     const clock = vi.spyOn(Date, "now").mockReturnValue(savedAt);
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    await cacheAccountSummaries([
-      { id: "a-studio", name: "Studio", role: "owner" },
-    ]);
+    await cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);
     await cacheAccountSlice("a-studio", accountSlice("a-studio"));
     const origin = currentCacheNamespace();
 
@@ -357,16 +332,12 @@ describe("offline tenant cache", () => {
     await cacheAuthSnapshot(authSnapshot("user-b"));
 
     await expect(getRaw(`accounts:${origin}:user-a`)).resolves.toBeUndefined();
-    await expect(
-      getRaw(`slice:${origin}:user-a:a-studio`),
-    ).resolves.toBeUndefined();
+    await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
   });
 
   it("opting out physically removes encrypted records for every prior user", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    await cacheAccountSummaries([
-      { id: "a-studio", name: "Studio", role: "owner" },
-    ]);
+    await cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);
     await cacheAccountSlice("a-studio", accountSlice("a-studio"));
     await cacheAuthSnapshot(authSnapshot("user-b"));
     await cacheAccountSlice("a-studio", emptyAppData());
@@ -377,19 +348,13 @@ describe("offline tenant cache", () => {
     expect(offlineReadEnabled()).toBe(false);
     await expect(getRaw(`auth:${origin}`)).resolves.toBeUndefined();
     await expect(getRaw(`accounts:${origin}:user-a`)).resolves.toBeUndefined();
-    await expect(
-      getRaw(`slice:${origin}:user-a:a-studio`),
-    ).resolves.toBeUndefined();
-    await expect(
-      getRaw(`slice:${origin}:user-b:a-studio`),
-    ).resolves.toBeUndefined();
+    await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
+    await expect(getRaw(`slice:${origin}:user-b:a-studio`)).resolves.toBeUndefined();
   });
 
   it("stores only authenticated ciphertext and deletes an entry whose tag no longer verifies", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    await cacheAccountSummaries([
-      { id: "a-studio", name: "Confidential Studio", role: "owner" },
-    ]);
+    await cacheAccountSummaries([{ id: "a-studio", name: "Confidential Studio", role: "owner" }]);
     const key = `accounts:${currentCacheNamespace()}:user-a`;
     const raw = (await getRaw(key)) as {
       key: string;
@@ -403,9 +368,7 @@ describe("offline tenant cache", () => {
     expect(raw.value).toBeUndefined();
     expect(JSON.stringify(raw)).not.toContain("Confidential Studio");
     expect(Object.prototype.toString.call(raw.iv)).toBe("[object ArrayBuffer]");
-    expect(Object.prototype.toString.call(raw.ciphertext)).toBe(
-      "[object ArrayBuffer]",
-    );
+    expect(Object.prototype.toString.call(raw.ciphertext)).toBe("[object ArrayBuffer]");
 
     const tampered = new Uint8Array(raw.ciphertext).slice();
     tampered[0] ^= 1;
@@ -425,21 +388,15 @@ describe("offline tenant cache", () => {
     const earlierStarted = new Promise<void>((resolve) => {
       reportEarlierStarted = resolve;
     });
-    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(
-      async (algorithm, key, data) => {
-        reportEarlierStarted();
-        await earlierGate;
-        return originalEncrypt(algorithm, key, data);
-      },
-    );
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (algorithm, key, data) => {
+      reportEarlierStarted();
+      await earlierGate;
+      return originalEncrypt(algorithm, key, data);
+    });
 
-    const earlier = cacheAccountSummaries([
-      { id: "old", name: "Older", role: "owner" },
-    ]);
+    const earlier = cacheAccountSummaries([{ id: "old", name: "Older", role: "owner" }]);
     await earlierStarted;
-    const later = cacheAccountSummaries([
-      { id: "new", name: "Newest", role: "owner" },
-    ]);
+    const later = cacheAccountSummaries([{ id: "new", name: "Newest", role: "owner" }]);
     releaseEarlier();
     await Promise.all([earlier, later]);
 
@@ -450,9 +407,7 @@ describe("offline tenant cache", () => {
 
   it("rejects when invalid-entry deletion aborts after its request succeeds", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    await cacheAccountSummaries([
-      { id: "a-studio", name: "Confidential Studio", role: "owner" },
-    ]);
+    await cacheAccountSummaries([{ id: "a-studio", name: "Confidential Studio", role: "owner" }]);
     const key = `accounts:${currentCacheNamespace()}:user-a`;
     const raw = (await getRaw(key)) as { ciphertext: ArrayBuffer };
     const tampered = new Uint8Array(raw.ciphertext).slice();
@@ -460,33 +415,24 @@ describe("offline tenant cache", () => {
     await putRaw({ ...raw, key, ciphertext: tampered.buffer });
 
     const originalDelete = FakeIDBObjectStore.prototype.delete;
-    vi.spyOn(FakeIDBObjectStore.prototype, "delete").mockImplementation(
-      function (this: IDBObjectStore, query) {
-        const request = originalDelete.call(this, query);
-        request.addEventListener("success", () => this.transaction.abort());
-        return request;
-      },
-    );
+    vi.spyOn(FakeIDBObjectStore.prototype, "delete").mockImplementation(function (this: IDBObjectStore, query) {
+      const request = originalDelete.call(this, query);
+      request.addEventListener("success", () => this.transaction.abort());
+      return request;
+    });
 
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(
-        () => reject(new Error("Offline cache deletion did not settle.")),
-        100,
-      );
+      setTimeout(() => reject(new Error("Offline cache deletion did not settle.")), 100);
     });
-    await expect(
-      Promise.race([readCachedAccountSummaries(), timeout]),
-    ).rejects.toThrow("Offline cache entry deletion was aborted");
+    await expect(Promise.race([readCachedAccountSummaries(), timeout])).rejects.toThrow(
+      "Offline cache entry deletion was aborted",
+    );
   });
 
   it("rejects when current-user cleanup aborts after its boundary write succeeds", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     const originalPut = FakeIDBObjectStore.prototype.put;
-    vi.spyOn(FakeIDBObjectStore.prototype, "put").mockImplementation(function (
-      this: IDBObjectStore,
-      value,
-      key,
-    ) {
+    vi.spyOn(FakeIDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value, key) {
       const request = originalPut.call(this, value, key);
       if ((value as { id?: unknown }).id === "write-boundary-v1") {
         request.addEventListener("success", () => this.transaction.abort());
@@ -495,14 +441,9 @@ describe("offline tenant cache", () => {
     });
 
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(
-        () => reject(new Error("Offline cache cleanup did not settle.")),
-        100,
-      );
+      setTimeout(() => reject(new Error("Offline cache cleanup did not settle.")), 100);
     });
-    await expect(
-      Promise.race([clearOfflineDataForCurrentUser(), timeout]),
-    ).rejects.toThrow(/abort/i);
+    await expect(Promise.race([clearOfflineDataForCurrentUser(), timeout])).rejects.toThrow(/abort/i);
   });
 
   it("rejects and deletes an envelope whose timestamp is in the future", async () => {
@@ -529,9 +470,7 @@ describe("offline tenant cache", () => {
     await expect(readCachedAuthSnapshot()).resolves.toBeNull();
 
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    await cacheAccountSummaries([
-      { id: "a-studio", name: "Studio", role: "owner" },
-    ]);
+    await cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);
     await putRaw({
       key: `accounts:${currentCacheNamespace()}:user-a`,
       savedAt: Date.now(),
@@ -568,9 +507,7 @@ describe("offline tenant cache", () => {
     await clearOfflineDataForCurrentUser();
     await cacheAuthSnapshot(authSnapshot("abc"));
 
-    expect(
-      (await readCachedAccountSlice("a-studio"))?.value.accounts[0]?.name,
-    ).toBe("Studio North");
+    expect((await readCachedAccountSlice("a-studio"))?.value.accounts[0]?.name).toBe("Studio North");
   });
 
   it("reports unavailable browser storage so sign-out can disable stale offline data", async () => {
@@ -578,9 +515,7 @@ describe("offline tenant cache", () => {
     const availableIndexedDb = indexedDB;
     vi.stubGlobal("indexedDB", undefined);
 
-    await expect(clearOfflineDataForCurrentUser()).rejects.toThrow(
-      "IndexedDB is unavailable",
-    );
+    await expect(clearOfflineDataForCurrentUser()).rejects.toThrow("IndexedDB is unavailable");
 
     // Mirrors AuthProvider's fail-closed fallback. Disabling must remove the preference even when
     // the records cannot currently be reached, and restoring IndexedDB must not make them eligible.
@@ -609,20 +544,16 @@ describe("offline tenant cache", () => {
       reportAllStarted = resolve;
     });
     let started = 0;
-    vi.spyOn(crypto.subtle, "encrypt").mockImplementation(
-      async (algorithm, key, data) => {
-        started += 1;
-        if (started === 3) reportAllStarted();
-        await encryptionGate;
-        return originalEncrypt(algorithm, key, data);
-      },
-    );
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementation(async (algorithm, key, data) => {
+      started += 1;
+      if (started === 3) reportAllStarted();
+      await encryptionGate;
+      return originalEncrypt(algorithm, key, data);
+    });
 
     const writes = [
       cacheAuthSnapshot(authSnapshot("user-a")),
-      cacheAccountSummaries([
-        { id: "a-studio", name: "Studio", role: "owner" },
-      ]),
+      cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]),
       cacheAccountSlice("a-studio", accountSlice("a-studio")),
     ];
     await allStarted;
@@ -634,9 +565,7 @@ describe("offline tenant cache", () => {
     const origin = currentCacheNamespace();
     await expect(getRaw(`auth:${origin}`)).resolves.toBeUndefined();
     await expect(getRaw(`accounts:${origin}:user-a`)).resolves.toBeUndefined();
-    await expect(
-      getRaw(`slice:${origin}:user-a:a-studio`),
-    ).resolves.toBeUndefined();
+    await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
   });
 
   it("the explicit device-data wipe clears every user's cached slice", async () => {
@@ -661,9 +590,7 @@ describe("offline tenant cache", () => {
     expect(offlineStateSnapshot().cacheWriteFailed).toBe(true);
     await clearAllOfflineData();
 
-    await expect(
-      cacheAuthSnapshot(authSnapshot("user-a")),
-    ).resolves.toBeUndefined();
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toBeUndefined();
     expect(offlineStateSnapshot().cacheWriteFailed).toBe(false);
     await expect(readCachedAuthSnapshot()).resolves.toMatchObject({
       value: { user: { id: "user-a" } },

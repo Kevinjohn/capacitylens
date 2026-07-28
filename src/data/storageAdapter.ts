@@ -1,7 +1,7 @@
-import { InMemoryDemoAdapter } from './InMemoryDemoAdapter'
-import { ServerSyncAdapter } from './ServerSyncAdapter'
-import { API_BASE, isServerConfigured } from './apiConfig'
-import type { PersistenceAdapter } from './PersistenceAdapter'
+import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
+import { ServerSyncAdapter } from "./ServerSyncAdapter";
+import { API_BASE, isServerConfigured } from "./apiConfig";
+import type { PersistenceAdapter } from "./PersistenceAdapter";
 
 // The persistence target the app actually boots against. By DEFAULT this is the SQLite-backed
 // server via the entity-level ServerSyncAdapter — a drop-in PersistenceAdapter, so nothing else
@@ -11,4 +11,4 @@ import type { PersistenceAdapter } from './PersistenceAdapter'
 // lives in apiConfig.ts so this wiring just asks isServerConfigured() (mirrors schedule/diary).
 export const persistenceAdapter: PersistenceAdapter = isServerConfigured()
   ? new ServerSyncAdapter(API_BASE)
-  : new InMemoryDemoAdapter()
+  : new InMemoryDemoAdapter();

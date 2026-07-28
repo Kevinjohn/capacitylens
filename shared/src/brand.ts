@@ -11,7 +11,7 @@
  * The sole documented exception is `index.html`: it is static HTML served before any module loads,
  * so it cannot import this constant and keeps the brand literal in its <title>/no-JS copy.
  */
-export const APP_NAME = 'CapacityLens'
+export const APP_NAME = "CapacityLens";
 
 /**
  * The single localStorage/sessionStorage key prefix every device preference this app writes uses.
@@ -20,4 +20,4 @@ export const APP_NAME = 'CapacityLens'
  * touches only this app's keys, never unrelated keys on a shared origin. The trailing slash is part
  * of the prefix. `floaty/` is retained only for explicit user-triggered legacy preference cleanup.
  */
-export const STORAGE_KEY_PREFIX = 'capacitylens/'
+export const STORAGE_KEY_PREFIX = "capacitylens/";

@@ -1,6 +1,6 @@
-import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from '../types/entities'
-import { buildInternalClient, ensureInternalClients } from './internalClient'
-import type { AppData } from '../types/entities'
+import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
+import { buildInternalClient, ensureInternalClients } from "./internalClient";
+import type { AppData } from "../types/entities";
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
 // current-shape AppData, plus the IMPORT-path shape guards that decide whether a
@@ -12,50 +12,50 @@ import type { AppData } from '../types/entities'
 // `accountId` on every incoming row (see useStore.importData).
 
 // The known portable data tables. APP_DATA_KEYS is the shared structural source of truth.
-export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS
+export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS;
 
 // Legacy table keys that a pre-rename export/blob may carry. `activities` was once `tasks`
 // (the Task→Activity rename, schema v5). The IMPORT shape-guards recognise these so a
 // legacy file — even one that ONLY carries the renamed table — is accepted (then migrated),
 // not mistaken for non-CapacityLens JSON and rejected. The migrate path renames them (migrateV4toV5).
-const LEGACY_KEYS: string[] = ['tasks']
-const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS]
+const LEGACY_KEYS: string[] = ["tasks"];
+const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS];
 
 /** Refuse data written by a newer app instead of normalizing away fields this build cannot know. */
 export class UnsupportedSchemaVersionError extends Error {
-  readonly version: number
+  readonly version: number;
   constructor(version: number) {
-    super(`Schema version ${version} is newer than this app supports (${EXPORT_SCHEMA_VERSION}).`)
-    this.name = 'UnsupportedSchemaVersionError'
-    this.version = version
+    super(`Schema version ${version} is newer than this app supports (${EXPORT_SCHEMA_VERSION}).`);
+    this.name = "UnsupportedSchemaVersionError";
+    this.version = version;
   }
 }
 
 /** A present version marker is an integrity boundary, not a hint that can fall back to legacy. */
 export class InvalidSchemaVersionError extends Error {
   constructor() {
-    super('Schema version must be a non-negative safe integer.')
-    this.name = 'InvalidSchemaVersionError'
+    super("Schema version must be a non-negative safe integer.");
+    this.name = "InvalidSchemaVersionError";
   }
 }
 
 function schemaVersion(obj: Record<string, unknown>): number {
-  if (!Object.hasOwn(obj, 'schemaVersion')) return 0
-  const value = obj.schemaVersion
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new InvalidSchemaVersionError()
+  if (!Object.hasOwn(obj, "schemaVersion")) return 0;
+  const value = obj.schemaVersion;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new InvalidSchemaVersionError();
   }
-  return value
+  return value;
 }
 
 // Unwrap the object the import shape-guards inspect: either the bare AppData map, or
 // the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.
 export function importCandidate(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
-  const obj = value as Record<string, unknown>
-  return 'data' in obj && obj.data && typeof obj.data === 'object' && !Array.isArray(obj.data)
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const obj = value as Record<string, unknown>;
+  return "data" in obj && obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)
     ? (obj.data as Record<string, unknown>)
-    : obj
+    : obj;
 }
 
 // Recognisable-CapacityLens guard for the IMPORT path: any JSON that parses but isn't
@@ -64,10 +64,10 @@ export function importCandidate(value: unknown): Record<string, unknown> | null 
 // migrate.ts so the shape guard and the migrate it gates can't drift — mirrors how
 // schedule/diary keep their `looksLike…` guard next to migrate().
 export function looksLikeCapacityLens(value: unknown): boolean {
-  const candidate = importCandidate(value)
+  const candidate = importCandidate(value);
   // Accept legacy keys too (e.g. pre-rename `tasks`) so a valid older export — even one
   // whose only array is a renamed table — passes the guard and reaches migrate().
-  return !!candidate && RECOGNISED_KEYS.some((k) => Array.isArray(candidate[k]))
+  return !!candidate && RECOGNISED_KEYS.some((k) => Array.isArray(candidate[k]));
 }
 
 // A KNOWN table PRESENT but not an array (e.g. `resources: {…}` from a truncated or
@@ -77,18 +77,18 @@ export function looksLikeCapacityLens(value: unknown): boolean {
 // which routes the same blob to recovery. Principle: repair within a record, reject a
 // structurally broken file. (An ABSENT table is fine — migrate fills it empty.)
 export function hasNonArrayKnownTable(value: unknown): boolean {
-  const candidate = importCandidate(value)
+  const candidate = importCandidate(value);
   // Legacy keys count too: a pre-rename `tasks: {…}` (object, not array) is the same
   // structural damage as a current key — reject it rather than coerce it to [] and lose it.
-  return !!candidate && RECOGNISED_KEYS.some((k) => k in candidate && !Array.isArray(candidate[k]))
+  return !!candidate && RECOGNISED_KEYS.some((k) => k in candidate && !Array.isArray(candidate[k]));
 }
 
 function asArray<T>(v: unknown): T[] {
-  return Array.isArray(v) ? (v as T[]) : []
+  return Array.isArray(v) ? (v as T[]) : [];
 }
 
 function normalize(data: Partial<AppData> | undefined): AppData {
-  if (!data || typeof data !== 'object') return emptyAppData()
+  if (!data || typeof data !== "object") return emptyAppData();
   return {
     accounts: asArray(data.accounts),
     disciplines: asArray(data.disciplines),
@@ -99,24 +99,24 @@ function normalize(data: Partial<AppData> | undefined): AppData {
     activities: asArray(data.activities),
     allocations: asArray(data.allocations),
     timeOff: asArray(data.timeOff),
-  }
+  };
 }
 
 // v1 → v2: early resources carried a boolean `isFreelancer`; convert it to the
 // richer `employmentType` enum.
 function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.resources)) return data
+  if (!Array.isArray(data.resources)) return data;
   const resources = data.resources.map((r) => {
-    if (!r || typeof r !== 'object') return r
-    const rec = r as Record<string, unknown>
-    if ('isFreelancer' in rec && rec.employmentType === undefined) {
-      const next: Record<string, unknown> = { ...rec, employmentType: rec.isFreelancer ? 'freelancer' : 'permanent' }
-      delete next.isFreelancer
-      return next
+    if (!r || typeof r !== "object") return r;
+    const rec = r as Record<string, unknown>;
+    if ("isFreelancer" in rec && rec.employmentType === undefined) {
+      const next: Record<string, unknown> = { ...rec, employmentType: rec.isFreelancer ? "freelancer" : "permanent" };
+      delete next.isFreelancer;
+      return next;
     }
-    return rec
-  })
-  return { ...data, resources }
+    return rec;
+  });
+  return { ...data, resources };
 }
 
 // v3 → v4: activities gained a required `kind` discriminant (project | internal | repeatable).
@@ -125,14 +125,14 @@ function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
 // is a genuinely new bucket, set explicitly via the UI afterwards, never inferred here.
 // NB: this runs BEFORE the v4→v5 rename, so the table is still named `tasks` at this point.
 function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.tasks)) return data
+  if (!Array.isArray(data.tasks)) return data;
   const tasks = data.tasks.map((t) => {
-    if (!t || typeof t !== 'object') return t
-    const rec = t as Record<string, unknown>
-    if (rec.kind !== undefined) return rec // already v4 (or hand-set) — leave it
-    return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? 'project' : 'repeatable' }
-  })
-  return { ...data, tasks }
+    if (!t || typeof t !== "object") return t;
+    const rec = t as Record<string, unknown>;
+    if (rec.kind !== undefined) return rec; // already v4 (or hand-set) — leave it
+    return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? "project" : "repeatable" };
+  });
+  return { ...data, tasks };
 }
 
 // v4 → v5: the domain concept "Task" was renamed "Activity". Rename the `tasks` table to
@@ -142,40 +142,42 @@ function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
 // through untouched. An in-progress blob carrying BOTH keys keeps every distinct row while
 // preferring the modern activity when the same valid id appears in both tables.
 function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
-  const next: Record<string, unknown> = { ...data }
+  const next: Record<string, unknown> = { ...data };
   // Rename/merge the table: `tasks` → `activities`. Modern rows come first and own id
   // conflicts; malformed/missing ids are retained for the import sanitiser to repair later.
   if (Array.isArray(next.tasks)) {
     if (!Array.isArray(next.activities)) {
-      next.activities = next.tasks
+      next.activities = next.tasks;
     } else {
-      const modernIds = new Set(next.activities.flatMap((activity) => {
-        if (!activity || typeof activity !== 'object') return []
-        const id = (activity as Record<string, unknown>).id
-        return typeof id === 'string' && id.length > 0 ? [id] : []
-      }))
+      const modernIds = new Set(
+        next.activities.flatMap((activity) => {
+          if (!activity || typeof activity !== "object") return [];
+          const id = (activity as Record<string, unknown>).id;
+          return typeof id === "string" && id.length > 0 ? [id] : [];
+        }),
+      );
       const legacyOnly = next.tasks.filter((task) => {
-        if (!task || typeof task !== 'object') return true
-        const id = (task as Record<string, unknown>).id
-        return typeof id !== 'string' || id.length === 0 || !modernIds.has(id)
-      })
-      next.activities = [...next.activities, ...legacyOnly]
+        if (!task || typeof task !== "object") return true;
+        const id = (task as Record<string, unknown>).id;
+        return typeof id !== "string" || id.length === 0 || !modernIds.has(id);
+      });
+      next.activities = [...next.activities, ...legacyOnly];
     }
   }
-  delete next.tasks
+  delete next.tasks;
   // Rename the FK on every allocation: `taskId` → `activityId`.
   if (Array.isArray(next.allocations)) {
     next.allocations = next.allocations.map((a) => {
-      if (!a || typeof a !== 'object') return a
-      const rec = a as Record<string, unknown>
-      if (!('taskId' in rec)) return rec
-      const renamed: Record<string, unknown> = { ...rec }
-      if (!('activityId' in renamed)) renamed.activityId = renamed.taskId
-      delete renamed.taskId
-      return renamed
-    })
+      if (!a || typeof a !== "object") return a;
+      const rec = a as Record<string, unknown>;
+      if (!("taskId" in rec)) return rec;
+      const renamed: Record<string, unknown> = { ...rec };
+      if (!("activityId" in renamed)) renamed.activityId = renamed.taskId;
+      delete renamed.taskId;
+      return renamed;
+    });
   }
-  return next
+  return next;
 }
 
 // v5 → v6: ensure EVERY account carries exactly one built-in "Internal" client (`builtin: true`).
@@ -193,27 +195,27 @@ function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
 // directly. The row SHAPE + the "match builtin by flag + accountId" predicate are kept in lockstep by
 // using the shared `buildInternalClient` factory for the row literal.
 function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.accounts) || data.accounts.length === 0) return data
-  const clients = Array.isArray(data.clients) ? [...data.clients] : []
+  if (!Array.isArray(data.accounts) || data.accounts.length === 0) return data;
+  const clients = Array.isArray(data.clients) ? [...data.clients] : [];
   const accountsWithBuiltin = new Set(
     clients.flatMap((client) => {
-      if (!client || typeof client !== 'object') return []
-      const rec = client as Record<string, unknown>
-      return rec.builtin === true && typeof rec.accountId === 'string' ? [rec.accountId] : []
+      if (!client || typeof client !== "object") return [];
+      const rec = client as Record<string, unknown>;
+      return rec.builtin === true && typeof rec.accountId === "string" ? [rec.accountId] : [];
     }),
-  )
+  );
   // Migrated rows are newly created here; a fixed timestamp keeps the migration deterministic.
-  const now = '2026-01-01T00:00:00.000Z'
-  let added = false
+  const now = "2026-01-01T00:00:00.000Z";
+  let added = false;
   for (const account of data.accounts) {
-    if (!account || typeof account !== 'object') continue
-    const accountId = (account as Record<string, unknown>).id
-    if (typeof accountId !== 'string' || accountsWithBuiltin.has(accountId)) continue
-    clients.push(buildInternalClient(accountId, now))
-    accountsWithBuiltin.add(accountId)
-    added = true
+    if (!account || typeof account !== "object") continue;
+    const accountId = (account as Record<string, unknown>).id;
+    if (typeof accountId !== "string" || accountsWithBuiltin.has(accountId)) continue;
+    clients.push(buildInternalClient(accountId, now));
+    accountsWithBuiltin.add(accountId);
+    added = true;
   }
-  return added ? { ...data, clients } : data
+  return added ? { ...data, clients } : data;
 }
 
 // v6 → v7 added optional `isPrivate` / `codeName` fields to clients and projects. No transform is
@@ -221,13 +223,13 @@ function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
 // present values after migration. Keeping the version step explicit documents why v7 is structural
 // metadata only rather than an omitted migration.
 function migrateV6toV7(data: Record<string, unknown>): Record<string, unknown> {
-  return data
+  return data;
 }
 
 // v7 → v8 added Account.internalColourMode. No transform is needed: absence deliberately means
 // grey, and sanitizeAccount drops malformed present values at the server boundary.
 function migrateV7toV8(data: Record<string, unknown>): Record<string, unknown> {
-  return data
+  return data;
 }
 
 // v8 → v9 added the optional per-account schedule view prefs showInternalProjects /
@@ -235,14 +237,14 @@ function migrateV7toV8(data: Record<string, unknown>): Record<string, unknown> {
 // reads as true (shown/enabled) at the `?? true` read sites, and sanitizeAccount drops malformed
 // present values at the server boundary — exactly the v7→v8 precedent.
 function migrateV8toV9(data: Record<string, unknown>): Record<string, unknown> {
-  return data
+  return data;
 }
 
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
-  data: AppData
+  data: AppData;
   /** Structurally migrated state before Internal-client synthesis/repair, for durable hydration. */
-  repairBase: AppData
+  repairBase: AppData;
 }
 
 /**
@@ -251,53 +253,50 @@ export interface MigrationWithRepairBase {
  * local persistence callers should continue to use {@link migrate}.
  */
 export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
-  if (!raw || typeof raw !== 'object') {
-    const empty = emptyAppData()
-    return { data: empty, repairBase: empty }
+  if (!raw || typeof raw !== "object") {
+    const empty = emptyAppData();
+    return { data: empty, repairBase: empty };
   }
-  const obj = raw as Record<string, unknown>
-  const version = schemaVersion(obj)
-  if (version > EXPORT_SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version)
+  const obj = raw as Record<string, unknown>;
+  const version = schemaVersion(obj);
+  if (version > EXPORT_SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version);
 
   // Accept either a { schemaVersion, data } wrapper or a bare AppData (legacy).
-  let data = ('data' in obj ? obj.data : obj) as Record<string, unknown> | undefined
+  let data = ("data" in obj ? obj.data : obj) as Record<string, unknown> | undefined;
 
-  if (data && typeof data === 'object' && version < 2) {
-    data = migrateV1toV2(data)
+  if (data && typeof data === "object" && version < 2) {
+    data = migrateV1toV2(data);
   }
-  if (data && typeof data === 'object' && version < 4) {
-    data = migrateV3toV4(data)
+  if (data && typeof data === "object" && version < 4) {
+    data = migrateV3toV4(data);
   }
-  if (data && typeof data === 'object' && version < 5) {
-    data = migrateV4toV5(data)
+  if (data && typeof data === "object" && version < 5) {
+    data = migrateV4toV5(data);
   }
   // Capture the raw durable state immediately before the only migration which synthesises an
   // Internal client. This also captures current-version bare server slices (which have no schema
   // wrapper and therefore follow the legacy version path) without treating the synthetic row as
   // already acknowledged.
-  const repairBase = normalize(data as Partial<AppData> | undefined)
-  if (data && typeof data === 'object' && version < 6) {
-    data = migrateV5toV6(data)
+  const repairBase = normalize(data as Partial<AppData> | undefined);
+  if (data && typeof data === "object" && version < 6) {
+    data = migrateV5toV6(data);
   }
-  if (data && typeof data === 'object' && version < 7) {
-    data = migrateV6toV7(data)
+  if (data && typeof data === "object" && version < 7) {
+    data = migrateV6toV7(data);
   }
-  if (data && typeof data === 'object' && version < 8) {
-    data = migrateV7toV8(data)
+  if (data && typeof data === "object" && version < 8) {
+    data = migrateV7toV8(data);
   }
-  if (data && typeof data === 'object' && version < 9) {
-    data = migrateV8toV9(data)
+  if (data && typeof data === "object" && version < 9) {
+    data = migrateV8toV9(data);
   }
 
   return {
-    data: ensureInternalClients(
-      normalize(data as Partial<AppData> | undefined),
-      '2026-01-01T00:00:00.000Z',
-    ),
+    data: ensureInternalClients(normalize(data as Partial<AppData> | undefined), "2026-01-01T00:00:00.000Z"),
     repairBase,
-  }
+  };
 }
 
 export function migrate(raw: unknown): AppData {
-  return migrateWithRepairBase(raw).data
+  return migrateWithRepairBase(raw).data;
 }

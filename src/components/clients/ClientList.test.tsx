@@ -15,23 +15,15 @@ describe("ClientList empty state", () => {
     expect(screen.getByText("No clients yet.")).toBeInTheDocument();
     // The empty-state CTA and the page's top button have DISTINCT accessible names, so
     // getByRole stays unambiguous for each (no duplicate-name collision).
-    expect(
-      screen.getByRole("button", { name: "Add client" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Add your first client" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add client" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add your first client" })).toBeInTheDocument();
   });
 
   it("CTA opens the same create form as the top Add button", async () => {
     const user = userEvent.setup();
     render(<ClientList />);
-    await user.click(
-      screen.getByRole("button", { name: "Add your first client" }),
-    );
-    expect(
-      screen.getByRole("dialog", { name: "Add client" }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add your first client" }));
+    expect(screen.getByRole("dialog", { name: "Add client" })).toBeInTheDocument();
   });
 });
 
@@ -46,16 +38,10 @@ describe("ClientList archive flow", () => {
 
   it("confirms before archiving and keeps the client + its children in the data", async () => {
     const user = userEvent.setup();
-    const client = useStore
-      .getState()
-      .addClient({ name: "Acme", color: "#111" });
-    const project = useStore
-      .getState()
-      .addProject({ name: "P", clientId: client.id, color: "#222" });
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "P", clientId: client.id, color: "#222" });
     useStore.getState().addPhase({ name: "Discovery", projectId: project.id });
-    useStore
-      .getState()
-      .addActivity({ name: "T", kind: "project", projectId: project.id });
+    useStore.getState().addActivity({ name: "T", kind: "project", projectId: project.id });
     render(<ClientList />);
 
     expect(screen.getByText("Acme")).toBeInTheDocument();
@@ -110,9 +96,7 @@ describe("ClientList archive flow", () => {
     });
     render(<ClientList />);
 
-    await user.click(
-      screen.getByRole("button", { name: 'Archive "Northstar"' }),
-    );
+    await user.click(screen.getByRole("button", { name: 'Archive "Northstar"' }));
     const dialog = screen.getByRole("alertdialog", { name: "Archive client?" });
     expect(dialog).toHaveTextContent('Archive "Northstar"?');
     expect(dialog).not.toHaveTextContent('""Northstar""');
@@ -127,9 +111,7 @@ describe("ClientList withholds the Archive affordance for the built-in Internal 
     // Mint the one builtin Internal via addAccount (the privileged path), then add a normal client so
     // the list isn't empty — matching internalClient.test.ts / the lifecycle suite's seeding.
     useStore.getState().replaceAll(emptyAppData());
-    const a = useStore
-      .getState()
-      .addAccount({ name: "Acme Co", color: "#6366f1" })!;
+    const a = useStore.getState().addAccount({ name: "Acme Co", color: "#6366f1" })!;
     useStore.getState().setActiveAccount(a.id);
     const internal = internalClientFor(useStore.getState().data.clients, a.id)!;
     useStore.getState().addClient({ name: "Globex", color: "#3b82f6" });
@@ -138,12 +120,8 @@ describe("ClientList withholds the Archive affordance for the built-in Internal 
 
     // The normal client shows and is archivable; the Internal client shows NO row and NO Archive control.
     expect(screen.getByText("Globex")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Archive Globex" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive Globex" })).toBeInTheDocument();
     expect(screen.queryByText(internal.name)).not.toBeInTheDocument(); // 'Internal' name is filtered out
-    expect(
-      screen.queryByRole("button", { name: `Archive ${internal.name}` }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: `Archive ${internal.name}` })).not.toBeInTheDocument();
   });
 });

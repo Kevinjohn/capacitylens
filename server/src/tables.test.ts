@@ -4,10 +4,6 @@ import { TABLES } from "./tables";
 
 describe("table authorization classification", () => {
   it("classifies every generic API table as the account root or account-scoped", () => {
-    expect(
-      Object.keys(TABLES).filter(
-        (table) => table !== "accounts" && !isScopedEntityKey(table),
-      ),
-    ).toEqual([]);
+    expect(Object.keys(TABLES).filter((table) => table !== "accounts" && !isScopedEntityKey(table))).toEqual([]);
   });
 });

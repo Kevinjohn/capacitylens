@@ -10,23 +10,16 @@ test.describe("Activities", () => {
 
     // Internal kind → project picker hidden, lands in the "Internal activities" section.
     await page.getByRole("button", { name: "Add activity" }).click();
-    await page
-      .getByRole("textbox", { name: "Name", exact: true })
-      .fill("Internal sync");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Internal sync");
     await page.getByRole("radio", { name: "Internal" }).click();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(
-      page
-        .getByTestId("internal-activities")
-        .getByTestId("activity-row")
-        .filter({ hasText: "Internal sync" }),
+      page.getByTestId("internal-activities").getByTestId("activity-row").filter({ hasText: "Internal sync" }),
     ).toBeVisible();
 
     // Cross-project kind → project-less and usable across projects, lands in the "Cross-project activities" section.
     await page.getByRole("button", { name: "Add activity" }).click();
-    await page
-      .getByRole("textbox", { name: "Name", exact: true })
-      .fill("Discovery workshop");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Discovery workshop");
     await page.getByRole("radio", { name: "Cross-project" }).click();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(
@@ -39,16 +32,11 @@ test.describe("Activities", () => {
     // Project-specific kind (the default) → bound to a project, lands in the "Project-specific activities" section,
     // labelled with its client / project.
     await page.getByRole("button", { name: "Add activity" }).click();
-    await page
-      .getByRole("textbox", { name: "Name", exact: true })
-      .fill("Spec review");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Spec review");
     await selectShadOption(page.getByLabel("Project"), "p-acme");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(
-      page
-        .getByTestId("project-specific-activities")
-        .getByTestId("activity-row")
-        .filter({ hasText: "Spec review" }),
+      page.getByTestId("project-specific-activities").getByTestId("activity-row").filter({ hasText: "Spec review" }),
     ).toContainText("Acme");
   });
 
@@ -59,26 +47,18 @@ test.describe("Activities", () => {
       .filter({ hasText: "CMS Review" })
       .getByRole("button", { name: "Edit" })
       .click();
-    await page
-      .getByRole("textbox", { name: "Name", exact: true })
-      .fill("CMS Build");
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("CMS Build");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(
-      page.getByTestId("activity-row").filter({ hasText: "CMS Build" }),
-    ).toBeVisible();
+    await expect(page.getByTestId("activity-row").filter({ hasText: "CMS Build" })).toBeVisible();
   });
 
-  test("deletes an activity and removes its allocation bars, restorable with undo", async ({
-    page,
-  }) => {
+  test("deletes an activity and removes its allocation bars, restorable with undo", async ({ page }) => {
     await openApp(page);
     await page.getByRole("radio", { name: "4w", exact: true }).click();
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
-    await expect(
-      page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }),
-    ).toBeVisible();
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toBeVisible();
 
     await page.getByRole("link", { name: "Activities" }).click();
     await page
@@ -86,30 +66,19 @@ test.describe("Activities", () => {
       .filter({ hasText: "Wireframes" })
       .getByRole("button", { name: "Delete" })
       .click();
-    await page
-      .getByRole("alertdialog", { name: "Delete activity?" })
-      .getByRole("button", { name: "Delete" })
-      .click();
-    await expect(
-      page.getByTestId("activity-row").filter({ hasText: "Wireframes" }),
-    ).toHaveCount(0);
+    await page.getByRole("alertdialog", { name: "Delete activity?" }).getByRole("button", { name: "Delete" }).click();
+    await expect(page.getByTestId("activity-row").filter({ hasText: "Wireframes" })).toHaveCount(0);
 
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByRole("radio", { name: "4w", exact: true }).click();
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
-    await expect(
-      page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }),
-    ).toHaveCount(0);
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
-    await expect(
-      page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }),
-    ).toBeVisible();
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toBeVisible();
     await page.getByRole("link", { name: "Activities" }).click();
-    await expect(
-      page.getByTestId("activity-row").filter({ hasText: "Wireframes" }),
-    ).toBeVisible();
+    await expect(page.getByTestId("activity-row").filter({ hasText: "Wireframes" })).toBeVisible();
   });
 });

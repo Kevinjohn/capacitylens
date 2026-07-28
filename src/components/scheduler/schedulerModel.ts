@@ -1,16 +1,24 @@
-import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
-import { capacityAllocationsForMode, dayCapacity, utilizationFromCapacity, type DayCapacity } from '../../lib/capacity'
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
-import { resolveBarColor } from '@capacitylens/shared/lib/color'
-import { timeOffTypeLabels, resourceDisplayName } from '../../lib/metadata'
-import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
-import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
-import { internalClientFor } from '@capacitylens/shared/data/internalClient'
-import { NEUTRAL_COLOR } from '../../lib/palette'
-import { laneLayout } from './layout'
-import type { ColumnGeometry } from './columnGeometry'
-import type { Filters } from '../../store/useStore'
-import type { Allocation, AppData, ID, InternalColourMode, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities'
+import { laneTop, packLanes, rowHeightForLanes } from "../../lib/lanePacking";
+import { capacityAllocationsForMode, dayCapacity, utilizationFromCapacity, type DayCapacity } from "../../lib/capacity";
+import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { resolveBarColor } from "@capacitylens/shared/lib/color";
+import { timeOffTypeLabels, resourceDisplayName } from "../../lib/metadata";
+import { externalBand, resourcesByDiscipline, type DisciplineGroup } from "../../store/selectors";
+import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
+import { internalClientFor } from "@capacitylens/shared/data/internalClient";
+import { NEUTRAL_COLOR } from "../../lib/palette";
+import { laneLayout } from "./layout";
+import type { ColumnGeometry } from "./columnGeometry";
+import type { Filters } from "../../store/useStore";
+import type {
+  Allocation,
+  AppData,
+  ID,
+  InternalColourMode,
+  ISODate,
+  Resource,
+  TimeOff,
+} from "@capacitylens/shared/types/entities";
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
@@ -22,61 +30,61 @@ import type { Allocation, AppData, ID, InternalColourMode, ISODate, Resource, Ti
 
 /** A positioned allocation bar. */
 export interface BarLayout {
-  allocation: Allocation
-  x: number
-  width: number
-  top: number
-  color: string
-  label: string
-  project?: string
-  client?: string
+  allocation: Allocation;
+  x: number;
+  width: number;
+  top: number;
+  color: string;
+  label: string;
+  project?: string;
+  client?: string;
   /** True when the assignee is an external / 3rd-party resource — the bar hides its hours. */
-  external: boolean
+  external: boolean;
 }
 
 /** Per-day capacity state for a lane background cell. */
 export interface DayState {
-  over: boolean
-  unavailable: boolean
+  over: boolean;
+  unavailable: boolean;
 }
 
 /** A positioned time-off block. */
 export interface TimeOffBlock {
-  id: ID
-  x: number
-  width: number
-  label: string
-  note?: string
+  id: ID;
+  x: number;
+  width: number;
+  label: string;
+  note?: string;
 }
 
 export interface RowModel {
-  resource: Resource
-  rowHeight: number
-  bars: BarLayout[]
-  dayStates: DayState[]
-  timeOff: TimeOffBlock[]
-  utilization: number // working-day ratio over the VISIBLE window [visStart, visEnd]
-  overSoon: boolean // over-allocated on >=1 working day inside the FIXED forward window [overStart, overEnd]
-  dimmed: boolean // no work on the active project/client filter — shown for staffing context
+  resource: Resource;
+  rowHeight: number;
+  bars: BarLayout[];
+  dayStates: DayState[];
+  timeOff: TimeOffBlock[];
+  utilization: number; // working-day ratio over the VISIBLE window [visStart, visEnd]
+  overSoon: boolean; // over-allocated on >=1 working day inside the FIXED forward window [overStart, overEnd]
+  dimmed: boolean; // no work on the active project/client filter — shown for staffing context
 }
 
 export interface GroupModel {
-  key: string
-  title: string
-  color?: string
+  key: string;
+  title: string;
+  color?: string;
   /** True for the external / 3rd-party band. The view reads THIS (not the key string) to keep the
    *  band's header in flat mode and to suppress its utilisation average. */
-  external: boolean
-  rows: RowModel[]
+  external: boolean;
+  rows: RowModel[];
 }
 
 export interface SchedulerModelOptions {
-  data: AppData
+  data: AppData;
   // Per-column pixel geometry (built once in SchedulerGrid). Owns the date→x / range→width
   // math so bars line up with the header even when weekend columns are narrowed; replaces the
   // old uniform `origin` + `dayWidth` scalars. Its origin (days[0]) === ui.originDate.
-  geom: ColumnGeometry
-  days: ISODate[]
+  geom: ColumnGeometry;
+  days: ISODate[];
   // TWO separate windows, deliberately distinct (CLAUDE.md / DECISIONS.md):
   //
   // - [visStart, visEnd] drives the DISPLAYED utilisation % (per-person `utilization`, and so the
@@ -93,39 +101,39 @@ export interface SchedulerModelOptions {
   // `allocated` is weekend-aware (a bar merely spanning Sat/Sun does no weekend work), so the only
   // zero-capacity days it catches are a TIME-OFF day a working allocation covers and a weekend an
   // allocation opts into via `ignoreWeekends`.
-  visibleWindow: { start: ISODate; end: ISODate }
-  overSoonWindow: { start: ISODate; end: ISODate }
-  filters: Filters
+  visibleWindow: { start: ISODate; end: ISODate };
+  overSoonWindow: { start: ISODate; end: ISODate };
+  filters: Filters;
   preferences: {
     // When false (account.disciplinesEnabled === false) the schedule renders FLAT: one
     // synthetic group holding every resource (no discipline bands), and the discipline
     // filter is ignored. SchedulerGrid skips the group-header row for the flat group.
-    disciplinesEnabled: boolean
+    disciplinesEnabled: boolean;
     // Per-account view pref (default OFF). When false, placeholder ("slot") resources are dropped
     // by `resourceVisible` below — this ONE filter removes the lane, its bars/day-states, AND its
     // contribution to per-discipline + overall utilisation (both derive from this model). It is a
     // pure VIEW pref: the placeholder resources and their allocations stay in the data untouched and
     // reappear when re-enabled. See selectors.ts / DECISIONS.md.
-    placeholdersEnabled: boolean
+    placeholdersEnabled: boolean;
     // Per-account view pref (default OFF), the EXACT analog of `placeholdersEnabled` for external /
     // 3rd-party resources. When false, externals are dropped by `resourceVisible` below — the same
     // single chokepoint. Crucially that also empties the trailing external band, which the final
     // `.filter((g) => g.rows.length > 0)` then drops, so NO empty "External / 3rd party" header
     // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
     // when re-enabled. See selectors.ts / DECISIONS.md.
-    externalEnabled: boolean
-    blocksMode?: boolean
+    externalEnabled: boolean;
+    blocksMode?: boolean;
     // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
     // restores the normal project/resource colour path without changing persisted entity colours.
-    internalColourMode?: InternalColourMode
+    internalColourMode?: InternalColourMode;
     // Per-account BAR-ONLY view prefs (both default ON). When false they hide, from the schedule bars
     // ONLY, allocations on internal PROJECTS (activity kind 'project' whose project's client is the
     // built-in Internal client) / internal ACTIVITIES (kind 'internal' ONLY — cross-project
     // 'repeatable' work is a distinct third group and is never hidden) respectively. See the
     // `barVisibleByInternalPref` filter below for the truthful-utilisation guarantee.
-    showInternalProjects?: boolean
-    showInternalActivities?: boolean
-  }
+    showInternalProjects?: boolean;
+    showInternalActivities?: boolean;
+  };
 }
 
 export function buildSchedulerModel({
@@ -140,16 +148,16 @@ export function buildSchedulerModel({
     placeholdersEnabled,
     externalEnabled,
     blocksMode = false,
-    internalColourMode = 'grey',
+    internalColourMode = "grey",
     showInternalProjects = true,
     showInternalActivities = true,
   },
 }: SchedulerModelOptions): GroupModel[] {
-  const search = filters.search.trim().toLowerCase()
-  const projectById = new Map(data.projects.map((p) => [p.id, p]))
-  const clientById = new Map(data.clients.map((c) => [c.id, c]))
-  const activityById = new Map(data.activities.map((act) => [act.id, act]))
-  const resourceById = new Map(data.resources.map((r) => [r.id, r]))
+  const search = filters.search.trim().toLowerCase();
+  const projectById = new Map(data.projects.map((p) => [p.id, p]));
+  const clientById = new Map(data.clients.map((c) => [c.id, c]));
+  const activityById = new Map(data.activities.map((act) => [act.id, act]));
+  const resourceById = new Map(data.resources.map((r) => [r.id, r]));
   // Reused for every bar's colour (Internal-grey override, then project → client → resource → grey).
   const colorMaps = {
     activities: activityById,
@@ -157,7 +165,7 @@ export function buildSchedulerModel({
     clients: clientById,
     resources: resourceById,
     internalColourMode,
-  }
+  };
   // The built-in Internal client for the data being rendered (one per account; the data here is
   // already scoped to the active account, so every client shares that accountId). A project-less
   // activity DERIVES this as its client for display + filtering — without ever writing it onto the
@@ -166,56 +174,57 @@ export function buildSchedulerModel({
   // source of truth for "the account's builtin Internal") rather than an inline flag scan, so the
   // definition can't drift from migrate/import/server. The accountId comes from the scoped data
   // itself (all rows here belong to the active account); absent any client, there's no builtin.
-  const scopedAccountId = data.clients[0]?.accountId
-  const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined
+  const scopedAccountId = data.clients[0]?.accountId;
+  const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined;
   const activityMeta = new Map(
     data.activities.map((act) => {
       // A project-specific activity's client is its project's client. A project-less internal/cross-project
       // activity has NO project, so its client is DERIVED as the account's built-in Internal client
       // (purely for the view-model — never persisted). `kind` feeds the activity lens
       // ('Internal — All' / 'Cross-project — All') without a second activity lookup.
-      const project = act.projectId ? projectById.get(act.projectId) : undefined
-      const clientId = project ? project.clientId : internalClient?.id
-      return [act.id, { projectId: act.projectId, clientId, kind: act.kind }]
+      const project = act.projectId ? projectById.get(act.projectId) : undefined;
+      const clientId = project ? project.clientId : internalClient?.id;
+      return [act.id, { projectId: act.projectId, clientId, kind: act.kind }];
     }),
-  )
+  );
   // Group allocations / time off by resource ONCE up front, so building each row
   // is a Map lookup instead of a full-array scan per resource (was O(resources ×
   // (allocations + timeOff)); now O(allocations + timeOff + resources)).
-  const allocsByResource = new Map<ID, Allocation[]>()
+  const allocsByResource = new Map<ID, Allocation[]>();
   for (const a of data.allocations) {
-    const list = allocsByResource.get(a.resourceId)
-    if (list) list.push(a)
-    else allocsByResource.set(a.resourceId, [a])
+    const list = allocsByResource.get(a.resourceId);
+    if (list) list.push(a);
+    else allocsByResource.set(a.resourceId, [a]);
   }
-  const timeOffByResource = new Map<ID, TimeOff[]>()
+  const timeOffByResource = new Map<ID, TimeOff[]>();
   for (const t of data.timeOff) {
-    const list = timeOffByResource.get(t.resourceId)
-    if (list) list.push(t)
-    else timeOffByResource.set(t.resourceId, [t])
+    const list = timeOffByResource.get(t.resourceId);
+    if (list) list.push(t);
+    else timeOffByResource.set(t.resourceId, [t]);
   }
 
-  const projectClientActive = !!(filters.projectId || filters.clientId)
+  const projectClientActive = !!(filters.projectId || filters.clientId);
   // Does this allocation match the active project/client filter (ignoring tentative)?
   const matchesProjectClient = (a: Allocation): boolean => {
-    const meta = activityMeta.get(a.activityId)
-    if (filters.projectId && meta?.projectId !== filters.projectId) return false
-    if (filters.clientId && meta?.clientId !== filters.clientId) return false
-    return true
-  }
+    const meta = activityMeta.get(a.activityId);
+    if (filters.projectId && meta?.projectId !== filters.projectId) return false;
+    if (filters.clientId && meta?.clientId !== filters.clientId) return false;
+    return true;
+  };
   // The activity lens (standalone — mutually exclusive with project/client via setFilters): a
   // specific internal/cross-project activity, or a whole kind ('Internal — All' / 'Cross-project — All').
-  const activityFilterActive = !!(filters.activityId || filters.activityKind)
+  const activityFilterActive = !!(filters.activityId || filters.activityKind);
   const matchesActivity = (a: Allocation): boolean => {
-    if (filters.activityId) return a.activityId === filters.activityId
-    if (filters.activityKind) return activityMeta.get(a.activityId)?.kind === filters.activityKind
-    return true
-  }
+    if (filters.activityId) return a.activityId === filters.activityId;
+    if (filters.activityKind) return activityMeta.get(a.activityId)?.kind === filters.activityKind;
+    return true;
+  };
   // Any "what work" filter is active — drives the dimmed / show-unmatched staffing view, which
   // is identical whether the active lens is client/project or activity.
-  const workFilterActive = projectClientActive || activityFilterActive
-  const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === 'tentative')
-  const allocVisible = (a: Allocation): boolean => matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a)
+  const workFilterActive = projectClientActive || activityFilterActive;
+  const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === "tentative");
+  const allocVisible = (a: Allocation): boolean =>
+    matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a);
   // Per-account BAR-ONLY visibility for internal work. CRITICAL PRODUCT DECISION: this filter is
   // applied ONLY when building `visibleAllocs` (bars + lane packing) — NEVER to `allAllocs`, which
   // feeds the capacity cache / utilisation below. Utilisation and capacity numbers MUST stay TRUTHFUL:
@@ -223,34 +232,34 @@ export function buildSchedulerModel({
   // are hidden. Internal-project detection uses the pre-built maps (no extra scans): a 'project'
   // activity → its project's client (via activityMeta.clientId) → `builtin === true`.
   const barVisibleByInternalPref = (a: Allocation): boolean => {
-    const activity = activityById.get(a.activityId)
-    if (!activity) return true // dangling activityId — leave to the existing safe-fallback path
+    const activity = activityById.get(a.activityId);
+    if (!activity) return true; // dangling activityId — leave to the existing safe-fallback path
     // OWNER DECISION (2026-07-22): internal, cross-project and client-project work are three
     // DISTINCT groups — this toggle hides only kind 'internal'. Cross-project ('repeatable')
     // bars stay visible even though they display under the derived Internal client label.
-    if (!showInternalActivities && activity.kind === 'internal') return false
-    if (!showInternalProjects && activity.kind === 'project') {
-      const clientId = activityMeta.get(a.activityId)?.clientId
-      if (clientId !== undefined && clientById.get(clientId)?.builtin === true) return false
+    if (!showInternalActivities && activity.kind === "internal") return false;
+    if (!showInternalProjects && activity.kind === "project") {
+      const clientId = activityMeta.get(a.activityId)?.clientId;
+      if (clientId !== undefined && clientById.get(clientId)?.builtin === true) return false;
     }
-    return true
-  }
+    return true;
+  };
   const resourceVisible = (r: Resource): boolean => {
     // Placeholders are gated behind a per-account pref (default OFF). Dropping the row here is the
     // single chokepoint that also removes its bars, day-states, and utilisation contribution — the
     // resource itself is untouched in the data, so this is a hide, not a delete. A placeholder's
     // allocations simply go unreferenced (the model is built resource-first via allocsByResource).
-    if (!placeholdersEnabled && r.kind === 'placeholder') return false
+    if (!placeholdersEnabled && r.kind === "placeholder") return false;
     // External / 3rd parties are gated behind their own per-account pref (default OFF), exactly
     // like placeholders. Dropping the row here empties the external band; the trailing
     // `rows.length > 0` filter then removes the band group so no empty header is drawn (risk #2).
-    if (!externalEnabled && isExternalResource(r)) return false
-    if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
+    if (!externalEnabled && isExternalResource(r)) return false;
+    if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false;
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
     // user sees — matching the command palette — as well as by its underlying role/name.
-    if (search && !`${resourceDisplayName(r)} ${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false
-    return true
-  }
+    if (search && !`${resourceDisplayName(r)} ${r.name ?? ""} ${r.role}`.toLowerCase().includes(search)) return false;
+    return true;
+  };
 
   // The [visStart, visEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT — every row in
   // this model reads the exact same two windows. Building their day arrays here ONCE avoids resources
@@ -261,13 +270,16 @@ export function buildSchedulerModel({
   // SCROLLABLE timeline, while overStart/overEnd
   // is a FIXED window anchored on today that can fall outside it (and visStart/visEnd, though always
   // within `days` in practice, isn't worth a fragile index-based slice to save one extra pair of calls).
-  const visDays = eachDayISO(visStart, visEnd)
-  const overDays = eachDayISO(overStart, overEnd)
+  const visDays = eachDayISO(visStart, visEnd);
+  const overDays = eachDayISO(overStart, overEnd);
 
-  const timelineStart = days[0]
-  const timelineEnd = days[days.length - 1]
+  const timelineStart = days[0];
+  const timelineEnd = days[days.length - 1];
   const intersectsTimeline = (row: { startDate: ISODate; endDate: ISODate }) =>
-    timelineStart !== undefined && timelineEnd !== undefined && row.endDate >= timelineStart && row.startDate <= timelineEnd
+    timelineStart !== undefined &&
+    timelineEnd !== undefined &&
+    row.endDate >= timelineStart &&
+    row.startDate <= timelineEnd;
 
   // Disciplines on → group by discipline (ungrouped bucket, then the external band, last). Off →
   // one flat group of every NON-external resource, with the external band STILL trailing (the band
@@ -282,38 +294,41 @@ export function buildSchedulerModel({
             discipline: null,
             resources: data.resources.filter(isCapacityTracked),
           },
-        ]
-        const band = externalBand(data.resources)
-        if (band) flat.push(band)
-        return flat
-      })()
+        ];
+        const band = externalBand(data.resources);
+        if (band) flat.push(band);
+        return flat;
+      })();
   return groups
     .map((group) => ({
-      key: group.external ? 'external' : (group.discipline?.id ?? 'none'),
-      title: group.external ? 'External / 3rd party' : (group.discipline?.name ?? 'No discipline'),
+      key: group.external ? "external" : (group.discipline?.id ?? "none"),
+      title: group.external ? "External / 3rd party" : (group.discipline?.name ?? "No discipline"),
       color: group.external ? NEUTRAL_COLOR : group.discipline?.color,
       external: !!group.external,
       // People first, placeholders ("slots") second, within each discipline. Stable
       // sort, so the existing relative order is preserved within each partition.
       rows: group.resources
         .filter(resourceVisible)
-        .sort((a, b) => Number(a.kind === 'placeholder') - Number(b.kind === 'placeholder'))
+        .sort((a, b) => Number(a.kind === "placeholder") - Number(b.kind === "placeholder"))
         .map((resource) => {
           // This resource's data, pre-grouped above; capacity then scans only its own
           // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
-          const allAllocs = allocsByResource.get(resource.id) ?? []
-          const resTimeOff = timeOffByResource.get(resource.id) ?? []
+          const allAllocs = allocsByResource.get(resource.id) ?? [];
+          const resTimeOff = timeOffByResource.get(resource.id) ?? [];
           // External / 3rd-party rows have NO capacity: no over-markers, no utilisation, no time-off
           // — an awareness band, not a bookable lane. We starve the capacity path rather than
           // special-case the (dumb) lane; their activity bars still render.
-          const isExternal = isExternalResource(resource)
+          const isExternal = isExternalResource(resource);
           // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
           // this resource has NO MATCHING BAR in the displayed timeline — we still show their full
           // real load (so you can see who's free to staff), just visually de-emphasised. Deriving this
           // from the exact matching bar set means off-timeline and otherwise hidden matches cannot
           // create a full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
-          const matchingVisibleAllocs = allAllocs.filter(allocVisible).filter(intersectsTimeline).filter(barVisibleByInternalPref)
-          const dimmed = workFilterActive && matchingVisibleAllocs.length === 0
+          const matchingVisibleAllocs = allAllocs
+            .filter(allocVisible)
+            .filter(intersectsTimeline)
+            .filter(barVisibleByInternalPref);
+          const dimmed = workFilterActive && matchingVisibleAllocs.length === 0;
           const visibleAllocs = dimmed
             ? allAllocs
                 .filter(notTentativeHidden)
@@ -322,42 +337,42 @@ export function buildSchedulerModel({
                 // capacity path has already taken `allAllocs`, so hiding an internal bar never changes
                 // the resource's utilisation/capacity — only which bars render.
                 .filter(barVisibleByInternalPref)
-            : matchingVisibleAllocs
-          const { lanes, laneCount } = packLanes(visibleAllocs)
-          const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
+            : matchingVisibleAllocs;
+          const { lanes, laneCount } = packLanes(visibleAllocs);
+          const laneById = new Map(lanes.map((l) => [l.id, l.lane]));
           const bars: BarLayout[] = visibleAllocs.map((a) => {
-            const meta = activityMeta.get(a.activityId)
-            const project = meta?.projectId ? projectById.get(meta.projectId) : undefined
-            const client = meta?.clientId ? clientById.get(meta.clientId) : undefined
+            const meta = activityMeta.get(a.activityId);
+            const project = meta?.projectId ? projectById.get(meta.projectId) : undefined;
+            const client = meta?.clientId ? clientById.get(meta.clientId) : undefined;
             return {
               allocation: a,
               x: geom.xForDateInGeom(a.startDate),
               width: geom.widthForDates(a.startDate, a.endDate),
               top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
               color: resolveBarColor(a, colorMaps),
-              label: activityById.get(a.activityId)?.name ?? 'Activity',
+              label: activityById.get(a.activityId)?.name ?? "Activity",
               project: project?.name,
               client: client?.name,
               external: isExternal,
-            }
-          })
+            };
+          });
           // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
           // External rows carry none — flat, unmarked day cells and no time-off blocks.
-          const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode)
-          const capacityByDate = new Map<ISODate, DayCapacity>()
+          const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode);
+          const capacityByDate = new Map<ISODate, DayCapacity>();
           const capacityOnDay = (date: ISODate): DayCapacity => {
-            const cached = capacityByDate.get(date)
-            if (cached) return cached
-            const computed = dayCapacity(resource, date, capacityAllocs, resTimeOff)
-            capacityByDate.set(date, computed)
-            return computed
-          }
+            const cached = capacityByDate.get(date);
+            if (cached) return cached;
+            const computed = dayCapacity(resource, date, capacityAllocs, resTimeOff);
+            capacityByDate.set(date, computed);
+            return computed;
+          };
           const dayStates: DayState[] = isExternal
             ? days.map(() => ({ over: false, unavailable: false }))
             : days.map((d) => {
-                const cap = capacityOnDay(d)
-                return { over: cap.over, unavailable: cap.available === 0 }
-              })
+                const cap = capacityOnDay(d);
+                return { over: cap.over, unavailable: cap.available === 0 };
+              });
           const timeOff: TimeOffBlock[] = isExternal
             ? []
             : resTimeOff.filter(intersectsTimeline).map((t) => ({
@@ -366,15 +381,15 @@ export function buildSchedulerModel({
                 width: geom.widthForDates(t.startDate, t.endDate),
                 label: timeOffTypeLabels()[t.type],
                 note: t.note,
-              }))
+              }));
           // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
           // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
           // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
           // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
           // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
           // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
-          const utilization = isExternal ? 0 : utilizationFromCapacity(visDays.map(capacityOnDay))
-          const overSoon = !isExternal && overDays.some((date) => capacityOnDay(date).over)
+          const utilization = isExternal ? 0 : utilizationFromCapacity(visDays.map(capacityOnDay));
+          const overSoon = !isExternal && overDays.some((date) => capacityOnDay(date).over);
           return {
             resource,
             rowHeight: rowHeightForLanes(laneCount, laneLayout),
@@ -384,11 +399,11 @@ export function buildSchedulerModel({
             utilization,
             overSoon,
             dimmed,
-          }
+          };
         })
         // Non-matching rows are hidden by default; the "Show unallocated" toggle opts
         // the dimmed staffing view back in.
         .filter((row) => filters.showUnmatched || !row.dimmed),
     }))
-    .filter((g) => g.rows.length > 0)
+    .filter((g) => g.rows.length > 0);
 }

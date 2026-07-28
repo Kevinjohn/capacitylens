@@ -13,11 +13,11 @@
  *   failure in an unsupported runtime is the correct, surfaced outcome.
  */
 export function newId(): string {
-  if (typeof crypto === 'undefined' || typeof crypto.randomUUID !== 'function') {
+  if (typeof crypto === "undefined" || typeof crypto.randomUUID !== "function") {
     throw new Error(
-      'newId(): crypto.randomUUID is unavailable. CapacityLens needs a secure context (HTTPS or localhost) ' +
-        'in the browser, or Node 19+ / a modern runtime, to generate unique ids.',
-    )
+      "newId(): crypto.randomUUID is unavailable. CapacityLens needs a secure context (HTTPS or localhost) " +
+        "in the browser, or Node 19+ / a modern runtime, to generate unique ids.",
+    );
   }
-  return crypto.randomUUID()
+  return crypto.randomUUID();
 }

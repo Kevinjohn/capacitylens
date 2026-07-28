@@ -25,7 +25,7 @@ owner-equivalent. For a real role check, use an auth-enabled server and sign in 
 2. Enter **Name** = `Embargoed Client Ltd`, enable **Use a code name**, and read the owner-only
    explanation and `Quotation marks are added automatically.` hint.
 3. Enter `""` as **Code name** and click **Save**. Confirm the dialog remains open with a field error.
-4. Enter ` “Northstar” ` and save again.
+4. Enter `“Northstar”` and save again.
 5. Confirm the owner-facing list still reads **Embargoed Client Ltd**, then edit that row.
 6. Confirm privacy is on and **Code name** contains `Northstar` without quotation marks.
 7. Turn privacy off and save; reopen the row to confirm it is public and the stale code name is gone.

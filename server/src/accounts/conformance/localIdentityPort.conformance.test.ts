@@ -1,20 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  authFromEnv,
-  runAuthMigrations,
-  type Auth,
-  type SessionUser,
-} from "../../auth";
+import { authFromEnv, runAuthMigrations, type Auth, type SessionUser } from "../../auth";
 import { openDb, type Db } from "../../db";
 import { PASSWORD_ENV } from "../../testHelpers";
 import { betterAuthIdentityPort } from "../betterAuthIdentityPort";
 import { tx } from "../../txn";
-import {
-  bindFederatedProvider,
-  getAccountCommand,
-  recordSessionAssurance,
-  reserveAccountCommand,
-} from "../state";
+import { bindFederatedProvider, getAccountCommand, recordSessionAssurance, reserveAccountCommand } from "../state";
 
 const sessionUser: SessionUser = {
   id: "principal-1",
@@ -49,12 +39,7 @@ async function identityTables(db: Db): Promise<void> {
   await runAuthMigrations(realAuth!);
 }
 
-function insertIdentityUser(
-  db: Db,
-  id: string,
-  name: string,
-  email: string,
-): void {
+function insertIdentityUser(db: Db, id: string, name: string, email: string): void {
   db.prepare(
     `
     INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -63,13 +48,7 @@ function insertIdentityUser(
   ).run(id, name, email, NOW, NOW);
 }
 
-function insertIdentityAccount(
-  db: Db,
-  id: string,
-  providerId: string,
-  accountId: string,
-  userId: string,
-): void {
+function insertIdentityAccount(db: Db, id: string, providerId: string, accountId: string, userId: string): void {
   db.prepare(
     `
     INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
@@ -99,26 +78,9 @@ describe("local IdentityPort conformance", () => {
     db = openDb(":memory:");
     await identityTables(db);
     insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(
-      db,
-      "link-1",
-      "sso",
-      "upstream-subject-1",
-      sessionUser.id,
-    );
-    bindFederatedProvider(
-      db,
-      "conformance-app",
-      "https://issuer.example",
-      "sso",
-    );
-    recordSessionAssurance(
-      db,
-      "local-session-1",
-      sessionUser.id,
-      "federated",
-      "sso",
-    );
+    insertIdentityAccount(db, "link-1", "sso", "upstream-subject-1", sessionUser.id);
+    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
+    recordSessionAssurance(db, "local-session-1", sessionUser.id, "federated", "sso");
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
       auth: auth(async () => ({
@@ -133,9 +95,7 @@ describe("local IdentityPort conformance", () => {
       db,
     });
 
-    await expect(
-      port.verifyApplicationSession({ headers: new Headers() }),
-    ).resolves.toMatchObject({
+    await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toMatchObject({
       id: "local-session-1",
       assurance: "federated",
       principal: {
@@ -156,12 +116,7 @@ describe("local IdentityPort conformance", () => {
     insertIdentityUser(db, "principal-2", "Two", "two@example.com");
     insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
     insertIdentityAccount(db, "link-2", "sso", "subject-2", "principal-2");
-    bindFederatedProvider(
-      db,
-      "conformance-app",
-      "https://issuer.example",
-      "sso",
-    );
+    bindFederatedProvider(db, "conformance-app", "https://issuer.example", "sso");
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
       auth: auth(async () => null),
@@ -189,19 +144,8 @@ describe("local IdentityPort conformance", () => {
     db = openDb(":memory:");
     await identityTables(db);
     insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(
-      db,
-      "link-1",
-      "sso",
-      "upstream-subject-1",
-      sessionUser.id,
-    );
-    recordSessionAssurance(
-      db,
-      "password-session-1",
-      sessionUser.id,
-      "password",
-    );
+    insertIdentityAccount(db, "link-1", "sso", "upstream-subject-1", sessionUser.id);
+    recordSessionAssurance(db, "password-session-1", sessionUser.id, "password");
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
       auth: auth(async () => ({
@@ -216,9 +160,7 @@ describe("local IdentityPort conformance", () => {
       db,
     });
 
-    await expect(
-      port.verifyApplicationSession({ headers: new Headers() }),
-    ).resolves.toMatchObject({
+    await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toMatchObject({
       assurance: "password",
       principal: { linkedSubject: null },
     });
@@ -228,13 +170,7 @@ describe("local IdentityPort conformance", () => {
     db = openDb(":memory:");
     await identityTables(db);
     insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(
-      db,
-      "credential-link",
-      "credential",
-      sessionUser.id,
-      sessionUser.id,
-    );
+    insertIdentityAccount(db, "credential-link", "credential", sessionUser.id, sessionUser.id);
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
       auth: auth(async () => ({
@@ -249,22 +185,16 @@ describe("local IdentityPort conformance", () => {
       db,
     });
 
-    await expect(
-      port.verifyApplicationSession({ headers: new Headers() }),
-    ).resolves.toMatchObject({ assurance: "password" });
+    await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toMatchObject({
+      assurance: "password",
+    });
   });
 
   it("fails closed when a mixed or external legacy session lacks provenance metadata", async () => {
     db = openDb(":memory:");
     await identityTables(db);
     insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertIdentityAccount(
-      db,
-      "external-link",
-      "sso",
-      "upstream-subject",
-      sessionUser.id,
-    );
+    insertIdentityAccount(db, "external-link", "sso", "upstream-subject", sessionUser.id);
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
       auth: auth(async () => ({
@@ -279,9 +209,7 @@ describe("local IdentityPort conformance", () => {
       db,
     });
 
-    await expect(
-      port.verifyApplicationSession({ headers: new Headers() }),
-    ).rejects.toMatchObject({
+    await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
       failure: { code: "DEPENDENCY_INVALID_RESPONSE" },
     });
   });
@@ -297,19 +225,15 @@ describe("local IdentityPort conformance", () => {
           user: sessionUser,
           session: {
             id: `invalid-${field}-session`,
-            createdAt:
-              field === "createdAt" ? "not-a-date" : "2026-07-18T00:00:00.000Z",
-            expiresAt:
-              field === "expiresAt" ? "not-a-date" : "2026-07-18T12:00:00.000Z",
+            createdAt: field === "createdAt" ? "not-a-date" : "2026-07-18T00:00:00.000Z",
+            expiresAt: field === "expiresAt" ? "not-a-date" : "2026-07-18T12:00:00.000Z",
           },
         })),
         authMode: "password",
         db,
       });
 
-      await expect(
-        port.verifyApplicationSession({ headers: new Headers() }),
-      ).rejects.toMatchObject({
+      await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
         failure: { code: "DEPENDENCY_INVALID_RESPONSE", retryable: false },
       });
     },
@@ -332,9 +256,7 @@ describe("local IdentityPort conformance", () => {
       db,
     });
 
-    await expect(
-      port.verifyApplicationSession({ headers: new Headers() }),
-    ).rejects.toMatchObject({
+    await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
       failure: { code: "DEPENDENCY_INVALID_RESPONSE", retryable: false },
     });
   });
@@ -342,13 +264,7 @@ describe("local IdentityPort conformance", () => {
   it("fails closed when a federated assurance record has no issuer/subject link", async () => {
     db = openDb(":memory:");
     await identityTables(db);
-    recordSessionAssurance(
-      db,
-      "orphaned-federated-session",
-      sessionUser.id,
-      "federated",
-      "sso",
-    );
+    recordSessionAssurance(db, "orphaned-federated-session", sessionUser.id, "federated", "sso");
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
       auth: auth(async () => ({
@@ -363,9 +279,7 @@ describe("local IdentityPort conformance", () => {
       db,
     });
 
-    await expect(
-      port.verifyApplicationSession({ headers: new Headers() }),
-    ).rejects.toMatchObject({
+    await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
       failure: { code: "DEPENDENCY_INVALID_RESPONSE", retryable: false },
     });
   });
@@ -401,14 +315,11 @@ describe("local IdentityPort conformance", () => {
     db = openDb(":memory:");
     await identityTables(db);
     const configuredAuth = auth(async () => null);
-    const cause = Object.assign(
-      new Error("UNIQUE constraint failed: user.email"),
-      {
-        code: "ERR_SQLITE_ERROR",
-        errcode: 2067,
-        errstr: "constraint failed",
-      },
-    );
+    const cause = Object.assign(new Error("UNIQUE constraint failed: user.email"), {
+      code: "ERR_SQLITE_ERROR",
+      errcode: 2067,
+      errstr: "constraint failed",
+    });
     vi.mocked(configuredAuth.createCredentialUser).mockRejectedValue(cause);
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
@@ -444,54 +355,44 @@ describe("local IdentityPort conformance", () => {
     ["Database connection is already closed.", {}],
     ["Identity store does not exist.", {}],
     ["Unique provider lookup is temporarily unavailable.", {}],
-    [
-      "UNIQUE constraint failed: user.id",
-      { code: "ERR_SQLITE_ERROR", errcode: 2067 },
-    ],
-  ])(
-    "preserves unrelated credential-provider failure %j",
-    async (message, properties) => {
-      db = openDb(":memory:");
-      await identityTables(db);
-      const configuredAuth = auth(async () => null);
-      const cause = Object.assign(new Error(message), properties);
-      vi.mocked(configuredAuth.createCredentialUser).mockRejectedValue(cause);
-      const port = betterAuthIdentityPort({
-        applicationId: "conformance-app",
-        auth: configuredAuth,
-        authMode: "password",
-        db,
-      });
+    ["UNIQUE constraint failed: user.id", { code: "ERR_SQLITE_ERROR", errcode: 2067 }],
+  ])("preserves unrelated credential-provider failure %j", async (message, properties) => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    const configuredAuth = auth(async () => null);
+    const cause = Object.assign(new Error(message), properties);
+    vi.mocked(configuredAuth.createCredentialUser).mockRejectedValue(cause);
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: configuredAuth,
+      authMode: "password",
+      db,
+    });
 
-      const rejection = await port
-        .createProvisionalCredentialPrincipal({
-          email: "person@example.com",
-          displayName: "Person",
-          password: "a-valid-length-password",
-          emailVerified: true,
-          command: {
-            commandId: "provider-command",
-            idempotencyKey: "provider-idempotency",
-          },
-        })
-        .catch((error: unknown) => error);
+    const rejection = await port
+      .createProvisionalCredentialPrincipal({
+        email: "person@example.com",
+        displayName: "Person",
+        password: "a-valid-length-password",
+        emailVerified: true,
+        command: {
+          commandId: "provider-command",
+          idempotencyKey: "provider-idempotency",
+        },
+      })
+      .catch((error: unknown) => error);
 
-      expect(rejection).toMatchObject({
-        failure: { code: "DEPENDENCY_UNAVAILABLE", retryable: true },
-      });
-      expect((rejection as Error).cause).toBe(cause);
-    },
-  );
+    expect(rejection).toMatchObject({
+      failure: { code: "DEPENDENCY_UNAVAILABLE", retryable: true },
+    });
+    expect((rejection as Error).cause).toBe(cause);
+  });
 
   it("rejects and rolls back direct deprovisioning when structured verification state is malformed", async () => {
     db = openDb(":memory:");
     await identityTables(db);
     insertIdentityUser(db, sessionUser.id, sessionUser.name, sessionUser.email);
-    insertVerification(
-      db,
-      "malformed-link",
-      `{"link":{"userId":"${sessionUser.id}"`,
-    );
+    insertVerification(db, "malformed-link", `{"link":{"userId":"${sessionUser.id}"`);
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
       auth: auth(async () => null),
@@ -515,14 +416,10 @@ describe("local IdentityPort conformance", () => {
         commandId: "deprovision-command",
       },
     });
-    expect(
-      db.prepare(`SELECT id FROM user WHERE id = ?`).get(sessionUser.id),
-    ).toEqual({ id: sessionUser.id });
-    expect(
-      db
-        .prepare(`SELECT id FROM verification WHERE id = 'malformed-link'`)
-        .get(),
-    ).toEqual({ id: "malformed-link" });
+    expect(db.prepare(`SELECT id FROM user WHERE id = ?`).get(sessionUser.id)).toEqual({ id: sessionUser.id });
+    expect(db.prepare(`SELECT id FROM verification WHERE id = 'malformed-link'`).get()).toEqual({
+      id: "malformed-link",
+    });
   });
 
   it("scans only structured verification candidates once when deprovisioning a principal set", async () => {
@@ -533,17 +430,9 @@ describe("local IdentityPort conformance", () => {
     insertIdentityUser(rawDb, "principal-2", "Two", "two@example.com");
     insertIdentityUser(rawDb, "principal-3", "Three", "three@example.com");
     insertVerification(rawDb, "target-scalar", "principal-1");
-    insertVerification(
-      rawDb,
-      "target-link",
-      JSON.stringify({ link: { userId: "principal-2" } }),
-    );
+    insertVerification(rawDb, "target-link", JSON.stringify({ link: { userId: "principal-2" } }));
     for (let index = 0; index < 5; index += 1) {
-      insertVerification(
-        rawDb,
-        `unrelated-${index}`,
-        `opaque-ceremony-${index}`,
-      );
+      insertVerification(rawDb, `unrelated-${index}`, `opaque-ceremony-${index}`);
     }
     insertVerification(rawDb, "unrelated-brace", "opaque-{ceremony");
 
@@ -554,20 +443,11 @@ describe("local IdentityPort conformance", () => {
       get(target, property) {
         if (property === "prepare") {
           return (sql: string) => {
-            if (/^\s*SELECT id, value FROM verification\s*$/i.test(sql))
-              fullVerificationScans += 1;
-            if (
-              /^\s*SELECT id, value FROM verification WHERE instr\(value, '\{'\) > 0\s*$/i.test(
-                sql,
-              )
-            ) {
+            if (/^\s*SELECT id, value FROM verification\s*$/i.test(sql)) fullVerificationScans += 1;
+            if (/^\s*SELECT id, value FROM verification WHERE instr\(value, '\{'\) > 0\s*$/i.test(sql)) {
               structuredVerificationScans += 1;
             }
-            if (
-              /^\s*DELETE FROM verification WHERE value IN \(SELECT value FROM json_each\(\?\)\)\s*$/i.test(
-                sql,
-              )
-            ) {
+            if (/^\s*DELETE FROM verification WHERE value IN \(SELECT value FROM json_each\(\?\)\)\s*$/i.test(sql)) {
               scalarSetDeletes += 1;
             }
             return target.prepare(sql);
@@ -585,20 +465,14 @@ describe("local IdentityPort conformance", () => {
     });
 
     tx(rawDb, () => {
-      port.deprovisionLocalPrincipalsInTx([
-        "principal-1",
-        "principal-2",
-        "principal-3",
-      ]);
+      port.deprovisionLocalPrincipalsInTx(["principal-1", "principal-2", "principal-3"]);
     });
 
     expect(fullVerificationScans).toBe(0);
     expect(structuredVerificationScans).toBe(1);
     expect(scalarSetDeletes).toBe(1);
     expect(rawDb.prepare(`SELECT id FROM user ORDER BY id`).all()).toEqual([]);
-    expect(
-      rawDb.prepare(`SELECT id FROM verification ORDER BY id`).all(),
-    ).toEqual([
+    expect(rawDb.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([
       { id: "unrelated-0" },
       { id: "unrelated-1" },
       { id: "unrelated-2" },
@@ -613,12 +487,9 @@ describe("local IdentityPort conformance", () => {
     await identityTables(db);
     const configuredAuth = auth(async () => null);
     vi.mocked(configuredAuth.createCredentialUser).mockRejectedValue(
-      Object.assign(
-        new Error(
-          "This password appears in a known breach. Choose a different password.",
-        ),
-        { body: { code: "PASSWORD_COMPROMISED" } },
-      ),
+      Object.assign(new Error("This password appears in a known breach. Choose a different password."), {
+        body: { code: "PASSWORD_COMPROMISED" },
+      }),
     );
     const port = betterAuthIdentityPort({
       applicationId: "conformance-app",
@@ -689,12 +560,8 @@ describe("local IdentityPort conformance", () => {
       command,
     });
 
-    expect(
-      getAccountCommand(db, "conformance-app", "child", "child-key"),
-    ).toBeNull();
-    expect(
-      getAccountCommand(db, "conformance-app", "parent", "parent-key"),
-    ).toMatchObject({ targetPrincipalId: null });
+    expect(getAccountCommand(db, "conformance-app", "child", "child-key")).toBeNull();
+    expect(getAccountCommand(db, "conformance-app", "parent", "parent-key")).toMatchObject({ targetPrincipalId: null });
   });
 
   it("keeps no session distinct from a retryable provider failure", async () => {
@@ -706,9 +573,7 @@ describe("local IdentityPort conformance", () => {
       authMode: "sso",
       db,
     });
-    await expect(
-      absent.verifyApplicationSession({ headers: new Headers() }),
-    ).resolves.toBeNull();
+    await expect(absent.verifyApplicationSession({ headers: new Headers() })).resolves.toBeNull();
 
     const failed = betterAuthIdentityPort({
       applicationId: "conformance-app",
@@ -718,9 +583,7 @@ describe("local IdentityPort conformance", () => {
       authMode: "sso",
       db,
     });
-    await expect(
-      failed.verifyApplicationSession({ headers: new Headers() }),
-    ).rejects.toMatchObject({
+    await expect(failed.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
       failure: { code: "DEPENDENCY_UNAVAILABLE", retryable: true },
     });
   });

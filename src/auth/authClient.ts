@@ -4,10 +4,7 @@
 // better-auth stays out of the main bundle until an interactive auth flow needs it.
 
 import { createAuthClient } from "better-auth/react";
-import {
-  genericOAuthClient,
-  twoFactorClient,
-} from "better-auth/client/plugins";
+import { genericOAuthClient, twoFactorClient } from "better-auth/client/plugins";
 import { API_BASE } from "../data/apiConfig";
 
 // Same-origin by default: an empty API_BASE is now the NORMAL case (server persistence defaults to

@@ -5,9 +5,7 @@ const mocks = vi.hoisted(() => ({
     .fn<(url: string, init?: RequestInit) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
   apiFetchReauth: vi
-    .fn<
-      (url: string, init?: RequestInit, timeout?: number) => Promise<Response>
-    >()
+    .fn<(url: string, init?: RequestInit, timeout?: number) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
@@ -42,16 +40,8 @@ function expectCommand(init: RequestInit, method: string): void {
 describe("browser account client", () => {
   beforeEach(() => {
     clearStoredAccountCommands();
-    mocks.apiFetch
-      .mockReset()
-      .mockImplementation(() =>
-        Promise.resolve(new Response(null, { status: 204 })),
-      );
-    mocks.apiFetchReauth
-      .mockReset()
-      .mockImplementation(() =>
-        Promise.resolve(new Response(null, { status: 204 })),
-      );
+    mocks.apiFetch.mockReset().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+    mocks.apiFetchReauth.mockReset().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
     sessionStorage.clear();
   });
@@ -79,79 +69,39 @@ describe("browser account client", () => {
     await accountClient.me(controller.signal);
     await accountClient.listWorkspaces(controller.signal);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "https://app.example/api/auth/me",
-      {
-        credentials: "include",
-        signal: controller.signal,
-      },
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "https://app.example/api/accounts",
-      {
-        credentials: "include",
-        signal: controller.signal,
-      },
-    );
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://app.example/api/auth/me", {
+      credentials: "include",
+      signal: controller.signal,
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://app.example/api/accounts", {
+      credentials: "include",
+      signal: controller.signal,
+    });
   });
 
   it("adds command headers, JSON encoding, safe path encoding, reauth, and bulk timeout policy", async () => {
     await accountClient.createWorkspace({ name: "Studio" }, command);
     await accountClient.eraseWorkspace("workspace / one", command);
-    await accountClient.changeMemberRole(
-      "workspace / one",
-      "person / one",
-      "editor",
-      command,
-    );
-    await accountClient.removeMember(
-      "workspace / one",
-      "person / one",
-      command,
-    );
-    await accountClient.transferOwnership(
-      "workspace / one",
-      "person / one",
-      command,
-    );
-    await accountClient.issuePasswordReset(
-      "workspace / one",
-      "person / one",
-      command,
-    );
-    await accountClient.revokeMemberSessions(
-      "workspace / one",
-      "person / one",
-      command,
-    );
-    await accountClient.createInvitation(
-      { accountId: "workspace / one", role: "viewer" },
-      command,
-    );
-    await accountClient.revokeInvitation(
-      "workspace / one",
-      "invite / one",
-      command,
-    );
+    await accountClient.changeMemberRole("workspace / one", "person / one", "editor", command);
+    await accountClient.removeMember("workspace / one", "person / one", command);
+    await accountClient.transferOwnership("workspace / one", "person / one", command);
+    await accountClient.issuePasswordReset("workspace / one", "person / one", command);
+    await accountClient.revokeMemberSessions("workspace / one", "person / one", command);
+    await accountClient.createInvitation({ accountId: "workspace / one", role: "viewer" }, command);
+    await accountClient.revokeInvitation("workspace / one", "invite / one", command);
 
-    const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
+    const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(createUrl).toBe("https://app.example/api/orgs");
     expectCommand(createInit, "POST");
-    expect(new Headers(createInit.headers).get("content-type")).toBe(
-      "application/json",
-    );
+    expect(new Headers(createInit.headers).get("content-type")).toBe("application/json");
     expect(createInit.body).toBe(JSON.stringify({ name: "Studio" }));
 
-    const [eraseUrl, eraseInit, eraseTimeout] = mocks.apiFetchReauth.mock
-      .calls[0] as unknown as [string, RequestInit, number];
-    expect(eraseUrl).toBe(
-      "https://app.example/api/accounts/workspace%20%2F%20one",
-    );
+    const [eraseUrl, eraseInit, eraseTimeout] = mocks.apiFetchReauth.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+      number,
+    ];
+    expect(eraseUrl).toBe("https://app.example/api/accounts/workspace%20%2F%20one");
     expectCommand(eraseInit, "DELETE");
     expect(eraseTimeout).toBe(120_000);
 
@@ -172,15 +122,9 @@ describe("browser account client", () => {
     await accountClient.listInvitations("workspace / one");
     await accountClient.previewInvitation("token / one");
     await accountClient.acceptInvitation("token / one", command);
-    await accountClient.signupWithInvitation(
-      "token / one",
-      { name: "New user" },
-      command,
-    );
+    await accountClient.signupWithInvitation("token / one", { name: "New user" }, command);
 
-    const privilegedUrls = mocks.apiFetchReauth.mock.calls.map((call) =>
-      String(call[0]),
-    );
+    const privilegedUrls = mocks.apiFetchReauth.mock.calls.map((call) => String(call[0]));
     expect(privilegedUrls).toEqual([
       "https://app.example/api/accounts/workspace%20%2F%20one/members",
       "https://app.example/api/accounts/workspace%20%2F%20one/invites",
@@ -198,15 +142,10 @@ describe("browser account client", () => {
   it("keeps reconciliation bearers out of the URL", async () => {
     await accountClient.reconcileCommand(command, "password-reset");
 
-    const [url, init] = mocks.apiFetch.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
+    const [url, init] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://app.example/api/account-commands/reconcile");
     expect(init).toMatchObject({ method: "POST", credentials: "include" });
-    expect(new Headers(init.headers).get("content-type")).toBe(
-      "application/json",
-    );
+    expect(new Headers(init.headers).get("content-type")).toBe("application/json");
     expect(JSON.parse(String(init.body))).toEqual({
       commandId: command.commandId,
       idempotencyKey: command.idempotencyKey,
@@ -332,12 +271,8 @@ describe("browser account client", () => {
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000005")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000006");
     mocks.apiFetch
-      .mockResolvedValueOnce(
-        Response.json({ code: "COMMAND_IN_PROGRESS" }, { status: 409 }),
-      )
-      .mockResolvedValueOnce(
-        Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 }),
-      )
+      .mockResolvedValueOnce(Response.json({ code: "COMMAND_IN_PROGRESS" }, { status: 409 }))
+      .mockResolvedValueOnce(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     await accountClient.createWorkspace({ name: "Studio" });
@@ -372,20 +307,11 @@ describe("browser account client", () => {
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
     );
-    expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000061",
-      "00000000-0000-4000-8000-000000000063",
-    ]);
-    expect(sessionStorage.getItem("capacitylens.unrelated-preference")).toBe(
-      "keep",
-    );
+    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000061", "00000000-0000-4000-8000-000000000063"]);
+    expect(sessionStorage.getItem("capacitylens.unrelated-preference")).toBe("keep");
     expect(
-      Array.from({ length: sessionStorage.length }, (_unused, index) =>
-        sessionStorage.key(index),
-      ),
-    ).not.toContainEqual(
-      expect.stringMatching(/^capacitylens\.account-command\./),
-    );
+      Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)),
+    ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-command\./));
   });
 
   it("retains same-user recovery but clears a ceremony before a different identity can use it", async () => {
@@ -414,9 +340,7 @@ describe("browser account client", () => {
       "00000000-0000-4000-8000-000000000081",
       "00000000-0000-4000-8000-000000000083",
     ]);
-    expect(
-      sessionStorage.getItem("capacitylens.account-command.identity"),
-    ).toBe("user-two");
+    expect(sessionStorage.getItem("capacitylens.account-command.identity")).toBe("user-two");
   });
 
   it("keeps the same command identity after an unreadable 409 response", async () => {
@@ -435,10 +359,7 @@ describe("browser account client", () => {
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
     );
-    expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000041",
-      "00000000-0000-4000-8000-000000000041",
-    ]);
+    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000041", "00000000-0000-4000-8000-000000000041"]);
   });
 
   it("does not let an explicit command discard an implicit unknown-outcome ceremony", async () => {
@@ -498,44 +419,28 @@ describe("browser account client", () => {
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
     );
-    expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000021",
-      "00000000-0000-4000-8000-000000000021",
-    ]);
+    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000021", "00000000-0000-4000-8000-000000000021"]);
   });
 
   it("classifies server and in-progress responses as unknown without consuming the body", async () => {
-    const inProgress = Response.json(
-      { code: "COMMAND_IN_PROGRESS", error: "Still running." },
-      { status: 409 },
-    );
+    const inProgress = Response.json({ code: "COMMAND_IN_PROGRESS", error: "Still running." }, { status: 409 });
     await expect(accountCommandOutcomeUnknown(inProgress)).resolves.toBe(true);
     await expect(inProgress.json()).resolves.toMatchObject({
       error: "Still running.",
     });
+    await expect(accountCommandOutcomeUnknown(new Response(null, { status: 408 }))).resolves.toBe(true);
+    await expect(accountCommandOutcomeUnknown(new Response(null, { status: 503 }))).resolves.toBe(true);
     await expect(
-      accountCommandOutcomeUnknown(new Response(null, { status: 408 })),
-    ).resolves.toBe(true);
-    await expect(
-      accountCommandOutcomeUnknown(new Response(null, { status: 503 })),
-    ).resolves.toBe(true);
-    await expect(
-      accountCommandOutcomeUnknown(
-        Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 }),
-      ),
+      accountCommandOutcomeUnknown(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 })),
     ).resolves.toBe(false);
   });
 
-  it.each([
-    "INVITATION_USED",
-    "CONFLICT",
-    "AUTHORITY_CHANGED",
-    "IDEMPOTENCY_CONFLICT",
-  ])("classifies the known terminal 409 code %s as final", async (code) => {
-    await expect(
-      accountCommandOutcomeUnknown(Response.json({ code }, { status: 409 })),
-    ).resolves.toBe(false);
-  });
+  it.each(["INVITATION_USED", "CONFLICT", "AUTHORITY_CHANGED", "IDEMPOTENCY_CONFLICT"])(
+    "classifies the known terminal 409 code %s as final",
+    async (code) => {
+      await expect(accountCommandOutcomeUnknown(Response.json({ code }, { status: 409 }))).resolves.toBe(false);
+    },
+  );
 
   it("classifies unreadable and unrecognised 409 responses as unknown", async () => {
     const unreadable = {
@@ -545,14 +450,10 @@ describe("browser account client", () => {
       }),
     } as unknown as Response;
 
-    await expect(
-      accountCommandOutcomeUnknown(new Response("truncated", { status: 409 })),
-    ).resolves.toBe(true);
+    await expect(accountCommandOutcomeUnknown(new Response("truncated", { status: 409 }))).resolves.toBe(true);
     await expect(accountCommandOutcomeUnknown(unreadable)).resolves.toBe(true);
     await expect(
-      accountCommandOutcomeUnknown(
-        Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 }),
-      ),
+      accountCommandOutcomeUnknown(Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 })),
     ).resolves.toBe(true);
   });
 });

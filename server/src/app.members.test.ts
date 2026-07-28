@@ -5,10 +5,7 @@ import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
 import { authFromEnv, runAuthMigrations, type Auth } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
-import {
-  emptyAppData,
-  type AppData,
-} from "@capacitylens/shared/types/entities";
+import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { recordSessionAssurance } from "./accounts/state";
 
 // P1.11 — Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
@@ -42,11 +39,7 @@ async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   return { app: buildApp(db, { authMode: mode, auth }), db };
 }
 
-const membersReq = (
-  app: FastifyInstance,
-  accountId: string,
-  headers: Record<string, string> = {},
-) =>
+const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, {
     method: "GET",
     url: `/api/accounts/${accountId}/members`,
@@ -67,12 +60,7 @@ const patchRoleReq = (
     headers,
   });
 
-const removeReq = (
-  app: FastifyInstance,
-  accountId: string,
-  userId: string,
-  headers: Record<string, string> = {},
-) =>
+const removeReq = (app: FastifyInstance, accountId: string, userId: string, headers: Record<string, string> = {}) =>
   call(app, {
     method: "DELETE",
     url: `/api/accounts/${accountId}/members/${userId}`,
@@ -91,11 +79,7 @@ const revokeSessionsReq = (
     headers,
   });
 
-const invitesReq = (
-  app: FastifyInstance,
-  accountId: string,
-  headers: Record<string, string> = {},
-) =>
+const invitesReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, {
     method: "GET",
     url: `/api/accounts/${accountId}/invites`,
@@ -118,10 +102,7 @@ describe("GET /api/accounts/:id/members — gate", () => {
     ] as const) {
       const { app, db } = await appWithAuth();
       seedTwo(db);
-      const { cookie, userId } = await signUp(
-        app,
-        `${role}-list@capacitylens.dev`,
-      );
+      const { cookie, userId } = await signUp(app, `${role}-list@capacitylens.dev`);
       upsertMember(db, {
         accountId: "a1",
         userId,
@@ -523,10 +504,7 @@ describe("step-up freshness gate — missing sessionCreatedAt fails closed", () 
       auth: timestamplessAuth("undated-owner"),
     });
 
-    expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1" }))
-        .statusCode,
-    ).toBe(200);
+    expect((await call(app, { method: "GET", url: "/api/state?accountId=a1" })).statusCode).toBe(200);
     const put = await call(app, {
       method: "PUT",
       url: "/api/clients/c-undated",
@@ -749,10 +727,7 @@ describe("exactly-one-Owner protection", () => {
       status: "active",
       createdAt: TS,
     });
-    expect(
-      (await removeReq(app, "a1", owner.userId, { cookie: owner.cookie }))
-        .statusCode,
-    ).toBe(403);
+    expect((await removeReq(app, "a1", owner.userId, { cookie: owner.cookie })).statusCode).toBe(403);
   });
 
   it("the database refuses a second active Owner", async () => {
@@ -766,10 +741,7 @@ describe("exactly-one-Owner protection", () => {
       status: "active",
       createdAt: TS,
     });
-    const owner2 = await signUp(
-      app,
-      "second-owner-constraint@capacitylens.dev",
-    );
+    const owner2 = await signUp(app, "second-owner-constraint@capacitylens.dev");
     expect(() =>
       upsertMember(db, {
         accountId: "a1",
@@ -812,14 +784,8 @@ describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
       createdAt: TS,
     });
 
-    expect(
-      (await removeReq(app, "a1", owner.userId, { cookie: admin.cookie }))
-        .statusCode,
-    ).toBe(403);
-    expect(
-      (await removeReq(app, "a1", ed.userId, { cookie: admin.cookie }))
-        .statusCode,
-    ).toBe(204);
+    expect((await removeReq(app, "a1", owner.userId, { cookie: admin.cookie })).statusCode).toBe(403);
+    expect((await removeReq(app, "a1", ed.userId, { cookie: admin.cookie })).statusCode).toBe(204);
     expect(getMemberRole(db, "a1", ed.userId)).toBeNull();
   });
 
@@ -843,10 +809,7 @@ describe("DELETE /api/accounts/:id/members/:userId — revoke gate", () => {
         status: "active",
         createdAt: TS,
       });
-      expect(
-        (await removeReq(app, "a1", ed.userId, { cookie: actor.cookie }))
-          .statusCode,
-      ).toBe(403);
+      expect((await removeReq(app, "a1", ed.userId, { cookie: actor.cookie })).statusCode).toBe(403);
     }
   });
 });
@@ -863,19 +826,14 @@ describe("GET /api/accounts/:id/invites — list omits the token", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      { cookie: owner.cookie },
-    );
+    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
     const token = (created.json() as { token: string }).token;
 
     const res = await invitesReq(app, "a1", { cookie: owner.cookie });
     expect(res.statusCode).toBe(200);
     // Assert the RAW body carries no token (not just the parsed objects).
     expect(res.body).not.toContain(token);
-    const invites = (res.json() as { invites: Array<Record<string, unknown>> })
-      .invites;
+    const invites = (res.json() as { invites: Array<Record<string, unknown>> }).invites;
     expect(invites).toHaveLength(1);
     expect(invites[0]).not.toHaveProperty("token");
     expect(invites[0].role).toBe("editor");
@@ -890,9 +848,7 @@ describe("GET /api/accounts/:id/invites — list omits the token", () => {
       status: "active",
       createdAt: TS,
     });
-    expect(
-      (await invitesReq(app, "a1", { cookie: ed.cookie })).statusCode,
-    ).toBe(403);
+    expect((await invitesReq(app, "a1", { cookie: ed.cookie })).statusCode).toBe(403);
   });
 });
 
@@ -908,11 +864,7 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      { cookie: owner.cookie },
-    );
+    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
     const token = (created.json() as { token: string }).token;
     const inviteId = getInvite(db, token)!.id;
 
@@ -982,34 +934,16 @@ describe("POST /api/invites — Owner is never invitational", () => {
       createdAt: TS,
     });
 
-    expect(
-      (
-        await createInviteReq(
-          app,
-          { accountId: "a1", role: "owner" },
-          { cookie: admin.cookie },
-        )
-      ).statusCode,
-    ).toBe(400);
-    expect(
-      (
-        await createInviteReq(
-          app,
-          { accountId: "a1", role: "owner" },
-          { cookie: owner.cookie },
-        )
-      ).statusCode,
-    ).toBe(400);
+    expect((await createInviteReq(app, { accountId: "a1", role: "owner" }, { cookie: admin.cookie })).statusCode).toBe(
+      400,
+    );
+    expect((await createInviteReq(app, { accountId: "a1", role: "owner" }, { cookie: owner.cookie })).statusCode).toBe(
+      400,
+    );
     // An admin may still invite a non-owner role.
-    expect(
-      (
-        await createInviteReq(
-          app,
-          { accountId: "a1", role: "editor" },
-          { cookie: admin.cookie },
-        )
-      ).statusCode,
-    ).toBe(201);
+    expect((await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: admin.cookie })).statusCode).toBe(
+      201,
+    );
   });
 });
 
@@ -1059,12 +993,7 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
 });
 
 describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership (owner-only)", () => {
-  const transfer = (
-    app: FastifyInstance,
-    accountId: string,
-    toUserId: string,
-    cookie?: string,
-  ) =>
+  const transfer = (app: FastifyInstance, accountId: string, toUserId: string, cookie?: string) =>
     call(app, {
       method: "POST",
       url: `/api/accounts/${accountId}/transfer-ownership`,
@@ -1092,9 +1021,7 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect(
-      (await transfer(app, "a1", member.userId, owner.cookie)).statusCode,
-    ).toBe(200);
+    expect((await transfer(app, "a1", member.userId, owner.cookie)).statusCode).toBe(200);
     expect(getMemberRole(db, "a1", member.userId)).toBe("owner");
     expect(getMemberRole(db, "a1", owner.userId)).toBe("admin");
     // createdAt is the immutable JOIN timestamp — a transfer (a role change on both rows) must NOT
@@ -1102,11 +1029,9 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
     // transfer moment as their "joined" date. Both must still read the original TS. (Code-review fix.)
     const createdAtOf = (userId: string) =>
       (
-        db
-          .prepare(
-            "SELECT createdAt FROM account_members WHERE accountId = ? AND userId = ?",
-          )
-          .get("a1", userId) as { createdAt: string }
+        db.prepare("SELECT createdAt FROM account_members WHERE accountId = ? AND userId = ?").get("a1", userId) as {
+          createdAt: string;
+        }
       ).createdAt;
     expect(createdAtOf(member.userId)).toBe(TS);
     expect(createdAtOf(owner.userId)).toBe(TS);
@@ -1132,9 +1057,7 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect(
-      (await transfer(app, "a1", member.userId, admin.cookie)).statusCode,
-    ).toBe(403);
+    expect((await transfer(app, "a1", member.userId, admin.cookie)).statusCode).toBe(403);
     expect(getMemberRole(db, "a1", admin.userId)).toBe("admin"); // unchanged
     expect(getMemberRole(db, "a1", member.userId)).toBe("editor");
   });
@@ -1151,9 +1074,7 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect(
-      (await transfer(app, "a1", "ghost-user", owner.cookie)).statusCode,
-    ).toBe(404);
+    expect((await transfer(app, "a1", "ghost-user", owner.cookie)).statusCode).toBe(404);
     const selfTransfer = await transfer(app, "a1", owner.userId, owner.cookie);
     expect(selfTransfer.statusCode).toBe(400);
     expect(selfTransfer.json().code).toBe("VALIDATION_FAILED");
@@ -1208,9 +1129,7 @@ describe("P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership
       createdAt: TS,
     });
 
-    expect(
-      (await transfer(app, "a2", a2member.userId, a1owner.cookie)).statusCode,
-    ).toBe(403);
+    expect((await transfer(app, "a2", a2member.userId, a1owner.cookie)).statusCode).toBe(403);
     expect(getMemberRole(db, "a2", a2member.userId)).toBe("editor"); // unchanged
   });
 });

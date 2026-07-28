@@ -3,6 +3,7 @@
 **Area:** Navigation & shell · **Persona:** New owner setting up their first company · **Linked coverage:** `e2e/getting-started.spec.ts` (core checklist/tour), `e2e/members.auth.spec.ts` (Admin invite path), `e2e/viewer.auth.spec.ts` (Editor/Viewer gates), and `src/components/GettingStarted.test.tsx` (all four roles)
 
 ## Goal
+
 On a fresh, still-empty company, the schedule shows a small **Getting started** card that walks the
 owner through the four steps that make the app useful — add a client, a project, a person, then
 assign them — plus a **Show me around** button that runs a short spotlight tour of where things
@@ -11,12 +12,14 @@ and Admin also get an optional **Invite your team** path to **Team & access**; i
 step and never blocks a solo setup.
 
 ## Why
+
 An empty schedule explains nothing. The checklist is **state-driven** (each step ticks itself off
 from the account's real data), so it survives the user wandering off mid-flow and never gets out of
 step with reality the way a scripted do-this-now tour would. The tour is deliberately **loose** —
 five look-around stops, no navigation, no forced actions — the where, not the how.
 
 ## How (end-to-end, default local mode)
+
 **Precondition:** Start from a clean state (DevTools → Console → `localStorage.clear()` → reload).
 
 1. Open the app, click through the demo sign-in (US-NAV-11), and create a **New company** (any
@@ -38,6 +41,7 @@ five look-around stops, no navigation, no forced actions — the where, not the 
    still-empty company).
 
 ## Acceptance criteria
+
 - The card (`data-testid="getting-started"`) appears on the schedule **only** when the active
   account has at least one incomplete step AND it hasn't been dismissed on this device. A fully
   set-up (seeded) company never shows it.

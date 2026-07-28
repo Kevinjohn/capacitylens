@@ -11,21 +11,9 @@ import {
   preauthInviteAllows,
 } from "./controlTables";
 import { authFromEnv, runAuthMigrations, DEMO_USER } from "./auth";
-import {
-  PASSWORD_ENV,
-  call,
-  cookiesOf,
-  signUp,
-  registerServerFixtureCleanup,
-} from "./testHelpers";
-import {
-  emptyAppData,
-  type AppData,
-} from "@capacitylens/shared/types/entities";
-import {
-  MAX_PASSWORD_LENGTH,
-  MIN_PASSWORD_LENGTH,
-} from "@capacitylens/shared/domain/password";
+import { PASSWORD_ENV, call, cookiesOf, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 
 // P1.9 — single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
 // admin+ of the target account); POST /api/invites/:token/accept binds the invited role to the
@@ -36,10 +24,8 @@ import {
 
 const TS = "2026-01-01T00:00:00.000Z";
 const fixtures = registerServerFixtureCleanup();
-const openDb = (...args: Parameters<typeof openDbRaw>) =>
-  fixtures.trackDb(openDbRaw(...args));
-const buildApp = (...args: Parameters<typeof buildAppRaw>) =>
-  fixtures.trackApp(buildAppRaw(...args));
+const openDb = (...args: Parameters<typeof openDbRaw>) => fixtures.trackDb(openDbRaw(...args));
+const buildApp = (...args: Parameters<typeof buildAppRaw>) => fixtures.trackApp(buildAppRaw(...args));
 const meta = () => ({ createdAt: TS, updatedAt: TS });
 const validFractionalExpiry = (() => {
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -86,18 +72,10 @@ const createInviteReq = (
   headers: Record<string, string> = {},
 ) => call(app, { method: "POST", url: "/api/invites", payload, headers });
 
-const acceptReq = (
-  app: FastifyInstance,
-  token: string,
-  headers: Record<string, string> = {},
-) =>
+const acceptReq = (app: FastifyInstance, token: string, headers: Record<string, string> = {}) =>
   call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers });
 
-const previewReq = (
-  app: FastifyInstance,
-  token: string,
-  headers: Record<string, string> = {},
-) =>
+const previewReq = (app: FastifyInstance, token: string, headers: Record<string, string> = {}) =>
   call(app, { method: "GET", url: `/api/invites/${token}/preview`, headers });
 
 describe("POST /api/invites (P1.9 create) — gate", () => {
@@ -113,11 +91,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       createdAt: TS,
     });
 
-    const res = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      { cookie },
-    );
+    const res = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie });
     expect(res.statusCode).toBe(201);
     const body = res.json() as {
       id: string;
@@ -136,9 +110,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       tokenHash: string;
     };
     expect(atRest.tokenHash).not.toBe(body.token);
-    expect(
-      JSON.stringify(db.prepare(`SELECT * FROM invites`).all()),
-    ).not.toContain(body.token);
+    expect(JSON.stringify(db.prepare(`SELECT * FROM invites`).all())).not.toContain(body.token);
     // The row landed in the control table, unused, with a FUTURE expiry.
     const stored = getInvite(db, body.token)!;
     expect(stored.accountId).toBe("a1");
@@ -151,10 +123,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
   it("replays the same default-expiry invitation command without minting a second bearer", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
-    const { cookie, userId } = await signUp(
-      app,
-      "invite-replay-owner@capacitylens.dev",
-    );
+    const { cookie, userId } = await signUp(app, "invite-replay-owner@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
       userId,
@@ -168,16 +137,8 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       "x-account-command-id": "invite-replay-command-000001",
     };
 
-    const first = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      headers,
-    );
-    const replay = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      headers,
-    );
+    const first = await createInviteReq(app, { accountId: "a1", role: "editor" }, headers);
+    const replay = await createInviteReq(app, { accountId: "a1", role: "editor" }, headers);
 
     expect(first.statusCode).toBe(201);
     expect(replay.statusCode).toBe(201);
@@ -190,10 +151,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
   it("rejects a command replay whose payload differs from the original", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
-    const { cookie, userId } = await signUp(
-      app,
-      "invite-conflict-owner@capacitylens.dev",
-    );
+    const { cookie, userId } = await signUp(app, "invite-conflict-owner@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
       userId,
@@ -207,15 +165,8 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       "x-account-command-id": "invite-conflict-command-000001",
     };
 
-    expect(
-      (await createInviteReq(app, { accountId: "a1", role: "editor" }, headers))
-        .statusCode,
-    ).toBe(201);
-    const conflict = await createInviteReq(
-      app,
-      { accountId: "a1", role: "viewer" },
-      headers,
-    );
+    expect((await createInviteReq(app, { accountId: "a1", role: "editor" }, headers)).statusCode).toBe(201);
+    const conflict = await createInviteReq(app, { accountId: "a1", role: "viewer" }, headers);
 
     expect(conflict.statusCode).toBe(409);
     expect(conflict.json()).toMatchObject({
@@ -230,10 +181,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
   it("rejects malformed account-command headers before creating an invitation", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
-    const { cookie, userId } = await signUp(
-      app,
-      "invite-header-owner@capacitylens.dev",
-    );
+    const { cookie, userId } = await signUp(app, "invite-header-owner@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
       userId,
@@ -254,11 +202,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
         "x-account-command-id": "bad id",
       },
     ]) {
-      const response = await createInviteReq(
-        app,
-        { accountId: "a1", role: "editor" },
-        headers,
-      );
+      const response = await createInviteReq(app, { accountId: "a1", role: "editor" }, headers);
       expect(response.statusCode).toBe(400);
       expect(response.json()).toMatchObject({
         code: "VALIDATION_FAILED",
@@ -273,10 +217,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
   it("replays a completed explicit-expiry command after the invitation expires", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
-    const { cookie, userId } = await signUp(
-      app,
-      "explicit-expiry-replay-owner@capacitylens.dev",
-    );
+    const { cookie, userId } = await signUp(app, "explicit-expiry-replay-owner@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
       userId,
@@ -298,9 +239,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
     const first = await createInviteReq(app, input, headers);
     // Expiry is durable row state. Move the created invitation past its boundary directly rather
     // than freezing process timers, which would also freeze Fastify/auth request scheduling.
-    db.prepare(`UPDATE invites SET expiresAt = ?`).run(
-      new Date(Date.now() - 1).toISOString(),
-    );
+    db.prepare(`UPDATE invites SET expiresAt = ?`).run(new Date(Date.now() - 1).toISOString());
     const replay = await createInviteReq(app, input, headers);
 
     expect(first.statusCode).toBe(201);
@@ -315,82 +254,56 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
     ["malformed", "not-a-date", /valid ISO-8601/],
     ["past", "2000-01-01T00:00:00.000Z", /future/],
     ["too distant", "2999-01-01T00:00:00.000Z", /at most 30 days/],
-  ])(
-    "rejects a %s expiresAt instead of widening it",
-    async (_label, expiresAt, message) => {
-      const { app, db } = await appWithAuth();
-      seedOne(db);
-      const { cookie, userId } = await signUp(app, "owner@capacitylens.dev");
-      upsertMember(db, {
-        accountId: "a1",
-        userId,
-        role: "owner",
-        status: "active",
-        createdAt: TS,
-      });
-      const res = await createInviteReq(
-        app,
-        { accountId: "a1", role: "editor", expiresAt },
-        { cookie },
-      );
-      expect(res.statusCode).toBe(400);
-      expect(res.json().error).toMatch(message);
-      expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({
-        n: 0,
-      });
-    },
-  );
+  ])("rejects a %s expiresAt instead of widening it", async (_label, expiresAt, message) => {
+    const { app, db } = await appWithAuth();
+    seedOne(db);
+    const { cookie, userId } = await signUp(app, "owner@capacitylens.dev");
+    upsertMember(db, {
+      accountId: "a1",
+      userId,
+      role: "owner",
+      status: "active",
+      createdAt: TS,
+    });
+    const res = await createInviteReq(app, { accountId: "a1", role: "editor", expiresAt }, { cookie });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(message);
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({
+      n: 0,
+    });
+  });
 
   it.each([
     ["non-leap February 29", "2099-02-29T12:00:00Z"],
     ["April 31", "2099-04-31T12:00:00.123Z"],
     ["hour 24", "2099-02-02T24:00:00Z"],
-  ])(
-    "rejects a valid-shaped but nonexistent %s expiry",
-    async (_label, expiresAt) => {
-      const { app, db } = await appWithAuth();
-      seedOne(db);
-      const { cookie, userId } = await signUp(
-        app,
-        "invalid-calendar-expiry@capacitylens.dev",
-      );
-      upsertMember(db, {
-        accountId: "a1",
-        userId,
-        role: "owner",
-        status: "active",
-        createdAt: TS,
-      });
+  ])("rejects a valid-shaped but nonexistent %s expiry", async (_label, expiresAt) => {
+    const { app, db } = await appWithAuth();
+    seedOne(db);
+    const { cookie, userId } = await signUp(app, "invalid-calendar-expiry@capacitylens.dev");
+    upsertMember(db, {
+      accountId: "a1",
+      userId,
+      role: "owner",
+      status: "active",
+      createdAt: TS,
+    });
 
-      const res = await createInviteReq(
-        app,
-        { accountId: "a1", role: "editor", expiresAt },
-        { cookie },
-      );
+    const res = await createInviteReq(app, { accountId: "a1", role: "editor", expiresAt }, { cookie });
 
-      expect(res.statusCode).toBe(400);
-      expect(res.json().error).toMatch(/valid ISO-8601/);
-      expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({
-        n: 0,
-      });
-    },
-  );
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/valid ISO-8601/);
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({
+      n: 0,
+    });
+  });
 
-  it.each([
-    [
-      "fractional instant",
-      validFractionalExpiry.input,
-      validFractionalExpiry.canonical,
-    ],
-  ])(
+  it.each([["fractional instant", validFractionalExpiry.input, validFractionalExpiry.canonical]])(
     "accepts and canonicalizes a valid %s expiry",
     async (_label, expiresAt, canonical) => {
       const { app, db } = await appWithAuth();
       seedOne(db);
-      const { cookie, userId } = await signUp(
-        app,
-        "valid-calendar-expiry@capacitylens.dev",
-      );
+      const { cookie, userId } = await signUp(app, "valid-calendar-expiry@capacitylens.dev");
       upsertMember(db, {
         accountId: "a1",
         userId,
@@ -399,11 +312,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
         createdAt: TS,
       });
 
-      const res = await createInviteReq(
-        app,
-        { accountId: "a1", role: "editor", expiresAt },
-        { cookie },
-      );
+      const res = await createInviteReq(app, { accountId: "a1", role: "editor", expiresAt }, { cookie });
 
       expect(res.statusCode).toBe(201);
       expect(res.json().expiresAt).toBe(canonical);
@@ -422,11 +331,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       createdAt: TS,
     });
 
-    const res = await createInviteReq(
-      app,
-      { accountId: "a1", role: "viewer" },
-      { cookie },
-    );
+    const res = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie });
     expect(res.statusCode).toBe(201);
   });
 
@@ -443,11 +348,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
         createdAt: TS,
       });
 
-      const res = await createInviteReq(
-        app,
-        { accountId: "a1", role: "editor" },
-        { cookie },
-      );
+      const res = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie });
       expect(res.statusCode, `${role} denied`).toBe(403);
     }
   });
@@ -457,11 +358,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
     seedOne(db);
     const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // no membership of a1
 
-    const res = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      { cookie },
-    );
+    const res = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie });
     expect(res.statusCode).toBe(403);
   });
 
@@ -484,33 +381,18 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       createdAt: TS,
     });
 
-    const bad = await createInviteReq(
-      app,
-      { accountId: "a1", role: "superuser" },
-      { cookie },
-    );
+    const bad = await createInviteReq(app, { accountId: "a1", role: "superuser" }, { cookie });
     expect(bad.statusCode).toBe(400);
-    const empty = await createInviteReq(
-      app,
-      { accountId: "a1", role: "" },
-      { cookie },
-    );
+    const empty = await createInviteReq(app, { accountId: "a1", role: "" }, { cookie });
     expect(empty.statusCode).toBe(400);
-    const missingAccount = await createInviteReq(
-      app,
-      { role: "editor" },
-      { cookie },
-    );
+    const missingAccount = await createInviteReq(app, { role: "editor" }, { cookie });
     expect(missingAccount.statusCode).toBe(400);
   });
 
   it("rejects Owner invites even when the caller is the Owner", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);
-    const { cookie, userId } = await signUp(
-      app,
-      "owner-no-owner-invites@capacitylens.dev",
-    );
+    const { cookie, userId } = await signUp(app, "owner-no-owner-invites@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
       userId,
@@ -519,11 +401,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       createdAt: TS,
     });
 
-    const res = await createInviteReq(
-      app,
-      { accountId: "a1", role: "owner" },
-      { cookie },
-    );
+    const res = await createInviteReq(app, { accountId: "a1", role: "owner" }, { cookie });
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe("OWNER_TRANSFER_REQUIRED");
     expect(res.json().error).toMatch(/transfer ownership/i);
@@ -573,10 +451,7 @@ describe("GET /api/invites/:token/preview", () => {
         accountId: "a1",
         role: kind === "legacy Owner" ? "owner" : "viewer",
         preauthEmail: null,
-        expiresAt:
-          kind === "expired"
-            ? "2000-01-01T00:00:00.000Z"
-            : "2999-01-01T00:00:00.000Z",
+        expiresAt: kind === "expired" ? "2000-01-01T00:00:00.000Z" : "2999-01-01T00:00:00.000Z",
         usedAt: kind === "used" ? "2026-01-02T00:00:00.000Z" : null,
         createdAt: TS,
       });
@@ -597,11 +472,7 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      { cookie: a.cookie },
-    );
+    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: a.cookie });
     const token = (created.json() as { token: string }).token;
 
     // User B (no prior membership) accepts.
@@ -626,17 +497,11 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      { accountId: "a1", role: "viewer" },
-      { cookie: a.cookie },
-    );
+    const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: a.cookie });
     const token = (created.json() as { token: string }).token;
 
     const b = await signUp(app, "reuser@capacitylens.dev");
-    expect((await acceptReq(app, token, { cookie: b.cookie })).statusCode).toBe(
-      200,
-    );
+    expect((await acceptReq(app, token, { cookie: b.cookie })).statusCode).toBe(200);
     const usedAtAfterFirst = getInvite(db, token)!.usedAt;
     expect(usedAtAfterFirst).not.toBeNull();
     expect(getMemberRole(db, "a1", b.userId)).toBe("viewer");
@@ -659,11 +524,7 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      { accountId: "a1", role: "viewer" },
-      { cookie: owner.cookie },
-    );
+    const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: owner.cookie });
     const token = (created.json() as { token: string }).token;
 
     const accepted = await acceptReq(app, token, { cookie: owner.cookie });
@@ -701,10 +562,7 @@ describe("POST /api/invites/:token/accept (P1.9 accept)", () => {
   ])("treats %s as expired", async (label, expiresAt) => {
     const { app, db } = await appWithAuth();
     seedOne(db);
-    const user = await signUp(
-      app,
-      `expiry-${label.replaceAll(" ", "-")}@capacitylens.dev`,
-    );
+    const user = await signUp(app, `expiry-${label.replaceAll(" ", "-")}@capacitylens.dev`);
     const token = `expiry-${label}`;
     createInvite(db, {
       token,
@@ -739,15 +597,9 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
       name: "New Person",
     };
     for (const [payload, error] of [
-      [
-        { ...base, email: "not-an-email" },
-        "A valid email address is required.",
-      ],
+      [{ ...base, email: "not-an-email" }, "A valid email address is required."],
       [{ ...base, name: "   " }, "Name is required."],
-      [
-        { ...base, password: "short" },
-        `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.`,
-      ],
+      [{ ...base, password: "short" }, `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.`],
     ] as const) {
       const response = await call(app, {
         method: "POST",
@@ -769,8 +621,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
 
   it("rejects invalid bearer tokens without reserving generated commands", async () => {
     const { app, db } = await appWithAuth();
-    const commandCount = () =>
-      db.prepare(`SELECT COUNT(*) AS count FROM account_commands`).get();
+    const commandCount = () => db.prepare(`SELECT COUNT(*) AS count FROM account_commands`).get();
     const before = commandCount();
 
     for (const token of ["unknown-invite-token-1", "unknown-invite-token-2"]) {
@@ -797,11 +648,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
       CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
     });
     await runAuthMigrations(auth!);
-    const inviter = await auth!.createCredentialUser(
-      "inviter-closed@capacitylens.dev",
-      "Inviter",
-      "password-123456",
-    );
+    const inviter = await auth!.createCredentialUser("inviter-closed@capacitylens.dev", "Inviter", "password-123456");
     const app = buildApp(db, { authMode: mode, auth });
     seedOne(db);
     upsertMember(db, {
@@ -877,9 +724,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
     expect(me.json().user.emailVerified).toBe(true);
     expect(me.json().user.name).toBe("New Person");
     expect(getMemberRole(db, "a1", me.json().user.id)).toBe("editor");
-    expect(
-      (await acceptReq(app, token, { cookie: cookiesOf(signedIn) })).statusCode,
-    ).toBe(409);
+    expect((await acceptReq(app, token, { cookie: cookiesOf(signedIn) })).statusCode).toBe(409);
   });
 });
 
@@ -916,12 +761,8 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
   });
 
   it("null preauth → true for ANY signed-in caller (link invite — even unverified)", () => {
-    expect(
-      preauthInviteAllows(null, { email: "anyone@x.io", emailVerified: false }),
-    ).toBe(true);
-    expect(
-      preauthInviteAllows(null, { email: "anyone@x.io", emailVerified: true }),
-    ).toBe(true);
+    expect(preauthInviteAllows(null, { email: "anyone@x.io", emailVerified: false })).toBe(true);
+    expect(preauthInviteAllows(null, { email: "anyone@x.io", emailVerified: true })).toBe(true);
   });
 
   it("preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)", () => {
@@ -960,13 +801,7 @@ describe("P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)"
         emailVerified: false,
       }),
     ).toBe(false);
-    expect(
-      preauthInviteAllows(
-        stored,
-        { email: "carol@example.com", emailVerified: false },
-        true,
-      ),
-    ).toBe(true);
+    expect(preauthInviteAllows(stored, { email: "carol@example.com", emailVerified: false }, true)).toBe(true);
   });
 });
 
@@ -1010,11 +845,7 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
       createdAt: TS,
     });
 
-    const res = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor", preauthEmail: "   " },
-      { cookie },
-    );
+    const res = await createInviteReq(app, { accountId: "a1", role: "editor", preauthEmail: "   " }, { cookie });
     expect(res.statusCode).toBe(201);
     const body = res.json() as { token: string; preauthEmail: string | null };
     expect(body.preauthEmail).toBeNull();
@@ -1046,11 +877,7 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
       null,
       42,
     ]) {
-      const res = await createInviteReq(
-        app,
-        { accountId: "a1", role: "editor", preauthEmail: bad },
-        { cookie },
-      );
+      const res = await createInviteReq(app, { accountId: "a1", role: "editor", preauthEmail: bad }, { cookie });
       expect(res.statusCode, `"${bad}" rejected`).toBe(400);
     }
   });
@@ -1068,11 +895,7 @@ describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(
-      app,
-      { accountId: "a1", role: "editor" },
-      { cookie: a.cookie },
-    );
+    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: a.cookie });
     const token = (created.json() as { token: string }).token;
 
     // Joiner is an ordinary, unverified fresh sign-up — a link invite does not care.
@@ -1227,9 +1050,7 @@ describe("invites are excluded from the AppData path", () => {
     // Belt-and-braces: the table name AND the token secret must appear NOWHERE in the wire state.
     expect(JSON.stringify(state)).not.toContain("invites");
     expect(JSON.stringify(state)).not.toContain("secret-invite-token");
-    expect(
-      loadState(db) as unknown as Record<string, unknown>,
-    ).not.toHaveProperty("invites");
+    expect(loadState(db) as unknown as Record<string, unknown>).not.toHaveProperty("invites");
   });
 
   it("is not a known entity for generic CRUD (GET 404, POST 404 — never a listing/persist)", async () => {

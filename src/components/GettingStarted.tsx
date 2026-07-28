@@ -1,13 +1,13 @@
-import { Link } from 'react-router-dom'
-import { useRole } from '../auth/permissionContext'
-import { useStore } from '../store/useStore'
-import { useActiveScopedData } from '../store/useScopedData'
-import { startTour } from '../lib/tour'
-import { deriveGettingStartedSteps, allStepsDone } from '../lib/gettingStarted'
-import { Check } from 'lucide-react'
-import { Button } from './ui/button'
-import { m } from '@/i18n'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card'
+import { Link } from "react-router-dom";
+import { useRole } from "../auth/permissionContext";
+import { useStore } from "../store/useStore";
+import { useActiveScopedData } from "../store/useScopedData";
+import { startTour } from "../lib/tour";
+import { deriveGettingStartedSteps, allStepsDone } from "../lib/gettingStarted";
+import { Check } from "lucide-react";
+import { Button } from "./ui/button";
+import { m } from "@/i18n";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 
 // First-run "Getting started" checklist, rendered at the top of the schedule. State-driven, not
 // scripted: each step ticks itself off by reading the ACTIVE account's scoped data (has a client /
@@ -47,7 +47,7 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
         </span>
       )}
     </li>
-  )
+  );
 }
 
 /** The first-run checklist card (see the file header for the visibility rules).
@@ -59,38 +59,34 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
  *  undismissed/non-viewer case needs to know the per-step completion, so only THAT case mounts
  *  `GettingStartedCard` and pays for the subscription. */
 export function GettingStarted() {
-  const dismissed = useStore((s) => s.gettingStartedDismissed)
-  const activeRole = useRole()
-  if (dismissed || activeRole === 'viewer') return null
-  return <GettingStartedCard />
+  const dismissed = useStore((s) => s.gettingStartedDismissed);
+  const activeRole = useRole();
+  if (dismissed || activeRole === "viewer") return null;
+  return <GettingStartedCard />;
 }
 
 /** Owns the scoped-data read + step derivation; hides itself once every step is done (a
  *  seeded/established account never sees it). Kept out of the exported gate above — see there. */
 function GettingStartedCard() {
-  const setDismissed = useStore((s) => s.setGettingStartedDismissed)
-  const setNotice = useStore((s) => s.setNotice)
-  const activeRole = useRole()
-  const data = useActiveScopedData()
-  const steps = deriveGettingStartedSteps(data)
+  const setDismissed = useStore((s) => s.setGettingStartedDismissed);
+  const setNotice = useStore((s) => s.setNotice);
+  const activeRole = useRole();
+  const data = useActiveScopedData();
+  const steps = deriveGettingStartedSteps(data);
 
   const showTour = async (): Promise<void> => {
     try {
-      await startTour()
+      await startTour();
     } catch (error) {
-      console.error('GettingStarted: tour failed to start', error)
-      setNotice(m.gs_tour_failed(), 'error')
+      console.error("GettingStarted: tour failed to start", error);
+      setNotice(m.gs_tour_failed(), "error");
     }
-  }
+  };
 
-  if (allStepsDone(steps)) return null
+  if (allStepsDone(steps)) return null;
 
   return (
-    <Card
-      aria-label={m.gs_title()}
-      data-testid="getting-started"
-      className="getting-started-popover gap-4 py-4"
-    >
+    <Card aria-label={m.gs_title()} data-testid="getting-started" className="getting-started-popover gap-4 py-4">
       <CardHeader className="px-4">
         <CardTitle className="text-sm">{m.gs_title()}</CardTitle>
         <CardDescription className="text-xs">{m.gs_subtitle()}</CardDescription>
@@ -102,11 +98,11 @@ function GettingStartedCard() {
           <StepRow done={steps.person} label={m.gs_step_person()} to="/resources" />
           <StepRow done={steps.assign} label={m.gs_step_assign()} hint={m.gs_step_assign_hint()} />
         </ol>
-        {(activeRole === 'owner' || activeRole === 'admin') && (
+        {(activeRole === "owner" || activeRole === "admin") && (
           <p className="text-sm text-ink">
             <Link to="/team" className="font-medium underline-offset-2 hover:text-brand hover:underline">
               {m.gs_invite_team()}
-            </Link>{' '}
+            </Link>{" "}
             <span className="text-xs text-muted-foreground">{m.gs_invite_team_optional()}</span>
           </p>
         )}
@@ -120,5 +116,5 @@ function GettingStartedCard() {
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }

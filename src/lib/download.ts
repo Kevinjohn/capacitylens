@@ -32,11 +32,7 @@ function cleanupDownloadArtifacts(
  *   "export first" backup before deleting a company — a failed backup must block
  *   the delete). The message is safe to surface directly to the user.
  */
-export function downloadTextFile(
-  filename: string,
-  content: string,
-  type = "application/json",
-): void {
+export function downloadTextFile(filename: string, content: string, type = "application/json"): void {
   let url: string | undefined;
   let a: HTMLAnchorElement | undefined;
   try {
@@ -51,11 +47,7 @@ export function downloadTextFile(
   } catch (e) {
     // The download never started. Surface it so a dependent destructive action is
     // blocked — clean up the half-built artefacts first so we don't leak the object URL.
-    cleanupDownloadArtifacts(
-      a,
-      url,
-      "downloadTextFile: cleanup after failed download failed",
-    );
+    cleanupDownloadArtifacts(a, url, "downloadTextFile: cleanup after failed download failed");
     throw new Error(m.download_start_failed(), { cause: e });
   }
   // Deferred teardown runs in its own task after the download is in flight. A failure
@@ -64,10 +56,6 @@ export function downloadTextFile(
   setTimeout(() => {
     // `a`/`url` are typed `… | undefined` (declared before the try) but are always assigned by the
     // time we reach here — the catch above re-throws. Guards retain that invariant defensively.
-    cleanupDownloadArtifacts(
-      a,
-      url,
-      "downloadTextFile: cleanup after download failed",
-    );
+    cleanupDownloadArtifacts(a, url, "downloadTextFile: cleanup after download failed");
   }, 0);
 }

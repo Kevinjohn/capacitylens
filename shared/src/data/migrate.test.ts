@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  InvalidSchemaVersionError,
-  migrate,
-  UnsupportedSchemaVersionError,
-} from "./migrate";
+import { InvalidSchemaVersionError, migrate, UnsupportedSchemaVersionError } from "./migrate";
 import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
 import { sanitizeImportedRecord } from "../lib/sanitizeImport";
 
@@ -18,9 +14,7 @@ describe("migrate", () => {
   it("unwraps a { schemaVersion, data } wrapper", () => {
     const data = {
       ...emptyAppData(),
-      clients: [
-        { id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" },
-      ],
+      clients: [{ id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" }],
     };
     expect(migrate({ schemaVersion: 1, data })).toEqual(data);
   });
@@ -43,17 +37,14 @@ describe("migrate", () => {
     ["NaN", Number.NaN],
     ["infinite", Number.POSITIVE_INFINITY],
     ["unsafe integer", Number.MAX_SAFE_INTEGER + 1],
-  ])(
-    "refuses a present %s schema version instead of treating it as legacy",
-    (_label, schemaVersion) => {
-      expect(() =>
-        migrate({
-          schemaVersion,
-          data: { resources: [{ id: "r1", isFreelancer: true }] },
-        }),
-      ).toThrow(InvalidSchemaVersionError);
-    },
-  );
+  ])("refuses a present %s schema version instead of treating it as legacy", (_label, schemaVersion) => {
+    expect(() =>
+      migrate({
+        schemaVersion,
+        data: { resources: [{ id: "r1", isFreelancer: true }] },
+      }),
+    ).toThrow(InvalidSchemaVersionError);
+  });
 
   it("accepts a bare AppData (legacy, no wrapper)", () => {
     const data = {
@@ -397,20 +388,14 @@ describe("migrate", () => {
       },
     });
 
-    expect(out.activities.map(({ id }) => id)).toEqual([
-      "shared",
-      "modern-only",
-      "legacy-only",
-    ]);
+    expect(out.activities.map(({ id }) => id)).toEqual(["shared", "modern-only", "legacy-only"]);
     expect(out.activities.find(({ id }) => id === "shared")).toMatchObject({
       name: "Modern conflict",
       kind: "internal",
     });
     expect(out.allocations[0]).toMatchObject({ activityId: "legacy-only" });
     expect(out.allocations[1]).toMatchObject({ activityId: "modern-only" });
-    expect(
-      out.allocations.every((allocation) => !("taskId" in allocation)),
-    ).toBe(true);
+    expect(out.allocations.every((allocation) => !("taskId" in allocation))).toBe(true);
   });
 
   it("treats a bare (versionless) legacy `tasks` blob as pre-v5 and renames it", () => {
@@ -434,9 +419,7 @@ describe("migrate", () => {
     const out = migrate({
       schemaVersion: 1,
       data: {
-        clients: [
-          { id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" },
-        ],
+        clients: [{ id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" }],
       },
     });
     expect(out).toMatchObject({

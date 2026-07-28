@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
 
 concurrency:
   group: docker-${{ github.ref }}
@@ -22,11 +22,11 @@ jobs:
     env:
       # NODE_ENV=production is baked into the api image (Dockerfile), and auth is OFF by default
       # in this smoke. The production guard requires explicit consent for this trusted CI-only setup.
-      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1'
+      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
       # CI's ephemeral runner disk is encrypted by the hosted platform and stdout is retained in a
       # separate Actions log. Production requires operators to make both assurances explicitly.
-      CAPACITYLENS_STORAGE_ENCRYPTED: '1'
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: '1'
+      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
+      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -79,8 +79,8 @@ jobs:
       - name: Start the client-only demo without a local API
         env:
           COMPOSE_PROJECT_NAME: capacitylens-client-smoke
-          VITE_CAPACITYLENS_DEMO: '1'
-          WEB_PORT: '8081'
+          VITE_CAPACITYLENS_DEMO: "1"
+          WEB_PORT: "8081"
         run: |
           docker compose up --build -d web-client
           test "$(docker compose ps --services --status running)" = "web-client"
@@ -98,15 +98,15 @@ jobs:
         if: failure()
         env:
           COMPOSE_PROJECT_NAME: capacitylens-client-smoke
-          VITE_CAPACITYLENS_DEMO: '1'
-          WEB_PORT: '8081'
+          VITE_CAPACITYLENS_DEMO: "1"
+          WEB_PORT: "8081"
         run: docker compose logs web-client
       - name: Stop the client-only stack
         if: always()
         env:
           COMPOSE_PROJECT_NAME: capacitylens-client-smoke
-          VITE_CAPACITYLENS_DEMO: '1'
-          WEB_PORT: '8081'
+          VITE_CAPACITYLENS_DEMO: "1"
+          WEB_PORT: "8081"
         run: docker compose down --volumes
       - name: Show Compose logs on failure
         if: failure()

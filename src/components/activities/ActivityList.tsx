@@ -1,59 +1,57 @@
-import { useStore } from '../../store/useStore'
-import { useActiveScopedData } from '../../store/useScopedData'
-import { useCrudListState } from '../../hooks/useCrudListState'
-import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
-import { ActivityForm } from './ActivityForm'
-import type { Activity } from '@capacitylens/shared/types/entities'
-import { m } from '@/i18n'
-import { Fragment, useMemo } from 'react'
-import { ClipboardCheck, Plus } from 'lucide-react'
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
-import { errorMessage } from '../../lib/errorMessage'
+import { useStore } from "../../store/useStore";
+import { useActiveScopedData } from "../../store/useScopedData";
+import { useCrudListState } from "../../hooks/useCrudListState";
+import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
+import { ActivityForm } from "./ActivityForm";
+import type { Activity } from "@capacitylens/shared/types/entities";
+import { m } from "@/i18n";
+import { Fragment, useMemo } from "react";
+import { ClipboardCheck, Plus } from "lucide-react";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { errorMessage } from "../../lib/errorMessage";
 
 export function ActivityList() {
-  const data = useActiveScopedData()
-  const activities = data.activities
-  const projects = data.projects
-  const clients = data.clients
-  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects])
-  const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients])
-  const del = useStore((s) => s.deleteActivity)
-  const setNotice = useStore((s) => s.setNotice)
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>()
+  const data = useActiveScopedData();
+  const activities = data.activities;
+  const projects = data.projects;
+  const clients = data.clients;
+  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+  const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
+  const del = useStore((s) => s.deleteActivity);
+  const setNotice = useStore((s) => s.setNotice);
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>();
 
   // A project-less activity (internal/cross-project) is bucketed under the account's built-in
   // Internal client for display — so its label reads "Internal", not "(no project)".
   const projectLabel = (id: string | undefined) => {
-    if (!id) return m.list_activities_internal_label()
-    const p = projectById.get(id)
-    if (!p) return m.list_activities_no_project()
-    const c = clientById.get(p.clientId)
-    return c ? `${c.name} / ${p.name}` : p.name
-  }
+    if (!id) return m.list_activities_internal_label();
+    const p = projectById.get(id);
+    if (!p) return m.list_activities_no_project();
+    const c = clientById.get(p.clientId);
+    return c ? `${c.name} / ${p.name}` : p.name;
+  };
 
   // Three kinds, three tables. Internal first (the owner's ordering), then cross-project
   // (stored as `repeatable` for compatibility), then project-specific work.
-  const internalActivities = activities.filter((a) => a.kind === 'internal')
-  const repeatableActivities = activities.filter((a) => a.kind === 'repeatable')
-  const projectActivities = activities.filter((a) => a.kind === 'project')
+  const internalActivities = activities.filter((a) => a.kind === "internal");
+  const repeatableActivities = activities.filter((a) => a.kind === "repeatable");
+  const projectActivities = activities.filter((a) => a.kind === "project");
 
   const renderRow = (activity: Activity, showLabel: boolean) => (
     <Item size="sm" role="listitem" data-testid="activity-row" className="rounded-none">
       <ItemContent>
         <span className="font-medium">{activity.name}</span>
-        {showLabel && (
-          <span className="text-sm text-muted-foreground">
-            {' '}
-            · {projectLabel(activity.projectId)}
-          </span>
-        )}
+        {showLabel && <span className="text-sm text-muted-foreground"> · {projectLabel(activity.projectId)}</span>}
       </ItemContent>
       <ItemActions>
         <EditButton onClick={() => setEditing(activity)} />
-        <DeleteButton label={m.list_activities_delete_aria({ name: activity.name })} onClick={() => setConfirming(activity)} />
+        <DeleteButton
+          label={m.list_activities_delete_aria({ name: activity.name })}
+          onClick={() => setConfirming(activity)}
+        />
       </ItemActions>
     </Item>
-  )
+  );
 
   // Three kind-sections share this box, each always rendered. To avoid three identical CTAs
   // (and the duplicate accessible-name that creates) when the account is wholly empty, the
@@ -83,7 +81,7 @@ export function ActivityList() {
           </Fragment>
         ))}
       </ItemGroup>
-    )
+    );
 
   return (
     <ListPage title={m.list_activities_title()} addLabel={m.list_activities_add()} onAdd={() => setCreating(true)}>
@@ -94,7 +92,7 @@ export function ActivityList() {
         internalActivities,
         false,
         m.list_activities_internal_empty(),
-        'internal-activities',
+        "internal-activities",
         activities.length === 0
           ? {
               description: m.list_activities_empty_desc(),
@@ -106,12 +104,12 @@ export function ActivityList() {
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
       </div>
-      {box(repeatableActivities, false, m.list_activities_repeatable_empty(), 'cross-project-activities')}
+      {box(repeatableActivities, false, m.list_activities_repeatable_empty(), "cross-project-activities")}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_project_heading()}</h2>
       </div>
-      {box(projectActivities, true, m.list_activities_project_empty(), 'project-specific-activities')}
+      {box(projectActivities, true, m.list_activities_project_empty(), "project-specific-activities")}
 
       {creating && <ActivityForm onClose={() => setCreating(false)} />}
       {editing && <ActivityForm activity={editing} onClose={() => setEditing(null)} />}
@@ -121,15 +119,15 @@ export function ActivityList() {
           message={m.list_activities_delete_message({ name: confirming.name })}
           onConfirm={() => {
             try {
-              del(confirming.id)
-              setConfirming(null)
+              del(confirming.id);
+              setConfirming(null);
             } catch (error) {
-              setNotice(errorMessage(error), 'error')
+              setNotice(errorMessage(error), "error");
             }
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
     </ListPage>
-  )
+  );
 }

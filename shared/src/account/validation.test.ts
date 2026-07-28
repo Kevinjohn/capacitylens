@@ -20,14 +20,9 @@ const validApplication = {
 };
 
 describe("boundApplicationFailure", () => {
-  it.each([[null], ["application"], [[]]])(
-    "rejects a non-object application binding: %j",
-    (application) => {
-      expect(boundApplicationFailure(application)).toBe(
-        "The account application binding must be an object.",
-      );
-    },
-  );
+  it.each([[null], ["application"], [[]]])("rejects a non-object application binding: %j", (application) => {
+    expect(boundApplicationFailure(application)).toBe("The account application binding must be an object.");
+  });
 
   it("accepts a complete provider-neutral application binding", () => {
     expect(boundApplicationFailure(validApplication)).toBeNull();
@@ -50,9 +45,8 @@ describe("boundApplicationFailure", () => {
         branding: {
           totpIssuer: "a".repeat(MAX_NAME_LENGTH),
           defaultProviderLabel: "a".repeat(MAX_NAME_LENGTH),
-          passwordContextWords: Array.from(
-            { length: MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS },
-            () => "a".repeat(MAX_PASSWORD_LENGTH),
+          passwordContextWords: Array.from({ length: MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS }, () =>
+            "a".repeat(MAX_PASSWORD_LENGTH),
           ),
         },
       }),
@@ -90,10 +84,7 @@ describe("boundApplicationFailure", () => {
   });
 
   it.each([
-    [
-      { ...validApplication, displayName: "a".repeat(MAX_NAME_LENGTH + 1) },
-      "display name",
-    ],
+    [{ ...validApplication, displayName: "a".repeat(MAX_NAME_LENGTH + 1) }, "display name"],
     [
       {
         ...validApplication,
@@ -129,20 +120,14 @@ describe("boundApplicationFailure", () => {
         ...validApplication,
         branding: {
           ...validApplication.branding,
-          passwordContextWords: Array.from(
-            { length: MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS + 1 },
-            () => "word",
-          ),
+          passwordContextWords: Array.from({ length: MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS + 1 }, () => "word"),
         },
       },
       "branding",
     ],
-  ])(
-    "rejects an application binding beyond a branding bound %#",
-    (application, message) => {
-      expect(boundApplicationFailure(application)).toContain(message);
-    },
-  );
+  ])("rejects an application binding beyond a branding bound %#", (application, message) => {
+    expect(boundApplicationFailure(application)).toContain(message);
+  });
 
   it.each([
     [{ ...validApplication, applicationId: "../other" }, "application id"],
@@ -222,10 +207,7 @@ describe("identity input validation", () => {
       },
       "display-name",
     ],
-    [
-      { email: "person@example.com", displayName: "Person", password: "short" },
-      "password-length",
-    ],
+    [{ email: "person@example.com", displayName: "Person", password: "short" }, "password-length"],
     [
       {
         email: "person@example.com",
@@ -250,12 +232,8 @@ describe("identity input validation", () => {
   });
 
   it("accepts the exact email limit and rejects the next code unit", () => {
-    expect(isAccountEmail(`${"a".repeat(MAX_EMAIL_LENGTH - 4)}@x.y`)).toBe(
-      true,
-    );
-    expect(isAccountEmail(`${"a".repeat(MAX_EMAIL_LENGTH - 3)}@x.y`)).toBe(
-      false,
-    );
+    expect(isAccountEmail(`${"a".repeat(MAX_EMAIL_LENGTH - 4)}@x.y`)).toBe(true);
+    expect(isAccountEmail(`${"a".repeat(MAX_EMAIL_LENGTH - 3)}@x.y`)).toBe(false);
   });
 
   it("applies the email limit to UTF-8 bytes", () => {
@@ -266,9 +244,7 @@ describe("identity input validation", () => {
   it("rejects an in-limit address whose normalized form expands beyond the limit", () => {
     const email = `${"İ".repeat(MAX_EMAIL_LENGTH - 2)}@a`;
     expect(email).toHaveLength(MAX_EMAIL_LENGTH);
-    expect(normalizeAccountEmail(email).length).toBeGreaterThan(
-      MAX_EMAIL_LENGTH,
-    );
+    expect(normalizeAccountEmail(email).length).toBeGreaterThan(MAX_EMAIL_LENGTH);
     expect(isAccountEmail(email)).toBe(false);
   });
 

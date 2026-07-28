@@ -2,10 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 interface RequestWorkContext {
   signal: AbortSignal;
-  reportQueueSaturation?: (
-    queue: string,
-    reason: "full" | "wait_timeout",
-  ) => void;
+  reportQueueSaturation?: (queue: string, reason: "full" | "wait_timeout") => void;
 }
 
 const requestAbortContext = new AsyncLocalStorage<RequestWorkContext>();
@@ -22,9 +19,6 @@ export function currentRequestAbortSignal(): AbortSignal | undefined {
   return requestAbortContext.getStore()?.signal;
 }
 
-export function reportCurrentRequestQueueSaturation(
-  queue: string,
-  reason: "full" | "wait_timeout",
-): void {
+export function reportCurrentRequestQueueSaturation(queue: string, reason: "full" | "wait_timeout"): void {
   requestAbortContext.getStore()?.reportQueueSaturation?.(queue, reason);
 }

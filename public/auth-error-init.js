@@ -3,11 +3,7 @@
 // marker too. This external script remains usable under the production no-inline-script CSP.
 (function clearProviderErrorDetail() {
   var url = new URL(window.location.href);
-  if (
-    url.searchParams.get("externalSignInError") !== "1" ||
-    !url.searchParams.has("error")
-  )
-    return;
+  if (url.searchParams.get("externalSignInError") !== "1" || !url.searchParams.has("error")) return;
   url.searchParams.delete("error");
   url.searchParams.delete("error_description");
   url.searchParams.delete("error_uri");

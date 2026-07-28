@@ -80,15 +80,15 @@ For a persistent deployment, start with the [self-hosting guide](docs/self-hosti
 
 ## Stack
 
-| Area | Technology | Purpose |
-| --- | --- | --- |
-| Web app | React, TypeScript, Vite, Tailwind CSS | The schedule and settings UI |
-| Client state | Zustand | UI state, persistence orchestration and undo/redo |
-| Shared domain | TypeScript in `shared/` | Types, validation, migrations and scheduling rules |
-| API and auth | Fastify and Better Auth | HTTP API, sessions and account authorization |
-| Database | Node’s built-in SQLite driver | Persistent server-side source of truth |
-| Verification | Vitest, Testing Library, Playwright and axe | Unit, integration, browser and accessibility checks |
-| Deployment | Docker Compose or Node 24 | Self-hosted production and development environments |
+| Area          | Technology                                  | Purpose                                             |
+| ------------- | ------------------------------------------- | --------------------------------------------------- |
+| Web app       | React, TypeScript, Vite, Tailwind CSS       | The schedule and settings UI                        |
+| Client state  | Zustand                                     | UI state, persistence orchestration and undo/redo   |
+| Shared domain | TypeScript in `shared/`                     | Types, validation, migrations and scheduling rules  |
+| API and auth  | Fastify and Better Auth                     | HTTP API, sessions and account authorization        |
+| Database      | Node’s built-in SQLite driver               | Persistent server-side source of truth              |
+| Verification  | Vitest, Testing Library, Playwright and axe | Unit, integration, browser and accessibility checks |
+| Deployment    | Docker Compose or Node 24                   | Self-hosted production and development environments |
 
 The browser uses the API in normal builds. Only `VITE_CAPACITYLENS_DEMO=1` selects the temporary
 in-memory demo adapter.

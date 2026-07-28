@@ -1,11 +1,11 @@
-import { createHash, randomBytes } from 'node:crypto'
-import { isAccountRole, type Role } from '@capacitylens/shared/account/types'
-import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
-import { parseISOTimestamp } from '@capacitylens/shared/lib/integrity'
-import { revokeResetTokensForUser } from './auth'
-import { bumpSecurityRevision } from './accounts/state'
-import type { Db } from './db'
-import { tx } from './txn'
+import { createHash, randomBytes } from "node:crypto";
+import { isAccountRole, type Role } from "@capacitylens/shared/account/types";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
+import { revokeResetTokensForUser } from "./auth";
+import { bumpSecurityRevision } from "./accounts/state";
+import type { Db } from "./db";
+import { tx } from "./txn";
 
 // Server-CONTROL tables — the user↔account binding (membership + its roles) AND the single-use
 // invite links that mint such memberships (P1.9). These mirror Better Auth's own user/session/
@@ -26,7 +26,7 @@ import { tx } from './txn'
  * here as the invite/lifecycle work (P1.9/P1.10) lands; modelling it as a named union now means
  * those additions are a one-line widening rather than a column-meaning change.
  */
-export type MembershipStatus = 'active'
+export type MembershipStatus = "active";
 
 /**
  * One row of the `account_members` control table: a single login's role for a single account.
@@ -41,14 +41,14 @@ export type MembershipStatus = 'active'
  * CONTROL-table type, never an AppData entity; it never flows through the entity drift path.
  */
 export interface AccountMember {
-  accountId: string
-  userId: string
-  role: Role
-  status: MembershipStatus
-  createdAt: string
+  accountId: string;
+  userId: string;
+  role: Role;
+  status: MembershipStatus;
+  createdAt: string;
 }
 
-const isKnownRole = isAccountRole
+const isKnownRole = isAccountRole;
 
 /**
  * Create the membership control table (and its lookup indexes) if absent. IDEMPOTENT — every
@@ -96,15 +96,15 @@ export function ensureControlTables(db: Db): void {
       usedAt TEXT,                  -- NULL = unused; set once on accept (single-use)
       createdAt TEXT NOT NULL
     );
-  `)
+  `);
   // ADDITIVE column for an ALREADY-CREATED dev DB (the `invites` table is new in P1.9; the `id`
   // column is added in P1.11). A DB that already has the table from P1.9 won't get `id` from the
   // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
   // here — guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
   // can't ALTER-ADD a NOT NULL column to existing rows, so it lands NULLABLE; createInvite always
   // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
-  const legacyPlaintextInvites = inviteHasColumn(db, 'token')
-  if (!legacyPlaintextInvites && !inviteHasColumn(db, 'id')) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`)
+  const legacyPlaintextInvites = inviteHasColumn(db, "token");
+  if (!legacyPlaintextInvites && !inviteHasColumn(db, "id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
 
   // Migrate the original schema, which stored bearer tokens verbatim as its primary key. Rebuild
   // rather than retaining the old column: leaving plaintext beside a new digest would not improve
@@ -112,19 +112,19 @@ export function ensureControlTables(db: Db): void {
   // installed, so every legacy invite remains independently revocable.
   if (legacyPlaintextInvites) {
     tx(db, () => {
-      if (!inviteHasColumn(db, 'id')) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`)
+      if (!inviteHasColumn(db, "id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
       // A previous interrupted pre-fix migration may have left this scratch table behind.
-      db.exec(`DROP TABLE IF EXISTS invites_new`)
-      const rows = db.prepare(`SELECT token, id FROM invites`).all() as Array<{ token: string; id: string | null }>
-      const ids = new Set<string>()
+      db.exec(`DROP TABLE IF EXISTS invites_new`);
+      const rows = db.prepare(`SELECT token, id FROM invites`).all() as Array<{ token: string; id: string | null }>;
+      const ids = new Set<string>();
       const replacements = rows.map((row) => {
-        let id = row.id
-        while (!id || ids.has(id)) id = newInviteId()
-        ids.add(id)
-        return { token: row.token, id }
-      })
-      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE token = ?`)
-      for (const row of replacements) updateId.run(row.id, row.token)
+        let id = row.id;
+        while (!id || ids.has(id)) id = newInviteId();
+        ids.add(id);
+        return { token: row.token, id };
+      });
+      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE token = ?`);
+      for (const row of replacements) updateId.run(row.id, row.token);
       db.exec(`
         CREATE TABLE invites_new (
           tokenHash TEXT NOT NULL PRIMARY KEY,
@@ -136,30 +136,46 @@ export function ensureControlTables(db: Db): void {
           usedAt TEXT,
           createdAt TEXT NOT NULL
         )
-      `)
-      const oldRows = db.prepare(`SELECT token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites`).all() as unknown as Array<Invite>
-      const insert = db.prepare(`INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      for (const row of oldRows) insert.run(inviteTokenHash(row.token), row.id, row.accountId, row.role, row.preauthEmail, row.expiresAt, row.usedAt, row.createdAt)
-      db.exec(`DROP TABLE invites; ALTER TABLE invites_new RENAME TO invites;`)
-    })
+      `);
+      const oldRows = db
+        .prepare(`SELECT token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites`)
+        .all() as unknown as Array<Invite>;
+      const insert = db.prepare(
+        `INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      );
+      for (const row of oldRows)
+        insert.run(
+          inviteTokenHash(row.token),
+          row.id,
+          row.accountId,
+          row.role,
+          row.preauthEmail,
+          row.expiresAt,
+          row.usedAt,
+          row.createdAt,
+        );
+      db.exec(`DROP TABLE invites; ALTER TABLE invites_new RENAME TO invites;`);
+    });
   }
-  const idColumn = (db.prepare(`PRAGMA table_info(invites)`).all() as Array<{
-    name: string
-    notnull: number
-  }>).find((column) => column.name === 'id')
+  const idColumn = (
+    db.prepare(`PRAGMA table_info(invites)`).all() as Array<{
+      name: string;
+      notnull: number;
+    }>
+  ).find((column) => column.name === "id");
   if (!legacyPlaintextInvites && idColumn?.notnull !== 1) {
     tx(db, () => {
       const rows = db.prepare(`SELECT tokenHash, id FROM invites`).all() as Array<{
-        tokenHash: string
-        id: string | null
-      }>
-      const ids = new Set<string>()
-      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE tokenHash = ?`)
+        tokenHash: string;
+        id: string | null;
+      }>;
+      const ids = new Set<string>();
+      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE tokenHash = ?`);
       for (const row of rows) {
-        let id = row.id
-        while (!id || ids.has(id)) id = newInviteId()
-        ids.add(id)
-        updateId.run(id, row.tokenHash)
+        let id = row.id;
+        while (!id || ids.has(id)) id = newInviteId();
+        ids.add(id);
+        updateId.run(id, row.tokenHash);
       }
       db.exec(`
         DROP TABLE IF EXISTS invites_new;
@@ -177,10 +193,12 @@ export function ensureControlTables(db: Db): void {
           SELECT tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites;
         DROP TABLE invites;
         ALTER TABLE invites_new RENAME TO invites;
-      `)
-    })
+      `);
+    });
   }
-  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);`)
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);`,
+  );
 }
 
 /** Verify the app-owned control plane after migration. These tables deliberately sit outside
@@ -205,109 +223,109 @@ export function assertControlTablesCurrent(db: Db): void {
       usedAt: { notNull: false, primaryKey: 0 },
       createdAt: { notNull: true, primaryKey: 0 },
     },
-  }
-  const problems: string[] = []
+  };
+  const problems: string[] = [];
   for (const [table, expected] of Object.entries(expectedColumns)) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
-      name: string
-      notnull: number
-      pk: number
-      type: string
-    }>
-    const live = new Map(columns.map((column) => [column.name, column]))
+      name: string;
+      notnull: number;
+      pk: number;
+      type: string;
+    }>;
+    const live = new Map(columns.map((column) => [column.name, column]));
     for (const [name, definition] of Object.entries(expected)) {
-      if (!live.has(name)) problems.push(`missing ${table}.${name}`)
+      if (!live.has(name)) problems.push(`missing ${table}.${name}`);
       else {
-        const column = live.get(name)!
+        const column = live.get(name)!;
         if ((column.notnull === 1) !== definition.notNull) {
-          problems.push(`${table}.${name} is ${column.notnull === 1 ? 'NOT NULL' : 'nullable'} (expected ${definition.notNull ? 'NOT NULL' : 'nullable'})`)
+          problems.push(
+            `${table}.${name} is ${column.notnull === 1 ? "NOT NULL" : "nullable"} (expected ${definition.notNull ? "NOT NULL" : "nullable"})`,
+          );
         }
-        if (column.type.toUpperCase() !== 'TEXT') {
-          problems.push(`${table}.${name} declared type is ${column.type || '(empty)'} (expected TEXT)`)
+        if (column.type.toUpperCase() !== "TEXT") {
+          problems.push(`${table}.${name} declared type is ${column.type || "(empty)"} (expected TEXT)`);
         }
       }
     }
     const actualPrimaryKey = columns
       .filter((column) => column.pk > 0)
       .sort((left, right) => left.pk - right.pk)
-      .map((column) => column.name)
+      .map((column) => column.name);
     const expectedPrimaryKey = Object.entries(expected)
       .filter(([, definition]) => definition.primaryKey > 0)
       .sort((left, right) => left[1].primaryKey - right[1].primaryKey)
-      .map(([name]) => name)
-    if (actualPrimaryKey.join(',') !== expectedPrimaryKey.join(',')) {
+      .map(([name]) => name);
+    if (actualPrimaryKey.join(",") !== expectedPrimaryKey.join(",")) {
       problems.push(
-        `${table} primary-key mismatch: got (${actualPrimaryKey.join(', ')}), expected (${expectedPrimaryKey.join(', ')})`,
-      )
+        `${table} primary-key mismatch: got (${actualPrimaryKey.join(", ")}), expected (${expectedPrimaryKey.join(", ")})`,
+      );
     }
   }
 
   const expectedIndexes: Record<string, Record<string, { unique: boolean; columns: string[] }>> = {
     account_members: {
-      idx_account_members_userId: { unique: false, columns: ['userId'] },
-      idx_account_members_accountId: { unique: false, columns: ['accountId'] },
+      idx_account_members_userId: { unique: false, columns: ["userId"] },
+      idx_account_members_accountId: { unique: false, columns: ["accountId"] },
     },
     invites: {
-      idx_invites_id: { unique: true, columns: ['id'] },
-      idx_invites_accountId: { unique: false, columns: ['accountId'] },
+      idx_invites_id: { unique: true, columns: ["id"] },
+      idx_invites_accountId: { unique: false, columns: ["accountId"] },
     },
-  }
+  };
   for (const [table, expected] of Object.entries(expectedIndexes)) {
     const live = new Map(
-      (db.prepare(`PRAGMA index_list(${table})`).all() as Array<{
-        name: string
-        unique: number
-        origin: string
-        partial: number
-      }>).map(
-        (index) => [index.name, index],
-      ),
-    )
+      (
+        db.prepare(`PRAGMA index_list(${table})`).all() as Array<{
+          name: string;
+          unique: number;
+          origin: string;
+          partial: number;
+        }>
+      ).map((index) => [index.name, index]),
+    );
     for (const [name, definition] of Object.entries(expected)) {
-      if (!live.has(name)) problems.push(`missing index ${name}`)
+      if (!live.has(name)) problems.push(`missing index ${name}`);
       else {
-        const index = live.get(name)!
-        if (
-          (index.unique === 1) !== definition.unique ||
-          index.origin !== 'c' ||
-          index.partial !== 0
-        ) {
-          problems.push(`index ${name} metadata mismatch`)
+        const index = live.get(name)!;
+        if ((index.unique === 1) !== definition.unique || index.origin !== "c" || index.partial !== 0) {
+          problems.push(`index ${name} metadata mismatch`);
         }
-        const keys = (db.prepare(`PRAGMA index_xinfo("${name}")`).all() as Array<{
-          name: string | null
-          desc: number
-          coll: string
-          key: number
-        }>).filter((column) => column.key === 1)
+        const keys = (
+          db.prepare(`PRAGMA index_xinfo("${name}")`).all() as Array<{
+            name: string | null;
+            desc: number;
+            coll: string;
+            key: number;
+          }>
+        ).filter((column) => column.key === 1);
         if (
           keys.length !== definition.columns.length ||
-          keys.some((column, index) =>
-            column.name !== definition.columns[index] ||
-            column.desc !== 0 ||
-            column.coll !== 'BINARY')
+          keys.some(
+            (column, index) =>
+              column.name !== definition.columns[index] || column.desc !== 0 || column.coll !== "BINARY",
+          )
         ) {
-          problems.push(`index ${name} does not cover exactly ${table}(${definition.columns.join(', ')})`)
+          problems.push(`index ${name} does not cover exactly ${table}(${definition.columns.join(", ")})`);
         }
       }
     }
   }
 
   if (problems.length > 0) {
-    throw new Error(`DB control schema is behind the current model — ${problems.join('; ')}.`)
+    throw new Error(`DB control schema is behind the current model — ${problems.join("; ")}.`);
   }
 }
 
 /** One-way lookup key for an invite bearer. Domain separation prevents cross-protocol reuse. */
 export function inviteTokenHash(token: string): string {
-  return createHash('sha256').update('capacitylens-invite\0').update(token).digest('base64url')
+  return createHash("sha256").update("capacitylens-invite\0").update(token).digest("base64url");
 }
 
 /** Does the `invites` table already carry `column`? Used to gate the additive ALTER above for a dev
  *  DB created under P1.9 (before the `id` column existed). Mirrors schema.ts's PRAGMA-based check. */
 function inviteHasColumn(db: Db, column: string): boolean {
-  const cols = db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>
-  return cols.some((c) => c.name === column)
+  const cols = db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>;
+  return cols.some((c) => c.name === column);
 }
 
 /**
@@ -329,14 +347,14 @@ export function upsertMember(db: Db, member: AccountMember): void {
   if (!isKnownRole(member.role)) {
     throw new Error(
       `upsertMember: unknown role ${JSON.stringify(member.role)} — expected owner, admin, editor, or viewer.`,
-    )
+    );
   }
   db.prepare(
     `INSERT INTO account_members (accountId, userId, role, status, createdAt)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(accountId, userId) DO UPDATE SET
        role = excluded.role, status = excluded.status`,
-  ).run(member.accountId, member.userId, member.role, member.status, member.createdAt)
+  ).run(member.accountId, member.userId, member.role, member.status, member.createdAt);
   // P1.18 (TOCTOU close): a password-reset link is authorized at MINT time against the user's
   // membership snapshot THEN — so ANY membership write for this user (a role change, becoming the
   // owner of a new org, even a lateral move) invalidates that
@@ -346,8 +364,8 @@ export function upsertMember(db: Db, member: AccountMember): void {
   // accept, POST /api/orgs) can forget it — the sprinkle-at-each-callsite approach missed two.
   // No-op when the user holds no reset token (the common case: fresh membership) or in OFF mode
   // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
-  revokeResetTokensForUser(db, member.userId)
-  bumpSecurityRevision(db, member.userId)
+  revokeResetTokensForUser(db, member.userId);
+  bumpSecurityRevision(db, member.userId);
 }
 
 /**
@@ -362,18 +380,22 @@ export function upsertMember(db: Db, member: AccountMember): void {
 export function getMemberRole(db: Db, accountId: string, userId: string): Role | null {
   const row = db
     .prepare(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`)
-    .get(accountId, userId) as { role?: string } | undefined
-  return isKnownRole(row?.role) ? row.role : null
+    .get(accountId, userId) as { role?: string } | undefined;
+  return isKnownRole(row?.role) ? row.role : null;
 }
 
 /** Security-sensitive role lookup. Legacy control rows may carry a non-active status; those rows
  * never confer application or administrative authority and must be indistinguishable from absence. */
 export function getActiveMemberRole(db: Db, accountId: string, userId: string): Role | null {
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT role FROM account_members
      WHERE accountId = ? AND userId = ? AND status = 'active'
-  `).get(accountId, userId) as { role?: string } | undefined
-  return isKnownRole(row?.role) ? row.role : null
+  `,
+    )
+    .get(accountId, userId) as { role?: string } | undefined;
+  return isKnownRole(row?.role) ? row.role : null;
 }
 
 /**
@@ -386,16 +408,14 @@ export function getActiveMemberRole(db: Db, accountId: string, userId: string): 
  */
 export function listMembershipsForUser(db: Db, userId: string): AccountMember[] {
   const rows = db
-    .prepare(
-      `SELECT accountId, userId, role, status, createdAt FROM account_members WHERE userId = ?`,
-    )
+    .prepare(`SELECT accountId, userId, role, status, createdAt FROM account_members WHERE userId = ?`)
     .all(userId) as Array<{
-    accountId: string
-    userId: string
-    role: string
-    status: string
-    createdAt: string
-  }>
+    accountId: string;
+    userId: string;
+    role: string;
+    status: string;
+    createdAt: string;
+  }>;
   // Map rows explicitly (mirrors rowCodec's row→object discipline) so the returned objects carry
   // the precise Role/MembershipStatus unions, not the raw TEXT columns. A row whose role is somehow
   // not a known Role is a control-table integrity fault (every write goes through upsertMember's
@@ -404,7 +424,7 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
     if (!isKnownRole(r.role)) {
       throw new Error(
         `listMembershipsForUser: stored role ${JSON.stringify(r.role)} for (${r.accountId}, ${r.userId}) is not a known role — control table corrupted.`,
-      )
+      );
     }
     return {
       accountId: r.accountId,
@@ -412,8 +432,8 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
       role: r.role,
       status: r.status as MembershipStatus,
       createdAt: r.createdAt,
-    }
-  })
+    };
+  });
 }
 
 /**
@@ -436,17 +456,17 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
        WHERE accountId = ? ORDER BY createdAt, userId`,
     )
     .all(accountId) as Array<{
-    accountId: string
-    userId: string
-    role: string
-    status: string
-    createdAt: string
-  }>
+    accountId: string;
+    userId: string;
+    role: string;
+    status: string;
+    createdAt: string;
+  }>;
   return rows.map((r) => {
     if (!isKnownRole(r.role)) {
       throw new Error(
         `listMembersForAccount: stored role ${JSON.stringify(r.role)} for (${r.accountId}, ${r.userId}) is not a known role — control table corrupted.`,
-      )
+      );
     }
     return {
       accountId: r.accountId,
@@ -454,14 +474,14 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
       role: r.role,
       status: r.status as MembershipStatus,
       createdAt: r.createdAt,
-    }
-  })
+    };
+  });
 }
 
 /** Physical uniqueness backstop for the exactly-one-active-Owner product rule. The partial index
  * permits any number of non-owner memberships while allowing at most one active Owner per account;
  * the post-migration assertion below independently rejects a member-bearing account with no Owner. */
-export const SINGLE_OWNER_INDEX = 'idx_account_members_single_active_owner'
+export const SINGLE_OWNER_INDEX = "idx_account_members_single_active_owner";
 
 /**
  * Upgrade the control plane to the exactly-one-Owner model.
@@ -496,39 +516,47 @@ export function migrateSingleOwnerControlPlaneV10(db: Db): void {
       CREATE UNIQUE INDEX IF NOT EXISTS ${SINGLE_OWNER_INDEX}
         ON account_members(accountId)
         WHERE role = 'owner' AND status = 'active';
-    `)
-  })
+    `);
+  });
 }
 
 /** Historical v10 assertion. Keep its semantics stable: v10 enforced at most one active Owner and
  * removed live Owner invites, while v11 adds the zero-Owner half of the invariant. */
 export function assertSingleOwnerControlPlaneV10(db: Db): void {
-  const index = (db.prepare(`PRAGMA index_list(account_members)`).all() as Array<{
-    name: string
-    unique: number
-    partial: number
-  }>).find((candidate) => candidate.name === SINGLE_OWNER_INDEX)
+  const index = (
+    db.prepare(`PRAGMA index_list(account_members)`).all() as Array<{
+      name: string;
+      unique: number;
+      partial: number;
+    }>
+  ).find((candidate) => candidate.name === SINGLE_OWNER_INDEX);
   if (!index || index.unique !== 1 || index.partial !== 1) {
-    throw new Error(`DB control schema is behind the current model — missing partial unique index ${SINGLE_OWNER_INDEX}.`)
+    throw new Error(
+      `DB control schema is behind the current model — missing partial unique index ${SINGLE_OWNER_INDEX}.`,
+    );
   }
-  const duplicate = db.prepare(`
+  const duplicate = db
+    .prepare(
+      `
     SELECT accountId, COUNT(*) AS owners
       FROM account_members
      WHERE role = 'owner' AND status = 'active'
      GROUP BY accountId
     HAVING COUNT(*) > 1
      LIMIT 1
-  `).get() as { accountId: string; owners: number } | undefined
+  `,
+    )
+    .get() as { accountId: string; owners: number } | undefined;
   if (duplicate) {
     throw new Error(
       `DB control data violates the exactly-one-Owner invariant — ${duplicate.accountId} has ${duplicate.owners} active Owners.`,
-    )
+    );
   }
-  const pendingOwnerInvite = db.prepare(
-    `SELECT id FROM invites WHERE role = 'owner' AND usedAt IS NULL LIMIT 1`,
-  ).get() as { id: string } | undefined
+  const pendingOwnerInvite = db
+    .prepare(`SELECT id FROM invites WHERE role = 'owner' AND usedAt IS NULL LIMIT 1`)
+    .get() as { id: string } | undefined;
   if (pendingOwnerInvite) {
-    throw new Error('DB control data contains an unused Owner invite; ownership must be transferred, never invited.')
+    throw new Error("DB control data contains an unused Owner invite; ownership must be transferred, never invited.");
   }
 }
 
@@ -541,7 +569,7 @@ export function assertSingleOwnerControlPlaneV10(db: Db): void {
  * integer for that row's `role`.
  */
 const roleTierSql = (alias: string): string =>
-  `CASE ${alias}.role WHEN 'owner' THEN 3 WHEN 'admin' THEN 2 WHEN 'editor' THEN 1 WHEN 'viewer' THEN 0 ELSE -1 END`
+  `CASE ${alias}.role WHEN 'owner' THEN 3 WHEN 'admin' THEN 2 WHEN 'editor' THEN 1 WHEN 'viewer' THEN 0 ELSE -1 END`;
 
 /**
  * Loudly record ONE v11 ownerless-account promotion. There is no request-scoped audit sink or
@@ -557,40 +585,40 @@ const roleTierSql = (alias: string): string =>
  * @param promotedFrom  The member's role BEFORE promotion (admin | editor | viewer).
  */
 function reportOwnerlessPromotion(accountId: string, userId: string, promotedFrom: Role): void {
-  const belowAdmin = promotedFrom === 'editor' || promotedFrom === 'viewer'
+  const belowAdmin = promotedFrom === "editor" || promotedFrom === "viewer";
   const record = JSON.stringify({
-    type: 'capacitylens.security',
-    event: 'ownerless-owner-promotion',
-    outcome: 'promoted',
-    migration: 'v11',
+    type: "capacitylens.security",
+    event: "ownerless-owner-promotion",
+    outcome: "promoted",
+    migration: "v11",
     accountId,
     userId,
     promotedFromRole: promotedFrom,
     belowAdmin,
-  })
+  });
   if (belowAdmin) {
     // No admin OR editor... (viewer) / no admin (editor) existed: a member below admin now holds full
     // Owner authority. Loudest surface — an operator should review this promotion.
     console.error(
-      `capacitylens-server: SECURITY — ownerless account ${accountId} had no admin${promotedFrom === 'viewer' ? ' or editor' : ''}; promoted ${promotedFrom} member ${userId} to Owner (below-admin elevation). ${record}`,
-    )
+      `capacitylens-server: SECURITY — ownerless account ${accountId} had no admin${promotedFrom === "viewer" ? " or editor" : ""}; promoted ${promotedFrom} member ${userId} to Owner (below-admin elevation). ${record}`,
+    );
   } else {
     console.warn(
       `capacitylens-server: ownerless account ${accountId} repaired — promoted ${promotedFrom} member ${userId} to Owner. ${record}`,
-    )
+    );
   }
 }
 
 export interface OwnerlessPromotionV11 {
-  accountId: string
-  userId: string
-  promotedFrom: Role
+  accountId: string;
+  userId: string;
+  promotedFrom: Role;
 }
 
 /** Emit v11's security outcomes only after the migration runner has committed their writes. */
 export function reportOwnerlessPromotionsV11(promotions: readonly OwnerlessPromotionV11[]): void {
   for (const promotion of promotions) {
-    reportOwnerlessPromotion(promotion.accountId, promotion.userId, promotion.promotedFrom)
+    reportOwnerlessPromotion(promotion.accountId, promotion.userId, promotion.promotedFrom);
   }
 }
 
@@ -623,7 +651,9 @@ export function migrateOwnerlessControlPlaneV11(db: Db): OwnerlessPromotionV11[]
     // where "outranks" = strictly higher role tier, OR the same tier but an earlier membership. This
     // extends the previous earliest-membership NOT EXISTS with the tier comparison, so exactly one row
     // per ownerless account qualifies (userId is unique per account, so the tie-break is total).
-    const targets = db.prepare(`
+    const targets = db
+      .prepare(
+        `
       SELECT promoted.accountId AS accountId, promoted.userId AS userId, promoted.role AS role
         FROM account_members AS promoted
        WHERE promoted.status = 'active'
@@ -640,9 +670,9 @@ export function migrateOwnerlessControlPlaneV11(db: Db): OwnerlessPromotionV11[]
             WHERE better_member.accountId = promoted.accountId
               AND better_member.status = 'active'
               AND (
-                ${roleTierSql('better_member')} > ${roleTierSql('promoted')}
+                ${roleTierSql("better_member")} > ${roleTierSql("promoted")}
                 OR (
-                  ${roleTierSql('better_member')} = ${roleTierSql('promoted')}
+                  ${roleTierSql("better_member")} = ${roleTierSql("promoted")}
                   AND (
                     better_member.createdAt < promoted.createdAt OR
                     (better_member.createdAt = promoted.createdAt AND better_member.userId < promoted.userId)
@@ -650,25 +680,27 @@ export function migrateOwnerlessControlPlaneV11(db: Db): OwnerlessPromotionV11[]
                 )
               )
          );
-    `).all() as Array<{ accountId: string; userId: string; role: string }>
+    `,
+      )
+      .all() as Array<{ accountId: string; userId: string; role: string }>;
 
     const promote = db.prepare(
       `UPDATE account_members SET role = 'owner' WHERE accountId = ? AND userId = ? AND status = 'active'`,
-    )
-    const promotions: OwnerlessPromotionV11[] = []
+    );
+    const promotions: OwnerlessPromotionV11[] = [];
     for (const target of targets) {
-      promote.run(target.accountId, target.userId)
+      promote.run(target.accountId, target.userId);
       // A stored role that is not a known Role is control-table corruption (every write goes through
       // upsertMember's guard) — fail LOUD rather than mis-report the promotion (mirrors the readers).
       if (!isKnownRole(target.role)) {
         throw new Error(
           `migrateOwnerlessControlPlaneV11: stored role ${JSON.stringify(target.role)} for (${target.accountId}, ${target.userId}) is not a known role — control table corrupted.`,
-        )
+        );
       }
-      promotions.push({ accountId: target.accountId, userId: target.userId, promotedFrom: target.role })
+      promotions.push({ accountId: target.accountId, userId: target.userId, promotedFrom: target.role });
     }
-    return promotions
-  })
+    return promotions;
+  });
 }
 
 /** Migration v12 closes the reset-ceremony gap in historical v11 databases. V11 promoted the
@@ -677,13 +709,17 @@ export function migrateOwnerlessControlPlaneV11(db: Db): OwnerlessPromotionV11[]
  * anyone v11 promoted on an already-upgraded database and is harmless for pre-existing Owners. */
 export function migrateOwnerResetCeremoniesV12(db: Db): void {
   tx(db, () => {
-    const owners = db.prepare(`
+    const owners = db
+      .prepare(
+        `
       SELECT DISTINCT userId
         FROM account_members
        WHERE role = 'owner' AND status = 'active'
-    `).all() as Array<{ userId: string }>
-    for (const { userId } of owners) revokeResetTokensForUser(db, userId)
-  })
+    `,
+      )
+      .all() as Array<{ userId: string }>;
+    for (const { userId } of owners) revokeResetTokensForUser(db, userId);
+  });
 }
 
 /** Migration v14 closes the reset-ceremony gap v12 left for DEMOTED identities. The v10-era owner
@@ -699,50 +735,59 @@ export function migrateOwnerResetCeremoniesV12(db: Db): void {
  * no outstanding ceremony. Under-revoking is the vulnerability. Membership rows are never touched. */
 export function migrateMemberResetCeremoniesV14(db: Db): void {
   tx(db, () => {
-    const members = db.prepare(`
+    const members = db
+      .prepare(
+        `
       SELECT DISTINCT userId
         FROM account_members
        WHERE status = 'active'
-    `).all() as Array<{ userId: string }>
-    for (const { userId } of members) revokeResetTokensForUser(db, userId)
-  })
+    `,
+      )
+      .all() as Array<{ userId: string }>;
+    for (const { userId } of members) revokeResetTokensForUser(db, userId);
+  });
 }
 
 /** Assert the current control-plane invariant after every database open. Kept separate from
  * assertControlTablesCurrent because migration v8 intentionally calls that historical assertion
  * before the owner migrations have run. */
 export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
-  const columns = db.prepare(`PRAGMA index_info(${SINGLE_OWNER_INDEX})`).all() as Array<{ name: string }>
-  const definition = db.prepare(
-    `SELECT tbl_name AS tableName, sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
-  ).get(SINGLE_OWNER_INDEX) as { tableName: string; sql: string | null } | undefined
-  const normalizeSql = (sql: string): string => sql
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .replace(/\s*([(),=])\s*/g, '$1')
-    .replace(/;$/, '')
-    .trim()
+  const columns = db.prepare(`PRAGMA index_info(${SINGLE_OWNER_INDEX})`).all() as Array<{ name: string }>;
+  const definition = db
+    .prepare(`SELECT tbl_name AS tableName, sql FROM sqlite_master WHERE type = 'index' AND name = ?`)
+    .get(SINGLE_OWNER_INDEX) as { tableName: string; sql: string | null } | undefined;
+  const normalizeSql = (sql: string): string =>
+    sql
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/\s*([(),=])\s*/g, "$1")
+      .replace(/;$/, "")
+      .trim();
   const expectedDefinition = normalizeSql(
     `CREATE UNIQUE INDEX ${SINGLE_OWNER_INDEX} ON account_members(accountId) WHERE role = 'owner' AND status = 'active'`,
-  )
+  );
   if (
-    columns.length !== 1 || columns[0]?.name !== 'accountId' ||
-    definition?.tableName !== 'account_members' || !definition.sql ||
+    columns.length !== 1 ||
+    columns[0]?.name !== "accountId" ||
+    definition?.tableName !== "account_members" ||
+    !definition.sql ||
     normalizeSql(definition.sql) !== expectedDefinition
   ) {
-    throw new Error(`DB control schema has an invalid definition for partial unique index ${SINGLE_OWNER_INDEX}.`)
+    throw new Error(`DB control schema has an invalid definition for partial unique index ${SINGLE_OWNER_INDEX}.`);
   }
 
-  const pendingOwnerInvite = db.prepare(
-    `SELECT id FROM invites WHERE role = 'owner' AND usedAt IS NULL LIMIT 1`,
-  ).get() as { id: string } | undefined
+  const pendingOwnerInvite = db
+    .prepare(`SELECT id FROM invites WHERE role = 'owner' AND usedAt IS NULL LIMIT 1`)
+    .get() as { id: string } | undefined;
   if (pendingOwnerInvite) {
-    throw new Error('DB control data contains an unused Owner invite; ownership must be transferred, never invited.')
+    throw new Error("DB control data contains an unused Owner invite; ownership must be transferred, never invited.");
   }
 
   // Auth-off demo datasets intentionally have no membership rows. Once an account has any active
   // member, however, it must have exactly one active Owner — zero and co-owner states both fail.
-  const invalidAccount = db.prepare(`
+  const invalidAccount = db
+    .prepare(
+      `
     SELECT accountId,
            SUM(CASE WHEN role = 'owner' THEN 1 ELSE 0 END) AS owners
       FROM account_members
@@ -750,11 +795,13 @@ export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
      GROUP BY accountId
     HAVING SUM(CASE WHEN role = 'owner' THEN 1 ELSE 0 END) <> 1
      LIMIT 1
-  `).get() as { accountId: string; owners: number } | undefined
+  `,
+    )
+    .get() as { accountId: string; owners: number } | undefined;
   if (invalidAccount) {
     throw new Error(
       `DB control data violates the exactly-one-Owner invariant — ${invalidAccount.accountId} has ${invalidAccount.owners} active Owners.`,
-    )
+    );
   }
 }
 
@@ -768,12 +815,10 @@ export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
  * @param userId     The login whose membership to remove.
  */
 export function removeMember(db: Db, accountId: string, userId: string): void {
-  const result = db.prepare(
-    `DELETE FROM account_members WHERE accountId = ? AND userId = ?`,
-  ).run(accountId, userId)
+  const result = db.prepare(`DELETE FROM account_members WHERE accountId = ? AND userId = ?`).run(accountId, userId);
   if (result.changes > 0) {
-    revokeResetTokensForUser(db, userId)
-    bumpSecurityRevision(db, userId)
+    revokeResetTokensForUser(db, userId);
+    bumpSecurityRevision(db, userId);
   }
 }
 
@@ -791,13 +836,13 @@ export function removeMember(db: Db, accountId: string, userId: string): void {
  * @param accountId  The account whose memberships to remove entirely.
  */
 export function removeAllMembersForAccount(db: Db, accountId: string): void {
-  const affected = db.prepare(
-    `SELECT DISTINCT userId FROM account_members WHERE accountId = ?`,
-  ).all(accountId) as Array<{ userId: string }>
-  db.prepare(`DELETE FROM account_members WHERE accountId = ?`).run(accountId)
+  const affected = db
+    .prepare(`SELECT DISTINCT userId FROM account_members WHERE accountId = ?`)
+    .all(accountId) as Array<{ userId: string }>;
+  db.prepare(`DELETE FROM account_members WHERE accountId = ?`).run(accountId);
   for (const { userId } of affected) {
-    revokeResetTokensForUser(db, userId)
-    bumpSecurityRevision(db, userId)
+    revokeResetTokensForUser(db, userId);
+    bumpSecurityRevision(db, userId);
   }
 }
 
@@ -815,7 +860,7 @@ export function removeAllMembersForAccount(db: Db, accountId: string): void {
  * @param accountId  The account whose invites to revoke entirely.
  */
 export function removeAllInvitesForAccount(db: Db, accountId: string): void {
-  db.prepare(`DELETE FROM invites WHERE accountId = ?`).run(accountId)
+  db.prepare(`DELETE FROM invites WHERE accountId = ?`).run(accountId);
 }
 
 /**
@@ -839,14 +884,14 @@ export function removeAllInvitesForAccount(db: Db, accountId: string): void {
  * This is a CONTROL-table type, never an AppData entity; it never flows through the entity drift path.
  */
 export interface Invite {
-  token: string
-  id: string
-  accountId: string
-  role: Role
-  preauthEmail: string | null
-  expiresAt: string
-  usedAt: string | null
-  createdAt: string
+  token: string;
+  id: string;
+  accountId: string;
+  role: Role;
+  preauthEmail: string | null;
+  expiresAt: string;
+  usedAt: string | null;
+  createdAt: string;
 }
 
 /**
@@ -863,7 +908,7 @@ export function createInvite(db: Db, invite: Invite): void {
   if (!isKnownRole(invite.role)) {
     throw new Error(
       `createInvite: unknown role ${JSON.stringify(invite.role)} — expected owner, admin, editor, or viewer.`,
-    )
+    );
   }
   db.prepare(
     `INSERT INTO invites (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
@@ -877,7 +922,7 @@ export function createInvite(db: Db, invite: Invite): void {
     invite.expiresAt,
     invite.usedAt,
     invite.createdAt,
-  )
+  );
 }
 
 /**
@@ -889,7 +934,7 @@ export function createInvite(db: Db, invite: Invite): void {
  * @returns A base64url-encoded random id for an invite row.
  */
 export function newInviteId(): string {
-  return randomBytes(16).toString('base64url')
+  return randomBytes(16).toString("base64url");
 }
 
 /**
@@ -902,21 +947,19 @@ export function newInviteId(): string {
  */
 export function getInvite(db: Db, token: string): Invite | null {
   const row = db
-    .prepare(
-      `SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites WHERE tokenHash = ?`,
-    )
+    .prepare(`SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites WHERE tokenHash = ?`)
     .get(inviteTokenHash(token)) as
     | {
-        id: string
-        accountId: string
-        role: string
-        preauthEmail: string | null
-        expiresAt: string
-        usedAt: string | null
-        createdAt: string
+        id: string;
+        accountId: string;
+        role: string;
+        preauthEmail: string | null;
+        expiresAt: string;
+        usedAt: string | null;
+        createdAt: string;
       }
-    | undefined
-  if (!row) return null
+    | undefined;
+  if (!row) return null;
   // Map the row explicitly (mirrors upsertMember/listMembershipsForUser's row→object discipline) so
   // the returned object carries the precise Role union, not the raw TEXT column. A stored role that
   // is not a known Role is a control-table integrity fault (every write goes through createInvite's
@@ -924,7 +967,7 @@ export function getInvite(db: Db, token: string): Invite | null {
   if (!isKnownRole(row.role)) {
     throw new Error(
       `getInvite: stored role ${JSON.stringify(row.role)} for token is not a known role — control table corrupted.`,
-    )
+    );
   }
   return {
     token,
@@ -937,7 +980,7 @@ export function getInvite(db: Db, token: string): Invite | null {
     expiresAt: row.expiresAt,
     usedAt: row.usedAt ?? null,
     createdAt: row.createdAt,
-  }
+  };
 }
 
 /**
@@ -954,7 +997,7 @@ export function getInvite(db: Db, token: string): Invite | null {
  * @returns The trimmed, lowercased form used for storage and comparison.
  */
 export function normalizeEmail(email: string): string {
-  return normalizeAccountEmail(email)
+  return normalizeAccountEmail(email);
 }
 
 /**
@@ -984,11 +1027,11 @@ export function preauthInviteAllows(
   user: { email: string; emailVerified: boolean },
   passwordMode = false,
 ): boolean {
-  if (preauthEmail === null) return true // link invite: any signed-in caller (P1.9)
+  if (preauthEmail === null) return true; // link invite: any signed-in caller (P1.9)
   // Password deployments have no outbound verification service: possession of the
   // email-addressed invite is their verification ceremony. SSO still requires the IdP's verified
   // email claim. Both sides are normalized before the exact comparison.
-  return (passwordMode || user.emailVerified === true) && normalizeEmail(user.email) === preauthEmail
+  return (passwordMode || user.emailVerified === true) && normalizeEmail(user.email) === preauthEmail;
 }
 
 /**
@@ -1003,7 +1046,7 @@ export function preauthInviteAllows(
  * @returns `true` if it has a single `@` with non-empty local + domain parts.
  */
 export function looksLikeEmail(email: string): boolean {
-  return isAccountEmail(email)
+  return isAccountEmail(email);
 }
 
 /**
@@ -1020,15 +1063,16 @@ export function looksLikeEmail(email: string): boolean {
  */
 export class InviteAlreadyUsedError extends Error {
   constructor() {
-    super('This invite has already been used.')
-    this.name = 'InviteAlreadyUsedError'
+    super("This invite has already been used.");
+    this.name = "InviteAlreadyUsedError";
   }
 }
 
 export function markInviteUsed(db: Db, token: string, usedAt: string): void {
-  const result = db.prepare(`UPDATE invites SET usedAt = ? WHERE tokenHash = ? AND usedAt IS NULL`)
-    .run(usedAt, inviteTokenHash(token))
-  if (result.changes !== 1) throw new InviteAlreadyUsedError()
+  const result = db
+    .prepare(`UPDATE invites SET usedAt = ? WHERE tokenHash = ? AND usedAt IS NULL`)
+    .run(usedAt, inviteTokenHash(token));
+  if (result.changes !== 1) throw new InviteAlreadyUsedError();
 }
 
 /** One row of {@link listInvitesForAccount} — an account's outstanding-invite summary for the
@@ -1036,20 +1080,20 @@ export function markInviteUsed(db: Db, token: string, usedAt: string): void {
  *  (returned to the creator at mint time and never again), so a read path must never carry it. The
  *  non-secret {@link Invite.id} is what list/revoke key on. */
 export interface InviteSummary {
-  id: string
-  accountId: string
-  role: Role
-  preauthEmail: string | null
-  expiresAt: string
-  usedAt: string | null
-  createdAt: string
+  id: string;
+  accountId: string;
+  role: Role;
+  preauthEmail: string | null;
+  expiresAt: string;
+  usedAt: string | null;
+  createdAt: string;
 }
 
 /** Interpret invitation expiry consistently for admission, preview, redemption and pruning.
  * Malformed stored values fail closed as expired. */
 export function inviteIsExpired(expiresAt: string, now = Date.now()): boolean {
-  const parsed = parseISOTimestamp(expiresAt)
-  return parsed === null || now >= parsed
+  const parsed = parseISOTimestamp(expiresAt);
+  return parsed === null || now >= parsed;
 }
 
 /**
@@ -1077,19 +1121,19 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
        WHERE accountId = ? ORDER BY createdAt DESC`,
     )
     .all(accountId) as Array<{
-    id: string
-    accountId: string
-    role: string
-    preauthEmail: string | null
-    expiresAt: string
-    usedAt: string | null
-    createdAt: string
-  }>
+    id: string;
+    accountId: string;
+    role: string;
+    preauthEmail: string | null;
+    expiresAt: string;
+    usedAt: string | null;
+    createdAt: string;
+  }>;
   return rows.map((r) => {
     if (!isKnownRole(r.role)) {
       throw new Error(
         `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
-      )
+      );
     }
     return {
       id: r.id,
@@ -1099,8 +1143,8 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       expiresAt: r.expiresAt,
       usedAt: r.usedAt ?? null,
       createdAt: r.createdAt,
-    }
-  })
+    };
+  });
 }
 
 /**
@@ -1114,7 +1158,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
  * @param id         The non-secret invite id to revoke.
  */
 export function revokeInvite(db: Db, accountId: string, id: string): number {
-  return Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes)
+  return Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes);
 }
 
 /** Remove EXPIRED, UNUSED bearer rows — dead links that can never be accepted (accept 410s past
@@ -1122,15 +1166,16 @@ export function revokeInvite(db: Db, accountId: string, id: string): number {
  *  list can still show who consumed an invite (the `usedAt` "used" badge); a used row is only removed
  *  by an explicit revoke or when its account is erased. */
 export function pruneInvites(db: Db, now = Date.now()): number {
-  const candidates = db.prepare(
-    `SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL`,
-  ).all() as Array<{ tokenHash: string; expiresAt: string }>
-  const remove = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`)
-  let deleted = 0
+  const candidates = db.prepare(`SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL`).all() as Array<{
+    tokenHash: string;
+    expiresAt: string;
+  }>;
+  const remove = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`);
+  let deleted = 0;
   for (const candidate of candidates) {
     if (inviteIsExpired(candidate.expiresAt, now)) {
-      deleted += Number(remove.run(candidate.tokenHash).changes)
+      deleted += Number(remove.run(candidate.tokenHash).changes);
     }
   }
-  return deleted
+  return deleted;
 }

@@ -6,12 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const serverDirectory = dirname(
-  fileURLToPath(new URL("../package.json", import.meta.url)),
-);
-const fixture = fileURLToPath(
-  new URL("./fixtures/databases/v12-password.db", import.meta.url),
-);
+const serverDirectory = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
+const fixture = fileURLToPath(new URL("./fixtures/databases/v12-password.db", import.meta.url));
 const temporaryDirectories: string[] = [];
 
 interface VerificationSnapshot {
@@ -35,9 +31,7 @@ function readVerificationSnapshot(path: string): VerificationSnapshot {
     return {
       linkedCount: linked.length,
       linkedValue: linked[0]?.value,
-      values: db
-        .prepare(`SELECT value FROM verification ORDER BY id`)
-        .all() as Array<{ value: string }>,
+      values: db.prepare(`SELECT value FROM verification ORDER BY id`).all() as Array<{ value: string }>,
     };
   } finally {
     // A failed assertion must not strand a native SQLite handle in the Vitest worker.
@@ -53,9 +47,7 @@ afterEach(() => {
 
 describe("migration rehearsal", () => {
   it("fails closed when a known table gains an unclassified column", () => {
-    const directory = mkdtempSync(
-      join(tmpdir(), "capacitylens-rehearsal-columns-test-"),
-    );
+    const directory = mkdtempSync(join(tmpdir(), "capacitylens-rehearsal-columns-test-"));
     temporaryDirectories.push(directory);
     const source = join(directory, "v12-with-future-column.db");
     copyFileSync(fixture, source);
@@ -68,14 +60,7 @@ describe("migration rehearsal", () => {
 
     const result = spawnSync(
       process.execPath,
-      [
-        "--import",
-        "tsx",
-        "scripts/rehearse-migrations.ts",
-        "--source",
-        source,
-        "--keep",
-      ],
+      ["--import", "tsx", "scripts/rehearse-migrations.ts", "--source", source, "--keep"],
       {
         cwd: serverDirectory,
         encoding: "utf8",
@@ -85,15 +70,11 @@ describe("migration rehearsal", () => {
     );
 
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain(
-      "anonymiser does not cover column(s): account.futureSecret",
-    );
+    expect(result.stderr).toContain("anonymiser does not cover column(s): account.futureSecret");
   });
 
   it("preserves anonymised user linkage and observes the v14 verification revocation", () => {
-    const directory = mkdtempSync(
-      join(tmpdir(), "capacitylens-rehearsal-test-"),
-    );
+    const directory = mkdtempSync(join(tmpdir(), "capacitylens-rehearsal-test-"));
     temporaryDirectories.push(directory);
     const source = join(directory, "v12-with-reset.db");
     copyFileSync(fixture, source);
@@ -101,9 +82,7 @@ describe("migration rehearsal", () => {
     const prepared = new DatabaseSync(source);
     try {
       const member = prepared
-        .prepare(
-          `SELECT userId FROM account_members WHERE status = 'active' ORDER BY userId LIMIT 1`,
-        )
+        .prepare(`SELECT userId FROM account_members WHERE status = 'active' ORDER BY userId LIMIT 1`)
         .get() as { userId: string };
       const insertCeremony = prepared.prepare(`
         INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
@@ -131,14 +110,7 @@ describe("migration rehearsal", () => {
 
     const result = spawnSync(
       process.execPath,
-      [
-        "--import",
-        "tsx",
-        "scripts/rehearse-migrations.ts",
-        "--source",
-        source,
-        "--keep",
-      ],
+      ["--import", "tsx", "scripts/rehearse-migrations.ts", "--source", source, "--keep"],
       {
         cwd: serverDirectory,
         encoding: "utf8",
@@ -147,16 +119,12 @@ describe("migration rehearsal", () => {
       },
     );
     expect(result.status, result.stderr || result.stdout).toBe(0);
-    const retained = /Anonymised rehearsal artifacts retained at (.+)/
-      .exec(result.stdout)?.[1]
-      ?.trim();
+    const retained = /Anonymised rehearsal artifacts retained at (.+)/.exec(result.stdout)?.[1]?.trim();
     expect(retained).toBeTruthy();
 
     // Read and close both native handles before asserting. If the observed state is wrong, Vitest
     // can now report the values and terminate instead of waiting for the job-level timeout.
-    const anonymised = readVerificationSnapshot(
-      join(retained!, "anonymised-source.db"),
-    );
+    const anonymised = readVerificationSnapshot(join(retained!, "anonymised-source.db"));
     const migrated = readVerificationSnapshot(join(retained!, "happy.db"));
 
     expect(anonymised.linkedCount).toBe(1);
@@ -165,8 +133,6 @@ describe("migration rehearsal", () => {
       value: "source-only-ceremony-value",
     });
     expect(migrated.values).toHaveLength(1);
-    expect(migrated.values[0]?.value).toMatch(
-      /^rehearsal-dangling-principal-/,
-    );
+    expect(migrated.values[0]?.value).toMatch(/^rehearsal-dangling-principal-/);
   });
 });

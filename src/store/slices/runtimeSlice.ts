@@ -1,4 +1,4 @@
-import type { StateCreator } from 'zustand'
+import type { StateCreator } from "zustand";
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
@@ -17,62 +17,62 @@ import {
   writeStoredSidebarOpen,
   writeStoredSnapToWeekStart,
   writeStoredUtilizationPrefs,
-} from '../../lib/displayPrefs'
-import { applyThemeToDom, readStoredTheme, writeStoredTheme } from '../../lib/theme'
-import type { StoreState } from '../useStore'
+} from "../../lib/displayPrefs";
+import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "../../lib/theme";
+import type { StoreState } from "../useStore";
 
 type RuntimeSliceKeys =
-  | 'hydrated'
-  | 'persistError'
-  | 'loadError'
-  | 'connectionError'
-  | 'notice'
-  | 'srAnnouncement'
-  | 'dirtyForm'
-  | 'dirtyFormSources'
-  | 'draggingAllocationId'
-  | 'theme'
-  | 'utilizationPrefs'
-  | 'barLabelPrefs'
-  | 'sidebarOpen'
-  | 'minimiseWeekends'
-  | 'snapToWeekStart'
-  | 'fakeSignedIn'
-  | 'introSeen'
-  | 'gettingStartedDismissed'
-  | 'activeRole'
-  | 'membershipRevision'
-  | 'setHydrated'
-  | 'setPersistError'
-  | 'setLoadError'
-  | 'setConnectionError'
-  | 'setNotice'
-  | 'announceCapacity'
-  | 'setDirtyForm'
-  | 'setDirtyFormSource'
-  | 'setDraggingAllocation'
-  | 'setTheme'
-  | 'setUtilizationPref'
-  | 'setBarLabelPref'
-  | 'setSidebarOpen'
-  | 'setMinimiseWeekends'
-  | 'setSnapToWeekStart'
-  | 'setFakeSignedIn'
-  | 'setIntroSeen'
-  | 'setGettingStartedDismissed'
-  | 'setActiveRole'
-  | 'invalidateMemberships'
-  | 'signOutDemo'
+  | "hydrated"
+  | "persistError"
+  | "loadError"
+  | "connectionError"
+  | "notice"
+  | "srAnnouncement"
+  | "dirtyForm"
+  | "dirtyFormSources"
+  | "draggingAllocationId"
+  | "theme"
+  | "utilizationPrefs"
+  | "barLabelPrefs"
+  | "sidebarOpen"
+  | "minimiseWeekends"
+  | "snapToWeekStart"
+  | "fakeSignedIn"
+  | "introSeen"
+  | "gettingStartedDismissed"
+  | "activeRole"
+  | "membershipRevision"
+  | "setHydrated"
+  | "setPersistError"
+  | "setLoadError"
+  | "setConnectionError"
+  | "setNotice"
+  | "announceCapacity"
+  | "setDirtyForm"
+  | "setDirtyFormSource"
+  | "setDraggingAllocation"
+  | "setTheme"
+  | "setUtilizationPref"
+  | "setBarLabelPref"
+  | "setSidebarOpen"
+  | "setMinimiseWeekends"
+  | "setSnapToWeekStart"
+  | "setFakeSignedIn"
+  | "setIntroSeen"
+  | "setGettingStartedDismissed"
+  | "setActiveRole"
+  | "invalidateMemberships"
+  | "signOutDemo";
 
-export type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>
+export type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
-const legacyDirtyFormSource = Symbol('setDirtyForm')
+const legacyDirtyFormSource = Symbol("setDirtyForm");
 
 function dirtyFormState(state: StoreState, source: symbol, dirty: boolean) {
-  const dirtyFormSources = new Set(state.dirtyFormSources)
-  if (dirty) dirtyFormSources.add(source)
-  else dirtyFormSources.delete(source)
-  return { dirtyFormSources, dirtyForm: dirtyFormSources.size > 0 }
+  const dirtyFormSources = new Set(state.dirtyFormSources);
+  if (dirty) dirtyFormSources.add(source);
+  else dirtyFormSources.delete(source);
+  return { dirtyFormSources, dirtyForm: dirtyFormSources.size > 0 };
 }
 
 /** Device preferences and transient application/session state. */
@@ -102,7 +102,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
   setPersistError: (value) => set({ persistError: value }),
   setLoadError: (value) => set({ loadError: value }),
   setConnectionError: (value) => set({ connectionError: value }),
-  setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
+  setNotice: (message, tone = "info") => set({ notice: message ? { message, tone } : null }),
   announceCapacity: (text) =>
     set((state) => ({
       srAnnouncement: { text, seq: (state.srAnnouncement?.seq ?? 0) + 1 },
@@ -113,52 +113,51 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
   setDirtyFormSource: (source, dirty) => set((state) => dirtyFormState(state, source, dirty)),
   setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
   setTheme: (preference) => {
-    writeStoredTheme(preference)
-    applyThemeToDom(preference)
-    set({ theme: preference })
+    writeStoredTheme(preference);
+    applyThemeToDom(preference);
+    set({ theme: preference });
   },
   setUtilizationPref: (key, value) =>
     set((state) => {
-      const next = { ...state.utilizationPrefs, [key]: value }
-      writeStoredUtilizationPrefs(next)
-      return { utilizationPrefs: next }
+      const next = { ...state.utilizationPrefs, [key]: value };
+      writeStoredUtilizationPrefs(next);
+      return { utilizationPrefs: next };
     }),
   setBarLabelPref: (key, value) =>
     set((state) => {
-      const next = { ...state.barLabelPrefs, [key]: value }
-      writeStoredBarLabelPrefs(next)
-      return { barLabelPrefs: next }
+      const next = { ...state.barLabelPrefs, [key]: value };
+      writeStoredBarLabelPrefs(next);
+      return { barLabelPrefs: next };
     }),
   setSidebarOpen: (open) => {
-    writeStoredSidebarOpen(open)
-    set({ sidebarOpen: open })
+    writeStoredSidebarOpen(open);
+    set({ sidebarOpen: open });
   },
   setMinimiseWeekends: (value) => {
-    writeStoredMinimiseWeekends(value)
-    set({ minimiseWeekends: value })
+    writeStoredMinimiseWeekends(value);
+    set({ minimiseWeekends: value });
   },
   setSnapToWeekStart: (value) => {
-    writeStoredSnapToWeekStart(value)
-    set({ snapToWeekStart: value })
+    writeStoredSnapToWeekStart(value);
+    set({ snapToWeekStart: value });
   },
   setFakeSignedIn: (value) => {
-    writeStoredFakeSignedIn(value)
-    set({ fakeSignedIn: value })
+    writeStoredFakeSignedIn(value);
+    set({ fakeSignedIn: value });
   },
   setIntroSeen: (value) => {
-    writeStoredIntroSeen(value)
-    set({ introSeen: value })
+    writeStoredIntroSeen(value);
+    set({ introSeen: value });
   },
   setGettingStartedDismissed: (value) => {
-    writeStoredGettingStartedDismissed(value)
-    set({ gettingStartedDismissed: value })
+    writeStoredGettingStartedDismissed(value);
+    set({ gettingStartedDismissed: value });
   },
   setActiveRole: (role) => set({ activeRole: role }),
-  invalidateMemberships: () =>
-    set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
+  invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
   signOutDemo: () => {
-    get().setActiveAccount(null)
-    writeStoredFakeSignedIn(false)
-    set({ previousAccountId: null, fakeSignedIn: false })
+    get().setActiveAccount(null);
+    writeStoredFakeSignedIn(false);
+    set({ previousAccountId: null, fakeSignedIn: false });
   },
-})
+});

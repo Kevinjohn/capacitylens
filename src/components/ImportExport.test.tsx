@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  act,
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-} from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ImportExport } from "./ImportExport";
 import { useStore } from "../store/useStore";
 import { PermissionContext } from "../auth/permissionContext";
@@ -70,9 +64,7 @@ describe("ImportExport – Export", () => {
   it("downloads a JSON blob and revokes the object URL AFTER the click (deferred, not synchronous)", async () => {
     const createObjectURL = vi.fn().mockReturnValue("blob:x");
     const revokeObjectURL = vi.fn();
-    const anchorClick = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => undefined);
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
     vi.stubGlobal("URL", {
       ...URL,
@@ -114,9 +106,7 @@ describe("ImportExport – Import", () => {
     fireEvent.change(input);
 
     expect(text).not.toHaveBeenCalled();
-    expect(
-      screen.queryByRole("button", { name: "Replace data" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
     expect(useStore.getState().notice).toMatchObject({
       tone: "error",
       message: expect.stringMatching(/5\s*MB/i),
@@ -184,14 +174,10 @@ describe("ImportExport – Import", () => {
     fireEvent.change(input);
 
     // Allow the async file.text() + parse to settle, then confirm the replace.
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Replace data" }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
 
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
-    expect(useStore.getState().data.resources).toHaveLength(
-      seedData.resources.length,
-    );
+    expect(useStore.getState().data.resources).toHaveLength(seedData.resources.length);
   });
 
   it("surfaces a local import failure instead of throwing from the confirmation handler", async () => {
@@ -247,9 +233,7 @@ describe("ImportExport – Import", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // The dialog is open and data is still intact (nothing applied yet).
-    expect(
-      screen.getByText(/replaces this company.s data/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/replaces this company.s data/i)).toBeInTheDocument();
     expect(useStore.getState().data.clients).toHaveLength(before);
 
     // Cancelling leaves the data untouched.
@@ -330,9 +314,7 @@ describe("ImportExport – Import", () => {
     expect(notice?.message).toMatch(/no records imported/i);
     expect(notice?.message).not.toMatch(/undo/i); // must NOT lure the user into ⌘Z
     expect(notice?.tone).toBe("error");
-    expect(useStore.getState().data.clients.map((c) => c.name)).toContain(
-      "Real Edit",
-    ); // prior edit intact
+    expect(useStore.getState().data.clients.map((c) => c.name)).toContain("Real Edit"); // prior edit intact
   });
 
   it("rejects a CapacityLens-shaped file with zero records (no dialog, no wipe)", async () => {
@@ -351,9 +333,7 @@ describe("ImportExport – Import", () => {
     // No confirmation dialog appears, an error notice naming the specific reason (empty CapacityLens
     // file → no records) is shown, and data is preserved.
     expect(screen.queryByRole("button", { name: "Replace data" })).toBeNull();
-    expect(useStore.getState().notice?.message).toMatch(
-      /no CapacityLens records/i,
-    );
+    expect(useStore.getState().notice?.message).toMatch(/no CapacityLens records/i);
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
   });
 
@@ -407,9 +387,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
   it("keeps active-slice export available to editors without calling the admin endpoint", async () => {
     const fetchMock = vi.fn();
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("URL", {
       ...URL,
@@ -428,9 +406,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   });
 
   it("rejects an incomplete complete-export response instead of downloading it", async () => {
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -454,9 +430,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   it("downloads the validated complete server slice for a purge-capable role", async () => {
     const completeSlice = useStore.getState().data;
     let downloaded: Blob | undefined;
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(completeSlice), {
         status: 200,
@@ -484,9 +458,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("includeInactive=1");
     expect(downloaded).toBeDefined();
-    expect(parseData(await downloaded!.text())).toEqual(
-      parseData(serializeData(completeSlice)),
-    );
+    expect(parseData(await downloaded!.text())).toEqual(parseData(serializeData(completeSlice)));
     click.mockRestore();
   });
 
@@ -517,11 +489,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     // The LOCAL store is never mutated by a server import (the server slice is the truth; the
     // re-hydrate is a no-op here — no persistence orchestrator is attached in tests).
     expect(useStore.getState().data).toBe(before);
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(
-        /imported 3 records/i,
-      ),
-    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/imported 3 records/i));
     expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i); // a server import is NOT undoable
   });
 
@@ -541,11 +509,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(
-        /only the account owner can import/i,
-      ),
-    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/only the account owner can import/i));
     expect(useStore.getState().notice?.tone).toBe("error");
   });
 
@@ -553,21 +517,12 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     // A shape error on a committed import must not be reported as "no records imported" (that
     // would skip the reload and leave the UI on pre-import data the server no longer holds).
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response("<html>proxy mangled</html>", { status: 200 }),
-        ),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>proxy mangled</html>", { status: 200 })));
 
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(/import complete/i),
-    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/import complete/i));
     expect(useStore.getState().notice?.tone).not.toBe("error");
     expect(warn).toHaveBeenCalled(); // breadcrumb for the off-spec body
     warn.mockRestore();
@@ -591,9 +546,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(/import complete/i),
-    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/import complete/i));
     expect(useStore.getState().notice?.tone).not.toBe("error");
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
@@ -617,14 +570,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await importAndConfirm(incoming());
 
     await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(
-        /applied on the server.*couldn't be refreshed/i,
-      ),
+      expect(useStore.getState().notice?.message).toMatch(/applied on the server.*couldn't be refreshed/i),
     );
     expect(useStore.getState().notice?.tone).toBe("error");
-    expect(useStore.getState().notice?.message).not.toMatch(
-      /imported 3 records/i,
-    );
+    expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
   });
 
   it("locks the UI while the import is in flight: blocking dialog + dirtyForm + disabled affordances", async () => {
@@ -644,9 +593,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
     // POST held open — the non-dismissable "Importing…" dialog is up, the dirty-form semantics
     // arm the beforeunload/keyboard guards, and both affordances are disabled for the duration.
-    await waitFor(() =>
-      expect(screen.getByTestId("import-busy")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId("import-busy")).toBeInTheDocument());
     expect(useStore.getState().dirtyForm).toBe(true);
     expect(screen.getByTestId("import-data")).toBeDisabled();
     expect(screen.getByTestId("export-data")).toBeDisabled();
@@ -660,9 +607,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
         headers: { "Content-Type": "application/json" },
       }),
     );
-    await waitFor(() =>
-      expect(screen.queryByTestId("import-busy")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByTestId("import-busy")).not.toBeInTheDocument());
     expect(useStore.getState().dirtyForm).toBe(false);
     expect(screen.getByTestId("import-data")).not.toBeDisabled();
     expect(screen.getByTestId("export-data")).not.toBeDisabled();
@@ -672,8 +617,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     // The app holds one notice and a new one dismisses the old — the sticky parked-edit loss
     // warning must outrank "Imported N records" (the user can verify the import from the data;
     // they cannot re-discover a silently overwritten loss warning).
-    refreshNotice.error =
-      "Your latest changes could not be saved — please re-apply them.";
+    refreshNotice.error = "Your latest changes could not be saved — please re-apply them.";
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -691,9 +635,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     // Give any (wrong) follow-up success notice a chance to land, then assert the warning held.
     await new Promise((r) => setTimeout(r, 10));
     expect(useStore.getState().notice?.message).toMatch(/could not be saved/i);
-    expect(useStore.getState().notice?.message).not.toMatch(
-      /imported 3 records/i,
-    );
+    expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
   });
 
   it("a zero-record 200 UN-commits: the server refused the replace, so the parked-edit resume re-schedules (no drop)", async () => {
@@ -731,9 +673,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    await waitFor(() =>
-      expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]),
-    );
+    await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
   });
 
   it("a NON-OK response resumes with re-schedule (nothing was replaced)", async () => {
@@ -750,16 +690,11 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    await waitFor(() =>
-      expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]),
-    );
+    await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]));
   });
 
   it("reports a failed transport honestly (the import did not happen)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     render(<ImportExport />);
     await importAndConfirm(incoming());
@@ -769,48 +704,33 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
   it("reconciles an unknown timed-out import before resuming writes", async () => {
     refreshOverride.value = "reloaded";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     render(<ImportExport />);
     await importAndConfirm(incoming());
-    await waitFor(() =>
-      expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]),
-    );
-    expect(useStore.getState().notice?.message).toMatch(
-      /latest server data was reloaded/i,
-    );
+    await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
+    expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
   });
 
   it("leaves writes suspended when a timed-out import cannot be reconciled", async () => {
     refreshOverride.value = "failed";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     render(<ImportExport />);
     await importAndConfirm(incoming());
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(/reload this page/i),
-    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/reload this page/i));
     expect(resumeSpy.calls).toEqual([]);
     expect(screen.getByTestId("import-busy")).toBeInTheDocument();
     expect(screen.getByTestId("import-data")).toBeDisabled();
   });
 
-  it.each(["admin", "editor"] as const)(
-    "hides Import from a server-backed %s but keeps Export",
-    (role) => {
-      render(
-        <PermissionContext.Provider value={{ role }}>
-          <ImportExport />
-        </PermissionContext.Provider>,
-      );
-      expect(screen.queryByTestId("import-data")).toBeNull();
-      expect(screen.getByTestId("export-data")).toBeInTheDocument();
-    },
-  );
+  it.each(["admin", "editor"] as const)("hides Import from a server-backed %s but keeps Export", (role) => {
+    render(
+      <PermissionContext.Provider value={{ role }}>
+        <ImportExport />
+      </PermissionContext.Provider>,
+    );
+    expect(screen.queryByTestId("import-data")).toBeNull();
+    expect(screen.getByTestId("export-data")).toBeInTheDocument();
+  });
 
   it("keeps Import for an owner and a null role (OFF/demo regression guard)", () => {
     const { unmount } = render(

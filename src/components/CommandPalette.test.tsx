@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  waitFor,
-} from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
 import { useStore, emptyFilters } from "../store/useStore";
@@ -45,9 +39,7 @@ function addInternalSearchItems({
       showInternalProjects,
       showInternalActivities,
     })),
-    clients: data.clients.some((client) => client.id === internal.id)
-      ? data.clients
-      : [...data.clients, internal],
+    clients: data.clients.some((client) => client.id === internal.id) ? data.clients : [...data.clients, internal],
   });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().addProject({
@@ -59,9 +51,7 @@ function addInternalSearchItems({
 }
 
 function addOptionalResources() {
-  const client = useStore
-    .getState()
-    .data.clients.find((candidate) => candidate.name === "Acme Inc.")!;
+  const client = useStore.getState().data.clients.find((candidate) => candidate.name === "Acme Inc.")!;
   const project = useStore.getState().addProject({
     name: "Placeholder Project",
     clientId: client.id,
@@ -93,14 +83,8 @@ beforeEach(() => {
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   // Add some resources, clients, projects for search tests
   useStore.getState().addClient({ name: "Acme Inc.", color: "#6366f1" });
-  useStore
-    .getState()
-    .addResource(makeResourceDraft({ name: "Tyler Nix", role: "Designer" }));
-  useStore
-    .getState()
-    .addResource(
-      makeResourceDraft({ name: "Pam Gonzalez", role: "Copywriter" }),
-    );
+  useStore.getState().addResource(makeResourceDraft({ name: "Tyler Nix", role: "Designer" }));
+  useStore.getState().addResource(makeResourceDraft({ name: "Pam Gonzalez", role: "Copywriter" }));
 });
 
 describe("CommandPalette", () => {
@@ -139,25 +123,17 @@ describe("CommandPalette", () => {
       .getAllByRole("option")
       .find((option) => option.getAttribute("aria-selected") === "true");
     expect(initialOption?.id).toBeTruthy();
-    await waitFor(() =>
-      expect(input).toHaveAttribute("aria-activedescendant", initialOption?.id),
-    );
+    await waitFor(() => expect(input).toHaveAttribute("aria-activedescendant", initialOption?.id));
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
-    const movedOption = screen
-      .getAllByRole("option")
-      .find((option) => option.getAttribute("aria-selected") === "true");
+    const movedOption = screen.getAllByRole("option").find((option) => option.getAttribute("aria-selected") === "true");
     expect(movedOption?.id).toBeTruthy();
     expect(movedOption?.id).not.toBe(initialOption?.id);
-    await waitFor(() =>
-      expect(input).toHaveAttribute("aria-activedescendant", movedOption?.id),
-    );
+    await waitFor(() => expect(input).toHaveAttribute("aria-activedescendant", movedOption?.id));
 
     fireEvent.change(input, { target: { value: "xyzzyxyzzy" } });
     expect(screen.queryAllByRole("option")).toHaveLength(0);
-    await waitFor(() =>
-      expect(input).not.toHaveAttribute("aria-activedescendant"),
-    );
+    await waitFor(() => expect(input).not.toHaveAttribute("aria-activedescendant"));
   });
 
   it("shows People section when typing a resource name", () => {
@@ -168,9 +144,7 @@ describe("CommandPalette", () => {
 
     expect(screen.getByText("People")).toBeInTheDocument();
     const options = screen.getAllByTestId("command-palette-option");
-    const tylerOption = options.find((o) =>
-      o.textContent?.includes("Tyler Nix"),
-    );
+    const tylerOption = options.find((o) => o.textContent?.includes("Tyler Nix"));
     expect(tylerOption).toBeTruthy();
   });
 
@@ -197,17 +171,11 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Placeholder")).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "Northstar" } });
-    expect(
-      screen.getByText("Northstar Partners (external)"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Northstar Partners (external)")).toBeInTheDocument();
   });
 
   it("finds an accented resource name from its unaccented spelling", () => {
-    useStore
-      .getState()
-      .addResource(
-        makeResourceDraft({ name: "José Müller", role: "Strategist" }),
-      );
+    useStore.getState().addResource(makeResourceDraft({ name: "José Müller", role: "Strategist" }));
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {
@@ -376,9 +344,7 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Tyler" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const tylerOption = options.find((o) =>
-      o.textContent?.includes("Tyler Nix"),
-    );
+    const tylerOption = options.find((o) => o.textContent?.includes("Tyler Nix"));
     expect(tylerOption).toBeTruthy();
 
     // Click it — should call jumpToResource (store action). cmdk's onSelect fires on click (and
@@ -412,9 +378,7 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Lightning" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const projectOption = options.find((o) =>
-      o.textContent?.includes("Project Lightning"),
-    );
+    const projectOption = options.find((o) => o.textContent?.includes("Project Lightning"));
     expect(projectOption).toBeTruthy();
 
     act(() => {
@@ -465,9 +429,7 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Alpha" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const projectOption = options.find((o) =>
-      o.textContent?.includes("Project Alpha"),
-    );
+    const projectOption = options.find((o) => o.textContent?.includes("Project Alpha"));
     expect(projectOption).toBeTruthy();
 
     act(() => {
@@ -482,9 +444,7 @@ describe("CommandPalette", () => {
   it("client selection REPLACES stale filters with only clientId set", () => {
     let clientId: string;
     act(() => {
-      const c = useStore
-        .getState()
-        .addClient({ name: "Client Zeta", color: "#6366f1" });
+      const c = useStore.getState().addClient({ name: "Client Zeta", color: "#6366f1" });
       clientId = c.id;
     });
 
@@ -505,9 +465,7 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Zeta" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const clientOption = options.find((o) =>
-      o.textContent?.includes("Client Zeta"),
-    );
+    const clientOption = options.find((o) => o.textContent?.includes("Client Zeta"));
     expect(clientOption).toBeTruthy();
 
     act(() => {

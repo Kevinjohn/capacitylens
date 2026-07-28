@@ -79,36 +79,20 @@ export const MAX_BACKUP_KEEP = 10_000;
 
 /** Fail-closed env parse: no CAPACITYLENS_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
  *  knobs are only read when backups are on; junk falls back to the documented defaults. */
-export function parseBackupConfig(
-  env: Record<string, string | undefined>,
-): BackupConfig | null {
+export function parseBackupConfig(env: Record<string, string | undefined>): BackupConfig | null {
   const dir = env.CAPACITYLENS_BACKUP_DIR;
   if (!dir) return null;
-  const boundedInteger = (
-    raw: string | undefined,
-    fallback: number,
-    max: number,
-  ) => {
+  const boundedInteger = (raw: string | undefined, fallback: number, max: number) => {
     const n = Number(raw);
     return Number.isSafeInteger(n) && n >= 1 && n <= max ? n : fallback;
   };
-  const boundedFloor = (
-    raw: string | undefined,
-    fallback: number,
-    max: number,
-  ) => {
+  const boundedFloor = (raw: string | undefined, fallback: number, max: number) => {
     const floored = Math.floor(Number(raw));
-    return Number.isSafeInteger(floored) && floored >= 1 && floored <= max
-      ? floored
-      : fallback;
+    return Number.isSafeInteger(floored) && floored >= 1 && floored <= max ? floored : fallback;
   };
   return {
     dir,
-    intervalMin: boundedInteger(
-      env.CAPACITYLENS_BACKUP_INTERVAL_MIN,
-      60,
-      MAX_BACKUP_INTERVAL_MIN,
-    ),
+    intervalMin: boundedInteger(env.CAPACITYLENS_BACKUP_INTERVAL_MIN, 60, MAX_BACKUP_INTERVAL_MIN),
     // Released compatibility contract: a bounded fractional retention value means its floor. Do
     // not route it through the whole-minute parser above: falling back from e.g. 100.5 to 48 would
     // silently prune 52 restore points the operator asked to keep.
@@ -142,10 +126,7 @@ function claimBackupTemp(nextFile: () => string): {
 }
 
 function databaseVersion(db: Db): number {
-  return Number(
-    (db.prepare("PRAGMA user_version").get() as { user_version?: number })
-      .user_version ?? 0,
-  );
+  return Number((db.prepare("PRAGMA user_version").get() as { user_version?: number }).user_version ?? 0);
 }
 
 /** Verify and normalize a completed snapshot while it still has an unpublished temp name.
@@ -153,49 +134,31 @@ function databaseVersion(db: Db): number {
  * but structurally readable source; the version equality proves the copy is from the expected
  * schema generation. Open writable so WAL-mode metadata can be checkpointed and converted to one
  * standalone DELETE-journal `.db` file before publication. */
-function verifyStandaloneSnapshot(
-  path: string,
-  label: string,
-  expectedVersion: number,
-): void {
+function verifyStandaloneSnapshot(path: string, label: string, expectedVersion: number): void {
   const verification = new DatabaseSync(path, {
     enableForeignKeyConstraints: false,
   });
   try {
-    const quickCheck = verification
-      .prepare("PRAGMA quick_check")
-      .all() as Array<{ quick_check?: string }>;
+    const quickCheck = verification.prepare("PRAGMA quick_check").all() as Array<{ quick_check?: string }>;
     if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== "ok") {
       throw new Error(`${label} failed SQLite quick_check`);
     }
-    const foreignKeyViolations = verification
-      .prepare("PRAGMA foreign_key_check")
-      .all();
+    const foreignKeyViolations = verification.prepare("PRAGMA foreign_key_check").all();
     if (foreignKeyViolations.length > 0) {
-      throw new Error(
-        `${label} failed SQLite foreign_key_check (${foreignKeyViolations.length} violation(s))`,
-      );
+      throw new Error(`${label} failed SQLite foreign_key_check (${foreignKeyViolations.length} violation(s))`);
     }
     const copiedVersion = databaseVersion(verification);
     if (copiedVersion !== expectedVersion) {
-      throw new Error(
-        `${label} version mismatch (expected ${expectedVersion}, copied ${copiedVersion})`,
-      );
+      throw new Error(`${label} version mismatch (expected ${expectedVersion}, copied ${copiedVersion})`);
     }
-    verification.exec(
-      "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode = DELETE;",
-    );
+    verification.exec("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode = DELETE;");
   } finally {
     verification.close();
   }
 }
 
 /** Best-effort cleanup that attempts every artifact and never hides the original write/check error. */
-function cleanupSnapshotTemp(
-  path: string,
-  label: string,
-  log: (message: string) => void,
-): void {
+function cleanupSnapshotTemp(path: string, label: string, log: (message: string) => void): void {
   for (const artifact of [path, `${path}-wal`, `${path}-shm`]) {
     try {
       rmSync(artifact, { force: true });
@@ -246,12 +209,7 @@ function ensurePrivateBackupDirectory(path: string): void {
   chmodSync(path, 0o700);
 }
 
-function publishDurableSnapshot(
-  tmp: string,
-  file: string,
-  dir: string,
-  publisher: DurableSnapshotPublisher,
-): void {
+function publishDurableSnapshot(tmp: string, file: string, dir: string, publisher: DurableSnapshotPublisher): void {
   // Persist the final mode and completed SQLite inode before exposing its valid rollback name, then
   // persist the directory entry itself. Any failure propagates to startup before forward-only DDL.
   publisher.chmod(tmp, 0o600);
@@ -326,11 +284,7 @@ export async function writePreMigrationBackup(
       db.exec(`VACUUM INTO '${tmp.replaceAll("'", "''")}'`);
     }
 
-    verifyStandaloneSnapshot(
-      tmp,
-      "pre-migration snapshot",
-      options.fromVersion,
-    );
+    verifyStandaloneSnapshot(tmp, "pre-migration snapshot", options.fromVersion);
     rmSync(`${tmp}-wal`, { force: true });
     rmSync(`${tmp}-shm`, { force: true });
     publishDurableSnapshot(tmp, file, dir, publisher);
@@ -339,12 +293,7 @@ export async function writePreMigrationBackup(
     throw error;
   }
 
-  removeLegacyPreMigrationBackups(
-    dir,
-    options.fromVersion,
-    options.toVersion,
-    log,
-  );
+  removeLegacyPreMigrationBackups(dir, options.fromVersion, options.toVersion, log);
   log(`capacitylens-server: pre-migration backup written ${file}`);
   return file;
 }
@@ -352,20 +301,9 @@ export async function writePreMigrationBackup(
 /** Parse a snapshot filename back to an epoch floor. New names are unambiguous UTC; legacy local
  * names retain their historical interpretation for the collision-seeding fallback. */
 function stampMs(name: string): number {
-  const m =
-    /^capacitylens-(utc-)?(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(\d{3}))?\.db$/.exec(
-      name,
-    );
+  const m = /^capacitylens-(utc-)?(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(\d{3}))?\.db$/.exec(name);
   if (!m) return 0;
-  const parts = [
-    +m[2],
-    +m[3] - 1,
-    +m[4],
-    +m[5],
-    +m[6],
-    +m[7],
-    m[8] ? +m[8] : 0,
-  ] as const;
+  const parts = [+m[2], +m[3] - 1, +m[4], +m[5], +m[6], +m[7], m[8] ? +m[8] : 0] as const;
   return m[1] ? Date.UTC(...parts) : new Date(...parts).getTime();
 }
 
@@ -385,17 +323,11 @@ function mainDatabaseIdentity(db: Db): FileIdentity | null {
     const stat = statSync(path, { bigint: true });
     return { path, device: stat.dev, inode: stat.ino };
   } catch (cause) {
-    throw new Error(
-      `Could not identify the live SQLite database at "${path}" for safe retention.`,
-      { cause },
-    );
+    throw new Error(`Could not identify the live SQLite database at "${path}" for safe retention.`, { cause });
   }
 }
 
-function isProtectedDatabasePath(
-  path: string,
-  database: FileIdentity | null,
-): boolean {
+function isProtectedDatabasePath(path: string, database: FileIdentity | null): boolean {
   if (!database) return false;
   if (resolve(path) === database.path) return true;
   try {
@@ -412,9 +344,7 @@ function isProtectedDatabasePath(
  * mtime because the repeated fall-back hour cannot be recovered unambiguously from their text. */
 function listSnapshots(dir: string, database: FileIdentity | null): string[] {
   const files = readdirSync(dir).filter(
-    (file) =>
-      SNAPSHOT_RE.test(file) &&
-      !isProtectedDatabasePath(join(dir, file), database),
+    (file) => SNAPSHOT_RE.test(file) && !isProtectedDatabasePath(join(dir, file), database),
   );
   const chronology = (file: string): number => {
     if (UTC_SNAPSHOT_RE.test(file)) return stampMs(file);
@@ -424,10 +354,7 @@ function listSnapshots(dir: string, database: FileIdentity | null): string[] {
       return stampMs(file);
     }
   };
-  return files.sort(
-    (left, right) =>
-      chronology(left) - chronology(right) || left.localeCompare(right),
-  );
+  return files.sort((left, right) => chronology(left) - chronology(right) || left.localeCompare(right));
 }
 
 /** Delete the oldest snapshots beyond `keep`; returns how many were pruned. Only files
@@ -582,9 +509,7 @@ export function startBackups(
     // exclusive create is what stops a sibling instance from writing into the same temp file.
     // EEXIST just means the name is taken — bump to the next stamp and retry (terminates:
     // uniqueStamp strictly advances past one of finitely many files per iteration).
-    const { file, tmp } = claimBackupTemp(() =>
-      join(config.dir, uniqueStamp()),
-    );
+    const { file, tmp } = claimBackupTemp(() => join(config.dir, uniqueStamp()));
     try {
       // Write to the temp name and rename on success: rename is atomic on the same filesystem,
       // so a torn write (crash, full disk) never sits behind a valid snapshot name.
@@ -632,9 +557,7 @@ export function startBackups(
         );
       }
     }
-    log(
-      `capacitylens-server: backup written ${file}${pruned > 0 ? ` (pruned ${pruned})` : ""}`,
-    );
+    log(`capacitylens-server: backup written ${file}${pruned > 0 ? ` (pruned ${pruned})` : ""}`);
     health.lastSuccessAt = now().toISOString();
     return file;
   };
@@ -644,9 +567,7 @@ export function startBackups(
     // NOT happen, rather than a write racing the DB close (or extending the drain stop() has
     // already promised to finish). Rejection over silence per DEFENSIVE-CODING.md.
     if (stopping) {
-      return Promise.reject(
-        new Error("backups stopped — snapshot refused during shutdown"),
-      );
+      return Promise.reject(new Error("backups stopped — snapshot refused during shutdown"));
     }
     // Serialize: chain onto whatever is in flight so two writers never share the dir (or race
     // `current`, which stop() awaits — an unserialized overlap could null it while the older
@@ -654,10 +575,7 @@ export function startBackups(
     // rejection is swallowed HERE only as a queueing detail: its own initiator already surfaces
     // it (safeSnapshot logs; direct callers hold the rejection), and a failed predecessor must
     // not fail this independent snapshot.
-    const run = (current ?? Promise.resolve()).then(
-      writeSnapshot,
-      writeSnapshot,
-    );
+    const run = (current ?? Promise.resolve()).then(writeSnapshot, writeSnapshot);
     current = run;
     // Clear only our own registration (a caller may already have chained the next snapshot);
     // rejection is the caller's to surface — this handler exists only to reset the guard.
@@ -672,15 +590,11 @@ export function startBackups(
   const safeSnapshot = () => {
     if (current) {
       // Surface, don't silently drop: an operator watching the logs sees WHY a stamp is missing.
-      log(
-        "capacitylens-server: backup skipped — previous snapshot still in flight",
-      );
+      log("capacitylens-server: backup skipped — previous snapshot still in flight");
       return;
     }
     void snapshotNow().catch((err: unknown) =>
-      log(
-        `capacitylens-server: backup FAILED — ${err instanceof Error ? err.message : String(err)}`,
-      ),
+      log(`capacitylens-server: backup FAILED — ${err instanceof Error ? err.message : String(err)}`),
     );
   };
 
@@ -705,10 +619,7 @@ export function startBackups(
   return { health, snapshotNow, stop };
 }
 
-export function formatBackupStartupFailure(
-  dir: string,
-  error: unknown,
-): string {
+export function formatBackupStartupFailure(dir: string, error: unknown): string {
   const detail = error instanceof Error ? error.message : String(error);
   return `CAPACITYLENS_BACKUP_DIR=${JSON.stringify(dir)} could not be initialized: ${detail}. Fix the path and permissions, or set CAPACITYLENS_BACKUP_DIR= to disable scheduled backups.`;
 }

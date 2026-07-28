@@ -1,7 +1,7 @@
 // CapacityLens product permissions. Canonical account roles and administrative policy live in the
 // provider-neutral account contract; this module adds product-data actions and field visibility.
 // Both the browser and server import these pure rules so affordances and enforcement cannot drift.
-import type { Role } from '../account/types'
+import type { Role } from "../account/types";
 import {
   canAdministerAccount,
   canAdministerIdentity,
@@ -10,8 +10,8 @@ import {
   canRemoveMember as canRemoveCanonicalMember,
   isAtLeast as isAtLeastCanonicalRole,
   type AccountAdminAction,
-} from '../account/policy'
-export type { Role } from '../account/types'
+} from "../account/policy";
+export type { Role } from "../account/types";
 
 /**
  * A guarded capability the access matrix gates. These are coarse policy *actions* (not 1:1 with
@@ -33,14 +33,14 @@ export type { Role } from '../account/types'
  * `satisfies Record<Action, …>`): adding a member here without a rule fails to compile.
  */
 export type Action =
-  | 'read'
-  | 'write'
-  | 'manageInternalClient'
-  | 'manageMembers'
-  | 'manageInvites'
-  | 'purge'
-  | 'deleteAccount'
-  | 'transferOwnership'
+  | "read"
+  | "write"
+  | "manageInternalClient"
+  | "manageMembers"
+  | "manageInvites"
+  | "purge"
+  | "deleteAccount"
+  | "transferOwnership";
 
 // Product-data policy stays here; account-administration policy lives in account/policy.ts. Both
 // use the account boundary's one canonical role ordering.
@@ -53,23 +53,23 @@ export type Action =
  * with no rule is a build error rather than a silent fail-open.
  */
 const MIN_TIER = {
-  read: 'viewer', // any member
-  write: 'editor', // editor and up
-  manageInternalClient: 'admin', // admin and up
-  purge: 'admin', // admin and up
-} as const satisfies Record<ProductDataAction, Role>
+  read: "viewer", // any member
+  write: "editor", // editor and up
+  manageInternalClient: "admin", // admin and up
+  purge: "admin", // admin and up
+} as const satisfies Record<ProductDataAction, Role>;
 
 /** CapacityLens names mapped to the account boundary's canonical administrative operations.
  * This table deliberately contains no role thresholds: account policy owns those exactly once. */
 const ACCOUNT_ADMIN_ACTION = {
-  manageMembers: 'manage-members',
-  manageInvites: 'manage-invitations',
-  deleteAccount: 'erase-workspace',
-  transferOwnership: 'transfer-ownership',
-} as const satisfies Record<AccountAdministrationAction, AccountAdminAction>
+  manageMembers: "manage-members",
+  manageInvites: "manage-invitations",
+  deleteAccount: "erase-workspace",
+  transferOwnership: "transfer-ownership",
+} as const satisfies Record<AccountAdministrationAction, AccountAdminAction>;
 
-type ProductDataAction = 'read' | 'write' | 'manageInternalClient' | 'purge'
-type AccountAdministrationAction = Exclude<Action, ProductDataAction>
+type ProductDataAction = "read" | "write" | "manageInternalClient" | "purge";
+type AccountAdministrationAction = Exclude<Action, ProductDataAction>;
 
 /**
  * The single pure authority for "may this role perform this action" on an account. The server
@@ -93,10 +93,10 @@ type AccountAdministrationAction = Exclude<Action, ProductDataAction>
  * @returns `true` iff `role` is at or above the action's required tier; `false` otherwise.
  */
 export function can(role: Role, action: Action): boolean {
-  const accountAction = (ACCOUNT_ADMIN_ACTION as Partial<Record<Action, AccountAdminAction>>)[action]
-  if (accountAction !== undefined) return canAdministerAccount(role, accountAction)
-  const minRole = (MIN_TIER as Partial<Record<Action, Role>>)[action]
-  return minRole !== undefined && isAtLeastCanonicalRole(role, minRole)
+  const accountAction = (ACCOUNT_ADMIN_ACTION as Partial<Record<Action, AccountAdminAction>>)[action];
+  if (accountAction !== undefined) return canAdministerAccount(role, accountAction);
+  const minRole = (MIN_TIER as Partial<Record<Action, Role>>)[action];
+  return minRole !== undefined && isAtLeastCanonicalRole(role, minRole);
 }
 
 /**
@@ -114,7 +114,7 @@ export function can(role: Role, action: Action): boolean {
  * @returns `true` iff the canonical account tier for `role` reaches `min`; `false` otherwise.
  */
 export function isAtLeast(role: Role, min: Role): boolean {
-  return isAtLeastCanonicalRole(role, min)
+  return isAtLeastCanonicalRole(role, min);
 }
 
 /**
@@ -139,7 +139,7 @@ export function isAtLeast(role: Role, min: Role): boolean {
  * @returns `true` iff the role change is permitted by the pure matrix; `false` otherwise.
  */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
-  return canManageCanonicalMemberRole(actorRole, targetRole, nextRole)
+  return canManageCanonicalMemberRole(actorRole, targetRole, nextRole);
 }
 
 /**
@@ -161,7 +161,7 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
  * @returns `true` iff the removal is permitted by the pure matrix; `false` otherwise.
  */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
-  return canRemoveCanonicalMember(actorRole, targetRole)
+  return canRemoveCanonicalMember(actorRole, targetRole);
 }
 
 /**
@@ -187,7 +187,7 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
  * @returns `true` iff issuing the reset link is permitted by the pure matrix; `false` otherwise.
  */
 export function canResetMemberPassword(actorRole: Role, targetRole: Role): boolean {
-  return canAdministerIdentity(actorRole, targetRole)
+  return canAdministerIdentity(actorRole, targetRole);
 }
 
 /**
@@ -235,11 +235,7 @@ export function canResetMemberAcrossAccounts(
   targetRolesByAccount: ReadonlyMap<string, Role>,
   isSelf: boolean,
 ): boolean {
-  return canAdministerIdentityAcrossWorkspaces(
-    actorRolesByAccount,
-    targetRolesByAccount,
-    isSelf,
-  )
+  return canAdministerIdentityAcrossWorkspaces(actorRolesByAccount, targetRolesByAccount, isSelf);
 }
 
 /**
@@ -258,7 +254,7 @@ export function canResetMemberAcrossAccounts(
  * @returns `true` iff `role` is `'owner'` or `'admin'`.
  */
 export function canSeeTimeOffNote(role: Role): boolean {
-  return role === 'owner' || role === 'admin'
+  return role === "owner" || role === "admin";
 }
 
 /**
@@ -267,5 +263,5 @@ export function canSeeTimeOffNote(role: Role): boolean {
  * that receives the real name; admins, editors and viewers receive the quoted code-name projection.
  */
 export function canSeePrivateNames(role: Role): boolean {
-  return role === 'owner'
+  return role === "owner";
 }

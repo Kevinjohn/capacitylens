@@ -1,13 +1,6 @@
 import { backup, DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
-import {
-  copyFileSync,
-  existsSync,
-  mkdtempSync,
-  mkdirSync,
-  rmSync,
-  writeSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, mkdirSync, rmSync, writeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,252 +17,144 @@ import {
 import { writePreMigrationBackup } from "../src/backup";
 import { tx } from "../src/txn";
 
-const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> =
-  Object.fromEntries(
-    Object.entries({
-      _meta: ["key", "value"],
-      accounts: [
-        "id",
-        "name",
-        "color",
-        "schedulingMode",
-        "timezone",
-        "weekStartsOn",
-        "language",
-        "disciplinesEnabled",
-        "placeholdersEnabled",
-        "externalEnabled",
-        "createdAt",
-        "updatedAt",
-        "internalColourMode",
-        "showInternalProjects",
-        "showInternalActivities",
-        "inlineActivityCreateEnabled",
-      ],
-      clients: [
-        "id",
-        "accountId",
-        "name",
-        "color",
-        "isPrivate",
-        "codeName",
-        "builtin",
-        "archivedAt",
-        "deletedAt",
-        "createdAt",
-        "updatedAt",
-      ],
-      disciplines: [
-        "id",
-        "accountId",
-        "name",
-        "color",
-        "sortOrder",
-        "createdAt",
-        "updatedAt",
-      ],
-      projects: [
-        "id",
-        "accountId",
-        "name",
-        "clientId",
-        "color",
-        "isPrivate",
-        "codeName",
-        "archivedAt",
-        "deletedAt",
-        "createdAt",
-        "updatedAt",
-      ],
-      phases: [
-        "id",
-        "accountId",
-        "name",
-        "projectId",
-        "createdAt",
-        "updatedAt",
-      ],
-      resources: [
-        "id",
-        "accountId",
-        "kind",
-        "name",
-        "role",
-        "disciplineId",
-        "employmentType",
-        "workingHoursPerDay",
-        "workingDays",
-        "projectId",
-        "color",
-        "archivedAt",
-        "deletedAt",
-        "createdAt",
-        "updatedAt",
-      ],
-      activities: [
-        "id",
-        "accountId",
-        "name",
-        "kind",
-        "projectId",
-        "phaseId",
-        "createdAt",
-        "updatedAt",
-      ],
-      tasks: [
-        "id",
-        "accountId",
-        "name",
-        "kind",
-        "projectId",
-        "phaseId",
-        "createdAt",
-        "updatedAt",
-      ],
-      allocations: [
-        "id",
-        "accountId",
-        "resourceId",
-        "activityId",
-        "taskId",
-        "startDate",
-        "endDate",
-        "hoursPerDay",
-        "status",
-        "note",
-        "ignoreWeekends",
-        "createdAt",
-        "updatedAt",
-      ],
-      timeOff: [
-        "id",
-        "accountId",
-        "resourceId",
-        "startDate",
-        "endDate",
-        "type",
-        "note",
-        "createdAt",
-        "updatedAt",
-      ],
-      account_members: ["accountId", "userId", "role", "status", "createdAt"],
-      invites: [
-        "tokenHash",
-        "token",
-        "id",
-        "accountId",
-        "role",
-        "preauthEmail",
-        "expiresAt",
-        "usedAt",
-        "createdAt",
-      ],
-      user: [
-        "id",
-        "name",
-        "email",
-        "emailVerified",
-        "image",
-        "createdAt",
-        "updatedAt",
-        "twoFactorEnabled",
-      ],
-      session: [
-        "id",
-        "expiresAt",
-        "token",
-        "createdAt",
-        "updatedAt",
-        "ipAddress",
-        "userAgent",
-        "userId",
-      ],
-      account: [
-        "id",
-        "accountId",
-        "providerId",
-        "userId",
-        "accessToken",
-        "refreshToken",
-        "idToken",
-        "accessTokenExpiresAt",
-        "refreshTokenExpiresAt",
-        "scope",
-        "password",
-        "createdAt",
-        "updatedAt",
-      ],
-      twoFactor: [
-        "id",
-        "secret",
-        "backupCodes",
-        "userId",
-        "verified",
-        "failedVerificationCount",
-        "lockedUntil",
-      ],
-      verification: [
-        "id",
-        "identifier",
-        "value",
-        "expiresAt",
-        "createdAt",
-        "updatedAt",
-      ],
-      capacitylens_bootstrap_claim: ["id", "claimedAt", "claimToken"],
-      account_security_revisions: ["principalId", "revision", "updatedAt"],
-      account_commands: [
-        "applicationId",
-        "operation",
-        "idempotencyKey",
-        "commandId",
-        "actorPrincipalId",
-        "targetPrincipalId",
-        "workspaceId",
-        "payloadHash",
-        "status",
-        "resultJson",
-        "failureCode",
-        "createdAt",
-        "updatedAt",
-      ],
-      account_session_assurance: [
-        "sessionId",
-        "principalId",
-        "assurance",
-        "providerId",
-        "createdAt",
-      ],
-      account_federated_provider_bindings: [
-        "applicationId",
-        "issuer",
-        "providerId",
-        "createdAt",
-      ],
-      capacitylens_audit_outbox: ["sequence", "id", "payload", "createdAt"],
-      capacitylens_sync_sessions: ["sessionId", "lastSequence", "updatedAt"],
-      capacitylens_sync_row_provenance: [
-        "tableName",
-        "rowId",
-        "accountId",
-        "sessionId",
-        "sequence",
-        "rowHash",
-      ],
-      [DATABASE_MIGRATION_TABLE]: ["version", "name", "checksum", "appliedAt"],
-    }).map(([table, names]) => [table, new Set(names)]),
-  );
+const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.fromEntries(
+  Object.entries({
+    _meta: ["key", "value"],
+    accounts: [
+      "id",
+      "name",
+      "color",
+      "schedulingMode",
+      "timezone",
+      "weekStartsOn",
+      "language",
+      "disciplinesEnabled",
+      "placeholdersEnabled",
+      "externalEnabled",
+      "createdAt",
+      "updatedAt",
+      "internalColourMode",
+      "showInternalProjects",
+      "showInternalActivities",
+      "inlineActivityCreateEnabled",
+    ],
+    clients: [
+      "id",
+      "accountId",
+      "name",
+      "color",
+      "isPrivate",
+      "codeName",
+      "builtin",
+      "archivedAt",
+      "deletedAt",
+      "createdAt",
+      "updatedAt",
+    ],
+    disciplines: ["id", "accountId", "name", "color", "sortOrder", "createdAt", "updatedAt"],
+    projects: [
+      "id",
+      "accountId",
+      "name",
+      "clientId",
+      "color",
+      "isPrivate",
+      "codeName",
+      "archivedAt",
+      "deletedAt",
+      "createdAt",
+      "updatedAt",
+    ],
+    phases: ["id", "accountId", "name", "projectId", "createdAt", "updatedAt"],
+    resources: [
+      "id",
+      "accountId",
+      "kind",
+      "name",
+      "role",
+      "disciplineId",
+      "employmentType",
+      "workingHoursPerDay",
+      "workingDays",
+      "projectId",
+      "color",
+      "archivedAt",
+      "deletedAt",
+      "createdAt",
+      "updatedAt",
+    ],
+    activities: ["id", "accountId", "name", "kind", "projectId", "phaseId", "createdAt", "updatedAt"],
+    tasks: ["id", "accountId", "name", "kind", "projectId", "phaseId", "createdAt", "updatedAt"],
+    allocations: [
+      "id",
+      "accountId",
+      "resourceId",
+      "activityId",
+      "taskId",
+      "startDate",
+      "endDate",
+      "hoursPerDay",
+      "status",
+      "note",
+      "ignoreWeekends",
+      "createdAt",
+      "updatedAt",
+    ],
+    timeOff: ["id", "accountId", "resourceId", "startDate", "endDate", "type", "note", "createdAt", "updatedAt"],
+    account_members: ["accountId", "userId", "role", "status", "createdAt"],
+    invites: ["tokenHash", "token", "id", "accountId", "role", "preauthEmail", "expiresAt", "usedAt", "createdAt"],
+    user: ["id", "name", "email", "emailVerified", "image", "createdAt", "updatedAt", "twoFactorEnabled"],
+    session: ["id", "expiresAt", "token", "createdAt", "updatedAt", "ipAddress", "userAgent", "userId"],
+    account: [
+      "id",
+      "accountId",
+      "providerId",
+      "userId",
+      "accessToken",
+      "refreshToken",
+      "idToken",
+      "accessTokenExpiresAt",
+      "refreshTokenExpiresAt",
+      "scope",
+      "password",
+      "createdAt",
+      "updatedAt",
+    ],
+    twoFactor: ["id", "secret", "backupCodes", "userId", "verified", "failedVerificationCount", "lockedUntil"],
+    verification: ["id", "identifier", "value", "expiresAt", "createdAt", "updatedAt"],
+    capacitylens_bootstrap_claim: ["id", "claimedAt", "claimToken"],
+    account_security_revisions: ["principalId", "revision", "updatedAt"],
+    account_commands: [
+      "applicationId",
+      "operation",
+      "idempotencyKey",
+      "commandId",
+      "actorPrincipalId",
+      "targetPrincipalId",
+      "workspaceId",
+      "payloadHash",
+      "status",
+      "resultJson",
+      "failureCode",
+      "createdAt",
+      "updatedAt",
+    ],
+    account_session_assurance: ["sessionId", "principalId", "assurance", "providerId", "createdAt"],
+    account_federated_provider_bindings: ["applicationId", "issuer", "providerId", "createdAt"],
+    capacitylens_audit_outbox: ["sequence", "id", "payload", "createdAt"],
+    capacitylens_sync_sessions: ["sessionId", "lastSequence", "updatedAt"],
+    capacitylens_sync_row_provenance: ["tableName", "rowId", "accountId", "sessionId", "sequence", "rowHash"],
+    [DATABASE_MIGRATION_TABLE]: ["version", "name", "checksum", "appliedAt"],
+  }).map(([table, names]) => [table, new Set(names)]),
+);
 const KNOWN_TABLES = new Set(Object.keys(KNOWN_COLUMNS));
 
-const quoteIdentifier = (value: string): string =>
-  `"${value.replaceAll('"', '""')}"`;
+const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
 const tableNames = (db: DatabaseSync): string[] =>
   (
     db
-      .prepare(
-        `SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`,
-      )
+      .prepare(`SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
       .all() as Array<{
       name: string;
     }>
@@ -277,26 +162,16 @@ const tableNames = (db: DatabaseSync): string[] =>
 
 const columns = (db: DatabaseSync, table: string): Set<string> =>
   new Set(
-    (
-      db
-        .prepare(`PRAGMA table_info(${quoteIdentifier(table)})`)
-        .all() as Array<{ name: string }>
-    ).map((column) => column.name),
+    (db.prepare(`PRAGMA table_info(${quoteIdentifier(table)})`).all() as Array<{ name: string }>).map(
+      (column) => column.name,
+    ),
   );
 
-const hasTable = (db: DatabaseSync, table: string): boolean =>
-  tableNames(db).includes(table);
+const hasTable = (db: DatabaseSync, table: string): boolean => tableNames(db).includes(table);
 
-function updateIfPresent(
-  db: DatabaseSync,
-  table: string,
-  column: string,
-  expression: string,
-): void {
+function updateIfPresent(db: DatabaseSync, table: string, column: string, expression: string): void {
   if (!hasTable(db, table) || !columns(db, table).has(column)) return;
-  db.exec(
-    `UPDATE ${quoteIdentifier(table)} SET ${quoteIdentifier(column)} = ${expression}`,
-  );
+  db.exec(`UPDATE ${quoteIdentifier(table)} SET ${quoteIdentifier(column)} = ${expression}`);
 }
 
 interface Reference {
@@ -308,21 +183,14 @@ let remapSequence = 0;
 
 /** Remap opaque ids as well as visible text. This preserves relationships while ensuring a
  * retained rehearsal directory cannot be joined back to ids from the source installation. */
-function remapIds(
-  db: DatabaseSync,
-  table: string,
-  idColumn: string,
-  references: Reference[],
-): void {
+function remapIds(db: DatabaseSync, table: string, idColumn: string, references: Reference[]): void {
   if (!hasTable(db, table) || !columns(db, table).has(idColumn)) return;
   const values = db
     .prepare(
       `SELECT ${quoteIdentifier(idColumn)} AS id FROM ${quoteIdentifier(table)} ORDER BY ${quoteIdentifier(idColumn)}`,
     )
     .all() as Array<{ id: string | null }>;
-  const existing = new Set(
-    values.flatMap((row) => (row.id === null ? [] : [row.id])),
-  );
+  const existing = new Set(values.flatMap((row) => (row.id === null ? [] : [row.id])));
   const mappings: Array<{ source: string; replacement: string }> = [];
   for (const [index, row] of values.entries()) {
     if (row.id === null) continue;
@@ -335,26 +203,19 @@ function remapIds(
 
   // One indexed temporary map plus one UPDATE per relationship keeps work proportional to the
   // represented rows. The former per-id child UPDATE rescanned large allocation tables N times.
-  const mappingTable = quoteIdentifier(
-    `capacitylens_rehearsal_id_map_${++remapSequence}`,
-  );
+  const mappingTable = quoteIdentifier(`capacitylens_rehearsal_id_map_${++remapSequence}`);
   db.exec(`CREATE TEMP TABLE ${mappingTable} (
     source TEXT PRIMARY KEY,
     replacement TEXT NOT NULL UNIQUE
   ) STRICT`);
   try {
-    const insertMapping = db.prepare(
-      `INSERT INTO ${mappingTable} (source, replacement) VALUES (?, ?)`,
-    );
-    for (const mapping of mappings)
-      insertMapping.run(mapping.source, mapping.replacement);
+    const insertMapping = db.prepare(`INSERT INTO ${mappingTable} (source, replacement) VALUES (?, ?)`);
+    for (const mapping of mappings) insertMapping.run(mapping.source, mapping.replacement);
 
     const targets = [
       { table, column: idColumn },
       ...references.filter(
-        (reference) =>
-          hasTable(db, reference.table) &&
-          columns(db, reference.table).has(reference.column),
+        (reference) => hasTable(db, reference.table) && columns(db, reference.table).has(reference.column),
       ),
     ];
     for (const target of targets) {
@@ -385,21 +246,12 @@ function scrubDanglingReferences(
   label: string,
 ): void {
   for (const reference of references) {
-    if (
-      !hasTable(db, reference.table) ||
-      !columns(db, reference.table).has(reference.column)
-    )
-      continue;
+    if (!hasTable(db, reference.table) || !columns(db, reference.table).has(reference.column)) continue;
     const table = quoteIdentifier(reference.table);
     const column = quoteIdentifier(reference.column);
     const replacement = `'rehearsal-dangling-${label}-' || rowid`;
-    if (
-      !hasTable(db, parentTable) ||
-      !columns(db, parentTable).has(parentColumn)
-    ) {
-      db.exec(
-        `UPDATE ${table} SET ${column} = ${replacement} WHERE ${column} IS NOT NULL`,
-      );
+    if (!hasTable(db, parentTable) || !columns(db, parentTable).has(parentColumn)) {
+      db.exec(`UPDATE ${table} SET ${column} = ${replacement} WHERE ${column} IS NOT NULL`);
       continue;
     }
     db.exec(
@@ -419,9 +271,7 @@ function scrubDanglingReferences(
 function anonymise(db: DatabaseSync): void {
   const unknown = tableNames(db).filter((table) => !KNOWN_TABLES.has(table));
   if (unknown.length > 0) {
-    throw new Error(
-      `anonymiser does not cover table(s): ${unknown.join(", ")}`,
-    );
+    throw new Error(`anonymiser does not cover table(s): ${unknown.join(", ")}`);
   }
   const unknownColumns = tableNames(db).flatMap((table) =>
     [...columns(db, table)]
@@ -429,9 +279,7 @@ function anonymise(db: DatabaseSync): void {
       .map((column) => `${table}.${column}`),
   );
   if (unknownColumns.length > 0) {
-    throw new Error(
-      `anonymiser does not cover column(s): ${unknownColumns.join(", ")}`,
-    );
+    throw new Error(`anonymiser does not cover column(s): ${unknownColumns.join(", ")}`);
   }
 
   db.exec("PRAGMA foreign_keys = OFF; PRAGMA secure_delete = ON;");
@@ -453,12 +301,8 @@ function anonymise(db: DatabaseSync): void {
         { table: "account_commands", column: "workspaceId" },
         { table: "capacitylens_sync_row_provenance", column: "accountId" },
       ]);
-      remapIds(db, "clients", "id", [
-        { table: "projects", column: "clientId" },
-      ]);
-      remapIds(db, "disciplines", "id", [
-        { table: "resources", column: "disciplineId" },
-      ]);
+      remapIds(db, "clients", "id", [{ table: "projects", column: "clientId" }]);
+      remapIds(db, "disciplines", "id", [{ table: "resources", column: "disciplineId" }]);
       remapIds(db, "projects", "id", [
         { table: "phases", column: "projectId" },
         { table: "resources", column: "projectId" },
@@ -557,25 +401,10 @@ function anonymise(db: DatabaseSync): void {
           ? `CASE WHEN builtin = 'true' THEN 'Internal' ELSE 'Rehearsal Client ' || rowid END`
           : `'Rehearsal Client ' || rowid`,
       );
-      updateIfPresent(
-        db,
-        "clients",
-        "codeName",
-        `CASE WHEN codeName IS NULL THEN NULL ELSE 'Client ' || rowid END`,
-      );
-      updateIfPresent(
-        db,
-        "disciplines",
-        "name",
-        `'Rehearsal Discipline ' || rowid`,
-      );
+      updateIfPresent(db, "clients", "codeName", `CASE WHEN codeName IS NULL THEN NULL ELSE 'Client ' || rowid END`);
+      updateIfPresent(db, "disciplines", "name", `'Rehearsal Discipline ' || rowid`);
       updateIfPresent(db, "projects", "name", `'Rehearsal Project ' || rowid`);
-      updateIfPresent(
-        db,
-        "projects",
-        "codeName",
-        `CASE WHEN codeName IS NULL THEN NULL ELSE 'Project ' || rowid END`,
-      );
+      updateIfPresent(db, "projects", "codeName", `CASE WHEN codeName IS NULL THEN NULL ELSE 'Project ' || rowid END`);
       updateIfPresent(db, "phases", "name", `'Rehearsal Phase ' || rowid`);
       updateIfPresent(
         db,
@@ -592,110 +421,40 @@ function anonymise(db: DatabaseSync): void {
       );
       updateIfPresent(db, "allocations", "note", "NULL");
       updateIfPresent(db, "timeOff", "note", "NULL");
-      updateIfPresent(
-        db,
-        "capacitylens_audit_outbox",
-        "id",
-        `'rehearsal-audit-' || rowid`,
-      );
+      updateIfPresent(db, "capacitylens_audit_outbox", "id", `'rehearsal-audit-' || rowid`);
       updateIfPresent(db, "capacitylens_audit_outbox", "payload", `'{}'`);
       remapIds(db, "capacitylens_sync_sessions", "sessionId", [
         { table: "capacitylens_sync_row_provenance", column: "sessionId" },
       ]);
-      updateIfPresent(
-        db,
-        "capacitylens_sync_row_provenance",
-        "rowId",
-        `'rehearsal-sync-row-' || rowid`,
-      );
-      updateIfPresent(
-        db,
-        "capacitylens_sync_row_provenance",
-        "rowHash",
-        `lower(hex(zeroblob(32)))`,
-      );
+      updateIfPresent(db, "capacitylens_sync_row_provenance", "rowId", `'rehearsal-sync-row-' || rowid`);
+      updateIfPresent(db, "capacitylens_sync_row_provenance", "rowHash", `lower(hex(zeroblob(32)))`);
 
       updateIfPresent(db, "user", "name", `'Rehearsal User ' || rowid`);
-      updateIfPresent(
-        db,
-        "user",
-        "email",
-        `'rehearsal-user-' || rowid || '@example.invalid'`,
-      );
+      updateIfPresent(db, "user", "email", `'rehearsal-user-' || rowid || '@example.invalid'`);
       updateIfPresent(db, "user", "image", "NULL");
-      updateIfPresent(
-        db,
-        "account",
-        "accountId",
-        `'rehearsal-provider-account-' || rowid`,
-      );
-      for (const secret of [
-        "accessToken",
-        "refreshToken",
-        "idToken",
-        "password",
-      ]) {
+      updateIfPresent(db, "account", "accountId", `'rehearsal-provider-account-' || rowid`);
+      for (const secret of ["accessToken", "refreshToken", "idToken", "password"]) {
         updateIfPresent(db, "account", secret, "NULL");
       }
       updateIfPresent(db, "session", "token", `'rehearsal-session-' || rowid`);
       updateIfPresent(db, "session", "ipAddress", "NULL");
       updateIfPresent(db, "session", "userAgent", `'Rehearsal'`);
-      updateIfPresent(
-        db,
-        "twoFactor",
-        "secret",
-        `'rehearsal-disabled-' || rowid`,
-      );
+      updateIfPresent(db, "twoFactor", "secret", `'rehearsal-disabled-' || rowid`);
       updateIfPresent(db, "twoFactor", "backupCodes", `'[]'`);
-      updateIfPresent(
-        db,
-        "verification",
-        "identifier",
-        `'rehearsal-verification-' || rowid`,
-      );
+      updateIfPresent(db, "verification", "identifier", `'rehearsal-verification-' || rowid`);
       updateIfPresent(db, "invites", "token", `'rehearsal-invite-' || rowid`);
-      updateIfPresent(
-        db,
-        "invites",
-        "tokenHash",
-        `'rehearsal-invite-hash-' || rowid`,
-      );
+      updateIfPresent(db, "invites", "tokenHash", `'rehearsal-invite-hash-' || rowid`);
       updateIfPresent(
         db,
         "invites",
         "preauthEmail",
         `CASE WHEN preauthEmail IS NULL THEN NULL ELSE 'invite-' || rowid || '@example.invalid' END`,
       );
-      updateIfPresent(
-        db,
-        "capacitylens_bootstrap_claim",
-        "claimToken",
-        `'rehearsal-disabled'`,
-      );
-      updateIfPresent(
-        db,
-        "account_commands",
-        "applicationId",
-        `'rehearsal-app'`,
-      );
-      updateIfPresent(
-        db,
-        "account_commands",
-        "operation",
-        `'rehearsal-operation-' || rowid`,
-      );
-      updateIfPresent(
-        db,
-        "account_commands",
-        "idempotencyKey",
-        `'rehearsal-key-' || rowid`,
-      );
-      updateIfPresent(
-        db,
-        "account_commands",
-        "payloadHash",
-        `lower(hex(zeroblob(32)))`,
-      );
+      updateIfPresent(db, "capacitylens_bootstrap_claim", "claimToken", `'rehearsal-disabled'`);
+      updateIfPresent(db, "account_commands", "applicationId", `'rehearsal-app'`);
+      updateIfPresent(db, "account_commands", "operation", `'rehearsal-operation-' || rowid`);
+      updateIfPresent(db, "account_commands", "idempotencyKey", `'rehearsal-key-' || rowid`);
+      updateIfPresent(db, "account_commands", "payloadHash", `lower(hex(zeroblob(32)))`);
       updateIfPresent(
         db,
         "account_commands",
@@ -707,12 +466,7 @@ function anonymise(db: DatabaseSync): void {
          ELSE '{"kind":"rehearsal-redacted"}'
        END`,
       );
-      updateIfPresent(
-        db,
-        "account_federated_provider_bindings",
-        "applicationId",
-        `'rehearsal-app'`,
-      );
+      updateIfPresent(db, "account_federated_provider_bindings", "applicationId", `'rehearsal-app'`);
       updateIfPresent(
         db,
         "account_federated_provider_bindings",
@@ -724,10 +478,7 @@ function anonymise(db: DatabaseSync): void {
   );
 
   const violations = db.prepare("PRAGMA foreign_key_check").all();
-  if (violations.length > 0)
-    throw new Error(
-      `anonymised copy has ${violations.length} foreign-key violation(s)`,
-    );
+  if (violations.length > 0) throw new Error(`anonymised copy has ${violations.length} foreign-key violation(s)`);
   // Rewrite every page so deleted/replaced source values are not left in freelist pages.
   db.exec("VACUUM; PRAGMA journal_mode = DELETE;");
 }
@@ -736,13 +487,7 @@ function rowCounts(db: DatabaseSync): Record<string, number> {
   return Object.fromEntries(
     tableNames(db).map((table) => [
       table,
-      Number(
-        (
-          db
-            .prepare(`SELECT COUNT(*) AS n FROM ${quoteIdentifier(table)}`)
-            .get() as { n: number }
-        ).n,
-      ),
+      Number((db.prepare(`SELECT COUNT(*) AS n FROM ${quoteIdentifier(table)}`).get() as { n: number }).n),
     ]),
   );
 }
@@ -768,17 +513,13 @@ function databaseDigest(db: DatabaseSync): string {
   const applicationId = db.prepare("PRAGMA application_id").get();
   hash.update(JSON.stringify(serialisable({ version, applicationId })));
   const schemas = db
-    .prepare(
-      `SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name`,
-    )
+    .prepare(`SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name`)
     .all();
   hash.update(JSON.stringify(serialisable(schemas)));
   for (const table of tableNames(db)) {
     const orderedColumns = [...columns(db, table)].map(quoteIdentifier);
     const rows = db
-      .prepare(
-        `SELECT * FROM ${quoteIdentifier(table)} ORDER BY ${orderedColumns.join(", ")}`,
-      )
+      .prepare(`SELECT * FROM ${quoteIdentifier(table)} ORDER BY ${orderedColumns.join(", ")}`)
       .iterate() as Iterable<Record<string, unknown>>;
     hash.update(table);
     for (const row of rows) {
@@ -796,29 +537,18 @@ function checkIntegrity(db: DatabaseSync, label: string): void {
   const quick = db.prepare("PRAGMA quick_check").all() as Array<{
     quick_check?: string;
   }>;
-  if (quick.length !== 1 || quick[0]?.quick_check !== "ok")
-    throw new Error(`${label}: quick_check failed`);
+  if (quick.length !== 1 || quick[0]?.quick_check !== "ok") throw new Error(`${label}: quick_check failed`);
   const foreignKeys = db.prepare("PRAGMA foreign_key_check").all();
-  if (foreignKeys.length > 0)
-    throw new Error(`${label}: ${foreignKeys.length} foreign-key violation(s)`);
+  if (foreignKeys.length > 0) throw new Error(`${label}: ${foreignKeys.length} foreign-key violation(s)`);
 }
 
 /** Exact destructive effects that the current migration chain is expected to have. Calculate
  * these before anonymisation so accidentally severing a migration join cannot turn its expected
  * deletion into a rehearsal-approved no-op. */
-function expectedPostMigrationRowCounts(
-  db: DatabaseSync,
-  fromVersion: number,
-): Record<string, number> {
+function expectedPostMigrationRowCounts(db: DatabaseSync, fromVersion: number): Record<string, number> {
   const expected: Record<string, number> = {};
-  const inviteColumns = hasTable(db, "invites")
-    ? columns(db, "invites")
-    : new Set<string>();
-  if (
-    fromVersion < 10 &&
-    inviteColumns.has("role") &&
-    inviteColumns.has("usedAt")
-  ) {
+  const inviteColumns = hasTable(db, "invites") ? columns(db, "invites") : new Set<string>();
+  if (fromVersion < 10 && inviteColumns.has("role") && inviteColumns.has("usedAt")) {
     expected.invites = Number(
       (
         db
@@ -833,12 +563,8 @@ function expectedPostMigrationRowCounts(
       ).n,
     );
   }
-  const verificationColumns = hasTable(db, "verification")
-    ? columns(db, "verification")
-    : new Set<string>();
-  const memberColumns = hasTable(db, "account_members")
-    ? columns(db, "account_members")
-    : new Set<string>();
+  const verificationColumns = hasTable(db, "verification") ? columns(db, "verification") : new Set<string>();
+  const memberColumns = hasTable(db, "account_members") ? columns(db, "account_members") : new Set<string>();
   if (
     fromVersion < 14 &&
     verificationColumns.has("value") &&
@@ -873,32 +599,21 @@ function assertPreserved(
   expectedAfter: Record<string, number>,
 ): void {
   for (const [table, count] of Object.entries(before)) {
-    if (
-      table === "clients" ||
-      table === "_meta" ||
-      table === DATABASE_MIGRATION_TABLE
-    )
-      continue;
+    if (table === "clients" || table === "_meta" || table === DATABASE_MIGRATION_TABLE) continue;
     const target = table === "tasks" ? "activities" : table;
     const expectedCount = expectedAfter[table] ?? count;
     if (after[target] !== expectedCount) {
       throw new Error(
-        `happy path changed ${table} row count from ${count} to ${after[target] ?? 0}; ` +
-          `expected ${expectedCount}`,
+        `happy path changed ${table} row count from ${count} to ${after[target] ?? 0}; ` + `expected ${expectedCount}`,
       );
     }
   }
   if ((after.clients ?? 0) < (after.accounts ?? 0)) {
-    throw new Error(
-      "happy path did not leave every account with an Internal client",
-    );
+    throw new Error("happy path did not leave every account with an Internal client");
   }
 }
 
-async function onlineCopy(
-  sourcePath: string,
-  destinationPath: string,
-): Promise<void> {
+async function onlineCopy(sourcePath: string, destinationPath: string): Promise<void> {
   const source = new DatabaseSync(sourcePath, {
     readOnly: true,
     enableForeignKeyConstraints: false,
@@ -910,18 +625,11 @@ async function onlineCopy(
   }
 }
 
-async function expectKilledMigrationRollsBack(
-  path: string,
-  expectedDigest: string,
-): Promise<void> {
+async function expectKilledMigrationRollsBack(path: string, expectedDigest: string): Promise<void> {
   const script = fileURLToPath(import.meta.url);
-  const child = spawn(
-    process.execPath,
-    [...process.execArgv, script, "--worker-kill", path],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
+  const child = spawn(process.execPath, [...process.execArgv, script, "--worker-kill", path], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   let stdout = "";
   let stderr = "";
   const outcome = await new Promise<{
@@ -930,16 +638,11 @@ async function expectKilledMigrationRollsBack(
   }>((resolvePromise, reject) => {
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      reject(
-        new Error(
-          `kill rehearsal worker timed out${stderr ? `: ${stderr}` : ""}`,
-        ),
-      );
+      reject(new Error(`kill rehearsal worker timed out${stderr ? `: ${stderr}` : ""}`));
     }, 15_000);
     child.stdout.on("data", (chunk: Buffer) => {
       stdout += chunk.toString();
-      if (stdout.includes("CAPACITYLENS_MIGRATION_READY"))
-        child.kill("SIGKILL");
+      if (stdout.includes("CAPACITYLENS_MIGRATION_READY")) child.kill("SIGKILL");
     });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
@@ -954,9 +657,7 @@ async function expectKilledMigrationRollsBack(
     });
   });
   if (outcome.signal !== "SIGKILL") {
-    throw new Error(
-      `kill rehearsal worker exited unexpectedly (${outcome.code ?? outcome.signal}): ${stderr}`,
-    );
+    throw new Error(`kill rehearsal worker exited unexpectedly (${outcome.code ?? outcome.signal}): ${stderr}`);
   }
   const recovered = new DatabaseSync(path, {
     enableForeignKeyConstraints: false,
@@ -1009,25 +710,15 @@ function parseOptions(args: string[]): CliOptions {
   return {
     source: source
       ? resolve(invocationDirectory, source)
-      : resolve(
-          fileURLToPath(
-            new URL(
-              "../src/fixtures/databases/v7-password.db",
-              import.meta.url,
-            ),
-          ),
-        ),
+      : resolve(fileURLToPath(new URL("../src/fixtures/databases/v7-password.db", import.meta.url))),
     keep,
   };
 }
 
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
-  if (!existsSync(options.source))
-    throw new Error(`source database does not exist: ${options.source}`);
-  const directory = mkdtempSync(
-    join(tmpdir(), "capacitylens-migration-rehearsal-"),
-  );
+  if (!existsSync(options.source)) throw new Error(`source database does not exist: ${options.source}`);
+  const directory = mkdtempSync(join(tmpdir(), "capacitylens-migration-rehearsal-"));
   try {
     const base = join(directory, "anonymised-source.db");
     await onlineCopy(options.source, base);
@@ -1047,10 +738,7 @@ async function main(): Promise<void> {
           }
         ).user_version,
       );
-      expectedCounts = expectedPostMigrationRowCounts(
-        sanitising,
-        sourceVersion,
-      );
+      expectedCounts = expectedPostMigrationRowCounts(sanitising, sourceVersion);
       anonymise(sanitising);
       checkIntegrity(sanitising, "anonymised source");
       beforeVersion = Number(
@@ -1067,9 +755,7 @@ async function main(): Promise<void> {
       sanitising.close();
     }
     if (plan.migrations.length === 0) {
-      throw new Error(
-        `source is already at database v${DB_SCHEMA_VERSION}; choose an older released database`,
-      );
+      throw new Error(`source is already at database v${DB_SCHEMA_VERSION}; choose an older released database`);
     }
 
     const happyPath = join(directory, "happy.db");
@@ -1095,8 +781,7 @@ async function main(): Promise<void> {
     } finally {
       happy.close();
     }
-    if (!rollback)
-      throw new Error("happy path did not create a rollback snapshot");
+    if (!rollback) throw new Error("happy path did not create a rollback snapshot");
 
     const rollbackDb = new DatabaseSync(rollback, {
       readOnly: true,
@@ -1112,8 +797,7 @@ async function main(): Promise<void> {
 
     const reopened = openDb(happyPath);
     try {
-      if (planDatabaseMigrations(reopened).migrations.length !== 0)
-        throw new Error("reopen was not idempotent");
+      if (planDatabaseMigrations(reopened).migrations.length !== 0) throw new Error("reopen was not idempotent");
     } finally {
       reopened.close();
     }
@@ -1121,10 +805,7 @@ async function main(): Promise<void> {
     const diskFullPath = join(directory, "disk-full.db");
     copyFileSync(base, diskFullPath);
     const diskFull = openDbConnection(diskFullPath);
-    const diskError = Object.assign(
-      new Error("simulated ENOSPC during migration"),
-      { code: "ENOSPC" },
-    );
+    const diskError = Object.assign(new Error("simulated ENOSPC during migration"), { code: "ENOSPC" });
     try {
       let failedAsExpected = false;
       try {
@@ -1137,8 +818,7 @@ async function main(): Promise<void> {
         if (error === diskError) failedAsExpected = true;
         else throw error;
       }
-      if (!failedAsExpected)
-        throw new Error("simulated disk exhaustion unexpectedly committed");
+      if (!failedAsExpected) throw new Error("simulated disk exhaustion unexpectedly committed");
       checkIntegrity(diskFull, "disk-exhaustion rollback");
       if (databaseDigest(diskFull) !== beforeDigest)
         throw new Error("disk exhaustion left a partially applied migration");
@@ -1150,17 +830,13 @@ async function main(): Promise<void> {
     copyFileSync(base, killedPath);
     await expectKilledMigrationRollsBack(killedPath, beforeDigest);
 
-    const totalRows = Object.values(beforeCounts).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
+    const totalRows = Object.values(beforeCounts).reduce((sum, count) => sum + count, 0);
     console.log(
       `Migration rehearsal passed: ${basename(options.source)} v${beforeVersion} → v${DB_SCHEMA_VERSION}; ` +
         `${Object.keys(beforeCounts).length} tables / ${totalRows} rows; happy path, verified rollback snapshot, ` +
         `simulated ENOSPC rollback, forced-termination recovery, and idempotent reopen all passed.`,
     );
-    if (options.keep)
-      console.log(`Anonymised rehearsal artifacts retained at ${directory}`);
+    if (options.keep) console.log(`Anonymised rehearsal artifacts retained at ${directory}`);
   } finally {
     if (!options.keep) rmSync(directory, { recursive: true, force: true });
   }

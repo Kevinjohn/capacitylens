@@ -13,13 +13,7 @@ import { resourceDisplayName } from "../lib/metadata";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandGroup,
-  CommandItem,
-} from "./ui/command";
+import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
 import type { Filters } from "../store/useStore";
 import { cn } from "@/lib/utils";
 import { LINKS } from "../lib/navLinks";
@@ -45,23 +39,15 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const setFilters = useStore((s) => s.setFilters);
   const data = useActiveScopedData();
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
-  const disciplinesEnabled = useStore((s) =>
-    disciplinesEnabledFor(s.data, s.activeAccountId),
-  );
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
-  const placeholdersEnabled = useStore((s) =>
-    placeholdersEnabledFor(s.data, s.activeAccountId),
-  );
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
   // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
-  const externalEnabled = useStore((s) =>
-    externalEnabledFor(s.data, s.activeAccountId),
-  );
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
   // Internal-project results also jump to the schedule, so omit them when their bars are hidden.
   // Internal ACTIVITIES deliberately remain below: they open the complete management list instead.
-  const showInternalProjects = useStore((s) =>
-    showInternalProjectsFor(s.data, s.activeAccountId),
-  );
+  const showInternalProjects = useStore((s) => showInternalProjectsFor(s.data, s.activeAccountId));
 
   const [query, setQuery] = useState("");
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
@@ -71,9 +57,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
 
   // Portal-backed cmdk nodes arrive after this component's first commit. Callback-ref state makes
   // their availability an explicit effect dependency for the active-descendant repair below.
-  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(
-    null,
-  );
+  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
   // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
   // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
@@ -141,9 +125,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const list = listElement;
     if (!input || !list) return;
     const syncActiveDescendant = () => {
-      const activeOpt = list.querySelector<HTMLElement>(
-        '[cmdk-item=""][aria-selected="true"]',
-      );
+      const activeOpt = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]');
       const activeId = activeOpt?.id ?? null;
       if (activeId) {
         input.setAttribute("aria-activedescendant", activeId);
@@ -182,37 +164,14 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         aria-describedby={undefined}
         className="top-[15svh] max-h-[60dvh] max-w-xl translate-y-0 gap-0 overflow-hidden p-0"
       >
-        <DialogTitle className="sr-only">
-          {m.palette_dialog_label()}
-        </DialogTitle>
-        <Command
-          shouldFilter={false}
-          loop={false}
-          value={activeValue}
-          onValueChange={setActiveValue}
-        >
+        <DialogTitle className="sr-only">{m.palette_dialog_label()}</DialogTitle>
+        <Command shouldFilter={false} loop={false} value={activeValue} onValueChange={setActiveValue}>
           {/* Search input row */}
           <div className="flex items-center gap-3 border-b px-4 py-3">
             {/* Magnifying glass icon */}
-            <svg
-              className="size-4 shrink-0 text-faint"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <circle
-                cx="6.5"
-                cy="6.5"
-                r="4.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <path
-                d="M10.5 10.5L14 14"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
+            <svg className="size-4 shrink-0 text-faint" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <CommandInput
               ref={setInputElement}
@@ -223,9 +182,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               onValueChange={setQuery}
               data-testid="command-palette-input"
             />
-            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">
-              {m.palette_esc()}
-            </kbd>
+            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">{m.palette_esc()}</kbd>
           </div>
 
           {/* Results — cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}
@@ -233,9 +190,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             {/* No-results: manual conditional (deterministic with shouldFilter=false) rather than
                 cmdk's CommandEmpty, which keys off its internal filtered-count. */}
             {items.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-faint">
-                {m.palette_no_results({ query })}
-              </div>
+              <div className="px-4 py-6 text-center text-sm text-faint">{m.palette_no_results({ query })}</div>
             )}
             {sections.map((section) => (
               <CommandGroup key={section.title} heading={section.title}>
@@ -259,9 +214,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                       <span
                         className={cn(
                           "shrink-0 truncate text-xs",
-                          item.id === activeValue
-                            ? "text-muted-foreground"
-                            : "text-faint",
+                          item.id === activeValue ? "text-muted-foreground" : "text-faint",
                         )}
                       >
                         {item.sublabel}
@@ -342,29 +295,25 @@ function buildItems({
   }
 
   // Filter actions by query (fuzzy on label)
-  const filteredActions = q
-    ? fuzzyFilter(actions, q, (a) => a.label).slice(0, SECTION_LIMIT)
-    : actions;
+  const filteredActions = q ? fuzzyFilter(actions, q, (a) => a.label).slice(0, SECTION_LIMIT) : actions;
 
   // ── Pages ──────────────────────────────────────────────────────────────────
   // Derive page destinations from the same source as the sidebar navigation. New first-class
   // routes therefore cannot silently appear in navigation while being absent from the palette.
-  const pages: PaletteItem[] = LINKS.filter(
-    ([to]) => disciplinesEnabled || to !== "/disciplines",
-  ).map(([to, label]) => ({
-    id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
-    label: label(),
-    sublabel: to,
-    section: m.palette_section_pages(),
-    onSelect: () => {
-      void navigate(to);
-      onClose();
-    },
-  }));
+  const pages: PaletteItem[] = LINKS.filter(([to]) => disciplinesEnabled || to !== "/disciplines").map(
+    ([to, label]) => ({
+      id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
+      label: label(),
+      sublabel: to,
+      section: m.palette_section_pages(),
+      onSelect: () => {
+        void navigate(to);
+        onClose();
+      },
+    }),
+  );
 
-  const filteredPages = q
-    ? fuzzyFilter(pages, q, (p) => p.label).slice(0, SECTION_LIMIT)
-    : pages;
+  const filteredPages = q ? fuzzyFilter(pages, q, (p) => p.label).slice(0, SECTION_LIMIT) : pages;
 
   // ── Resources ──────────────────────────────────────────────────────────────
   // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
@@ -393,15 +342,9 @@ function buildItems({
     : resourceItems.slice(0, SECTION_LIMIT);
 
   // ── Projects ───────────────────────────────────────────────────────────────
-  const clientsById = new Map(
-    data.clients.map((client) => [client.id, client]),
-  );
+  const clientsById = new Map(data.clients.map((client) => [client.id, client]));
   const projectItems: PaletteItem[] = data.projects
-    .filter(
-      (project) =>
-        showInternalProjects ||
-        clientsById.get(project.clientId)?.builtin !== true,
-    )
+    .filter((project) => showInternalProjects || clientsById.get(project.clientId)?.builtin !== true)
     .map((project) => {
       const client = clientsById.get(project.clientId);
       return {

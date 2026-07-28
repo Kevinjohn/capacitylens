@@ -165,9 +165,7 @@
   --c-surface: #161922;
   --c-elevated: #1d212c;
   --c-line: #2a2f3c;
-  --c-line-soft: var(
-    --c-line
-  ); /* no lightening in dark — only light mode read heavy */
+  --c-line-soft: var(--c-line); /* no lightening in dark — only light mode read heavy */
   --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
   --c-switch-track: var(--c-line);
   --c-switch-thumb: var(--c-ink);
@@ -421,11 +419,7 @@ input[type="radio"] {
   /* !important: the block sets its hatch gradient via an inline `style`, which an
      un-flagged rule can't beat. The solid amber fill intentionally REPLACES the block's
      diagonal-hatch texture in draw mode, so the glow reads cleanly without the hatch fighting it. */
-  background: color-mix(
-    in oklab,
-    var(--color-warn) 34%,
-    var(--color-surface)
-  ) !important;
+  background: color-mix(in oklab, var(--color-warn) 34%, var(--color-surface)) !important;
   box-shadow:
     0 0 0 1.5px var(--color-warn),
     0 0 14px 2px color-mix(in oklab, var(--color-warn) 55%, transparent);

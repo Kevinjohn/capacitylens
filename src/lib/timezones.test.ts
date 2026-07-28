@@ -1,9 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import {
-  supportedTimeZones,
-  timeZoneOffsetLabel,
-  timeZoneOptionLabel,
-} from "./timezones";
+import { supportedTimeZones, timeZoneOffsetLabel, timeZoneOptionLabel } from "./timezones";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -11,10 +7,7 @@ afterEach(() => {
 
 describe("supportedTimeZones", () => {
   it("prepends Etc/GMT when the engine list omits it", () => {
-    vi.spyOn(Intl, "supportedValuesOf").mockReturnValue([
-      "UTC",
-      "Europe/London",
-    ]);
+    vi.spyOn(Intl, "supportedValuesOf").mockReturnValue(["UTC", "Europe/London"]);
     expect(supportedTimeZones()).toEqual(["Etc/GMT", "UTC", "Europe/London"]);
   });
 
@@ -42,16 +35,8 @@ describe("supportedTimeZones", () => {
 
 describe("time zone option labels", () => {
   it("shows a numeric UTC offset for a zero-offset zone", () => {
-    expect(
-      timeZoneOffsetLabel("Etc/GMT", new Date("2026-07-01T12:00:00.000Z")),
-    ).toBe("UTC+00:00");
-    expect(
-      timeZoneOptionLabel(
-        "Etc/GMT",
-        "GMT",
-        new Date("2026-07-01T12:00:00.000Z"),
-      ),
-    ).toBe("GMT (UTC+00:00)");
+    expect(timeZoneOffsetLabel("Etc/GMT", new Date("2026-07-01T12:00:00.000Z"))).toBe("UTC+00:00");
+    expect(timeZoneOptionLabel("Etc/GMT", "GMT", new Date("2026-07-01T12:00:00.000Z"))).toBe("GMT (UTC+00:00)");
   });
 
   it("reflects daylight-saving offsets for named zones", () => {
@@ -59,24 +44,12 @@ describe("time zone option labels", () => {
     const winter = new Date("2026-01-01T12:00:00.000Z");
     expect(timeZoneOffsetLabel("Europe/London", summer)).toBe("UTC+01:00");
     expect(timeZoneOffsetLabel("Europe/London", winter)).toBe("UTC+00:00");
-    expect(
-      timeZoneOptionLabel("America/New_York", "America/New_York", summer),
-    ).toBe("America/New_York (UTC-04:00)");
+    expect(timeZoneOptionLabel("America/New_York", "America/New_York", summer)).toBe("America/New_York (UTC-04:00)");
   });
 
   it("does not cache across a half-hour DST transition inside one UTC hour", () => {
-    expect(
-      timeZoneOffsetLabel(
-        "Australia/Lord_Howe",
-        new Date("2026-10-03T15:15:00.000Z"),
-      ),
-    ).toBe("UTC+10:30");
-    expect(
-      timeZoneOffsetLabel(
-        "Australia/Lord_Howe",
-        new Date("2026-10-03T15:45:00.000Z"),
-      ),
-    ).toBe("UTC+11:00");
+    expect(timeZoneOffsetLabel("Australia/Lord_Howe", new Date("2026-10-03T15:15:00.000Z"))).toBe("UTC+10:30");
+    expect(timeZoneOffsetLabel("Australia/Lord_Howe", new Date("2026-10-03T15:45:00.000Z"))).toBe("UTC+11:00");
   });
 
   it("preserves an engine-specific offset suffix while normalizing its GMT prefix", () => {
@@ -84,17 +57,10 @@ describe("time zone option labels", () => {
       { type: "timeZoneName", value: "GMT+5:30:45" },
     ]);
 
-    expect(
-      timeZoneOffsetLabel(
-        "Asia/Kathmandu",
-        new Date("2026-07-01T12:02:00.000Z"),
-      ),
-    ).toBe("UTC+5:30:45");
+    expect(timeZoneOffsetLabel("Asia/Kathmandu", new Date("2026-07-01T12:02:00.000Z"))).toBe("UTC+5:30:45");
   });
 
   it("falls back to zero offset for an invalid persisted zone", () => {
-    expect(
-      timeZoneOffsetLabel("Not/A_Zone", new Date("2026-07-01T12:03:00.000Z")),
-    ).toBe("UTC+00:00");
+    expect(timeZoneOffsetLabel("Not/A_Zone", new Date("2026-07-01T12:03:00.000Z"))).toBe("UTC+00:00");
   });
 });

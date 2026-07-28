@@ -3,11 +3,11 @@
 // productionGuard.ts can share it WITHOUT pulling in the whole Fastify app (app.ts) — an import
 // cycle the guard must stay clear of, since index.ts consults the guard before building the app.
 
-export const MAX_RATE_LIMIT = 1_000_000
+export const MAX_RATE_LIMIT = 1_000_000;
 
 /** Normalize a programmatic rate limit with the same bounds used by the environment parser. */
 export function normalizeRateLimit(value: number): number {
-  return Number.isSafeInteger(value) && value > 0 && value <= MAX_RATE_LIMIT ? value : 0
+  return Number.isSafeInteger(value) && value > 0 && value <= MAX_RATE_LIMIT ? value : 0;
 }
 
 /** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
@@ -18,6 +18,6 @@ export function normalizeRateLimit(value: number): number {
  *  surprising limit. This is the same value the production guard checks, so "off" cannot mean one
  *  thing to the guard and another to the limiter. */
 export function parseRateLimit(raw: string | undefined): number {
-  if (!raw || !/^\d+$/.test(raw)) return 0
-  return normalizeRateLimit(Number(raw))
+  if (!raw || !/^\d+$/.test(raw)) return 0;
+  return normalizeRateLimit(Number(raw));
 }

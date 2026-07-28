@@ -10,22 +10,22 @@
 // several security actions failing with SESSION_NOT_FRESH at once DE-DUPE onto ONE dialog (they all
 // share the same promise and all retry once it resolves), rather than stacking N identical dialogs.
 
-type Resolver = (reauthenticated: boolean) => void
+type Resolver = (reauthenticated: boolean) => void;
 
 /** Final liveness backstop when no React host survives to cancel the request immediately. */
-export const REAUTH_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
+export const REAUTH_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
 // The ONE in-flight re-auth request, or null. Holds the promise every concurrent caller awaits plus
 // the resolver the dialog fulfils. Never two at once — see the de-dupe in requestReauth.
 let pending: {
-  promise: Promise<boolean>
-  resolve: Resolver
-  timeout: ReturnType<typeof setTimeout>
-} | null = null
-const listeners = new Set<() => void>()
+  promise: Promise<boolean>;
+  resolve: Resolver;
+  timeout: ReturnType<typeof setTimeout>;
+} | null = null;
+const listeners = new Set<() => void>();
 
 function emit(): void {
-  for (const listener of listeners) listener()
+  for (const listener of listeners) listener();
 }
 
 /**
@@ -35,37 +35,37 @@ function emit(): void {
  * step-up, and every caller retries together once it resolves. Total: never rejects.
  */
 export function requestReauth(): Promise<boolean> {
-  if (pending) return pending.promise
-  let resolve!: Resolver
+  if (pending) return pending.promise;
+  let resolve!: Resolver;
   const promise = new Promise<boolean>((r) => {
-    resolve = r
-  })
-  const timeout = setTimeout(() => resolveReauth(false), REAUTH_REQUEST_TIMEOUT_MS)
-  pending = { promise, resolve, timeout }
-  emit()
-  return promise
+    resolve = r;
+  });
+  const timeout = setTimeout(() => resolveReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
+  pending = { promise, resolve, timeout };
+  emit();
+  return promise;
 }
 
 /** Fulfil the pending re-auth request. `true` = the session was refreshed (callers retry); `false` =
  *  cancelled (callers surface the original error). No-op when nothing is pending. */
 export function resolveReauth(reauthenticated: boolean): void {
-  const current = pending
-  if (!current) return
-  pending = null
-  clearTimeout(current.timeout)
-  emit()
-  current.resolve(reauthenticated)
+  const current = pending;
+  if (!current) return;
+  pending = null;
+  clearTimeout(current.timeout);
+  emit();
+  current.resolve(reauthenticated);
 }
 
 /** Snapshot for useSyncExternalStore — whether a step-up dialog should currently be shown. */
 export function reauthPending(): boolean {
-  return pending !== null
+  return pending !== null;
 }
 
 /** Subscribe to pending-state changes (useSyncExternalStore). Returns an unsubscribe. */
 export function subscribeReauth(listener: () => void): () => void {
-  listeners.add(listener)
+  listeners.add(listener);
   return () => {
-    listeners.delete(listener)
-  }
+    listeners.delete(listener);
+  };
 }

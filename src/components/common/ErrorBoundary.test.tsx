@@ -51,9 +51,7 @@ describe("ErrorBoundary", () => {
 describe("RouteError (React Router errorElement)", () => {
   it("renders the branded recovery screen when a route element throws", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const router = createMemoryRouter([
-      { path: "/", element: <Boom />, errorElement: <RouteError /> },
-    ]);
+    const router = createMemoryRouter([{ path: "/", element: <Boom />, errorElement: <RouteError /> }]);
 
     render(<RouterProvider router={router} />);
 
@@ -70,9 +68,7 @@ describe("RouteError (React Router errorElement)", () => {
 describe("ErrorFallback", () => {
   it("shows a default message when none is provided (never a blank screen)", () => {
     render(<ErrorFallback />);
-    expect(
-      screen.getByText("An unexpected error occurred."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
   });
 
   it("reloads the application from its sole recovery control", () => {

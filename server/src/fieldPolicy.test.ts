@@ -15,36 +15,25 @@ describe("field policy catalogue", () => {
     for (const role of roles) {
       const visibility = visibilityForRole(role);
       for (const policy of GATED_FIELD_POLICIES) {
-        expect(visibility[policy.visKey]).toBe(
-          role !== null && policy.visibleTo(role),
-        );
+        expect(visibility[policy.visKey]).toBe(role !== null && policy.visibleTo(role));
       }
     }
   });
 
   it("identifies every governed table and no ordinary table", () => {
-    const governed = new Set(
-      GATED_FIELD_POLICIES.flatMap((policy) => policy.tables),
-    );
+    const governed = new Set(GATED_FIELD_POLICIES.flatMap((policy) => policy.tables));
     for (const table of governed) expect(tableHasGatedFields(table)).toBe(true);
     expect(tableHasGatedFields("resources")).toBe(false);
   });
 
   it("redacts note and private-name fields only for blind callers", () => {
-    expect(
-      redactGatedEcho(
-        "timeOff",
-        { id: "to-1", note: "private" },
-        { canSeeTimeOffNote: false },
-      ),
-    ).toEqual({ id: "to-1" });
-    expect(
-      redactGatedEcho(
-        "timeOff",
-        { id: "to-1", note: "private" },
-        { canSeeTimeOffNote: true },
-      ),
-    ).toEqual({ id: "to-1", note: "private" });
+    expect(redactGatedEcho("timeOff", { id: "to-1", note: "private" }, { canSeeTimeOffNote: false })).toEqual({
+      id: "to-1",
+    });
+    expect(redactGatedEcho("timeOff", { id: "to-1", note: "private" }, { canSeeTimeOffNote: true })).toEqual({
+      id: "to-1",
+      note: "private",
+    });
     expect(
       redactGatedEcho(
         "clients",
@@ -67,12 +56,7 @@ describe("field policy catalogue", () => {
 
   it("pins stored gated fields on blind updates and strips them from blind creates", () => {
     const timeOffUpdate = { note: "attempted overwrite" };
-    pinGatedFields(
-      "timeOff",
-      timeOffUpdate,
-      { note: "stored note" },
-      { canSeeTimeOffNote: false },
-    );
+    pinGatedFields("timeOff", timeOffUpdate, { note: "stored note" }, { canSeeTimeOffNote: false });
     expect(timeOffUpdate).toEqual({ note: "stored note" });
 
     const privateUpdate: Record<string, unknown> = {

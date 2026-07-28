@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   schedule:
-    - cron: '19 4 * * 2'
+    - cron: "19 4 * * 2"
 
 concurrency:
   group: security-${{ github.ref }}
@@ -80,7 +80,7 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: '1'
+          exit-code: "1"
       - name: Scan web image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -88,7 +88,7 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: '1'
+          exit-code: "1"
       - name: Scan internal TLS initializer image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -96,7 +96,7 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: '1'
+          exit-code: "1"
 
   # DAST policy (2026-07-17): the BLOCKING scan validates the HARDENED posture — the
   # configuration we document as recommended and must keep delivering. The out-of-the-box
@@ -113,10 +113,10 @@ jobs:
       # http:// is permitted for BETTER_AUTH_URL because localhost is a loopback origin
       # (auth.ts refuses plaintext only for non-loopback production origins).
       CAPACITYLENS_AUTH: password
-      CAPACITYLENS_REQUIRE_MFA: '1'
-      CAPACITYLENS_BACKUP_INTERVAL_MIN: '60'
-      CAPACITYLENS_STORAGE_ENCRYPTED: '1'
-      CAPACITYLENS_SECURITY_LOG_FORWARDING: '1'
+      CAPACITYLENS_REQUIRE_MFA: "1"
+      CAPACITYLENS_BACKUP_INTERVAL_MIN: "60"
+      CAPACITYLENS_STORAGE_ENCRYPTED: "1"
+      CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
       BETTER_AUTH_URL: http://localhost:8080
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -170,7 +170,7 @@ jobs:
     env:
       # The out-of-the-box posture: open instance explicitly accepted, every optional
       # hardening left off (matching what a first-run community deployment gets).
-      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1'
+      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

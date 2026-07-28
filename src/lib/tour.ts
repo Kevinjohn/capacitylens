@@ -19,19 +19,19 @@
 // driver.js itself (~25kB) is imported LAZILY below (inside startTour), not at module top level:
 // this file is reachable from the eagerly-loaded GettingStarted card, so a static import would land
 // the whole library in the main chunk for a click-only feature nearly nobody triggers per session.
-import { m } from '@/i18n'
-import { ROUTE_RESOURCES, ROUTE_CLIENTS, ROUTE_SETTINGS } from './navLinks'
+import { m } from "@/i18n";
+import { ROUTE_RESOURCES, ROUTE_CLIENTS, ROUTE_SETTINGS } from "./navLinks";
 
 /** Launch the orientation tour. Builds steps fresh (locale-correct copy) and drives from stop 1.
  *  Async so the driver.js import can be dynamic (see the file header) — callers must `void` or
  *  `await` it. */
 export async function startTour(): Promise<void> {
-  const { driver } = await import('driver.js')
+  const { driver } = await import("driver.js");
   const tour = driver({
     showProgress: true,
     // driver.js interpolates its own `{{current}}`/`{{total}}` tokens; the surrounding words come
     // from the Paraglide message so the phrase is translatable.
-    progressText: m.tour_progress({ step: '{{current}}', total: '{{total}}' }),
+    progressText: m.tour_progress({ step: "{{current}}", total: "{{total}}" }),
     nextBtnText: m.tour_next(),
     prevBtnText: m.tour_prev(),
     doneBtnText: m.tour_done(),
@@ -51,17 +51,17 @@ export async function startTour(): Promise<void> {
       // it below the small link, on top of the neighbouring nav rows it's pointing at.
       {
         element: `[data-nav="${ROUTE_RESOURCES}"]`,
-        popover: { title: m.tour_people_title(), description: m.tour_people_desc(), side: 'right' },
+        popover: { title: m.tour_people_title(), description: m.tour_people_desc(), side: "right" },
       },
       {
         element: `[data-nav="${ROUTE_CLIENTS}"]`,
-        popover: { title: m.tour_clients_title(), description: m.tour_clients_desc(), side: 'right' },
+        popover: { title: m.tour_clients_title(), description: m.tour_clients_desc(), side: "right" },
       },
       {
         element: `[data-nav="${ROUTE_SETTINGS}"]`,
-        popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: 'right' },
+        popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: "right" },
       },
     ],
-  })
-  tour.drive()
+  });
+  tour.drive();
 }

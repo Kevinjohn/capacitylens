@@ -31,10 +31,7 @@ export function formatShortDate(date: ISODate): string {
  */
 export function formatDayCount(start: ISODate, end: ISODate): string {
   const inclusiveDays = daysInclusive(start, end);
-  if (!Number.isFinite(inclusiveDays))
-    throw new RangeError("Invalid time-off date range");
+  if (!Number.isFinite(inclusiveDays)) throw new RangeError("Invalid time-off date range");
   const n = Math.max(0, inclusiveDays);
-  return n === 1
-    ? m.list_timeoff_days_one({ count: n })
-    : m.list_timeoff_days_other({ count: n });
+  return n === 1 ? m.list_timeoff_days_one({ count: n }) : m.list_timeoff_days_other({ count: n });
 }

@@ -1,29 +1,29 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { describe, it, expect } from 'vitest'
-import { evaluateProductionPosture } from './productionGuard'
-import { BOOTSTRAP_ADMIN_EMAIL } from './auth'
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { describe, it, expect } from "vitest";
+import { evaluateProductionPosture } from "./productionGuard";
+import { BOOTSTRAP_ADMIN_EMAIL } from "./auth";
 
-type ProductionEnv = Parameters<typeof evaluateProductionPosture>[0]
+type ProductionEnv = Parameters<typeof evaluateProductionPosture>[0];
 
 const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
-  NODE_ENV: 'production',
-  CAPACITYLENS_HTTPS: '1',
-  CAPACITYLENS_REQUIRE_MFA: '1',
-  CAPACITYLENS_SSO_MFA_ENFORCED: '1',
-  CAPACITYLENS_RATE_LIMIT: '240',
-  CAPACITYLENS_AUDIT: 'on',
-  CAPACITYLENS_AUDIT_STDOUT: '1',
-  CAPACITYLENS_STORAGE_ENCRYPTED: '1',
-  CAPACITYLENS_SECURITY_LOG_FORWARDING: '1',
-  CAPACITYLENS_INTERNAL_TLS_CERT: '/run/capacitylens-internal-tls/api.crt',
-  CAPACITYLENS_INTERNAL_TLS_KEY: '/run/capacitylens-internal-tls/api.key',
-}
+  NODE_ENV: "production",
+  CAPACITYLENS_HTTPS: "1",
+  CAPACITYLENS_REQUIRE_MFA: "1",
+  CAPACITYLENS_SSO_MFA_ENFORCED: "1",
+  CAPACITYLENS_RATE_LIMIT: "240",
+  CAPACITYLENS_AUDIT: "on",
+  CAPACITYLENS_AUDIT_STDOUT: "1",
+  CAPACITYLENS_STORAGE_ENCRYPTED: "1",
+  CAPACITYLENS_SECURITY_LOG_FORWARDING: "1",
+  CAPACITYLENS_INTERNAL_TLS_CERT: "/run/capacitylens-internal-tls/api.crt",
+  CAPACITYLENS_INTERNAL_TLS_KEY: "/run/capacitylens-internal-tls/api.key",
+};
 
-const envExample = readFileSync(fileURLToPath(new URL('../../.env.example', import.meta.url)), 'utf8')
+const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
 
 function productionPosture(overrides: ProductionEnv) {
-  return evaluateProductionPosture({ ...FULLY_HARDENED_PRODUCTION_CONTROLS, ...overrides })
+  return evaluateProductionPosture({ ...FULLY_HARDENED_PRODUCTION_CONTROLS, ...overrides });
 }
 
 // P3.1: once NODE_ENV=production, the dev/open posture is retired — the entrypoint refuses to
@@ -31,134 +31,133 @@ function productionPosture(overrides: ProductionEnv) {
 // Outside production it is a strict no-op so dev / e2e / self-host are untouched. These tests
 // prove BOTH directions (it actually refuses, and a clean production config passes clean).
 
-describe('evaluateProductionPosture', () => {
-  it('is a no-op outside production, even with the worst-looking env (dev/self-host untouched)', () => {
+describe("evaluateProductionPosture", () => {
+  it("is a no-op outside production, even with the worst-looking env (dev/self-host untouched)", () => {
     // CAPACITYLENS_AUTH unset (off), CAPACITYLENS_HTTPS unset, open signup on — none of which may
     // produce a refusal OR a warning unless NODE_ENV is explicitly 'production'.
     const worst = {
       CAPACITYLENS_AUTH: undefined,
       CAPACITYLENS_HTTPS: undefined,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+    };
+    for (const NODE_ENV of [undefined, "development", "test"]) {
+      const result = evaluateProductionPosture({ ...worst, NODE_ENV });
+      expect(result.refusals).toEqual([]);
+      expect(result.warnings).toEqual([]);
     }
-    for (const NODE_ENV of [undefined, 'development', 'test']) {
-      const result = evaluateProductionPosture({ ...worst, NODE_ENV })
-      expect(result.refusals).toEqual([])
-      expect(result.warnings).toEqual([])
-    }
-  })
+  });
 
-  it('refuses boot when auth is OFF in production (auth unset)', () => {
-    const result = productionPosture({ CAPACITYLENS_AUTH: undefined, CAPACITYLENS_HTTPS: undefined })
-    expect(result.refusals).toHaveLength(1)
+  it("refuses boot when auth is OFF in production (auth unset)", () => {
+    const result = productionPosture({ CAPACITYLENS_AUTH: undefined, CAPACITYLENS_HTTPS: undefined });
+    expect(result.refusals).toHaveLength(1);
     // The single refusal must name the auth env var / mode so the operator knows what to change.
-    expect(result.refusals[0]).toMatch(/SMALLSASS_ACCOUNT_MODE/)
-    expect(result.refusals[0]).toMatch(/auth is OFF/)
+    expect(result.refusals[0]).toMatch(/SMALLSASS_ACCOUNT_MODE/);
+    expect(result.refusals[0]).toMatch(/auth is OFF/);
     // HTTPS unset here, so a warning is expected — the refusal does not suppress warnings.
-    expect(result.warnings.length).toBeGreaterThan(0)
-  })
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
 
-  it('returns an invalid auth mode as a fatal posture refusal instead of throwing', () => {
-    const evaluate = () => productionPosture({ CAPACITYLENS_AUTH: 'bogus' })
+  it("returns an invalid auth mode as a fatal posture refusal instead of throwing", () => {
+    const evaluate = () => productionPosture({ CAPACITYLENS_AUTH: "bogus" });
 
-    expect(evaluate).not.toThrow()
-    const result = evaluate()
-    expect(result.refusals).toEqual([
-      expect.stringMatching(/SMALLSASS_ACCOUNT_MODE must be .*off.*password.*sso/i),
-    ])
-    expect(result.warnings).toEqual([])
-  })
+    expect(evaluate).not.toThrow();
+    const result = evaluate();
+    expect(result.refusals).toEqual([expect.stringMatching(/SMALLSASS_ACCOUNT_MODE must be .*off.*password.*sso/i)]);
+    expect(result.warnings).toEqual([]);
+  });
 
-  it('downgrades the auth-off refusal to a warning when CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1', () => {
+  it("downgrades the auth-off refusal to a warning when CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1", () => {
     const result = productionPosture({
-      CAPACITYLENS_AUTH: 'off',
-      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1',
-    })
-    expect(result.refusals).toEqual([])
+      CAPACITYLENS_AUTH: "off",
+      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1",
+    });
+    expect(result.refusals).toEqual([]);
     // The deliberate-open note must still surface (never silenced), naming the opt-in var.
-    expect(
-      result.warnings.some((w) => /CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION/.test(w) && /open\/demo/.test(w)),
-    ).toBe(true)
-  })
+    expect(result.warnings.some((w) => /CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION/.test(w) && /open\/demo/.test(w))).toBe(
+      true,
+    );
+  });
 
-  it('warns (does not refuse) on HTTPS/HSTS off in production with auth on', () => {
+  it("warns (does not refuse) on HTTPS/HSTS off in production with auth on", () => {
     const result = productionPosture({
-      CAPACITYLENS_AUTH: 'password',
+      CAPACITYLENS_AUTH: "password",
       CAPACITYLENS_HTTPS: undefined,
-    })
-    expect(result.refusals).toEqual([])
-    expect(result.warnings.some((w) => /CAPACITYLENS_HTTPS/.test(w) && /HSTS/.test(w))).toBe(true)
-  })
+    });
+    expect(result.refusals).toEqual([]);
+    expect(result.warnings.some((w) => /CAPACITYLENS_HTTPS/.test(w) && /HSTS/.test(w))).toBe(true);
+  });
 
-  it('is fully clean (no refusals, no warnings) for a well-formed production posture — positive control', () => {
+  it("is fully clean (no refusals, no warnings) for a well-formed production posture — positive control", () => {
     const result = productionPosture({
-      CAPACITYLENS_AUTH: 'password',
-      CAPACITYLENS_HTTPS: '1',
-    })
-    expect(result.refusals).toEqual([])
-    expect(result.warnings).toEqual([])
-  })
+      CAPACITYLENS_AUTH: "password",
+      CAPACITYLENS_HTTPS: "1",
+    });
+    expect(result.refusals).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
 
-  it('boots a minimal password deployment and reports every absent optional hardening control', () => {
+  it("boots a minimal password deployment and reports every absent optional hardening control", () => {
     const result = evaluateProductionPosture({
-      NODE_ENV: 'production',
-      CAPACITYLENS_AUTH: 'password',
-      CAPACITYLENS_HTTPS: '1',
-      CAPACITYLENS_RATE_LIMIT: '300',
-      CAPACITYLENS_AUDIT: 'on',
-    })
+      NODE_ENV: "production",
+      CAPACITYLENS_AUTH: "password",
+      CAPACITYLENS_HTTPS: "1",
+      CAPACITYLENS_RATE_LIMIT: "300",
+      CAPACITYLENS_AUDIT: "on",
+    });
 
-    expect(result.refusals).toEqual([])
-    expect(result.warnings).toHaveLength(5)
+    expect(result.refusals).toEqual([]);
+    expect(result.warnings).toHaveLength(5);
     for (const variable of [
-      'SMALLSASS_ACCOUNT_REQUIRE_MFA',
-      'CAPACITYLENS_AUDIT_STDOUT',
-      'CAPACITYLENS_STORAGE_ENCRYPTED',
-      'CAPACITYLENS_SECURITY_LOG_FORWARDING',
-      'CAPACITYLENS_INTERNAL_TLS_CERT',
+      "SMALLSASS_ACCOUNT_REQUIRE_MFA",
+      "CAPACITYLENS_AUDIT_STDOUT",
+      "CAPACITYLENS_STORAGE_ENCRYPTED",
+      "CAPACITYLENS_SECURITY_LOG_FORWARDING",
+      "CAPACITYLENS_INTERNAL_TLS_CERT",
     ]) {
-      expect(result.warnings.some((warning) => warning.includes(variable))).toBe(true)
+      expect(result.warnings.some((warning) => warning.includes(variable))).toBe(true);
     }
-  })
+  });
 
-  it('warns on open self-registration in production (sso + https, signup open)', () => {
+  it("warns on open self-registration in production (sso + https, signup open)", () => {
     const result = productionPosture({
-      CAPACITYLENS_AUTH: 'sso',
-      CAPACITYLENS_HTTPS: '1',
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-    })
-    expect(result.refusals).toEqual([])
-    expect(result.warnings.some((w) => /SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP/.test(w))).toBe(true)
-  })
+      CAPACITYLENS_AUTH: "sso",
+      CAPACITYLENS_HTTPS: "1",
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+    });
+    expect(result.refusals).toEqual([]);
+    expect(result.warnings.some((w) => /SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP/.test(w))).toBe(true);
+  });
 
-  it('refuses the development-only bootstrap-owner flag in production', () => {
+  it("refuses the development-only bootstrap-owner flag in production", () => {
     // The entrypoint folds the --create-owner-admin-admin argv spelling into this env form before
     // calling here, so this single check covers BOTH spellings of the flag.
     const result = productionPosture({
-      CAPACITYLENS_AUTH: 'password',
-      CAPACITYLENS_HTTPS: '1',
-      CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
-    })
-    expect(result.refusals).toHaveLength(1)
+      CAPACITYLENS_AUTH: "password",
+      CAPACITYLENS_HTTPS: "1",
+      CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",
+    });
+    expect(result.refusals).toHaveLength(1);
     // The refusal must name the exact credential so the operator knows what to change — asserted
     // via the auth.ts exports, so a credential change can't leave this test passing on stale text.
     expect(
       result.refusals.some(
-        (w) => w.includes(BOOTSTRAP_ADMIN_EMAIL) && /expire after first use/.test(w) && /CAPACITYLENS_CREATE_ADMIN_ADMIN/.test(w),
+        (w) =>
+          w.includes(BOOTSTRAP_ADMIN_EMAIL) &&
+          /expire after first use/.test(w) &&
+          /CAPACITYLENS_CREATE_ADMIN_ADMIN/.test(w),
       ),
-    ).toBe(true)
+    ).toBe(true);
     // And it stays a no-op outside production, like every other posture concern.
-    expect(
-      evaluateProductionPosture({ NODE_ENV: 'test', CAPACITYLENS_CREATE_ADMIN_ADMIN: '1' }).warnings,
-    ).toEqual([])
-  })
+    expect(evaluateProductionPosture({ NODE_ENV: "test", CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" }).warnings).toEqual([]);
+  });
 
-  it('refuses a pinned bootstrap-owner password in production', () => {
+  it("refuses a pinned bootstrap-owner password in production", () => {
     const result = productionPosture({
-      CAPACITYLENS_AUTH: 'password',
-      CAPACITYLENS_HTTPS: '1',
-      CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: 'operator-chosen-pw',
-    })
-    expect(result.refusals).toHaveLength(1)
+      CAPACITYLENS_AUTH: "password",
+      CAPACITYLENS_HTTPS: "1",
+      CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "operator-chosen-pw",
+    });
+    expect(result.refusals).toHaveLength(1);
     // Names the exact credential (from the auth.ts export) and the env, so the operator knows what to
     // change; the pinned SECRET itself must never be echoed back into the refusal text.
     expect(
@@ -166,95 +165,100 @@ describe('evaluateProductionPosture', () => {
         (w) =>
           w.includes(BOOTSTRAP_ADMIN_EMAIL) &&
           /CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD/.test(w) &&
-          !w.includes('operator-chosen-pw'),
+          !w.includes("operator-chosen-pw"),
       ),
-    ).toBe(true)
+    ).toBe(true);
     // No-op outside production, like every other posture concern.
     expect(
-      evaluateProductionPosture({ NODE_ENV: 'test', CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: 'x' }).warnings,
-    ).toEqual([])
-  })
+      evaluateProductionPosture({ NODE_ENV: "test", CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "x" }).warnings,
+    ).toEqual([]);
+  });
 
   it.each([
-    ['rate limiting', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_RATE_LIMIT: '0' }],
-    ['audit logging', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_AUDIT: 'off' }],
-  ])('refuses a production deployment that has no %s control', (_control, overrides) => {
-    const result = productionPosture(overrides)
-    expect(result.refusals).toHaveLength(1)
-  })
+    ["rate limiting", { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_RATE_LIMIT: "0" }],
+    ["audit logging", { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_AUDIT: "off" }],
+  ])("refuses a production deployment that has no %s control", (_control, overrides) => {
+    const result = productionPosture(overrides);
+    expect(result.refusals).toHaveLength(1);
+  });
 
-  it('keeps the audit-off production refusal explicit in the operator variable register', () => {
-    const start = envExample.indexOf('# Append-only JSONL audit log')
-    const end = envExample.indexOf('# Audit log path.', start)
-    const auditBlock = envExample.slice(start, end)
+  it("keeps the audit-off production refusal explicit in the operator variable register", () => {
+    const start = envExample.indexOf("# Append-only JSONL audit log");
+    const end = envExample.indexOf("# Audit log path.", start);
+    const auditBlock = envExample.slice(start, end);
 
-    expect(auditBlock).toContain('server REFUSES to boot with CAPACITYLENS_AUDIT=off')
-    expect(auditBlock).toContain('NODE_ENV=production')
-    expect(productionPosture({ CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_AUDIT: 'off' }).refusals[0])
-      .toContain('CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production')
-  })
+    expect(auditBlock).toContain("server REFUSES to boot with CAPACITYLENS_AUDIT=off");
+    expect(auditBlock).toContain("NODE_ENV=production");
+    expect(productionPosture({ CAPACITYLENS_AUTH: "sso", CAPACITYLENS_AUDIT: "off" }).refusals[0]).toContain(
+      "CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production",
+    );
+  });
 
   // The guard must validate CAPACITYLENS_RATE_LIMIT with the SAME parser the limiter uses
   // (parseRateLimit), not a looser Number() check. A divergent Number()+isSafeInteger check accepted
   // these values while parseRateLimit maps every one of them to 0 (off) — so production would boot
   // claiming a hardened posture with rate limiting silently disabled. Each must now REFUSE.
   it.each([
-    ['a value over the 1,000,000 cap', '2000000'],
-    ['surrounding whitespace', ' 100 '],
-    ['exponent notation', '1e3'],
-    ['a decimal', '12.5'],
-    ['a signed value', '+100'],
-  ])('refuses CAPACITYLENS_RATE_LIMIT that parseRateLimit rejects (%s)', (_why, value) => {
-    const result = productionPosture({ CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_RATE_LIMIT: value })
-    expect(result.refusals).toHaveLength(1)
+    ["a value over the 1,000,000 cap", "2000000"],
+    ["surrounding whitespace", " 100 "],
+    ["exponent notation", "1e3"],
+    ["a decimal", "12.5"],
+    ["a signed value", "+100"],
+  ])("refuses CAPACITYLENS_RATE_LIMIT that parseRateLimit rejects (%s)", (_why, value) => {
+    const result = productionPosture({ CAPACITYLENS_AUTH: "sso", CAPACITYLENS_RATE_LIMIT: value });
+    expect(result.refusals).toHaveLength(1);
     // The refusal states the accepted shape (digits only) and range so the operator can fix it.
-    expect(result.refusals[0]).toMatch(/CAPACITYLENS_RATE_LIMIT/)
-    expect(result.refusals[0]).toMatch(/1\.\.1,000,000/)
-  })
+    expect(result.refusals[0]).toMatch(/CAPACITYLENS_RATE_LIMIT/);
+    expect(result.refusals[0]).toMatch(/1\.\.1,000,000/);
+  });
 
-  it('accepts a plain digits-only CAPACITYLENS_RATE_LIMIT the limiter would honour', () => {
-    const result = productionPosture({ CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_RATE_LIMIT: '100', CAPACITYLENS_HTTPS: '1' })
-    expect(result.refusals).toEqual([])
-  })
+  it("accepts a plain digits-only CAPACITYLENS_RATE_LIMIT the limiter would honour", () => {
+    const result = productionPosture({
+      CAPACITYLENS_AUTH: "sso",
+      CAPACITYLENS_RATE_LIMIT: "100",
+      CAPACITYLENS_HTTPS: "1",
+    });
+    expect(result.refusals).toEqual([]);
+  });
 
   it.each([
-    ['MFA', { CAPACITYLENS_AUTH: 'password', CAPACITYLENS_REQUIRE_MFA: undefined }, /REQUIRE_MFA/],
+    ["MFA", { CAPACITYLENS_AUTH: "password", CAPACITYLENS_REQUIRE_MFA: undefined }, /REQUIRE_MFA/],
     [
-      'breach checking',
-      { CAPACITYLENS_AUTH: 'password', CAPACITYLENS_PASSWORD_BREACH_CHECK: 'off' },
+      "breach checking",
+      { CAPACITYLENS_AUTH: "password", CAPACITYLENS_PASSWORD_BREACH_CHECK: "off" },
       /PASSWORD_BREACH_CHECK/,
     ],
-    ['SSO MFA assurance', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_SSO_MFA_ENFORCED: undefined }, /SSO_MFA_ENFORCED/],
-    ['audit forwarding output', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_AUDIT_STDOUT: undefined }, /AUDIT_STDOUT/],
-    ['encrypted storage', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_STORAGE_ENCRYPTED: undefined }, /STORAGE_ENCRYPTED/],
+    ["SSO MFA assurance", { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_SSO_MFA_ENFORCED: undefined }, /SSO_MFA_ENFORCED/],
+    ["audit forwarding output", { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_AUDIT_STDOUT: undefined }, /AUDIT_STDOUT/],
+    ["encrypted storage", { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_STORAGE_ENCRYPTED: undefined }, /STORAGE_ENCRYPTED/],
     [
-      'central security-log forwarding',
-      { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined },
+      "central security-log forwarding",
+      { CAPACITYLENS_AUTH: "sso", CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined },
       /SECURITY_LOG_FORWARDING/,
     ],
     [
-      'internal service TLS',
+      "internal service TLS",
       {
-        CAPACITYLENS_AUTH: 'sso',
+        CAPACITYLENS_AUTH: "sso",
         CAPACITYLENS_INTERNAL_TLS_CERT: undefined,
         CAPACITYLENS_INTERNAL_TLS_KEY: undefined,
       },
       /INTERNAL_TLS_CERT/,
     ],
-  ])('warns but boots when optional %s hardening is absent', (_control, overrides, warning) => {
-    const result = productionPosture(overrides)
-    expect(result.refusals).toEqual([])
-    expect(result.warnings).toHaveLength(1)
-    expect(result.warnings[0]).toMatch(warning)
-  })
+  ])("warns but boots when optional %s hardening is absent", (_control, overrides, warning) => {
+    const result = productionPosture(overrides);
+    expect(result.refusals).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(warning);
+  });
 
-  it('leaves a partial internal TLS identity to the strict identity loader instead of claiming HTTP fallback', () => {
+  it("leaves a partial internal TLS identity to the strict identity loader instead of claiming HTTP fallback", () => {
     const result = productionPosture({
-      CAPACITYLENS_AUTH: 'sso',
+      CAPACITYLENS_AUTH: "sso",
       CAPACITYLENS_INTERNAL_TLS_KEY: undefined,
-    })
+    });
 
-    expect(result.refusals).toEqual([])
-    expect(result.warnings).toEqual([])
-  })
-})
+    expect(result.refusals).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+});

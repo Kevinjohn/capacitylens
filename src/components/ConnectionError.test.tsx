@@ -7,12 +7,8 @@ describe("ConnectionError", () => {
     const onRetry = vi.fn();
     render(<ConnectionError onRetry={onRetry} />);
 
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Can’t reach the server" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/saved data is safe on the server/i),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Can’t reach the server" })).toBeInTheDocument();
+    expect(screen.getByText(/saved data is safe on the server/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRetry).toHaveBeenCalledOnce();

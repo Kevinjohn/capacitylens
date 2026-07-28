@@ -1,8 +1,8 @@
-import { applyGesture, type DateRange, type DragMode, type GestureOpts } from '../../lib/gestureMath'
-import { spanDays } from '@capacitylens/shared/lib/schedulingDays'
-import { isExternalResource, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
-import type { Resource } from '@capacitylens/shared/types/entities'
-import type { ColumnGeometry } from './columnGeometry'
+import { applyGesture, type DateRange, type DragMode, type GestureOpts } from "../../lib/gestureMath";
+import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
+import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import type { Resource } from "@capacitylens/shared/types/entities";
+import type { ColumnGeometry } from "./columnGeometry";
 
 // Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable
 // without rendering the bar or driving pointer events. No React, no DOM, no store — the DOM
@@ -14,13 +14,9 @@ import type { ColumnGeometry } from './columnGeometry'
  *  external is promoted to the target's working day because those forms require positive load.
  *  Blocks mode deliberately permits and preserves zero; existing positive historical values are
  *  also retained for a real→real reassign. A same-resource move never calls this. */
-export function reconcileReassignedHours(
-  current: number,
-  target: Resource,
-  zeroLoadMode: boolean,
-): number {
-  if (isExternalResource(target)) return 0
-  return current > 0 || zeroLoadMode ? current : target.workingHoursPerDay
+export function reconcileReassignedHours(current: number, target: Resource, zeroLoadMode: boolean): number {
+  if (isExternalResource(target)) return 0;
+  return current > 0 || zeroLoadMode ? current : target.workingHoursPerDay;
 }
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so
@@ -37,16 +33,16 @@ export function volumePreservingHoursClamped(
   opts: GestureOpts,
   hoursPerDay: number,
 ): { hours: number; clamped: boolean } {
-  const oldSpan = spanDays(prev.startDate, prev.endDate, opts)
-  const newSpan = spanDays(next.startDate, next.endDate, opts)
+  const oldSpan = spanDays(prev.startDate, prev.endDate, opts);
+  const newSpan = spanDays(next.startDate, next.endDate, opts);
   // A zero-working-day OLD span (e.g. a weekend-aware allocation currently covering only Sat–Sun)
   // has no volume to preserve — `hoursPerDay * 0 / newSpan` is 0, and committing that would
   // silently wipe the stored hours the moment the resize lands on a working day. Preserving the
   // existing value is the only non-destructive choice (no defaulting to 8, no clamping).
-  const raw = oldSpan === 0 ? hoursPerDay : newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
+  const raw = oldSpan === 0 ? hoursPerDay : newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay;
   // Clamp to a real working day — collapsing the span (e.g. a resize dragged past the
   // opposite edge → 1-day span) would otherwise inflate hours/day without bound.
-  return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY }
+  return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY };
 }
 
 /** Resolve a gesture (move / resize) into the new date range and hours/day to commit.
@@ -66,12 +62,12 @@ export function computeGesture(
 ): { dates: DateRange; hours: number; clamped: boolean } {
   // A zero-column move can still be a cross-row reassign. Run move math so the unchanged start is
   // reinterpreted against the target resource's working week; resize no-ops keep their reference.
-  const dates = deltaDays !== 0 || mode === 'move' ? applyGesture(mode, current, deltaDays, opts) : current
-  if (isDays && mode !== 'move' && deltaDays !== 0) {
-    const { hours, clamped } = volumePreservingHoursClamped(current, dates, opts, hoursPerDay)
-    return { dates, hours, clamped }
+  const dates = deltaDays !== 0 || mode === "move" ? applyGesture(mode, current, deltaDays, opts) : current;
+  if (isDays && mode !== "move" && deltaDays !== 0) {
+    const { hours, clamped } = volumePreservingHoursClamped(current, dates, opts, hoursPerDay);
+    return { dates, hours, clamped };
   }
-  return { dates, hours: hoursPerDay, clamped: false }
+  return { dates, hours: hoursPerDay, clamped: false };
 }
 
 /** Pixel geometry for the live drag preview: snap the dates the SAME way the commit will
@@ -87,9 +83,9 @@ export function snappedBarGeometry(
   opts: GestureOpts,
   geom: ColumnGeometry,
 ): { left: number; width: number } {
-  const snapped = applyGesture(mode, current, deltaDays, opts)
+  const snapped = applyGesture(mode, current, deltaDays, opts);
   return {
     left: geom.xForDateInGeom(snapped.startDate),
     width: geom.widthForDates(snapped.startDate, snapped.endDate),
-  }
+  };
 }

@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest'
-import type { FastifyInstance } from 'fastify'
-import { buildApp } from './app'
-import { openDb, insertAll, type Db } from './db'
-import { upsertMember, createInvite } from './controlTables'
-import { authFromEnv, countUsers, runAuthMigrations } from './auth'
-import { PASSWORD_ENV, call, signUp } from './testHelpers'
-import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
-import { finishAccountCommand, reserveAccountCommand } from './accounts/state'
+import { describe, it, expect } from "vitest";
+import type { FastifyInstance } from "fastify";
+import { buildApp } from "./app";
+import { openDb, insertAll, type Db } from "./db";
+import { upsertMember, createInvite } from "./controlTables";
+import { authFromEnv, countUsers, runAuthMigrations } from "./auth";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 
 // P2.6b — per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
 // to drop ONLY the
@@ -18,17 +18,17 @@ import { finishAccountCommand, reserveAccountCommand } from './accounts/state'
 // Each case asserts OBSERVABLE DB state via raw SELECT rather
 // than trusting a helper — the point is to prove the bytes are gone from the actual tables.
 
-const TS = '2026-01-01T00:00:00.000Z'
-const meta = () => ({ createdAt: TS, updatedAt: TS })
-const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
-const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
+const TS = "2026-01-01T00:00:00.000Z";
+const meta = () => ({ createdAt: TS, updatedAt: TS });
+const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#3b82f6", ...meta() });
+const client = (id: string, accountId: string) => ({ id, accountId, name: "Acme", color: "#3b82f6", ...meta() });
 
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(':memory:')
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
-  await runAuthMigrations(auth!)
-  return { app: buildApp(db, { authMode: mode, auth }), db }
+  const db = openDb(":memory:");
+  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  await runAuthMigrations(auth!);
+  return { app: buildApp(db, { authMode: mode, auth }), db };
 }
 
 const deleteAccountRoute = (
@@ -36,371 +36,410 @@ const deleteAccountRoute = (
   id: string,
   cookie: string,
   command?: { commandId: string; idempotencyKey: string },
-) => call(app, {
-  method: 'DELETE',
-  url: `/api/accounts/${id}`,
-  headers: {
-    cookie,
-    ...(command ? {
-      'x-account-command-id': command.commandId,
-      'idempotency-key': command.idempotencyKey,
-    } : {}),
-  },
-})
+) =>
+  call(app, {
+    method: "DELETE",
+    url: `/api/accounts/${id}`,
+    headers: {
+      cookie,
+      ...(command
+        ? {
+            "x-account-command-id": command.commandId,
+            "idempotency-key": command.idempotencyKey,
+          }
+        : {}),
+    },
+  });
 
 // ---- Raw observable-state probes (the assertion vocabulary; never trust a helper) ----
 
 const accountCount = (db: Db, id: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = ?`).get(id) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = ?`).get(id) as { n: number }).n;
 const scopedClientCount = (db: Db, accountId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE accountId = ?`).get(accountId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE accountId = ?`).get(accountId) as { n: number }).n;
 const scopedProjectCount = (db: Db, accountId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM projects WHERE accountId = ?`).get(accountId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM projects WHERE accountId = ?`).get(accountId) as { n: number }).n;
 const memberCount = (db: Db, accountId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = ?`).get(accountId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = ?`).get(accountId) as { n: number }).n;
 const inviteCount = (db: Db, accountId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM invites WHERE accountId = ?`).get(accountId) as { n: number }).n
-const userRow = (db: Db, userId: string): { name: string | null; email: string | null; image: string | null } | undefined =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM invites WHERE accountId = ?`).get(accountId) as { n: number }).n;
+const userRow = (
+  db: Db,
+  userId: string,
+): { name: string | null; email: string | null; image: string | null } | undefined =>
   db.prepare(`SELECT name, email, image FROM user WHERE id = ?`).get(userId) as
-    | { name: string | null; email: string | null; image: string | null }
-    | undefined
+    { name: string | null; email: string | null; image: string | null } | undefined;
 const authAccountCount = (db: Db, userId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM account WHERE userId = ?`).get(userId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM account WHERE userId = ?`).get(userId) as { n: number }).n;
 const sessionCount = (db: Db, userId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n;
 const sessionAssuranceCount = (db: Db, userId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM account_session_assurance WHERE principalId = ?`)
-    .get(userId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM account_session_assurance WHERE principalId = ?`).get(userId) as { n: number })
+    .n;
 const twoFactorCount = (db: Db, userId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM twoFactor WHERE userId = ?`).get(userId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM twoFactor WHERE userId = ?`).get(userId) as { n: number }).n;
 const verificationCount = (db: Db, userId: string): number =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE value = ?`).get(userId) as { n: number }).n
+  (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE value = ?`).get(userId) as { n: number }).n;
 const verificationExists = (db: Db, id: string): boolean =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE id = ?`).get(id) as { n: number }).n === 1
+  (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE id = ?`).get(id) as { n: number }).n === 1;
 const commandExists = (db: Db, commandId: string): boolean =>
-  (db.prepare(`SELECT COUNT(*) AS n FROM account_commands WHERE commandId = ?`).get(commandId) as { n: number }).n === 1
+  (db.prepare(`SELECT COUNT(*) AS n FROM account_commands WHERE commandId = ?`).get(commandId) as { n: number }).n ===
+  1;
 
 function seedResetToken(db: Db, userId: string, id = `verification-${userId}`): void {
   db.prepare(
     `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(id, `reset-password:${id}`, userId, TS, TS, TS)
+  ).run(id, `reset-password:${id}`, userId, TS, TS, TS);
 }
 
 function seedAccountLinkState(db: Db, userId: string, email: string, id: string): void {
   const value = JSON.stringify({
-    callbackURL: 'http://localhost:3000/settings',
+    callbackURL: "http://localhost:3000/settings",
     codeVerifier: `code-${id}`,
     expiresAt: Date.now() + 600_000,
     oauthState: id,
     link: { email, userId },
-  })
+  });
   db.prepare(
     `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(id, id, value, TS, TS, TS)
+  ).run(id, id, value, TS, TS, TS);
 }
 
 /** Seed a control-table membership + one outstanding invite for an account (the PII surfaces with no FK). */
-function seedMembershipAndInvite(db: Db, accountId: string, userId: string, role: 'owner' | 'admin'): void {
-  upsertMember(db, { accountId, userId, role, status: 'active', createdAt: TS })
+function seedMembershipAndInvite(db: Db, accountId: string, userId: string, role: "owner" | "admin"): void {
+  upsertMember(db, { accountId, userId, role, status: "active", createdAt: TS });
   createInvite(db, {
     token: `tok-${accountId}`,
     id: `inv-${accountId}`,
     accountId,
-    role: 'editor',
+    role: "editor",
     preauthEmail: null,
-    expiresAt: '2099-01-01T00:00:00.000Z',
+    expiresAt: "2099-01-01T00:00:00.000Z",
     usedAt: null,
     createdAt: TS,
-  })
+  });
 }
 
-describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-tenant)', () => {
-  it('via the dedicated route: a1 is wiped whole and a2 stays wholly intact', async () => {
-    const { app, db } = await appWithAuth()
+describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-tenant)", () => {
+  it("via the dedicated route: a1 is wiped whole and a2 stays wholly intact", async () => {
+    const { app, db } = await appWithAuth();
     insertAll(db, {
       ...emptyAppData(),
-      accounts: [account('a1'), account('a2')],
-      clients: [client('c1', 'a1'), client('c2', 'a2')],
-    } as unknown as AppData)
+      accounts: [account("a1"), account("a2")],
+      clients: [client("c1", "a1"), client("c2", "a2")],
+    } as unknown as AppData);
     // Each account has a sole owner, a membership row and an invite (the no-FK PII surfaces).
-    const u1 = await signUp(app, 'a-owner1@capacitylens.dev')
-    const u2 = await signUp(app, 'a-owner2@capacitylens.dev')
-    seedMembershipAndInvite(db, 'a1', u1.userId, 'owner')
-    seedMembershipAndInvite(db, 'a2', u2.userId, 'owner')
+    const u1 = await signUp(app, "a-owner1@capacitylens.dev");
+    const u2 = await signUp(app, "a-owner2@capacitylens.dev");
+    seedMembershipAndInvite(db, "a1", u1.userId, "owner");
+    seedMembershipAndInvite(db, "a2", u2.userId, "owner");
     // Use the retained a2 owner as actor so identity cleanup cannot incidentally remove this row.
     // The only reason the target command disappears must be its a1 workspace correlation.
     reserveAccountCommand(db, {
-      applicationId: 'capacitylens',
-      operation: 'prior-workspace-command',
-      idempotencyKey: 'prior-workspace-idempotency',
-      commandId: 'prior-workspace-command',
+      applicationId: "capacitylens",
+      operation: "prior-workspace-command",
+      idempotencyKey: "prior-workspace-idempotency",
+      commandId: "prior-workspace-command",
       actorPrincipalId: u2.userId,
-      workspaceId: 'a1',
-      payloadHash: 'c'.repeat(64),
-    })
+      workspaceId: "a1",
+      payloadHash: "c".repeat(64),
+    });
     finishAccountCommand(db, {
-      applicationId: 'capacitylens',
-      operation: 'prior-workspace-command',
-      idempotencyKey: 'prior-workspace-idempotency',
-      status: 'completed',
-      resultJson: '{}',
-    })
+      applicationId: "capacitylens",
+      operation: "prior-workspace-command",
+      idempotencyKey: "prior-workspace-idempotency",
+      status: "completed",
+      resultJson: "{}",
+    });
     reserveAccountCommand(db, {
-      applicationId: 'capacitylens',
-      operation: 'retained-workspace-command',
-      idempotencyKey: 'retained-workspace-idempotency',
-      commandId: 'retained-workspace-command',
+      applicationId: "capacitylens",
+      operation: "retained-workspace-command",
+      idempotencyKey: "retained-workspace-idempotency",
+      commandId: "retained-workspace-command",
       actorPrincipalId: u2.userId,
-      workspaceId: 'a2',
-      payloadHash: 'd'.repeat(64),
-    })
+      workspaceId: "a2",
+      payloadHash: "d".repeat(64),
+    });
 
     // Sanity: everything is present before the delete.
-    expect(accountCount(db, 'a1')).toBe(1)
-    expect(scopedClientCount(db, 'a1')).toBe(1)
-    expect(memberCount(db, 'a1')).toBe(1)
-    expect(inviteCount(db, 'a1')).toBe(1)
+    expect(accountCount(db, "a1")).toBe(1);
+    expect(scopedClientCount(db, "a1")).toBe(1);
+    expect(memberCount(db, "a1")).toBe(1);
+    expect(inviteCount(db, "a1")).toBe(1);
 
-    const res = await deleteAccountRoute(app, 'a1', u1.cookie)
-    expect(res.statusCode).toBe(204)
+    const res = await deleteAccountRoute(app, "a1", u1.cookie);
+    expect(res.statusCode).toBe(204);
 
     // a1 is GONE everywhere: account row, scoped clients, membership row, invite.
-    expect(accountCount(db, 'a1')).toBe(0)
-    expect(scopedClientCount(db, 'a1')).toBe(0)
-    expect(memberCount(db, 'a1')).toBe(0)
-    expect(inviteCount(db, 'a1')).toBe(0)
-    expect(commandExists(db, 'prior-workspace-command')).toBe(false)
+    expect(accountCount(db, "a1")).toBe(0);
+    expect(scopedClientCount(db, "a1")).toBe(0);
+    expect(memberCount(db, "a1")).toBe(0);
+    expect(inviteCount(db, "a1")).toBe(0);
+    expect(commandExists(db, "prior-workspace-command")).toBe(false);
 
     // a2 is wholly INTACT: account row, scoped clients, membership row, invite, and its user PII.
-    expect(accountCount(db, 'a2')).toBe(1)
-    expect(scopedClientCount(db, 'a2')).toBe(1)
-    expect(memberCount(db, 'a2')).toBe(1)
-    expect(inviteCount(db, 'a2')).toBe(1)
-    expect(commandExists(db, 'retained-workspace-command')).toBe(true)
-    expect(userRow(db, u2.userId)?.email).toBe('a-owner2@capacitylens.dev')
-  })
+    expect(accountCount(db, "a2")).toBe(1);
+    expect(scopedClientCount(db, "a2")).toBe(1);
+    expect(memberCount(db, "a2")).toBe(1);
+    expect(inviteCount(db, "a2")).toBe(1);
+    expect(commandExists(db, "retained-workspace-command")).toBe(true);
+    expect(userRow(db, u2.userId)?.email).toBe("a-owner2@capacitylens.dev");
+  });
 
-  it(
-    'via the dedicated route: refuses a corrupt FK edge that would mutate another account',
-    async () => {
-      const { app, db } = await appWithAuth()
-      insertAll(db, {
-        ...emptyAppData(),
-        accounts: [account('a1'), account('a2')],
-        clients: [client('c1', 'a1')],
-      } as unknown as AppData)
-      // This relationship is valid to SQLite because the physical FK is id-only, but its cascade
-      // would delete an a2-labelled project while erasing a1. Current v19 triggers and boot checks
-      // reject it; dropping this one trigger models post-start operator tampering and preserves the
-      // independent erasure-containment regression.
-      db.exec('DROP TRIGGER capacitylens_tenant_projects_clientId_insert')
-      db.prepare(`
+  it("via the dedicated route: refuses a corrupt FK edge that would mutate another account", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, {
+      ...emptyAppData(),
+      accounts: [account("a1"), account("a2")],
+      clients: [client("c1", "a1")],
+    } as unknown as AppData);
+    // This relationship is valid to SQLite because the physical FK is id-only, but its cascade
+    // would delete an a2-labelled project while erasing a1. Current v19 triggers and boot checks
+    // reject it; dropping this one trigger models post-start operator tampering and preserves the
+    // independent erasure-containment regression.
+    db.exec("DROP TRIGGER capacitylens_tenant_projects_clientId_insert");
+    db.prepare(
+      `
         INSERT INTO projects (id, accountId, name, clientId, color, createdAt, updatedAt)
         VALUES ('p2', 'a2', 'Cross-tenant project', 'c1', '#3b82f6', ?, ?)
-      `).run(TS, TS)
-      expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+      `,
+    ).run(TS, TS);
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
 
-      const u1 = await signUp(app, 'boundary-route-owner1@capacitylens.dev')
-      const u2 = await signUp(app, 'boundary-route-owner2@capacitylens.dev')
-      seedMembershipAndInvite(db, 'a1', u1.userId, 'owner')
-      seedMembershipAndInvite(db, 'a2', u2.userId, 'owner')
+    const u1 = await signUp(app, "boundary-route-owner1@capacitylens.dev");
+    const u2 = await signUp(app, "boundary-route-owner2@capacitylens.dev");
+    seedMembershipAndInvite(db, "a1", u1.userId, "owner");
+    seedMembershipAndInvite(db, "a2", u2.userId, "owner");
 
-      const res = await deleteAccountRoute(app, 'a1', u1.cookie)
-      expect(res.statusCode).toBe(500)
-      expect(res.json()).toEqual({ error: 'Internal server error' })
+    const res = await deleteAccountRoute(app, "a1", u1.cookie);
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ error: "Internal server error" });
 
-      // Fail closed and atomically: neither product account, either membership nor either local
-      // identity is altered when erasure containment cannot be proved.
-      expect(accountCount(db, 'a1')).toBe(1)
-      expect(accountCount(db, 'a2')).toBe(1)
-      expect(scopedClientCount(db, 'a1')).toBe(1)
-      expect(scopedProjectCount(db, 'a2')).toBe(1)
-      expect(memberCount(db, 'a1')).toBe(1)
-      expect(memberCount(db, 'a2')).toBe(1)
-      expect(userRow(db, u1.userId)?.email).toBe('boundary-route-owner1@capacitylens.dev')
-      expect(userRow(db, u2.userId)?.email).toBe('boundary-route-owner2@capacitylens.dev')
-    },
-  )
-})
+    // Fail closed and atomically: neither product account, either membership nor either local
+    // identity is altered when erasure containment cannot be proved.
+    expect(accountCount(db, "a1")).toBe(1);
+    expect(accountCount(db, "a2")).toBe(1);
+    expect(scopedClientCount(db, "a1")).toBe(1);
+    expect(scopedProjectCount(db, "a2")).toBe(1);
+    expect(memberCount(db, "a1")).toBe(1);
+    expect(memberCount(db, "a2")).toBe(1);
+    expect(userRow(db, u1.userId)?.email).toBe("boundary-route-owner1@capacitylens.dev");
+    expect(userRow(db, u2.userId)?.email).toBe("boundary-route-owner2@capacitylens.dev");
+  });
+});
 
-describe('P2.6b erasure — (b) last-company identity removal reopens password setup', () => {
-  it('deletes the sole owner and every auth artifact, then allows a new first-run signup', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('a1')] } as unknown as AppData)
-    const u = await signUp(app, 'sole-owner@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
-    seedResetToken(db, u.userId)
-    seedResetToken(db, 'unrelated-user', 'verification-unrelated-scalar')
+describe("P2.6b erasure — (b) last-company identity removal reopens password setup", () => {
+  it("deletes the sole owner and every auth artifact, then allows a new first-run signup", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } as unknown as AppData);
+    const u = await signUp(app, "sole-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: u.userId, role: "owner", status: "active", createdAt: TS });
+    seedResetToken(db, u.userId);
+    seedResetToken(db, "unrelated-user", "verification-unrelated-scalar");
     reserveAccountCommand(db, {
-      applicationId: 'capacitylens',
-      operation: 'password-reset:actor:prior-admin',
-      idempotencyKey: 'prior-reset-idempotency',
-      commandId: 'prior-reset-command',
-      actorPrincipalId: 'prior-admin',
+      applicationId: "capacitylens",
+      operation: "password-reset:actor:prior-admin",
+      idempotencyKey: "prior-reset-idempotency",
+      commandId: "prior-reset-command",
+      actorPrincipalId: "prior-admin",
       targetPrincipalId: u.userId,
-      payloadHash: 'a'.repeat(64),
-    })
-    seedAccountLinkState(db, u.userId, 'sole-owner@capacitylens.dev', 'link-sole-owner')
-    seedAccountLinkState(db, 'unrelated-user', 'unrelated@capacitylens.dev', 'link-unrelated')
-    db.prepare(`
+      payloadHash: "a".repeat(64),
+    });
+    seedAccountLinkState(db, u.userId, "sole-owner@capacitylens.dev", "link-sole-owner");
+    seedAccountLinkState(db, "unrelated-user", "unrelated@capacitylens.dev", "link-unrelated");
+    db.prepare(
+      `
       INSERT INTO twoFactor (id, secret, backupCodes, userId, verified, failedVerificationCount)
       VALUES (?, ?, ?, ?, 1, 0)
-    `).run('two-factor-sole-owner', 'totp-secret', 'encrypted-recovery-codes', u.userId)
+    `,
+    ).run("two-factor-sole-owner", "totp-secret", "encrypted-recovery-codes", u.userId);
 
     // Pre-state: real identity, credential link, live session, and outstanding reset token.
-    expect(userRow(db, u.userId)?.email).toBe('sole-owner@capacitylens.dev')
-    expect(authAccountCount(db, u.userId)).toBeGreaterThanOrEqual(1)
-    expect(sessionCount(db, u.userId)).toBeGreaterThanOrEqual(1)
-    expect(sessionAssuranceCount(db, u.userId)).toBeGreaterThanOrEqual(1)
-    expect(twoFactorCount(db, u.userId)).toBe(1)
-    expect(verificationCount(db, u.userId)).toBe(1)
-    expect(verificationExists(db, 'link-sole-owner')).toBe(true)
-    expect(verificationExists(db, 'link-unrelated')).toBe(true)
+    expect(userRow(db, u.userId)?.email).toBe("sole-owner@capacitylens.dev");
+    expect(authAccountCount(db, u.userId)).toBeGreaterThanOrEqual(1);
+    expect(sessionCount(db, u.userId)).toBeGreaterThanOrEqual(1);
+    expect(sessionAssuranceCount(db, u.userId)).toBeGreaterThanOrEqual(1);
+    expect(twoFactorCount(db, u.userId)).toBe(1);
+    expect(verificationCount(db, u.userId)).toBe(1);
+    expect(verificationExists(db, "link-sole-owner")).toBe(true);
+    expect(verificationExists(db, "link-unrelated")).toBe(true);
 
-    expect((await deleteAccountRoute(app, 'a1', u.cookie)).statusCode).toBe(204)
+    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(204);
 
-    expect(userRow(db, u.userId)).toBeUndefined()
-    expect(authAccountCount(db, u.userId)).toBe(0)
-    expect(sessionCount(db, u.userId)).toBe(0)
-    expect(sessionAssuranceCount(db, u.userId)).toBe(0)
-    expect(twoFactorCount(db, u.userId)).toBe(0)
-    expect(verificationCount(db, u.userId)).toBe(0)
-    expect(verificationExists(db, 'link-sole-owner')).toBe(false)
-    expect(verificationExists(db, 'link-unrelated')).toBe(true)
-    expect(verificationExists(db, 'verification-unrelated-scalar')).toBe(true)
-    expect(countUsers(db)).toBe(0)
-    expect(db.prepare(`SELECT 1 FROM account_commands WHERE commandId = 'prior-reset-command'`).get())
-      .toBeUndefined()
-    expect(db.prepare(`
+    expect(userRow(db, u.userId)).toBeUndefined();
+    expect(authAccountCount(db, u.userId)).toBe(0);
+    expect(sessionCount(db, u.userId)).toBe(0);
+    expect(sessionAssuranceCount(db, u.userId)).toBe(0);
+    expect(twoFactorCount(db, u.userId)).toBe(0);
+    expect(verificationCount(db, u.userId)).toBe(0);
+    expect(verificationExists(db, "link-sole-owner")).toBe(false);
+    expect(verificationExists(db, "link-unrelated")).toBe(true);
+    expect(verificationExists(db, "verification-unrelated-scalar")).toBe(true);
+    expect(countUsers(db)).toBe(0);
+    expect(db.prepare(`SELECT 1 FROM account_commands WHERE commandId = 'prior-reset-command'`).get()).toBeUndefined();
+    expect(
+      db
+        .prepare(
+          `
       SELECT actorPrincipalId, targetPrincipalId, workspaceId, status
         FROM account_commands
        WHERE operation = 'workspace-erasure'
-    `).get()).toEqual({
+    `,
+        )
+        .get(),
+    ).toEqual({
       actorPrincipalId: null,
       targetPrincipalId: null,
       workspaceId: null,
-      status: 'completed',
-    })
+      status: "completed",
+    });
 
     // The dead cookie now sees a genuine first-run state, and the live signup gate consults the
     // same zero-user fact per request. No restart or manual DB repair is required.
-    const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie: u.cookie } })
-    expect(me.statusCode).toBe(401)
-    expect(me.json().needsSetup).toBe(true)
-    const replacement = await signUp(app, 'replacement-owner@capacitylens.dev')
-    expect(userRow(db, replacement.userId)?.email).toBe('replacement-owner@capacitylens.dev')
-    expect(countUsers(db)).toBe(1)
-  })
-})
+    const me = await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: u.cookie } });
+    expect(me.statusCode).toBe(401);
+    expect(me.json().needsSetup).toBe(true);
+    const replacement = await signUp(app, "replacement-owner@capacitylens.dev");
+    expect(userRow(db, replacement.userId)?.email).toBe("replacement-owner@capacitylens.dev");
+    expect(countUsers(db)).toBe(1);
+  });
+});
 
-describe('P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)', () => {
-  it('replays a completed erasure through the authenticated route after membership is gone', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('a1'), account('a2')] } as unknown as AppData)
-    const actor = await signUp(app, 'erasure-replay@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: actor.userId, role: 'owner', status: 'active', createdAt: TS })
-    upsertMember(db, { accountId: 'a2', userId: actor.userId, role: 'editor', status: 'active', createdAt: TS })
+describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", () => {
+  it("replays a completed erasure through the authenticated route after membership is gone", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
+    const actor = await signUp(app, "erasure-replay@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: actor.userId, role: "owner", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a2", userId: actor.userId, role: "editor", status: "active", createdAt: TS });
     const command = {
-      commandId: 'workspace-erasure-command-replay-01',
-      idempotencyKey: 'workspace-erasure-idempotency-replay-01',
-    }
+      commandId: "workspace-erasure-command-replay-01",
+      idempotencyKey: "workspace-erasure-idempotency-replay-01",
+    };
 
-    expect((await deleteAccountRoute(app, 'a1', actor.cookie, command)).statusCode).toBe(204)
-    expect(accountCount(db, 'a1')).toBe(0)
-    expect((await deleteAccountRoute(app, 'a1', actor.cookie, command)).statusCode).toBe(204)
-    expect((db.prepare(`
+    expect((await deleteAccountRoute(app, "a1", actor.cookie, command)).statusCode).toBe(204);
+    expect(accountCount(db, "a1")).toBe(0);
+    expect((await deleteAccountRoute(app, "a1", actor.cookie, command)).statusCode).toBe(204);
+    expect(
+      (
+        db
+          .prepare(
+            `
       SELECT COUNT(*) AS n FROM account_commands
        WHERE operation = 'workspace-erasure' AND commandId = ? AND status = 'completed'
-    `).get(command.commandId) as { n: number }).n).toBe(1)
+    `,
+          )
+          .get(command.commandId) as { n: number }
+      ).n,
+    ).toBe(1);
 
-    const unrelated = await deleteAccountRoute(app, 'a1', actor.cookie, {
-      commandId: 'workspace-erasure-unrelated-command-01',
-      idempotencyKey: 'workspace-erasure-unrelated-key-0001',
-    })
-    expect(unrelated.statusCode).toBe(403)
-  })
+    const unrelated = await deleteAccountRoute(app, "a1", actor.cookie, {
+      commandId: "workspace-erasure-unrelated-command-01",
+      idempotencyKey: "workspace-erasure-unrelated-key-0001",
+    });
+    expect(unrelated.statusCode).toBe(403);
+  });
 
-  it('M owns a1 AND is a member of a2: deleting a1 drops M\'s a1 membership but NEVER erases M', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('a1'), account('a2')] } as unknown as AppData)
-    const m = await signUp(app, 'multi-account-member@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: m.userId, role: 'owner', status: 'active', createdAt: TS })
-    upsertMember(db, { accountId: 'a2', userId: m.userId, role: 'editor', status: 'active', createdAt: TS })
-    seedResetToken(db, m.userId)
-    seedAccountLinkState(db, m.userId, 'multi-account-member@capacitylens.dev', 'link-multi-account')
+  it("M owns a1 AND is a member of a2: deleting a1 drops M's a1 membership but NEVER erases M", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
+    const m = await signUp(app, "multi-account-member@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: m.userId, role: "owner", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a2", userId: m.userId, role: "editor", status: "active", createdAt: TS });
+    seedResetToken(db, m.userId);
+    seedAccountLinkState(db, m.userId, "multi-account-member@capacitylens.dev", "link-multi-account");
 
-    expect((await deleteAccountRoute(app, 'a1', m.cookie)).statusCode).toBe(204)
+    expect((await deleteAccountRoute(app, "a1", m.cookie)).statusCode).toBe(204);
 
     // a1's membership for M is gone; a2's membership survives.
-    expect(memberCount(db, 'a1')).toBe(0)
-    expect(memberCount(db, 'a2')).toBe(1)
+    expect(memberCount(db, "a1")).toBe(0);
+    expect(memberCount(db, "a2")).toBe(1);
     expect(
-      (db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'a2' AND userId = ?`).get(m.userId) as { n: number }).n,
-    ).toBe(1)
+      (
+        db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'a2' AND userId = ?`).get(m.userId) as {
+          n: number;
+        }
+      ).n,
+    ).toBe(1);
 
     // M's identity is UNCHANGED (real name + email), and the account/session rows are intact — M is
     // still an active member of a2, so the retention rule must leave them completely alone.
-    const row = userRow(db, m.userId)
-    expect(row!.name).toBe('Tester')
-    expect(row!.email).toBe('multi-account-member@capacitylens.dev')
-    expect(authAccountCount(db, m.userId)).toBeGreaterThanOrEqual(1)
-    expect(sessionCount(db, m.userId)).toBeGreaterThanOrEqual(1)
+    const row = userRow(db, m.userId);
+    expect(row!.name).toBe("Tester");
+    expect(row!.email).toBe("multi-account-member@capacitylens.dev");
+    expect(authAccountCount(db, m.userId)).toBeGreaterThanOrEqual(1);
+    expect(sessionCount(db, m.userId)).toBeGreaterThanOrEqual(1);
     // Removing any membership advances the identity-security revision and conservatively burns
     // outstanding reset ceremonies, even when the local identity remains for another account.
-    expect(verificationCount(db, m.userId)).toBe(0)
-    expect(verificationExists(db, 'link-multi-account')).toBe(true)
-  })
+    expect(verificationCount(db, m.userId)).toBe(0);
+    expect(verificationExists(db, "link-multi-account")).toBe(true);
+  });
 
   it.each([
-    ['inactive', 'a2'],
-    ['active', 'missing-account'],
-  ] as const)('does not retain identity PII for a remaining %s membership row without live access', async (status, otherAccountId) => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('a1'), account('a2')] } as unknown as AppData)
-    const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId: member.userId, role: 'owner', status: 'active', createdAt: TS })
-    upsertMember(db, { accountId: otherAccountId, userId: member.userId, role: 'editor', status: 'active', createdAt: TS })
-    if (status === 'inactive') {
-      // Historical/corrupt databases can contain a status outside the current active-only contract.
-      // The erasure boundary must fail closed even though new typed writes cannot create this row.
-      db.prepare(`UPDATE account_members SET status = 'inactive' WHERE accountId = ? AND userId = ?`)
-        .run(otherAccountId, member.userId)
-    }
+    ["inactive", "a2"],
+    ["active", "missing-account"],
+  ] as const)(
+    "does not retain identity PII for a remaining %s membership row without live access",
+    async (status, otherAccountId) => {
+      const { app, db } = await appWithAuth();
+      insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
+      const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`);
+      upsertMember(db, { accountId: "a1", userId: member.userId, role: "owner", status: "active", createdAt: TS });
+      upsertMember(db, {
+        accountId: otherAccountId,
+        userId: member.userId,
+        role: "editor",
+        status: "active",
+        createdAt: TS,
+      });
+      if (status === "inactive") {
+        // Historical/corrupt databases can contain a status outside the current active-only contract.
+        // The erasure boundary must fail closed even though new typed writes cannot create this row.
+        db.prepare(`UPDATE account_members SET status = 'inactive' WHERE accountId = ? AND userId = ?`).run(
+          otherAccountId,
+          member.userId,
+        );
+      }
 
-    expect((await deleteAccountRoute(app, 'a1', member.cookie)).statusCode).toBe(204)
+      expect((await deleteAccountRoute(app, "a1", member.cookie)).statusCode).toBe(204);
 
-    // Inactive and dangling control rows grant no product access, so neither is a lawful reason to
-    // retain the installation-local identity after its final live membership has been erased.
-    expect(userRow(db, member.userId)).toBeUndefined()
-    expect(authAccountCount(db, member.userId)).toBe(0)
-    expect(sessionCount(db, member.userId)).toBe(0)
-  })
-})
+      // Inactive and dangling control rows grant no product access, so neither is a lawful reason to
+      // retain the installation-local identity after its final live membership has been erased.
+      expect(userRow(db, member.userId)).toBeUndefined();
+      expect(authAccountCount(db, member.userId)).toBe(0);
+      expect(sessionCount(db, member.userId)).toBe(0);
+    },
+  );
+});
 
-describe('P2.6b erasure — (d) account_members + invites for the deleted account are gone (direct count)', () => {
-  it('after deleting a1, a SELECT COUNT over its account_members and invites is 0', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('a1')] } as unknown as AppData)
-    const u = await signUp(app, 'd-owner@capacitylens.dev')
-    seedMembershipAndInvite(db, 'a1', u.userId, 'owner')
-    expect(memberCount(db, 'a1')).toBe(1)
-    expect(inviteCount(db, 'a1')).toBe(1)
+describe("P2.6b erasure — (d) account_members + invites for the deleted account are gone (direct count)", () => {
+  it("after deleting a1, a SELECT COUNT over its account_members and invites is 0", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } as unknown as AppData);
+    const u = await signUp(app, "d-owner@capacitylens.dev");
+    seedMembershipAndInvite(db, "a1", u.userId, "owner");
+    expect(memberCount(db, "a1")).toBe(1);
+    expect(inviteCount(db, "a1")).toBe(1);
 
-    expect((await deleteAccountRoute(app, 'a1', u.cookie)).statusCode).toBe(204)
+    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(204);
 
-    expect(memberCount(db, 'a1')).toBe(0)
-    expect(inviteCount(db, 'a1')).toBe(0)
-  })
-})
+    expect(memberCount(db, "a1")).toBe(0);
+    expect(inviteCount(db, "a1")).toBe(0);
+  });
+});
 
-describe('P2.6b erasure — (e) atomic rollback (fail-closed)', () => {
-  it('a throw mid-erasure rolls the whole tx back: account, membership and user PII all survive intact', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('a1')], clients: [client('c1', 'a1')] } as unknown as AppData)
-    const u = await signUp(app, 'rollback-owner@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
+describe("P2.6b erasure — (e) atomic rollback (fail-closed)", () => {
+  it("a throw mid-erasure rolls the whole tx back: account, membership and user PII all survive intact", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, {
+      ...emptyAppData(),
+      accounts: [account("a1")],
+      clients: [client("c1", "a1")],
+    } as unknown as AppData);
+    const u = await signUp(app, "rollback-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: u.userId, role: "owner", status: "active", createdAt: TS });
 
     // Force a deterministic failure from the account-administration adapter after product and
     // membership deletion have begun. The enclosing AccountFlows transaction must roll everything
@@ -412,72 +451,63 @@ describe('P2.6b erasure — (e) atomic rollback (fail-closed)', () => {
       BEGIN
         SELECT RAISE(ABORT, 'forced mid-erasure failure');
       END;
-    `)
+    `);
 
-    expect((await deleteAccountRoute(app, 'a1', u.cookie)).statusCode).toBe(500)
+    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(500);
 
     // The tx rolled back: NOTHING changed. Account row, its scoped client, the membership, and the
     // user's real PII are ALL still present (a partial erasure must never commit).
-    expect(accountCount(db, 'a1')).toBe(1)
-    expect(scopedClientCount(db, 'a1')).toBe(1)
-    expect(memberCount(db, 'a1')).toBe(1)
-    expect(userRow(db, u.userId)?.email).toBe('rollback-owner@capacitylens.dev')
-  })
+    expect(accountCount(db, "a1")).toBe(1);
+    expect(scopedClientCount(db, "a1")).toBe(1);
+    expect(memberCount(db, "a1")).toBe(1);
+    expect(userRow(db, u.userId)?.email).toBe("rollback-owner@capacitylens.dev");
+  });
 
-  it('refuses malformed structured verification state instead of reporting partial identity erasure', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('a1')] } as unknown as AppData)
-    const u = await signUp(app, 'malformed-link-owner@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
+  it("refuses malformed structured verification state instead of reporting partial identity erasure", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } as unknown as AppData);
+    const u = await signUp(app, "malformed-link-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: u.userId, role: "owner", status: "active", createdAt: TS });
     db.prepare(
       `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(
-      'malformed-link',
-      'malformed-link',
-      `{"link":{"userId":"${u.userId}"`,
-      TS,
-      TS,
-      TS,
-    )
-    seedAccountLinkState(db, 'unrelated-user', 'unrelated@capacitylens.dev', 'link-unrelated-malformed-control')
+    ).run("malformed-link", "malformed-link", `{"link":{"userId":"${u.userId}"`, TS, TS, TS);
+    seedAccountLinkState(db, "unrelated-user", "unrelated@capacitylens.dev", "link-unrelated-malformed-control");
 
-    expect((await deleteAccountRoute(app, 'a1', u.cookie)).statusCode).toBe(500)
+    expect((await deleteAccountRoute(app, "a1", u.cookie)).statusCode).toBe(500);
 
     // The uninterpretable structured row blocks the whole transaction. A successful erasure may
     // never leave principal-correlated bytes behind, and an unrelated well-formed row stays intact.
-    expect(accountCount(db, 'a1')).toBe(1)
-    expect(memberCount(db, 'a1')).toBe(1)
-    expect(userRow(db, u.userId)?.email).toBe('malformed-link-owner@capacitylens.dev')
-    expect(verificationExists(db, 'malformed-link')).toBe(true)
-    expect(verificationExists(db, 'link-unrelated-malformed-control')).toBe(true)
-  })
-})
+    expect(accountCount(db, "a1")).toBe(1);
+    expect(memberCount(db, "a1")).toBe(1);
+    expect(userRow(db, u.userId)?.email).toBe("malformed-link-owner@capacitylens.dev");
+    expect(verificationExists(db, "malformed-link")).toBe(true);
+    expect(verificationExists(db, "link-unrelated-malformed-control")).toBe(true);
+  });
+});
 
-describe('P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching auth tables', () => {
+describe("P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching auth tables", () => {
   it('an OFF-mode account delete succeeds (no "no such table: user") and the AppData is gone', async () => {
-    const db = openDb(':memory:') // OFF mode: no auth migrations → no user/account/session tables
-    const app = buildApp(db) // authMode defaults to 'off'
+    const db = openDb(":memory:"); // OFF mode: no auth migrations → no user/account/session tables
+    const app = buildApp(db); // authMode defaults to 'off'
     insertAll(db, {
       ...emptyAppData(),
-      accounts: [account('a1')],
-      clients: [client('c1', 'a1')],
-    } as unknown as AppData)
+      accounts: [account("a1")],
+      clients: [client("c1", "a1")],
+    } as unknown as AppData);
     // A membership row exists even in OFF (control tables are created on every open) — proving the
     // member sweep still runs without the auth tables.
-    upsertMember(db, { accountId: 'a1', userId: 'demo', role: 'owner', status: 'active', createdAt: TS })
-    expect(memberCount(db, 'a1')).toBe(1)
+    upsertMember(db, { accountId: "a1", userId: "demo", role: "owner", status: "active", createdAt: TS });
+    expect(memberCount(db, "a1")).toBe(1);
 
     // The 'user' table genuinely does not exist in OFF mode.
-    expect(
-      db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user'`).get(),
-    ).toBeUndefined()
+    expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user'`).get()).toBeUndefined();
 
     // OFF mode is allow-all → 204; must NOT throw "no such table: user".
-    expect((await call(app, { method: 'DELETE', url: '/api/accounts/a1' })).statusCode).toBe(204)
+    expect((await call(app, { method: "DELETE", url: "/api/accounts/a1" })).statusCode).toBe(204);
 
-    expect(accountCount(db, 'a1')).toBe(0)
-    expect(scopedClientCount(db, 'a1')).toBe(0)
-    expect(memberCount(db, 'a1')).toBe(0)
-  })
-})
+    expect(accountCount(db, "a1")).toBe(0);
+    expect(scopedClientCount(db, "a1")).toBe(0);
+    expect(memberCount(db, "a1")).toBe(0);
+  });
+});

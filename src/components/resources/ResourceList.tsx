@@ -1,86 +1,86 @@
-import { Fragment, useMemo, useState } from 'react'
-import { Plus, Users } from 'lucide-react'
-import { useStore } from '../../store/useStore'
-import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../../store/selectors'
-import { useActiveScopedData } from '../../store/useScopedData'
-import { useCrudListState } from '../../hooks/useCrudListState'
-import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
-import { Separator } from '../ui/separator'
-import { resourceDisplayName } from '../../lib/metadata'
-import { ResourceForm } from './ResourceForm'
-import { ExternalForm } from '../external/ExternalForm'
-import { externalExplainer } from '../../lib/externalCopy'
-import { NEUTRAL_COLOR } from '../../lib/palette'
-import { isExternalResource } from '@capacitylens/shared/types/entities'
-import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
-import { useLifecycleActions } from '../../hooks/useLifecycleActions'
-import { m } from '@/i18n'
-import { Badge } from '../ui/badge'
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
+import { Fragment, useMemo, useState } from "react";
+import { Plus, Users } from "lucide-react";
+import { useStore } from "../../store/useStore";
+import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from "../../store/selectors";
+import { useActiveScopedData } from "../../store/useScopedData";
+import { useCrudListState } from "../../hooks/useCrudListState";
+import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
+import { Separator } from "../ui/separator";
+import { resourceDisplayName } from "../../lib/metadata";
+import { ResourceForm } from "./ResourceForm";
+import { ExternalForm } from "../external/ExternalForm";
+import { externalExplainer } from "../../lib/externalCopy";
+import { NEUTRAL_COLOR } from "../../lib/palette";
+import { isExternalResource } from "@capacitylens/shared/types/entities";
+import type { Resource, ResourceKind } from "@capacitylens/shared/types/entities";
+import { useLifecycleActions } from "../../hooks/useLifecycleActions";
+import { m } from "@/i18n";
+import { Badge } from "../ui/badge";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 
 export function ResourceList() {
-  const data = useActiveScopedData()
-  const resources = data.resources
-  const disciplines = data.disciplines
+  const data = useActiveScopedData();
+  const resources = data.resources;
+  const disciplines = data.disciplines;
   const disciplineById = useMemo(
     () => new Map(disciplines.map((discipline) => [discipline.id, discipline])),
     [disciplines],
-  )
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
+  );
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF). When off the placeholder feature is hidden, so the
   // Placeholders section and its "Add placeholder" affordance don't render. Existing placeholder
   // resources stay in the data untouched — they simply aren't shown until the pref is turned on.
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF), EXACT analog of placeholdersEnabled. When off the External
   // section (rows + "Add external party" affordance) doesn't render; existing externals stay in the
   // data untouched and reappear when re-enabled (Settings → External).
-  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
   // The per-row action now ARCHIVES (soft-delete is reached LATER from Settings → Archived & deleted
   // on an archived row). `archive` branches server/local in useLifecycleActions — and crucially, in
   // SERVER mode it reloads the active slice so the archived row vanishes from this list + the schedule.
-  const { archive } = useLifecycleActions()
-  const { editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>()
+  const { archive } = useLifecycleActions();
+  const { editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>();
   // External rows get their OWN create/edit/confirm state + the trimmed ExternalForm (no capacity
   // fields), kept separate from the person/placeholder triple above so the two modals never collide.
-  const ext = useCrudListState<Resource>()
+  const ext = useCrudListState<Resource>();
   // People and placeholders each have their own add button; remember which kind is
   // being created so the right modal opens.
-  const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null)
+  const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null);
 
   // Resources, placeholders, and externals all live on THIS tab now. Externals (the External section
   // below) are gated behind the per-account `externalEnabled` pref; people/placeholders split by kind.
-  const people = resources.filter((r) => r.kind === 'person')
-  const placeholders = resources.filter((r) => r.kind === 'placeholder')
-  const externals = resources.filter(isExternalResource)
-  const visibleResourceCount = people.length +
-    (placeholdersEnabled ? placeholders.length : 0) +
-    (externalEnabled ? externals.length : 0)
+  const people = resources.filter((r) => r.kind === "person");
+  const placeholders = resources.filter((r) => r.kind === "placeholder");
+  const externals = resources.filter(isExternalResource);
+  const visibleResourceCount =
+    people.length + (placeholdersEnabled ? placeholders.length : 0) + (externalEnabled ? externals.length : 0);
 
-  const disciplineName = (id?: string) => (id ? disciplineById.get(id)?.name : undefined) ?? '—'
+  const disciplineName = (id?: string) => (id ? disciplineById.get(id)?.name : undefined) ?? "—";
   // A resource's colour follows its discipline (resources no longer pick their own);
   // fall back to the stored colour for the disciplineless ones — and for everyone when
   // the account doesn't use disciplines.
   const swatchColor = (r: Resource) =>
-    (disciplinesEnabled && r.disciplineId ? disciplineById.get(r.disciplineId)?.color : undefined) ?? r.color
+    (disciplinesEnabled && r.disciplineId ? disciplineById.get(r.disciplineId)?.color : undefined) ?? r.color;
 
   const renderRow = (r: Resource) => (
     <Item size="sm" role="listitem" data-testid="resource-row" className="rounded-none">
       <ItemContent className="flex-row flex-wrap items-center gap-2">
         <ColorSwatch color={swatchColor(r)} />
         <span className="font-medium">{resourceDisplayName(r)}</span>
-        {r.kind === 'placeholder' && (
-          <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>
-        )}
+        {r.kind === "placeholder" && <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>}
         <span className="text-sm text-muted-foreground">
-          {` · ${r.role}${disciplinesEnabled ? ` · ${disciplineName(r.disciplineId)}` : ''} · ${m.list_resources_hours_per_day({ hours: r.workingHoursPerDay })}`}
+          {` · ${r.role}${disciplinesEnabled ? ` · ${disciplineName(r.disciplineId)}` : ""} · ${m.list_resources_hours_per_day({ hours: r.workingHoursPerDay })}`}
         </span>
       </ItemContent>
       <ItemActions>
         <EditButton onClick={() => setEditing(r)} />
-        <DeleteButton label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })} onClick={() => setConfirming(r)} />
+        <DeleteButton
+          label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })}
+          onClick={() => setConfirming(r)}
+        />
       </ItemActions>
     </Item>
-  )
+  );
 
   // `enrich` carries the icon/description/CTA for the *genuinely-empty* People box. The
   // placeholder box passes none — its bare message is left as-is (its own "Add placeholder"
@@ -107,17 +107,21 @@ export function ResourceList() {
           </Fragment>
         ))}
       </ItemGroup>
-    )
+    );
 
   return (
-    <ListPage title={m.list_resources_title()} addLabel={m.list_resources_add()} onAdd={() => setCreatingKind('person')}>
+    <ListPage
+      title={m.list_resources_title()}
+      addLabel={m.list_resources_add()}
+      onAdd={() => setCreatingKind("person")}
+    >
       {box(
         people,
         m.list_resources_empty(),
         visibleResourceCount === 0
           ? {
               description: m.list_resources_empty_desc(),
-              action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind('person') },
+              action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind("person") },
             }
           : undefined,
       )}
@@ -133,7 +137,7 @@ export function ResourceList() {
           <Separator className="mt-8" />
           <div className="mb-4 mt-8 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{m.list_resources_placeholders_heading()}</h2>
-            <AddButton label={m.list_resources_add_placeholder()} onClick={() => setCreatingKind('placeholder')} />
+            <AddButton label={m.list_resources_add_placeholder()} onClick={() => setCreatingKind("placeholder")} />
           </div>
           {box(placeholders, m.list_resources_placeholders_empty())}
         </>
@@ -159,7 +163,12 @@ export function ResourceList() {
             <EmptyState
               icon={Users}
               description={m.list_resources_external_empty_desc()}
-              action={{ label: m.list_resources_external_empty_action(), onClick: () => ext.setCreating(true), icon: Plus, requiresEdit: true }}
+              action={{
+                label: m.list_resources_external_empty_action(),
+                onClick: () => ext.setCreating(true),
+                icon: Plus,
+                requiresEdit: true,
+              }}
             >
               {m.list_resources_external_empty()}
             </EmptyState>
@@ -167,18 +176,21 @@ export function ResourceList() {
             <ItemGroup className="rounded-md border bg-card">
               {externals.map((r, index) => (
                 <Fragment key={r.id}>
-                {index > 0 && <ItemSeparator />}
-                <Item size="sm" role="listitem" data-testid="external-row" className="rounded-none">
-                  <ItemContent className="flex-row flex-wrap items-center gap-2">
-                    <ColorSwatch color={NEUTRAL_COLOR} />
-                    <span className="font-medium">{r.name ?? r.role}</span>
-                    {r.name && r.role && <span className="text-sm text-muted-foreground">· {r.role}</span>}
-                  </ItemContent>
-                  <ItemActions>
-                    <EditButton onClick={() => ext.setEditing(r)} />
-                    <DeleteButton label={m.list_resources_archive_aria({ name: r.name ?? r.role })} onClick={() => ext.setConfirming(r)} />
-                  </ItemActions>
-                </Item>
+                  {index > 0 && <ItemSeparator />}
+                  <Item size="sm" role="listitem" data-testid="external-row" className="rounded-none">
+                    <ItemContent className="flex-row flex-wrap items-center gap-2">
+                      <ColorSwatch color={NEUTRAL_COLOR} />
+                      <span className="font-medium">{r.name ?? r.role}</span>
+                      {r.name && r.role && <span className="text-sm text-muted-foreground">· {r.role}</span>}
+                    </ItemContent>
+                    <ItemActions>
+                      <EditButton onClick={() => ext.setEditing(r)} />
+                      <DeleteButton
+                        label={m.list_resources_archive_aria({ name: r.name ?? r.role })}
+                        onClick={() => ext.setConfirming(r)}
+                      />
+                    </ItemActions>
+                  </Item>
                 </Fragment>
               ))}
             </ItemGroup>
@@ -194,8 +206,8 @@ export function ResourceList() {
           message={m.list_resources_archive_message({ name: resourceDisplayName(confirming) })}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void archive('resources', confirming.id)
-            setConfirming(null)
+            void archive("resources", confirming.id);
+            setConfirming(null);
           }}
           onCancel={() => setConfirming(null)}
         />
@@ -211,12 +223,12 @@ export function ResourceList() {
           message={m.list_resources_archive_message({ name: ext.confirming.name ?? ext.confirming.role })}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void archive('resources', ext.confirming!.id)
-            ext.setConfirming(null)
+            void archive("resources", ext.confirming!.id);
+            ext.setConfirming(null);
           }}
           onCancel={() => ext.setConfirming(null)}
         />
       )}
     </ListPage>
-  )
+  );
 }

@@ -1,12 +1,5 @@
 import { spawnSync } from "node:child_process";
-import {
-  closeSync,
-  mkdtempSync,
-  openSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,16 +24,12 @@ function boot(overrides: NodeJS.ProcessEnv) {
   try {
     // tsx may start an esbuild helper. Capture through files so a short-lived descendant cannot
     // keep a stdio pipe open after the entrypoint has already exited with its refusal status.
-    const result = spawnSync(
-      process.execPath,
-      [tsxCli, "src/index.ts"],
-      {
-        cwd: process.cwd(),
-        env,
-        stdio: ["ignore", stdout, stderr],
-        timeout: 10_000,
-      },
-    );
+    const result = spawnSync(process.execPath, [tsxCli, "src/index.ts"], {
+      cwd: process.cwd(),
+      env,
+      stdio: ["ignore", stdout, stderr],
+      timeout: 10_000,
+    });
     closeSync(stdout);
     stdout = -1;
     closeSync(stderr);
@@ -72,9 +61,7 @@ describe("server entrypoint startup refusals", () => {
   });
 
   it("frames a configured backup path that is not a directory", () => {
-    const directory = mkdtempSync(
-      join(tmpdir(), "capacitylens-backup-refusal-test-"),
-    );
+    const directory = mkdtempSync(join(tmpdir(), "capacitylens-backup-refusal-test-"));
     const backupDir = join(directory, "not-a-directory");
     writeFileSync(backupDir, "filesystem obstruction");
     try {

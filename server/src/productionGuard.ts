@@ -1,5 +1,5 @@
-import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from './auth'
-import { parseRateLimit, MAX_RATE_LIMIT } from './rateLimit'
+import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from "./auth";
+import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
 
 // Production safety interlock. Once NODE_ENV=production, the development/open posture
 // must actually be retired: running with auth OFF in
@@ -27,9 +27,9 @@ import { parseRateLimit, MAX_RATE_LIMIT } from './rateLimit'
  */
 export interface ProductionPostureResult {
   /** Fatal misconfigurations — the server MUST refuse to boot. Empty unless NODE_ENV==='production'. */
-  refusals: string[]
+  refusals: string[];
   /** Non-fatal posture concerns — boot continues but logs each loudly. */
-  warnings: string[]
+  warnings: string[];
 }
 
 /**
@@ -76,70 +76,70 @@ export interface ProductionPostureResult {
  *   Both arrays are empty unless `env.NODE_ENV === 'production'`.
  */
 export function evaluateProductionPosture(env: {
-  NODE_ENV?: string
-  CAPACITYLENS_AUTH?: string
-  CAPACITYLENS_HTTPS?: string
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP?: string
-  CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string
-  CAPACITYLENS_CREATE_ADMIN_ADMIN?: string
-  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string
-  CAPACITYLENS_REQUIRE_MFA?: string
-  CAPACITYLENS_SSO_MFA_ENFORCED?: string
-  CAPACITYLENS_PASSWORD_BREACH_CHECK?: string
-  CAPACITYLENS_RATE_LIMIT?: string
-  CAPACITYLENS_AUDIT?: string
-  CAPACITYLENS_AUDIT_STDOUT?: string
-  CAPACITYLENS_STORAGE_ENCRYPTED?: string
-  CAPACITYLENS_SECURITY_LOG_FORWARDING?: string
-  CAPACITYLENS_INTERNAL_TLS_CERT?: string
-  CAPACITYLENS_INTERNAL_TLS_KEY?: string
+  NODE_ENV?: string;
+  CAPACITYLENS_AUTH?: string;
+  CAPACITYLENS_HTTPS?: string;
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP?: string;
+  CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string;
+  CAPACITYLENS_CREATE_ADMIN_ADMIN?: string;
+  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string;
+  CAPACITYLENS_REQUIRE_MFA?: string;
+  CAPACITYLENS_SSO_MFA_ENFORCED?: string;
+  CAPACITYLENS_PASSWORD_BREACH_CHECK?: string;
+  CAPACITYLENS_RATE_LIMIT?: string;
+  CAPACITYLENS_AUDIT?: string;
+  CAPACITYLENS_AUDIT_STDOUT?: string;
+  CAPACITYLENS_STORAGE_ENCRYPTED?: string;
+  CAPACITYLENS_SECURITY_LOG_FORWARDING?: string;
+  CAPACITYLENS_INTERNAL_TLS_CERT?: string;
+  CAPACITYLENS_INTERNAL_TLS_KEY?: string;
 }): ProductionPostureResult {
-  const refusals: string[] = []
-  const warnings: string[] = []
+  const refusals: string[] = [];
+  const warnings: string[] = [];
 
   // No-op outside production. Dev / e2e / self-host keep the open posture as a supported mode —
   // this guard only engages once an operator declares NODE_ENV=production (same gate as bootGuard).
-  if (env.NODE_ENV !== 'production') return { refusals, warnings }
+  if (env.NODE_ENV !== "production") return { refusals, warnings };
 
   // Reuse parseAuthMode so 'off' (incl. unset/'') is canonical. Convert its configuration throw
   // into result data: index evaluates posture before opening storage and owns the framed refusal.
-  let mode: ReturnType<typeof parseAuthMode> | null = null
+  let mode: ReturnType<typeof parseAuthMode> | null = null;
   try {
-    mode = parseAuthMode(env.CAPACITYLENS_AUTH)
+    mode = parseAuthMode(env.CAPACITYLENS_AUTH);
   } catch (error) {
-    refusals.push(error instanceof Error ? error.message : String(error))
+    refusals.push(error instanceof Error ? error.message : String(error));
   }
 
-  if (mode === 'off') {
-    if (env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1') {
+  if (mode === "off") {
+    if (env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
       // Operator opted in: run the open/demo posture in production ON PURPOSE. Downgrade to a
       // warning so it is still visible, but let the daemon boot.
       warnings.push(
-        'auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password|sso to require login.',
-      )
+        "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password|sso to require login.",
+      );
     } else {
       // The dev/open posture P3.1 retires. Fail closed: the demo dataset would be world
       // readable+writable. Name both the fix and the explicit opt-in escape.
       refusals.push(
         'auth is OFF (SMALLSASS_ACCOUNT_MODE unset or "off") under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password or sso to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.',
-      )
+      );
     }
   }
 
-  if (mode === 'password' && env.CAPACITYLENS_REQUIRE_MFA !== '1') {
+  if (mode === "password" && env.CAPACITYLENS_REQUIRE_MFA !== "1") {
     warnings.push(
-      'SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.',
-    )
+      "SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.",
+    );
   }
-  if (mode === 'sso' && env.CAPACITYLENS_SSO_MFA_ENFORCED !== '1') {
+  if (mode === "sso" && env.CAPACITYLENS_SSO_MFA_ENFORCED !== "1") {
     warnings.push(
-      'SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.',
-    )
+      "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.",
+    );
   }
-  if (mode === 'password' && env.CAPACITYLENS_PASSWORD_BREACH_CHECK === 'off') {
+  if (mode === "password" && env.CAPACITYLENS_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
-      'SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.',
-    )
+      "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
+    );
   }
   // Validate with the SAME parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
   // check. A divergent check let ' 100 ', '1e3' and '2000000' pass the guard while parseRateLimit maps
@@ -148,56 +148,56 @@ export function evaluateProductionPosture(env: {
   // value over the cap) is a refusal; the message states the exact accepted shape so the operator can fix it.
   if (parseRateLimit(env.CAPACITYLENS_RATE_LIMIT) === 0) {
     refusals.push(
-      `CAPACITYLENS_RATE_LIMIT must be digits only (no sign, decimal point, whitespace or exponent) in the range 1..${MAX_RATE_LIMIT.toLocaleString('en-US')} under NODE_ENV=production. The configured value parses to 0 (rate limiting disabled), which would leave production unlimited while reporting a hardened posture.`,
-    )
+      `CAPACITYLENS_RATE_LIMIT must be digits only (no sign, decimal point, whitespace or exponent) in the range 1..${MAX_RATE_LIMIT.toLocaleString("en-US")} under NODE_ENV=production. The configured value parses to 0 (rate limiting disabled), which would leave production unlimited while reporting a hardened posture.`,
+    );
   }
-  if (env.CAPACITYLENS_AUDIT === 'off') {
-    refusals.push('CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production.')
+  if (env.CAPACITYLENS_AUDIT === "off") {
+    refusals.push("CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production.");
   }
-  if (env.CAPACITYLENS_AUDIT_STDOUT !== '1') {
+  if (env.CAPACITYLENS_AUDIT_STDOUT !== "1") {
     warnings.push(
-      'CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.',
-    )
+      "CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.",
+    );
   }
-  if (env.CAPACITYLENS_STORAGE_ENCRYPTED !== '1') {
+  if (env.CAPACITYLENS_STORAGE_ENCRYPTED !== "1") {
     warnings.push(
-      'CAPACITYLENS_STORAGE_ENCRYPTED is not 1, so encrypted-at-rest storage for the database, audit log and backups has not been attested. Startup continues for simple self-hosting; protect the host and storage appropriately.',
-    )
+      "CAPACITYLENS_STORAGE_ENCRYPTED is not 1, so encrypted-at-rest storage for the database, audit log and backups has not been attested. Startup continues for simple self-hosting; protect the host and storage appropriately.",
+    );
   }
-  if (env.CAPACITYLENS_SECURITY_LOG_FORWARDING !== '1') {
+  if (env.CAPACITYLENS_SECURITY_LOG_FORWARDING !== "1") {
     warnings.push(
-      'CAPACITYLENS_SECURITY_LOG_FORWARDING is not 1, so security/audit logs have not been attested as forwarded to a separate monitoring system. Local logs remain supported.',
-    )
+      "CAPACITYLENS_SECURITY_LOG_FORWARDING is not 1, so security/audit logs have not been attested as forwarded to a separate monitoring system. Local logs remain supported.",
+    );
   }
-  const internalTlsCert = env.CAPACITYLENS_INTERNAL_TLS_CERT?.trim()
-  const internalTlsKey = env.CAPACITYLENS_INTERNAL_TLS_KEY?.trim()
+  const internalTlsCert = env.CAPACITYLENS_INTERNAL_TLS_CERT?.trim();
+  const internalTlsKey = env.CAPACITYLENS_INTERNAL_TLS_KEY?.trim();
   if (!internalTlsCert && !internalTlsKey) {
     warnings.push(
-      'CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are not configured, so the API uses HTTP. This is supported only behind a trusted same-host loopback reverse proxy; configure both paths to encrypt the internal hop.',
-    )
+      "CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are not configured, so the API uses HTTP. This is supported only behind a trusted same-host loopback reverse proxy; configure both paths to encrypt the internal hop.",
+    );
   }
 
   // Production concerns evaluated regardless of auth mode.
-  if (env.CAPACITYLENS_HTTPS !== '1') {
+  if (env.CAPACITYLENS_HTTPS !== "1") {
     warnings.push(
-      'CAPACITYLENS_HTTPS is not 1 under NODE_ENV=production, so HSTS is not enabled. If TLS terminates at a reverse proxy this is expected; if this process serves HTTPS directly, set CAPACITYLENS_HTTPS=1.',
-    )
+      "CAPACITYLENS_HTTPS is not 1 under NODE_ENV=production, so HSTS is not enabled. If TLS terminates at a reverse proxy this is expected; if this process serves HTTPS directly, set CAPACITYLENS_HTTPS=1.",
+    );
   }
-  if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1') {
+  if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
     warnings.push(
-      'SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP unless you intend open registration.',
-    )
+      "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP unless you intend open registration.",
+    );
   }
-  if (env.CAPACITYLENS_CREATE_ADMIN_ADMIN === '1') {
+  if (env.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1") {
     refusals.push(
       `CAPACITYLENS_CREATE_ADMIN_ADMIN=1 (or --create-owner-admin-admin) is development-only under NODE_ENV=production because its initial credential cannot be forced to expire after first use. Create the first owner through the setup-token flow instead (${BOOTSTRAP_ADMIN_EMAIL} is not created).`,
-    )
+    );
   }
   if (env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD) {
     refusals.push(
       `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD is not permitted under NODE_ENV=production because an operator-selected initial credential cannot be forced to expire after first use. Use the setup-token owner flow instead (${BOOTSTRAP_ADMIN_EMAIL} is not created).`,
-    )
+    );
   }
 
-  return { refusals, warnings }
+  return { refusals, warnings };
 }

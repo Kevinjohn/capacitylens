@@ -9,9 +9,9 @@ import {
   renameSync,
   statSync,
   writeFileSync,
-} from 'node:fs'
-import { dirname, join } from 'node:path'
-import type { AccountAuditEvent } from '@capacitylens/shared/account/audit'
+} from "node:fs";
+import { dirname, join } from "node:path";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 
 // Append-only JSONL audit sink (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
 // It records one legacy product AuditRecord per AppData mutation plus normalized AccountAuditEvent
@@ -36,11 +36,11 @@ import type { AccountAuditEvent } from '@capacitylens/shared/account/audit'
  */
 export interface AuditRecord {
   /** ISO-8601 instant the mutation committed (server runtime clock). */
-  ts: string
+  ts: string;
   /** The acting principal's id (DEMO_USER 'demo' in OFF mode; a real session id auth-on). */
-  userId: string
+  userId: string;
   /** The tenant the mutation targeted. */
-  accountId: string
+  accountId: string;
   /** The kind of mutation. The lifecycle quartet (P2.5a) is distinct from the generic CRUD verbs:
    *  `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
    *  resource, scrubs the PII `name`), and `purge` is the HARD cascade row-delete of a ≥30-day-old
@@ -48,25 +48,41 @@ export interface AuditRecord {
    *  tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
    *  only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`) — never values (the
    *  #1 no-PII invariant). */
-  action: 'create' | 'update' | 'patch' | 'delete' | 'batch' | 'import' | 'archive' | 'unarchive' | 'softDelete' | 'purge'
-    | 'memberRole' | 'memberRemove' | 'ownershipTransfer' | 'inviteCreate' | 'inviteAccept'
-    | 'inviteRevoke' | 'passwordResetIssue' | 'sessionsRevoke'
+  action:
+    | "create"
+    | "update"
+    | "patch"
+    | "delete"
+    | "batch"
+    | "import"
+    | "archive"
+    | "unarchive"
+    | "softDelete"
+    | "purge"
+    | "memberRole"
+    | "memberRemove"
+    | "ownershipTransfer"
+    | "inviteCreate"
+    | "inviteAccept"
+    | "inviteRevoke"
+    | "passwordResetIssue"
+    | "sessionsRevoke";
   /** The entity/table touched (e.g. 'timeOff', 'clients'), or 'account' for an import slice. */
-  entity: string
+  entity: string;
   /** The affected row id (the import record uses the accountId as its id). */
-  id: string
+  id: string;
   /** Field NAMES that changed — Object.keys of the wire body/row. NEVER values. */
-  changedFields: string[]
+  changedFields: string[];
 }
 
 /** Stable delivery id added by the SQLite audit outbox. A recovered delivery may be replayed after
  * its JSONL append reached durable storage but before the outbox row was deleted; fileAuditSink
  * uses this id to make that replay a no-op instead of duplicating the line. */
 export interface AuditDeliveryMetadata {
-  auditId?: string
+  auditId?: string;
 }
 
-export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetadata
+export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetadata;
 
 /**
  * The audit write port. `append` is SYNCHRONOUS and MUST NOT throw: a broken audit sink can never
@@ -77,9 +93,9 @@ export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetada
  */
 export interface AuditSink {
   /** Write one line. Never throws; returns false on failure (and latches `degraded`). */
-  append(record: AuditEntry): boolean
+  append(record: AuditEntry): boolean;
   /** Latched true once any append failed — the soft signal deep-health surfaces. */
-  readonly degraded: boolean
+  readonly degraded: boolean;
 }
 
 /** fileAuditSink's rotation knob. */
@@ -87,13 +103,13 @@ export interface FileAuditSinkOptions {
   /** Rotate before the next complete line would exceed this size, in bytes. A single larger line
    *  is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES) — an unbounded
    *  JSONL append-forever log eventually fills the disk, which then fails SQLite writes too. */
-  maxBytes?: number
+  maxBytes?: number;
   /** Test seam for the one-time existing-file permission pin. */
-  pinPermissions?: (file: string, mode: number) => void
+  pinPermissions?: (file: string, mode: number) => void;
 }
 
-const DEFAULT_MAX_BYTES = 64 * 1024 * 1024 // 64 MiB
-export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024 // 1 TiB operator-safety ceiling
+const DEFAULT_MAX_BYTES = 64 * 1024 * 1024; // 64 MiB
+export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024; // 1 TiB operator-safety ceiling
 
 /**
  * A file-backed sink: one `\n`-terminated write + `fsync` per record. The single synchronous,
@@ -114,144 +130,144 @@ export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024 // 1 TiB operator-safet
  * @param opts `maxBytes` — see FileAuditSinkOptions
  */
 export function fileAuditSink(file: string, log: (msg: string) => void, opts: FileAuditSinkOptions = {}): AuditSink {
-  const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES
-  const pinPermissions = opts.pinPermissions ?? chmodSync
+  const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
+  const pinPermissions = opts.pinPermissions ?? chmodSync;
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_AUDIT_BYTES) {
-    throw new RangeError(`maxBytes must be a safe integer from 1 to ${MAX_AUDIT_BYTES}.`)
+    throw new RangeError(`maxBytes must be a safe integer from 1 to ${MAX_AUDIT_BYTES}.`);
   }
-  let degraded = false
-  let loggedOnce = false
-  let permissionsPinned = false
-  let permissionFailureLogged = false
-  let deliveryStateLoaded = false
-  const deliveredAuditIds = new Set<string>()
+  let degraded = false;
+  let loggedOnce = false;
+  let permissionsPinned = false;
+  let permissionFailureLogged = false;
+  let deliveryStateLoaded = false;
+  const deliveredAuditIds = new Set<string>();
 
   const syncParentDirectory = () => {
-    const fd = openSync(dirname(file), 'r')
+    const fd = openSync(dirname(file), "r");
     try {
-      fsyncSync(fd)
+      fsyncSync(fd);
     } finally {
-      closeSync(fd)
+      closeSync(fd);
     }
-  }
+  };
 
   const existingSize = (path: string): number => {
     try {
-      return statSync(path).size
+      return statSync(path).size;
     } catch (statErr) {
       // ENOENT is the normal first-write/no-prior-generation case. Any other stat failure is an
       // audit sink failure and must reach the outer fail-never/degraded boundary.
-      if ((statErr as NodeJS.ErrnoException).code === 'ENOENT') return 0
-      throw statErr
+      if ((statErr as NodeJS.ErrnoException).code === "ENOENT") return 0;
+      throw statErr;
     }
-  }
+  };
 
   const loadDeliveryState = () => {
     // A process/power loss can interrupt a write before its fsync. Drop only the unterminated tail;
     // the corresponding SQLite outbox row remains and will replay the complete record below.
     if (existsSync(file)) {
-      const bytes = readFileSync(file)
+      const bytes = readFileSync(file);
       if (bytes.length > 0 && bytes[bytes.length - 1] !== 0x0a) {
-        const newline = bytes.lastIndexOf(0x0a)
-        const fd = openSync(file, 'r+')
+        const newline = bytes.lastIndexOf(0x0a);
+        const fd = openSync(file, "r+");
         try {
-          ftruncateSync(fd, newline + 1)
-          fsyncSync(fd)
+          ftruncateSync(fd, newline + 1);
+          fsyncSync(fd);
         } finally {
-          closeSync(fd)
+          closeSync(fd);
         }
-        log('capacitylens-server: audit recovered an unterminated tail; the durable outbox will replay it')
+        log("capacitylens-server: audit recovered an unterminated tail; the durable outbox will replay it");
       }
     }
     for (const path of [`${file}.1`, file]) {
-      if (!existsSync(path)) continue
-      for (const line of readFileSync(path, 'utf8').split('\n')) {
-        if (!line) continue
+      if (!existsSync(path)) continue;
+      for (const line of readFileSync(path, "utf8").split("\n")) {
+        if (!line) continue;
         try {
-          const parsed = JSON.parse(line) as { auditId?: unknown }
-          if (typeof parsed.auditId === 'string') deliveredAuditIds.add(parsed.auditId)
+          const parsed = JSON.parse(line) as { auditId?: unknown };
+          if (typeof parsed.auditId === "string") deliveredAuditIds.add(parsed.auditId);
         } catch {
           // A complete malformed historical line predates the outbox contract and is not safe to
           // rewrite automatically. It has no trusted delivery id, so it cannot suppress a replay.
         }
       }
     }
-    deliveryStateLoaded = true
-  }
+    deliveryStateLoaded = true;
+  };
 
   return {
     append(record: AuditEntry): boolean {
       try {
-        if (!deliveryStateLoaded) loadDeliveryState()
-        const size = existingSize(file)
-        const priorSize = existingSize(`${file}.1`)
+        if (!deliveryStateLoaded) loadDeliveryState();
+        const size = existingSize(file);
+        const priorSize = existingSize(`${file}.1`);
         if (size > maxBytes || priorSize > maxBytes) {
           throw new RangeError(
             `Existing audit generation is ${Math.max(size, priorSize)} bytes, exceeding maxBytes ${maxBytes}.`,
-          )
+          );
         }
-        if (record.auditId && deliveredAuditIds.has(record.auditId)) return true
-        const line = JSON.stringify(record) + '\n'
-        const lineBytes = Buffer.byteLength(line, 'utf8')
+        if (record.auditId && deliveredAuditIds.has(record.auditId)) return true;
+        const line = JSON.stringify(record) + "\n";
+        const lineBytes = Buffer.byteLength(line, "utf8");
         if (lineBytes > maxBytes) {
-          throw new RangeError(`Audit entry is ${lineBytes} bytes, exceeding maxBytes ${maxBytes}.`)
+          throw new RangeError(`Audit entry is ${lineBytes} bytes, exceeding maxBytes ${maxBytes}.`);
         }
         if (size > 0 && size + lineBytes > maxBytes) {
-          renameSync(file, `${file}.1`)
-          permissionsPinned = false
+          renameSync(file, `${file}.1`);
+          permissionsPinned = false;
         }
-        const created = !existsSync(file)
-        const fd = openSync(file, 'a', 0o600)
+        const created = !existsSync(file);
+        const fd = openSync(file, "a", 0o600);
         try {
-          writeFileSync(fd, line, { encoding: 'utf8' })
+          writeFileSync(fd, line, { encoding: "utf8" });
           // Successful delivery means stable file contents, not merely acceptance by the kernel's
           // page cache. The outbox row is deleted only after this synchronous fsync returns.
-          fsyncSync(fd)
+          fsyncSync(fd);
         } finally {
-          closeSync(fd)
+          closeSync(fd);
         }
         // fsync(file) makes contents durable; a newly created generation also needs its directory
         // entry persisted (and, after rotation, the rename) before the outbox row can be deleted.
-        if (created) syncParentDirectory()
+        if (created) syncParentDirectory();
         // The open mode applies only when it creates a file. Pin an existing file once when the
         // sink first uses it, and pin each new generation once after rotation—not on every hot-path append.
         if (!permissionsPinned) {
-          permissionsPinned = true
+          permissionsPinned = true;
           try {
-            pinPermissions(file, 0o600)
+            pinPermissions(file, 0o600);
           } catch (permissionError) {
             if (!permissionFailureLogged) {
-              permissionFailureLogged = true
+              permissionFailureLogged = true;
               log(
                 `capacitylens-server: audit permission pin FAILED — ${
                   permissionError instanceof Error ? permissionError.message : String(permissionError)
                 }`,
-              )
+              );
             }
           }
         }
-        if (record.auditId) deliveredAuditIds.add(record.auditId)
-        return true
+        if (record.auditId) deliveredAuditIds.add(record.auditId);
+        return true;
       } catch (err) {
         // FAIL-NEVER: the mutation already committed — an audit write failure (append, OR the
         // stat/rename that guards rotation) must not throw back into the request path. Latch
         // degraded (deep-health surfaces it) and log ONCE, MESSAGE ONLY — never the record (it
         // carries ids we keep off the failure log) — so a persistently broken sink can't flood stdout.
-        degraded = true
+        degraded = true;
         // A failed write may have left an unterminated tail. Re-inspect before the next delivery so
         // the retained outbox row can replay into a clean JSONL boundary.
-        deliveryStateLoaded = false
+        deliveryStateLoaded = false;
         if (!loggedOnce) {
-          loggedOnce = true
-          log(`capacitylens-server: audit write FAILED — ${err instanceof Error ? err.message : String(err)}`)
+          loggedOnce = true;
+          log(`capacitylens-server: audit write FAILED — ${err instanceof Error ? err.message : String(err)}`);
         }
-        return false
+        return false;
       }
     },
     get degraded() {
-      return degraded
+      return degraded;
     },
-  }
+  };
 }
 
 /**
@@ -263,34 +279,38 @@ export function noopAuditSink(): AuditSink {
   return {
     append: () => true,
     degraded: false,
-  }
+  };
 }
 
 /** JSON-line audit stream suitable for container stdout and a separate log collector. */
 export function streamAuditSink(write: (line: string) => void): AuditSink {
-  let degraded = false
+  let degraded = false;
   return {
     append(record) {
       try {
-        write(JSON.stringify({ type: 'capacitylens.audit', ...record }))
-        return true
+        write(JSON.stringify({ type: "capacitylens.audit", ...record }));
+        return true;
       } catch {
-        degraded = true
-        return false
+        degraded = true;
+        return false;
       }
     },
-    get degraded() { return degraded },
-  }
+    get degraded() {
+      return degraded;
+    },
+  };
 }
 
 /** Require all configured destinations to accept a record; degradation is the union of sinks. */
 export function compositeAuditSink(...sinks: AuditSink[]): AuditSink {
   return {
     append(record) {
-      return sinks.map((sink) => sink.append(record)).every(Boolean)
+      return sinks.map((sink) => sink.append(record)).every(Boolean);
     },
-    get degraded() { return sinks.some((sink) => sink.degraded) },
-  }
+    get degraded() {
+      return sinks.some((sink) => sink.degraded);
+    },
+  };
 }
 
 /**
@@ -308,12 +328,12 @@ export function parseAuditConfig(
   env: Record<string, string | undefined>,
   dbPath: string,
 ): { enabled: boolean; file: string } {
-  const enabled = env.CAPACITYLENS_AUDIT !== 'off'
+  const enabled = env.CAPACITYLENS_AUDIT !== "off";
   // dirname(':memory:') is '.', which join() resolves to CWD-relative — exactly the fallback we
   // want for an in-memory DB (no on-disk DB to sit beside).
   // Compose mapping pass-throughs define omitted values as ''. Treat that generated empty value as
   // absent so deployments outside the packaged Compose file cannot accidentally create a sink at an
   // unusable path. Deliberately do not trim: spaces can be valid in an explicitly configured path.
-  const file = env.CAPACITYLENS_AUDIT_FILE || join(dirname(dbPath), 'capacitylens-audit.jsonl')
-  return { enabled, file }
+  const file = env.CAPACITYLENS_AUDIT_FILE || join(dirname(dbPath), "capacitylens-audit.jsonl");
+  return { enabled, file };
 }

@@ -94,9 +94,7 @@ describe("strictOidcUserInfo", () => {
           });
         }
         if (url === userInfoUrl) {
-          expect(new Headers(init?.headers).get("authorization")).toBe(
-            "Bearer access-token",
-          );
+          expect(new Headers(init?.headers).get("authorization")).toBe("Bearer access-token");
           return Response.json(userInfo);
         }
         return new Response(null, { status: 404 });
@@ -153,24 +151,17 @@ describe("strictOidcUserInfo", () => {
   });
 
   it.each([
-    [
-      "issuer",
-      { issuer: "http://127.0.0.1:5556/other" },
-      /unexpected "iss" claim value/,
-    ],
+    ["issuer", { issuer: "http://127.0.0.1:5556/other" }, /unexpected "iss" claim value/],
     ["audience", { audience: "other-client" }, /unexpected "aud" claim value/],
-  ])(
-    "rejects an ID token with the wrong %s",
-    async (_label, overrides, message) => {
-      const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
-      await expect(
-        resolve({
-          idToken: await idToken(currentKeys[0], overrides),
-          accessToken: "access-token",
-        }),
-      ).rejects.toThrow(message);
-    },
-  );
+  ])("rejects an ID token with the wrong %s", async (_label, overrides, message) => {
+    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+    await expect(
+      resolve({
+        idToken: await idToken(currentKeys[0], overrides),
+        accessToken: "access-token",
+      }),
+    ).rejects.toThrow(message);
+  });
 
   it("rejects an ID token signed by an untrusted key", async () => {
     const attacker = await signingKey("attacker");
@@ -224,10 +215,7 @@ describe("strictOidcUserInfo", () => {
     ).rejects.toThrow("missing or invalid name");
   });
 
-  it.each([
-    "http://images.example.test/owner.png",
-    `https://images.example.test/${"x".repeat(2049)}`,
-  ])(
+  it.each(["http://images.example.test/owner.png", `https://images.example.test/${"x".repeat(2049)}`])(
     "drops a profile image outside the HTTPS and length policy: %s",
     async (picture) => {
       userInfo.picture = picture;
@@ -342,24 +330,17 @@ describe("strictOidcUserInfo", () => {
       ),
     );
     const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
-    await expect(client.metadata()).rejects.toThrow(
-      "OIDC discovery issuer does not match the configured issuer.",
-    );
+    await expect(client.metadata()).rejects.toThrow("OIDC discovery issuer does not match the configured issuer.");
   });
 
-  it.each([null, []])(
-    "rejects a non-object discovery document (%j)",
-    async (document) => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => Response.json(document)),
-      );
-      const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
-      await expect(client.metadata()).rejects.toThrow(
-        "OIDC discovery returned a non-object document.",
-      );
-    },
-  );
+  it.each([null, []])("rejects a non-object discovery document (%j)", async (document) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(document)),
+    );
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
+    await expect(client.metadata()).rejects.toThrow("OIDC discovery returned a non-object document.");
+  });
 
   it.each([
     [
@@ -378,27 +359,24 @@ describe("strictOidcUserInfo", () => {
       },
       "subject type",
     ],
-  ])(
-    "rejects discovery without a supported %s",
-    async (_label, capabilities, message) => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () =>
-          Response.json({
-            issuer,
-            authorization_endpoint: `${issuer}/auth`,
-            token_endpoint: `${issuer}/token`,
-            jwks_uri: jwksUrl,
-            userinfo_endpoint: userInfoUrl,
-            id_token_signing_alg_values_supported: ["RS256"],
-            ...capabilities,
-          }),
-        ),
-      );
-      const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
-      await expect(client.metadata()).rejects.toThrow(message);
-    },
-  );
+  ])("rejects discovery without a supported %s", async (_label, capabilities, message) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          issuer,
+          authorization_endpoint: `${issuer}/auth`,
+          token_endpoint: `${issuer}/token`,
+          jwks_uri: jwksUrl,
+          userinfo_endpoint: userInfoUrl,
+          id_token_signing_alg_values_supported: ["RS256"],
+          ...capabilities,
+        }),
+      ),
+    );
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
+    await expect(client.metadata()).rejects.toThrow(message);
+  });
 
   it("selects only standard confidential-client token authentication methods", async () => {
     vi.stubGlobal(
@@ -441,46 +419,38 @@ describe("strictOidcUserInfo", () => {
       clientId,
       discoveryUrl,
     });
-    await expect(unsupported.metadata()).rejects.toThrow(
-      "no supported confidential-client",
-    );
+    await expect(unsupported.metadata()).rejects.toThrow("no supported confidential-client");
   });
 
   it("exchanges the code only at the validated endpoint with bounded no-redirect fetch policy", async () => {
-    const fetchMock = vi.fn(
-      async (input: string | URL | Request, init?: RequestInit) => {
-        const url = input instanceof Request ? input.url : String(input);
-        if (url === discoveryUrl) {
-          return Response.json({
-            ...requiredDiscoveryCapabilities,
-            issuer,
-            authorization_endpoint: `${issuer}/auth`,
-            token_endpoint: `${issuer}/token`,
-            jwks_uri: jwksUrl,
-            userinfo_endpoint: userInfoUrl,
-            id_token_signing_alg_values_supported: ["RS256"],
-            token_endpoint_auth_methods_supported: ["client_secret_basic"],
-          });
-        }
-        if (url === `${issuer}/token`) {
-          expect(init?.method).toBe("POST");
-          expect(init?.redirect).toBe("error");
-          expect(init?.signal).toBeInstanceOf(AbortSignal);
-          expect(new Headers(init?.headers).get("authorization")).toMatch(
-            /^Basic /,
-          );
-          expect(init?.body).toBeInstanceOf(URLSearchParams);
-          expect((init?.body as URLSearchParams).get("code_verifier")).toBe(
-            "verifier",
-          );
-          return Response.json({
-            access_token: "access-token",
-            id_token: "id-token",
-          });
-        }
-        return new Response(null, { status: 404 });
-      },
-    );
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url === discoveryUrl) {
+        return Response.json({
+          ...requiredDiscoveryCapabilities,
+          issuer,
+          authorization_endpoint: `${issuer}/auth`,
+          token_endpoint: `${issuer}/token`,
+          jwks_uri: jwksUrl,
+          userinfo_endpoint: userInfoUrl,
+          id_token_signing_alg_values_supported: ["RS256"],
+          token_endpoint_auth_methods_supported: ["client_secret_basic"],
+        });
+      }
+      if (url === `${issuer}/token`) {
+        expect(init?.method).toBe("POST");
+        expect(init?.redirect).toBe("error");
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        expect(new Headers(init?.headers).get("authorization")).toMatch(/^Basic /);
+        expect(init?.body).toBeInstanceOf(URLSearchParams);
+        expect((init?.body as URLSearchParams).get("code_verifier")).toBe("verifier");
+        return Response.json({
+          access_token: "access-token",
+          id_token: "id-token",
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
     vi.stubGlobal("fetch", fetchMock);
     const client = createStrictOidcClient({
       issuer,
@@ -546,25 +516,16 @@ describe("strictOidcUserInfo", () => {
   });
 
   it.each([
-    [
-      new Response("not json", { headers: { "content-type": "text/html" } }),
-      "JSON media type",
-    ],
-    [
-      new Response(null, { headers: { "content-type": "application/json" } }),
-      "empty response",
-    ],
-  ])(
-    "rejects an invalid provider response before decoding: %s",
-    async (response, message) => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => response),
-      );
-      const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
-      await expect(client.metadata()).rejects.toThrow(message);
-    },
-  );
+    [new Response("not json", { headers: { "content-type": "text/html" } }), "JSON media type"],
+    [new Response(null, { headers: { "content-type": "application/json" } }), "empty response"],
+  ])("rejects an invalid provider response before decoding: %s", async (response, message) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response),
+    );
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
+    await expect(client.metadata()).rejects.toThrow(message);
+  });
 
   it("enforces the streamed JSON size cap when content-length is absent", async () => {
     const body = new ReadableStream<Uint8Array>({
@@ -647,36 +608,31 @@ describe("strictOidcUserInfo", () => {
       ),
     );
     const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
-    await expect(client.metadata()).rejects.toThrow(
-      "authorization_endpoint must use HTTPS",
-    );
+    await expect(client.metadata()).rejects.toThrow("authorization_endpoint must use HTTPS");
   });
 
   it.each([
     [42, "missing authorization_endpoint"],
     ["not a URL", "invalid authorization_endpoint"],
     [`http://user:pass@127.0.0.1:5556/auth`, "must not contain credentials"],
-  ])(
-    "rejects malformed discovered authorization endpoints: %j",
-    async (endpoint, message) => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () =>
-          Response.json({
-            ...requiredDiscoveryCapabilities,
-            issuer,
-            authorization_endpoint: endpoint,
-            token_endpoint: `${issuer}/token`,
-            jwks_uri: jwksUrl,
-            userinfo_endpoint: userInfoUrl,
-            id_token_signing_alg_values_supported: ["RS256"],
-          }),
-        ),
-      );
-      const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
-      await expect(client.metadata()).rejects.toThrow(message);
-    },
-  );
+  ])("rejects malformed discovered authorization endpoints: %j", async (endpoint, message) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          ...requiredDiscoveryCapabilities,
+          issuer,
+          authorization_endpoint: endpoint,
+          token_endpoint: `${issuer}/token`,
+          jwks_uri: jwksUrl,
+          userinfo_endpoint: userInfoUrl,
+          id_token_signing_alg_values_supported: ["RS256"],
+        }),
+      ),
+    );
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
+    await expect(client.metadata()).rejects.toThrow(message);
+  });
 
   it("rejects discovered endpoint fragments rather than silently dropping them on HTTP use", async () => {
     vi.stubGlobal(
@@ -694,9 +650,7 @@ describe("strictOidcUserInfo", () => {
       ),
     );
     const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
-    await expect(client.metadata()).rejects.toThrow(
-      "must not contain a fragment",
-    );
+    await expect(client.metadata()).rejects.toThrow("must not contain a fragment");
   });
 
   it("fails closed when discovery is unavailable", async () => {

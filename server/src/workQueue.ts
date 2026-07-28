@@ -25,10 +25,7 @@ export interface WorkQueueOptions {
 }
 
 function abortReason(signal: AbortSignal): unknown {
-  return (
-    signal.reason ??
-    new DOMException("The queued work was cancelled.", "AbortError")
-  );
+  return signal.reason ?? new DOMException("The queued work was cancelled.", "AbortError");
 }
 
 /**
@@ -48,14 +45,9 @@ export class BoundedWorkQueue {
     private readonly fullMessage: string,
     private readonly options: WorkQueueOptions = {},
   ) {
-    if (!Number.isSafeInteger(maxActive) || maxActive < 1)
-      throw new RangeError("maxActive must be positive.");
-    if (!Number.isSafeInteger(maxQueued) || maxQueued < 0)
-      throw new RangeError("maxQueued must be non-negative.");
-    if (
-      options.maxWaitMs !== undefined &&
-      (!Number.isSafeInteger(options.maxWaitMs) || options.maxWaitMs < 1)
-    )
+    if (!Number.isSafeInteger(maxActive) || maxActive < 1) throw new RangeError("maxActive must be positive.");
+    if (!Number.isSafeInteger(maxQueued) || maxQueued < 0) throw new RangeError("maxQueued must be non-negative.");
+    if (options.maxWaitMs !== undefined && (!Number.isSafeInteger(options.maxWaitMs) || options.maxWaitMs < 1))
       throw new RangeError("maxWaitMs must be a positive safe integer.");
   }
 
@@ -95,8 +87,7 @@ export class BoundedWorkQueue {
           const index = this.waiting.indexOf(waiting);
           if (index < 0) return;
           this.waiting.splice(index, 1);
-          if (waiting.signal && waiting.abort)
-            waiting.signal.removeEventListener("abort", waiting.abort);
+          if (waiting.signal && waiting.abort) waiting.signal.removeEventListener("abort", waiting.abort);
           reject(this.saturated("wait_timeout"));
         }, this.options.maxWaitMs);
         waiting.waitTimer.unref?.();
@@ -112,8 +103,7 @@ export class BoundedWorkQueue {
       const next = this.waiting.shift();
       if (next) {
         if (next.waitTimer) clearTimeout(next.waitTimer);
-        if (next.signal && next.abort)
-          next.signal.removeEventListener("abort", next.abort);
+        if (next.signal && next.abort) next.signal.removeEventListener("abort", next.abort);
         void this.execute(next.work).then(next.resolve, next.reject);
       } else this.active -= 1;
     }

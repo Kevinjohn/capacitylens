@@ -1,8 +1,8 @@
-import type { AppData, ID } from '@capacitylens/shared/types/entities'
-import { readApiError } from '../lib/readApiError'
-import { API_BASE } from './apiConfig'
-import { apiFetch, API_BULK_TIMEOUT_MS } from './requestTimeout'
-import { validateAccountSlice } from './validateAccountSlice'
+import type { AppData, ID } from "@capacitylens/shared/types/entities";
+import { readApiError } from "../lib/readApiError";
+import { API_BASE } from "./apiConfig";
+import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
+import { validateAccountSlice } from "./validateAccountSlice";
 
 // The ONE client-side reader of the purge-gated admin endpoint
 // `GET /api/state?accountId=…&includeInactive=1` (the P2.6 complete per-tenant read: archived +
@@ -18,15 +18,15 @@ import { validateAccountSlice } from './validateAccountSlice'
  * offered one, so callers can prefer it over their own status-stamped fallback.
  */
 export class InactiveSliceHttpError extends Error {
-  readonly status: number
+  readonly status: number;
   /** The server-authored user-facing sentence off the error body, if it carried one. */
-  readonly serverMessage: string | undefined
+  readonly serverMessage: string | undefined;
   constructor(status: number, serverMessage: string | undefined) {
     // The raw message is a developer-grade fallback; callers surface their own i18n sentence.
-    super(serverMessage ?? `GET /api/state?includeInactive=1 failed (${status})`)
-    this.name = 'InactiveSliceHttpError'
-    this.status = status
-    this.serverMessage = serverMessage
+    super(serverMessage ?? `GET /api/state?includeInactive=1 failed (${status})`);
+    this.name = "InactiveSliceHttpError";
+    this.status = status;
+    this.serverMessage = serverMessage;
   }
 }
 
@@ -37,8 +37,8 @@ export class InactiveSliceHttpError extends Error {
  */
 export class InactiveSliceShapeError extends Error {
   constructor() {
-    super('The server returned a structurally incomplete slice (missing or non-array tables).')
-    this.name = 'InactiveSliceShapeError'
+    super("The server returned a structurally incomplete slice (missing or non-array tables).");
+    this.name = "InactiveSliceShapeError";
   }
 }
 
@@ -64,14 +64,14 @@ export class InactiveSliceShapeError extends Error {
 export async function fetchInactiveSlice(accountId: ID): Promise<AppData> {
   const res = await apiFetch(
     `${API_BASE}/api/state?accountId=${encodeURIComponent(accountId)}&includeInactive=1`,
-    { credentials: 'include' },
+    { credentials: "include" },
     // The complete (archived + soft-deleted) slice is the heaviest read the app makes — the BULK
     // tier, not the interactive 15s, so a large tenant's export/backup isn't aborted mid-flight.
     API_BULK_TIMEOUT_MS,
-  )
-  if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res))
-  const body: unknown = await res.json()
-  const data = validateAccountSlice(body, accountId)
-  if (!data) throw new InactiveSliceShapeError()
-  return data
+  );
+  if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res));
+  const body: unknown = await res.json();
+  const data = validateAccountSlice(body, accountId);
+  if (!data) throw new InactiveSliceShapeError();
+  return data;
 }

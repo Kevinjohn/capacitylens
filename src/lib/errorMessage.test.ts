@@ -22,16 +22,12 @@ describe("errorMessage", () => {
   it("falls back to the generic message when statusText is present but not a string", () => {
     // Exercises the `typeof statusText === 'string'` guard specifically (as opposed to the
     // earlier `'statusText' in error` check, which alone would let a non-string through).
-    expect(errorMessage({ statusText: 123 })).toBe(
-      "An unexpected error occurred.",
-    );
+    expect(errorMessage({ statusText: 123 })).toBe("An unexpected error occurred.");
   });
 
   it("maps a domain code through translations instead of trusting fallback prose", () => {
-    expect(
-      errorMessage(
-        new DomainError("record_wrong_account", "obsolete server wording"),
-      ),
-    ).toBe("That record does not belong to the active company.");
+    expect(errorMessage(new DomainError("record_wrong_account", "obsolete server wording"))).toBe(
+      "That record does not belong to the active company.",
+    );
   });
 });

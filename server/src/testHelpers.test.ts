@@ -8,11 +8,7 @@ function responseWithCookies(...cookies: string[]): LightMyRequestResponse {
 
 describe("cookiesOf", () => {
   it("keeps the last value for each cookie name", () => {
-    const response = responseWithCookies(
-      "session=stale; Path=/",
-      "theme=dark; Path=/",
-      "session=fresh; Path=/",
-    );
+    const response = responseWithCookies("session=stale; Path=/", "theme=dark; Path=/", "session=fresh; Path=/");
 
     expect(cookiesOf(response)).toBe("session=fresh; theme=dark");
   });

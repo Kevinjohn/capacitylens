@@ -1,6 +1,6 @@
-import { SchedulerToolbar } from './SchedulerToolbar'
-import { SchedulerGrid } from './SchedulerGrid'
-import { GettingStarted } from '../GettingStarted'
+import { SchedulerToolbar } from "./SchedulerToolbar";
+import { SchedulerGrid } from "./SchedulerGrid";
+import { GettingStarted } from "../GettingStarted";
 
 export function SchedulerView() {
   return (
@@ -11,5 +11,5 @@ export function SchedulerView() {
         <SchedulerGrid />
       </div>
     </div>
-  )
+  );
 }

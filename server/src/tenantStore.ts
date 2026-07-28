@@ -1,45 +1,26 @@
-import type {
-  AppData,
-  Client,
-  Project,
-  Resource,
-} from '@capacitylens/shared/types/entities'
-import type { LifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
-import {
-  deleteRow,
-  getRow,
-  type Db,
-  readSlice,
-  replaceAccountSlice,
-  upsertRow,
-} from './db'
-import { tx } from './txn'
+import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
+import type { LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import { deleteRow, getRow, type Db, readSlice, replaceAccountSlice, upsertRow } from "./db";
+import { tx } from "./txn";
 
-type SynchronousResult<Result> = [
-  Extract<Result, PromiseLike<unknown>>,
-] extends [never]
-  ? Result
-  : never
+type SynchronousResult<Result> = [Extract<Result, PromiseLike<unknown>>] extends [never] ? Result : never;
 
 interface TenantSliceReadOptions {
-  includeTimeOffNote: boolean
-  includeInactive: boolean
-  includePrivateNames: boolean
+  includeTimeOffNote: boolean;
+  includeInactive: boolean;
+  includePrivateNames: boolean;
 }
 
-export type LifecycleRow = Resource | Client | Project
+export type LifecycleRow = Resource | Client | Project;
 
 export interface ResourceNoteScrubResult {
-  allocationNotes: boolean
-  timeOffNotes: boolean
+  allocationNotes: boolean;
+  timeOffNotes: boolean;
 }
 
 function nextRevision(updatedAt: unknown): string {
-  const previous =
-    typeof updatedAt === 'string' ? Date.parse(updatedAt) : Number.NaN
-  return new Date(
-    Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0),
-  ).toISOString()
+  const previous = typeof updatedAt === "string" ? Date.parse(updatedAt) : Number.NaN;
+  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString();
 }
 
 function ownedLifecycleRow(
@@ -48,36 +29,27 @@ function ownedLifecycleRow(
   entity: LifecycleEntityKey,
   id: string,
 ): LifecycleRow | undefined {
-  const row = getRow(db, entity, id) as LifecycleRow | undefined
-  return row?.accountId === accountId ? row : undefined
+  const row = getRow(db, entity, id) as LifecycleRow | undefined;
+  return row?.accountId === accountId ? row : undefined;
 }
 
 function restampRows(
   db: Db,
-  table: 'resources' | 'activities',
+  table: "resources" | "activities",
   rows: Array<{ id: string; updatedAt: unknown }>,
-  clearedColumn: 'projectId' | 'phaseId',
+  clearedColumn: "projectId" | "phaseId",
 ): void {
-  const update = db.prepare(
-    `UPDATE ${table} SET ${clearedColumn} = NULL, updatedAt = ? WHERE id = ?`,
-  )
-  for (const row of rows) update.run(nextRevision(row.updatedAt), row.id)
+  const update = db.prepare(`UPDATE ${table} SET ${clearedColumn} = NULL, updatedAt = ? WHERE id = ?`);
+  for (const row of rows) update.run(nextRevision(row.updatedAt), row.id);
 }
 
-function purgeLifecycleRow(
-  db: Db,
-  accountId: string,
-  entity: LifecycleEntityKey,
-  id: string,
-): boolean {
-  if (!ownedLifecycleRow(db, accountId, entity, id)) return false
+function purgeLifecycleRow(db: Db, accountId: string, entity: LifecycleEntityKey, id: string): boolean {
+  if (!ownedLifecycleRow(db, accountId, entity, id)) return false;
 
-  if (entity === 'projects') {
+  if (entity === "projects") {
     const resources = db
-      .prepare(
-        `SELECT id, updatedAt FROM resources WHERE accountId = ? AND projectId = ?`,
-      )
-      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>
+      .prepare(`SELECT id, updatedAt FROM resources WHERE accountId = ? AND projectId = ?`)
+      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>;
     const activities = db
       .prepare(
         `SELECT activities.id, activities.updatedAt
@@ -86,10 +58,10 @@ function purgeLifecycleRow(
         WHERE activities.accountId = ? AND phases.projectId = ?
           AND (activities.projectId IS NULL OR activities.projectId <> ?)`,
       )
-      .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>
-    restampRows(db, 'resources', resources, 'projectId')
-    restampRows(db, 'activities', activities, 'phaseId')
-  } else if (entity === 'clients') {
+      .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>;
+    restampRows(db, "resources", resources, "projectId");
+    restampRows(db, "activities", activities, "phaseId");
+  } else if (entity === "clients") {
     const resources = db
       .prepare(
         `SELECT resources.id, resources.updatedAt
@@ -97,7 +69,7 @@ function purgeLifecycleRow(
          JOIN projects ON projects.id = resources.projectId
         WHERE resources.accountId = ? AND projects.clientId = ?`,
       )
-      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>
+      .all(accountId, id) as Array<{ id: string; updatedAt: unknown }>;
     const activities = db
       .prepare(
         `SELECT activities.id, activities.updatedAt
@@ -110,13 +82,13 @@ function purgeLifecycleRow(
             activities.projectId NOT IN (SELECT id FROM projects WHERE clientId = ?)
           )`,
       )
-      .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>
-    restampRows(db, 'resources', resources, 'projectId')
-    restampRows(db, 'activities', activities, 'phaseId')
+      .all(accountId, id, id) as Array<{ id: string; updatedAt: unknown }>;
+    restampRows(db, "resources", resources, "projectId");
+    restampRows(db, "activities", activities, "phaseId");
   }
 
-  deleteRow(db, entity, id)
-  return true
+  deleteRow(db, entity, id);
+  return true;
 }
 
 function transactSlice<Result>(
@@ -124,17 +96,17 @@ function transactSlice<Result>(
   accountId: string,
   opts: TenantSliceReadOptions,
   operation: (slice: AppData) => {
-    next: AppData
-    result: SynchronousResult<Result>
+    next: AppData;
+    result: SynchronousResult<Result>;
   },
 ): Result {
-  let output!: Result
+  let output!: Result;
   tx(db, () => {
-    const { next, result } = operation(readSlice(db, accountId, opts))
-    replaceAccountSlice(db, accountId, next)
-    output = result as Result
-  })
-  return output
+    const { next, result } = operation(readSlice(db, accountId, opts));
+    replaceAccountSlice(db, accountId, next);
+    output = result as Result;
+  });
+  return output;
 }
 
 // THE TENANT-STORE SWAP POINT (P1.4). The single per-account scoped read/write primitive every
@@ -187,18 +159,18 @@ export interface TenantStore {
   readSlice(
     accountId: string,
     opts: {
-      includeTimeOffNote: boolean
-      includeInactive: boolean
-      includePrivateNames: boolean
+      includeTimeOffNote: boolean;
+      includeInactive: boolean;
+      includePrivateNames: boolean;
     },
-  ): AppData
+  ): AppData;
   /**
    * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
    * account's scoped tables; the global `accounts` row and every other account are left untouched.
    * This is for an independently complete replacement. If `next` came from a prior slice read, use
    * {@link transact}; separating that read from this destructive replacement is unsafe.
    */
-  write(accountId: string, next: AppData): void
+  write(accountId: string, next: AppData): void;
   /**
    * Atomically read, transform and replace one complete tenant slice. `operation` must be
    * synchronous and returns both the replacement and a caller result. Throwing rolls the whole
@@ -208,33 +180,18 @@ export interface TenantStore {
     accountId: string,
     opts: TenantSliceReadOptions,
     operation: (slice: AppData) => {
-      next: AppData
-      result: SynchronousResult<Result>
+      next: AppData;
+      result: SynchronousResult<Result>;
     },
-  ): Result
+  ): Result;
   /** Read one lifecycle row, concealed as absent unless it belongs to `accountId`. */
-  readLifecycleRow(
-    accountId: string,
-    entity: LifecycleEntityKey,
-    id: string,
-  ): LifecycleRow | undefined
+  readLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): LifecycleRow | undefined;
   /** Replace one owned lifecycle row without rewriting its tenant siblings. */
-  writeLifecycleRow(
-    accountId: string,
-    entity: LifecycleEntityKey,
-    row: LifecycleRow,
-  ): void
+  writeLifecycleRow(accountId: string, entity: LifecycleEntityKey, row: LifecycleRow): void;
   /** Remove sensitive notes attached to one soft-deleted resource. */
-  scrubResourceNotes(
-    accountId: string,
-    resourceId: string,
-  ): ResourceNoteScrubResult
+  scrubResourceNotes(accountId: string, resourceId: string): ResourceNoteScrubResult;
   /** Purge one owned lifecycle root through SQLite cascades, restamping nullable survivors. */
-  purgeLifecycleRow(
-    accountId: string,
-    entity: LifecycleEntityKey,
-    id: string,
-  ): boolean
+  purgeLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): boolean;
 }
 
 /**
@@ -253,49 +210,37 @@ export function sqliteTenantStore(db: Db): TenantStore {
   return {
     readSlice: (accountId, opts) => readSlice(db, accountId, opts),
     write: (accountId, next) => replaceAccountSlice(db, accountId, next),
-    transact: (accountId, opts, operation) =>
-      transactSlice(db, accountId, opts, operation),
-    readLifecycleRow: (accountId, entity, id) =>
-      ownedLifecycleRow(db, accountId, entity, id),
+    transact: (accountId, opts, operation) => transactSlice(db, accountId, opts, operation),
+    readLifecycleRow: (accountId, entity, id) => ownedLifecycleRow(db, accountId, entity, id),
     writeLifecycleRow: (accountId, entity, row) => {
-      if (
-        row.accountId !== accountId ||
-        !ownedLifecycleRow(db, accountId, entity, row.id)
-      ) {
-        throw new Error(
-          'Lifecycle row does not belong to the requested company.',
-        )
+      if (row.accountId !== accountId || !ownedLifecycleRow(db, accountId, entity, row.id)) {
+        throw new Error("Lifecycle row does not belong to the requested company.");
       }
-      upsertRow(db, entity, row as unknown as Record<string, unknown>)
+      upsertRow(db, entity, row as unknown as Record<string, unknown>);
     },
     scrubResourceNotes: (accountId, resourceId) => {
-      if (!ownedLifecycleRow(db, accountId, 'resources', resourceId)) {
-        throw new Error(
-          'Lifecycle row does not belong to the requested company.',
-        )
+      if (!ownedLifecycleRow(db, accountId, "resources", resourceId)) {
+        throw new Error("Lifecycle row does not belong to the requested company.");
       }
-      const scrub = (table: 'allocations' | 'timeOff') => {
+      const scrub = (table: "allocations" | "timeOff") => {
         const rows = db
           .prepare(
             `SELECT id, updatedAt FROM ${table}
             WHERE accountId = ? AND resourceId = ? AND note IS NOT NULL`,
           )
           .all(accountId, resourceId) as Array<{
-          id: string
-          updatedAt: unknown
-        }>
-        const update = db.prepare(
-          `UPDATE ${table} SET note = NULL, updatedAt = ? WHERE id = ?`,
-        )
-        for (const row of rows) update.run(nextRevision(row.updatedAt), row.id)
-        return rows.length > 0
-      }
+          id: string;
+          updatedAt: unknown;
+        }>;
+        const update = db.prepare(`UPDATE ${table} SET note = NULL, updatedAt = ? WHERE id = ?`);
+        for (const row of rows) update.run(nextRevision(row.updatedAt), row.id);
+        return rows.length > 0;
+      };
       return {
-        allocationNotes: scrub('allocations'),
-        timeOffNotes: scrub('timeOff'),
-      }
+        allocationNotes: scrub("allocations"),
+        timeOffNotes: scrub("timeOff"),
+      };
     },
-    purgeLifecycleRow: (accountId, entity, id) =>
-      purgeLifecycleRow(db, accountId, entity, id),
-  }
+    purgeLifecycleRow: (accountId, entity, id) => purgeLifecycleRow(db, accountId, entity, id),
+  };
 }

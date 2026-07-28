@@ -4,7 +4,7 @@
 // app's vite.config.ts so vitest doesn't inherit that root config from this dir.
 export default {
   test: {
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
+    environment: "node",
+    include: ["src/**/*.test.ts"],
   },
-}
+};

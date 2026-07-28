@@ -8,21 +8,21 @@
 // assigned code points differently during an engine rollout.
 
 /** Max Unicode code points for a single-line name / role / label. */
-export const MAX_NAME_LENGTH = 100
+export const MAX_NAME_LENGTH = 100;
 /** HTML maxlength is UTF-16 based; allow the worst-case transport size for the code-point policy. */
-export const MAX_NAME_INPUT_CODE_UNITS = MAX_NAME_LENGTH * 2
+export const MAX_NAME_INPUT_CODE_UNITS = MAX_NAME_LENGTH * 2;
 /** Practical UTF-8 byte maximum for an email accepted by identity/invite forms and server writes. */
-export const MAX_EMAIL_LENGTH = 254
+export const MAX_EMAIL_LENGTH = 254;
 /** Max Unicode code points for a multi-line note. */
-export const MAX_NOTE_LENGTH = 1000
-export const MAX_NOTE_INPUT_CODE_UNITS = MAX_NOTE_LENGTH * 2
+export const MAX_NOTE_LENGTH = 1000;
+export const MAX_NOTE_INPUT_CODE_UNITS = MAX_NOTE_LENGTH * 2;
 
 export function unicodeCharacterCount(value: string): number {
-  return Array.from(value).length
+  return Array.from(value).length;
 }
 
 export function utf8ByteLength(value: string): number {
-  return new TextEncoder().encode(value).byteLength
+  return new TextEncoder().encode(value).byteLength;
 }
 
 // Characters refused in user text: emoji & pictographs (Extended_Pictographic), "other"
@@ -41,51 +41,43 @@ export function utf8ByteLength(value: string): number {
 // CJK), digits, whitespace, punctuation, and currency/math symbols (Sc/Sm — €, £, +, =)
 // are allowed, so real names like "José Müller" or "O'Brien & Co" pass untouched.
 const DISALLOWED =
-  /[\p{Extended_Pictographic}\p{So}\p{Me}\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}]/u
+  /[\p{Extended_Pictographic}\p{So}\p{Me}\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}]/u;
 
 /** True if `s` contains any disallowed character. In multiline mode, newlines and tabs
  *  (both Cc) are exempt so a note can wrap. */
-export function hasDisallowedChars(
-  s: string,
-  opts: { multiline?: boolean } = {},
-): boolean {
-  const subject = opts.multiline ? s.replace(/[\n\t]/g, '') : s
-  return DISALLOWED.test(subject)
+export function hasDisallowedChars(s: string, opts: { multiline?: boolean } = {}): boolean {
+  const subject = opts.multiline ? s.replace(/[\n\t]/g, "") : s;
+  return DISALLOWED.test(subject);
 }
 
 /** Strip disallowed characters, collapse whitespace runs, trim, and cap length. Used on
  *  the import + server write paths where rejecting isn't an option. Iterates by code
  *  point so surrogate pairs / emoji are dropped as whole characters. */
-export function cleanText(
-  value: string,
-  opts: { multiline?: boolean; maxLength?: number } = {},
-): string {
-  const multiline = opts.multiline ?? false
-  let out = ''
+export function cleanText(value: string, opts: { multiline?: boolean; maxLength?: number } = {}): string {
+  const multiline = opts.multiline ?? false;
+  let out = "";
   for (const ch of value) {
     // Newlines and tabs are whitespace, not junk — keep them through the strip pass and
     // let the normalisation step below decide (→ a space in single-line, preserved in
     // multiline). Everything else in a disallowed category is dropped.
-    if (ch === '\n' || ch === '\t') {
-      out += ch
-      continue
+    if (ch === "\n" || ch === "\t") {
+      out += ch;
+      continue;
     }
-    if (!DISALLOWED.test(ch)) out += ch
+    if (!DISALLOWED.test(ch)) out += ch;
   }
   // Normalise whitespace: collapse horizontal runs to a single space. In multiline keep
   // newlines (but cap blank-line runs); single-line collapses everything to one space.
-  out = multiline
-    ? out.replace(/[^\S\n]+/g, ' ').replace(/\n{3,}/g, '\n\n')
-    : out.replace(/\s+/g, ' ')
-  out = out.trim()
-  const max = opts.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH)
-  if (unicodeCharacterCount(out) <= max) return out
-  let truncated = ''
-  let count = 0
+  out = multiline ? out.replace(/[^\S\n]+/g, " ").replace(/\n{3,}/g, "\n\n") : out.replace(/\s+/g, " ");
+  out = out.trim();
+  const max = opts.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH);
+  if (unicodeCharacterCount(out) <= max) return out;
+  let truncated = "";
+  let count = 0;
   for (const ch of out) {
-    if (count === max) break
-    truncated += ch
-    count += 1
+    if (count === max) break;
+    truncated += ch;
+    count += 1;
   }
-  return truncated.trim()
+  return truncated.trim();
 }

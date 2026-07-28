@@ -19,9 +19,9 @@
 // exactly why those predicates are exported separately, so a caller can gate an affordance without a
 // try/catch (mirrors access.ts's `can*` predicates).
 
-import { APP_DATA_KEYS } from '../types/entities'
-import type { AppData, AppDataKey, ISOTimestamp, Resource } from '../types/entities'
-import { parseISOTimestamp } from '../lib/integrity'
+import { APP_DATA_KEYS } from "../types/entities";
+import type { AppData, AppDataKey, ISOTimestamp, Resource } from "../types/entities";
+import { parseISOTimestamp } from "../lib/integrity";
 
 /**
  * The three DERIVED lifecycle states an entity can be read as. There is no stored `state` column —
@@ -35,7 +35,7 @@ import { parseISOTimestamp } from '../lib/integrity'
  * INVARIANT: these are the only three states; the predicates + transitions below are exhaustive over
  * them. Adding a state means adding it here first so every guard accounts for it.
  */
-export type LifecycleState = 'active' | 'archived' | 'deleted'
+export type LifecycleState = "active" | "archived" | "deleted";
 
 /**
  * The minimal structural shape the lifecycle machine reads and writes — the two optional tombstone
@@ -49,9 +49,9 @@ export type LifecycleState = 'active' | 'archived' | 'deleted'
  */
 export interface LifecycleFields {
   /** ISO 8601 timestamp of when the entity was archived (soft, reversible). Absent/null = not archived. */
-  archivedAt?: ISOTimestamp
+  archivedAt?: ISOTimestamp;
   /** ISO 8601 timestamp of the soft-delete tombstone. Absent/null = not deleted. `deletedAt` wins. */
-  deletedAt?: ISOTimestamp
+  deletedAt?: ISOTimestamp;
 }
 
 /**
@@ -62,11 +62,11 @@ export interface LifecycleFields {
  * is exactly what silently rots if a 4th entity ever grows tombstones. Every other table
  * (phases/activities/allocations/timeOff/disciplines/accounts) is deliberately OUT.
  */
-export const LIFECYCLE_ENTITY_KEYS = ['resources', 'clients', 'projects'] as const
-export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number]
+export const LIFECYCLE_ENTITY_KEYS = ["resources", "clients", "projects"] as const;
+export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
 /** Narrowing guard: is `e` one of the tombstone-carrying tables? */
 export const isLifecycleEntityKey = (e: string): e is LifecycleEntityKey =>
-  (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(e)
+  (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(e);
 
 /**
  * The minimum age (in days) a soft-deleted tombstone must reach before it may be HARD-purged
@@ -74,18 +74,18 @@ export const isLifecycleEntityKey = (e: string): e is LifecycleEntityKey =>
  * is retained for a grace window before the row is physically removed, so an accidental delete is
  * recoverable for at least this long. Consumed by {@link canPurge}.
  */
-export const PURGE_MIN_AGE_DAYS = 30
+export const PURGE_MIN_AGE_DAYS = 30;
 
 // The purge grace window expressed in milliseconds (derived from PURGE_MIN_AGE_DAYS, NO magic
 // numbers) — the unit `Date.parse` works in, so {@link canPurge} can compare tombstone age directly.
-const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000
+const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
 
 // Lifecycle state is derived only from a canonical, parseable tombstone. Import repair uses the
 // same nearest-valid-state rule; applying it at this read boundary prevents legacy/direct database
 // corruption from creating a hidden state with no legal transition. Purge remains independently
 // fail-closed below and never acts on an invalid deletion timestamp.
 function isValidTombstone(value: ISOTimestamp | null | undefined): value is ISOTimestamp {
-  return value != null && parseISOTimestamp(value) !== null
+  return value != null && parseISOTimestamp(value) !== null;
 }
 
 /**
@@ -102,49 +102,46 @@ function isValidTombstone(value: ISOTimestamp | null | undefined): value is ISOT
  *          to its nearest valid state and can be repaired by its next legal transition.
  */
 export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
-  if (isValidTombstone(entity.deletedAt)) return 'deleted'
-  if (isValidTombstone(entity.archivedAt)) return 'archived'
-  return 'active'
+  if (isValidTombstone(entity.deletedAt)) return "deleted";
+  if (isValidTombstone(entity.archivedAt)) return "archived";
+  return "active";
 }
 
 export type LifecycleAncestryRow = LifecycleFields & {
-  id: string
-  accountId?: string
-} & Record<string, unknown>
+  id: string;
+  accountId?: string;
+} & Record<string, unknown>;
 
-export type LifecycleAncestryLookup = (
-  table: AppDataKey,
-  id: string,
-) => LifecycleAncestryRow | undefined
+export type LifecycleAncestryLookup = (table: AppDataKey, id: string) => LifecycleAncestryRow | undefined;
 
 export interface LifecycleAncestryResult {
   /** False when an ancestor is absent, cross-account or inactive, matching normal-read closure. */
-  visible: boolean
+  visible: boolean;
   /** Present only for a proven archived/deleted ancestor; missing refs remain the FK guard's job. */
   inactiveAncestor?: {
-    table: LifecycleEntityKey
-    id: string
-    state: Exclude<LifecycleState, 'active'>
-  }
+    table: LifecycleEntityKey;
+    id: string;
+    state: Exclude<LifecycleState, "active">;
+  };
 }
 
 interface LifecycleAncestryRelation {
-  child: AppDataKey
-  parent: AppDataKey
-  field: string
-  optional?: boolean
+  child: AppDataKey;
+  parent: AppDataKey;
+  field: string;
+  optional?: boolean;
 }
 
 /** The same ancestor edges inherited by normal-read visibility and generic-write validation. */
 const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
-  { child: 'projects', parent: 'clients', field: 'clientId' },
-  { child: 'phases', parent: 'projects', field: 'projectId' },
-  { child: 'activities', parent: 'projects', field: 'projectId', optional: true },
-  { child: 'activities', parent: 'phases', field: 'phaseId', optional: true },
-  { child: 'allocations', parent: 'resources', field: 'resourceId' },
-  { child: 'allocations', parent: 'activities', field: 'activityId' },
-  { child: 'timeOff', parent: 'resources', field: 'resourceId' },
-]
+  { child: "projects", parent: "clients", field: "clientId" },
+  { child: "phases", parent: "projects", field: "projectId" },
+  { child: "activities", parent: "projects", field: "projectId", optional: true },
+  { child: "activities", parent: "phases", field: "phaseId", optional: true },
+  { child: "allocations", parent: "resources", field: "resourceId" },
+  { child: "allocations", parent: "activities", field: "activityId" },
+  { child: "timeOff", parent: "resources", field: "resourceId" },
+];
 
 /**
  * Inspect only an entity's lifecycle ancestry, not the entity's own lifecycle state. `activeOnly`
@@ -157,28 +154,25 @@ export function inspectLifecycleAncestry(
   lookup: LifecycleAncestryLookup,
 ): LifecycleAncestryResult {
   for (const relation of LIFECYCLE_ANCESTRY) {
-    if (relation.child !== table) continue
-    const parentId = row[relation.field]
-    if (relation.optional && parentId === undefined) continue
-    if (typeof parentId !== 'string') return { visible: false }
-    const parent = lookup(relation.parent, parentId)
-    if (!parent || (
-      typeof row.accountId === 'string' &&
-      parent.accountId !== row.accountId
-    )) return { visible: false }
+    if (relation.child !== table) continue;
+    const parentId = row[relation.field];
+    if (relation.optional && parentId === undefined) continue;
+    if (typeof parentId !== "string") return { visible: false };
+    const parent = lookup(relation.parent, parentId);
+    if (!parent || (typeof row.accountId === "string" && parent.accountId !== row.accountId)) return { visible: false };
     if (isLifecycleEntityKey(relation.parent)) {
-      const state = lifecycleStatus(parent)
-      if (state !== 'active') {
+      const state = lifecycleStatus(parent);
+      if (state !== "active") {
         return {
           visible: false,
           inactiveAncestor: { table: relation.parent, id: parent.id, state },
-        }
+        };
       }
     }
-    const upstream = inspectLifecycleAncestry(relation.parent, parent, lookup)
-    if (!upstream.visible) return upstream
+    const upstream = inspectLifecycleAncestry(relation.parent, parent, lookup);
+    if (!upstream.visible) return upstream;
   }
-  return { visible: true }
+  return { visible: true };
 }
 
 /**
@@ -207,28 +201,24 @@ export function inspectLifecycleAncestry(
  * @returns a NEW AppData identical to `data` except non-active resources/clients/projects are removed.
  */
 export function activeOnly(data: AppData): AppData {
-  const isActive = (e: LifecycleFields) => lifecycleStatus(e) === 'active'
+  const isActive = (e: LifecycleFields) => lifecycleStatus(e) === "active";
   const indexes = Object.fromEntries(
     APP_DATA_KEYS.map((table) => [
       table,
-      new Map(
-        (data[table] as unknown as LifecycleAncestryRow[]).map((row) => [row.id, row]),
-      ),
+      new Map((data[table] as unknown as LifecycleAncestryRow[]).map((row) => [row.id, row])),
     ]),
-  ) as Record<AppDataKey, Map<string, LifecycleAncestryRow>>
-  const lookup: LifecycleAncestryLookup = (table, id) => indexes[table].get(id)
+  ) as Record<AppDataKey, Map<string, LifecycleAncestryRow>>;
+  const lookup: LifecycleAncestryLookup = (table, id) => indexes[table].get(id);
   const hasVisibleAncestry = (table: AppDataKey, row: object): boolean =>
-    inspectLifecycleAncestry(table, row as LifecycleAncestryRow, lookup).visible
-  const resources = data.resources.filter(isActive)
-  const clients = data.clients.filter(isActive)
+    inspectLifecycleAncestry(table, row as LifecycleAncestryRow, lookup).visible;
+  const resources = data.resources.filter(isActive);
+  const clients = data.clients.filter(isActive);
   // Parent lifecycle is inherited by the read projection. An active child beneath an archived or
   // deleted parent is retained in storage/export, but cannot remain independently visible in the
   // normal app (which previously left orphan-labelled projects and allocation bars on screen).
-  const projects = data.projects.filter(
-    (project) => isActive(project) && hasVisibleAncestry('projects', project),
-  )
-  const phases = data.phases.filter((phase) => hasVisibleAncestry('phases', phase))
-  const activities = data.activities.filter((activity) => hasVisibleAncestry('activities', activity))
+  const projects = data.projects.filter((project) => isActive(project) && hasVisibleAncestry("projects", project));
+  const phases = data.phases.filter((phase) => hasVisibleAncestry("phases", phase));
+  const activities = data.activities.filter((activity) => hasVisibleAncestry("activities", activity));
   return {
     ...data,
     resources,
@@ -236,9 +226,9 @@ export function activeOnly(data: AppData): AppData {
     projects,
     phases,
     activities,
-    allocations: data.allocations.filter((allocation) => hasVisibleAncestry('allocations', allocation)),
-    timeOff: data.timeOff.filter((entry) => hasVisibleAncestry('timeOff', entry)),
-  }
+    allocations: data.allocations.filter((allocation) => hasVisibleAncestry("allocations", allocation)),
+    timeOff: data.timeOff.filter((entry) => hasVisibleAncestry("timeOff", entry)),
+  };
 }
 
 /**
@@ -248,20 +238,20 @@ export function activeOnly(data: AppData): AppData {
  */
 export interface ArchiveImpact {
   /** Active projects hidden — non-zero only when archiving a CLIENT. */
-  projects: number
+  projects: number;
   /** Active phases hidden beneath an archived client or project. */
-  phases: number
+  phases: number;
   /** Active project-activities hidden. */
-  activities: number
+  activities: number;
   /** Active allocation bars hidden. */
-  allocations: number
+  allocations: number;
   /** Active time-off entries hidden — non-zero only when archiving a RESOURCE. */
-  timeOff: number
+  timeOff: number;
 }
 
 // A valid sentinel `archivedAt` used only to MEASURE the cascade (never persisted), so this flips
 // the target row to 'archived' for the diff under the same strict timestamp rule as real rows.
-const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp
+const ARCHIVE_IMPACT_SENTINEL = "2000-01-01T00:00:00.000Z" as ISOTimestamp;
 
 /**
  * Count what archiving one active `resource`/`client`/`project` would ADDITIONALLY hide from the
@@ -280,24 +270,24 @@ const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp
  */
 export function archiveImpact(data: AppData, entity: LifecycleEntityKey, id: string): ArchiveImpact {
   const flip = <T extends LifecycleFields & { id: string }>(rows: readonly T[]): T[] =>
-    rows.map((row) => (row.id === id ? { ...row, archivedAt: ARCHIVE_IMPACT_SENTINEL } : row))
+    rows.map((row) => (row.id === id ? { ...row, archivedAt: ARCHIVE_IMPACT_SENTINEL } : row));
   const archived: AppData = {
     ...data,
-    resources: entity === 'resources' ? flip(data.resources) : data.resources,
-    clients: entity === 'clients' ? flip(data.clients) : data.clients,
-    projects: entity === 'projects' ? flip(data.projects) : data.projects,
-  }
-  const before = activeOnly(data)
-  const after = activeOnly(archived)
-  const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff'): number =>
-    before[key].length - after[key].length
+    resources: entity === "resources" ? flip(data.resources) : data.resources,
+    clients: entity === "clients" ? flip(data.clients) : data.clients,
+    projects: entity === "projects" ? flip(data.projects) : data.projects,
+  };
+  const before = activeOnly(data);
+  const after = activeOnly(archived);
+  const hidden = (key: "projects" | "phases" | "activities" | "allocations" | "timeOff"): number =>
+    before[key].length - after[key].length;
   return {
-    projects: entity === 'clients' ? hidden('projects') : 0,
-    phases: hidden('phases'),
-    activities: hidden('activities'),
-    allocations: hidden('allocations'),
-    timeOff: entity === 'resources' ? hidden('timeOff') : 0,
-  }
+    projects: entity === "clients" ? hidden("projects") : 0,
+    phases: hidden("phases"),
+    activities: hidden("activities"),
+    allocations: hidden("allocations"),
+    timeOff: entity === "resources" ? hidden("timeOff") : 0,
+  };
 }
 
 /**
@@ -310,7 +300,7 @@ export function archiveImpact(data: AppData, entity: LifecycleEntityKey, id: str
  * @returns `true` iff {@link lifecycleStatus} is `'active'`.
  */
 export function canArchive(entity: LifecycleFields): boolean {
-  return lifecycleStatus(entity) === 'active'
+  return lifecycleStatus(entity) === "active";
 }
 
 /**
@@ -323,7 +313,7 @@ export function canArchive(entity: LifecycleFields): boolean {
  * @returns `true` iff {@link lifecycleStatus} is `'archived'`.
  */
 export function canUnarchive(entity: LifecycleFields): boolean {
-  return lifecycleStatus(entity) === 'archived'
+  return lifecycleStatus(entity) === "archived";
 }
 
 /**
@@ -340,7 +330,7 @@ export function canUnarchive(entity: LifecycleFields): boolean {
  * @returns `true` iff {@link lifecycleStatus} is `'archived'`.
  */
 export function canSoftDelete(entity: LifecycleFields): boolean {
-  return lifecycleStatus(entity) === 'archived'
+  return lifecycleStatus(entity) === "archived";
 }
 
 /**
@@ -363,25 +353,25 @@ export function canSoftDelete(entity: LifecycleFields): boolean {
  */
 export function canPurge(entity: LifecycleFields, nowISO: ISOTimestamp): boolean {
   // Fail-closed: only a soft-deleted tombstone is ever purgeable.
-  if (lifecycleStatus(entity) !== 'deleted') return false
+  if (lifecycleStatus(entity) !== "deleted") return false;
   // `lifecycleStatus === 'deleted'` guarantees `deletedAt` is present; parse both ends.
-  const deletedMs = parseISOTimestamp(entity.deletedAt)
-  const nowMs = parseISOTimestamp(nowISO)
+  const deletedMs = parseISOTimestamp(entity.deletedAt);
+  const nowMs = parseISOTimestamp(nowISO);
   // Fail-closed at an untyped boundary: only the supported strict ISO shape may unlock a purge.
-  if (deletedMs === null || nowMs === null) return false
-  return nowMs - deletedMs >= PURGE_MIN_AGE_MS
+  if (deletedMs === null || nowMs === null) return false;
+  return nowMs - deletedMs >= PURGE_MIN_AGE_MS;
 }
 
-export type LifecycleTransitionErrorCode = 'already_inactive' | 'invalid_transition'
+export type LifecycleTransitionErrorCode = "already_inactive" | "invalid_transition";
 
 /** A lifecycle precondition failure that API adapters may classify without inspecting prose. */
 export class LifecycleTransitionError extends Error {
-  readonly code: LifecycleTransitionErrorCode
+  readonly code: LifecycleTransitionErrorCode;
 
   constructor(code: LifecycleTransitionErrorCode, message: string) {
-    super(message)
-    this.name = 'LifecycleTransitionError'
-    this.code = code
+    super(message);
+    this.name = "LifecycleTransitionError";
+    this.code = code;
   }
 }
 
@@ -401,20 +391,23 @@ export class LifecycleTransitionError extends Error {
  */
 export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimestamp): T {
   if (!canArchive(entity)) {
-    const status = lifecycleStatus(entity)
+    const status = lifecycleStatus(entity);
     throw new LifecycleTransitionError(
-      status === 'archived' ? 'already_inactive' : 'invalid_transition',
+      status === "archived" ? "already_inactive" : "invalid_transition",
       `Cannot archive: entity is already ${status}.`,
-    )
+    );
   }
-  const archivedMs = parseISOTimestamp(nowISO)
+  const archivedMs = parseISOTimestamp(nowISO);
   if (archivedMs === null) {
-    throw new LifecycleTransitionError('invalid_transition', 'Cannot archive: archive time must be a valid ISO timestamp.')
+    throw new LifecycleTransitionError(
+      "invalid_transition",
+      "Cannot archive: archive time must be a valid ISO timestamp.",
+    );
   }
-  const next = { ...entity }
-  delete next.archivedAt
-  delete next.deletedAt
-  return { ...next, archivedAt: new Date(archivedMs).toISOString() }
+  const next = { ...entity };
+  delete next.archivedAt;
+  delete next.deletedAt;
+  return { ...next, archivedAt: new Date(archivedMs).toISOString() };
 }
 
 /**
@@ -434,18 +427,18 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
 export function unarchive<T extends LifecycleFields>(entity: T): T {
   if (!canUnarchive(entity)) {
     throw new LifecycleTransitionError(
-      'invalid_transition',
+      "invalid_transition",
       `Cannot unarchive: entity is ${lifecycleStatus(entity)}, not archived.`,
-    )
+    );
   }
   // Copy then DELETE the key so the field round-trips as absent (absent = active), rather than
   // leaving an explicit `archivedAt: undefined` that JSON/SQLite would treat differently.
-  const next = { ...entity }
-  delete next.archivedAt
+  const next = { ...entity };
+  delete next.archivedAt;
   // A malformed deletedAt is ignored by lifecycleStatus so the nearest valid state is archived;
   // remove that stale corruption while completing the recovery transition to active.
-  if (!isValidTombstone(next.deletedAt)) delete next.deletedAt
-  return next
+  if (!isValidTombstone(next.deletedAt)) delete next.deletedAt;
+  return next;
 }
 
 /**
@@ -467,25 +460,25 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
 export function softDelete<T extends LifecycleFields>(entity: T, nowISO: ISOTimestamp): T {
   if (!canSoftDelete(entity)) {
     throw new LifecycleTransitionError(
-      'invalid_transition',
+      "invalid_transition",
       `Cannot delete: entity must be archived first (is ${lifecycleStatus(entity)}).`,
-    )
+    );
   }
-  const archivedMs = parseISOTimestamp(entity.archivedAt)
-  const deletedMs = parseISOTimestamp(nowISO)
+  const archivedMs = parseISOTimestamp(entity.archivedAt);
+  const deletedMs = parseISOTimestamp(nowISO);
   if (archivedMs === null || deletedMs === null) {
     throw new LifecycleTransitionError(
-      'invalid_transition',
-      'Cannot delete: archive and deletion times must be valid ISO timestamps.',
-    )
+      "invalid_transition",
+      "Cannot delete: archive and deletion times must be valid ISO timestamps.",
+    );
   }
-  return { ...entity, deletedAt: new Date(Math.max(archivedMs, deletedMs)).toISOString() }
+  return { ...entity, deletedAt: new Date(Math.max(archivedMs, deletedMs)).toISOString() };
 }
 
 // The fallback tag used when a resource id is empty or yields no alphanumerics — so an
 // {@link obfuscateResource} token is NEVER a bare `Removed person #` with an empty marker. Constant
 // (not random) to keep the helper deterministic; `0000` reads clearly as "no usable id".
-const ANON_FALLBACK_TAG = '0000'
+const ANON_FALLBACK_TAG = "0000";
 
 /**
  * Derive a short, STABLE tag from a resource id for the anonymised soft-delete token. PURE: a
@@ -498,8 +491,8 @@ const ANON_FALLBACK_TAG = '0000'
  * a public contract.
  */
 function shortResourceTag(id: string): string {
-  const tag = id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4)
-  return tag.length > 0 ? tag : ANON_FALLBACK_TAG
+  const tag = id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4);
+  return tag.length > 0 ? tag : ANON_FALLBACK_TAG;
 }
 
 /**
@@ -536,7 +529,7 @@ function shortResourceTag(id: string): string {
  * @returns a NEW Resource identical to the input except `name` is the anonymised token.
  */
 export function obfuscateResource(resource: Resource): Resource {
-  return { ...resource, name: `Removed person #${shortResourceTag(resource.id)}` }
+  return { ...resource, name: `Removed person #${shortResourceTag(resource.id)}` };
 }
 
 // NOTE: there is deliberately NO `purge(entity)` function. Purge is a HARD row-delete done

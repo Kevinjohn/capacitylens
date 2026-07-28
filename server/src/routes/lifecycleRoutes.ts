@@ -1,6 +1,6 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import type { Client, Resource } from '@capacitylens/shared/types/entities'
-import type { Action } from '@capacitylens/shared/domain/access'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { Client, Resource } from "@capacitylens/shared/types/entities";
+import type { Action } from "@capacitylens/shared/domain/access";
 import {
   archive,
   canPurge,
@@ -10,81 +10,65 @@ import {
   softDelete,
   unarchive,
   type LifecycleEntityKey,
-} from '@capacitylens/shared/domain/lifecycle'
-import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
-import type { AuditRecord } from '../audit'
-import type { LifecycleRow, TenantStore } from '../tenantStore'
+} from "@capacitylens/shared/domain/lifecycle";
+import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
+import type { AuditRecord } from "../audit";
+import type { LifecycleRow, TenantStore } from "../tenantStore";
 
 class LifecycleResponseError extends Error {
   constructor(
     readonly statusCode: 404 | 409,
     message: string,
-    readonly code?: 'protected_entity',
+    readonly code?: "protected_entity",
   ) {
-    super(message)
-    this.name = 'LifecycleResponseError'
+    super(message);
+    this.name = "LifecycleResponseError";
   }
 }
 
 interface LifecycleRouteDependencies {
-  store: TenantStore
-  authorize: (
-    req: FastifyRequest,
-    reply: FastifyReply,
-    accountId: string,
-    action: Action,
-  ) => boolean
-  commit: (
-    reply: FastifyReply,
-    record: AuditRecord,
-    mutation: () => void,
-  ) => void
-  fail: (reply: FastifyReply, error: unknown) => FastifyReply
+  store: TenantStore;
+  authorize: (req: FastifyRequest, reply: FastifyReply, accountId: string, action: Action) => boolean;
+  commit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => void;
+  fail: (reply: FastifyReply, error: unknown) => FastifyReply;
   redact: (
     req: FastifyRequest,
     entity: string,
     row: Record<string, unknown>,
     accountId: string,
-  ) => Record<string, unknown>
+  ) => Record<string, unknown>;
 }
 
 function nextRevision(updatedAt: unknown): string {
-  const previous =
-    typeof updatedAt === 'string' ? Date.parse(updatedAt) : Number.NaN
-  return new Date(
-    Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0),
-  ).toISOString()
+  const previous = typeof updatedAt === "string" ? Date.parse(updatedAt) : Number.NaN;
+  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString();
 }
 
-function lifecycleFailure(
-  reply: FastifyReply,
-  error: unknown,
-  fail: LifecycleRouteDependencies['fail'],
-): FastifyReply {
+function lifecycleFailure(reply: FastifyReply, error: unknown, fail: LifecycleRouteDependencies["fail"]): FastifyReply {
   if (error instanceof LifecycleResponseError) {
     return reply.code(error.statusCode).send({
       ...(error.code ? { code: error.code } : {}),
       error: error.message,
-    })
+    });
   }
   if (error instanceof LifecycleTransitionError) {
-    return reply.code(409).send({ code: error.code, error: error.message })
+    return reply.code(409).send({ code: error.code, error: error.message });
   }
-  return fail(reply, error)
+  return fail(reply, error);
 }
 
 interface TransitionResult {
-  next: LifecycleRow
-  changedFields: string[]
-  scrubResourceNotes?: boolean
+  next: LifecycleRow;
+  changedFields: string[];
+  scrubResourceNotes?: boolean;
 }
 
 interface TransitionSpec {
-  path: 'archive' | 'unarchive' | 'delete'
-  permission: Action
-  protectedVerb: string
-  auditAction: AuditRecord['action']
-  apply: (row: LifecycleRow, entity: LifecycleEntityKey) => TransitionResult
+  path: "archive" | "unarchive" | "delete";
+  permission: Action;
+  protectedVerb: string;
+  auditAction: AuditRecord["action"];
+  apply: (row: LifecycleRow, entity: LifecycleEntityKey) => TransitionResult;
 }
 
 /** Register one lifecycle mutation through the shared guard→read→transition→write→audit pipeline. */
@@ -95,18 +79,18 @@ function registerTransition(
 ): void {
   app.post(`/api/:entity/:id/${spec.path}`, (req, reply) => {
     const { entity: rawEntity, id } = req.params as {
-      entity: string
-      id: string
-    }
+      entity: string;
+      id: string;
+    };
     if (!isLifecycleEntityKey(rawEntity)) {
-      return reply.code(404).send({ error: `Unknown entity: ${rawEntity}` })
+      return reply.code(404).send({ error: `Unknown entity: ${rawEntity}` });
     }
-    const body = (req.body ?? {}) as { accountId?: unknown }
-    if (typeof body.accountId !== 'string' || body.accountId.length === 0) {
-      return reply.code(400).send({ error: 'accountId is required.' })
+    const body = (req.body ?? {}) as { accountId?: unknown };
+    if (typeof body.accountId !== "string" || body.accountId.length === 0) {
+      return reply.code(400).send({ error: "accountId is required." });
     }
-    const accountId = body.accountId
-    if (!dependencies.authorize(req, reply, accountId, spec.permission)) return
+    const accountId = body.accountId;
+    if (!dependencies.authorize(req, reply, accountId, spec.permission)) return;
 
     try {
       const auditRecord: AuditRecord = {
@@ -117,114 +101,96 @@ function registerTransition(
         entity: rawEntity,
         id,
         changedFields: [],
-      }
-      let result!: TransitionResult
-      let response!: Record<string, unknown>
+      };
+      let result!: TransitionResult;
+      let response!: Record<string, unknown>;
       dependencies.commit(reply, auditRecord, () => {
-        const row = dependencies.store.readLifecycleRow(
-          accountId,
-          rawEntity,
-          id,
-        )
-        if (!row) throw new LifecycleResponseError(404, 'Not found')
-        if (rawEntity === 'clients' && isBuiltinClient(row as Client)) {
+        const row = dependencies.store.readLifecycleRow(accountId, rawEntity, id);
+        if (!row) throw new LifecycleResponseError(404, "Not found");
+        if (rawEntity === "clients" && isBuiltinClient(row as Client)) {
           throw new LifecycleResponseError(
             409,
             `The built-in Internal client cannot be ${spec.protectedVerb}.`,
-            'protected_entity',
-          )
+            "protected_entity",
+          );
         }
 
-        result = spec.apply(row, rawEntity)
-        dependencies.store.writeLifecycleRow(accountId, rawEntity, result.next)
-        const scrubbed = result.scrubResourceNotes
-          ? dependencies.store.scrubResourceNotes(accountId, id)
-          : null
+        result = spec.apply(row, rawEntity);
+        dependencies.store.writeLifecycleRow(accountId, rawEntity, result.next);
+        const scrubbed = result.scrubResourceNotes ? dependencies.store.scrubResourceNotes(accountId, id) : null;
         auditRecord.changedFields = [
           ...result.changedFields,
-          ...(scrubbed?.allocationNotes ? ['allocations.note'] : []),
-          ...(scrubbed?.timeOffNotes ? ['timeOff.note'] : []),
-        ]
+          ...(scrubbed?.allocationNotes ? ["allocations.note"] : []),
+          ...(scrubbed?.timeOffNotes ? ["timeOff.note"] : []),
+        ];
         // Redaction may consult the membership store. Keep that fallible read inside the outer
         // product/audit transaction so a failure cannot turn a committed transition into a 5xx.
-        response = dependencies.redact(
-          req,
-          rawEntity,
-          result.next as unknown as Record<string, unknown>,
-          accountId,
-        )
-      })
-      return reply.code(200).send(response)
+        response = dependencies.redact(req, rawEntity, result.next as unknown as Record<string, unknown>, accountId);
+      });
+      return reply.code(200).send(response);
     } catch (error) {
-      return lifecycleFailure(reply, error, dependencies.fail)
+      return lifecycleFailure(reply, error, dependencies.fail);
     }
-  })
+  });
 }
 
 /** Dedicated plugin-style registration for all tombstone lifecycle routes. */
-export function registerLifecycleRoutes(
-  app: FastifyInstance,
-  dependencies: LifecycleRouteDependencies,
-): void {
+export function registerLifecycleRoutes(app: FastifyInstance, dependencies: LifecycleRouteDependencies): void {
   registerTransition(app, dependencies, {
-    path: 'archive',
-    permission: 'write',
-    protectedVerb: 'archived',
-    auditAction: 'archive',
+    path: "archive",
+    permission: "write",
+    protectedVerb: "archived",
+    auditAction: "archive",
     apply: (row) => {
-      const now = nextRevision(row.updatedAt)
-      const next = { ...archive(row, now), updatedAt: now }
-      return { next, changedFields: ['archivedAt'] }
+      const now = nextRevision(row.updatedAt);
+      const next = { ...archive(row, now), updatedAt: now };
+      return { next, changedFields: ["archivedAt"] };
     },
-  })
+  });
 
   registerTransition(app, dependencies, {
-    path: 'unarchive',
-    permission: 'write',
-    protectedVerb: 'unarchived',
-    auditAction: 'unarchive',
+    path: "unarchive",
+    permission: "write",
+    protectedVerb: "unarchived",
+    auditAction: "unarchive",
     apply: (row) => {
-      const next = { ...unarchive(row), updatedAt: nextRevision(row.updatedAt) }
-      return { next, changedFields: ['archivedAt'] }
+      const next = { ...unarchive(row), updatedAt: nextRevision(row.updatedAt) };
+      return { next, changedFields: ["archivedAt"] };
     },
-  })
+  });
 
   registerTransition(app, dependencies, {
-    path: 'delete',
-    permission: 'purge',
-    protectedVerb: 'deleted',
-    auditAction: 'softDelete',
+    path: "delete",
+    permission: "purge",
+    protectedVerb: "deleted",
+    auditAction: "softDelete",
     apply: (row, entity) => {
-      const now = nextRevision(row.updatedAt)
-      const tombstone = softDelete(row, now)
-      const deleted = { ...tombstone, updatedAt: tombstone.deletedAt ?? now }
-      const next =
-        entity === 'resources'
-          ? obfuscateResource(deleted as Resource)
-          : deleted
+      const now = nextRevision(row.updatedAt);
+      const tombstone = softDelete(row, now);
+      const deleted = { ...tombstone, updatedAt: tombstone.deletedAt ?? now };
+      const next = entity === "resources" ? obfuscateResource(deleted as Resource) : deleted;
       return {
         next,
-        changedFields:
-          entity === 'resources' ? ['deletedAt', 'name'] : ['deletedAt'],
-        scrubResourceNotes: entity === 'resources',
-      }
+        changedFields: entity === "resources" ? ["deletedAt", "name"] : ["deletedAt"],
+        scrubResourceNotes: entity === "resources",
+      };
     },
-  })
+  });
 
-  app.post('/api/:entity/:id/purge', (req, reply) => {
+  app.post("/api/:entity/:id/purge", (req, reply) => {
     const { entity: rawEntity, id } = req.params as {
-      entity: string
-      id: string
-    }
+      entity: string;
+      id: string;
+    };
     if (!isLifecycleEntityKey(rawEntity)) {
-      return reply.code(404).send({ error: `Unknown entity: ${rawEntity}` })
+      return reply.code(404).send({ error: `Unknown entity: ${rawEntity}` });
     }
-    const body = (req.body ?? {}) as { accountId?: unknown }
-    if (typeof body.accountId !== 'string' || body.accountId.length === 0) {
-      return reply.code(400).send({ error: 'accountId is required.' })
+    const body = (req.body ?? {}) as { accountId?: unknown };
+    if (typeof body.accountId !== "string" || body.accountId.length === 0) {
+      return reply.code(400).send({ error: "accountId is required." });
     }
-    const accountId = body.accountId
-    if (!dependencies.authorize(req, reply, accountId, 'purge')) return
+    const accountId = body.accountId;
+    if (!dependencies.authorize(req, reply, accountId, "purge")) return;
 
     try {
       dependencies.commit(
@@ -233,40 +199,32 @@ export function registerLifecycleRoutes(
           ts: new Date().toISOString(),
           userId: req.user!.id,
           accountId,
-          action: 'purge',
+          action: "purge",
           entity: rawEntity,
           id,
           changedFields: [],
         },
         () => {
-          const row = dependencies.store.readLifecycleRow(
-            accountId,
-            rawEntity,
-            id,
-          )
-          if (!row) throw new LifecycleResponseError(404, 'Not found')
-          if (rawEntity === 'clients' && isBuiltinClient(row as Client)) {
-            throw new LifecycleResponseError(
-              409,
-              'The built-in Internal client cannot be purged.',
-              'protected_entity',
-            )
+          const row = dependencies.store.readLifecycleRow(accountId, rawEntity, id);
+          if (!row) throw new LifecycleResponseError(404, "Not found");
+          if (rawEntity === "clients" && isBuiltinClient(row as Client)) {
+            throw new LifecycleResponseError(409, "The built-in Internal client cannot be purged.", "protected_entity");
           }
           if (!canPurge(row, new Date().toISOString())) {
             throw new LifecycleResponseError(
               409,
-              'Cannot purge: must be a soft-deleted tombstone at least 30 days old.',
-            )
+              "Cannot purge: must be a soft-deleted tombstone at least 30 days old.",
+            );
           }
 
           if (!dependencies.store.purgeLifecycleRow(accountId, rawEntity, id)) {
-            throw new LifecycleResponseError(404, 'Not found')
+            throw new LifecycleResponseError(404, "Not found");
           }
         },
-      )
-      return reply.code(204).send()
+      );
+      return reply.code(204).send();
     } catch (error) {
-      return lifecycleFailure(reply, error, dependencies.fail)
+      return lifecycleFailure(reply, error, dependencies.fail);
     }
-  })
+  });
 }

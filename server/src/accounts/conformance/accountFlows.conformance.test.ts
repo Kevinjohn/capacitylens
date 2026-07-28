@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import type {
-  AccountAuditPort,
-  AccountFlowOperation,
-  IdentityPort,
-} from "@capacitylens/shared/account/ports";
+import type { AccountAuditPort, AccountFlowOperation, IdentityPort } from "@capacitylens/shared/account/ports";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type {
   ActorContext,
@@ -53,15 +49,11 @@ const session: ApplicationSession = {
   assurance: "mfa",
 };
 
-function contractError(
-  code: ConstructorParameters<typeof AccountContractError>[0]["code"],
-) {
+function contractError(code: ConstructorParameters<typeof AccountContractError>[0]["code"]) {
   return new AccountContractError({ code, message: code, retryable: false });
 }
 
-function identityPort(
-  overrides: Partial<LocalIdentityPort> = {},
-): LocalIdentityPort {
+function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentityPort {
   const base: LocalIdentityPort = {
     deprovisionLocalPrincipalInTx: vi.fn(),
     deprovisionLocalPrincipalsInTx: vi.fn(),
@@ -103,9 +95,7 @@ function identityPort(
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
   };
-  const create =
-    overrides.createProvisionalCredentialPrincipal ??
-    base.createProvisionalCredentialPrincipal;
+  const create = overrides.createProvisionalCredentialPrincipal ?? base.createProvisionalCredentialPrincipal;
   return {
     ...base,
     ...overrides,
@@ -119,24 +109,20 @@ function identityPort(
   };
 }
 
-function administrationPort(
-  overrides: Partial<LocalAccountAdminPort> = {},
-): LocalAccountAdminPort {
+function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): LocalAccountAdminPort {
   const base: LocalAccountAdminPort = {
     roleForPrincipalInWorkspace: vi.fn(() => null),
     workspacePrincipalIds: vi.fn(() => []),
     evaluateWorkspaceProvisioningAuthorityInTx: vi.fn(() => ({
       allowed: true as const,
     })),
-    provisionOwnerMembershipInTx: vi.fn(
-      ({ workspaceId, principalId, joinedAt }) => ({
-        ...member,
-        workspaceId,
-        principalId,
-        role: "owner" as const,
-        joinedAt,
-      }),
-    ),
+    provisionOwnerMembershipInTx: vi.fn(({ workspaceId, principalId, joinedAt }) => ({
+      ...member,
+      workspaceId,
+      principalId,
+      role: "owner" as const,
+      joinedAt,
+    })),
     assertWorkspaceErasureAuthorityInTx: vi.fn(),
     eraseWorkspaceAdministrationInTx: vi.fn(() => []),
     listWorkspacesForPrincipal: vi.fn(async () => []),
@@ -182,9 +168,7 @@ function administrationPort(
       revision: "revision-1",
       policyVersion: "account-policy-v1",
     })),
-    evaluateIdentityAdminAuthorities: vi.fn<
-      LocalAccountAdminPort["evaluateIdentityAdminAuthorities"]
-    >(
+    evaluateIdentityAdminAuthorities: vi.fn<LocalAccountAdminPort["evaluateIdentityAdminAuthorities"]>(
       async ({ actions }) =>
         new Map(
           actions.map((action) => [
@@ -273,8 +257,7 @@ describe("AccountFlows conformance", () => {
   }
 
   it("validates admission before identity creation or durable command reservation", async () => {
-    const create =
-      vi.fn<IdentityPort["createProvisionalCredentialPrincipal"]>();
+    const create = vi.fn<IdentityPort["createProvisionalCredentialPrincipal"]>();
     const identity = identityPort({
       createProvisionalCredentialPrincipal: create,
     });
@@ -295,12 +278,8 @@ describe("AccountFlows conformance", () => {
       }),
     ).rejects.toMatchObject({ failure: { code: "INVITATION_EXPIRED" } });
     expect(create).not.toHaveBeenCalled();
-    expect(
-      db!.prepare(`SELECT COUNT(*) AS count FROM account_commands`).get(),
-    ).toEqual({ count: 0 });
-    await expect(
-      flows.reconcileCommand({ command, operation: "invite-password-signup" }),
-    ).resolves.toBeNull();
+    expect(db!.prepare(`SELECT COUNT(*) AS count FROM account_commands`).get()).toEqual({ count: 0 });
+    await expect(flows.reconcileCommand({ command, operation: "invite-password-signup" })).resolves.toBeNull();
   });
 
   it("binds workspace-provisioning idempotency to the complete canonical product payload", async () => {
@@ -389,9 +368,9 @@ describe("AccountFlows conformance", () => {
       cause: expect.any(AggregateError),
     });
     expect(compensate).toHaveBeenCalledOnce();
-    await expect(
-      flows.reconcileCommand({ command, operation: "invite-password-signup" }),
-    ).resolves.toMatchObject({ status: "reconciliation-required" });
+    await expect(flows.reconcileCommand({ command, operation: "invite-password-signup" })).resolves.toMatchObject({
+      status: "reconciliation-required",
+    });
   });
 
   it("does not compensate an identity after the invitation claim committed but parent completion failed", async () => {
@@ -418,9 +397,7 @@ describe("AccountFlows conformance", () => {
       }),
     ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_UNAVAILABLE" } });
     expect(compensate).not.toHaveBeenCalled();
-    await expect(
-      flows.reconcileCommand({ command, operation: "invite-password-signup" }),
-    ).resolves.toMatchObject({
+    await expect(flows.reconcileCommand({ command, operation: "invite-password-signup" })).resolves.toMatchObject({
       status: "reconciliation-required",
       repair: {
         kind: "invitation-claim-committed",
@@ -455,9 +432,7 @@ describe("AccountFlows conformance", () => {
     };
 
     const first = await flows.acceptInviteWithPasswordSignup(input);
-    await expect(flows.acceptInviteWithPasswordSignup(input)).resolves.toEqual(
-      first,
-    );
+    await expect(flows.acceptInviteWithPasswordSignup(input)).resolves.toEqual(first);
     expect(create).toHaveBeenCalledOnce();
     expect(claim).toHaveBeenCalledOnce();
     expect(prepare).toHaveBeenCalledOnce();
@@ -516,25 +491,22 @@ describe("AccountFlows conformance", () => {
   it.each([
     ["compensates after the claim fails", false],
     ["retains exact repair state when compensation also fails", true],
-  ] as const)(
-    "keeps an in-flight signup command durable across erasure and %s",
-    async (_case, failCompensation) => {
-      let identityEntered!: () => void;
-      let releaseIdentity!: () => void;
-      const entered = new Promise<void>((resolve) => {
-        identityEntered = resolve;
-      });
-      const release = new Promise<void>((resolve) => {
-        releaseIdentity = resolve;
-      });
-      const claimFailure = contractError("NOT_FOUND");
-      const compensationFailure = contractError("DEPENDENCY_UNAVAILABLE");
-      const compensate = vi.fn(async () => {
-        if (failCompensation) throw compensationFailure;
-      });
-      const create = vi.fn<
-        LocalIdentityPort["createCorrelatedProvisionalCredentialPrincipal"]
-      >(async ({ correlatePrincipalInTransaction }) => {
+  ] as const)("keeps an in-flight signup command durable across erasure and %s", async (_case, failCompensation) => {
+    let identityEntered!: () => void;
+    let releaseIdentity!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      identityEntered = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseIdentity = resolve;
+    });
+    const claimFailure = contractError("NOT_FOUND");
+    const compensationFailure = contractError("DEPENDENCY_UNAVAILABLE");
+    const compensate = vi.fn(async () => {
+      if (failCompensation) throw compensationFailure;
+    });
+    const create = vi.fn<LocalIdentityPort["createCorrelatedProvisionalCredentialPrincipal"]>(
+      async ({ correlatePrincipalInTransaction }) => {
         identityEntered();
         await release;
         correlatePrincipalInTransaction("principal-1");
@@ -542,51 +514,31 @@ describe("AccountFlows conformance", () => {
           principalId: "principal-1",
           compensationHandle: "opaque-handle",
         };
-      });
-      const { flows } = harness({
-        identity: identityPort({
-          createCorrelatedProvisionalCredentialPrincipal: create,
-          compensateProvisionalPrincipal: compensate,
+      },
+    );
+    const { flows } = harness({
+      identity: identityPort({
+        createCorrelatedProvisionalCredentialPrincipal: create,
+        compensateProvisionalPrincipal: compensate,
+      }),
+      administration: administrationPort({
+        workspacePrincipalIds: vi.fn(() => []),
+        claimInvitationForPrincipal: vi.fn(async () => {
+          throw claimFailure;
         }),
-        administration: administrationPort({
-          workspacePrincipalIds: vi.fn(() => []),
-          claimInvitationForPrincipal: vi.fn(async () => {
-            throw claimFailure;
-          }),
-        }),
-      });
-      const signup = flows.acceptInviteWithPasswordSignup({
-        token: "invite-erased-during-signup",
-        email: "person@example.com",
-        displayName: "Person",
-        password: "not-stored-password",
-        command,
-      });
+      }),
+    });
+    const signup = flows.acceptInviteWithPasswordSignup({
+      token: "invite-erased-during-signup",
+      email: "person@example.com",
+      displayName: "Person",
+      password: "not-stored-password",
+      command,
+    });
 
-      await entered;
-      expect(
-        db!
-          .prepare(
-            `
-      SELECT status, workspaceId
-        FROM account_commands
-       WHERE commandId = ?
-    `,
-          )
-          .get(command.commandId),
-      ).toEqual({ status: "pending", workspaceId: "workspace-1" });
-
-      await expect(
-        flows.eraseWorkspace({
-          actor,
-          workspaceId: "workspace-1",
-          command: {
-            commandId: "workspace-erasure-command",
-            idempotencyKey: "workspace-erasure-idempotency",
-          },
-        }),
-      ).resolves.toMatchObject({ commandId: "workspace-erasure-command" });
-      const commandAfterErasure = db!
+    await entered;
+    expect(
+      db!
         .prepare(
           `
       SELECT status, workspaceId
@@ -594,54 +546,72 @@ describe("AccountFlows conformance", () => {
        WHERE commandId = ?
     `,
         )
-        .get(command.commandId);
+        .get(command.commandId),
+    ).toEqual({ status: "pending", workspaceId: "workspace-1" });
 
-      releaseIdentity();
-      const signupFailure = await signup.then(
-        () => null,
-        (error: unknown) => error,
-      );
-
-      expect(commandAfterErasure).toEqual({
-        status: "pending",
+    await expect(
+      flows.eraseWorkspace({
+        actor,
         workspaceId: "workspace-1",
+        command: {
+          commandId: "workspace-erasure-command",
+          idempotencyKey: "workspace-erasure-idempotency",
+        },
+      }),
+    ).resolves.toMatchObject({ commandId: "workspace-erasure-command" });
+    const commandAfterErasure = db!
+      .prepare(
+        `
+      SELECT status, workspaceId
+        FROM account_commands
+       WHERE commandId = ?
+    `,
+      )
+      .get(command.commandId);
+
+    releaseIdentity();
+    const signupFailure = await signup.then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+    expect(commandAfterErasure).toEqual({
+      status: "pending",
+      workspaceId: "workspace-1",
+    });
+    expect(compensate).toHaveBeenCalledOnce();
+    if (failCompensation) {
+      expect(signupFailure).toMatchObject({
+        failure: { code: "COMPENSATION_FAILED" },
+        cause: expect.any(AggregateError),
       });
-      expect(compensate).toHaveBeenCalledOnce();
-      if (failCompensation) {
-        expect(signupFailure).toMatchObject({
-          failure: { code: "COMPENSATION_FAILED" },
-          cause: expect.any(AggregateError),
-        });
-        await expect(
-          flows.reconcileCommand({
-            command,
-            operation: "invite-password-signup",
-          }),
-        ).resolves.toMatchObject({
-          status: "reconciliation-required",
-          repair: {
-            kind: "provisional-principal-compensation-failed",
-            targetPrincipalId: "principal-1",
-            provisionalPrincipalId: "principal-1",
-          },
-        });
-      } else {
-        expect(signupFailure).toBe(claimFailure);
-        await expect(
-          flows.reconcileCommand({
-            command,
-            operation: "invite-password-signup",
-          }),
-        ).resolves.toMatchObject({ status: "compensated" });
-      }
-    },
-  );
+      await expect(
+        flows.reconcileCommand({
+          command,
+          operation: "invite-password-signup",
+        }),
+      ).resolves.toMatchObject({
+        status: "reconciliation-required",
+        repair: {
+          kind: "provisional-principal-compensation-failed",
+          targetPrincipalId: "principal-1",
+          provisionalPrincipalId: "principal-1",
+        },
+      });
+    } else {
+      expect(signupFailure).toBe(claimFailure);
+      await expect(
+        flows.reconcileCommand({
+          command,
+          operation: "invite-password-signup",
+        }),
+      ).resolves.toMatchObject({ status: "compensated" });
+    }
+  });
 
   it("deprovisions an erased workspace principal set through one bulk identity call", async () => {
-    const deprovisionMany =
-      vi.fn<LocalIdentityPort["deprovisionLocalPrincipalsInTx"]>();
-    const deprovisionOne =
-      vi.fn<LocalIdentityPort["deprovisionLocalPrincipalInTx"]>();
+    const deprovisionMany = vi.fn<LocalIdentityPort["deprovisionLocalPrincipalsInTx"]>();
+    const deprovisionOne = vi.fn<LocalIdentityPort["deprovisionLocalPrincipalInTx"]>();
     const principalIds = ["principal-1", "principal-2", "principal-3"];
     const { flows } = harness({
       identity: identityPort({
@@ -667,10 +637,7 @@ describe("AccountFlows conformance", () => {
     ).resolves.toMatchObject({ commandId: erasureCommand.commandId });
 
     expect(deprovisionMany).toHaveBeenCalledOnce();
-    expect(deprovisionMany).toHaveBeenCalledWith(
-      principalIds,
-      erasureCommand.commandId,
-    );
+    expect(deprovisionMany).toHaveBeenCalledWith(principalIds, erasureCommand.commandId);
     expect(deprovisionOne).not.toHaveBeenCalled();
   });
 
@@ -683,10 +650,7 @@ describe("AccountFlows conformance", () => {
     ];
     let snapshotIndex = 0;
     const workspacePrincipalIds = vi.fn(
-      () =>
-        membershipSnapshots[
-          Math.min(snapshotIndex++, membershipSnapshots.length - 1)
-        ]!,
+      () => membershipSnapshots[Math.min(snapshotIndex++, membershipSnapshots.length - 1)]!,
     );
     const eraseWorkspaceAdministrationInTx = vi.fn(() => [] as string[]);
     const { flows } = harness({
@@ -717,9 +681,7 @@ describe("AccountFlows conformance", () => {
     expect(workspacePrincipalIds).toHaveBeenCalledTimes(4);
     expect(eraseWorkspaceAdministrationInTx).not.toHaveBeenCalled();
     expect(
-      db!
-        .prepare(`SELECT status FROM account_commands WHERE commandId = ?`)
-        .get(erasureCommand.commandId),
+      db!.prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(erasureCommand.commandId),
     ).toBeUndefined();
   });
 
@@ -753,9 +715,9 @@ describe("AccountFlows conformance", () => {
         ceremonyId: ceremony.ceremonyId,
       }),
     );
-    await expect(
-      flows.reconcileCommand({ command, operation: "password-reset" }),
-    ).resolves.toMatchObject({ status: "compensated" });
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
+      status: "compensated",
+    });
   });
 
   it("rechecks current authority before replaying a write-once password-reset token", async () => {
@@ -801,9 +763,7 @@ describe("AccountFlows conformance", () => {
     const input = { actor, targetPrincipalId: "principal-1", command };
 
     const issued = await flows.issuePasswordReset(input);
-    vi.setSystemTime(
-      startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS - 1,
-    );
+    vi.setSystemTime(startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS - 1);
     await expect(flows.issuePasswordReset(input)).resolves.toEqual(issued);
 
     vi.setSystemTime(startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS);
@@ -886,11 +846,9 @@ describe("AccountFlows conformance", () => {
     });
 
     expect(ceremonyVisible).toBe(false);
-    expect(
-      db!
-        .prepare(`SELECT status FROM account_commands WHERE commandId = ?`)
-        .get(command.commandId),
-    ).toEqual({ status: "pending" });
+    expect(db!.prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(command.commandId)).toEqual({
+      status: "pending",
+    });
     release();
     await expect(execution).resolves.toMatchObject({
       ceremonyId: "ceremony-live",
@@ -940,11 +898,9 @@ describe("AccountFlows conformance", () => {
     });
 
     expect(revocationVisible).toBe(false);
-    expect(
-      db!
-        .prepare(`SELECT status FROM account_commands WHERE commandId = ?`)
-        .get(command.commandId),
-    ).toEqual({ status: "pending" });
+    expect(db!.prepare(`SELECT status FROM account_commands WHERE commandId = ?`).get(command.commandId)).toEqual({
+      status: "pending",
+    });
     release();
     await expect(execution).resolves.toMatchObject({
       commandId: command.commandId,
@@ -968,9 +924,7 @@ describe("AccountFlows conformance", () => {
       now: "2000-01-01T00:00:00.000Z",
     });
 
-    await expect(
-      flows.reconcileCommand({ command, operation: "password-reset" }),
-    ).resolves.toMatchObject({
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
       status: "reconciliation-required",
       receipt: { commandId: command.commandId, observedAt: expect.any(String) },
       failure: { commandId: command.commandId },
@@ -992,25 +946,17 @@ describe("AccountFlows conformance", () => {
       now: observedAt,
     });
 
-    await expect(
-      flows.reconcileCommand({ command, operation: "password-reset" }),
-    ).resolves.toEqual({
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toEqual({
       status: "pending",
       receipt: { commandId: command.commandId, observedAt },
     });
   });
 
-  const corruptRepairMetadata: ReadonlyArray<
-    readonly [string, AccountFlowOperation, string]
-  > = [
+  const corruptRepairMetadata: ReadonlyArray<readonly [string, AccountFlowOperation, string]> = [
     ["malformed JSON", "password-reset", '{"kind":"password-reset-issued"'],
     ["non-object JSON", "password-reset", "[]"],
     ["missing repair kind", "password-reset", "{}"],
-    [
-      "unknown repair kind",
-      "password-reset",
-      JSON.stringify({ kind: "password-reset-otucome-unknown" }),
-    ],
+    ["unknown repair kind", "password-reset", JSON.stringify({ kind: "password-reset-otucome-unknown" })],
     [
       "missing invitation provisional principal",
       "invite-password-signup",
@@ -1061,9 +1007,7 @@ describe("AccountFlows conformance", () => {
     async (_case, operation, resultJson) => {
       const { flows } = harness();
       const ledgerOperation =
-        operation === "invite-password-signup"
-          ? operation
-          : `${operation}:actor:${actor.principalId}`;
+        operation === "invite-password-signup" ? operation : `${operation}:actor:${actor.principalId}`;
       reserveAccountCommand(db!, {
         applicationId: "conformance-application",
         operation: ledgerOperation,
@@ -1084,31 +1028,19 @@ describe("AccountFlows conformance", () => {
       // Simulate storage corruption or an unsafe operational edit. The normal table CHECK rejects
       // invalid JSON, but reconciliation must still fail closed if the durable bytes are damaged.
       db!.exec("PRAGMA ignore_check_constraints = ON");
-      db!
-        .prepare(
-          `UPDATE account_commands SET resultJson = ? WHERE commandId = ?`,
-        )
-        .run(resultJson, command.commandId);
+      db!.prepare(`UPDATE account_commands SET resultJson = ? WHERE commandId = ?`).run(resultJson, command.commandId);
       db!.exec("PRAGMA ignore_check_constraints = OFF");
       const stored = db!
-        .prepare(
-          `SELECT status, resultJson FROM account_commands WHERE commandId = ?`,
-        )
+        .prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`)
         .get(command.commandId);
 
-      await expect(
-        flows.reconcileCommand({ command, operation }),
-      ).rejects.toMatchObject({
+      await expect(flows.reconcileCommand({ command, operation })).rejects.toMatchObject({
         name: "CorruptAccountCommandStateError",
         code: "ACCOUNT_COMMAND_STATE_CORRUPT",
         commandId: command.commandId,
       });
       expect(
-        db!
-          .prepare(
-            `SELECT status, resultJson FROM account_commands WHERE commandId = ?`,
-          )
-          .get(command.commandId),
+        db!.prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`).get(command.commandId),
       ).toEqual(stored);
     },
   );
@@ -1133,9 +1065,7 @@ describe("AccountFlows conformance", () => {
       resultJson: null,
     });
 
-    await expect(
-      flows.reconcileCommand({ command, operation: "password-reset" }),
-    ).resolves.toMatchObject({
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
       status: "reconciliation-required",
       repair: {
         kind: "operator-review",
@@ -1188,9 +1118,9 @@ describe("AccountFlows conformance", () => {
         .get(command.commandId),
     ).toEqual(original);
 
-    await expect(
-      flows.reconcileCommand({ command, operation: "password-reset" }),
-    ).resolves.toMatchObject({ status: "reconciliation-required" });
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
+      status: "reconciliation-required",
+    });
   });
 
   it("marks reset revocation failure as reconciliation-required", async () => {
@@ -1212,12 +1142,10 @@ describe("AccountFlows conformance", () => {
         command,
       }),
     ).rejects.toMatchObject({ failure: { code: "COMPENSATION_FAILED" } });
-    await expect(
-      flows.reconcileCommand({ command, operation: "password-reset" }),
-    ).resolves.toMatchObject({ status: "reconciliation-required" });
-    expect(
-      events.filter((event) => event.action === "flow.reconciliation_required"),
-    ).toHaveLength(1);
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
+      status: "reconciliation-required",
+    });
+    expect(events.filter((event) => event.action === "flow.reconciliation_required")).toHaveLength(1);
   });
 
   it("records and audits a known no-identity reset refusal as compensated rather than outcome-unknown", async () => {
@@ -1237,9 +1165,9 @@ describe("AccountFlows conformance", () => {
         command,
       }),
     ).rejects.toBe(missing);
-    await expect(
-      flows.reconcileCommand({ command, operation: "password-reset" }),
-    ).resolves.toMatchObject({ status: "compensated" });
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
+      status: "compensated",
+    });
     expect(events).toEqual([
       expect.objectContaining({
         action: "flow.compensated",
@@ -1356,15 +1284,14 @@ describe("AccountFlows conformance", () => {
       lock,
       identity: identityPort({ revokePrincipalSessions: revoke }),
       administration: administrationPort({
-        evaluateIdentityAdminAuthority: vi.fn(
-          async (): Promise<IdentityAdminAuthorityDecision> =>
-            allowed
-              ? {
-                  allowed: true,
-                  revision: "revision-1",
-                  policyVersion: "account-policy-v1",
-                }
-              : { allowed: false, reason: "insufficient-authority" },
+        evaluateIdentityAdminAuthority: vi.fn(async (): Promise<IdentityAdminAuthorityDecision> =>
+          allowed
+            ? {
+                allowed: true,
+                revision: "revision-1",
+                policyVersion: "account-policy-v1",
+              }
+            : { allowed: false, reason: "insufficient-authority" },
         ),
       }),
     });
@@ -1386,9 +1313,7 @@ describe("AccountFlows conformance", () => {
     const lock = new KeyedOperationLock();
 
     await expect(
-      lock.withKeys(["principal-b"], () =>
-        lock.withKeys(["principal-a", "principal-b"], () => undefined),
-      ),
+      lock.withKeys(["principal-b"], () => lock.withKeys(["principal-a", "principal-b"], () => undefined)),
     ).rejects.toThrow(/lock order violation/i);
     expect(lock.pendingKeyCount()).toBe(0);
   });
@@ -1479,9 +1404,9 @@ describe("AccountFlows conformance", () => {
       }),
     });
 
-    await expect(
-      flows.listMemberDirectory({ actor, workspaceId: "workspace-1" }),
-    ).resolves.toEqual([{ membership: member, principal: null }]);
+    await expect(flows.listMemberDirectory({ actor, workspaceId: "workspace-1" })).resolves.toEqual([
+      { membership: member, principal: null },
+    ]);
     await expect(
       flows.resolveRequestAccess({
         headers: new Headers(),

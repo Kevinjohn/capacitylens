@@ -13,8 +13,8 @@
  * operation — the caller has already branched on `res.ok`/status and always surfaces SOME message.
  */
 export async function readApiError(res: Response): Promise<string | undefined> {
-  const body: unknown = await res.json().catch(() => null)
-  if (typeof body !== 'object' || body === null) return undefined
-  const error = (body as { error?: unknown }).error
-  return typeof error === 'string' && error.length > 0 ? error : undefined
+  const body: unknown = await res.json().catch(() => null);
+  if (typeof body !== "object" || body === null) return undefined;
+  const error = (body as { error?: unknown }).error;
+  return typeof error === "string" && error.length > 0 ? error : undefined;
 }

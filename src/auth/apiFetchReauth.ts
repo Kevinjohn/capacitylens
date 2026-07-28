@@ -1,5 +1,5 @@
-import { apiFetch, API_REQUEST_TIMEOUT_MS } from '../data/requestTimeout'
-import { requestReauth } from './reauthCoordinator'
+import { apiFetch, API_REQUEST_TIMEOUT_MS } from "../data/requestTimeout";
+import { requestReauth } from "./reauthCoordinator";
 
 // The step-up interception seam (DEFECT B). A drop-in replacement for `apiFetch` used only at
 // security-sensitive call sites: membership/invitation administration (including reads of those
@@ -19,23 +19,19 @@ import { requestReauth } from './reauthCoordinator'
 /** Peek (without consuming the body) at whether this is the server's freshness 403. Clones the
  *  response so the caller can still read the body when we hand the original back on cancel. */
 async function isSessionNotFresh(res: Response): Promise<boolean> {
-  if (res.status !== 403) return false
+  if (res.status !== 403) return false;
   // We must peek at the body WITHOUT consuming it — the caller still reads it (readApiError) on the
   // pass-through/cancel paths — so we read a clone. If this Response can't be cloned (only ever true
   // for a non-standard Response-like; real fetch Responses always can), there is no safe way to peek,
   // so treat it as an ordinary Forbidden and let the caller handle it — never risk eating its body.
-  if (typeof res.clone !== 'function') return false
+  if (typeof res.clone !== "function") return false;
   // Best-effort per DEFENSIVE-CODING.md §5: an unreadable/non-JSON 403 body simply isn't a step-up
   // (it's an ordinary Forbidden) — fall through to the caller's existing handling, never swallow it.
   const body: unknown = await res
     .clone()
     .json()
-    .catch(() => null)
-  return (
-    !!body &&
-    typeof body === 'object' &&
-    (body as { code?: unknown }).code === 'SESSION_NOT_FRESH'
-  )
+    .catch(() => null);
+  return !!body && typeof body === "object" && (body as { code?: unknown }).code === "SESSION_NOT_FRESH";
 }
 
 /**
@@ -59,19 +55,14 @@ export async function apiFetchReauth(
   // Request bodies are one-shot. Clone both attempts before the first dispatch so a successful
   // step-up can replay the same bytes. A stream supplied separately through RequestInit cannot be
   // cloned safely here, so reject it before sending anything rather than fail only after reauth.
-  if (
-    init.body &&
-    typeof (init.body as { getReader?: unknown }).getReader === 'function'
-  ) {
-    throw new TypeError(
-      'apiFetchReauth does not accept a one-shot RequestInit stream body.',
-    )
+  if (init.body && typeof (init.body as { getReader?: unknown }).getReader === "function") {
+    throw new TypeError("apiFetchReauth does not accept a one-shot RequestInit stream body.");
   }
-  const firstInput = input instanceof Request ? input.clone() : input
-  const retryInput = input instanceof Request ? input.clone() : input
-  const res = await apiFetch(firstInput, init, timeoutMs)
-  if (!(await isSessionNotFresh(res))) return res
-  const reauthenticated = await requestReauth()
-  if (!reauthenticated) return res
-  return apiFetch(retryInput, init, timeoutMs)
+  const firstInput = input instanceof Request ? input.clone() : input;
+  const retryInput = input instanceof Request ? input.clone() : input;
+  const res = await apiFetch(firstInput, init, timeoutMs);
+  if (!(await isSessionNotFresh(res))) return res;
+  const reauthenticated = await requestReauth();
+  if (!reauthenticated) return res;
+  return apiFetch(retryInput, init, timeoutMs);
 }

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn } from "node:child_process";
 
 /**
  * Spawn the repository package manager through the platform shell.
@@ -8,8 +8,8 @@ import { spawn } from 'node:child_process'
  * not drift onto different platform behavior.
  */
 export function spawnPnpm(args, options = {}) {
-  return spawn('pnpm', args, {
+  return spawn("pnpm", args, {
     ...options,
     shell: true,
-  })
+  });
 }

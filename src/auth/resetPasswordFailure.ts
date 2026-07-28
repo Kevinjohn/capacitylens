@@ -1,5 +1,5 @@
-import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
-import { m } from '@/i18n'
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import { m } from "@/i18n";
 
 // Plain .ts module (no component) so ResetPassword.tsx stays a components-only file and this helper
 // can be exported without tripping react-refresh/only-export-components — the controls.ts idiom.
@@ -16,9 +16,9 @@ import { m } from '@/i18n'
  *  `null`/a string/an array) — `body?.code` keeps that a safe `undefined` (→ generic fallback)
  *  instead of a `TypeError` crashing the submit handler. */
 export function messageForFailure(body: { code?: string }, status?: number): string {
-  if (status === 404) return m.reset_err_unavailable()
-  if (body?.code === 'INVALID_TOKEN') return m.reset_err_invalid()
-  if (body?.code === 'PASSWORD_TOO_SHORT') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH })
-  if (body?.code === 'PASSWORD_TOO_LONG') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH })
-  return m.reset_err_generic()
+  if (status === 404) return m.reset_err_unavailable();
+  if (body?.code === "INVALID_TOKEN") return m.reset_err_invalid();
+  if (body?.code === "PASSWORD_TOO_SHORT") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
+  if (body?.code === "PASSWORD_TOO_LONG") return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
+  return m.reset_err_generic();
 }

@@ -90,9 +90,7 @@ describe("resolveBarColor", () => {
   });
 
   it("falls back to the client colour when the project has none", () => {
-    expect(resolveBarColor(alloc, maps(dataWith("", "#client")))).toBe(
-      "#client",
-    );
+    expect(resolveBarColor(alloc, maps(dataWith("", "#client")))).toBe("#client");
   });
 
   it("falls back to the resource colour when project and client have none", () => {
@@ -165,20 +163,14 @@ describe("design-token contrast (--c-faint, WCAG 1.4.3 AA)", () => {
   const ELEVATED_DARK = "#1d212c";
 
   it("clears 4.5:1 on the light canvas AND surface", () => {
-    expect(contrastRatio(FAINT_LIGHT, CANVAS_LIGHT)).toBeGreaterThanOrEqual(
-      4.5,
-    );
-    expect(contrastRatio(FAINT_LIGHT, SURFACE_LIGHT)).toBeGreaterThanOrEqual(
-      4.5,
-    );
+    expect(contrastRatio(FAINT_LIGHT, CANVAS_LIGHT)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(FAINT_LIGHT, SURFACE_LIGHT)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("the dark-theme faint stays AA on every dark ground", () => {
     expect(contrastRatio(FAINT_DARK, CANVAS_DARK)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(FAINT_DARK, SURFACE_DARK)).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio(FAINT_DARK, ELEVATED_DARK)).toBeGreaterThanOrEqual(
-      4.5,
-    );
+    expect(contrastRatio(FAINT_DARK, ELEVATED_DARK)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -189,9 +181,7 @@ describe("muted ink token contrast (WCAG 1.4.3 AA)", () => {
     expect(indexCss).toMatch(
       /\.driver-popover-description,[\s\S]*?\.driver-popover-progress-text\s*\{\s*color:\s*var\(--color-muted-foreground\)/,
     );
-    expect(indexCss).toMatch(
-      /\.driver-popover-close-btn\s*\{[^}]*color:\s*var\(--color-muted-foreground\)/,
-    );
+    expect(indexCss).toMatch(/\.driver-popover-close-btn\s*\{[^}]*color:\s*var\(--color-muted-foreground\)/);
     expect(indexCss).toMatch(
       /\[data-draw-mode="timeoff"\] \.scheduler-bar[\s\S]*?background-color:\s*var\(--color-muted-foreground\) !important/,
     );
@@ -225,9 +215,7 @@ describe("action and identity token contrast", () => {
 // a future token edit fail before it can turn the shared focus indicator sub-3:1 again.
 describe("global focus outline contrast (WCAG 1.4.11 non-text >=3:1)", () => {
   it("applies the opaque brand outline to tabindex-composed primitives", () => {
-    expect(indexCss).toMatch(
-      /\[tabindex\][\s\S]*?\):focus-visible\s*\{[^}]*outline:\s*2px solid var\(--color-brand\)/,
-    );
+    expect(indexCss).toMatch(/\[tabindex\][\s\S]*?\):focus-visible\s*\{[^}]*outline:\s*2px solid var\(--color-brand\)/);
   });
 
   it.each([
@@ -268,12 +256,9 @@ describe("Switch state contrast (WCAG 1.4.11 non-text >=3:1)", () => {
     ["light checked", "#1d4ed8", "#f4f5f8"],
     ["dark unchecked", "#2a2f3c", "#e7eaf0"],
     ["dark checked", "#2563eb", "#e7eaf0"],
-  ])(
-    "keeps the thumb distinguishable from the %s track",
-    (_state, track, thumb) => {
-      expect(contrastRatio(track, thumb)).toBeGreaterThanOrEqual(3);
-    },
-  );
+  ])("keeps the thumb distinguishable from the %s track", (_state, track, thumb) => {
+    expect(contrastRatio(track, thumb)).toBeGreaterThanOrEqual(3);
+  });
 
   it("keeps the light unchecked track distinguishable on a white settings surface", () => {
     expect(contrastRatio("#858d9b", "#ffffff")).toBeGreaterThanOrEqual(3);
@@ -284,19 +269,14 @@ describe("destructive Alert body contrast", () => {
   it.each([
     ["light", "#e11d48", "#ffffff"], // --c-danger on --c-surface
     ["dark", "#fb7185", "#161922"],
-  ])(
-    "keeps the opaque danger token AA on the %s card surface",
-    (_theme, ink, surface) => {
-      expect(contrastRatio(ink, surface)).toBeGreaterThanOrEqual(4.5);
-    },
-  );
+  ])("keeps the opaque danger token AA on the %s card surface", (_theme, ink, surface) => {
+    expect(contrastRatio(ink, surface)).toBeGreaterThanOrEqual(4.5);
+  });
 });
 
 describe("danger-soft button hover contrast", () => {
   it("uses an opaque hover token instead of compositing over an unknown surface", () => {
-    expect(indexCss).toMatch(
-      /--color-danger-soft-hover:\s*var\(--c-danger-soft-hover\)/,
-    );
+    expect(indexCss).toMatch(/--color-danger-soft-hover:\s*var\(--c-danger-soft-hover\)/);
   });
 
   it.each([
@@ -341,21 +321,14 @@ describe("AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)", ()
   // The palest + darkest discipline swatches (read live from the palette, so a palette edit can't make
   // this stale): the extreme grounds an opaque bar fill can be. Palest = highest contrast vs black ink;
   // darkest = highest contrast vs white halo.
-  const palest = [...SWATCHES].sort(
-    (a, b) => contrastRatio(b, "#000000") - contrastRatio(a, "#000000"),
-  )[0];
-  const darkest = [...SWATCHES].sort(
-    (a, b) => contrastRatio(b, "#ffffff") - contrastRatio(a, "#ffffff"),
-  )[0];
+  const palest = [...SWATCHES].sort((a, b) => contrastRatio(b, "#000000") - contrastRatio(a, "#000000"))[0];
+  const darkest = [...SWATCHES].sort((a, b) => contrastRatio(b, "#ffffff") - contrastRatio(a, "#ffffff"))[0];
   ADJACENCIES["palest swatch"] = palest;
   ADJACENCIES["darkest swatch"] = darkest;
 
   for (const [name, bg] of Object.entries(ADJACENCIES)) {
     it(`at least one ring edge clears 3:1 against ${name} (${bg})`, () => {
-      const best = Math.max(
-        contrastRatio(RING_INK, bg),
-        contrastRatio(RING_HALO, bg),
-      );
+      const best = Math.max(contrastRatio(RING_INK, bg), contrastRatio(RING_HALO, bg));
       expect(best).toBeGreaterThanOrEqual(3.0);
     });
   }

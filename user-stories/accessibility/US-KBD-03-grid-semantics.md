@@ -3,10 +3,12 @@
 **Area:** Keyboard & accessibility · **Persona:** Screen-reader user · **Linked E2E:** `e2e/accessibility.spec.ts` → "the scheduler exposes grid roles and an sr-only per-row capacity summary"
 
 ## Goal
+
 Have the schedule expose proper grid structure to assistive tech, and give each
 resource row a spoken summary of its capacity state that doesn't rely on colour.
 
 ## Why
+
 The timeline communicates a lot through colour and position — over-allocation tints,
 time-off hatching, bar placement — none of which a screen reader can convey. Exposing
 `role=grid/row/rowheader/gridcell` lets assistive tech navigate the schedule as a grid,
@@ -22,10 +24,12 @@ and every right cell `aria-colindex=2`; and the lane `gridcell` has an accessibl
 `role=button` — not the cells, so these indices are pure structure, not a focus model.)
 
 ## How (end-to-end)
+
 **Precondition:** Seeded app open at Schedule (`/`). The capacity wording is
-time-relative (it keys off *today*'s 14-day forward window). Running near the seed
-dates, *Tyler Nix*'s 3–4 June over-allocation falls inside that window; otherwise the
+time-relative (it keys off _today_'s 14-day forward window). Running near the seed
+dates, _Tyler Nix_'s 3–4 June over-allocation falls inside that window; otherwise the
 "Overbooked…" phrase may not apply, but the summary still renders.
+
 1. Open the accessibility tree (DevTools → Accessibility pane, or a screen reader).
 2. Confirm the scrollable schedule container has `role="grid"` (labelled "Resource
    schedule") and declares `aria-colcount="2"`.
@@ -34,13 +38,14 @@ dates, *Tyler Nix*'s 3–4 June over-allocation falls inside that window; otherw
    are `role="gridcell"` with `aria-colindex="2"` and an accessible name
    ("<resource> timeline"). The header row's left cell is `role="columnheader"`
    (`aria-colindex="1"`) and the date strip is `role="columnheader"` (`aria-colindex="2"`).
-4. Inspect *Tyler Nix*'s row header — it contains an `sr-only` summary that reads (near
+4. Inspect _Tyler Nix_'s row header — it contains an `sr-only` summary that reads (near
    the seed dates): **"Overbooked in the next two weeks. 1 time-off period.
    2 allocations."**
 5. Inspect a row with no over-allocation and no time off — its summary omits those
    clauses and just states the allocation count (e.g. "N allocations.").
 
 ## Acceptance criteria
+
 - ✅ The grid container has `role="grid"` and `aria-colcount="2"`.
 - ✅ Rows expose `role="row"`; left-column cells `role="rowheader"` (`aria-colindex="1"`);
   lane cells `role="gridcell"` (`aria-colindex="2"`) with an accessible name

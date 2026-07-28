@@ -1,31 +1,31 @@
-import { useId, useState } from 'react'
-import { isServerConfigured } from '../../data/apiConfig'
-import { accountClient, accountCommandOutcomeUnknown } from '../../account/accountClient'
-import { useStore } from '../../store/useStore'
-import { useAuth } from '../../auth/authContext'
-import { refreshAccountSummaries } from '../../auth/useAccountSummaries'
-import { readApiError } from '../../lib/readApiError'
-import { can } from '@capacitylens/shared/domain/access'
-import { Badge } from '../ui/badge'
-import { accessLabelFor } from '../../lib/accessCopy'
-import { accessExperienceFor } from '../../lib/accessMode'
-import { useFieldError } from '../../hooks/useFieldError'
-import { errorMessage } from '../../lib/errorMessage'
-import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
-import { validateName } from '../../lib/validation'
-import { AddButton, Avatar, DeleteButton, SegmentedControl, SelectField, TextField } from '../common/ui'
-import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
-import { DeleteCompanyDialog } from './DeleteCompanyDialog'
-import { DEFAULT_COLORS } from '../../lib/palette'
-import type { AccountSummary } from '../../store/useStore'
-import { APP_NAME } from '@capacitylens/shared/brand'
-import { m } from '@/i18n'
-import { useOfflineState } from '../../data/useOfflineState'
-import { Button } from '../ui/button'
-import { Alert, AlertDescription } from '../ui/alert'
-import { FieldError } from '../ui/field'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card'
-import { Item, ItemGroup } from '../ui/item'
+import { useId, useState } from "react";
+import { isServerConfigured } from "../../data/apiConfig";
+import { accountClient, accountCommandOutcomeUnknown } from "../../account/accountClient";
+import { useStore } from "../../store/useStore";
+import { useAuth } from "../../auth/authContext";
+import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
+import { readApiError } from "../../lib/readApiError";
+import { can } from "@capacitylens/shared/domain/access";
+import { Badge } from "../ui/badge";
+import { accessLabelFor } from "../../lib/accessCopy";
+import { accessExperienceFor } from "../../lib/accessMode";
+import { useFieldError } from "../../hooks/useFieldError";
+import { errorMessage } from "../../lib/errorMessage";
+import { FAKE_USER, useDemoAuthActive } from "../../lib/fakeAuth";
+import { validateName } from "../../lib/validation";
+import { AddButton, Avatar, DeleteButton, SegmentedControl, SelectField, TextField } from "../common/ui";
+import { supportedTimeZones, timeZoneOptionLabel } from "../../lib/timezones";
+import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
+import { DEFAULT_COLORS } from "../../lib/palette";
+import type { AccountSummary } from "../../store/useStore";
+import { APP_NAME } from "@capacitylens/shared/brand";
+import { m } from "@/i18n";
+import { useOfflineState } from "../../data/useOfflineState";
+import { Button } from "../ui/button";
+import { Alert, AlertDescription } from "../ui/alert";
+import { FieldError } from "../ui/field";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import { Item, ItemGroup } from "../ui/item";
 
 // Onboarding capture (P1.14): the create-company form sets language, week-start and time zone —
 // the three fields the server FREEZES after creation (a later change → 409). They're captured here,
@@ -39,21 +39,21 @@ import { Item, ItemGroup } from '../ui/item'
 const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
   { value: 1, label: () => m.picker_week_monday() },
   { value: 0, label: () => m.picker_week_sunday() },
-]
-const DEFAULT_WEEK_STARTS_ON = 1 as const
-const DEFAULT_TIMEZONE = 'Etc/GMT'
-const DEFAULT_LANGUAGE = 'en'
+];
+const DEFAULT_WEEK_STARTS_ON = 1 as const;
+const DEFAULT_TIMEZONE = "Etc/GMT";
+const DEFAULT_LANGUAGE = "en";
 
 /** Validate the UNTRUSTED 2xx body of POST /api/orgs — same stance as useAccountSummaries'
  *  `toSummary` (the server is external input; never trust an `as` cast). Returns null when the
  *  body is unusable (not an object, or id/name missing/empty) — the caller must then treat the
  *  create as "succeeded, but id unknown", NOT as a failure (see createOrgOnServer). */
 function toCreatedOrg(body: unknown): { id: string; name: string } | null {
-  if (typeof body !== 'object' || body === null) return null
-  const b = body as { id?: unknown; name?: unknown }
-  if (typeof b.id !== 'string' || b.id.length === 0) return null
-  if (typeof b.name !== 'string' || b.name.length === 0) return null
-  return { id: b.id, name: b.name }
+  if (typeof body !== "object" || body === null) return null;
+  const b = body as { id?: unknown; name?: unknown };
+  if (typeof b.id !== "string" || b.id.length === 0) return null;
+  if (typeof b.name !== "string" || b.name.length === 0) return null;
+  return { id: b.id, name: b.name };
 }
 
 // Full-screen tenant chooser. Shown on every load (activeAccountId is never
@@ -64,54 +64,54 @@ function toCreatedOrg(body: unknown): { id: string; name: string } | null {
 // only the ACTIVE account's slice, so it can't list the login's OTHER tenants — `accountSummaries`
 // (server-sourced from GET /api/accounts; local-derived from data.accounts) is the only complete list.
 export function AccountPicker() {
-  const accounts = useStore((s) => s.accountSummaries)
-  const addAccount = useStore((s) => s.addAccount)
-  const deleteAccount = useStore((s) => s.deleteAccount)
-  const setAccountSummaries = useStore((s) => s.setAccountSummaries)
-  const setActiveAccount = useStore((s) => s.setActiveAccount)
-  const setNotice = useStore((s) => s.setNotice)
-  const previousAccountId = useStore((s) => s.previousAccountId)
+  const accounts = useStore((s) => s.accountSummaries);
+  const addAccount = useStore((s) => s.addAccount);
+  const deleteAccount = useStore((s) => s.deleteAccount);
+  const setAccountSummaries = useStore((s) => s.setAccountSummaries);
+  const setActiveAccount = useStore((s) => s.setActiveAccount);
+  const setNotice = useStore((s) => s.setNotice);
+  const previousAccountId = useStore((s) => s.previousAccountId);
   // If we got here via "Switch company" and that account is still in the list, offer a way back.
-  const previous = accounts.find((a) => a.id === previousAccountId) ?? null
+  const previous = accounts.find((a) => a.id === previousAccountId) ?? null;
   // Cosmetic demo sign-in (see FakeSignIn): when the real auth seam is off, the picker is
   // the post-"login" screen, so show who's "signed in" + a Sign out back to the demo gate.
-  const demoAuthActive = useDemoAuthActive()
-  const signOutDemo = useStore((s) => s.signOutDemo)
+  const demoAuthActive = useDemoAuthActive();
+  const signOutDemo = useStore((s) => s.signOutDemo);
   // Hide the create affordance whenever the server says a create would be refused
   // (canCreateAccount: false — the single-company cap, or auth-on with no owner/admin standing).
   // Fails open to `true` (see authContext.ts) whenever the fact is unavailable, so a
   // self-hosted/demo build with no policy in place is unaffected. `refreshAuth` re-asks /me after
   // an org create/delete — the server recomputes canCreateAccount per request, so those are exactly
   // the moments the boot-time snapshot goes stale (see the call sites below).
-  const { authMode, canCreateAccount, refreshAuth } = useAuth()
-  const accessExperience = accessExperienceFor(authMode)
-  const offline = useOfflineState()
+  const { authMode, canCreateAccount, refreshAuth } = useAuth();
+  const accessExperience = accessExperienceFor(authMode);
+  const offline = useOfflineState();
 
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(false);
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
   // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false);
   // True while the server-mode DELETE is in flight — passed to the dialog as `busy` so the armed
   // Delete button disarms during the round-trip. Without it a double-click sends an overlapping
   // command that may still be in progress and raises a spurious retry error after a successful
   // delete. Demo-mode delete is synchronous and never sets it.
-  const [deleting, setDeleting] = useState(false)
-  const [name, setName] = useState('')
+  const [deleting, setDeleting] = useState(false);
+  const [name, setName] = useState("");
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
-  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON)
-  const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE)
-  const { error, errorField, errorId, fail, clear } = useFieldError()
-  const [confirming, setConfirming] = useState<AccountSummary | null>(null)
-  const roleDescriptionPrefix = useId()
-  const tzOptions = supportedTimeZones()
+  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
+  const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE);
+  const { error, errorField, errorId, fail, clear } = useFieldError();
+  const [confirming, setConfirming] = useState<AccountSummary | null>(null);
+  const roleDescriptionPrefix = useId();
+  const tzOptions = supportedTimeZones();
 
   const resetForm = () => {
-    clear()
-    setCreating(false)
-    setName('')
-    setWeekStartsOn(DEFAULT_WEEK_STARTS_ON)
-    setTimezone(DEFAULT_TIMEZONE)
-  }
+    clear();
+    setCreating(false);
+    setName("");
+    setWeekStartsOn(DEFAULT_WEEK_STARTS_ON);
+    setTimezone(DEFAULT_TIMEZONE);
+  };
 
   // SERVER-mode create goes through POST /api/orgs — the ATOMIC account + built-in Internal client +
   // caller-as-Owner membership path — NOT the local addAccount + snapshot-diff sync. The generic
@@ -121,7 +121,7 @@ export function AccountPicker() {
   // P1.13 client migration the server's /api/orgs comment was waiting on). The three frozen fields
   // ride in the body; the server sanitizes/validates them exactly like the generic account write.
   const createOrgOnServer = async (trimmed: string) => {
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const res = await accountClient.createWorkspace({
         name: trimmed,
@@ -129,33 +129,28 @@ export function AccountPicker() {
         weekStartsOn,
         timezone,
         language: DEFAULT_LANGUAGE,
-        internalColourMode: 'grey',
-      })
+        internalColourMode: "grey",
+      });
       if (!res.ok) {
         if (await accountCommandOutcomeUnknown(res)) {
           // A response can fail after the command commits (proxy timeout, worker restart, or a
           // still-running ledger entry). Close the form and reconcile before allowing a retry.
-          const list = await refreshAccountSummaries({ allowCachedFallback: false })
-          await refreshAuth()
-          resetForm()
-          setNotice(
-            list !== null
-              ? m.picker_create_unknown_refreshed()
-              : m.picker_create_unknown_stale(),
-            'warning',
-          )
-          return
+          const list = await refreshAccountSummaries({ allowCachedFallback: false });
+          await refreshAuth();
+          resetForm();
+          setNotice(list !== null ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale(), "warning");
+          return;
         }
         // The server's message (single-company cap / org-create gate) is the useful one; the
         // status-stamped fallback covers an unreadable body.
-        fail(null, (await readApiError(res)) ?? m.picker_err_create({ status: res.status }))
-        return
+        fail(null, (await readApiError(res)) ?? m.picker_err_create({ status: res.status }));
+        return;
       }
       // A 2xx means the org EXISTS server-side no matter what the body looks like, so the body
       // read must NOT be allowed to throw into the transport catch below — that would surface an
       // error over a create that SUCCEEDED and leave the form open for a resubmit (a duplicate
       // company, or a spurious single-company-cap 403). Parse best-effort, validate the shape.
-      const created = toCreatedOrg(await res.json().catch(() => null))
+      const created = toCreatedOrg(await res.json().catch(() => null));
       if (created === null) {
         // DELIBERATE ASYMMETRY with the !res.ok branch: this is a SUCCESS with an unusable body,
         // not a failure. We can't seed a summary or activate (no trustworthy id — a bogus one
@@ -163,57 +158,57 @@ export function AccountPicker() {
         // form (resubmit = duplicate) and refetch the authoritative list instead: the new company
         // appears in the picker and the user opens it from there. A null refetch leaves the list
         // as-is — AppShell's own summaries fetch backstops on the next mount.
-        resetForm()
-        await refreshAccountSummaries()
+        resetForm();
+        await refreshAccountSummaries();
         // The create changed the facts /me computes (account count, the caller's owner standing) —
         // re-ask so canCreateAccount tracks it (e.g. the button hides once a capped instance fills
         // up). refreshAuth is TOTAL (never rejects — degrades to the stale snapshot with a warn),
         // so fire-and-forget is safe.
-        void refreshAuth()
-        return
+        void refreshAuth();
+        return;
       }
       // Seed the summary BEFORE activating: setActiveAccount validates ids against
       // data.accounts ∪ accountSummaries, and the just-created org is in neither yet.
       // Append-if-absent so a concurrent summaries refetch can't duplicate it.
-      const summaries = useStore.getState().accountSummaries
+      const summaries = useStore.getState().accountSummaries;
       if (!summaries.some((a) => a.id === created.id)) {
-        setAccountSummaries([...summaries, { id: created.id, name: created.name, role: 'owner' as const }])
+        setAccountSummaries([...summaries, { id: created.id, name: created.name, role: "owner" as const }]);
       }
-      resetForm()
-      setActiveAccount(created.id) // the persist switch orchestrator hydrates the new slice
+      resetForm();
+      setActiveAccount(created.id); // the persist switch orchestrator hydrates the new slice
       // Same re-ask as the unusable-body branch above: the create moved the server-side facts
       // behind canCreateAccount. Total, so fire-and-forget is safe.
-      void refreshAuth()
+      void refreshAuth();
     } catch (e) {
       // Once dispatched, a transport rejection cannot tell us whether the atomic create committed.
       // Reconcile first and close the form so an immediate retry cannot mint a duplicate company.
-      const list = await refreshAccountSummaries({ allowCachedFallback: false })
-      await refreshAuth()
-      resetForm()
+      const list = await refreshAccountSummaries({ allowCachedFallback: false });
+      await refreshAuth();
+      resetForm();
       setNotice(
         list !== null
           ? `${m.picker_create_unknown_refreshed()} ${errorMessage(e)}`
           : `${m.picker_create_unknown_stale()} ${errorMessage(e)}`,
-        'warning',
-      )
+        "warning",
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const submit = () => {
     // In-flight guard, self-contained (not just the button's `disabled` attribute): a POST already
     // in flight means any further submit — however triggered — must be a no-op, or one form could
     // create two companies.
-    if (submitting) return
-    clear()
-    const trimmed = validateName(name, fail)
-    if (!trimmed) return
+    if (submitting) return;
+    clear();
+    const trimmed = validateName(name, fail);
+    if (!trimmed) return;
     // Pass the three frozen fields as CONCRETE values (never undefined): the server freezes them after
     // creation, so an unset value here could never be set later — stranding the user (P1.14, TRAP 4).
     if (isServerConfigured()) {
-      void createOrgOnServer(trimmed)
-      return
+      void createOrgOnServer(trimmed);
+      return;
     }
     // DEMO build: local store create. A viewer refusal is a notice-backed no-op; other store-side
     // validation errors surface in the form rather than becoming uncaught React errors. addAccount
@@ -225,15 +220,15 @@ export function AccountPicker() {
         weekStartsOn,
         timezone,
         language: DEFAULT_LANGUAGE,
-        internalColourMode: 'grey',
-      })
-      if (account === null) return
-      resetForm()
-      setActiveAccount(account.id)
+        internalColourMode: "grey",
+      });
+      if (account === null) return;
+      resetForm();
+      setActiveAccount(account.id);
     } catch (e) {
-      fail(null, errorMessage(e))
+      fail(null, errorMessage(e));
     }
-  }
+  };
 
   // SERVER-mode delete calls the dedicated DELETE route (gated 'purge' — admin+ — server-side; it
   // erases the whole tenant transactionally). The store's local deleteAccount can NOT do this job in
@@ -245,73 +240,68 @@ export function AccountPicker() {
   const deleteOrgOnServer = async (id: string) => {
     // In-flight guard, self-contained (the dialog's `busy` disable is the visible half): a second
     // overlapping DELETE can race the first command — see the `deleting` state's comment.
-    if (deleting) return
-    setDeleting(true)
+    if (deleting) return;
+    setDeleting(true);
     try {
       // The account client applies the bulk timeout because whole-tenant erasure can legitimately
       // outlive the interactive request bound while its transaction completes.
-      const res = await accountClient.eraseWorkspace(id)
+      const res = await accountClient.eraseWorkspace(id);
       if (!res.ok) {
         if (await accountCommandOutcomeUnknown(res)) {
-          const fresh = await refreshAccountSummaries({ allowCachedFallback: false })
-          await refreshAuth()
-          setNotice(
-            fresh !== null
-              ? m.picker_delete_unknown_refreshed()
-              : m.picker_delete_unknown_stale(),
-            'warning',
-          )
-          return
+          const fresh = await refreshAccountSummaries({ allowCachedFallback: false });
+          await refreshAuth();
+          setNotice(fresh !== null ? m.picker_delete_unknown_refreshed() : m.picker_delete_unknown_stale(), "warning");
+          return;
         }
-        setNotice((await readApiError(res)) ?? m.picker_err_delete({ status: res.status }), 'error')
-        return
+        setNotice((await readApiError(res)) ?? m.picker_err_delete({ status: res.status }), "error");
+        return;
       }
-      const summaries = useStore.getState().accountSummaries
-      const removedName = summaries.find((summary) => summary.id === id)?.name
-      setAccountSummaries(summaries.filter((s) => s.id !== id))
-      if (removedName) setNotice(m.picker_delete_success({ name: removedName }), 'info')
+      const summaries = useStore.getState().accountSummaries;
+      const removedName = summaries.find((summary) => summary.id === id)?.name;
+      setAccountSummaries(summaries.filter((s) => s.id !== id));
+      if (removedName) setNotice(m.picker_delete_success({ name: removedName }), "info");
       // The delete flipped the facts /me computes: on a single-company instance, dropping the only
       // company back to zero accounts makes canCreateAccount true again (the bootstrap exemption).
       // Without this re-ask the picker would show the "ask an admin for an invite" empty state with
       // NO "New company" button — a dead end until a manual reload. refreshAuth is TOTAL (an
       // unresolved refresh keeps the stale value with a warn; the server 403 backstops), so
       // fire-and-forget is safe.
-      void refreshAuth()
+      void refreshAuth();
     } catch (e) {
       // A timeout/abort says only that the BROWSER stopped waiting — the transactional erasure may
       // already have COMMITTED server-side. Asserting "nothing was removed" here would leave a
       // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
       // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out
       // if the erase committed; a failed re-read leaves the list untouched, same as before).
-      const fresh = await refreshAccountSummaries({ allowCachedFallback: false })
-      await refreshAuth()
+      const fresh = await refreshAccountSummaries({ allowCachedFallback: false });
+      await refreshAuth();
       setNotice(
         fresh !== null
           ? `${m.picker_delete_unknown_refreshed()} ${errorMessage(e)}`
           : `${m.picker_delete_unknown_stale()} ${errorMessage(e)}`,
-        'warning',
-      )
+        "warning",
+      );
     } finally {
-      setDeleting(false)
-      setConfirming(null)
+      setDeleting(false);
+      setConfirming(null);
     }
-  }
+  };
 
   const confirmDelete = (id: string) => {
     if (isServerConfigured()) {
-      void deleteOrgOnServer(id)
-      return
+      void deleteOrgOnServer(id);
+      return;
     }
     // DEMO build: the local cascade drops the account and all its scoped data irreversibly.
     try {
-      const removedName = useStore.getState().data.accounts.find((account) => account.id === id)?.name
-      deleteAccount(id)
-      if (removedName) setNotice(m.picker_delete_success({ name: removedName }), 'info')
-      setConfirming(null)
+      const removedName = useStore.getState().data.accounts.find((account) => account.id === id)?.name;
+      deleteAccount(id);
+      if (removedName) setNotice(m.picker_delete_success({ name: removedName }), "info");
+      setConfirming(null);
     } catch (error) {
-      setNotice(errorMessage(error), 'error')
+      setNotice(errorMessage(error), "error");
     }
-  }
+  };
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
@@ -319,13 +309,10 @@ export function AccountPicker() {
         {demoAuthActive && (
           <div className="mb-4 flex items-center justify-between gap-2 text-sm">
             <span className="truncate text-muted-foreground">
-              {m.picker_signed_in_as()}<span className="font-medium text-ink">{FAKE_USER.name}</span>
+              {m.picker_signed_in_as()}
+              <span className="font-medium text-ink">{FAKE_USER.name}</span>
             </span>
-            <Button
-              variant="link"
-              onClick={signOutDemo}
-              className="h-auto shrink-0 p-0 text-muted-foreground"
-            >
+            <Button variant="link" onClick={signOutDemo} className="h-auto shrink-0 p-0 text-muted-foreground">
               {m.picker_sign_out()}
             </Button>
           </div>
@@ -365,104 +352,132 @@ export function AccountPicker() {
                   <CardDescription>{m.picker_empty_create_hint()}</CardDescription>
                 </CardHeader>
                 <CardFooter>
-                <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" requiresEdit={false} />
+                  <AddButton
+                    label={m.picker_new()}
+                    onClick={() => setCreating(true)}
+                    testId="new-company-button"
+                    requiresEdit={false}
+                  />
                 </CardFooter>
               </Card>
             )}
-            <Alert><AlertDescription>{m.picker_empty_invite()}</AlertDescription></Alert>
+            <Alert>
+              <AlertDescription>{m.picker_empty_invite()}</AlertDescription>
+            </Alert>
           </div>
         )}
 
         {accounts.length > 0 && (
           <ItemGroup className="gap-2">
             {accounts.map((a, index) => {
-              const roleDescriptionId = `${roleDescriptionPrefix}-company-role-${index}`
+              const roleDescriptionId = `${roleDescriptionPrefix}-company-role-${index}`;
               const accessLabel = accessLabelFor({
                 offlineReadOnly: offline.readOnly,
                 experience: accessExperience,
-                permissionStatus: a.roleStatus ?? 'resolved',
+                permissionStatus: a.roleStatus ?? "resolved",
                 role: a.role,
-              })
+              });
               return (
-              <Item key={a.id} role="listitem" className="gap-2 p-0">
-                <Button
-                  variant="outline"
-                  aria-label={a.name}
-                  aria-describedby={roleDescriptionId}
-                  onClick={() => setActiveAccount(a.id)}
-                  className="h-auto flex-1 justify-start gap-3 px-3 py-2.5 text-left"
-                >
-                  {/* AccountSummary carries no colour (it's the minimal server-sourced shape — P1.13), so
+                <Item key={a.id} role="listitem" className="gap-2 p-0">
+                  <Button
+                    variant="outline"
+                    aria-label={a.name}
+                    aria-describedby={roleDescriptionId}
+                    onClick={() => setActiveAccount(a.id)}
+                    className="h-auto flex-1 justify-start gap-3 px-3 py-2.5 text-left"
+                  >
+                    {/* AccountSummary carries no colour (it's the minimal server-sourced shape — P1.13), so
                       the picker swatch uses the default account colour. The real per-account colour shows
                       once the slice is loaded; the picker pre-loads only id/name/role. */}
-                  <Avatar name={a.name} color={DEFAULT_COLORS.account} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{a.name}</span>
-                    <Badge id={roleDescriptionId} data-testid="company-role" variant="outline" className="mt-1 text-2xs text-muted-foreground">
-                      {accessLabel}
-                    </Badge>
-                  </span>
-                </Button>
-                {/* Company deletion is owner-only server-side, so every non-owner summary gets no
+                    <Avatar name={a.name} color={DEFAULT_COLORS.account} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{a.name}</span>
+                      <Badge
+                        id={roleDescriptionId}
+                        data-testid="company-role"
+                        variant="outline"
+                        className="mt-1 text-2xs text-muted-foreground"
+                      >
+                        {accessLabel}
+                      </Badge>
+                    </span>
+                  </Button>
+                  {/* Company deletion is owner-only server-side, so every non-owner summary gets no
                     Delete affordance at all — offering one would let them type-to-confirm an
                     irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
-                {a.roleStatus !== 'unavailable' && can(a.role, 'deleteAccount') && (
-                  <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
-                )}
-              </Item>
-              )
+                  {a.roleStatus !== "unavailable" && can(a.role, "deleteAccount") && (
+                    <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
+                  )}
+                </Item>
+              );
             })}
           </ItemGroup>
         )}
 
         {creating ? (
-          <form noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle><h2>{m.picker_new()}</h2></CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-            <TextField
-              label={m.picker_company_name()}
-              value={name}
-              onChange={(next) => { setName(next); if (errorField === 'name') clear() }}
-              autoFocus
-              invalid={errorField === 'name'}
-              describedById={errorId}
-            />
-            {/* The three calendar/locale facts captured at creation and FROZEN afterwards (P1.14). */}
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
-              <SegmentedControl
-                ariaLabel={m.picker_week_start()}
-                value={weekStartsOn}
-                onChange={setWeekStartsOn}
-                options={WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
-              />
-            </div>
-            <SelectField
-              label={m.picker_timezone()}
-              value={timezone}
-              onChange={setTimezone}
-              options={tzOptions.map((tz) => ({
-                value: tz,
-                label: timeZoneOptionLabel(tz, tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz),
-              }))}
-            />
-            <div>
-              {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}
-              <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_language()}</p>
-              <p className="text-sm text-muted-foreground" data-testid="create-language">{m.picker_language_english()}</p>
-            </div>
-            <FieldError id={errorId}>{error}</FieldError>
-            </CardContent>
-            <CardFooter className="justify-end">
-              <Button size="sm" type="button" variant="outline" onClick={resetForm}>
-                {m.picker_cancel()}
-              </Button>
-              <Button size="sm" type="submit" disabled={submitting}>{m.picker_create()}</Button>
-            </CardFooter>
-          </Card>
+          <form
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit();
+            }}
+            className="mt-4"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <h2>{m.picker_new()}</h2>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <TextField
+                  label={m.picker_company_name()}
+                  value={name}
+                  onChange={(next) => {
+                    setName(next);
+                    if (errorField === "name") clear();
+                  }}
+                  autoFocus
+                  invalid={errorField === "name"}
+                  describedById={errorId}
+                />
+                {/* The three calendar/locale facts captured at creation and FROZEN afterwards (P1.14). */}
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
+                  <SegmentedControl
+                    ariaLabel={m.picker_week_start()}
+                    value={weekStartsOn}
+                    onChange={setWeekStartsOn}
+                    options={WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
+                  />
+                </div>
+                <SelectField
+                  label={m.picker_timezone()}
+                  value={timezone}
+                  onChange={setTimezone}
+                  options={tzOptions.map((tz) => ({
+                    value: tz,
+                    label: timeZoneOptionLabel(tz, tz === "Etc/GMT" ? m.settings_timezone_gmt() : tz),
+                  }))}
+                />
+                <div>
+                  {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}
+                  <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_language()}</p>
+                  <p className="text-sm text-muted-foreground" data-testid="create-language">
+                    {m.picker_language_english()}
+                  </p>
+                </div>
+                <FieldError id={errorId}>{error}</FieldError>
+              </CardContent>
+              <CardFooter className="justify-end">
+                <Button size="sm" type="button" variant="outline" onClick={resetForm}>
+                  {m.picker_cancel()}
+                </Button>
+                <Button size="sm" type="submit" disabled={submitting}>
+                  {m.picker_create()}
+                </Button>
+              </CardFooter>
+            </Card>
           </form>
         ) : (
           // The button itself disappears whenever a create would be refused — the single-company
@@ -471,9 +486,15 @@ export function AccountPicker() {
           // just read at boot: the server recomputes it per /me request, and this picker re-asks
           // (refreshAuth) after every org create/delete — so deleting the last company re-surfaces
           // this button via the zero-accounts bootstrap exemption, without a manual reload.
-          accounts.length > 0 && canCreateAccount && (
+          accounts.length > 0 &&
+          canCreateAccount && (
             <div className="mt-4">
-              <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" requiresEdit={false} />
+              <AddButton
+                label={m.picker_new()}
+                onClick={() => setCreating(true)}
+                testId="new-company-button"
+                requiresEdit={false}
+              />
             </div>
           )
         )}
@@ -488,5 +509,5 @@ export function AccountPicker() {
         )}
       </div>
     </div>
-  )
+  );
 }

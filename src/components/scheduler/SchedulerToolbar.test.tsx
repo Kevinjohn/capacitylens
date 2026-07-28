@@ -5,11 +5,7 @@ import { SchedulerToolbar } from "./SchedulerToolbar";
 import { emptyFilters, useStore } from "../../store/useStore";
 import { resetStoreWithAccount } from "../../test/fixtures";
 
-async function chooseOption(
-  _user: ReturnType<typeof userEvent.setup>,
-  label: string,
-  optionName: string,
-) {
+async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: string, optionName: string) {
   const trigger = screen.getByRole("combobox", { name: label });
   trigger.focus();
   fireEvent.keyDown(trigger, { key: "ArrowDown" });
@@ -43,9 +39,7 @@ describe("SchedulerToolbar search filter", () => {
     await user.type(screen.getByLabelText("Search people"), "Alice");
 
     // The search is debounced into the store, so the update lands shortly after typing.
-    await waitFor(() =>
-      expect(useStore.getState().ui.filters.search).toBe("Alice"),
-    );
+    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe("Alice"));
   });
 });
 
@@ -55,42 +49,35 @@ describe("SchedulerToolbar history errors", () => {
   it.each([
     ["Undo", "undo"],
     ["Redo", "redo"],
-  ] as const)(
-    "surfaces a rejected %s action as a persistent error notice",
-    async (buttonName, action) => {
-      const user = userEvent.setup();
-      const original = useStore.getState()[action];
-      useStore.setState({
-        [action]: () => {
-          throw new Error("History is corrupt");
-        },
-        ...(action === "undo"
-          ? { past: [useStore.getState().data] }
-          : { future: [useStore.getState().data] }),
+  ] as const)("surfaces a rejected %s action as a persistent error notice", async (buttonName, action) => {
+    const user = userEvent.setup();
+    const original = useStore.getState()[action];
+    useStore.setState({
+      [action]: () => {
+        throw new Error("History is corrupt");
+      },
+      ...(action === "undo" ? { past: [useStore.getState().data] } : { future: [useStore.getState().data] }),
+    });
+
+    try {
+      render(<SchedulerToolbar />);
+      await user.click(screen.getByRole("button", { name: buttonName }));
+
+      expect(useStore.getState().notice).toEqual({
+        message: "History is corrupt",
+        tone: "error",
       });
-
-      try {
-        render(<SchedulerToolbar />);
-        await user.click(screen.getByRole("button", { name: buttonName }));
-
-        expect(useStore.getState().notice).toEqual({
-          message: "History is corrupt",
-          tone: "error",
-        });
-      } finally {
-        useStore.setState({ [action]: original });
-      }
-    },
-  );
+    } finally {
+      useStore.setState({ [action]: original });
+    }
+  });
 });
 
 describe("SchedulerToolbar Clear filter button", () => {
   it("Clear button is absent when no filters are set", () => {
     render(<SchedulerToolbar />);
 
-    expect(
-      screen.queryByRole("button", { name: "Clear" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
   });
 
   it("Clear button appears once a filter is set", async () => {
@@ -100,9 +87,7 @@ describe("SchedulerToolbar Clear filter button", () => {
     await user.type(screen.getByLabelText("Search people"), "Bob");
 
     // Clear appears once the debounced search reaches the store.
-    expect(
-      await screen.findByRole("button", { name: "Clear" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Clear" })).toBeInTheDocument();
   });
 
   it("clicking Clear resets all filters and hides the Clear button", async () => {
@@ -110,16 +95,12 @@ describe("SchedulerToolbar Clear filter button", () => {
     render(<SchedulerToolbar />);
 
     await user.type(screen.getByLabelText("Search people"), "Bob");
-    expect(
-      await screen.findByRole("button", { name: "Clear" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Clear" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear" }));
 
     expect(useStore.getState().ui.filters.search).toBe("");
-    expect(
-      screen.queryByRole("button", { name: "Clear" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
   });
 
   it("Clear cancels a pending search debounce so a cleared term cannot reappear", async () => {
@@ -134,9 +115,7 @@ describe("SchedulerToolbar Clear filter button", () => {
     // Wait past the debounce window: the orphaned timer must NOT re-apply "jo".
     await new Promise((r) => setTimeout(r, 250));
     expect(useStore.getState().ui.filters.search).toBe("");
-    expect(
-      (screen.getByLabelText("Search people") as HTMLInputElement).value,
-    ).toBe("");
+    expect((screen.getByLabelText("Search people") as HTMLInputElement).value).toBe("");
   });
 
   it("an EXTERNAL filters.search reset (e.g. account switch) cancels a pending search debounce", async () => {
@@ -173,9 +152,7 @@ describe("SchedulerToolbar Clear filter button", () => {
   });
 
   it("commits pending search text when another toolbar filter changes", async () => {
-    const client = useStore
-      .getState()
-      .addClient({ name: "Acme", color: "#111" });
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     render(<SchedulerToolbar />);
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
 
@@ -194,12 +171,8 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
   // Seed one internal + one cross-project activity so the Activities dropdown renders (it covers only the
   // project-less kinds; project-specific activities are reached via the Projects dropdown).
   const seedLensActivities = () => ({
-    internal: useStore
-      .getState()
-      .addActivity({ name: "Admin", kind: "internal" }),
-    repeatable: useStore
-      .getState()
-      .addActivity({ name: "Design", kind: "repeatable" }),
+    internal: useStore.getState().addActivity({ name: "Admin", kind: "internal" }),
+    repeatable: useStore.getState().addActivity({ name: "Design", kind: "repeatable" }),
   });
 
   it("renders the Activities dropdown with grouped Internal / Cross-project options", async () => {
@@ -208,21 +181,15 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
     const select = screen.getByRole("combobox", { name: "Filter by activity" });
     expect(select).toBeInTheDocument();
     fireEvent.keyDown(select, { key: "ArrowDown" });
-    expect(
-      screen.getByRole("option", { name: "Internal — All" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("option", { name: "Cross-project — All" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Internal — All" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Cross-project — All" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Admin" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Design" })).toBeInTheDocument();
   });
 
   it("is absent when the account has no project-less activities", () => {
     render(<SchedulerToolbar />);
-    expect(
-      screen.queryByLabelText("Filter by activity"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Filter by activity")).not.toBeInTheDocument();
   });
 
   it("selecting a specific activity sets activityId and clears the client/project lens", async () => {
@@ -254,12 +221,8 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
   it("selecting a project clears an active activity lens (mutual exclusion both ways)", async () => {
     const user = userEvent.setup();
     const { repeatable } = seedLensActivities();
-    const client = useStore
-      .getState()
-      .addClient({ name: "Acme", color: "#111" });
-    const project = useStore
-      .getState()
-      .addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     useStore.getState().setFilters({ activityId: repeatable.id });
     render(<SchedulerToolbar />);
 
@@ -271,15 +234,9 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
   });
 
   it("qualifies same-named projects with their client names", () => {
-    const firstClient = useStore
-      .getState()
-      .addClient({ name: "Acme", color: "#111" });
-    const secondClient = useStore
-      .getState()
-      .addClient({ name: "Globex", color: "#222" });
-    useStore
-      .getState()
-      .addProject({ name: "Website", clientId: firstClient.id, color: "#333" });
+    const firstClient = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const secondClient = useStore.getState().addClient({ name: "Globex", color: "#222" });
+    useStore.getState().addProject({ name: "Website", clientId: firstClient.id, color: "#333" });
     useStore.getState().addProject({
       name: "Website",
       clientId: secondClient.id,
@@ -287,15 +244,8 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
     });
     render(<SchedulerToolbar />);
 
-    fireEvent.keyDown(
-      screen.getByRole("combobox", { name: "Filter by project" }),
-      { key: "ArrowDown" },
-    );
-    expect(
-      screen.getByRole("option", { name: "Acme / Website" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("option", { name: "Globex / Website" }),
-    ).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Filter by project" }), { key: "ArrowDown" });
+    expect(screen.getByRole("option", { name: "Acme / Website" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Globex / Website" })).toBeInTheDocument();
   });
 });

@@ -7,41 +7,39 @@
 // validation aren't scattered across the adapter wiring.
 
 export function apiBaseFromEnv(value: string | undefined): string {
-  const raw = (value ?? '').trim().replace(/\/+$/, '')
-  if (raw === '') return ''
+  const raw = (value ?? "").trim().replace(/\/+$/, "");
+  if (raw === "") return "";
 
-  let parsed: URL
+  let parsed: URL;
   try {
-    parsed = new URL(raw)
+    parsed = new URL(raw);
   } catch (cause) {
-    throw new Error('VITE_CAPACITYLENS_API must be an absolute HTTP(S) origin.', { cause })
+    throw new Error("VITE_CAPACITYLENS_API must be an absolute HTTP(S) origin.", { cause });
   }
   if (
-    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
-    parsed.username !== '' ||
-    parsed.password !== '' ||
-    parsed.pathname !== '/' ||
-    parsed.search !== '' ||
-    parsed.hash !== ''
+    (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.pathname !== "/" ||
+    parsed.search !== "" ||
+    parsed.hash !== ""
   ) {
-    throw new Error(
-      'VITE_CAPACITYLENS_API must be an HTTP(S) origin without credentials, path, query or fragment.',
-    )
+    throw new Error("VITE_CAPACITYLENS_API must be an HTTP(S) origin without credentials, path, query or fragment.");
   }
-  return parsed.origin
+  return parsed.origin;
 }
 
-export const API_BASE = isDemoMode() ? '' : apiBaseFromEnv(import.meta.env.VITE_CAPACITYLENS_API)
+export const API_BASE = isDemoMode() ? "" : apiBaseFromEnv(import.meta.env.VITE_CAPACITYLENS_API);
 
 /** Demo mode: an editable, in-memory seed that resets on refresh.
  *  NOTE: this is the persistence demo — distinct from the cosmetic auth persona
  *  (the cosmetic fake sign-in: `useDemoAuthActive`/`FakeSignIn`/`fakeAuth.ts`, keyed off authMode 'off'). */
 export function isDemoMode(): boolean {
-  return import.meta.env.VITE_CAPACITYLENS_DEMO === '1'
+  return import.meta.env.VITE_CAPACITYLENS_DEMO === "1";
 }
 
 /** Server mode is now the DEFAULT — true unless the demo flag is set, regardless of API_BASE
  *  (empty API_BASE = same-origin server, not "local"). Name kept so the ~15 call sites read unchanged. */
 export function isServerConfigured(): boolean {
-  return !isDemoMode()
+  return !isDemoMode();
 }

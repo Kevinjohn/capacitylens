@@ -8,12 +8,12 @@
  *  programmatically focusable) to keep focus in the content. */
 export function restoreFocus(prev: HTMLElement | null) {
   if (prev?.isConnected) {
-    prev.focus?.()
+    prev.focus?.();
   } else {
-    const main = document.querySelector<HTMLElement>('main')
+    const main = document.querySelector<HTMLElement>("main");
     if (main) {
-      main.tabIndex = -1
-      main.focus()
+      main.tabIndex = -1;
+      main.focus();
     }
   }
 }

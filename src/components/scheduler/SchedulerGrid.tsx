@@ -1,20 +1,6 @@
-import {
-  Fragment,
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  SlidersHorizontal,
-  Users,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, SlidersHorizontal, Users } from "lucide-react";
 import { m } from "@/i18n";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
@@ -41,10 +27,7 @@ import { buildSchedulerModel } from "./schedulerModel";
 import { buildLayout, windowFromLayout } from "./virtualWindow";
 import { useSchedulerViewport } from "./useSchedulerViewport";
 import type { GroupModel, RowModel } from "./schedulerModel";
-import {
-  isCapacityTracked,
-  isExternalResource,
-} from "@capacitylens/shared/types/entities";
+import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 import { Button } from "../ui/button";
 import { TooltipProvider } from "../ui/tooltip";
@@ -108,32 +91,20 @@ export function SchedulerGrid() {
   const snapToWeekStart = useStore((s) => s.snapToWeekStart);
   // Per-account display pref (default OFF): when off, placeholder ("slot") rows are hidden from
   // the schedule (and dropped from utilisation) by buildSchedulerModel's resourceVisible filter.
-  const placeholdersEnabled = useStore((s) =>
-    placeholdersEnabledFor(s.data, s.activeAccountId),
-  );
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
   // Per-account display pref (default OFF): when off, external / 3rd-party rows are hidden from the
   // schedule (and their now-empty band header is dropped) by buildSchedulerModel's resourceVisible filter.
-  const externalEnabled = useStore((s) =>
-    externalEnabledFor(s.data, s.activeAccountId),
-  );
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
-  const disciplinesEnabled = useStore((s) =>
-    disciplinesEnabledFor(s.data, s.activeAccountId),
-  );
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
   // Per-account Internal work colour preference. Grey is the absent/default mode; palette restores
   // saved project colours without changing the underlying project records.
-  const internalColourMode = useStore((s) =>
-    internalColourModeFor(s.data, s.activeAccountId),
-  );
+  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));
   // Per-account BAR-ONLY hide prefs for internal work (both default ON). They remove only the bars —
   // capacity/utilisation stay truthful (see buildSchedulerModel's barVisibleByInternalPref).
-  const showInternalProjects = useStore((s) =>
-    showInternalProjectsFor(s.data, s.activeAccountId),
-  );
-  const showInternalActivities = useStore((s) =>
-    showInternalActivitiesFor(s.data, s.activeAccountId),
-  );
+  const showInternalProjects = useStore((s) => showInternalProjectsFor(s.data, s.activeAccountId));
+  const showInternalActivities = useStore((s) => showInternalActivitiesFor(s.data, s.activeAccountId));
   const toggleGroup = useStore((s) => s.toggleGroup);
   const clearFilters = useStore((s) => s.clearFilters);
   const consumeResourceJump = useStore((s) => s.consumeResourceJump);
@@ -145,12 +116,8 @@ export function SchedulerGrid() {
   const draggingAllocationId = useStore((s) => s.draggingAllocationId);
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const calendarTimeZone = useStore((s) =>
-    timeZoneFor(s.data, s.activeAccountId),
-  );
-  const calendarWeekStartsOn = useStore((s) =>
-    weekStartsOnFor(s.data, s.activeAccountId),
-  );
+  const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
+  const calendarWeekStartsOn = useStore((s) => weekStartsOnFor(s.data, s.activeAccountId));
   const {
     scrollRef,
     headerRef,
@@ -191,8 +158,7 @@ export function SchedulerGrid() {
     // numbers stay sensible (anchored at/after today). Clamp the index into the day array.
     const lastIdx = days.length - 1;
     const focusIdx = days.indexOf(ui.focusDate);
-    const rawIdx =
-      leftEdgeIdx >= 0 ? leftEdgeIdx : focusIdx >= 0 ? focusIdx : 0;
+    const rawIdx = leftEdgeIdx >= 0 ? leftEdgeIdx : focusIdx >= 0 ? focusIdx : 0;
     const startIdx = Math.min(Math.max(rawIdx, 0), Math.max(lastIdx, 0));
     const start = days[startIdx] ?? ui.focusDate;
     // Inclusive end = start + (zoom*7 - 1), clamped to the last timeline day.
@@ -207,9 +173,7 @@ export function SchedulerGrid() {
       ? m.scheduler_visible_weeks_label_one({ count: ui.zoom })
       : m.scheduler_visible_weeks_label_other({ count: ui.zoom });
 
-  const blocksMode = useStore(
-    (s) => schedulingModeFor(s.data, s.activeAccountId) === "blocks",
-  );
+  const blocksMode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === "blocks");
 
   const model = useMemo(
     () =>
@@ -249,66 +213,49 @@ export function SchedulerGrid() {
     ],
   );
 
-  const todayX =
-    today >= start && today <= end ? geom.xForDateInGeom(today) : null;
+  const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null;
 
   const filtersActive = hasActiveFilters(ui.filters);
 
   // Stable callbacks so the memoised ResourceLane can skip re-rendering on
   // grid-level UI changes (e.g. opening a modal). setModal is referentially stable.
-  const handleEdit = useCallback(
-    (allocationId: ID) => setModal({ kind: "edit", allocationId }),
-    [],
-  );
-  const handleDraw = useCallback(
-    (resourceId: ID, startDate: ISODate, endDate: ISODate) => {
-      // Read the draw mode LIVE (getState) when the gesture FIRES, not via a closure over
-      // ui.drawMode. That's load-bearing: closing over ui.drawMode would give handleDraw a fresh
-      // reference on every toggle, which `onDraw` hands to every ResourceLane — failing their
-      // React.memo and re-rendering every lane (and its bars) on a mode toggle. The mode that
-      // matters is the one live at pointerup, which is exactly what getState() returns here, so
-      // an EMPTY dep array keeps this callback referentially stable across a toggle. Time off is
-      // meaningless for externals (no capacity), so a draw on their lane is a no-op rather than
-      // opening a time-off form seeded with a resource the picker itself excludes.
-      const drawMode = useStore.getState().ui.drawMode;
-      if (drawMode === "timeoff") {
-        const r = useStore
-          .getState()
-          .data.resources.find((x) => x.id === resourceId);
-        if (r && isExternalResource(r)) return;
-      }
-      setModal({
-        kind: drawMode === "timeoff" ? "timeoff" : "create",
-        resourceId,
-        startDate,
-        endDate,
-      });
-    },
-    [],
-  );
+  const handleEdit = useCallback((allocationId: ID) => setModal({ kind: "edit", allocationId }), []);
+  const handleDraw = useCallback((resourceId: ID, startDate: ISODate, endDate: ISODate) => {
+    // Read the draw mode LIVE (getState) when the gesture FIRES, not via a closure over
+    // ui.drawMode. That's load-bearing: closing over ui.drawMode would give handleDraw a fresh
+    // reference on every toggle, which `onDraw` hands to every ResourceLane — failing their
+    // React.memo and re-rendering every lane (and its bars) on a mode toggle. The mode that
+    // matters is the one live at pointerup, which is exactly what getState() returns here, so
+    // an EMPTY dep array keeps this callback referentially stable across a toggle. Time off is
+    // meaningless for externals (no capacity), so a draw on their lane is a no-op rather than
+    // opening a time-off form seeded with a resource the picker itself excludes.
+    const drawMode = useStore.getState().ui.drawMode;
+    if (drawMode === "timeoff") {
+      const r = useStore.getState().data.resources.find((x) => x.id === resourceId);
+      if (r && isExternalResource(r)) return;
+    }
+    setModal({
+      kind: drawMode === "timeoff" ? "timeoff" : "create",
+      resourceId,
+      startDate,
+      endDate,
+    });
+  }, []);
 
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(() => {
     // Exclude external / 3rd-party rows: they carry no capacity (utilisation 0) and would
     // otherwise drag the headline average down.
-    const rows = model
-      .flatMap((g) => g.rows)
-      .filter((r) => isCapacityTracked(r.resource));
-    return rows.length
-      ? Math.round(
-          (rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100,
-        )
-      : 0;
+    const rows = model.flatMap((g) => g.rows).filter((r) => isCapacityTracked(r.resource));
+    return rows.length ? Math.round((rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100) : 0;
   }, [model]);
 
   // Flatten the visible model into one ordered list of renderable items (group
   // headers + the rows of expanded groups) so the grid can window them vertically:
   // at small scale everything renders; past a viewport's worth, only the on-screen
   // slice is in the DOM (the rest is reserved by top/bottom spacers).
-  type Item =
-    | { kind: "group"; group: GroupModel }
-    | { kind: "row"; group: GroupModel; row: RowModel };
+  type Item = { kind: "group"; group: GroupModel } | { kind: "row"; group: GroupModel; row: RowModel };
   const items = useMemo(() => {
     const out: Item[] = [];
     for (const group of model) {
@@ -320,8 +267,7 @@ export function SchedulerGrid() {
         continue;
       }
       out.push({ kind: "group", group });
-      if (!ui.collapsedGroups.includes(group.key))
-        for (const row of group.rows) out.push({ kind: "row", group, row });
+      if (!ui.collapsedGroups.includes(group.key)) for (const row of group.rows) out.push({ kind: "row", group, row });
     }
     return out;
   }, [model, ui.collapsedGroups, disciplinesEnabled]);
@@ -329,10 +275,7 @@ export function SchedulerGrid() {
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
   // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
   const heights = useMemo(
-    () =>
-      items.map((it) =>
-        it.kind === "group" ? LAYOUT.groupHeaderHeight : it.row.rowHeight,
-      ),
+    () => items.map((it) => (it.kind === "group" ? LAYOUT.groupHeaderHeight : it.row.rowHeight)),
     [items],
   );
   const layout = useMemo(() => buildLayout(heights), [heights]);
@@ -342,53 +285,31 @@ export function SchedulerGrid() {
   // (prefix-sum of row heights) to find the vertical offset.
   const scrollToResource = ui.scrollToResource;
   useEffect(() => {
-    if (!scrollToResource || scrollToResource.consumed || !scrollRef.current)
-      return;
-    const idx = items.findIndex(
-      (it) => it.kind === "row" && it.row.resource.id === scrollToResource.id,
-    );
+    if (!scrollToResource || scrollToResource.consumed || !scrollRef.current) return;
+    const idx = items.findIndex((it) => it.kind === "row" && it.row.resource.id === scrollToResource.id);
     if (idx === -1) return;
     const top = layout.tops[idx] ?? 0;
     scrollRef.current.scrollTop = top;
     consumeResourceJump(scrollToResource.token);
   }, [scrollToResource, items, layout, scrollRef, consumeResourceJump]);
 
-  const { first, last } = windowFromLayout(
-    layout,
-    heights,
-    scrollTop,
-    timelineHeight,
-  );
+  const { first, last } = windowFromLayout(layout, heights, scrollTop, timelineHeight);
   const draggedItemIndex =
     draggingAllocationId === null
       ? -1
       : items.findIndex(
-          (item) =>
-            item.kind === "row" &&
-            item.row.bars.some(
-              (bar) => bar.allocation.id === draggingAllocationId,
-            ),
+          (item) => item.kind === "row" && item.row.bars.some((bar) => bar.allocation.id === draggingAllocationId),
         );
   const renderedIndices = useMemo(() => {
-    const indices = Array.from(
-      { length: Math.max(0, last - first + 1) },
-      (_, offset) => first + offset,
-    );
-    if (
-      draggedItemIndex >= 0 &&
-      (draggedItemIndex < first || draggedItemIndex > last)
-    ) {
+    const indices = Array.from({ length: Math.max(0, last - first + 1) }, (_, offset) => first + offset);
+    if (draggedItemIndex >= 0 && (draggedItemIndex < first || draggedItemIndex > last)) {
       indices.push(draggedItemIndex);
       indices.sort((a, b) => a - b);
     }
     return indices;
   }, [first, last, draggedItemIndex]);
 
-  const renderGroupHeader = (
-    group: GroupModel,
-    rowIndex: number,
-    key: string,
-  ) => (
+  const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => (
     <div
       key={key}
       role="row"
@@ -434,11 +355,7 @@ export function SchedulerGrid() {
             : utilizationPrefs.showDiscipline
               ? m.scheduler_group_avg_utilisation({
                   percent: group.rows.length
-                    ? Math.round(
-                        (group.rows.reduce((sum, r) => sum + r.utilization, 0) /
-                          group.rows.length) *
-                          100,
-                      )
+                    ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100)
                     : 0,
                 })
               : ""}
@@ -446,22 +363,8 @@ export function SchedulerGrid() {
     </div>
   );
 
-  const renderRow = (
-    group: GroupModel,
-    row: RowModel,
-    rowIndex: number,
-    key: string,
-  ) => {
-    const {
-      resource,
-      rowHeight,
-      bars,
-      dayStates,
-      timeOff,
-      utilization: util,
-      overSoon,
-      dimmed,
-    } = row;
+  const renderRow = (group: GroupModel, row: RowModel, rowIndex: number, key: string) => {
+    const { resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon, dimmed } = row;
     return (
       /* bg-surface on the whole row (not just the sticky header) so the row divider
          sits on ONE background — without it the border crosses the surface left column
@@ -543,9 +446,7 @@ export function SchedulerGrid() {
                     slot — with its role/discipline shown as secondary text below. */}
                 {resourceDisplayName(resource)}
               </span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {resource.role}
-              </span>
+              <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
             </div>
           </div>
           {/* Right column: the add button and (optionally) the allocation %, stacked.
@@ -711,22 +612,13 @@ export function SchedulerGrid() {
                       span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
                     {m.scheduler_total_util_label({ count: ui.zoom })}
                   </span>
-                  <span
-                    data-testid="overall-utilization"
-                    className="text-sm font-semibold"
-                  >
+                  <span data-testid="overall-utilization" className="text-sm font-semibold">
                     {overallUtil}%
                   </span>
                 </>
               )}
             </div>
-            <DateHeader
-              days={days}
-              dayWidth={dayWidth}
-              geom={geom}
-              weekStartsOn={calendarWeekStartsOn}
-              today={today}
-            />
+            <DateHeader days={days} dayWidth={dayWidth} geom={geom} weekStartsOn={calendarWeekStartsOn} today={today} />
           </div>
 
           {model.length === 0 && (
@@ -743,12 +635,7 @@ export function SchedulerGrid() {
               className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
               style={{ width: timelineWidth || LAYOUT.leftColWidth }}
             >
-              <div
-                role="gridcell"
-                aria-colindex={1}
-                aria-colspan={2}
-                className="flex items-center justify-center"
-              >
+              <div role="gridcell" aria-colindex={1} aria-colspan={2} className="flex items-center justify-center">
                 {filtersActive ? (
                   // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
                   // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
@@ -786,29 +673,14 @@ export function SchedulerGrid() {
                 if (!item) return null;
                 const previousIndex = renderedIndices[position - 1];
                 const previousBottom =
-                  previousIndex === undefined
-                    ? 0
-                    : (layout.tops[previousIndex] ?? 0) +
-                      (heights[previousIndex] ?? 0);
-                const gap = Math.max(
-                  0,
-                  (layout.tops[itemIndex] ?? 0) - previousBottom,
-                );
+                  previousIndex === undefined ? 0 : (layout.tops[previousIndex] ?? 0) + (heights[previousIndex] ?? 0);
+                const gap = Math.max(0, (layout.tops[itemIndex] ?? 0) - previousBottom);
                 // aria-rowindex is 1-based and global: header is 1, so items start at 2.
                 const rowIndex = itemIndex + 2;
                 const rendered =
                   item.kind === "group"
-                    ? renderGroupHeader(
-                        item.group,
-                        rowIndex,
-                        `g-${item.group.key}`,
-                      )
-                    : renderRow(
-                        item.group,
-                        item.row,
-                        rowIndex,
-                        `r-${item.row.resource.id}`,
-                      );
+                    ? renderGroupHeader(item.group, rowIndex, `g-${item.group.key}`)
+                    : renderRow(item.group, item.row, rowIndex, `r-${item.row.resource.id}`);
                 return (
                   <Fragment key={`window-${itemIndex}`}>
                     {gap > 0 && <div aria-hidden style={{ height: gap }} />}
@@ -818,14 +690,10 @@ export function SchedulerGrid() {
               })}
               {renderedIndices.length > 0 &&
                 (() => {
-                  const finalIndex =
-                    renderedIndices[renderedIndices.length - 1];
-                  const renderedBottom =
-                    (layout.tops[finalIndex] ?? 0) + (heights[finalIndex] ?? 0);
+                  const finalIndex = renderedIndices[renderedIndices.length - 1];
+                  const renderedBottom = (layout.tops[finalIndex] ?? 0) + (heights[finalIndex] ?? 0);
                   const gap = Math.max(0, layout.total - renderedBottom);
-                  return gap > 0 ? (
-                    <div aria-hidden style={{ height: gap }} />
-                  ) : null;
+                  return gap > 0 ? <div aria-hidden style={{ height: gap }} /> : null;
                 })()}
             </div>
           )}
@@ -833,10 +701,7 @@ export function SchedulerGrid() {
           {modal && (
             <Suspense fallback={null}>
               {modal.kind === "edit" ? (
-                <AllocationModal
-                  allocationId={modal.allocationId}
-                  onClose={() => setModal(null)}
-                />
+                <AllocationModal allocationId={modal.allocationId} onClose={() => setModal(null)} />
               ) : modal.kind === "timeoff" ? (
                 <TimeOffForm
                   defaults={{
@@ -878,9 +743,7 @@ export function SchedulerGrid() {
           aria-atomic="true"
           data-testid="scheduler-live-region"
         >
-          {srAnnouncement && (
-            <span key={srAnnouncement.seq}>{srAnnouncement.text}</span>
-          )}
+          {srAnnouncement && <span key={srAnnouncement.seq}>{srAnnouncement.text}</span>}
         </div>
       </div>
     </TooltipProvider>

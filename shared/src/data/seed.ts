@@ -2,12 +2,7 @@ import { externalCapacityDefaults } from "../types/entities";
 import { NEUTRAL_COLOR } from "../lib/color";
 import { INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from "./internalClient";
 import type { AppData } from "../types/entities";
-import {
-  addDaysISO,
-  dayIndex,
-  startOfWeekISO,
-  todayISO,
-} from "../lib/dateMath";
+import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from "../lib/dateMath";
 
 // Two demo companies, loaded on first run so the account picker isn't empty.
 // "Studio North" is the rich dataset (stacked/overlapping allocations, an

@@ -16,10 +16,7 @@ const AUTH_WEB_PORT = 5373;
 const OIDC_API_PORT = 8897;
 const OIDC_WEB_PORT = 5473;
 const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
-const coreSpec = new RegExp(
-  String.raw`^(?!.*\.(?:db|auth|oidc)\.spec\.${specExtension}$).*\.spec\.ts$`,
-  "i",
-);
+const coreSpec = new RegExp(String.raw`^(?!.*\.(?:db|auth|oidc)\.spec\.${specExtension}$).*\.spec\.ts$`, "i");
 const flavourSpec = (flavour: "db" | "auth" | "oidc") =>
   new RegExp(String.raw`\.${flavour}\.spec\.${specExtension}$`, "i");
 
@@ -43,15 +40,9 @@ const firefoxEnabled = firefoxOnly || envFlag("CAPACITYLENS_FIREFOX");
 // (the cross-engine `e2e:browsers` core run), implied by either single-engine *_ONLY flag, or
 // inferred conservatively when every explicitly named spec is a core spec.
 const viteOnly =
-  envFlag("CAPACITYLENS_VITE_ONLY") ||
-  webkitOnly ||
-  firefoxOnly ||
-  selectsOnlyExplicitCoreSpecs(process.argv);
+  envFlag("CAPACITYLENS_VITE_ONLY") || webkitOnly || firefoxOnly || selectsOnlyExplicitCoreSpecs(process.argv);
 const oidcOnly = envFlag("CAPACITYLENS_OIDC_E2E");
-const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE ?? "default").replace(
-  /[^a-zA-Z0-9_-]+/g,
-  "-",
-);
+const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE ?? "default").replace(/[^a-zA-Z0-9_-]+/g, "-");
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the
@@ -79,10 +70,7 @@ export default defineConfig({
   reporter: process.env.CI
     ? [
         ["github"],
-        [
-          "html",
-          { outputFolder: `playwright-report/${reportPhase}`, open: "never" },
-        ],
+        ["html", { outputFolder: `playwright-report/${reportPhase}`, open: "never" }],
         ["junit", { outputFile: `test-results/${reportPhase}.xml` }],
       ]
     : "list",

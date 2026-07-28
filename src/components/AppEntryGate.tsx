@@ -1,21 +1,21 @@
-import type { ReactNode } from 'react'
-import { AccountPicker } from './accounts/AccountPicker'
-import { ConnectionError } from './ConnectionError'
-import { FakeSignIn } from './FakeSignIn'
-import { IntroPage } from './IntroPage'
-import { RotateHint } from './RotateHint'
+import type { ReactNode } from "react";
+import { AccountPicker } from "./accounts/AccountPicker";
+import { ConnectionError } from "./ConnectionError";
+import { FakeSignIn } from "./FakeSignIn";
+import { IntroPage } from "./IntroPage";
+import { RotateHint } from "./RotateHint";
 
 interface AppEntryGateProps {
-  hydrated: boolean
-  connectionError: boolean
-  loadError: boolean
-  demoAuthActive: boolean
-  fakeSignedIn: boolean
-  hasActiveAccount: boolean
-  introSeen: boolean
-  onFakeSignIn: () => void
-  onIntroContinue: () => void
-  children: ReactNode
+  hydrated: boolean;
+  connectionError: boolean;
+  loadError: boolean;
+  demoAuthActive: boolean;
+  fakeSignedIn: boolean;
+  hasActiveAccount: boolean;
+  introSeen: boolean;
+  onFakeSignIn: () => void;
+  onIntroContinue: () => void;
+  children: ReactNode;
 }
 
 /** Expresses the mutually-exclusive app entry sequence in one ordered boundary. */
@@ -31,7 +31,7 @@ export function AppEntryGate({
   onIntroContinue,
   children,
 }: AppEntryGateProps) {
-  if (connectionError || loadError) return <ConnectionError />
+  if (connectionError || loadError) return <ConnectionError />;
 
   if (hydrated && demoAuthActive && !fakeSignedIn) {
     return (
@@ -39,7 +39,7 @@ export function AppEntryGate({
         <FakeSignIn onSignIn={onFakeSignIn} />
         <RotateHint />
       </>
-    )
+    );
   }
 
   if (hydrated && !hasActiveAccount) {
@@ -48,7 +48,7 @@ export function AppEntryGate({
         <AccountPicker />
         <RotateHint />
       </>
-    )
+    );
   }
 
   if (hydrated && hasActiveAccount && !introSeen) {
@@ -57,8 +57,8 @@ export function AppEntryGate({
         <IntroPage onContinue={onIntroContinue} />
         <RotateHint />
       </>
-    )
+    );
   }
 
-  return children
+  return children;
 }

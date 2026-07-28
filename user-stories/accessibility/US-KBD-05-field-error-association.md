@@ -3,10 +3,12 @@
 **Area:** Keyboard & accessibility · **Persona:** Screen-reader user · **Linked E2E:** `e2e/accessibility.spec.ts` → "an invalid field is marked aria-invalid and described by the error"
 
 ## Goal
+
 When a form field is invalid, have the error tied to that specific field — not just
 printed at the bottom of the form — so assistive tech announces it on the field.
 
 ## Why
+
 A validation message shown only at the foot of a dialog is easy to miss and isn't
 linked to the control that's wrong. A screen-reader user lands on the field with no
 idea why Save failed. Marking the offending field `aria-invalid="true"` and pointing
@@ -14,7 +16,9 @@ its `aria-describedby` at the error's element makes the message announce as part
 field, so the fix is obvious to everyone.
 
 ## How (end-to-end)
+
 **Precondition:** Seeded app open; click **Resources** → **Add resource**.
+
 1. Leave **Name** empty (a person requires a name) and click **Save**.
 2. The dialog stays open and an inline error appears (e.g. "Name is required for a
    person."), rendered as an `alert` with its own id.
@@ -26,6 +30,7 @@ field, so the fix is obvious to everyone.
    the association/error is gone.
 
 ## Acceptance criteria
+
 - ✅ An invalid field gets `aria-invalid="true"`.
 - ✅ That field's `aria-describedby` equals the `id` of the error element
   (`role="alert"`), so the message is programmatically tied to the field.

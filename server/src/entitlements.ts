@@ -20,7 +20,7 @@
  * {@link entitlementsFor}) when enforcement is actually wired.
  */
 export interface Entitlements {
-  unlimited: true
+  unlimited: true;
 }
 
 /**
@@ -36,6 +36,6 @@ export interface Entitlements {
  * @returns The account's entitlements — always `{ unlimited: true }` until a plan model is wired.
  */
 export function entitlementsFor(accountId: string): Entitlements {
-  void accountId // reserved for the future per-account lookup (the documented swap point); unused today
-  return { unlimited: true }
+  void accountId; // reserved for the future per-account lookup (the documented swap point); unused today
+  return { unlimited: true };
 }

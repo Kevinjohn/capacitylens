@@ -9,21 +9,26 @@
 **Area:** Projects · **Persona:** Studio manager · **Coverage:** none currently (Phase UI hidden)
 
 ## Goal
+
 Add and remove a project's phases from within the Project edit dialog (phases are managed per-project, not on a top-level screen), and have the changes flow through to where phases are picked.
 
 ## Why
+
 Phases (Discovery, Build…) are how a single project's work is staged. They live with their project, so the manager edits them in the project dialog. A new phase should immediately be choosable when creating that project's activities and allocations; removing a phase should re-stage — never delete — the activities that were in it.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** has phases *Discovery* and *Build*. The activity *Wireframes* belongs to Project Lightning.
-1. On the **Project Lightning** row, click the **Edit** (pencil) icon. The dialog opens and shows its phases *Discovery* and *Build*.
+
+**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** has phases _Discovery_ and _Build_. The activity _Wireframes_ belongs to Project Lightning.
+
+1. On the **Project Lightning** row, click the **Edit** (pencil) icon. The dialog opens and shows its phases _Discovery_ and _Build_.
 2. Add a new phase named `Launch`. **Save** the dialog.
-3. Go to **Activities**, **Edit** *Wireframes*, ensure its **Project** is *Project Lightning*, open the **Phase** picker, set **Phase** = *Discovery*, and **Save**.
+3. Go to **Activities**, **Edit** _Wireframes_, ensure its **Project** is _Project Lightning_, open the **Phase** picker, set **Phase** = _Discovery_, and **Save**.
 4. Re-open **Project Lightning** in **Projects**, and remove the **Discovery** phase. **Save**.
-5. Go back to **Activities** and inspect *Wireframes* (which you assigned to *Discovery*).
+5. Go back to **Activities** and inspect _Wireframes_ (which you assigned to _Discovery_).
 
 ## Acceptance criteria
-- ✅ After adding **Launch** and saving, the project's phase set includes *Discovery*, *Build* and **Launch**.
-- ✅ When editing an activity whose **Project** is *Project Lightning*, **Launch** is offered in the **Phase** picker (alongside *Discovery* and *Build* and the "— No phase —" option).
-- ✅ Removing the **Discovery** phase does **not** delete the activities that were in it — *Wireframes* (which you put in *Discovery* at step 3) remains in the Activities list, now **ungrouped** (no phase, i.e. "— No phase —").
-- ✅ Phases of **Project Lightning** are only offered for *Project Lightning*'s activities/allocations — they are not offered when the selected project is *Brand Themes*.
+
+- ✅ After adding **Launch** and saving, the project's phase set includes _Discovery_, _Build_ and **Launch**.
+- ✅ When editing an activity whose **Project** is _Project Lightning_, **Launch** is offered in the **Phase** picker (alongside _Discovery_ and _Build_ and the "— No phase —" option).
+- ✅ Removing the **Discovery** phase does **not** delete the activities that were in it — _Wireframes_ (which you put in _Discovery_ at step 3) remains in the Activities list, now **ungrouped** (no phase, i.e. "— No phase —").
+- ✅ Phases of **Project Lightning** are only offered for _Project Lightning_'s activities/allocations — they are not offered when the selected project is _Brand Themes_.

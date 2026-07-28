@@ -1,13 +1,7 @@
 import { daysInclusive, parseDate, toISODate } from "./dateMath";
 import { MAX_SPAN_DAYS } from "./schedulingDays";
 import type { DomainErrorCode } from "../domain/errors";
-import type {
-  AppData,
-  EmploymentType,
-  ID,
-  ISODate,
-  Resource,
-} from "../types/entities";
+import type { AppData, EmploymentType, ID, ISODate, Resource } from "../types/entities";
 
 // Referential-integrity rules and cascade-delete transforms. All pure: cascade helpers return a
 // NEW AppData rather than mutating. Callers that own a clock may pass an updatedAt revision for
@@ -26,8 +20,7 @@ export function isValidISODate(s: unknown): s is ISODate {
   return !Number.isNaN(parsed.getTime()) && toISODate(parsed) === s;
 }
 
-const ISO_TIMESTAMP_RE =
-  /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+const ISO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
 
 /**
  * Parse the supported ISO timestamp form without accepting implementation-defined Date.parse
@@ -38,18 +31,7 @@ export function parseISOTimestamp(value: unknown): number | null {
   if (typeof value !== "string") return null;
   const match = ISO_TIMESTAMP_RE.exec(value);
   if (!match) return null;
-  const [
-    ,
-    date,
-    hourText,
-    minuteText,
-    secondText,
-    fraction,
-    zone,
-    sign,
-    offsetHourText,
-    offsetMinuteText,
-  ] = match;
+  const [, date, hourText, minuteText, secondText, fraction, zone, sign, offsetHourText, offsetMinuteText] = match;
   if (!isValidISODate(date)) return null;
 
   const hour = Number(hourText);
@@ -74,9 +56,7 @@ export function parseISOTimestamp(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed === expected ? parsed : null;
 }
 
-export function isTemporary(resource: {
-  employmentType: EmploymentType;
-}): boolean {
+export function isTemporary(resource: { employmentType: EmploymentType }): boolean {
   return resource.employmentType !== "permanent";
 }
 
@@ -95,9 +75,7 @@ const toResult = (issues: ValidationIssue[]): ValidationResult => ({
 });
 
 /** A project must belong to a client. */
-export function validateProjectClient(
-  clientId: ID | undefined | null,
-): ValidationResult {
+export function validateProjectClient(clientId: ID | undefined | null): ValidationResult {
   return toResult(
     clientId
       ? []
@@ -121,14 +99,9 @@ export function validateProjectClient(
  * check matters most on the import / direct-store paths, which bypass the native
  * date inputs that keep the UI well-formed.
  */
-export function validateDateRange(
-  startDate?: ISODate | null,
-  endDate?: ISODate | null,
-): ValidationResult {
+export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate | null): ValidationResult {
   if (!startDate || !endDate)
-    return toResult([
-      { code: "date_required", message: "Start and end dates are required." },
-    ]);
+    return toResult([{ code: "date_required", message: "Start and end dates are required." }]);
   if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
     return toResult([
       {
@@ -163,10 +136,7 @@ export function validateDateRange(
  * anyone (people and placeholders alike) can be assigned. So the rule only bites when the
  * activity itself belongs to a project.
  */
-export function validateAllocationAssignment(
-  resource: Resource,
-  activityProjectId: ID | undefined,
-): ValidationResult {
+export function validateAllocationAssignment(resource: Resource, activityProjectId: ID | undefined): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only PLACEHOLDERS are project-restricted. `person` and `external` are intentionally
   // unrestricted (an external 3rd party can be assigned any activity) — don't add a guard here.
@@ -179,8 +149,7 @@ export function validateAllocationAssignment(
     } else if (resource.projectId !== activityProjectId) {
       issues.push({
         code: "placeholder_project_mismatch",
-        message:
-          "A placeholder can only be assigned to activities from its bound project.",
+        message: "A placeholder can only be assigned to activities from its bound project.",
       });
     }
   }
@@ -215,35 +184,21 @@ export function deleteActivityCascade(data: AppData, activityId: ID): AppData {
 }
 
 /** Deleting a phase is non-destructive to its activities — it just ungroups them. */
-export function deletePhaseCascade(
-  data: AppData,
-  phaseId: ID,
-  updatedAt: string,
-): AppData {
+export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string): AppData {
   return {
     ...data,
     phases: data.phases.filter((p) => p.id !== phaseId),
-    activities: data.activities.map((t) =>
-      t.phaseId === phaseId ? { ...t, phaseId: undefined, updatedAt } : t,
-    ),
+    activities: data.activities.map((t) => (t.phaseId === phaseId ? { ...t, phaseId: undefined, updatedAt } : t)),
   };
 }
 
 /** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving activity's phase and any placeholder bound to it. PURE — returns a new AppData. */
-export function deleteProjectCascade(
-  data: AppData,
-  projectId: ID,
-  updatedAt: string,
-): AppData {
-  const removedActivityIds = new Set(
-    data.activities.filter((t) => t.projectId === projectId).map((t) => t.id),
-  );
+export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: string): AppData {
+  const removedActivityIds = new Set(data.activities.filter((t) => t.projectId === projectId).map((t) => t.id));
   // Phases removed with the project. Any SURVIVING activity that pointed at one of them
   // (e.g. legacy/incoherent data) must have its phaseId unbound, never left dangling —
   // mirroring the server FK's ON DELETE SET NULL on activities.phaseId.
-  const removedPhaseIds = new Set(
-    data.phases.filter((p) => p.projectId === projectId).map((p) => p.id),
-  );
+  const removedPhaseIds = new Set(data.phases.filter((p) => p.projectId === projectId).map((p) => p.id));
   return {
     ...data,
     projects: data.projects.filter((p) => p.id !== projectId),
@@ -251,46 +206,26 @@ export function deleteProjectCascade(
     activities: data.activities
       .filter((t) => t.projectId !== projectId)
       .map((t) =>
-        t.phaseId !== undefined && removedPhaseIds.has(t.phaseId)
-          ? { ...t, phaseId: undefined, updatedAt }
-          : t,
+        t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined, updatedAt } : t,
       ),
-    allocations: data.allocations.filter(
-      (a) => !removedActivityIds.has(a.activityId),
-    ),
+    allocations: data.allocations.filter((a) => !removedActivityIds.has(a.activityId)),
     // A placeholder bound to this project is unbound (not deleted).
-    resources: data.resources.map((r) =>
-      r.projectId === projectId ? { ...r, projectId: undefined, updatedAt } : r,
-    ),
+    resources: data.resources.map((r) => (r.projectId === projectId ? { ...r, projectId: undefined, updatedAt } : r)),
   };
 }
 
 /** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
  *  surviving phases/placeholders as needed. PURE — returns a new AppData. */
-export function deleteClientCascade(
-  data: AppData,
-  clientId: ID,
-  updatedAt: string,
-): AppData {
+export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
   // Single pass: collect every id removed by this client's deletion FIRST, then filter each
   // table ONCE — rather than re-copying the whole tree per project (deleteProjectCascade × N).
   // Same cascade semantics as looping that helper: drop the client's projects + their phases +
   // their activities (and those activities' allocations), unbind a surviving activity's phaseId that pointed
   // at a removed phase, and unbind a placeholder bound to a removed project.
-  const removedProjectIds = new Set(
-    data.projects.filter((p) => p.clientId === clientId).map((p) => p.id),
-  );
-  const removedPhaseIds = new Set(
-    data.phases
-      .filter((p) => removedProjectIds.has(p.projectId))
-      .map((p) => p.id),
-  );
+  const removedProjectIds = new Set(data.projects.filter((p) => p.clientId === clientId).map((p) => p.id));
+  const removedPhaseIds = new Set(data.phases.filter((p) => removedProjectIds.has(p.projectId)).map((p) => p.id));
   const removedActivityIds = new Set(
-    data.activities
-      .filter(
-        (t) => t.projectId !== undefined && removedProjectIds.has(t.projectId),
-      )
-      .map((t) => t.id),
+    data.activities.filter((t) => t.projectId !== undefined && removedProjectIds.has(t.projectId)).map((t) => t.id),
   );
   return {
     ...data,
@@ -300,34 +235,22 @@ export function deleteClientCascade(
     activities: data.activities
       .filter((t) => !removedActivityIds.has(t.id))
       .map((t) =>
-        t.phaseId !== undefined && removedPhaseIds.has(t.phaseId)
-          ? { ...t, phaseId: undefined, updatedAt }
-          : t,
+        t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined, updatedAt } : t,
       ),
-    allocations: data.allocations.filter(
-      (a) => !removedActivityIds.has(a.activityId),
-    ),
+    allocations: data.allocations.filter((a) => !removedActivityIds.has(a.activityId)),
     resources: data.resources.map((r) =>
-      r.projectId !== undefined && removedProjectIds.has(r.projectId)
-        ? { ...r, projectId: undefined, updatedAt }
-        : r,
+      r.projectId !== undefined && removedProjectIds.has(r.projectId) ? { ...r, projectId: undefined, updatedAt } : r,
     ),
   };
 }
 
 /** Deleting a discipline ungroups its resources rather than deleting them. */
-export function deleteDisciplineCascade(
-  data: AppData,
-  disciplineId: ID,
-  updatedAt: string,
-): AppData {
+export function deleteDisciplineCascade(data: AppData, disciplineId: ID, updatedAt: string): AppData {
   return {
     ...data,
     disciplines: data.disciplines.filter((d) => d.id !== disciplineId),
     resources: data.resources.map((r) =>
-      r.disciplineId === disciplineId
-        ? { ...r, disciplineId: undefined, updatedAt }
-        : r,
+      r.disciplineId === disciplineId ? { ...r, disciplineId: undefined, updatedAt } : r,
     ),
   };
 }

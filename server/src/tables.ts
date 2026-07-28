@@ -10,10 +10,7 @@ import type {
   TimeOff,
   AppDataKey,
 } from "@capacitylens/shared/types/entities";
-import {
-  APP_DATA_WRITE_ORDER,
-  SCOPED_WRITE_ORDER,
-} from "@capacitylens/shared/types/entities";
+import { APP_DATA_WRITE_ORDER, SCOPED_WRITE_ORDER } from "@capacitylens/shared/types/entities";
 import { BOOTSTRAP_CLAIM_TABLE_SQL } from "./bootstrapClaim";
 
 // The single source of truth for the SQL schema and the row<->object mapping. One
@@ -55,18 +52,12 @@ type CheckColumns<E, Cols extends readonly ColumnSpec[]> =
 /* eslint-disable @typescript-eslint/no-unused-vars */
 declare const _checkAccounts: CheckColumns<Account, typeof COLS_accounts>;
 declare const _checkClients: CheckColumns<Client, typeof COLS_clients>;
-declare const _checkDisciplines: CheckColumns<
-  Discipline,
-  typeof COLS_disciplines
->;
+declare const _checkDisciplines: CheckColumns<Discipline, typeof COLS_disciplines>;
 declare const _checkProjects: CheckColumns<Project, typeof COLS_projects>;
 declare const _checkPhases: CheckColumns<Phase, typeof COLS_phases>;
 declare const _checkResources: CheckColumns<Resource, typeof COLS_resources>;
 declare const _checkActivities: CheckColumns<Activity, typeof COLS_activities>;
-declare const _checkAllocations: CheckColumns<
-  Allocation,
-  typeof COLS_allocations
->;
+declare const _checkAllocations: CheckColumns<Allocation, typeof COLS_allocations>;
 declare const _checkTimeOff: CheckColumns<TimeOff, typeof COLS_timeOff>;
 /* eslint-enable @typescript-eslint/no-unused-vars */
 

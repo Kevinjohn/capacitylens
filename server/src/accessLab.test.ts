@@ -11,18 +11,14 @@ import {
 describe("access lab fixture", () => {
   it("accepts only the exact repository fixture path, not a same-named database elsewhere", () => {
     expect(resolveAccessLabDbPath(ACCESS_LAB_DB_PATH)).toBe(ACCESS_LAB_DB_PATH);
-    expect(() =>
-      resolveAccessLabDbPath(join("/tmp", ".access-lab.db")),
-    ).toThrow(/refuses every database/i);
+    expect(() => resolveAccessLabDbPath(join("/tmp", ".access-lab.db"))).toThrow(/refuses every database/i);
   });
 
   it("refuses when the pinned fixture directory entry is a symbolic link", () => {
     const inspect = (() => ({
       isSymbolicLink: () => true,
     })) as unknown as typeof import("node:fs").lstatSync;
-    expect(() => resolveAccessLabDbPath(ACCESS_LAB_DB_PATH, inspect)).toThrow(
-      /symbolic-link/i,
-    );
+    expect(() => resolveAccessLabDbPath(ACCESS_LAB_DB_PATH, inspect)).toThrow(/symbolic-link/i);
   });
 
   it("contains one company, one persona at each role, and human-visible confidential fields", () => {
@@ -61,8 +57,6 @@ describe("access lab fixture", () => {
       ...data.allocations,
       ...data.timeOff,
     ];
-    expect(
-      scopedRows.every((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
-    ).toBe(true);
+    expect(scopedRows.every((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID)).toBe(true);
   });
 });

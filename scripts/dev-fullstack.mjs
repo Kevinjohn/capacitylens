@@ -13,32 +13,32 @@
 //
 //   node scripts/dev-fullstack.mjs   # = pnpm run dev
 
-import { spawn } from 'node:child_process'
-import net from 'node:net'
-import { parsePort } from './port.mjs'
+import { spawn } from "node:child_process";
+import net from "node:net";
+import { parsePort } from "./port.mjs";
 
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
 // Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
 // (thrown at module-link time, before any server code runs) and the launcher then tears the
 // whole stack down — accurate, but it never tells the user the actual requirement.
-const nodeMajor = Number(process.versions.node.split('.')[0])
+const nodeMajor = Number(process.versions.node.split(".")[0]);
 if (!Number.isInteger(nodeMajor) || nodeMajor < 24) {
   console.error(
     `dev: full-stack dev needs Node 24+ — found ${process.versions.node}. The API uses Node's ` +
       `built-in node:sqlite (see .nvmrc). Fix: \`nvm use\`, or install Node 24+ from ` +
       `https://nodejs.org. No Node 24? \`pnpm run dev:demo\` runs the backend-free demo build.`,
-  )
-  process.exit(1)
+  );
+  process.exit(1);
 }
 
 // Keep the launcher, the API child (server reads PORT), and the Vite proxy on the SAME port.
 // vite.config.ts's proxy target MUST use the same `CAPACITYLENS_DEV_API_PORT ?? 8787` default so the
 // launcher and the Vite proxy stay in lockstep (the 8787 is the shared default, not a copy to drift).
 // NB this is the DEV-proxy API port, distinct from serve-dist.mjs's bare API_PORT (its dist-serving port).
-const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, 'CAPACITYLENS_DEV_API_PORT')
+const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, "CAPACITYLENS_DEV_API_PORT");
 // Vite is strictPort:true on 5173 (vite.config.ts), so a collision there is a hard EADDRINUSE AFTER
 // the API child has already booted. Pre-flight it too (below), symmetric with the API check.
-const WEB_PORT = 5173
+const WEB_PORT = 5173;
 
 /**
  * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe —
@@ -48,20 +48,20 @@ const WEB_PORT = 5173
 function portInUse(port) {
   return new Promise((resolve) => {
     const socket = net
-      .connect({ host: '127.0.0.1', port }, () => {
-        socket.destroy()
-        resolve(true)
+      .connect({ host: "127.0.0.1", port }, () => {
+        socket.destroy();
+        resolve(true);
       })
-      .on('error', () => {
-        socket.destroy()
-        resolve(false)
-      })
+      .on("error", () => {
+        socket.destroy();
+        resolve(false);
+      });
     // Don't hang the launcher if the probe never resolves (e.g. a host that blackholes the port).
     socket.setTimeout(1000, () => {
-      socket.destroy()
-      resolve(false)
-    })
-  })
+      socket.destroy();
+      resolve(false);
+    });
+  });
 }
 
 if (await portInUse(API_PORT)) {
@@ -69,8 +69,8 @@ if (await portInUse(API_PORT)) {
     `dev: port ${API_PORT} is already in use — the API can't start. Stop whatever holds it ` +
       `(another \`pnpm run dev\`, a stray capacitylens-server), or set CAPACITYLENS_DEV_API_PORT ` +
       `to a free port. Not starting the web server to avoid a half-up stack.`,
-  )
-  process.exit(1)
+  );
+  process.exit(1);
 }
 
 // Symmetric with the API check above: Vite is strictPort:true on WEB_PORT, so a collision is a hard
@@ -81,13 +81,13 @@ if (await portInUse(WEB_PORT)) {
     `dev: port ${WEB_PORT} is already in use — the Vite web server can't start (strictPort). Stop ` +
       `whatever holds it (for example another \`pnpm run dev\` or \`pnpm run dev:demo\`). ` +
       `Not starting the API server to avoid a half-up stack.`,
-  )
-  process.exit(1)
+  );
+  process.exit(1);
 }
 
 // shell:true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors scripts/e2e-*.mjs.
-const children = []
-let shuttingDown = false
+const children = [];
+let shuttingDown = false;
 
 /**
  * SIGTERM a child's WHOLE process group, not just the immediate `pnpm`. With `shell:true` each child
@@ -97,64 +97,64 @@ let shuttingDown = false
  * back to `taskkill /T` which walks the tree there.
  */
 function killTree(child) {
-  if (child.exitCode !== null || child.signalCode !== null) return
+  if (child.exitCode !== null || child.signalCode !== null) return;
   try {
-    if (process.platform === 'win32') {
-      spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    if (process.platform === "win32") {
+      spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
     } else {
-      process.kill(-child.pid, 'SIGTERM')
+      process.kill(-child.pid, "SIGTERM");
     }
   } catch (err) {
-    if (err.code !== 'ESRCH') throw err
+    if (err.code !== "ESRCH") throw err;
   }
 }
 
 /** Tear down every still-running child, then exit. Idempotent (first caller wins). */
 function shutdown(code) {
-  if (shuttingDown) return
-  shuttingDown = true
-  for (const child of children) killTree(child)
-  process.exit(code)
+  if (shuttingDown) return;
+  shuttingDown = true;
+  for (const child of children) killTree(child);
+  process.exit(code);
 }
 
 function start(label, args, env) {
-  const child = spawn('pnpm', args, {
+  const child = spawn("pnpm", args, {
     // Ignore stdin (inherit stdout/stderr): with detached:true the child is outside the terminal's
     // foreground group, so handing it the TTY stdin risks SIGTTIN and trips Vite's stdin-EOF→SIGTERM
     // shortcut handler. Neither tsx-watch nor Vite needs interactive stdin under this launcher.
-    stdio: ['ignore', 'inherit', 'inherit'],
+    stdio: ["ignore", "inherit", "inherit"],
     shell: true,
     // Own process group so shutdown() can SIGTERM the whole shell→pnpm→node tree (see killTree).
     detached: true,
     env: { ...process.env, ...env },
-  })
-  children.push(child)
+  });
+  children.push(child);
   // Either child exiting tears the WHOLE stack down — a dead API or a dead web server both mean
   // dev is broken, and we never leave the survivor orphaned.
-  child.on('exit', (code, signal) => {
-    if (shuttingDown) return
-    console.error(`dev: ${label} exited (${signal ? `signal ${signal}` : `code ${code}`}); shutting down.`)
-    shutdown(code ?? 1)
-  })
-  child.on('error', (err) => {
-    if (shuttingDown) return
-    console.error(`dev: failed to launch ${label}: ${err.message}`)
-    shutdown(1)
-  })
-  return child
+  child.on("exit", (code, signal) => {
+    if (shuttingDown) return;
+    console.error(`dev: ${label} exited (${signal ? `signal ${signal}` : `code ${code}`}); shutting down.`);
+    shutdown(code ?? 1);
+  });
+  child.on("error", (err) => {
+    if (shuttingDown) return;
+    console.error(`dev: failed to launch ${label}: ${err.message}`);
+    shutdown(1);
+  });
+  return child;
 }
 
 // A) SQLite API on API_PORT (server reads PORT). B) Vite web server with its /api proxy.
 // CAPACITYLENS_SEED_DEMO + CAPACITYLENS_MULTI_ACCOUNT keep dev batteries-included: the demo seed
 // ships TWO companies, and the server's default single-company cap (see server/src/app.ts's
 // AppOptions.multiAccount) would otherwise refuse the second one on every fresh dev DB.
-start('api', ['--filter', 'capacitylens-server', 'run', 'dev'], {
+start("api", ["--filter", "capacitylens-server", "run", "dev"], {
   PORT: String(API_PORT),
-  CAPACITYLENS_SEED_DEMO: '1',
-  CAPACITYLENS_MULTI_ACCOUNT: '1',
-})
-start('web', ['run', 'dev:web'], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) })
+  CAPACITYLENS_SEED_DEMO: "1",
+  CAPACITYLENS_MULTI_ACCOUNT: "1",
+});
+start("web", ["run", "dev:web"], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
 
-for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => shutdown(0))
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => shutdown(0));
 }

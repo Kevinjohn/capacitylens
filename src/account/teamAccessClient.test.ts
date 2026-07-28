@@ -38,9 +38,7 @@ describe("teamAccessClient identity validation", () => {
       }),
     );
 
-    await expect(
-      teamAccessClient.listMembers("account-1"),
-    ).resolves.toMatchObject({
+    await expect(teamAccessClient.listMembers("account-1")).resolves.toMatchObject({
       kind: "ok",
       value: [
         {
@@ -79,9 +77,7 @@ describe("teamAccessClient identity validation", () => {
       }),
     );
 
-    await expect(
-      teamAccessClient.listInvitations("account-1"),
-    ).resolves.toMatchObject({
+    await expect(teamAccessClient.listInvitations("account-1")).resolves.toMatchObject({
       kind: "ok",
       value: [{ id: "legacy-invite", preauthEmail: null }],
     });
@@ -105,9 +101,7 @@ describe("teamAccessClient identity validation", () => {
       }),
     );
 
-    await expect(
-      teamAccessClient.listMembers("account-1"),
-    ).resolves.toMatchObject({ kind: "invalid" });
+    await expect(teamAccessClient.listMembers("account-1")).resolves.toMatchObject({ kind: "invalid" });
   });
 
   it("rejects duplicate invitation identities", async () => {
@@ -125,8 +119,6 @@ describe("teamAccessClient identity validation", () => {
       }),
     );
 
-    await expect(
-      teamAccessClient.listInvitations("account-1"),
-    ).resolves.toMatchObject({ kind: "invalid" });
+    await expect(teamAccessClient.listInvitations("account-1")).resolves.toMatchObject({ kind: "invalid" });
   });
 });

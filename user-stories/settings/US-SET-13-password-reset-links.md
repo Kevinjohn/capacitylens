@@ -5,12 +5,14 @@
 sets a new password with it"
 
 ## Goal
+
 Let an Owner or Admin get a locked-out member back into the app **without any email
 infrastructure**: mint a single-use, 24-hour password-reset link from Team & access, hand it
 over directly (chat, however), and let the member choose a new password on a page that works
 **without being signed in**.
 
 ## Why
+
 CapacityLens deliberately has no email delivery (no verification or reset mail — a standing
 non-goal), so `password` mode needs a human-scale reset path: for a 5–15 person agency, "ask your
 admin" is normal. The link reuses the invite posture — a write-once bearer secret shown exactly
@@ -21,6 +23,7 @@ no-admin→owner-grant rule closes elsewhere. This is a **password-mode** featur
 identity provider owns credentials, and in auth-off there are none.
 
 ## How (end-to-end)
+
 **Precondition:** Server mode with `CAPACITYLENS_AUTH=password`. Owner A's company has member B
 (editor). B has forgotten their password. Sign in as **A**, pick the company, open **Team & access**.
 
@@ -36,12 +39,13 @@ identity provider owns credentials, and in auth-off there are none.
    (`data-testid="reset-new-password"`), **Confirm new password**
    (`data-testid="reset-confirm-password"`), **Set new password** (`data-testid="reset-submit"`).
 5. Mismatched or too-short (under 15 characters) input shows a field error without a request.
-6. On success: *"Password updated. Sign in with your new password."*
+6. On success: _"Password updated. Sign in with your new password."_
    (`data-testid="reset-success"`) with a **Go to sign in** link (a full page load onto the login
    wall). B signs in with the new password.
 7. The old password no longer signs in, and any session B still had is revoked.
 
 ## Acceptance criteria
+
 - **Reset password** appears only in server + auth-on **password** mode, only for an Owner/Admin,
   and never on an Owner's row for an Admin (only an Owner may reset an Owner). Absent in `sso`
   mode and in auth-off/local.
@@ -50,8 +54,8 @@ identity provider owns credentials, and in auth-off there are none.
 - `/reset-password/:token` renders **without a session**; redeeming sets the new password via
   Better Auth's public `POST /api/auth/reset-password`.
 - Redeeming revokes every existing session for that member; the old password is dead immediately.
-- A used/expired/unknown token shows *"This reset link is invalid, already used, or expired. Ask
-  your admin for a new one."* — reusing a consumed token is a server-side **400**.
+- A used/expired/unknown token shows _"This reset link is invalid, already used, or expired. Ask
+  your admin for a new one."_ — reusing a consumed token is a server-side **400**.
 - The server is the backstop regardless of the UI: minting below admin tier or cross-tenant is
   **403**, an Admin targeting an Owner is **403**, a non-member target is **404**, and `sso`/OFF
   modes answer **400** (`POST /api/accounts/:accountId/members/:userId/reset-password`).

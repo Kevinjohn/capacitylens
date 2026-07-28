@@ -1,15 +1,15 @@
-import { useState } from 'react'
-import { useStore } from '../../store/useStore'
-import { useFieldError } from '../../hooks/useFieldError'
-import { errorMessage } from '../../lib/errorMessage'
-import { validateText } from '../../lib/validation'
-import { m } from '@/i18n'
-import { Modal, RequiredLegend, TextField } from '../common/ui'
-import { Button } from '../ui/button'
-import { FieldError } from '../ui/field'
-import { NEUTRAL_COLOR } from '../../lib/palette'
-import { externalCapacityDefaults } from '@capacitylens/shared/types/entities'
-import type { Resource } from '@capacitylens/shared/types/entities'
+import { useState } from "react";
+import { useStore } from "../../store/useStore";
+import { useFieldError } from "../../hooks/useFieldError";
+import { errorMessage } from "../../lib/errorMessage";
+import { validateText } from "../../lib/validation";
+import { m } from "@/i18n";
+import { Modal, RequiredLegend, TextField } from "../common/ui";
+import { Button } from "../ui/button";
+import { FieldError } from "../ui/field";
+import { NEUTRAL_COLOR } from "../../lib/palette";
+import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
+import type { Resource } from "@capacitylens/shared/types/entities";
 
 /**
  * Add/edit an external / 3rd-party party — a trimmed resource form. It captures only a COMPANY
@@ -19,23 +19,23 @@ import type { Resource } from '@capacitylens/shared/types/entities'
  * per DECISIONS.md "external kind". Store rejections surface as a form error, like ResourceForm.
  */
 export function ExternalForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
-  const add = useStore((s) => s.addResource)
-  const update = useStore((s) => s.updateResource)
-  const [name, setName] = useState(resource?.name ?? '')
-  const [role, setRole] = useState(resource?.role ?? '')
-  const { error, errorField, errorId, fail } = useFieldError()
+  const add = useStore((s) => s.addResource);
+  const update = useStore((s) => s.updateResource);
+  const [name, setName] = useState(resource?.name ?? "");
+  const [role, setRole] = useState(resource?.role ?? "");
+  const { error, errorField, errorId, fail } = useFieldError();
 
   const submit = () => {
     const cleanName = validateText(name, fail, {
-      field: 'name',
+      field: "name",
       required: true,
       requiredMessage: m.form_external_err_company_required(),
-    })
-    if (cleanName === null) return
-    const cleanRole = validateText(role, fail, { field: 'role', required: false })
-    if (cleanRole === null) return
+    });
+    if (cleanName === null) return;
+    const cleanRole = validateText(role, fail, { field: "role", required: false });
+    if (cleanRole === null) return;
     const patch = {
-      kind: 'external' as const,
+      kind: "external" as const,
       name: cleanName,
       role: cleanRole,
       // Capacity fields don't apply to an external — store the unused silent defaults (ONE source,
@@ -43,15 +43,15 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       // week + positive hours) while the scheduler / forms never show or read them.
       ...externalCapacityDefaults(),
       color: NEUTRAL_COLOR,
-    }
+    };
     try {
-      if (resource) update(resource.id, patch)
-      else add(patch)
-      onClose()
+      if (resource) update(resource.id, patch);
+      else add(patch);
+      onClose();
     } catch (e) {
-      fail(null, errorMessage(e))
+      fail(null, errorMessage(e));
     }
-  }
+  };
 
   return (
     <Modal
@@ -63,14 +63,30 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
           <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button size="sm" type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">
+            {m.form_save()}
+          </Button>
         </>
       }
     >
-      <TextField label={m.form_external_company_label()} value={name} onChange={setName} required invalid={errorField === 'name'} describedById={errorId} />
-      <TextField label={m.form_external_descriptor_label()} value={role} onChange={setRole} placeholder={m.form_external_descriptor_placeholder()} invalid={errorField === 'role'} describedById={errorId} />
+      <TextField
+        label={m.form_external_company_label()}
+        value={name}
+        onChange={setName}
+        required
+        invalid={errorField === "name"}
+        describedById={errorId}
+      />
+      <TextField
+        label={m.form_external_descriptor_label()}
+        value={role}
+        onChange={setRole}
+        placeholder={m.form_external_descriptor_placeholder()}
+        invalid={errorField === "role"}
+        describedById={errorId}
+      />
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </Modal>
-  )
+  );
 }

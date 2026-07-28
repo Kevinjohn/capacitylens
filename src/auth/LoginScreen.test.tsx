@@ -1,15 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // Mock the Better Auth client so the forms can submit without a real server. signIn.email /
 // signUp.email return the library's FAILURE shape ({ error }) so each form sets its inline error
 // and the per-control describedby wires up.
-const signInEmail = vi.fn()
-const signInSocial = vi.fn()
-const signUpEmail = vi.fn()
-const verifyTotp = vi.fn()
-const verifyBackupCode = vi.fn()
-vi.mock('./authClient', () => ({
+const signInEmail = vi.fn();
+const signInSocial = vi.fn();
+const signUpEmail = vi.fn();
+const verifyTotp = vi.fn();
+const verifyBackupCode = vi.fn();
+vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
@@ -22,264 +22,272 @@ vi.mock('./authClient', () => ({
       verifyBackupCode: (...args: unknown[]) => verifyBackupCode(...args),
     },
   },
-}))
+}));
 
-import { LoginScreen } from './LoginScreen'
+import { LoginScreen } from "./LoginScreen";
 
 beforeEach(() => {
-  window.history.replaceState({}, '', '/')
-  signInEmail.mockReset()
-  signInSocial.mockReset()
-  signUpEmail.mockReset()
-  verifyTotp.mockReset()
-  verifyBackupCode.mockReset()
-})
+  window.history.replaceState({}, "", "/");
+  signInEmail.mockReset();
+  signInSocial.mockReset();
+  signUpEmail.mockReset();
+  verifyTotp.mockReset();
+  verifyBackupCode.mockReset();
+});
 
-describe('LoginScreen — external callback failures', () => {
-  it('sets a descriptive title while rendering outside the app shell', () => {
-    document.title = 'Schedule · CapacityLens'
+describe("LoginScreen — external callback failures", () => {
+  it("sets a descriptive title while rendering outside the app shell", () => {
+    document.title = "Schedule · CapacityLens";
 
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
 
-    expect(document.title).toBe('Sign in · CapacityLens')
-  })
+    expect(document.title).toBe("Sign in · CapacityLens");
+  });
 
-  it('shows stable retry guidance and removes provider-controlled query values', async () => {
+  it("shows stable retry guidance and removes provider-controlled query values", async () => {
     window.history.replaceState(
       {},
-      '',
-      '/?externalSignInError=1&error=access_denied&error_description=provider-secret',
-    )
-    render(<LoginScreen
-      authMode="sso"
-      providers={[{ id: 'sso', label: 'Single sign-on', kind: 'oidc', experimental: false }]}
-      onSignedIn={vi.fn()}
-    />)
+      "",
+      "/?externalSignInError=1&error=access_denied&error_description=provider-secret",
+    );
+    render(
+      <LoginScreen
+        authMode="sso"
+        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+        onSignedIn={vi.fn()}
+      />,
+    );
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Single sign-on was not completed. Try again or contact your administrator.',
-    )
-    expect(screen.getByRole('alert')).not.toHaveTextContent('provider-secret')
-    await waitFor(() => expect(window.location.search).toBe(''))
-  })
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Single sign-on was not completed. Try again or contact your administrator.",
+    );
+    expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
+    await waitFor(() => expect(window.location.search).toBe(""));
+  });
 
-  it('supplies a marked failure return to a named social provider', async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null })
-    window.history.replaceState({}, '', '/invite/token?source=mail')
-    render(<LoginScreen
-      authMode="sso"
-      providers={[{ id: 'google', label: 'Google', kind: 'social', experimental: true }]}
-      onSignedIn={vi.fn()}
-    />)
+  it("supplies a marked failure return to a named social provider", async () => {
+    signInSocial.mockResolvedValue({ data: {}, error: null });
+    window.history.replaceState({}, "", "/invite/token?source=mail");
+    render(
+      <LoginScreen
+        authMode="sso"
+        providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
+        onSignedIn={vi.fn()}
+      />,
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }))
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
 
-    await waitFor(() => expect(signInSocial).toHaveBeenCalledWith({
-      provider: 'google',
-      callbackURL: 'http://localhost:3000/invite/token?source=mail',
-      errorCallbackURL: 'http://localhost:3000/invite/token?source=mail&externalSignInError=1',
-    }))
-  })
-})
+    await waitFor(() =>
+      expect(signInSocial).toHaveBeenCalledWith({
+        provider: "google",
+        callbackURL: "http://localhost:3000/invite/token?source=mail",
+        errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
+      }),
+    );
+  });
+});
 
-describe('LoginScreen — multi-factor challenge', () => {
-  it('does not enter the app until the authenticator code succeeds', async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null })
-    verifyTotp.mockResolvedValue({ data: { status: true }, error: null })
-    const onSignedIn = vi.fn()
-    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />)
+describe("LoginScreen — multi-factor challenge", () => {
+  it("does not enter the app until the authenticator code succeeds", async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+    verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
+    const onSignedIn = vi.fn();
+    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
 
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-password' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByLabelText('Authentication code')).toHaveAttribute('autocomplete', 'one-time-code')
-    expect(onSignedIn).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByLabelText("Authentication code")).toHaveAttribute("autocomplete", "one-time-code");
+    expect(onSignedIn).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByTestId('mfa-code'), { target: { value: '123456' } })
-    fireEvent.click(screen.getByTestId('mfa-submit'))
-    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1))
-    expect(verifyTotp).toHaveBeenCalledWith({ code: '123456', trustDevice: false })
-  })
+    fireEvent.change(screen.getByTestId("mfa-code"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByTestId("mfa-submit"));
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1));
+    expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
+  });
 
-  it('supports a recovery code without marking the browser as trusted', async () => {
-    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null })
-    verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null })
-    const onSignedIn = vi.fn()
-    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />)
+  it("supports a recovery code without marking the browser as trusted", async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+    verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null });
+    const onSignedIn = vi.fn();
+    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
 
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-password' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    await screen.findByLabelText('Authentication code')
-    fireEvent.click(screen.getByRole('button', { name: 'Use a recovery code' }))
-    fireEvent.change(screen.getByLabelText('Recovery code'), { target: { value: 'recover-me' } })
-    fireEvent.click(screen.getByTestId('mfa-submit'))
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await screen.findByLabelText("Authentication code");
+    fireEvent.click(screen.getByRole("button", { name: "Use a recovery code" }));
+    fireEvent.change(screen.getByLabelText("Recovery code"), { target: { value: "recover-me" } });
+    fireEvent.click(screen.getByTestId("mfa-submit"));
 
-    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1))
-    expect(verifyBackupCode).toHaveBeenCalledWith({ code: 'recover-me', trustDevice: false })
-  })
-})
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1));
+    expect(verifyBackupCode).toHaveBeenCalledWith({ code: "recover-me", trustDevice: false });
+  });
+});
 
-describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
-  it('gives the email/password inputs ids and no aria-describedby before any error', () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
-    const email = screen.getByLabelText('Email')
-    const password = screen.getByLabelText('Password')
+describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
+  it("gives the email/password inputs ids and no aria-describedby before any error", () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
     // Each control carries a stable id so it can point at the shared error.
-    expect(email).toHaveAttribute('id')
-    expect(password).toHaveAttribute('id')
+    expect(email).toHaveAttribute("id");
+    expect(password).toHaveAttribute("id");
     // No error yet → no describedby dangling at a non-existent message.
-    expect(email).not.toHaveAttribute('aria-describedby')
-    expect(password).not.toHaveAttribute('aria-describedby')
-  })
+    expect(email).not.toHaveAttribute("aria-describedby");
+    expect(password).not.toHaveAttribute("aria-describedby");
+  });
 
-  it('points both inputs at the error message via aria-describedby after a failed sign-in', async () => {
-    signInEmail.mockResolvedValue({ error: { message: 'Invalid email or password.' } })
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
+  it("points both inputs at the error message via aria-describedby after a failed sign-in", async () => {
+    signInEmail.mockResolvedValue({ error: { message: "Invalid email or password." } });
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     // The role=alert error renders, and BOTH inputs describe it (re-announced on re-navigation).
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Invalid email or password.')
-    const errorId = alert.getAttribute('id')
-    expect(errorId).toBeTruthy()
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Invalid email or password.");
+    const errorId = alert.getAttribute("id");
+    expect(errorId).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByLabelText('Email')).toHaveAttribute('aria-describedby', errorId)
-      expect(screen.getByLabelText('Password')).toHaveAttribute('aria-describedby', errorId)
-    })
-  })
-})
+      expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
+    });
+  });
+});
 
 // First-run owner setup: needsSetup (server-reported: password mode + zero users) swaps the
 // sign-in form for a create-the-owner-account form; success proceeds exactly like a sign-in.
-describe('LoginScreen — first-run owner setup (needsSetup)', () => {
-  it('renders the owner-setup form instead of sign-in when needsSetup', () => {
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />)
-    expect(screen.getByRole('heading', { name: 'Create the owner account' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Name')).toBeInTheDocument()
-    expect(screen.getByLabelText('Email')).toBeInTheDocument()
-    expect(screen.getByLabelText('Password')).toBeInTheDocument()
-    expect(screen.getByLabelText('Setup token')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create owner account' })).toBeInTheDocument()
+describe("LoginScreen — first-run owner setup (needsSetup)", () => {
+  it("renders the owner-setup form instead of sign-in when needsSetup", () => {
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Create the owner account" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Setup token")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create owner account" })).toBeInTheDocument();
     // The ordinary sign-in affordances are replaced, not stacked.
-    expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
-  })
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+  });
 
-  it('keeps configured external bootstrap providers reachable during owner setup', () => {
-    render(<LoginScreen
-      authMode="password"
-      needsSetup
-      providers={[{ id: 'sso', label: 'Company SSO', kind: 'oidc', experimental: true }]}
-      onSignedIn={vi.fn()}
-    />)
+  it("keeps configured external bootstrap providers reachable during owner setup", () => {
+    render(
+      <LoginScreen
+        authMode="password"
+        needsSetup
+        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: true }]}
+        onSignedIn={vi.fn()}
+      />,
+    );
 
-    expect(screen.getByRole('button', { name: 'Create owner account' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continue with Company SSO' })).toBeInTheDocument()
-  })
+    expect(screen.getByRole("button", { name: "Create owner account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+  });
 
-  it('renders the ordinary sign-in form when needsSetup is absent (fail-closed default)', () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
-    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
-  })
+  it("renders the ordinary sign-in form when needsSetup is absent (fail-closed default)", () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+  });
 
-  it('submits name/email/password through signUp.email and calls onSignedIn on success', async () => {
-    signUpEmail.mockResolvedValue({ data: {}, error: null })
-    const onSignedIn = vi.fn()
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@x.test' } })
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-strong-password' } })
-    fireEvent.change(screen.getByLabelText('Setup token'), { target: { value: 'operator-secret' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create owner account' }))
-    await waitFor(() => expect(onSignedIn).toHaveBeenCalled())
+  it("submits name/email/password through signUp.email and calls onSignedIn on success", async () => {
+    signUpEmail.mockResolvedValue({ data: {}, error: null });
+    const onSignedIn = vi.fn();
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
+    fireEvent.change(screen.getByLabelText("Setup token"), { target: { value: "operator-secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalled());
     expect(signUpEmail).toHaveBeenCalledWith({
-      email: 'owner@x.test',
-      password: 'a-strong-password',
-      name: 'Owner',
-      fetchOptions: { headers: { 'x-capacitylens-setup-token': 'operator-secret' } },
-    })
-  })
+      email: "owner@x.test",
+      password: "a-strong-password",
+      name: "Owner",
+      fetchOptions: { headers: { "x-capacitylens-setup-token": "operator-secret" } },
+    });
+  });
 
-  it('surfaces a sign-up failure inline and describes every field by it (same WCAG contract as sign-in)', async () => {
-    signUpEmail.mockResolvedValue({ error: { message: 'Password too short' } })
-    const onSignedIn = vi.fn()
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@x.test' } })
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-strong-password' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create owner account' }))
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Password too short')
-    expect(onSignedIn).not.toHaveBeenCalled()
-    const errorId = alert.getAttribute('id')
+  it("surfaces a sign-up failure inline and describes every field by it (same WCAG contract as sign-in)", async () => {
+    signUpEmail.mockResolvedValue({ error: { message: "Password too short" } });
+    const onSignedIn = vi.fn();
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Password too short");
+    expect(onSignedIn).not.toHaveBeenCalled();
+    const errorId = alert.getAttribute("id");
     await waitFor(() => {
-      expect(screen.getByLabelText('Name')).toHaveAttribute('aria-describedby', errorId)
-      expect(screen.getByLabelText('Email')).toHaveAttribute('aria-describedby', errorId)
-      expect(screen.getByLabelText('Password')).toHaveAttribute('aria-describedby', errorId)
-      expect(screen.getByLabelText('Setup token')).toHaveAttribute('aria-describedby', errorId)
-    })
+      expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Setup token")).toHaveAttribute("aria-describedby", errorId);
+    });
     // The button recovers (busy reset) so the user can retry after fixing the input.
-    expect(screen.getByRole('button', { name: 'Create owner account' })).toBeEnabled()
-  })
+    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+  });
 
-  it('drops out of setup into the ordinary sign-in form when another operator wins the setup race', async () => {
+  it("drops out of setup into the ordinary sign-in form when another operator wins the setup race", async () => {
     // Better Auth's live per-request gate (server/src/auth.ts) refuses a SECOND sign-up with this
     // exact typed code once a user exists — the shape a losing second tab/operator would see.
     signUpEmail.mockResolvedValue({
-      error: { message: 'Email and password sign up is not enabled', code: 'EMAIL_PASSWORD_SIGN_UP_DISABLED' },
-    })
-    const onSignedIn = vi.fn()
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />)
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@x.test' } })
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-strong-password' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create owner account' }))
+      error: { message: "Email and password sign up is not enabled", code: "EMAIL_PASSWORD_SIGN_UP_DISABLED" },
+    });
+    const onSignedIn = vi.fn();
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
 
     // The dead end is fixed: the screen switches to the ordinary sign-in form...
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Someone has already set this workspace up — sign in below.')
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Someone has already set this workspace up — sign in below.");
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
-    })
+      expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    });
     // ...the create-owner fields are gone, replaced by the sign-in ones...
-    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Email')).toBeInTheDocument()
-    expect(screen.getByLabelText('Password')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     // ...and the explanatory message is still visible so the user understands why.
-    expect(screen.getByRole('alert')).toHaveTextContent('Someone has already set this workspace up — sign in below.')
-    expect(onSignedIn).not.toHaveBeenCalled()
-  })
-})
+    expect(screen.getByRole("alert")).toHaveTextContent("Someone has already set this workspace up — sign in below.");
+    expect(onSignedIn).not.toHaveBeenCalled();
+  });
+});
 
-describe('LoginScreen — degraded 401 body notice', () => {
-  it('shows the non-terminal advisory above the form when degraded is true', () => {
-    render(<LoginScreen authMode="password" degraded onSignedIn={vi.fn()} />)
-    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument()
+describe("LoginScreen — degraded 401 body notice", () => {
+  it("shows the non-terminal advisory above the form when degraded is true", () => {
+    render(<LoginScreen authMode="password" degraded onSignedIn={vi.fn()} />);
+    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
     // Still a fully usable password form underneath the advisory — never a dead end.
-    expect(screen.getByLabelText('Email')).toBeInTheDocument()
-    expect(screen.getByLabelText('Password')).toBeInTheDocument()
-  })
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+  });
 
-  it('renders no advisory by default (a well-formed body)', () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
-    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument()
-  })
-})
+  it("renders no advisory by default (a well-formed body)", () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
+  });
+});
 
-describe('LoginScreen — unsaved session-expiry notice', () => {
-  it('surfaces the captured write loss without blocking sign-in', () => {
-    render(<LoginScreen authMode="password" hadUnsavedChanges onSignedIn={vi.fn()} />)
-    expect(screen.getByRole('alert')).toHaveTextContent(/could not be saved before your session expired/i)
-    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled()
-  })
+describe("LoginScreen — unsaved session-expiry notice", () => {
+  it("surfaces the captured write loss without blocking sign-in", () => {
+    render(<LoginScreen authMode="password" hadUnsavedChanges onSignedIn={vi.fn()} />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/could not be saved before your session expired/i);
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+  });
 
-  it('does not claim loss for an ordinary signed-out boot', () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
-    expect(screen.queryByText(/could not be saved before your session expired/i)).not.toBeInTheDocument()
-  })
-})
+  it("does not claim loss for an ordinary signed-out boot", () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    expect(screen.queryByText(/could not be saved before your session expired/i)).not.toBeInTheDocument();
+  });
+});

@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
-import { useStore } from './useStore'
-import { scopeData } from './selectors'
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
-import { emptyAppData } from '@capacitylens/shared/types/entities'
-import type { AppData } from '@capacitylens/shared/types/entities'
+import { useMemo } from "react";
+import { useStore } from "./useStore";
+import { scopeData } from "./selectors";
+import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
 
 /**
  * The read-side seam for multi-tenancy. Components receive only the active account's entities.
@@ -14,12 +14,9 @@ import type { AppData } from '@capacitylens/shared/types/entities'
  * @returns The active account's {@link AppData} slice, or an empty `AppData` when no account is active.
  */
 export function useScopedData(): AppData {
-  const data = useStore((s) => s.data)
-  const activeAccountId = useStore((s) => s.activeAccountId)
-  return useMemo(
-    () => (activeAccountId ? scopeData(data, activeAccountId) : emptyAppData()),
-    [data, activeAccountId],
-  )
+  const data = useStore((s) => s.data);
+  const activeAccountId = useStore((s) => s.activeAccountId);
+  return useMemo(() => (activeAccountId ? scopeData(data, activeAccountId) : emptyAppData()), [data, activeAccountId]);
 }
 
 /**
@@ -36,8 +33,8 @@ export function useScopedData(): AppData {
  * @returns The active account's {@link AppData} slice with archived/soft-deleted rows excluded.
  */
 export function useActiveScopedData(): AppData {
-  const base = useScopedData()
-  return useMemo(() => activeOnly(base), [base])
+  const base = useScopedData();
+  return useMemo(() => activeOnly(base), [base]);
 }
 
 /**
@@ -59,5 +56,5 @@ export function useActiveScopedData(): AppData {
  * @returns The active account's RAW {@link AppData} slice including archived and soft-deleted rows.
  */
 export function useInactiveScopedData(): AppData {
-  return useScopedData()
+  return useScopedData();
 }

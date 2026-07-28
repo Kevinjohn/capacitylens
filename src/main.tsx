@@ -22,8 +22,7 @@ import { m } from "@/i18n";
 
 // Validate the fatal mount precondition before theme, persistence, network or listener side effects.
 const rootEl = document.getElementById("root");
-if (!rootEl)
-  throw new Error(`${APP_NAME} mount node #root not found in index.html`);
+if (!rootEl) throw new Error(`${APP_NAME} mount node #root not found in index.html`);
 
 // Paint the saved colour scheme (the inline <head> script already did this to beat
 // the first paint; this re-affirms it from the store) and keep "system" mode live
@@ -68,8 +67,7 @@ function startPersistence(): void {
     // "changes aren't saving" banner back down. Guarded so a normal save doesn't
     // churn the store on every keystroke.
     onSuccess: () => {
-      if (useStore.getState().persistError)
-        useStore.getState().setPersistError(false);
+      if (useStore.getState().persistError) useStore.getState().setPersistError(false);
     },
   })
     .then((detach) => {
@@ -80,10 +78,7 @@ function startPersistence(): void {
       // Hydration itself failed — still let the app render (with the banner) rather
       // than dying on an unhandled rejection. The banner tells the user "changes aren't saving",
       // but log the real cause too so a contributor isn't left guessing what broke at boot.
-      console.error(
-        "bootstrap: hydration failed; rendering with the persist-error banner",
-        e,
-      );
+      console.error("bootstrap: hydration failed; rendering with the persist-error banner", e);
       useStore.getState().setHydrated(true);
       useStore.getState().setPersistError(true);
     });

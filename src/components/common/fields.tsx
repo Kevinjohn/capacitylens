@@ -1,36 +1,14 @@
 import { useId, useState } from "react";
-import {
-  MAX_NAME_INPUT_CODE_UNITS,
-  MAX_NOTE_INPUT_CODE_UNITS,
-} from "@capacitylens/shared/lib/strings";
-import {
-  SWATCHES,
-  SWATCH_COLUMNS,
-  swatchLabel,
-  colorName,
-} from "../../lib/palette";
+import { MAX_NAME_INPUT_CODE_UNITS, MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
+import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from "../../lib/palette";
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
 // be exported without tripping react-refresh/only-export-components on this file.
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "../ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Field, FieldContent, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
@@ -39,24 +17,12 @@ import type { Weekday } from "@capacitylens/shared/types/entities";
 import { useMarkFormDirty } from "./formDirty";
 
 // Product field APIs composed from ShadCN's Field family.
-function RequiredFieldLabel({
-  label,
-  required,
-  htmlFor,
-}: {
-  label: string;
-  required?: boolean;
-  htmlFor: string;
-}) {
+function RequiredFieldLabel({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
   return (
     <div className="flex items-center gap-1">
       <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
       {required && (
-        <span
-          aria-hidden="true"
-          className="text-danger"
-          title={m.field_required()}
-        >
+        <span aria-hidden="true" className="text-danger" title={m.field_required()}>
           *
         </span>
       )}
@@ -68,8 +34,7 @@ function RequiredFieldLabel({
 export function RequiredLegend() {
   return (
     <p className="text-xs text-muted-foreground">
-      <span className="font-medium text-danger">*</span>{" "}
-      {m.field_required_legend()}
+      <span className="font-medium text-danger">*</span> {m.field_required_legend()}
     </p>
   );
 }
@@ -95,9 +60,7 @@ export function SwitchField({
     <Field orientation="horizontal" data-disabled={disabled || undefined}>
       <FieldContent>
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
-        {description && (
-          <FieldDescription id={descriptionId}>{description}</FieldDescription>
-        )}
+        {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
       </FieldContent>
       <Switch
         id={controlId}
@@ -149,10 +112,7 @@ export function TextField({
 }) {
   const id = useId();
   return (
-    <Field
-      data-invalid={invalid || undefined}
-      data-disabled={disabled || undefined}
-    >
+    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}
@@ -312,10 +272,8 @@ export interface Option {
 // Radix reserves the empty string for its placeholder state. Encode every caller value into a
 // separate non-empty domain instead of reserving one otherwise-legal string as a sentinel.
 const SELECT_VALUE_PREFIX = "__capacitylens_option__:";
-const encodeSelectValue = (value: string): string =>
-  `${SELECT_VALUE_PREFIX}${value}`;
-const decodeSelectValue = (value: string): string =>
-  value.slice(SELECT_VALUE_PREFIX.length);
+const encodeSelectValue = (value: string): string => `${SELECT_VALUE_PREFIX}${value}`;
+const decodeSelectValue = (value: string): string => value.slice(SELECT_VALUE_PREFIX.length);
 
 export function SelectField({
   label,
@@ -346,10 +304,7 @@ export function SelectField({
   const markDirty = useMarkFormDirty();
   const selectedOption = options.find((option) => option.value === value);
   return (
-    <Field
-      data-invalid={invalid || undefined}
-      data-disabled={disabled || undefined}
-    >
+    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Select
         value={selectedOption ? encodeSelectValue(value) : ""}
@@ -370,19 +325,12 @@ export function SelectField({
           aria-label={ariaLabel}
           data-testid={testId}
         >
-          <SelectValue placeholder={placeholder}>
-            {selectedOption?.label}
-          </SelectValue>
+          <SelectValue placeholder={placeholder}>{selectedOption?.label}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
             {options.map((o) => (
-              <SelectItem
-                key={o.value}
-                value={encodeSelectValue(o.value)}
-                data-value={o.value}
-                disabled={o.disabled}
-              >
+              <SelectItem key={o.value} value={encodeSelectValue(o.value)} data-value={o.value} disabled={o.disabled}>
                 {o.label}
               </SelectItem>
             ))}
@@ -464,8 +412,7 @@ export function ColorField({
                 }}
                 className={cn(
                   "size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110",
-                  selected &&
-                    "outline outline-2 outline-offset-1 outline-brand-strong",
+                  selected && "outline outline-2 outline-offset-1 outline-brand-strong",
                 )}
                 style={{ backgroundColor: hex }}
               />
@@ -520,10 +467,7 @@ export function WeekdayPicker({
 }) {
   const markDirty = useMarkFormDirty();
   return (
-    <FieldSet
-      aria-invalid={invalid || undefined}
-      aria-describedby={invalid ? describedById : undefined}
-    >
+    <FieldSet aria-invalid={invalid || undefined} aria-describedby={invalid ? describedById : undefined}>
       <FieldLegend variant="label">{label}</FieldLegend>
       <ToggleGroup
         type="multiple"
@@ -537,11 +481,7 @@ export function WeekdayPicker({
         }}
       >
         {WEEKDAY_ORDER.map((day) => (
-          <ToggleGroupItem
-            key={day}
-            value={String(day)}
-            aria-label={weekdayShortLabel(day)}
-          >
+          <ToggleGroupItem key={day} value={String(day)} aria-label={weekdayShortLabel(day)}>
             {weekdayShortLabel(day)}
           </ToggleGroupItem>
         ))}

@@ -4,20 +4,23 @@
 
 > **Placeholder copy.** The wording on this page is **placeholder**, pending a human edit — it is
 > single-sourced in `src/lib/introCopy.ts` and rendered verbatim. Don't treat the exact sentences as
-> final product positioning; the *behaviour* (a once-per-device explainer between picking a company
+> final product positioning; the _behaviour_ (a once-per-device explainer between picking a company
 > and the app) is what this story pins.
 
 ## Goal
+
 After choosing a company, a first-time viewer sees a brief page explaining what CapacityLens is — a
 resourcing tool, not a project-management tool — so they arrive at the schedule with the right mental
 model, then continue into the app.
 
 ## Why
+
 CapacityLens is deliberately narrow (a helicopter view of who's busy/free). New viewers often expect a
 task/ticket tracker. A short intermediary page sets that expectation up front. It shows once per
 device so it never nags returning users.
 
 ## How (end-to-end, default local mode)
+
 **Precondition:** Seeded app in the default deploy. Start from a clean state (DevTools → Console →
 `localStorage.clear()` → reload).
 
@@ -30,6 +33,7 @@ device so it never nags returning users.
    does not reappear (it is dismissed per-browser).
 
 ## Acceptance criteria
+
 - After a company is chosen — on a clean load — the **Welcome to CapacityLens** page appears **before** the
   app, with exactly one `h1`, the placeholder paragraphs, and a **Continue** button
   (`data-testid="intro-continue"`).

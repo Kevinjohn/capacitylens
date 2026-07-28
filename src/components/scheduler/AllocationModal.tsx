@@ -3,11 +3,7 @@ import { flushSync } from "react-dom";
 import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import {
-  daysInclusive,
-  parseDate,
-  todayISO,
-} from "@capacitylens/shared/lib/dateMath";
+import { daysInclusive, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import {
   blockHoursPerDay,
   daysOfWorkFor,
@@ -30,33 +26,14 @@ import { domainErrorMessage, errorMessage } from "../../lib/errorMessage";
 import { m } from "@/i18n";
 import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { Plus } from "lucide-react";
-import {
-  DateField,
-  Modal,
-  NumberField,
-  RequiredLegend,
-  SelectField,
-  TextAreaField,
-  type Option,
-} from "../common/ui";
+import { DateField, Modal, NumberField, RequiredLegend, SelectField, TextAreaField, type Option } from "../common/ui";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import { capacityAdvisory } from "../../lib/capacity";
-import {
-  allocationStatusOptions,
-  resourceDisplayName,
-} from "../../lib/metadata";
-import {
-  isExternalResource,
-  MAX_HOURS_PER_DAY,
-} from "@capacitylens/shared/types/entities";
-import type {
-  AllocationStatus,
-  ISODate,
-  Resource,
-  SchedulingMode,
-} from "@capacitylens/shared/types/entities";
+import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
+import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
@@ -103,21 +80,11 @@ function effectiveAllocationValues({
   const resource = resources.find((candidate) => candidate.id === resourceId);
   const external = !!resource && isExternalResource(resource);
   const workingHoursPerDay = resource?.workingHoursPerDay ?? 8;
-  const validDaysOver =
-    Number.isSafeInteger(daysOver) &&
-    daysOver >= 1 &&
-    daysOver <= MAX_SPAN_DAYS;
+  const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const spanOpts = { workingDays: resource?.workingDays, ignoreWeekends };
-  const spanFitsDateDomain =
-    !!startDate &&
-    validDaysOver &&
-    daysOver <= maxSpanDaysForStart(startDate, spanOpts);
+  const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maxSpanDaysForStart(startDate, spanOpts);
   const spanEnd = startDate
-    ? endDateForSpan(
-        startDate,
-        validDaysOver && spanFitsDateDomain ? daysOver : 1,
-        spanOpts,
-      )
+    ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOpts)
     : endDate;
   const effective = external
     ? { endDate, hoursPerDay: 0 }
@@ -126,11 +93,7 @@ function effectiveAllocationValues({
       : mode === "days"
         ? {
             endDate: spanEnd,
-            hoursPerDay: hoursPerDayFor(
-              daysOfWork,
-              daysOver,
-              workingHoursPerDay,
-            ),
+            hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, workingHoursPerDay),
           }
         : { endDate, hoursPerDay };
   return {
@@ -152,96 +115,60 @@ export function AllocationModal(props: AllocationModalProps) {
   const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF): when off, placeholders are dropped from the assignee
   // picker (except an already-assigned one — see resourceOptions below for risk A).
-  const placeholdersEnabled = useStore((s) =>
-    placeholdersEnabledFor(s.data, s.activeAccountId),
-  );
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF): when off, external / 3rd parties are dropped from the
   // assignee picker (except an already-assigned one — same risk-A escape hatch as placeholders).
-  const externalEnabled = useStore((s) =>
-    externalEnabledFor(s.data, s.activeAccountId),
-  );
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
   // Per-account pref (default ON): when off, the inline "Add activity" input + button is not rendered.
   // The Activity SelectField still works normally — you pick from the existing activity list.
-  const inlineActivityCreateEnabled = useStore((s) =>
-    inlineActivityCreateEnabledFor(s.data, s.activeAccountId),
-  );
-  const calendarTimeZone = useStore((s) =>
-    timeZoneFor(s.data, s.activeAccountId),
-  );
+  const inlineActivityCreateEnabled = useStore((s) => inlineActivityCreateEnabledFor(s.data, s.activeAccountId));
+  const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
   const isDays = mode === "days";
   const isBlocks = mode === "blocks";
 
   const editId = "allocationId" in props ? props.allocationId : undefined;
   const create = "create" in props ? props.create : undefined;
-  const editing = editId
-    ? data.allocations.find((a) => a.id === editId)
-    : undefined;
+  const editing = editId ? data.allocations.find((a) => a.id === editId) : undefined;
 
-  const initialActivity = editing
-    ? data.activities.find((act) => act.id === editing.activityId)
-    : undefined;
+  const initialActivity = editing ? data.activities.find((act) => act.id === editing.activityId) : undefined;
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
-  const initialResource = data.resources.find(
-    (r) => r.id === initialResourceId,
-  );
-  const initialLocked =
-    initialResource?.kind === "placeholder"
-      ? initialResource.projectId
-      : undefined;
+  const initialResource = data.resources.find((r) => r.id === initialResourceId);
+  const initialLocked = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
 
   const [resourceId, setResourceId] = useState(initialResourceId);
   // When editing, the existing activity's project wins (undefined → '' = general), so a
   // placeholder→general allocation reopens with the Activity select correctly populated.
   // `initialLocked` is only the CREATE-time default for a placeholder's bound project.
-  const [projectId, setProjectId] = useState(
-    editing ? (initialActivity?.projectId ?? "") : (initialLocked ?? ""),
-  );
+  const [projectId, setProjectId] = useState(editing ? (initialActivity?.projectId ?? "") : (initialLocked ?? ""));
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
   const [startDate, setStartDate] = useState<ISODate>(
     editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone),
   );
-  const [endDate, setEndDate] = useState<ISODate>(
-    editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone),
-  );
-  const [hoursPerDay, setHoursPerDay] = useState(
-    editing?.hoursPerDay ?? initialResource?.workingHoursPerDay ?? 8,
-  );
-  const [status, setStatus] = useState<AllocationStatus>(
-    editing?.status ?? "confirmed",
-  );
+  const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone));
+  const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? initialResource?.workingHoursPerDay ?? 8);
+  const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? "confirmed");
   const [note, setNote] = useState(editing?.note ?? "");
-  const [ignoreWeekends, setIgnoreWeekends] = useState(
-    editing?.ignoreWeekends ?? false,
-  );
+  const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false);
   // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
   // hours/dates against the assignee's working week; for a NEW one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
   // create defaults hours to a full working day across the same range.
   const initialWhpd = initialResource?.workingHoursPerDay ?? 8;
-  const initialStart =
-    editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
+  const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const seedEnd = editing?.endDate ?? create?.endDate;
   const initialDaysOpts = {
     workingDays: initialResource?.workingDays,
     ignoreWeekends: editing?.ignoreWeekends ?? false,
   };
-  const initialDaysOver = seedEnd
-    ? Math.max(1, spanDays(initialStart, seedEnd, initialDaysOpts))
-    : 1;
+  const initialDaysOver = seedEnd ? Math.max(1, spanDays(initialStart, seedEnd, initialDaysOpts)) : 1;
   // NumberField can expose a transient 0 while the user clears the number input. Submission below
   // validates daysOver explicitly; the defensive 1 used for the live preview is never persisted.
   const [daysOver, setDaysOver] = useState(initialDaysOver);
   const [daysOfWork, setDaysOfWork] = useState(
-    editing
-      ? roundDays(
-          daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd),
-        )
-      : initialDaysOver,
+    editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,
   );
   const [newActivityName, setNewActivityName] = useState("");
-  const [inlineActivityOption, setInlineActivityOption] = useState<
-    (Option & { projectId?: string }) | null
-  >(null);
+  const [inlineActivityOption, setInlineActivityOption] = useState<(Option & { projectId?: string }) | null>(null);
   const { error, errorField, errorId, fail } = useFieldError();
   const includeWeekendsId = useId();
 
@@ -264,17 +191,7 @@ export function AllocationModal(props: AllocationModalProps) {
         daysOfWork,
         ignoreWeekends,
       }),
-    [
-      data.resources,
-      daysOfWork,
-      daysOver,
-      endDate,
-      hoursPerDay,
-      ignoreWeekends,
-      mode,
-      resourceId,
-      startDate,
-    ],
+    [data.resources, daysOfWork, daysOver, endDate, hoursPerDay, ignoreWeekends, mode, resourceId, startDate],
   );
   const {
     resource: selectedResource,
@@ -287,9 +204,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const isPlaceholder = selectedResource?.kind === "placeholder";
   // External / 3rd-party assignees carry no hours: the modal collects just a date span and
   // persists hoursPerDay 0 (like a 'blocks' booking), with no capacity advisory.
-  const lockedProjectId = isPlaceholder
-    ? selectedResource?.projectId
-    : undefined;
+  const lockedProjectId = isPlaceholder ? selectedResource?.projectId : undefined;
 
   // Effective range/hours fed to the capacity check and the store. In days mode the
   // end date and hours/day are DERIVED from (start, days of work, days over) against
@@ -302,8 +217,7 @@ export function AllocationModal(props: AllocationModalProps) {
   // Raw End-date modes need the same finite span boundary as Days/Blocks. Use the O(1) calendar
   // difference here: deriving the range with eachDayISO just to validate it would itself recreate
   // the multi-million-day render freeze this guard prevents.
-  const typedDateSpanDays =
-    startDate && endDate ? daysInclusive(startDate, endDate) : 0;
+  const typedDateSpanDays = startDate && endDate ? daysInclusive(startDate, endDate) : 0;
   const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
 
   // Non-blocking capacity advisory (DECISIONS.md: "advisory at allocation time"). The drag-move
@@ -314,24 +228,11 @@ export function AllocationModal(props: AllocationModalProps) {
     if (effectiveValues.external) return null;
     // A malformed/reversed span and a range beyond the form's finite work bound get no advisory.
     // This check is O(1) and runs before capacityAdvisory can materialise one ISO string per day.
-    const span =
-      startDate && effectiveValues.endDate
-        ? daysInclusive(startDate, effectiveValues.endDate)
-        : 0;
-    if (
-      !effectiveValues.resource ||
-      !startDate ||
-      !effectiveValues.endDate ||
-      span < 1 ||
-      span > MAX_SPAN_DAYS
-    )
+    const span = startDate && effectiveValues.endDate ? daysInclusive(startDate, effectiveValues.endDate) : 0;
+    if (!effectiveValues.resource || !startDate || !effectiveValues.endDate || span < 1 || span > MAX_SPAN_DAYS)
       return null;
-    const others = data.allocations.filter(
-      (a) => a.resourceId === resourceId && a.id !== editId,
-    );
-    const resourceTimeOff = data.timeOff.filter(
-      (t) => t.resourceId === resourceId,
-    );
+    const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId);
+    const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId);
     const { overDays, timeOffDays } = capacityAdvisory(
       effectiveValues.resource,
       others,
@@ -355,15 +256,7 @@ export function AllocationModal(props: AllocationModalProps) {
           : m.form_allocation_advisory_timeoff_other({ count: timeOffDays }),
       );
     return bits.length ? bits.join(m.form_allocation_advisory_join()) : null;
-  }, [
-    data.allocations,
-    data.timeOff,
-    editId,
-    effectiveValues,
-    ignoreWeekends,
-    resourceId,
-    startDate,
-  ]);
+  }, [data.allocations, data.timeOff, editId, effectiveValues, ignoreWeekends, resourceId, startDate]);
 
   // Guard the formatted end-date hint: effEndDate is derived from a user-typed span, and a
   // value past the date range parses to an Invalid Date, which format() would throw on
@@ -380,13 +273,8 @@ export function AllocationModal(props: AllocationModalProps) {
   // so editing shows the correct value in the chooser instead of silently reassigning the work to
   // someone else on save.
   const resourceOptions: Option[] = data.resources
-    .filter(
-      (r) =>
-        placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId,
-    )
-    .filter(
-      (r) => externalEnabled || !isExternalResource(r) || r.id === resourceId,
-    )
+    .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId)
+    .filter((r) => externalEnabled || !isExternalResource(r) || r.id === resourceId)
     .map((r) => ({
       value: r.id,
       label: `${resourceDisplayName(r)}${
@@ -411,49 +299,37 @@ export function AllocationModal(props: AllocationModalProps) {
         };
       }),
   ];
-  const eligibleActivities = data.activities.filter((t) =>
-    projectId ? t.projectId === projectId : !t.projectId,
-  );
+  const eligibleActivities = data.activities.filter((t) => (projectId ? t.projectId === projectId : !t.projectId));
   const activityNameCounts = new Map<string, number>();
   for (const activity of eligibleActivities) {
-    activityNameCounts.set(
-      activity.name,
-      (activityNameCounts.get(activity.name) ?? 0) + 1,
-    );
+    activityNameCounts.set(activity.name, (activityNameCounts.get(activity.name) ?? 0) + 1);
   }
   const duplicateLabelCounts = new Map<string, number>();
   const activityOptions: Option[] = eligibleActivities.map((activity) => {
     if (activityNameCounts.get(activity.name) === 1) {
       return { value: activity.id, label: activity.name };
     }
-    const phaseName = data.phases.find(
-      (phase) => phase.id === activity.phaseId,
-    )?.name;
+    const phaseName = data.phases.find((phase) => phase.id === activity.phaseId)?.name;
     const context =
       phaseName ??
       (activity.kind === "internal"
         ? m.form_activity_kind_internal()
         : activity.kind === "repeatable"
           ? m.form_activity_kind_repeatable()
-          : (data.projects.find((project) => project.id === activity.projectId)
-              ?.name ?? "Project"));
+          : (data.projects.find((project) => project.id === activity.projectId)?.name ?? "Project"));
     const baseLabel = `${activity.name} / ${context}`;
     const occurrence = (duplicateLabelCounts.get(baseLabel) ?? 0) + 1;
     duplicateLabelCounts.set(baseLabel, occurrence);
     const exactCount = eligibleActivities.filter((candidate) => {
       if (candidate.name !== activity.name) return false;
-      const candidatePhase = data.phases.find(
-        (phase) => phase.id === candidate.phaseId,
-      )?.name;
+      const candidatePhase = data.phases.find((phase) => phase.id === candidate.phaseId)?.name;
       const candidateContext =
         candidatePhase ??
         (candidate.kind === "internal"
           ? m.form_activity_kind_internal()
           : candidate.kind === "repeatable"
             ? m.form_activity_kind_repeatable()
-            : (data.projects.find(
-                (project) => project.id === candidate.projectId,
-              )?.name ?? "Project"));
+            : (data.projects.find((project) => project.id === candidate.projectId)?.name ?? "Project"));
       return candidateContext === context;
     }).length;
     return {
@@ -464,9 +340,7 @@ export function AllocationModal(props: AllocationModalProps) {
   if (
     inlineActivityOption &&
     inlineActivityOption.projectId === (projectId || undefined) &&
-    !activityOptions.some(
-      (option) => option.value === inlineActivityOption.value,
-    )
+    !activityOptions.some((option) => option.value === inlineActivityOption.value)
   ) {
     activityOptions.push(inlineActivityOption);
   }
@@ -506,12 +380,7 @@ export function AllocationModal(props: AllocationModalProps) {
       setActivityId(activity.id);
       setNewActivityName("");
     } catch (error) {
-      fail(
-        null,
-        error instanceof Error
-          ? error.message
-          : m.form_allocation_err_save_failed(),
-      );
+      fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());
     }
   };
 
@@ -555,10 +424,7 @@ export function AllocationModal(props: AllocationModalProps) {
         return null;
       }
       if (!validDaysOver) {
-        fail(
-          "daysOver",
-          m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }),
-        );
+        fail("daysOver", m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }));
         return null;
       }
       if (!spanFitsDateDomain) {
@@ -571,10 +437,7 @@ export function AllocationModal(props: AllocationModalProps) {
         return null;
       }
       if (!validDaysOver) {
-        fail(
-          "daysOver",
-          m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }),
-        );
+        fail("daysOver", m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }));
         return null;
       }
       if (!spanFitsDateDomain) {
@@ -601,22 +464,12 @@ export function AllocationModal(props: AllocationModalProps) {
     if (
       !isExternal &&
       !isBlocks &&
-      !(
-        Number.isFinite(effHoursPerDay) &&
-        effHoursPerDay > 0 &&
-        effHoursPerDay <= MAX_HOURS_PER_DAY
-      )
+      !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
     ) {
       if (isDays) {
-        fail(
-          "daysOfWork",
-          m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }),
-        );
+        fail("daysOfWork", m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }));
       } else {
-        fail(
-          "hours",
-          m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }),
-        );
+        fail("hours", m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }));
       }
       return null;
     }
@@ -628,10 +481,7 @@ export function AllocationModal(props: AllocationModalProps) {
     if (cleanNote === null) return null;
     const activity = data.activities.find((act) => act.id === activityId);
     if (selectedResource && activity) {
-      const check = validateAllocationAssignment(
-        selectedResource,
-        activity.projectId,
-      );
+      const check = validateAllocationAssignment(selectedResource, activity.projectId);
       if (!check.ok) {
         fail("activity", domainErrorMessage(check.codes[0]));
         return null;
@@ -669,12 +519,7 @@ export function AllocationModal(props: AllocationModalProps) {
       }
       onClose();
     } catch (e) {
-      fail(
-        null,
-        e instanceof Error
-          ? errorMessage(e)
-          : m.form_allocation_err_save_failed(),
-      );
+      fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_save_failed());
     }
   };
 
@@ -686,12 +531,7 @@ export function AllocationModal(props: AllocationModalProps) {
       addAllocation(draft);
       onClose();
     } catch (e) {
-      fail(
-        null,
-        e instanceof Error
-          ? errorMessage(e)
-          : m.form_allocation_err_save_failed(),
-      );
+      fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_save_failed());
     }
   };
 
@@ -701,12 +541,7 @@ export function AllocationModal(props: AllocationModalProps) {
       deleteAllocation(editing.id);
       onClose();
     } catch (e) {
-      fail(
-        null,
-        e instanceof Error
-          ? errorMessage(e)
-          : m.form_allocation_err_delete_failed(),
-      );
+      fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_delete_failed());
     }
   };
 
@@ -738,20 +573,10 @@ export function AllocationModal(props: AllocationModalProps) {
         <>
           {editing && (
             <>
-              <Button
-                size="sm"
-                type="button"
-                variant="danger-soft"
-                onClick={onDelete}
-              >
+              <Button size="sm" type="button" variant="danger-soft" onClick={onDelete}>
                 {m.form_delete()}
               </Button>
-              <Button
-                size="sm"
-                type="button"
-                variant="outline"
-                onClick={onDuplicate}
-              >
+              <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
                 {m.form_allocation_duplicate()}
               </Button>
             </>
@@ -778,11 +603,7 @@ export function AllocationModal(props: AllocationModalProps) {
           describedById={errorId}
         />
       )}
-      {isPlaceholder && (
-        <p className="text-xs text-muted-foreground">
-          {m.form_allocation_placeholder_locked()}
-        </p>
-      )}
+      {isPlaceholder && <p className="text-xs text-muted-foreground">{m.form_allocation_placeholder_locked()}</p>}
 
       <SelectField
         label={m.form_allocation_project_label()}
@@ -820,12 +641,7 @@ export function AllocationModal(props: AllocationModalProps) {
               }
             }}
           />
-          <Button
-            size="sm"
-            type="button"
-            variant="outline"
-            onClick={onAddActivity}
-          >
+          <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
             <Plus data-icon="inline-start" />
             {m.form_allocation_add_activity()}
           </Button>
@@ -882,9 +698,7 @@ export function AllocationModal(props: AllocationModalProps) {
             </div>
           </div>
           {startDate && endDateHint && (
-            <p className="text-xs text-muted-foreground">
-              {m.form_allocation_ends_hint({ date: endDateHint })}
-            </p>
+            <p className="text-xs text-muted-foreground">{m.form_allocation_ends_hint({ date: endDateHint })}</p>
           )}
         </>
       ) : isDays ? (
@@ -994,17 +808,13 @@ export function AllocationModal(props: AllocationModalProps) {
             checked={ignoreWeekends}
             onCheckedChange={(checked) => setIgnoreWeekends(checked === true)}
           />
-          <FieldLabel htmlFor={includeWeekendsId}>
-            {m.form_allocation_include_weekends()}
-          </FieldLabel>
+          <FieldLabel htmlFor={includeWeekendsId}>{m.form_allocation_include_weekends()}</FieldLabel>
         </Field>
       )}
 
       {advisory && (
         <Alert variant="warn" role="status">
-          <AlertDescription>
-            {m.form_allocation_advisory({ advisory })}
-          </AlertDescription>
+          <AlertDescription>{m.form_allocation_advisory({ advisory })}</AlertDescription>
         </Alert>
       )}
       <FieldError id={errorId}>{error}</FieldError>

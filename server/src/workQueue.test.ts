@@ -62,10 +62,7 @@ describe("BoundedWorkQueue", () => {
     await expect(abandoned).rejects.toThrow("request gone");
     release();
 
-    await expect(Promise.all([active, useful])).resolves.toEqual([
-      "active",
-      "useful",
-    ]);
+    await expect(Promise.all([active, useful])).resolves.toEqual(["active", "useful"]);
     expect(abandonedWork).not.toHaveBeenCalled();
     expect(usefulWork).toHaveBeenCalledOnce();
   });

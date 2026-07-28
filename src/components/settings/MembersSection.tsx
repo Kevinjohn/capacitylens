@@ -6,18 +6,9 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { ConfirmDialog, SelectField, TextField } from "../common/ui";
 import { m } from "@/i18n";
-import {
-  can,
-  canManageMemberRole,
-  canRemoveMember,
-  type Role,
-} from "@capacitylens/shared/domain/access";
+import { can, canManageMemberRole, canRemoveMember, type Role } from "@capacitylens/shared/domain/access";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
-import {
-  teamAccessClient,
-  type TeamInvitation,
-  type TeamMember,
-} from "../../account/teamAccessClient";
+import { teamAccessClient, type TeamInvitation, type TeamMember } from "../../account/teamAccessClient";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import { roleLabel, roleSummary } from "../../lib/accessCopy";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
@@ -25,22 +16,10 @@ import { refreshActiveAccountSlice } from "../../data/persist";
 import { offlineStateSnapshot } from "../../data/offlineCache";
 import { useOfflineState } from "../../data/useOfflineState";
 import { useTeamDirectory } from "./useTeamDirectory";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { FieldError, FieldSet, FieldLegend } from "../ui/field";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemGroup,
-  ItemSeparator,
-} from "../ui/item";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
@@ -131,20 +110,12 @@ function CopyableLinkBlock({
   intro?: ReactNode;
 }) {
   const code = (
-    <code
-      data-testid={testId}
-      className="min-w-0 flex-1 break-all text-xs text-ink"
-    >
+    <code data-testid={testId} className="min-w-0 flex-1 break-all text-xs text-ink">
       {link}
     </code>
   );
   const button = (
-    <Button
-      aria-label={copyLabel}
-      size="sm"
-      variant="outline"
-      onClick={() => copyLink(link, copiedNotice)}
-    >
+    <Button aria-label={copyLabel} size="sm" variant="outline" onClick={() => copyLink(link, copiedNotice)}>
       {m.settings_invite_copy()}
     </Button>
   );
@@ -175,21 +146,12 @@ function CopyableLinkBlock({
  */
 export function MembersSection() {
   const activeAccountId = useStore((s) => s.activeAccountId);
-  return (
-    <AccountMembersSection
-      key={activeAccountId ?? "no-active-account"}
-      activeAccountId={activeAccountId}
-    />
-  );
+  return <AccountMembersSection key={activeAccountId ?? "no-active-account"} activeAccountId={activeAccountId} />;
 }
 
 /** Account-keyed implementation. Changing companies remounts this boundary, which discards
  * account-local drafts, confirmations, action locks and write-once bearer links together. */
-function AccountMembersSection({
-  activeAccountId,
-}: {
-  activeAccountId: string | null;
-}) {
+function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
   const { authMode, refreshAuth } = useAuth();
   const offline = useOfflineState();
   const setActiveAccount = useStore((s) => s.setActiveAccount);
@@ -220,30 +182,17 @@ function AccountMembersSection({
     member: Member;
     nextRole: Role;
   } | null>(null);
-  const [memberConfirmation, setMemberConfirmation] =
-    useState<MemberConfirmation | null>(null);
+  const [memberConfirmation, setMemberConfirmation] = useState<MemberConfirmation | null>(null);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
     setMintedLink((current) =>
-      current?.inviteId &&
-      !nextInvites.some(
-        (invite) => invite.id === current.inviteId && invite.usedAt === null,
-      )
+      current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
         ? null
         : current,
     );
   }, []);
 
   const enabled = authMode !== "off" && isServerConfigured();
-  const {
-    members,
-    invites,
-    replaceDirectory,
-    gate,
-    reload,
-    busyAction,
-    beginAction,
-    endAction,
-  } = useTeamDirectory({
+  const { members, invites, replaceDirectory, gate, reload, busyAction, beginAction, endAction } = useTeamDirectory({
     enabled,
     activeAccountId,
     offlineReadOnly: offline.readOnly,
@@ -251,12 +200,10 @@ function AccountMembersSection({
     onInvitesLoaded: reconcileMintedInvite,
   });
   const requestAccountId = (): string => {
-    if (!activeAccountId)
-      throw new Error(m.settings_members_err_no_active_account());
+    if (!activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return activeAccountId;
   };
-  const isActiveAccount = (accountId: string): boolean =>
-    useStore.getState().activeAccountId === accountId;
+  const isActiveAccount = (accountId: string): boolean => useStore.getState().activeAccountId === accountId;
   const closeActiveAccount = (): void => {
     if (useStore.getState().activeAccountId !== activeAccountId) return;
     setActiveAccount(null);
@@ -268,9 +215,7 @@ function AccountMembersSection({
   /** Re-resolve every caller-owned projection after a possible self-role mutation. The role badge
    * and affordances fail closed immediately via membershipRevision; the tenant slice is then fetched
    * again under the new server role so confidential fields from the old projection cannot linger. */
-  const refreshCallerAccess = async (
-    knownRemoved = false,
-  ): Promise<"active" | "left" | "failed"> => {
+  const refreshCallerAccess = async (knownRemoved = false): Promise<"active" | "left" | "failed"> => {
     const accountId = activeAccountId;
     if (!accountId) return "failed";
     invalidateMemberships();
@@ -287,8 +232,7 @@ function AccountMembersSection({
       setNotice(m.settings_members_access_refresh_failed(), "error");
       return "failed";
     }
-    const stillMember =
-      !knownRemoved && summaries.some((account) => account.id === accountId);
+    const stillMember = !knownRemoved && summaries.some((account) => account.id === accountId);
     if (!stillMember) {
       closeActiveAccount();
       return "left";
@@ -298,8 +242,7 @@ function AccountMembersSection({
     // `refreshActiveAccountSlice` can report `reloaded` after restoring an offline snapshot. That is
     // still not an authoritative post-role projection: close the tenant so confidential fields
     // from the caller's previous role cannot remain visible under an unverified role badge.
-    if (outcome === "reloaded" && !offlineStateSnapshot().readOnly)
-      return "active";
+    if (outcome === "reloaded" && !offlineStateSnapshot().readOnly) return "active";
     // A user-initiated tenant switch can legitimately supersede this refresh. Never close the new
     // tenant or replace its notice because a stale operation finished late.
     closeActiveAccount();
@@ -309,22 +252,15 @@ function AccountMembersSection({
 
   const reconcileUnknownMutation = async (
     message: string,
-    {
-      callerAccessMayHaveChanged = false,
-    }: { callerAccessMayHaveChanged?: boolean } = {},
+    { callerAccessMayHaveChanged = false }: { callerAccessMayHaveChanged?: boolean } = {},
   ): Promise<void> => {
     const accountId = requestAccountId();
     if (!isActiveAccount(accountId)) return;
-    const accessResult = callerAccessMayHaveChanged
-      ? await refreshCallerAccess()
-      : null;
+    const accessResult = callerAccessMayHaveChanged ? await refreshCallerAccess() : null;
     if (!isActiveAccount(accountId)) return;
     if (accessResult === "failed") return;
     if (accessResult === "left") {
-      setNotice(
-        m.settings_members_reconcile_company_access({ message }),
-        "warning",
-      );
+      setNotice(m.settings_members_reconcile_company_access({ message }), "warning");
       return;
     }
     try {
@@ -340,10 +276,7 @@ function AccountMembersSection({
       const nextInvites = inviteResult.value;
       replaceDirectory(nextMembers, nextInvites);
       setMintedLink((current) =>
-        current?.inviteId &&
-        !nextInvites.some(
-          (invite) => invite.id === current.inviteId && invite.usedAt === null,
-        )
+        current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
           ? null
           : current,
       );
@@ -389,8 +322,7 @@ function AccountMembersSection({
 
   const myRole = members?.find((m) => m.isSelf)?.role;
   const mayManageInvites = myRole !== undefined && can(myRole, "manageInvites");
-  const mayTransferOwnership =
-    myRole !== undefined && can(myRole, "transferOwnership");
+  const mayTransferOwnership = myRole !== undefined && can(myRole, "transferOwnership");
   // NB: the param is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2); a
   // `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
   const changeRole = async (mem: Member, nextRole: Role) => {
@@ -398,18 +330,13 @@ function AccountMembersSection({
     const accountId = requestAccountId();
     if (!beginAction(`role:${mem.userId}`)) return;
     try {
-      const result = await teamAccessClient.changeMemberRole(
-        accountId,
-        mem.userId,
-        nextRole,
-      );
+      const result = await teamAccessClient.changeMemberRole(accountId, mem.userId, nextRole);
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_role_change(),
-            { callerAccessMayHaveChanged: mem.isSelf },
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_role_change(), {
+            callerAccessMayHaveChanged: mem.isSelf,
+          });
           return;
         }
         fail(
@@ -449,10 +376,9 @@ function AccountMembersSection({
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_member_removal(),
-            { callerAccessMayHaveChanged: mem.isSelf },
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_member_removal(), {
+            callerAccessMayHaveChanged: mem.isSelf,
+          });
           return;
         }
         fail(
@@ -488,17 +414,13 @@ function AccountMembersSection({
     const accountId = requestAccountId();
     if (!beginAction(`transfer:${mem.userId}`)) return;
     try {
-      const result = await teamAccessClient.transferOwnership(
-        accountId,
-        mem.userId,
-      );
+      const result = await teamAccessClient.transferOwnership(accountId, mem.userId);
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_ownership_transfer(),
-            { callerAccessMayHaveChanged: true },
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_ownership_transfer(), {
+            callerAccessMayHaveChanged: true,
+          });
           return;
         }
         fail(
@@ -515,10 +437,7 @@ function AccountMembersSection({
       // link for either party, so we never hand out a link the server has already revoked (same
       // reason as the changeRole clear above). `mm` is NOT `m` (the i18n catalogue).
       const selfUserId = members?.find((mm) => mm.isSelf)?.userId;
-      if (
-        resetLink &&
-        (resetLink.userId === mem.userId || resetLink.userId === selfUserId)
-      ) {
+      if (resetLink && (resetLink.userId === mem.userId || resetLink.userId === selfUserId)) {
         setResetLink(null);
       }
       await refreshCallerAccess();
@@ -544,36 +463,23 @@ function AccountMembersSection({
     if (!beginAction(`reset:${mem.userId}`)) return;
     setResetLink(null);
     try {
-      const result = await teamAccessClient.issuePasswordReset(
-        accountId,
-        mem.userId,
-      );
+      const result = await teamAccessClient.issuePasswordReset(accountId, mem.userId);
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_reset_request(),
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_reset_request());
           return;
         }
         if (result.kind === "invalid") {
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_reset_value_lost(),
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_reset_value_lost());
           return;
         }
-        fail(
-          null,
-          result.message ??
-            m.settings_members_err_reset({ status: result.status }),
-        );
+        fail(null, result.message ?? m.settings_members_err_reset({ status: result.status }));
         return;
       }
       const body = result.value;
       if (!body?.expiresAt) {
-        await reconcileUnknownMutation(
-          m.settings_members_unknown_reset_value_lost(),
-        );
+        await reconcileUnknownMutation(m.settings_members_unknown_reset_value_lost());
         return;
       }
       // Write-once: build + show the link straight from this response and never again. `userId` is
@@ -601,10 +507,7 @@ function AccountMembersSection({
     const accountId = requestAccountId();
     if (!beginAction(`sessions:${mem.userId}`)) return;
     try {
-      const result = await teamAccessClient.revokeMemberSessions(
-        accountId,
-        mem.userId,
-      );
+      const result = await teamAccessClient.revokeMemberSessions(accountId, mem.userId);
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
@@ -614,9 +517,7 @@ function AccountMembersSection({
             window.location.reload();
             return;
           }
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_session_revocation(),
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_session_revocation());
           return;
         }
         fail(
@@ -652,10 +553,7 @@ function AccountMembersSection({
     const accountId = requestAccountId();
     setMintedLink(null);
     const trimmed = invitePreauth.trim();
-    if (
-      trimmed.length > MAX_EMAIL_LENGTH ||
-      (trimmed.length > 0 && !/^[^@\s]+@[^@\s]+$/.test(trimmed))
-    ) {
+    if (trimmed.length > MAX_EMAIL_LENGTH || (trimmed.length > 0 && !/^[^@\s]+@[^@\s]+$/.test(trimmed))) {
       fail("invite", m.identity_err_email());
       return;
     }
@@ -669,9 +567,7 @@ function AccountMembersSection({
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_invite_creation(),
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_invite_creation());
           return;
         }
         if (result.kind === "invalid") {
@@ -680,11 +576,7 @@ function AccountMembersSection({
           fail(null, message);
           return;
         }
-        fail(
-          "invite",
-          result.message ??
-            m.settings_members_err_create_invite({ status: result.status }),
-        );
+        fail("invite", result.message ?? m.settings_members_err_create_invite({ status: result.status }));
         return;
       }
       const body = result.value;
@@ -717,9 +609,7 @@ function AccountMembersSection({
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
-          await reconcileUnknownMutation(
-            m.settings_members_unknown_invite_revocation(),
-          );
+          await reconcileUnknownMutation(m.settings_members_unknown_invite_revocation());
           return;
         }
         fail(
@@ -777,9 +667,7 @@ function AccountMembersSection({
     }
   };
 
-  const memberConfirmationCopy = memberConfirmation
-    ? confirmationCopy(memberConfirmation)
-    : null;
+  const memberConfirmationCopy = memberConfirmation ? confirmationCopy(memberConfirmation) : null;
 
   return (
     <>
@@ -794,26 +682,19 @@ function AccountMembersSection({
           <p role="status" aria-live="polite" className="sr-only">
             {busyAction ? m.settings_members_updating() : ""}
           </p>
-          <FieldError id={errorId}>
-            {errorField === null ? error : null}
-          </FieldError>
+          <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>
 
           {/* Members list */}
           {members && members.length === 0 ? (
-            <p className="py-2 text-sm text-muted-foreground">
-              {m.settings_members_empty()}
-            </p>
+            <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
           ) : (
             <ItemGroup>
               {members?.map((mem, index) => {
                 // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2);
                 // shadowing it here would make `m.settings_*()` resolve against the Member object instead.
                 // Ordinary role changes never touch the Owner. Ownership uses the explicit transfer below.
-                const representativeRole: Role =
-                  mem.role === "viewer" ? "editor" : "viewer";
-                const mayTouch =
-                  !!myRole &&
-                  canManageMemberRole(myRole, mem.role, representativeRole);
+                const representativeRole: Role = mem.role === "viewer" ? "editor" : "viewer";
+                const mayTouch = !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
                 const isOwner = mem.role === "owner";
                 const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
                 const memberLabel = labelFor(mem);
@@ -827,22 +708,13 @@ function AccountMembersSection({
                 return (
                   <Fragment key={mem.userId}>
                     {index > 0 && <ItemSeparator />}
-                    <Item
-                      size="sm"
-                      role="listitem"
-                      className="rounded-none px-0"
-                      data-testid="member-row"
-                    >
+                    <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="member-row">
                       <ItemContent className="min-w-0">
                         <span className="text-sm text-ink">{memberLabel}</span>
                         {mem.isSelf && (
-                          <span className="ml-1 text-xs text-muted-foreground">
-                            {m.settings_member_you()}
-                          </span>
+                          <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>
                         )}
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          · {mem.status}
-                        </span>
+                        <span className="ml-2 text-xs text-muted-foreground">· {mem.status}</span>
                       </ItemContent>
                       <ItemActions className="flex-wrap justify-end">
                         {mayTouch ? (
@@ -864,9 +736,7 @@ function AccountMembersSection({
                             />
                           </span>
                         ) : (
-                          <span className="text-sm capitalize text-muted-foreground">
-                            {mem.role}
-                          </span>
+                          <span className="text-sm capitalize text-muted-foreground">{mem.role}</span>
                         )}
                         {mayReset && (
                           <Button
@@ -927,22 +797,20 @@ function AccountMembersSection({
                         )}
                         {/* Ownership has one path: a confirmed, atomic hand-over that promotes the target and
                     demotes the caller. Generic role selectors never offer Owner. */}
-                        {mayTransferOwnership &&
-                          !mem.isSelf &&
-                          mem.role !== "owner" && (
-                            <Button
-                              aria-label={m.settings_member_make_owner_aria({
-                                member: memberLabel,
-                              })}
-                              size="sm"
-                              variant="outline"
-                              data-testid="member-make-owner"
-                              disabled={busyAction !== null}
-                              onClick={() => setTransferTarget(mem)}
-                            >
-                              {m.settings_member_make_owner()}
-                            </Button>
-                          )}
+                        {mayTransferOwnership && !mem.isSelf && mem.role !== "owner" && (
+                          <Button
+                            aria-label={m.settings_member_make_owner_aria({
+                              member: memberLabel,
+                            })}
+                            size="sm"
+                            variant="outline"
+                            data-testid="member-make-owner"
+                            disabled={busyAction !== null}
+                            onClick={() => setTransferTarget(mem)}
+                          >
+                            {m.settings_member_make_owner()}
+                          </Button>
+                        )}
                         {isOwner && (
                           <span className="text-xs text-muted-foreground">
                             {m.settings_member_sole_owner_protected()}
@@ -985,9 +853,7 @@ function AccountMembersSection({
           {/* Invite form */}
           {mayManageInvites && (
             <FieldSet className="gap-2 rounded-md border p-3">
-              <FieldLegend variant="label">
-                {m.settings_invite_heading()}
-              </FieldLegend>
+              <FieldLegend variant="label">{m.settings_invite_heading()}</FieldLegend>
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-40">
                   <SelectField
@@ -1027,16 +893,10 @@ function AccountMembersSection({
                   {m.settings_invite_submit()}
                 </Button>
               </div>
-              <p
-                className="text-xs text-muted-foreground"
-                data-testid="invite-role-summary"
-                aria-live="polite"
-              >
+              <p className="text-xs text-muted-foreground" data-testid="invite-role-summary" aria-live="polite">
                 {roleSummary(inviteRole)}
               </p>
-              <FieldError id={errorId}>
-                {errorField === "invite" ? error : null}
-              </FieldError>
+              <FieldError id={errorId}>{errorField === "invite" ? error : null}</FieldError>
               {mintedLink && (
                 <CopyableLinkBlock
                   link={mintedLink.link}
@@ -1052,19 +912,12 @@ function AccountMembersSection({
           {/* Outstanding invites */}
           {mayManageInvites && invites.length > 0 && (
             <div className="flex flex-col gap-1">
-              <h3 className="mb-1 text-xs font-semibold text-ink">
-                {m.settings_invites_outstanding_heading()}
-              </h3>
+              <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
               <ItemGroup>
                 {invites.map((inv, index) => (
                   <Fragment key={inv.id}>
                     {index > 0 && <ItemSeparator />}
-                    <Item
-                      size="sm"
-                      role="listitem"
-                      className="rounded-none px-0"
-                      data-testid="invite-row"
-                    >
+                    <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
                       <ItemContent className="text-sm text-ink">
                         <span className="capitalize">{inv.role}</span>
                         {inv.preauthEmail
@@ -1077,9 +930,7 @@ function AccountMembersSection({
                           : // Invite validity spans several days, so keep this compact row date-only while
                             // rendering the date on the viewer's local calendar rather than slicing UTC.
                             m.settings_invite_suffix_expires({
-                              date: new Date(
-                                inv.expiresAt,
-                              ).toLocaleDateString(),
+                              date: new Date(inv.expiresAt).toLocaleDateString(),
                             })}
                       </ItemContent>
                       <ItemActions>

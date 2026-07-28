@@ -38,9 +38,7 @@ beforeEach(() => {
 describe("Button", () => {
   it("renders children", () => {
     render(<Button>Click me</Button>);
-    expect(
-      screen.getByRole("button", { name: "Click me" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Click me" })).toBeInTheDocument();
   });
 
   it("calls onClick when clicked", async () => {
@@ -88,14 +86,8 @@ describe("Button", () => {
         <Button variant="danger-soft">Danger</Button>
       </>,
     );
-    expect(screen.getByRole("button", { name: "Primary" })).toHaveClass(
-      "bg-ok-strong",
-      "text-ok-strong-ink",
-    );
-    expect(screen.getByRole("button", { name: "Danger" })).toHaveClass(
-      "bg-danger-soft",
-      "text-danger-soft-ink",
-    );
+    expect(screen.getByRole("button", { name: "Primary" })).toHaveClass("bg-ok-strong", "text-ok-strong-ink");
+    expect(screen.getByRole("button", { name: "Danger" })).toHaveClass("bg-danger-soft", "text-danger-soft-ink");
   });
 });
 
@@ -107,12 +99,8 @@ describe("Alert", () => {
       </Alert>,
     );
 
-    expect(screen.getByRole("alert")).toHaveClass(
-      "*:data-[slot=alert-description]:text-destructive",
-    );
-    expect(screen.getByRole("alert")).not.toHaveClass(
-      "*:data-[slot=alert-description]:text-destructive/90",
-    );
+    expect(screen.getByRole("alert")).toHaveClass("*:data-[slot=alert-description]:text-destructive");
+    expect(screen.getByRole("alert")).not.toHaveClass("*:data-[slot=alert-description]:text-destructive/90");
   });
 });
 
@@ -147,11 +135,7 @@ describe("Switch", () => {
 
     const smallSwitch = screen.getByRole("switch", { name: "Small size" });
     expect(smallSwitch).toHaveAttribute("data-size", "sm");
-    expect(smallSwitch).toHaveClass(
-      "data-[size=sm]:h-4",
-      "data-[size=sm]:w-7",
-      "data-[size=sm]:p-px",
-    );
+    expect(smallSwitch).toHaveClass("data-[size=sm]:h-4", "data-[size=sm]:w-7", "data-[size=sm]:p-px");
     expect(smallSwitch.firstElementChild).toHaveClass(
       "group-data-[size=sm]/switch:size-3",
       "group-data-[size=sm]/switch:data-[state=checked]:translate-x-3",
@@ -168,9 +152,7 @@ describe("Modal", () => {
         <p>Content</p>
       </Modal>,
     );
-    expect(
-      screen.getByRole("dialog", { name: "My Modal" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "My Modal" })).toBeInTheDocument();
     expect(screen.getByText("Content")).toBeInTheDocument();
   });
 
@@ -202,9 +184,7 @@ describe("Modal", () => {
         <p>Inner</p>
       </Modal>,
     );
-    const backdrop = document.querySelector<HTMLElement>(
-      '[data-slot="dialog-overlay"]',
-    )!;
+    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
     await user.click(backdrop);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -231,9 +211,7 @@ describe("Modal", () => {
     );
     // Edit a field → dialog is dirty.
     fireEvent.input(screen.getByLabelText("field"), { target: { value: "x" } });
-    const backdrop = document.querySelector<HTMLElement>(
-      '[data-slot="dialog-overlay"]',
-    )!;
+    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
     await user.click(backdrop);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).not.toHaveBeenCalled();
@@ -242,12 +220,7 @@ describe("Modal", () => {
   it("publishes one controlled dirty transition when one edit surfaces as input and change", () => {
     const onDirtyChange = vi.fn();
     render(
-      <Modal
-        title="Controlled dirty"
-        onClose={vi.fn()}
-        dirty={false}
-        onDirtyChange={onDirtyChange}
-      >
+      <Modal title="Controlled dirty" onClose={vi.fn()} dirty={false} onDirtyChange={onDirtyChange}>
         <input aria-label="controlled field" />
       </Modal>,
     );
@@ -261,12 +234,7 @@ describe("Modal", () => {
   it("guards an immediate Escape before controlled dirty state has re-rendered", () => {
     const onClose = vi.fn();
     render(
-      <Modal
-        title="Controlled dirty"
-        onClose={onClose}
-        dirty={false}
-        onDirtyChange={vi.fn()}
-      >
+      <Modal title="Controlled dirty" onClose={onClose} dirty={false} onDirtyChange={vi.fn()}>
         <input aria-label="controlled field" />
       </Modal>,
     );
@@ -285,12 +253,7 @@ describe("Modal", () => {
           <input aria-label="edited field" />
         </Modal>
         {showCleanOverlay && (
-          <Modal
-            key="overlay"
-            title="Clean overlay"
-            onClose={vi.fn()}
-            guardDirty={false}
-          >
+          <Modal key="overlay" title="Clean overlay" onClose={vi.fn()} guardDirty={false}>
             <p>Hint only</p>
           </Modal>
         )}
@@ -304,15 +267,11 @@ describe("Modal", () => {
     expect(useStore.getState().dirtyForm).toBe(true);
 
     rerender(modals(true));
-    expect(
-      screen.getByRole("dialog", { name: "Clean overlay" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Clean overlay" })).toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
     rerender(modals(false));
-    expect(
-      screen.queryByRole("dialog", { name: "Clean overlay" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Clean overlay" })).not.toBeInTheDocument();
     expect(useStore.getState().dirtyForm).toBe(true);
 
     unmount();
@@ -365,9 +324,7 @@ describe("Modal", () => {
       </Modal>,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: `Colour (${colorName(blue)})` }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: `Colour (${colorName(blue)})` }));
     fireEvent.click(screen.getByRole("button", { name: colorName(blue) }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
@@ -375,11 +332,7 @@ describe("Modal", () => {
 
   it("renders optional footer", () => {
     render(
-      <Modal
-        title="Footer Modal"
-        onClose={vi.fn()}
-        footer={<span>Footer content</span>}
-      >
+      <Modal title="Footer Modal" onClose={vi.fn()} footer={<span>Footer content</span>}>
         <p>Body</p>
       </Modal>,
     );
@@ -427,16 +380,9 @@ describe("Modal", () => {
 describe("ConfirmDialog", () => {
   it("renders title and message", () => {
     render(
-      <ConfirmDialog
-        title="Really delete?"
-        message="This cannot be undone."
-        onConfirm={vi.fn()}
-        onCancel={vi.fn()}
-      />,
+      <ConfirmDialog title="Really delete?" message="This cannot be undone." onConfirm={vi.fn()} onCancel={vi.fn()} />,
     );
-    expect(
-      screen.getByRole("alertdialog", { name: "Really delete?" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog", { name: "Really delete?" })).toBeInTheDocument();
     expect(screen.getByText("This cannot be undone.")).toBeInTheDocument();
   });
 
@@ -444,14 +390,7 @@ describe("ConfirmDialog", () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
-    render(
-      <ConfirmDialog
-        title="Confirm"
-        message="Sure?"
-        onConfirm={onConfirm}
-        onCancel={onCancel}
-      />,
-    );
+    render(<ConfirmDialog title="Confirm" message="Sure?" onConfirm={onConfirm} onCancel={onCancel} />);
     await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(onConfirm).toHaveBeenCalledOnce();
     expect(onCancel).not.toHaveBeenCalled();
@@ -461,14 +400,7 @@ describe("ConfirmDialog", () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
-    render(
-      <ConfirmDialog
-        title="Confirm"
-        message="Sure?"
-        onConfirm={onConfirm}
-        onCancel={onCancel}
-      />,
-    );
+    render(<ConfirmDialog title="Confirm" message="Sure?" onConfirm={onConfirm} onCancel={onCancel} />);
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalledOnce();
     expect(onConfirm).not.toHaveBeenCalled();
@@ -493,9 +425,7 @@ describe("ConfirmDialog", () => {
 describe("ListPage", () => {
   it("renders the page title", () => {
     render(<ListPage title="My Page" />);
-    expect(
-      screen.getByRole("heading", { name: "My Page" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "My Page" })).toBeInTheDocument();
   });
 
   it("renders children", () => {
@@ -524,9 +454,7 @@ describe("ListPage", () => {
   it("uses a custom addLabel", () => {
     const onAdd = vi.fn();
     render(<ListPage title="Page" onAdd={onAdd} addLabel="New item" />);
-    expect(
-      screen.getByRole("button", { name: "New item" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New item" })).toBeInTheDocument();
   });
 
   it("does not render an Add button when onAdd is not provided", () => {
@@ -589,14 +517,7 @@ describe("TextField", () => {
   });
 
   it("renders placeholder text", () => {
-    render(
-      <TextField
-        label="Search"
-        value=""
-        onChange={vi.fn()}
-        placeholder="Type here..."
-      />,
-    );
+    render(<TextField label="Search" value="" onChange={vi.fn()} placeholder="Type here..." />);
     expect(screen.getByPlaceholderText("Type here...")).toBeInTheDocument();
   });
 });
@@ -605,9 +526,7 @@ describe("TextField", () => {
 
 describe("TextAreaField", () => {
   it("renders with label and value", () => {
-    render(
-      <TextAreaField label="Notes" value="Some notes" onChange={vi.fn()} />,
-    );
+    render(<TextAreaField label="Notes" value="Some notes" onChange={vi.fn()} />);
     expect(screen.getByLabelText("Notes")).toHaveValue("Some notes");
   });
 
@@ -640,17 +559,13 @@ describe("NumberField", () => {
 
 describe("DateField", () => {
   it("renders with label and date value", () => {
-    render(
-      <DateField label="Start date" value="2026-06-01" onChange={vi.fn()} />,
-    );
+    render(<DateField label="Start date" value="2026-06-01" onChange={vi.fn()} />);
     expect(screen.getByLabelText("Start date")).toHaveValue("2026-06-01");
   });
 
   it("calls onChange with new date string", () => {
     const onChange = vi.fn();
-    render(
-      <DateField label="End date" value="2026-06-01" onChange={onChange} />,
-    );
+    render(<DateField label="End date" value="2026-06-01" onChange={onChange} />);
     fireEvent.change(screen.getByLabelText("End date"), {
       target: { value: "2026-07-01" },
     });
@@ -668,39 +583,18 @@ describe("SelectField", () => {
   ];
 
   it("renders all options", () => {
-    render(
-      <SelectField
-        label="Pick one"
-        value="a"
-        onChange={vi.fn()}
-        options={options}
-      />,
-    );
+    render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
     const select = screen.getByLabelText("Pick one");
     expect(select).toBeInTheDocument();
     fireEvent.keyDown(select, { key: "ArrowDown" });
-    expect(
-      screen.getByRole("option", { name: "Option A" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Option B" })).toHaveAttribute(
-      "data-value",
-      "b",
-    );
-    expect(
-      screen.getByRole("option", { name: "Option C" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Option A" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Option B" })).toHaveAttribute("data-value", "b");
+    expect(screen.getByRole("option", { name: "Option C" })).toBeInTheDocument();
   });
 
   it("calls onChange when an option is selected", () => {
     const onChange = vi.fn();
-    render(
-      <SelectField
-        label="Pick one"
-        value="a"
-        onChange={onChange}
-        options={options}
-      />,
-    );
+    render(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />);
     const select = screen.getByLabelText("Pick one");
     select.focus();
     fireEvent.keyDown(select, { key: "ArrowDown" });
@@ -747,12 +641,7 @@ describe("SelectField", () => {
     const onClose = vi.fn();
     render(
       <Modal title="Select modal" onClose={onClose}>
-        <SelectField
-          label="Pick one"
-          value="a"
-          onChange={vi.fn()}
-          options={options}
-        />
+        <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />
       </Modal>,
     );
     const select = screen.getByLabelText("Pick one");
@@ -763,28 +652,12 @@ describe("SelectField", () => {
   });
 
   it("renders a placeholder option when provided", () => {
-    render(
-      <SelectField
-        label="Choose"
-        value=""
-        onChange={vi.fn()}
-        options={options}
-        placeholder="-- Select --"
-      />,
-    );
+    render(<SelectField label="Choose" value="" onChange={vi.fn()} options={options} placeholder="-- Select --" />);
     expect(screen.getByText("-- Select --")).toBeInTheDocument();
   });
 
   it("is disabled when disabled prop is true", () => {
-    render(
-      <SelectField
-        label="Locked"
-        value="a"
-        onChange={vi.fn()}
-        options={options}
-        disabled
-      />,
-    );
+    render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />);
     expect(screen.getByLabelText("Locked")).toBeDisabled();
   });
 });
@@ -798,13 +671,9 @@ describe("ColorField", () => {
 
   it("renders a trigger labelled with the current value and no swatches until opened", () => {
     render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />);
-    expect(
-      screen.getByRole("button", { name: `Brand colour (${colorName(BLUE)})` }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Brand colour (${colorName(BLUE)})` })).toBeInTheDocument();
     // Popup is closed → preset swatches are not in the DOM.
-    expect(
-      screen.queryByRole("button", { name: colorName(RED) }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: colorName(RED) })).not.toBeInTheDocument();
   });
 
   it("opens the full grid of preset swatches when the trigger is clicked", async () => {
@@ -824,29 +693,19 @@ describe("ColorField", () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ColorField label="Colour" value={BLUE} onChange={onChange} />);
-    await user.click(
-      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }),
-    );
+    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
     await user.click(screen.getByRole("button", { name: colorName(RED) }));
     expect(onChange).toHaveBeenCalledWith(RED);
     // Picking closes the popup.
-    expect(
-      screen.queryByRole("button", { name: colorName(RED) }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: colorName(RED) })).not.toBeInTheDocument();
   });
 
   it("marks the swatch matching the current value as pressed", async () => {
     const user = userEvent.setup();
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
-    await user.click(
-      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }),
-    );
-    expect(
-      screen.getByRole("button", { name: colorName(BLUE) }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByRole("button", { name: colorName(RED) }),
-    ).toHaveAttribute("aria-pressed", "false");
+    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
+    expect(screen.getByRole("button", { name: colorName(BLUE) })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: colorName(RED) })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("closes the popup on an outside click", async () => {
@@ -857,16 +716,10 @@ describe("ColorField", () => {
         <button type="button">Outside</button>
       </div>,
     );
-    await user.click(
-      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }),
-    );
-    expect(
-      screen.getByRole("button", { name: colorName(RED) }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
+    expect(screen.getByRole("button", { name: colorName(RED) })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Outside" }));
-    expect(
-      screen.queryByRole("button", { name: colorName(RED) }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: colorName(RED) })).not.toBeInTheDocument();
   });
 
   it("closes the popup on Escape without closing the surrounding Modal", async () => {
@@ -877,17 +730,13 @@ describe("ColorField", () => {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </Modal>,
     );
-    await user.click(
-      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }),
-    );
+    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
     // Move focus into the grid, then Escape: the popup must close and the keydown must
     // not reach the surrounding handler (the Modal's Escape-to-close in real use).
     const swatch = screen.getByRole("button", { name: colorName(RED) });
     swatch.focus();
     await user.keyboard("{Escape}");
-    expect(
-      screen.queryByRole("button", { name: colorName(RED) }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: colorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -899,19 +748,11 @@ describe("ColorField", () => {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </Modal>,
     );
-    await user.click(
-      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }),
-    );
-    expect(
-      screen.getByRole("button", { name: colorName(RED) }),
-    ).toBeInTheDocument();
-    const backdrop = document.querySelector<HTMLElement>(
-      '[data-slot="dialog-overlay"]',
-    )!;
+    await user.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
+    expect(screen.getByRole("button", { name: colorName(RED) })).toBeInTheDocument();
+    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
     await user.click(backdrop);
-    expect(
-      screen.queryByRole("button", { name: colorName(RED) }),
-    ).not.toBeInTheDocument(); // popup closed
+    expect(screen.queryByRole("button", { name: colorName(RED) })).not.toBeInTheDocument(); // popup closed
     expect(onClose).not.toHaveBeenCalled(); // modal stayed open
   });
 
@@ -926,18 +767,12 @@ describe("ColorField", () => {
         </button>
       </Modal>,
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }),
-    );
-    expect(
-      screen.getByRole("button", { name: colorName(RED) }),
-    ).toBeInTheDocument(); // popup open
+    fireEvent.click(screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }));
+    expect(screen.getByRole("button", { name: colorName(RED) })).toBeInTheDocument(); // popup open
     // A press on another in-dialog control must reach it while Popover handles dismissal.
     await user.click(screen.getByTestId("sibling"));
     expect(onSiblingDown).toHaveBeenCalledTimes(1); // not swallowed
-    expect(
-      screen.queryByRole("button", { name: colorName(RED) }),
-    ).not.toBeInTheDocument(); // popup closed
+    expect(screen.queryByRole("button", { name: colorName(RED) })).not.toBeInTheDocument(); // popup closed
   });
 });
 
@@ -945,50 +780,23 @@ describe("ColorField", () => {
 
 describe("WeekdayPicker", () => {
   it("renders all 7 day buttons", () => {
-    render(
-      <WeekdayPicker
-        label="Working days"
-        value={[1, 2, 3, 4, 5]}
-        onChange={vi.fn()}
-      />,
-    );
+    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={vi.fn()} />);
     for (const day of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
       expect(screen.getByRole("button", { name: day })).toBeInTheDocument();
     }
   });
 
   it("marks selected days as pressed", () => {
-    render(
-      <WeekdayPicker
-        label="Working days"
-        value={[1, 2, 3, 4, 5]}
-        onChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByRole("button", { name: "Mon" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Sat" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    expect(screen.getByRole("button", { name: "Sun" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Mon" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Sat" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Sun" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("toggles a day ON when it is not selected", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(
-      <WeekdayPicker
-        label="Working days"
-        value={[1, 2, 3, 4, 5]}
-        onChange={onChange}
-      />,
-    );
+    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={onChange} />);
     await user.click(screen.getByRole("button", { name: "Sat" }));
     // Sat is day 6 — should be added
     expect(onChange).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6]);
@@ -997,26 +805,14 @@ describe("WeekdayPicker", () => {
   it("toggles a day OFF when it is already selected", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(
-      <WeekdayPicker
-        label="Working days"
-        value={[1, 2, 3, 4, 5]}
-        onChange={onChange}
-      />,
-    );
+    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={onChange} />);
     await user.click(screen.getByRole("button", { name: "Mon" }));
     // Mon is day 1 — should be removed
     expect(onChange).toHaveBeenCalledWith([2, 3, 4, 5]);
   });
 
   it("does NOT set aria-invalid/aria-describedby on the fieldset when valid", () => {
-    const { container } = render(
-      <WeekdayPicker
-        label="Working days"
-        value={[1, 2, 3, 4, 5]}
-        onChange={vi.fn()}
-      />,
-    );
+    const { container } = render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={vi.fn()} />);
     const fieldset = container.querySelector("fieldset")!;
     expect(fieldset).not.toHaveAttribute("aria-invalid");
     expect(fieldset).not.toHaveAttribute("aria-describedby");
@@ -1024,13 +820,7 @@ describe("WeekdayPicker", () => {
 
   it("marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)", () => {
     const { container } = render(
-      <WeekdayPicker
-        label="Working days"
-        value={[]}
-        onChange={vi.fn()}
-        invalid
-        describedById="err-1"
-      />,
+      <WeekdayPicker label="Working days" value={[]} onChange={vi.fn()} invalid describedById="err-1" />,
     );
     const fieldset = container.querySelector("fieldset")!;
     expect(fieldset).toHaveAttribute("aria-invalid", "true");
@@ -1063,9 +853,7 @@ describe("Avatar", () => {
   });
 
   it("shows only first two initials from a long name", () => {
-    const { container } = render(
-      <Avatar name="Alice Bob Carol" color="#111" />,
-    );
+    const { container } = render(<Avatar name="Alice Bob Carol" color="#111" />);
     expect(container.firstChild).toHaveTextContent("AB");
   });
 
@@ -1099,13 +887,7 @@ describe("Avatar", () => {
   it("keeps the initials fallback while an imageUrl is still loading", () => {
     // jsdom never resolves the Radix image load, so the primitive stays on its fallback — the
     // signed-in user sees initials (never an empty circle) until the photo resolves.
-    const { container } = render(
-      <Avatar
-        name="Alice Smith"
-        color="#111"
-        imageUrl="https://cdn.example/a.png"
-      />,
-    );
+    const { container } = render(<Avatar name="Alice Smith" color="#111" imageUrl="https://cdn.example/a.png" />);
     expect(container.querySelector("img")).toBeNull();
     expect(container.firstChild).toHaveTextContent("AS");
   });
@@ -1124,13 +906,7 @@ describe("Avatar", () => {
     }
     vi.stubGlobal("Image", LoadedImage);
     try {
-      const { container } = render(
-        <Avatar
-          name="Alice Smith"
-          color="#111"
-          imageUrl="https://cdn.example/a.png"
-        />,
-      );
+      const { container } = render(<Avatar name="Alice Smith" color="#111" imageUrl="https://cdn.example/a.png" />);
       const img = container.querySelector("img");
       expect(img).not.toBeNull();
       expect(img).toHaveAttribute("src", "https://cdn.example/a.png");

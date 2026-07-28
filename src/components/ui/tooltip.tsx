@@ -1,7 +1,7 @@
-import * as React from "react"
-import { Tooltip as TooltipPrimitive } from "radix-ui"
+import * as React from "react";
+import { Tooltip as TooltipPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 // shadcn Tooltip primitives on the `radix-ui` umbrella. The stock content uses bg-primary
 // (shadcn's slate) + text-primary-foreground; capacitylens's --primary is the slate brand and would
@@ -10,42 +10,27 @@ import { cn } from "@/lib/utils"
 // nav-rail hover label in AppShell — which is AA-safe in both themes. A tooltip is supplementary:
 // the trigger keeps its own aria-label so the tooltip is never the sole accessible name.
 
-function TooltipProvider({
-  delayDuration = 0,
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
-  return (
-    <TooltipPrimitive.Provider
-      data-slot="tooltip-provider"
-      delayDuration={delayDuration}
-      {...props}
-    />
-  )
+function TooltipProvider({ delayDuration = 0, ...props }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+  return <TooltipPrimitive.Provider data-slot="tooltip-provider" delayDuration={delayDuration} {...props} />;
 }
 
-function Tooltip({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
   return (
     <TooltipProvider>
       <TooltipPrimitive.Root data-slot="tooltip" {...props} />
     </TooltipProvider>
-  )
+  );
 }
 
 // Provider-less Root, for collections that hoist a SINGLE shared TooltipProvider above many
 // tooltips (e.g. the scheduler grid over its virtualised bars) rather than paying the provider's
 // per-instance machinery on every one. Callers using this MUST render under a <TooltipProvider>.
-function TooltipRoot({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+function TooltipRoot({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
-function TooltipTrigger({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
 function TooltipContent({
@@ -64,7 +49,7 @@ function TooltipContent({
         sideOffset={sideOffset}
         className={cn(
           "bg-elevated text-ink ring-1 ring-line shadow-pop z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-2 py-1 text-xs font-medium text-balance",
-          className
+          className,
         )}
         {...props}
       >
@@ -74,7 +59,7 @@ function TooltipContent({
         )}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
-  )
+  );
 }
 
-export { Tooltip, TooltipRoot, TooltipTrigger, TooltipContent, TooltipProvider }
+export { Tooltip, TooltipRoot, TooltipTrigger, TooltipContent, TooltipProvider };

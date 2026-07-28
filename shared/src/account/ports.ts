@@ -51,19 +51,11 @@ export interface AccountAuditPort {
  * reconciliation semantics, and conformance tests proving that coordinator locks are released.
  */
 export interface IdentityPort {
-  verifyApplicationSession(input: {
-    headers: Headers;
-  }): Promise<ApplicationSession | null>;
-  getPrincipalSummaries(input: {
-    principalIds: readonly PrincipalId[];
-  }): Promise<readonly PrincipalSummary[]>;
-  findPrincipalByFederatedSubject(input: {
-    subject: FederatedSubject;
-  }): Promise<PrincipalSummary | null>;
+  verifyApplicationSession(input: { headers: Headers }): Promise<ApplicationSession | null>;
+  getPrincipalSummaries(input: { principalIds: readonly PrincipalId[] }): Promise<readonly PrincipalSummary[]>;
+  findPrincipalByFederatedSubject(input: { subject: FederatedSubject }): Promise<PrincipalSummary | null>;
   signOut(input: { headers: Headers }): Promise<SignOutResult>;
-  listSessions(input: {
-    actor: ActorContext;
-  }): Promise<readonly SessionSummary[]>;
+  listSessions(input: { actor: ActorContext }): Promise<readonly SessionSummary[]>;
   revokeOwnSession(input: {
     actor: ActorContext;
     sessionId: SessionId;
@@ -102,21 +94,10 @@ export interface IdentityPort {
 }
 
 export interface AccountAdminPort {
-  listWorkspacesForPrincipal(input: {
-    principalId: PrincipalId;
-  }): Promise<readonly WorkspaceMembershipSummary[]>;
-  getMembership(input: {
-    principalId: PrincipalId;
-    workspaceId: WorkspaceId;
-  }): Promise<Membership | null>;
-  listMemberships(input: {
-    actor: ActorContext;
-    workspaceId: WorkspaceId;
-  }): Promise<readonly Membership[]>;
-  listInvitations(input: {
-    actor: ActorContext;
-    workspaceId: WorkspaceId;
-  }): Promise<readonly InvitationSummary[]>;
+  listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
+  getMembership(input: { principalId: PrincipalId; workspaceId: WorkspaceId }): Promise<Membership | null>;
+  listMemberships(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<readonly Membership[]>;
+  listInvitations(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<readonly InvitationSummary[]>;
   previewInvitation(input: { token: string }): Promise<InvitationPreview>;
   preparePasswordInvitationClaim(input: {
     token: string;
@@ -190,12 +171,7 @@ export interface AccountAdminPort {
     actor: ActorContext;
     targetPrincipalIds: readonly PrincipalId[];
     actions: readonly IdentityAdminAction[];
-  }): Promise<
-    ReadonlyMap<
-      PrincipalId,
-      ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>
-    >
-  >;
+  }): Promise<ReadonlyMap<PrincipalId, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>>;
   confirmIdentityAdminAuthority(input: {
     actor: ActorContext;
     targetPrincipalId: PrincipalId;
@@ -221,11 +197,7 @@ export interface InviteSignupResult {
 }
 
 export type AccountFlowOperation =
-  | "invite-password-signup"
-  | "password-reset"
-  | "session-revocation"
-  | "workspace-provisioning"
-  | "workspace-erasure";
+  "invite-password-signup" | "password-reset" | "session-revocation" | "workspace-provisioning" | "workspace-erasure";
 
 export type ReconciliationRepairKind =
   | "invitation-claim-committed"
@@ -255,10 +227,7 @@ export type CommandOutcome =
     };
 
 export interface AccountFlows {
-  resolveRequestAccess(input: {
-    headers: Headers;
-    workspaceId: WorkspaceId;
-  }): Promise<RequestAccess | null>;
+  resolveRequestAccess(input: { headers: Headers; workspaceId: WorkspaceId }): Promise<RequestAccess | null>;
   listMemberDirectory(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;

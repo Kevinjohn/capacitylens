@@ -1,9 +1,5 @@
 import { afterEach, expect } from "vitest";
-import type {
-  FastifyInstance,
-  InjectOptions,
-  LightMyRequestResponse,
-} from "fastify";
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import type { Db } from "./db";
 
 // Shared scaffolding for the auth-backed server test suites (app.*.test.ts). The inject wrapper,
@@ -66,10 +62,7 @@ export function registerServerFixtureCleanup(): {
 }
 
 /** `app.inject` typed as the light response the suites assert against. */
-export const call = (
-  app: FastifyInstance,
-  opts: InjectOptions,
-): Promise<LightMyRequestResponse> =>
+export const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
@@ -98,10 +91,7 @@ export function cookiesOf(res: LightMyRequestResponse): string {
 }
 
 /** Sign up a user, returning its session cookie + the resolved user id (from /api/auth/me). */
-export async function signUp(
-  app: FastifyInstance,
-  email: string,
-): Promise<{ cookie: string; userId: string }> {
+export async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
   const res = await call(app, {
     method: "POST",
     url: "/api/auth/sign-up/email",

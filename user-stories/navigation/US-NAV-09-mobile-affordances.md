@@ -3,10 +3,12 @@
 **Area:** Navigation · **Persona:** Studio manager on a phone · **Linked E2E:** `e2e/mobile.spec.ts` → "sidebar starts in icon mode and its destinations still navigate"
 
 ## Goal
+
 Glance at the schedule from a phone without the sidebar eating the screen, and get a gentle
 nudge that the week-grid works best in landscape.
 
 ## Why
+
 Full mobile workflows are a non-goal (DECISIONS.md) — but testers do open CapacityLens on a phone.
 Three light affordances keep that first contact sane: portrait uses a ShadCN off-canvas sheet,
 compact landscape uses the desktop sidebar's collapsed icon mode, and portrait phones get a
@@ -33,7 +35,7 @@ phone-ish size (≤ 767px wide, or ≤ 480px tall for landscape).
 9. Reload and pick the company again. The sidebar is still collapsed — the choice is
    remembered per device.
 10. On a desktop-sized window the sidebar starts **open**, every link carries an icon, and
-   the same toggle collapses/expands it.
+    the same toggle collapses/expands it.
 
 ## Acceptance criteria
 

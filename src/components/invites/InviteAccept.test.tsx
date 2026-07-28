@@ -86,11 +86,7 @@ function renderInvite(auth?: AuthContextValue, strict = false) {
       </Routes>
     </MemoryRouter>
   );
-  const wrapped = auth ? (
-    <AuthContext.Provider value={auth}>{content}</AuthContext.Provider>
-  ) : (
-    content
-  );
+  const wrapped = auth ? <AuthContext.Provider value={auth}>{content}</AuthContext.Provider> : content;
   return render(strict ? <StrictMode>{wrapped}</StrictMode> : wrapped);
 }
 
@@ -102,9 +98,7 @@ describe("InviteAccept preview and acceptance", () => {
 
     renderInvite();
 
-    expect(
-      screen.getByText(m.invite_local_mode({ app: APP_NAME })),
-    ).toBeInTheDocument();
+    expect(screen.getByText(m.invite_local_mode({ app: APP_NAME }))).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -113,9 +107,7 @@ describe("InviteAccept preview and acceptance", () => {
 
     renderInvite(undefined, true);
 
-    expect(await screen.findByTestId("invite-preview")).toHaveTextContent(
-      "Studio North",
-    );
+    expect(await screen.findByTestId("invite-preview")).toHaveTextContent("Studio North");
   });
 
   it("previews the company and asks an unauthenticated invitee to sign in without consuming the invite", async () => {
@@ -130,38 +122,26 @@ describe("InviteAccept preview and acceptance", () => {
     expect(preview).toHaveTextContent("Invitation role");
     expect(preview).toHaveTextContent(/keeps your existing role/i);
     expect(preview).toHaveTextContent(/Can edit scheduling data/);
-    expect(
-      await screen.findByRole("button", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       "http://api.test/api/invites/secret-token/preview",
       expect.objectContaining({ credentials: "include" }),
     );
-    expect(
-      fetchMock.mock.calls.some(
-        ([, init]) => (init as RequestInit | undefined)?.method === "POST",
-      ),
-    ).toBe(false);
+    expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toBe(false);
   });
 
   it.each([
     [404, () => m.invite_err_not_found()],
     [409, () => m.invite_err_used()],
     [410, () => m.invite_err_expired()],
-  ])(
-    "maps a bodyless %i preview response to its invite outcome",
-    async (status, message) => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockResolvedValue(new Response(null, { status })),
-      );
+  ])("maps a bodyless %i preview response to its invite outcome", async (status, message) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
 
-      renderInvite();
+    renderInvite();
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(message());
-    },
-  );
+    expect(await screen.findByRole("alert")).toHaveTextContent(message());
+  });
 
   it("marks only the credential field that failed account validation as invalid", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
@@ -193,9 +173,7 @@ describe("InviteAccept preview and acceptance", () => {
 
     await user.type(email, "new@example.com");
     await user.click(create);
-    const passwordError = screen.getByText(
-      "Password must be 15–128 characters.",
-    );
+    const passwordError = screen.getByText("Password must be 15–128 characters.");
     expect(password).toHaveAttribute("aria-invalid", "true");
     expect(password).toHaveAttribute("aria-describedby", passwordError.id);
     expect(name).not.toHaveAttribute("aria-invalid");
@@ -239,35 +217,31 @@ describe("InviteAccept preview and acceptance", () => {
     useStore.getState().setAccountSummaries([]);
     authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
     const refreshAuth = vi.fn(async () => {});
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("editor");
-        if (url.endsWith("/signup") && init?.method === "POST") {
-          return {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return {
+          ok: true,
+          status: 201,
+          headers: new Headers(),
+          json: async () => ({
             ok: true,
-            status: 201,
-            headers: new Headers(),
-            json: async () => ({
-              ok: true,
-              accountId: "joined-account",
-              role: "editor",
-            }),
-          } as Response;
-        }
-        if (url.endsWith("/api/accounts")) {
-          return {
-            ok: true,
-            status: 200,
-            headers: new Headers(),
-            json: async () => [
-              { id: "joined-account", name: "Studio North", role: "editor" },
-            ],
-          } as Response;
-        }
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+            accountId: "joined-account",
+            role: "editor",
+          }),
+        } as Response;
+      }
+      if (url.endsWith("/api/accounts")) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => [{ id: "joined-account", name: "Studio North", role: "editor" }],
+        } as Response;
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -280,15 +254,9 @@ describe("InviteAccept preview and acceptance", () => {
     await user.type(screen.getByLabelText("Name"), "New Person");
     await user.type(screen.getByLabelText("Email"), "new@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
-    await user.click(
-      screen.getByRole("button", { name: "Create account and accept" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
 
-    await vi.waitFor(() =>
-      expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith(
-        "joined-account",
-      ),
-    );
+    await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("joined-account"));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
     expect(useStore.getState().activeAccountId).toBe("joined-account");
     expect(useStore.getState().accountSummaries).toEqual([
@@ -298,28 +266,24 @@ describe("InviteAccept preview and acceptance", () => {
 
   it("requires an explicit accept action and reports the effective role returned by the server", async () => {
     let resolveAccept!: (response: Response) => void;
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("viewer");
-        if (url.endsWith("/accept") && init?.method === "POST") {
-          return new Promise<Response>((resolve) => {
-            resolveAccept = resolve;
-          });
-        }
-        if (url.endsWith("/api/accounts")) {
-          return {
-            ok: true,
-            status: 200,
-            headers: new Headers(),
-            json: async () => [
-              { id: "account-1", name: "Studio North", role: "admin" },
-            ],
-          } as Response;
-        }
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("viewer");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return new Promise<Response>((resolve) => {
+          resolveAccept = resolve;
+        });
+      }
+      if (url.endsWith("/api/accounts")) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => [{ id: "account-1", name: "Studio North", role: "admin" }],
+        } as Response;
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -328,59 +292,38 @@ describe("InviteAccept preview and acceptance", () => {
     const accept = await screen.findByRole("button", { name: "Accept invite" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("invite-preview")).toHaveTextContent("Viewer");
-    expect(screen.getByRole("status")).toHaveTextContent(
-      m.invite_review_prompt(),
-    );
+    expect(screen.getByRole("status")).toHaveTextContent(m.invite_review_prompt());
 
     await user.click(accept);
     const joining = screen.getByRole("status");
     expect(joining).toHaveTextContent(m.invite_joining());
     expect(joining).toHaveFocus();
-    resolveAccept(
-      Response.json(
-        { accountId: "account-1", role: "admin" },
-        { status: 200 },
-      ),
-    );
+    resolveAccept(Response.json({ accountId: "account-1", role: "admin" }, { status: 200 }));
 
+    expect(await screen.findByText("You’ve joined Studio North as Admin.")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: m.invite_continue() })).toHaveFocus();
     expect(
-      await screen.findByText("You’ve joined Studio North as Admin."),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("link", { name: m.invite_continue() }),
-    ).toHaveFocus();
-    expect(
-      fetchMock.mock.calls.filter(
-        ([, init]) => (init as RequestInit | undefined)?.method === "POST",
-      ),
+      fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "POST"),
     ).toHaveLength(1);
   });
 
   it("explains an accept-time 401 when returning to the sign-in form", async () => {
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("editor");
-        if (url.endsWith("/accept") && init?.method === "POST") {
-          return new Response(null, { status: 401 });
-        }
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return new Response(null, { status: 401 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
     renderInvite(signedInAuth);
-    await user.click(
-      await screen.findByRole("button", { name: "Accept invite" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      m.invite_err_signin(),
-    );
-    expect(
-      screen.getByRole("button", { name: m.invite_sign_in_accept() }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_signin());
+    expect(screen.getByRole("button", { name: m.invite_sign_in_accept() })).toBeInTheDocument();
   });
 
   it("does not switch companies after the invite route is left during activation", async () => {
@@ -389,39 +332,27 @@ describe("InviteAccept preview and acceptance", () => {
     const pendingAccounts = new Promise<Response>((resolve) => {
       resolveAccounts = resolve;
     });
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("editor");
-        if (url.endsWith("/accept") && init?.method === "POST") {
-          return Response.json({ accountId: "joined-account", role: "editor" });
-        }
-        if (url.endsWith("/api/accounts")) return pendingAccounts;
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" });
+      }
+      if (url.endsWith("/api/accounts")) return pendingAccounts;
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
     const view = renderInvite(signedInAuth);
-    await user.click(
-      await screen.findByRole("button", { name: "Accept invite" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
     await vi.waitFor(() => {
-      expect(
-        fetchMock.mock.calls.some(([input]) =>
-          String(input).endsWith("/api/accounts"),
-        ),
-      ).toBe(true);
+      expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/api/accounts"))).toBe(true);
     });
 
     view.unmount();
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    resolveAccounts(
-      Response.json([
-        { id: "joined-account", name: "Studio North", role: "editor" },
-      ]),
-    );
+    resolveAccounts(Response.json([{ id: "joined-account", name: "Studio North", role: "editor" }]));
 
     await vi.waitFor(() => {
       expect(useStore.getState().accountSummaries).toEqual([
@@ -431,61 +362,38 @@ describe("InviteAccept preview and acceptance", () => {
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
   });
 
-  it.each([408, 503])(
-    "retries an HTTP %i accept outcome with the same command identity",
-    async (status) => {
-      const acceptHeaders: Headers[] = [];
-      let acceptAttempt = 0;
-      const fetchMock = vi.fn(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          const url = String(input);
-          if (url.endsWith("/preview")) return previewResponse("editor");
-          if (url.endsWith("/accept") && init?.method === "POST") {
-            acceptHeaders.push(new Headers(init.headers));
-            acceptAttempt += 1;
-            return acceptAttempt === 1
-              ? Response.json({ error: "Temporarily unavailable." }, { status })
-              : Response.json({ accountId: "account-1", role: "editor" });
-          }
-          if (url.endsWith("/api/accounts")) {
-            return Response.json(
-              acceptAttempt > 1
-                ? [{ id: "account-1", name: "Studio North", role: "editor" }]
-                : [],
-            );
-          }
-          throw new Error(`Unexpected request: ${url}`);
-        },
-      );
-      vi.stubGlobal("fetch", fetchMock);
-      const user = userEvent.setup();
+  it.each([408, 503])("retries an HTTP %i accept outcome with the same command identity", async (status) => {
+    const acceptHeaders: Headers[] = [];
+    let acceptAttempt = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        acceptHeaders.push(new Headers(init.headers));
+        acceptAttempt += 1;
+        return acceptAttempt === 1
+          ? Response.json({ error: "Temporarily unavailable." }, { status })
+          : Response.json({ accountId: "account-1", role: "editor" });
+      }
+      if (url.endsWith("/api/accounts")) {
+        return Response.json(acceptAttempt > 1 ? [{ id: "account-1", name: "Studio North", role: "editor" }] : []);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
 
-      renderInvite(signedInAuth);
-      await user.click(
-        await screen.findByRole("button", { name: "Accept invite" }),
-      );
+    renderInvite(signedInAuth);
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
-      expect(
-        await screen.findByText((content) =>
-          content.includes(m.invite_unknown_refreshed()),
-        ),
-      ).toBeInTheDocument();
-      await user.click(
-        screen.getByRole("button", { name: m.invite_retry_accept() }),
-      );
+    expect(await screen.findByText((content) => content.includes(m.invite_unknown_refreshed()))).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: m.invite_retry_accept() }));
 
-      expect(
-        await screen.findByText("You’ve joined Studio North as Editor."),
-      ).toBeInTheDocument();
-      expect(acceptHeaders).toHaveLength(2);
-      expect(acceptHeaders[1]!.get("x-account-command-id")).toBe(
-        acceptHeaders[0]!.get("x-account-command-id"),
-      );
-      expect(acceptHeaders[1]!.get("idempotency-key")).toBe(
-        acceptHeaders[0]!.get("idempotency-key"),
-      );
-    },
-  );
+    expect(await screen.findByText("You’ve joined Studio North as Editor.")).toBeInTheDocument();
+    expect(acceptHeaders).toHaveLength(2);
+    expect(acceptHeaders[1]!.get("x-account-command-id")).toBe(acceptHeaders[0]!.get("x-account-command-id"));
+    expect(acceptHeaders[1]!.get("idempotency-key")).toBe(acceptHeaders[0]!.get("idempotency-key"));
+  });
 
   it("reports a preview transport failure as safely retryable, not as an unknown mutation outcome", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -508,15 +416,12 @@ describe("InviteAccept preview and acceptance", () => {
 
   it("reloads the same invite after a transport-unknown signup signs in successfully", async () => {
     authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("editor");
-        if (url.endsWith("/signup") && init?.method === "POST")
-          throw new TypeError("connection closed");
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") throw new TypeError("connection closed");
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -525,32 +430,23 @@ describe("InviteAccept preview and acceptance", () => {
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
-    await user.click(
-      screen.getByRole("button", { name: "Create account and accept" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
 
-    await vi.waitFor(() =>
-      expect(handoffMock.reloadCurrentPage).toHaveBeenCalledTimes(1),
-    );
+    await vi.waitFor(() => expect(handoffMock.reloadCurrentPage).toHaveBeenCalledTimes(1));
     expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
     expect(handoffMock.replaceWithAccountPicker).not.toHaveBeenCalled();
   });
 
   it("probes sign-in recovery after a server-error signup outcome", async () => {
     authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("editor");
-        if (url.endsWith("/signup") && init?.method === "POST") {
-          return Response.json(
-            { error: "Temporarily unavailable." },
-            { status: 503 },
-          );
-        }
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return Response.json({ error: "Temporarily unavailable." }, { status: 503 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -559,29 +455,20 @@ describe("InviteAccept preview and acceptance", () => {
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
-    await user.click(
-      screen.getByRole("button", { name: "Create account and accept" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
 
-    await vi.waitFor(() =>
-      expect(handoffMock.reloadCurrentPage).toHaveBeenCalledTimes(1),
-    );
+    await vi.waitFor(() => expect(handoffMock.reloadCurrentPage).toHaveBeenCalledTimes(1));
   });
 
   it("restores the form when both transport-unknown signup and its sign-in probe fail", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    authClientMock.signInEmail.mockRejectedValueOnce(
-      new TypeError("still offline"),
-    );
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("editor");
-        if (url.endsWith("/signup") && init?.method === "POST")
-          throw new TypeError("connection closed");
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+    authClientMock.signInEmail.mockRejectedValueOnce(new TypeError("still offline"));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") throw new TypeError("connection closed");
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -590,45 +477,35 @@ describe("InviteAccept preview and acceptance", () => {
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
-    await user.click(
-      screen.getByRole("button", { name: "Create account and accept" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
 
-    expect(
-      await screen.findByText(m.invite_signup_unknown()),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Create account and accept" }),
-    ).toBeEnabled();
+    expect(await screen.findByText(m.invite_signup_unknown())).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account and accept" })).toBeEnabled();
     expect(handoffMock.reloadCurrentPage).not.toHaveBeenCalled();
   });
 
   it("uses a new command when credential input changes after an unknown signup outcome", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    authClientMock.signInEmail.mockRejectedValueOnce(
-      new TypeError("still offline"),
-    );
+    authClientMock.signInEmail.mockRejectedValueOnce(new TypeError("still offline"));
     const signupHeaders: Headers[] = [];
     let signupAttempt = 0;
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith("/preview")) return previewResponse("editor");
-        if (url.endsWith("/signup") && init?.method === "POST") {
-          signupHeaders.push(new Headers(init.headers));
-          signupAttempt += 1;
-          if (signupAttempt === 1) throw new TypeError("connection closed");
-          return Response.json(
-            {
-              error: "The invitation is no longer available.",
-              code: "INVITATION_USED",
-            },
-            { status: 409 },
-          );
-        }
-        throw new Error(`Unexpected request: ${url}`);
-      },
-    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        signupHeaders.push(new Headers(init.headers));
+        signupAttempt += 1;
+        if (signupAttempt === 1) throw new TypeError("connection closed");
+        return Response.json(
+          {
+            error: "The invitation is no longer available.",
+            code: "INVITATION_USED",
+          },
+          { status: 409 },
+        );
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -637,21 +514,15 @@ describe("InviteAccept preview and acceptance", () => {
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
-    await user.click(
-      screen.getByRole("button", { name: "Create account and accept" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
     await screen.findByText(m.invite_signup_unknown());
 
     await user.clear(screen.getByLabelText("Email"));
     await user.type(screen.getByLabelText("Email"), "corrected@example.com");
-    await user.click(
-      screen.getByRole("button", { name: "Create account and accept" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
     await screen.findByText("The invitation is no longer available.");
 
     expect(signupHeaders).toHaveLength(2);
-    expect(signupHeaders[1]!.get("x-account-command-id")).not.toBe(
-      signupHeaders[0]!.get("x-account-command-id"),
-    );
+    expect(signupHeaders[1]!.get("x-account-command-id")).not.toBe(signupHeaders[0]!.get("x-account-command-id"));
   });
 });

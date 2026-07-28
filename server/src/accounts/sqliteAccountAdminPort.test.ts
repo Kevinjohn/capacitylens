@@ -1,726 +1,767 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AccountAuditEvent } from '@capacitylens/shared/account/audit'
-import type { ActorContext } from '@capacitylens/shared/account/types'
-import { createInvite, upsertMember } from '../controlTables'
-import { openDb, insertRow, type Db } from '../db'
-import { KeyedOperationLock } from './operationLock'
-import { hasLivePreauthorizedInvitation, sqliteAccountAdminPort } from './sqliteAccountAdminPort'
-import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from './writeOnceSecretReplay'
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import type { ActorContext } from "@capacitylens/shared/account/types";
+import { createInvite, upsertMember } from "../controlTables";
+import { openDb, insertRow, type Db } from "../db";
+import { KeyedOperationLock } from "./operationLock";
+import { hasLivePreauthorizedInvitation, sqliteAccountAdminPort } from "./sqliteAccountAdminPort";
+import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "./writeOnceSecretReplay";
 
 const actor: ActorContext = {
-  principalId: 'owner-1',
-  sessionId: 'session-1',
-  assurance: 'mfa',
+  principalId: "owner-1",
+  sessionId: "session-1",
+  assurance: "mfa",
   fresh: true,
   mfaSatisfied: true,
-}
+};
 
-const command = { commandId: 'command-1', idempotencyKey: 'idempotency-1' }
+const command = { commandId: "command-1", idempotencyKey: "idempotency-1" };
 
-describe('sqliteAccountAdminPort invitation secrecy', () => {
-  let db: Db | null = null
+describe("sqliteAccountAdminPort invitation secrecy", () => {
+  let db: Db | null = null;
 
   afterEach(() => {
-    vi.useRealTimers()
-    db?.close()
-    db = null
-  })
+    vi.useRealTimers();
+    db?.close();
+    db = null;
+  });
 
-  it('evaluates pre-authorised invitation expiry by instant rather than stored text order', () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("evaluates pre-authorised invitation expiry by instant rather than stored text order", () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     createInvite(db, {
-      token: 'expired-offset-token',
-      id: 'expired-offset',
-      accountId: 'workspace-1',
-      role: 'viewer',
-      preauthEmail: 'expired@example.com',
-      expiresAt: '2026-08-01T01:00:00+01:00',
+      token: "expired-offset-token",
+      id: "expired-offset",
+      accountId: "workspace-1",
+      role: "viewer",
+      preauthEmail: "expired@example.com",
+      expiresAt: "2026-08-01T01:00:00+01:00",
       usedAt: null,
-      createdAt: '2026-01-01T00:00:00.000Z',
-    })
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
     createInvite(db, {
-      token: 'live-offset-token',
-      id: 'live-offset',
-      accountId: 'workspace-1',
-      role: 'viewer',
-      preauthEmail: 'live@example.com',
-      expiresAt: '2026-07-31T21:00:00-04:00',
+      token: "live-offset-token",
+      id: "live-offset",
+      accountId: "workspace-1",
+      role: "viewer",
+      preauthEmail: "live@example.com",
+      expiresAt: "2026-07-31T21:00:00-04:00",
       usedAt: null,
-      createdAt: '2026-01-01T00:00:00.000Z',
-    })
-    const now = Date.parse('2026-08-01T00:30:00.000Z')
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    const now = Date.parse("2026-08-01T00:30:00.000Z");
 
-    expect(hasLivePreauthorizedInvitation(db, 'expired@example.com', now)).toBe(false)
-    expect(hasLivePreauthorizedInvitation(db, 'live@example.com', now)).toBe(true)
-  })
+    expect(hasLivePreauthorizedInvitation(db, "expired@example.com", now)).toBe(false);
+    expect(hasLivePreauthorizedInvitation(db, "live@example.com", now)).toBe(true);
+  });
 
-  it('lists ordinary invitations when a used legacy Owner invite is retained for history', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("lists ordinary invitations when a used legacy Owner invite is retained for history", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     createInvite(db, {
-      token: 'used-owner-token',
-      id: 'used-owner',
-      accountId: 'workspace-1',
-      role: 'owner',
+      token: "used-owner-token",
+      id: "used-owner",
+      accountId: "workspace-1",
+      role: "owner",
       preauthEmail: null,
-      expiresAt: '2099-01-01T00:00:00.000Z',
-      usedAt: '2026-01-02T00:00:00.000Z',
-      createdAt: '2026-01-01T00:00:00.000Z',
-    })
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      usedAt: "2026-01-02T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
     createInvite(db, {
-      token: 'live-editor-token',
-      id: 'live-editor',
-      accountId: 'workspace-1',
-      role: 'editor',
-      preauthEmail: 'editor@example.com',
-      expiresAt: '2099-01-01T00:00:00.000Z',
+      token: "live-editor-token",
+      id: "live-editor",
+      accountId: "workspace-1",
+      role: "editor",
+      preauthEmail: "editor@example.com",
+      expiresAt: "2099-01-01T00:00:00.000Z",
       usedAt: null,
-      createdAt: '2026-01-03T00:00:00.000Z',
-    })
+      createdAt: "2026-01-03T00:00:00.000Z",
+    });
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: true,
-    })
+    });
 
-    await expect(port.listInvitations({ actor, workspaceId: 'workspace-1' })).resolves.toEqual([
-      expect.objectContaining({ id: 'live-editor', role: 'editor' }),
-    ])
-  })
+    await expect(port.listInvitations({ actor, workspaceId: "workspace-1" })).resolves.toEqual([
+      expect.objectContaining({ id: "live-editor", role: "editor" }),
+    ]);
+  });
 
-  it('never persists a raw invitation token in the durable command ledger', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("never persists a raw invitation token in the durable command ledger", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: true,
-    })
+    });
 
     const created = await port.createInvitation({
       actor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
-      preauthorizedEmail: 'person@example.com',
+      workspaceId: "workspace-1",
+      role: "editor",
+      preauthorizedEmail: "person@example.com",
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       command,
-    })
-    const persisted = db.prepare(
-      `SELECT resultJson FROM account_commands WHERE commandId = ?`,
-    ).get(command.commandId) as { resultJson: string }
+    });
+    const persisted = db
+      .prepare(`SELECT resultJson FROM account_commands WHERE commandId = ?`)
+      .get(command.commandId) as { resultJson: string };
 
-    expect(created.token).toHaveLength(43)
-    expect(persisted.resultJson).not.toContain(created.token)
-    expect(JSON.parse(persisted.resultJson)).not.toHaveProperty('token')
+    expect(created.token).toHaveLength(43);
+    expect(persisted.resultJson).not.toContain(created.token);
+    expect(JSON.parse(persisted.resultJson)).not.toHaveProperty("token");
 
-    await expect(port.createInvitation({
-      actor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
-      preauthorizedEmail: 'person@example.com',
-      expiresAt: created.expiresAt,
-      command,
-    })).resolves.toEqual(created)
-  })
+    await expect(
+      port.createInvitation({
+        actor,
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: "person@example.com",
+        expiresAt: created.expiresAt,
+        command,
+      }),
+    ).resolves.toEqual(created);
+  });
 
-  it('drops the plaintext invitation replay after the short response-loss horizon', async () => {
-    vi.useFakeTimers()
-    const startedAt = new Date('2026-01-01T00:00:00.000Z')
-    vi.setSystemTime(startedAt)
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
+  it("drops the plaintext invitation replay after the short response-loss horizon", async () => {
+    vi.useFakeTimers();
+    const startedAt = new Date("2026-01-01T00:00:00.000Z");
+    vi.setSystemTime(startedAt);
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
       createdAt: startedAt.toISOString(),
       updatedAt: startedAt.toISOString(),
-    })
+    });
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: true,
-    })
+    });
     const input = {
       actor,
-      workspaceId: 'workspace-1',
-      role: 'editor' as const,
+      workspaceId: "workspace-1",
+      role: "editor" as const,
       preauthorizedEmail: null,
       expiresAt: new Date(startedAt.getTime() + 24 * 60 * 60 * 1000).toISOString(),
       command,
-    }
+    };
 
-    const created = await port.createInvitation(input)
-    vi.setSystemTime(startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS - 1)
-    await expect(port.createInvitation(input)).resolves.toEqual(created)
+    const created = await port.createInvitation(input);
+    vi.setSystemTime(startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS - 1);
+    await expect(port.createInvitation(input)).resolves.toEqual(created);
 
-    vi.setSystemTime(startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS)
-    await expect(port.createInvitation(input))
-      .rejects.toMatchObject({ failure: { code: 'CONFLICT' } })
-  })
+    vi.setSystemTime(startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS);
+    await expect(port.createInvitation(input)).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
+  });
 
-  it('refuses invitation issuance under replay pressure without displacing a completed response', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("refuses invitation issuance under replay pressure without displacing a completed response", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: true,
       writeOnceReplayCapacity: 1,
-    })
-    const expiresAt = new Date(Date.now() + 60_000).toISOString()
+    });
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
     const firstInput = {
       actor,
-      workspaceId: 'workspace-1',
-      role: 'editor' as const,
+      workspaceId: "workspace-1",
+      role: "editor" as const,
       preauthorizedEmail: null,
       expiresAt,
       command,
-    }
+    };
 
-    const first = await port.createInvitation(firstInput)
-    await expect(port.createInvitation({
-      ...firstInput,
-      command: { commandId: 'command-2', idempotencyKey: 'idempotency-2' },
-    })).rejects.toMatchObject({
+    const first = await port.createInvitation(firstInput);
+    await expect(
+      port.createInvitation({
+        ...firstInput,
+        command: { commandId: "command-2", idempotencyKey: "idempotency-2" },
+      }),
+    ).rejects.toMatchObject({
       failure: {
-        code: 'RATE_LIMITED',
+        code: "RATE_LIMITED",
         retryable: true,
         retryAfterSeconds: WRITE_ONCE_SECRET_REPLAY_WINDOW_MS / 1_000,
       },
-    })
+    });
 
-    await expect(port.createInvitation(firstInput)).resolves.toEqual(first)
-    expect(db.prepare(`SELECT COUNT(*) AS count FROM invites`).get()).toEqual({ count: 1 })
-  })
+    await expect(port.createInvitation(firstInput)).resolves.toEqual(first);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invites`).get()).toEqual({ count: 1 });
+  });
 
-  it('keeps an unrecoverable write-once invitation visible and revocable after an adapter restart', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("keeps an unrecoverable write-once invitation visible and revocable after an adapter restart", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     const input = {
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: true,
-    }
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    };
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     const created = await sqliteAccountAdminPort(input).createInvitation({
       actor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
+      workspaceId: "workspace-1",
+      role: "editor",
       preauthorizedEmail: null,
       expiresAt,
       command,
-    })
+    });
 
-    const restarted = sqliteAccountAdminPort(input)
-    await expect(restarted.createInvitation({
-      actor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
-      preauthorizedEmail: null,
-      expiresAt,
-      command,
-    })).rejects.toMatchObject({ failure: { code: 'CONFLICT' } })
+    const restarted = sqliteAccountAdminPort(input);
+    await expect(
+      restarted.createInvitation({
+        actor,
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: null,
+        expiresAt,
+        command,
+      }),
+    ).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
 
-    await expect(restarted.listInvitations({ actor, workspaceId: 'workspace-1' })).resolves.toEqual([
-      expect.objectContaining({ id: created.id, workspaceId: 'workspace-1', usedAt: null }),
-    ])
-    await expect(restarted.revokeInvitation({
-      actor,
-      workspaceId: 'workspace-1',
-      invitationId: created.id,
-      command: { commandId: 'revoke-command', idempotencyKey: 'revoke-idempotency' },
-    })).resolves.toMatchObject({ changed: true })
-    await expect(restarted.listInvitations({ actor, workspaceId: 'workspace-1' })).resolves.toEqual([])
-  })
+    await expect(restarted.listInvitations({ actor, workspaceId: "workspace-1" })).resolves.toEqual([
+      expect.objectContaining({ id: created.id, workspaceId: "workspace-1", usedAt: null }),
+    ]);
+    await expect(
+      restarted.revokeInvitation({
+        actor,
+        workspaceId: "workspace-1",
+        invitationId: created.id,
+        command: { commandId: "revoke-command", idempotencyKey: "revoke-idempotency" },
+      }),
+    ).resolves.toMatchObject({ changed: true });
+    await expect(restarted.listInvitations({ actor, workspaceId: "workspace-1" })).resolves.toEqual([]);
+  });
 
-  it('removes the write-once replay copy before a successful invitation claim releases its lock', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("removes the write-once replay copy before a successful invitation claim releases its lock", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: true,
-    })
+    });
     const createInput = {
       actor,
-      workspaceId: 'workspace-1',
-      role: 'editor' as const,
+      workspaceId: "workspace-1",
+      role: "editor" as const,
       preauthorizedEmail: null,
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
       command,
-    }
-    const created = await port.createInvitation(createInput)
+    };
+    const created = await port.createInvitation(createInput);
     await port.claimInvitationForPrincipal({
       token: created.token,
-      principalId: 'invitee-1',
-      principalEmail: 'invitee@example.com',
+      principalId: "invitee-1",
+      principalEmail: "invitee@example.com",
       emailVerified: false,
       passwordMode: true,
-      command: { commandId: 'claim-command', idempotencyKey: 'claim-idempotency' },
-    })
+      command: { commandId: "claim-command", idempotencyKey: "claim-idempotency" },
+    });
 
-    await expect(port.createInvitation(createInput))
-      .rejects.toMatchObject({ failure: { code: 'CONFLICT' } })
-  })
+    await expect(port.createInvitation(createInput)).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
+  });
 
-  it('rechecks current invitation authority before replaying a write-once token', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("rechecks current invitation authority before replaying a write-once token", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     upsertMember(db, {
-      accountId: 'workspace-1',
+      accountId: "workspace-1",
       userId: actor.principalId,
-      role: 'owner',
-      status: 'active',
-      createdAt: '2026-01-01T00:00:00.000Z',
-    })
+      role: "owner",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
-    })
+    });
     const input = {
       actor,
-      workspaceId: 'workspace-1',
-      role: 'editor' as const,
-      preauthorizedEmail: 'person@example.com',
+      workspaceId: "workspace-1",
+      role: "editor" as const,
+      preauthorizedEmail: "person@example.com",
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
       command,
-    }
+    };
 
-    await expect(port.createInvitation(input)).resolves.toMatchObject({ token: expect.any(String) })
+    await expect(port.createInvitation(input)).resolves.toMatchObject({ token: expect.any(String) });
     upsertMember(db, {
-      accountId: 'workspace-1',
+      accountId: "workspace-1",
       userId: actor.principalId,
-      role: 'viewer',
-      status: 'active',
-      createdAt: '2026-01-01T00:00:00.000Z',
-    })
+      role: "viewer",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
 
-    await expect(port.createInvitation(input))
-      .rejects.toMatchObject({ failure: { code: 'FORBIDDEN' } })
-  })
+    await expect(port.createInvitation(input)).rejects.toMatchObject({ failure: { code: "FORBIDDEN" } });
+  });
 
-  it('validates invitation email syntax at the transport-independent port boundary', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("validates invitation email syntax at the transport-independent port boundary", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       trustedLocal: true,
-    })
+    });
 
-    await expect(port.createInvitation({
-      actor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
-      preauthorizedEmail: 'not-an-email',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      command: { commandId: 'invalid-email-command', idempotencyKey: 'invalid-email-key' },
-    })).rejects.toMatchObject({ failure: { code: 'VALIDATION_FAILED' } })
-  })
+    await expect(
+      port.createInvitation({
+        actor,
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: "not-an-email",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        command: { commandId: "invalid-email-command", idempotencyKey: "invalid-email-key" },
+      }),
+    ).rejects.toMatchObject({ failure: { code: "VALIDATION_FAILED" } });
+  });
 
-  it('enforces fresh MFA-backed administration and emits normalized success and denial audits', async () => {
-    db = openDb(':memory:')
-    insertRow(db, 'accounts', {
-      id: 'workspace-1',
-      name: 'Workspace',
-      color: '#6366f1',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })
+  it("enforces fresh MFA-backed administration and emits normalized success and denial audits", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
     upsertMember(db, {
-      accountId: 'workspace-1',
+      accountId: "workspace-1",
       userId: actor.principalId,
-      role: 'owner',
-      status: 'active',
-      createdAt: '2026-01-01T00:00:00.000Z',
-    })
-    const events: AccountAuditEvent[] = []
-    const audit = { append: vi.fn((event: AccountAuditEvent) => { events.push(event); return true }) }
+      role: "owner",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    const events: AccountAuditEvent[] = [];
+    const audit = {
+      append: vi.fn((event: AccountAuditEvent) => {
+        events.push(event);
+        return true;
+      }),
+    };
     const port = sqliteAccountAdminPort({
-      applicationId: 'test-application',
+      applicationId: "test-application",
       db,
       lock: new KeyedOperationLock(),
       requireMfa: true,
       audit,
-    })
-    const expiresAt = new Date(Date.now() + 60_000).toISOString()
-    const staleActor = { ...actor, fresh: false }
-    const passwordActor = { ...actor, assurance: 'password' as const, mfaSatisfied: false }
+    });
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    const staleActor = { ...actor, fresh: false };
+    const passwordActor = { ...actor, assurance: "password" as const, mfaSatisfied: false };
 
-    await expect(port.createInvitation({
-      actor: staleActor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
-      preauthorizedEmail: 'person@example.com',
-      expiresAt,
-      command: { commandId: 'stale-command', idempotencyKey: 'stale-idempotency' },
-    })).rejects.toMatchObject({ failure: { code: 'SESSION_NOT_FRESH' } })
-    await expect(port.createInvitation({
-      actor: passwordActor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
-      preauthorizedEmail: 'person@example.com',
-      expiresAt,
-      command: { commandId: 'mfa-command', idempotencyKey: 'mfa-idempotency' },
-    })).rejects.toMatchObject({ failure: { code: 'MFA_REQUIRED' } })
+    await expect(
+      port.createInvitation({
+        actor: staleActor,
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: "person@example.com",
+        expiresAt,
+        command: { commandId: "stale-command", idempotencyKey: "stale-idempotency" },
+      }),
+    ).rejects.toMatchObject({ failure: { code: "SESSION_NOT_FRESH" } });
+    await expect(
+      port.createInvitation({
+        actor: passwordActor,
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: "person@example.com",
+        expiresAt,
+        command: { commandId: "mfa-command", idempotencyKey: "mfa-idempotency" },
+      }),
+    ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
     const created = await port.createInvitation({
       actor,
-      workspaceId: 'workspace-1',
-      role: 'editor',
-      preauthorizedEmail: 'person@example.com',
+      workspaceId: "workspace-1",
+      role: "editor",
+      preauthorizedEmail: "person@example.com",
       expiresAt,
-      command: { commandId: 'success-command', idempotencyKey: 'success-idempotency' },
-    })
+      command: { commandId: "success-command", idempotencyKey: "success-idempotency" },
+    });
 
     expect(events.map(({ action, outcome, commandId }) => ({ action, outcome, commandId }))).toEqual([
-      { action: 'invitation.created', outcome: 'denied', commandId: 'stale-command' },
-      { action: 'invitation.created', outcome: 'denied', commandId: 'mfa-command' },
-      { action: 'invitation.created', outcome: 'success', commandId: 'success-command' },
-    ])
-    expect(JSON.stringify(events)).not.toContain(created.token)
+      { action: "invitation.created", outcome: "denied", commandId: "stale-command" },
+      { action: "invitation.created", outcome: "denied", commandId: "mfa-command" },
+      { action: "invitation.created", outcome: "success", commandId: "success-command" },
+    ]);
+    expect(JSON.stringify(events)).not.toContain(created.token);
     expect(events[2]).toMatchObject({
-      applicationId: 'test-application',
-      workspaceId: 'workspace-1',
+      applicationId: "test-application",
+      workspaceId: "workspace-1",
       actorPrincipalId: actor.principalId,
-      changedFields: ['role', 'preauthorizedEmail', 'expiresAt'],
-    })
-  })
-})
+      changedFields: ["role", "preauthorizedEmail", "expiresAt"],
+    });
+  });
+});
 
-describe('sqliteAccountAdminPort authority integrity', () => {
-  it('evaluates a member batch with one actor-role and live-workspace snapshot', async () => {
-    const db = openDb(':memory:')
+describe("sqliteAccountAdminPort authority integrity", () => {
+  it("evaluates a member batch with one actor-role and live-workspace snapshot", async () => {
+    const db = openDb(":memory:");
     try {
-      for (const workspaceId of ['workspace-1', 'workspace-2']) {
-        insertRow(db, 'accounts', {
+      for (const workspaceId of ["workspace-1", "workspace-2"]) {
+        insertRow(db, "accounts", {
           id: workspaceId,
           name: workspaceId,
-          color: '#6366f1',
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        })
+          color: "#6366f1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        });
         upsertMember(db, {
           accountId: workspaceId,
           userId: actor.principalId,
-          role: 'owner',
-          status: 'active',
-          createdAt: '2026-01-01T00:00:00.000Z',
-        })
+          role: "owner",
+          status: "active",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        });
       }
       upsertMember(db, {
-        accountId: 'workspace-1', userId: 'target-1', role: 'editor', status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        accountId: "workspace-1",
+        userId: "target-1",
+        role: "editor",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       upsertMember(db, {
-        accountId: 'workspace-2', userId: 'target-2', role: 'viewer', status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        accountId: "workspace-2",
+        userId: "target-2",
+        role: "viewer",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       const port = sqliteAccountAdminPort({
-        applicationId: 'test-application',
+        applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
-      })
-      const prepare = vi.spyOn(db, 'prepare')
+      });
+      const prepare = vi.spyOn(db, "prepare");
 
       const results = await port.evaluateIdentityAdminAuthoritiesForTargets({
         actor,
-        targetPrincipalIds: ['target-1', 'target-2'],
-        actions: ['issue-password-reset', 'revoke-sessions'],
-      })
+        targetPrincipalIds: ["target-1", "target-2"],
+        actions: ["issue-password-reset", "revoke-sessions"],
+      });
 
-      expect(results.get('target-1')?.get('issue-password-reset')).toMatchObject({ allowed: true })
-      expect(results.get('target-2')?.get('revoke-sessions')).toMatchObject({ allowed: true })
-      const statements = prepare.mock.calls.map(([sql]) => String(sql).replace(/\s+/g, ' ').trim())
-      expect(statements.filter((sql) => sql.includes('FROM account_members WHERE userId = ?'))).toHaveLength(3)
-      expect(statements.filter((sql) => sql === 'SELECT id FROM accounts')).toHaveLength(1)
-      prepare.mockRestore()
+      expect(results.get("target-1")?.get("issue-password-reset")).toMatchObject({ allowed: true });
+      expect(results.get("target-2")?.get("revoke-sessions")).toMatchObject({ allowed: true });
+      const statements = prepare.mock.calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim());
+      expect(statements.filter((sql) => sql.includes("FROM account_members WHERE userId = ?"))).toHaveLength(3);
+      expect(statements.filter((sql) => sql === "SELECT id FROM accounts")).toHaveLength(1);
+      prepare.mockRestore();
     } finally {
-      db.close()
+      db.close();
     }
-  })
+  });
 
-  it('does not expose or administer membership rows for an erased workspace', async () => {
-    const db = openDb(':memory:')
+  it("does not expose or administer membership rows for an erased workspace", async () => {
+    const db = openDb(":memory:");
     try {
       upsertMember(db, {
-        accountId: 'erased-workspace',
+        accountId: "erased-workspace",
         userId: actor.principalId,
-        role: 'owner',
-        status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       const port = sqliteAccountAdminPort({
-        applicationId: 'test-application',
+        applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
-      })
+      });
 
-      await expect(port.getMembership({
-        principalId: actor.principalId,
-        workspaceId: 'erased-workspace',
-      })).resolves.toBeNull()
-      await expect(port.listMemberships({
-        actor,
-        workspaceId: 'erased-workspace',
-      })).rejects.toMatchObject({ failure: { code: 'NOT_FOUND' } })
-      await expect(port.changeMemberRole({
-        actor,
-        workspaceId: 'erased-workspace',
-        targetPrincipalId: actor.principalId,
-        nextRole: 'admin',
-        command: { commandId: 'dangling-role-command', idempotencyKey: 'dangling-role-key' },
-      })).rejects.toMatchObject({ failure: { code: 'NOT_FOUND' } })
+      await expect(
+        port.getMembership({
+          principalId: actor.principalId,
+          workspaceId: "erased-workspace",
+        }),
+      ).resolves.toBeNull();
+      await expect(
+        port.listMemberships({
+          actor,
+          workspaceId: "erased-workspace",
+        }),
+      ).rejects.toMatchObject({ failure: { code: "NOT_FOUND" } });
+      await expect(
+        port.changeMemberRole({
+          actor,
+          workspaceId: "erased-workspace",
+          targetPrincipalId: actor.principalId,
+          nextRole: "admin",
+          command: { commandId: "dangling-role-command", idempotencyKey: "dangling-role-key" },
+        }),
+      ).rejects.toMatchObject({ failure: { code: "NOT_FOUND" } });
     } finally {
-      db.close()
+      db.close();
     }
-  })
+  });
 
-  it('enforces administrative session assurance at privileged read port boundaries', async () => {
-    const db = openDb(':memory:')
+  it("enforces administrative session assurance at privileged read port boundaries", async () => {
+    const db = openDb(":memory:");
     try {
-      insertRow(db, 'accounts', {
-        id: 'workspace-1',
-        name: 'Workspace',
-        color: '#6366f1',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      })
+      insertRow(db, "accounts", {
+        id: "workspace-1",
+        name: "Workspace",
+        color: "#6366f1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
       upsertMember(db, {
-        accountId: 'workspace-1',
+        accountId: "workspace-1",
         userId: actor.principalId,
-        role: 'owner',
-        status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       const port = sqliteAccountAdminPort({
-        applicationId: 'test-application',
-        db,
-        lock: new KeyedOperationLock(),
-        requireMfa: true,
-      })
-
-      await expect(port.listMemberships({
-        actor: { ...actor, fresh: false },
-        workspaceId: 'workspace-1',
-      })).rejects.toMatchObject({ failure: { code: 'SESSION_NOT_FRESH' } })
-      await expect(port.listInvitations({
-        actor: { ...actor, assurance: 'password', mfaSatisfied: false },
-        workspaceId: 'workspace-1',
-      })).rejects.toMatchObject({ failure: { code: 'MFA_REQUIRED' } })
-    } finally {
-      db.close()
-    }
-  })
-
-  it('requires administrative assurance for membership-authorized workspace provisioning', () => {
-    const db = openDb(':memory:')
-    try {
-      insertRow(db, 'accounts', {
-        id: 'workspace-1',
-        name: 'Workspace',
-        color: '#6366f1',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      })
-      upsertMember(db, {
-        accountId: 'workspace-1',
-        userId: actor.principalId,
-        role: 'owner',
-        status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
-      const port = sqliteAccountAdminPort({
-        applicationId: 'test-application',
+        applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
         requireMfa: true,
-      })
-      const evaluate = (candidate: ActorContext) => port.evaluateWorkspaceProvisioningAuthorityInTx({
-        actor: candidate,
-        multiWorkspace: true,
-        bootstrapAuthorized: false,
-      })
+      });
 
-      expect(() => evaluate({ ...actor, fresh: false }))
-        .toThrow(expect.objectContaining({ failure: expect.objectContaining({ code: 'SESSION_NOT_FRESH' }) }))
-      expect(() => evaluate({ ...actor, assurance: 'password', mfaSatisfied: false }))
-        .toThrow(expect.objectContaining({ failure: expect.objectContaining({ code: 'MFA_REQUIRED' }) }))
-      expect(evaluate(actor)).toEqual({ allowed: true })
+      await expect(
+        port.listMemberships({
+          actor: { ...actor, fresh: false },
+          workspaceId: "workspace-1",
+        }),
+      ).rejects.toMatchObject({ failure: { code: "SESSION_NOT_FRESH" } });
+      await expect(
+        port.listInvitations({
+          actor: { ...actor, assurance: "password", mfaSatisfied: false },
+          workspaceId: "workspace-1",
+        }),
+      ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
     } finally {
-      db.close()
+      db.close();
     }
-  })
+  });
 
-  it('does not let an inactive control row confer workspace administration authority', async () => {
-    const db = openDb(':memory:')
+  it("requires administrative assurance for membership-authorized workspace provisioning", () => {
+    const db = openDb(":memory:");
     try {
-      insertRow(db, 'accounts', {
-        id: 'workspace-1',
-        name: 'Workspace',
-        color: '#6366f1',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      })
+      insertRow(db, "accounts", {
+        id: "workspace-1",
+        name: "Workspace",
+        color: "#6366f1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
       upsertMember(db, {
-        accountId: 'workspace-1',
+        accountId: "workspace-1",
         userId: actor.principalId,
-        role: 'owner',
-        status: 'invited' as never,
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       const port = sqliteAccountAdminPort({
-        applicationId: 'test-application',
+        applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
-      })
+        requireMfa: true,
+      });
+      const evaluate = (candidate: ActorContext) =>
+        port.evaluateWorkspaceProvisioningAuthorityInTx({
+          actor: candidate,
+          multiWorkspace: true,
+          bootstrapAuthorized: false,
+        });
 
-      expect(port.roleForPrincipalInWorkspace(actor.principalId, 'workspace-1')).toBeNull()
-      await expect(port.createInvitation({
-        actor,
-        workspaceId: 'workspace-1',
-        role: 'editor',
-        preauthorizedEmail: 'person@example.com',
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        command: { commandId: 'inactive-actor-command', idempotencyKey: 'inactive-actor-key' },
-      })).rejects.toMatchObject({ failure: { code: 'NOT_MEMBER' } })
+      expect(() => evaluate({ ...actor, fresh: false })).toThrow(
+        expect.objectContaining({ failure: expect.objectContaining({ code: "SESSION_NOT_FRESH" }) }),
+      );
+      expect(() => evaluate({ ...actor, assurance: "password", mfaSatisfied: false })).toThrow(
+        expect.objectContaining({ failure: expect.objectContaining({ code: "MFA_REQUIRED" }) }),
+      );
+      expect(evaluate(actor)).toEqual({ allowed: true });
     } finally {
-      db.close()
+      db.close();
     }
-  })
+  });
 
-  it('reactivates an inactive invitee with the invitation role rather than its stale role', async () => {
-    const db = openDb(':memory:')
+  it("does not let an inactive control row confer workspace administration authority", async () => {
+    const db = openDb(":memory:");
     try {
-      insertRow(db, 'accounts', {
-        id: 'workspace-1',
-        name: 'Workspace',
-        color: '#6366f1',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      })
+      insertRow(db, "accounts", {
+        id: "workspace-1",
+        name: "Workspace",
+        color: "#6366f1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
       upsertMember(db, {
-        accountId: 'workspace-1',
-        userId: 'invitee-1',
-        role: 'owner',
-        status: 'invited' as never,
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        accountId: "workspace-1",
+        userId: actor.principalId,
+        role: "owner",
+        status: "invited" as never,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       const port = sqliteAccountAdminPort({
-        applicationId: 'test-application',
+        applicationId: "test-application",
+        db,
+        lock: new KeyedOperationLock(),
+      });
+
+      expect(port.roleForPrincipalInWorkspace(actor.principalId, "workspace-1")).toBeNull();
+      await expect(
+        port.createInvitation({
+          actor,
+          workspaceId: "workspace-1",
+          role: "editor",
+          preauthorizedEmail: "person@example.com",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          command: { commandId: "inactive-actor-command", idempotencyKey: "inactive-actor-key" },
+        }),
+      ).rejects.toMatchObject({ failure: { code: "NOT_MEMBER" } });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("reactivates an inactive invitee with the invitation role rather than its stale role", async () => {
+    const db = openDb(":memory:");
+    try {
+      insertRow(db, "accounts", {
+        id: "workspace-1",
+        name: "Workspace",
+        color: "#6366f1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
+      upsertMember(db, {
+        accountId: "workspace-1",
+        userId: "invitee-1",
+        role: "owner",
+        status: "invited" as never,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      const port = sqliteAccountAdminPort({
+        applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
         trustedLocal: true,
-      })
+      });
       const invitation = await port.createInvitation({
         actor,
-        workspaceId: 'workspace-1',
-        role: 'viewer',
+        workspaceId: "workspace-1",
+        role: "viewer",
         preauthorizedEmail: null,
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        command: { commandId: 'inactive-create-command', idempotencyKey: 'inactive-create-key' },
-      })
+        command: { commandId: "inactive-create-command", idempotencyKey: "inactive-create-key" },
+      });
 
-      await expect(port.claimInvitationForPrincipal({
-        token: invitation.token,
-        principalId: 'invitee-1',
-        principalEmail: 'invitee@example.com',
-        emailVerified: false,
-        passwordMode: true,
-        command: { commandId: 'inactive-claim-command', idempotencyKey: 'inactive-claim-key' },
-      })).resolves.toMatchObject({ role: 'viewer', status: 'active' })
-      expect(port.roleForPrincipalInWorkspace('invitee-1', 'workspace-1')).toBe('viewer')
+      await expect(
+        port.claimInvitationForPrincipal({
+          token: invitation.token,
+          principalId: "invitee-1",
+          principalEmail: "invitee@example.com",
+          emailVerified: false,
+          passwordMode: true,
+          command: { commandId: "inactive-claim-command", idempotencyKey: "inactive-claim-key" },
+        }),
+      ).resolves.toMatchObject({ role: "viewer", status: "active" });
+      expect(port.roleForPrincipalInWorkspace("invitee-1", "workspace-1")).toBe("viewer");
     } finally {
-      db.close()
+      db.close();
     }
-  })
+  });
 
-  it('ignores dangling membership rows when evaluating identity-global authority', async () => {
-    const db = openDb(':memory:')
+  it("ignores dangling membership rows when evaluating identity-global authority", async () => {
+    const db = openDb(":memory:");
     try {
       upsertMember(db, {
-        accountId: 'erased-workspace',
+        accountId: "erased-workspace",
         userId: actor.principalId,
-        role: 'owner',
-        status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       upsertMember(db, {
-        accountId: 'erased-workspace',
-        userId: 'target-1',
-        role: 'viewer',
-        status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-      })
+        accountId: "erased-workspace",
+        userId: "target-1",
+        role: "viewer",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
       const port = sqliteAccountAdminPort({
-        applicationId: 'test-application',
+        applicationId: "test-application",
         db,
         lock: new KeyedOperationLock(),
-      })
+      });
 
-      await expect(port.evaluateIdentityAdminAuthority({
-        actor,
-        targetPrincipalId: 'target-1',
-        action: 'issue-password-reset',
-      })).resolves.toEqual({ allowed: false, reason: 'target-not-member' })
+      await expect(
+        port.evaluateIdentityAdminAuthority({
+          actor,
+          targetPrincipalId: "target-1",
+          action: "issue-password-reset",
+        }),
+      ).resolves.toEqual({ allowed: false, reason: "target-not-member" });
     } finally {
-      db.close()
+      db.close();
     }
-  })
-})
+  });
+});

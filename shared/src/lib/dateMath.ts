@@ -1,5 +1,5 @@
-import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from 'date-fns'
-import type { ISODate, Weekday } from '../types/entities'
+import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
+import type { ISODate, Weekday } from "../types/entities";
 
 // All scheduler geometry is done in INTEGER day-indices derived from date-only
 // ISO strings. We never do millisecond Date math for positioning — that is the
@@ -23,77 +23,77 @@ import type { ISODate, Weekday } from '../types/entities'
  *   throw a RangeError — surface that as the upstream-validation bug it is, don't catch it here.
  */
 export function parseDate(date: ISODate): Date {
-  return parseISO(date)
+  return parseISO(date);
 }
 
 /** Format a Date back to a date-only ISO string. */
 export function toISODate(date: Date): ISODate {
-  return format(date, 'yyyy-MM-dd')
+  return format(date, "yyyy-MM-dd");
 }
 
 /** Whole-calendar-day offset of `date` from `origin` (may be negative).
  *  Both args must be validated `ISODate`s (see the module precondition); an invalid one
  *  yields `NaN` here, which the geometry callers (`xForDate`) `Number.isFinite`-guard to 0. */
 export function dayIndex(date: ISODate, origin: ISODate): number {
-  return differenceInCalendarDays(parseISO(date), parseISO(origin))
+  return differenceInCalendarDays(parseISO(date), parseISO(origin));
 }
 
 /** Add (or subtract, with a negative `days`) whole days to a date-only ISO string.
  *  `date` must be a validated `ISODate` (see the module precondition) — an invalid one
  *  produces an Invalid Date and the inner `toISODate`/`format()` throws RangeError. */
 export function addDaysISO(date: ISODate, days: number): ISODate {
-  return toISODate(addDays(parseISO(date), days))
+  return toISODate(addDays(parseISO(date), days));
 }
 
 /** Inclusive day count of [start, end]: end - start + 1. Can be <= 0 if reversed. */
 export function daysInclusive(start: ISODate, end: ISODate): number {
-  return differenceInCalendarDays(parseISO(end), parseISO(start)) + 1
+  return differenceInCalendarDays(parseISO(end), parseISO(start)) + 1;
 }
 
 /** Every date-only ISO string in [start, end], inclusive. Empty when end < start. */
 export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
-  const count = daysInclusive(start, end)
-  if (count <= 0) return []
-  const out: ISODate[] = []
+  const count = daysInclusive(start, end);
+  if (count <= 0) return [];
+  const out: ISODate[] = [];
   // Parse `start` ONCE and step the resulting Date with addDays, formatting each day once. The
   // previous `addDaysISO(start, i)` per iteration re-parsed the start STRING every time (~n+1
   // parses + n formats for an n-day range) — this is a hot path (per-resource capacity windows),
   // so that redundant re-parsing shows up directly as scroll/zoom jank on large teams.
-  let cursor = parseISO(start)
+  let cursor = parseISO(start);
   for (let i = 0; i < count; i++) {
-    out.push(toISODate(cursor))
-    cursor = addDays(cursor, 1)
+    out.push(toISODate(cursor));
+    cursor = addDays(cursor, 1);
   }
-  return out
+  return out;
 }
 
 /** Weekday (0=Sun … 6=Sat) of a date-only ISO string. */
 export function weekdayOf(date: ISODate): Weekday {
-  return parseISO(date).getDay() as Weekday
+  return parseISO(date).getDay() as Weekday;
 }
 
 /** The start of the week containing `date`.
  *  `weekStartsOn`: 0 = Sunday, 1 = Monday (default, ISO-style). */
 export function startOfWeekISO(date: ISODate, weekStartsOn: 0 | 1 = 1): ISODate {
-  return toISODate(startOfWeek(parseISO(date), { weekStartsOn }))
+  return toISODate(startOfWeek(parseISO(date), { weekStartsOn }));
 }
 
 /** Pixel x-offset of a date's left edge from the timeline origin.
  *  Returns 0 for an unparseable date so a bad record can't produce NaN geometry. */
 export function xForDate(date: ISODate, origin: ISODate, dayWidth: number): number {
-  const i = dayIndex(date, origin)
-  return Number.isFinite(i) ? i * dayWidth : 0
+  const i = dayIndex(date, origin);
+  return Number.isFinite(i) ? i * dayWidth : 0;
 }
 
 /** Pixel width of an inclusive [start, end] range. Clamped to >= 0 so a reversed or
  *  unparseable range, or a negative/non-finite `dayWidth`, renders as a zero-width
  *  (harmless) bar, never negative or non-finite. */
 export function widthForRange(start: ISODate, end: ISODate, dayWidth: number): number {
-  if (!Number.isFinite(dayWidth) || dayWidth < 0) return 0
-  const n = daysInclusive(start, end)
-  if (!Number.isFinite(n) || n <= 0) return 0
-  const width = n * dayWidth
-  return Number.isFinite(width) ? width : 0
+  if (!Number.isFinite(dayWidth) || dayWidth < 0) return 0;
+  const n = daysInclusive(start, end);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const width = n * dayWidth;
+  return Number.isFinite(width) ? width : 0;
 }
 
 /** Is `date` within the inclusive range [start, end]? Zero-padded YYYY-MM-DD strings
@@ -104,7 +104,7 @@ export function widthForRange(start: ISODate, end: ISODate, dayWidth: number): n
  *  EVERY write boundary (store add/update, import remap, server validate), so an
  *  unpadded date like "2026-6-1" can never reach this comparison. */
 export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
-  return date >= start && date <= end
+  return date >= start && date <= end;
 }
 
 /** Today as a date-only ISO string (impure — reads the system clock).
@@ -113,31 +113,31 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
  *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR
  *  invalid (an invalid IANA zone is warned about, then ignored — never throws). */
 export function todayISO(timeZone?: string): ISODate {
-  if (!timeZone) return toISODate(new Date())
+  if (!timeZone) return toISODate(new Date());
   try {
     // Use formatToParts for safety (avoids any locale-specific separators).
-    const parts = new Intl.DateTimeFormat('en-CA', {
+    const parts = new Intl.DateTimeFormat("en-CA", {
       timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(new Date())
-    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00'
-    return `${get('year')}-${get('month')}-${get('day')}` as ISODate
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+    return `${get("year")}-${get("month")}-${get("day")}` as ISODate;
   } catch (e) {
     // A malformed IANA timeZone makes the Intl.DateTimeFormat constructor throw a RangeError,
     // which would otherwise crash "today" resolution and with it the whole forward-window
     // utilisation calc. The client path can still hold an un-sanitised `account.timezone`
     // (sanitizeAccount only runs on the server write path), so degrade to the LOCAL date —
     // but WARN, never silently, so a bad zone is discoverable instead of masked.
-    console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e)
-    return toISODate(new Date())
+    console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e);
+    return toISODate(new Date());
   }
 }
 
 /** Is `date`'s weekday one of `workingDays`? */
 export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean {
-  return workingDays.includes(weekdayOf(date))
+  return workingDays.includes(weekdayOf(date));
 }
 
 /** Should weekend/non-working days be treated specially? True only when the
@@ -145,11 +145,8 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
  *  hasn't opted out via `ignoreWeekends`. This is the single condition shared by
  *  drag math (gestureMath) and the days/hours conversions (schedulingDays) so the
  *  two can never disagree on what "a working day" means. */
-export function isWeekendAware(
-  workingDays: Weekday[] | undefined,
-  ignoreWeekends: boolean | undefined,
-): boolean {
-  return !ignoreWeekends && !!workingDays && workingDays.length > 0 && workingDays.length < 7
+export function isWeekendAware(workingDays: Weekday[] | undefined, ignoreWeekends: boolean | undefined): boolean {
+  return !ignoreWeekends && !!workingDays && workingDays.length > 0 && workingDays.length < 7;
 }
 
 /** Does an allocation place work on a given day? A weekend-aware allocation works ONLY the resource's
@@ -164,22 +161,22 @@ export function allocationWorksOnDay(
   ignoreWeekends: boolean | undefined,
   dayIsWorkingWeekday: boolean,
 ): boolean {
-  return !isWeekendAware(workingDays, ignoreWeekends) || dayIsWorkingWeekday
+  return !isWeekendAware(workingDays, ignoreWeekends) || dayIsWorkingWeekday;
 }
 
 /** Count the working days within the inclusive range [start, end], given which
  *  weekdays are working. Returns 0 for a reversed/empty range. */
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
-  const span = daysInclusive(start, end)
-  if (span <= 0) return 0
-  const working = new Set(workingDays)
-  const fullWeeks = Math.floor(span / 7)
-  let count = fullWeeks * working.size
-  const startWeekday = weekdayOf(start)
+  const span = daysInclusive(start, end);
+  if (span <= 0) return 0;
+  const working = new Set(workingDays);
+  const fullWeeks = Math.floor(span / 7);
+  let count = fullWeeks * working.size;
+  const startWeekday = weekdayOf(start);
   for (let offset = 0; offset < span % 7; offset += 1) {
-    if (working.has(((startWeekday + offset) % 7) as Weekday)) count += 1
+    if (working.has(((startWeekday + offset) % 7) as Weekday)) count += 1;
   }
-  return count
+  return count;
 }
 
 /** The end date such that [start, end] contains exactly `count` working days —
@@ -199,30 +196,26 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
  *  `fullWeeks` whole weeks past `start` plus the offset of the `remaining`-th working day
  *  within a single week window (a <= 7-step resolve, itself O(1)). Counting DISTINCT
  *  weekdays keeps a degenerate array like [1,1,1] (length 3, but only Mondays) correct. */
-export function endDateForWorkingDays(
-  start: ISODate,
-  count: number,
-  workingDays: Weekday[],
-): ISODate {
-  if (!Number.isSafeInteger(count)) throw new RangeError('count must be a safe integer.')
+export function endDateForWorkingDays(start: ISODate, count: number, workingDays: Weekday[]): ISODate {
+  if (!Number.isSafeInteger(count)) throw new RangeError("count must be a safe integer.");
   if (count <= 0 || workingDays.length === 0 || workingDays.length >= 7) {
-    return addDaysISO(start, Math.max(0, count - 1))
+    return addDaysISO(start, Math.max(0, count - 1));
   }
-  const working = new Set(workingDays)
-  const d = working.size // distinct working weekdays, 1..6 in this branch
-  const startWd = weekdayOf(start)
-  const fullWeeks = Math.floor((count - 1) / d)
-  const remaining = count - fullWeeks * d // 1..d — always found within the week below
-  let seen = 0
-  let offsetInWeek = 0
+  const working = new Set(workingDays);
+  const d = working.size; // distinct working weekdays, 1..6 in this branch
+  const startWd = weekdayOf(start);
+  const fullWeeks = Math.floor((count - 1) / d);
+  const remaining = count - fullWeeks * d; // 1..d — always found within the week below
+  let seen = 0;
+  let offsetInWeek = 0;
   for (let j = 0; j < 7; j++) {
-    if (working.has((((startWd + j) % 7) as Weekday))) {
-      seen++
+    if (working.has(((startWd + j) % 7) as Weekday)) {
+      seen++;
       if (seen === remaining) {
-        offsetInWeek = j
-        break
+        offsetInWeek = j;
+        break;
       }
     }
   }
-  return addDaysISO(start, fullWeeks * 7 + offsetInWeek)
+  return addDaysISO(start, fullWeeks * 7 + offsetInWeek);
 }

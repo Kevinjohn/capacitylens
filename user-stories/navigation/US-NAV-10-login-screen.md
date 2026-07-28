@@ -10,16 +10,19 @@
 > `pnpm run dev`.
 
 ## Goal
+
 Be the only kind of visitor who can read or change data on an auth-enabled deploy: one
 who has signed in — and be able to sign out again from Settings.
 
 ## Why
+
 Phase 3 wires sessions in so turning real auth on later is a config change, not a
 re-architecture. The login screen is the user-visible end of that seam: a 401 from
 `GET /api/auth/me` must wall off the entire app (no company picker, no data), and a valid
 session must restore exactly the normal flow.
 
 ## How (end-to-end, password mode)
+
 **Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created.
 On a **fresh instance with zero users** the login wall instead shows the one sign-up form
 that exists — the first-run **Create the owner account** screen (see REFERENCE.md
@@ -34,6 +37,7 @@ only the Sign in form below is reachable.
 6. Click **Sign out** → you are back on the Sign in screen; reloading stays signed out.
 
 ## Acceptance criteria
+
 - Unauthenticated: the Sign in screen replaces the whole app — no company picker, no nav,
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.

@@ -113,11 +113,8 @@ describe("resourceDisplayName / placeholderDisplayName", () => {
     expect(resourceDisplayName(r)).toBe("Consultant");
   });
 
-  it.each(["", "   "])(
-    "falls back to role when a non-placeholder name is blank: %j",
-    (name) => {
-      const r = makeResource({ kind: "external", name, role: "Consultant" });
-      expect(resourceDisplayName(r)).toBe("Consultant");
-    },
-  );
+  it.each(["", "   "])("falls back to role when a non-placeholder name is blank: %j", (name) => {
+    const r = makeResource({ kind: "external", name, role: "Consultant" });
+    expect(resourceDisplayName(r)).toBe("Consultant");
+  });
 });

@@ -1,13 +1,13 @@
-import { useId, useState } from 'react'
-import { Modal } from '../components/common/ui'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Field, FieldError, FieldLabel } from '../components/ui/field'
-import { authClient } from './authClient'
-import { m } from '@/i18n'
-import type { AuthProviderInfo, AuthUser } from './authContext'
-import { resolveReauth } from './reauthCoordinator'
-import { externalSignInErrorUrl } from './externalSignInError'
+import { useId, useState } from "react";
+import { Modal } from "../components/common/ui";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Field, FieldError, FieldLabel } from "../components/ui/field";
+import { authClient } from "./authClient";
+import { m } from "@/i18n";
+import type { AuthProviderInfo, AuthUser } from "./authContext";
+import { resolveReauth } from "./reauthCoordinator";
+import { externalSignInErrorUrl } from "./externalSignInError";
 
 // The "Confirm it's you" step-up dialog (DEFECT B). Rendered by ReauthMount (AuthProvider) ONLY
 // while a re-auth is pending, and lazy-loaded so Better Auth's client (authClient) never enters the
@@ -27,86 +27,86 @@ export function ReauthDialog({
   user,
   providers,
 }: {
-  authMode: 'password' | 'sso'
-  user: AuthUser | null
-  providers: AuthProviderInfo[]
+  authMode: "password" | "sso";
+  user: AuthUser | null;
+  providers: AuthProviderInfo[];
 }) {
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   // Flips true when the password step reports a second factor is required — reveals the TOTP field
   // in the same dialog rather than dead-ending a 2FA account (mirrors LoginScreen's two-phase flow).
-  const [twoFactorPending, setTwoFactorPending] = useState(false)
-  const [code, setCode] = useState('')
-  const [useRecoveryCode, setUseRecoveryCode] = useState(false)
-  const errorId = useId()
+  const [twoFactorPending, setTwoFactorPending] = useState(false);
+  const [code, setCode] = useState("");
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const errorId = useId();
 
-  const email = user?.email ?? ''
+  const email = user?.email ?? "";
 
-  const cancel = () => resolveReauth(false)
+  const cancel = () => resolveReauth(false);
 
   const confirmPassword = async () => {
-    if (busy) return
+    if (busy) return;
     if (email.length === 0) {
       // Password mode always resolves an email on /me; its absence means we cannot re-auth by
       // password here. Surface it rather than submit a blank credential.
-      setError(m.reauth_failed())
-      return
+      setError(m.reauth_failed());
+      return;
     }
-    setBusy(true)
-    setError(null)
+    setBusy(true);
+    setError(null);
     try {
-      const { data, error: failure } = await authClient.signIn.email({ email, password })
+      const { data, error: failure } = await authClient.signIn.email({ email, password });
       if (failure) {
-        setError(failure.message ?? m.reauth_failed())
-        setBusy(false)
-        return
+        setError(failure.message ?? m.reauth_failed());
+        setBusy(false);
+        return;
       }
       if ((data as { twoFactorRedirect?: unknown } | null)?.twoFactorRedirect === true) {
-        setTwoFactorPending(true)
-        setBusy(false)
-        return
+        setTwoFactorPending(true);
+        setBusy(false);
+        return;
       }
-      resolveReauth(true) // fresh session — apiFetchReauth retries the pending action
+      resolveReauth(true); // fresh session — apiFetchReauth retries the pending action
     } catch (err) {
       // A THROW is a pre-response transport error (an auth FAILURE comes back as { error } above).
       // Surface it + reset busy so the button never sticks disabled; log the real cause.
-      console.error('ReauthDialog: password re-auth request failed', err)
-      setError(m.login_network_error())
-      setBusy(false)
+      console.error("ReauthDialog: password re-auth request failed", err);
+      setError(m.login_network_error());
+      setBusy(false);
     }
-  }
+  };
 
   const confirmSecondFactor = async () => {
-    if (busy) return
-    setBusy(true)
-    setError(null)
+    if (busy) return;
+    setBusy(true);
+    setError(null);
     try {
       const result = useRecoveryCode
         ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice: false })
-        : await authClient.twoFactor.verifyTotp({ code, trustDevice: false })
+        : await authClient.twoFactor.verifyTotp({ code, trustDevice: false });
       if (result.error) {
-        setError(result.error.message ?? m.reauth_failed())
-        setBusy(false)
-        return
+        setError(result.error.message ?? m.reauth_failed());
+        setBusy(false);
+        return;
       }
-      resolveReauth(true)
+      resolveReauth(true);
     } catch (err) {
-      console.error('ReauthDialog: second-factor re-auth verification failed', err)
-      setError(m.login_network_error())
-      setBusy(false)
+      console.error("ReauthDialog: second-factor re-auth verification failed", err);
+      setError(m.login_network_error());
+      setBusy(false);
     }
-  }
+  };
 
   const reauthWithProvider = async (provider: AuthProviderInfo) => {
-    if (busy) return
-    setBusy(true)
-    setError(null)
+    if (busy) return;
+    setBusy(true);
+    setError(null);
     try {
       // The SAME redirect the sign-in screen uses. On success the client follows the provider
       // redirect (this page unloads and returns with a fresh session); only a failure returns here.
       const result =
-        provider.kind === 'oidc'
+        provider.kind === "oidc"
           ? await authClient.signIn.oauth2({
               providerId: provider.id,
               callbackURL: window.location.href,
@@ -116,21 +116,21 @@ export function ReauthDialog({
               provider: provider.id,
               callbackURL: window.location.href,
               errorCallbackURL: externalSignInErrorUrl(window.location.href),
-            })
+            });
       if (result.error) {
-        setError(result.error.message ?? m.reauth_failed())
-        setBusy(false)
+        setError(result.error.message ?? m.reauth_failed());
+        setBusy(false);
       }
     } catch (err) {
-      console.error('ReauthDialog: SSO re-auth request failed', err)
-      setError(m.login_network_error())
-      setBusy(false)
+      console.error("ReauthDialog: SSO re-auth request failed", err);
+      setError(m.login_network_error());
+      setBusy(false);
     }
-  }
+  };
 
   // SSO step-up: delegate to the identity provider. A skewed/empty provider list can't offer a
   // button — surface the same "no provider configured" copy the login screen uses, with only Cancel.
-  if (authMode === 'sso') {
+  if (authMode === "sso") {
     return (
       <Modal
         title={m.reauth_title()}
@@ -147,7 +147,8 @@ export function ReauthDialog({
         {providers.length > 0 ? (
           <div className="flex flex-col gap-2">
             {providers.map((provider) => (
-              <Button size="sm"
+              <Button
+                size="sm"
                 key={`${provider.kind}:${provider.id}`}
                 variant="outline"
                 onClick={() => void reauthWithProvider(provider)}
@@ -161,7 +162,7 @@ export function ReauthDialog({
           <FieldError>{m.login_sso_unavailable()}</FieldError>
         )}
       </Modal>
-    )
+    );
   }
 
   // 2FA second step of the password flow.
@@ -194,7 +195,7 @@ export function ReauthDialog({
             id="reauth-2fa-code"
             data-testid="reauth-2fa-code"
             type="text"
-            inputMode={useRecoveryCode ? 'text' : 'numeric'}
+            inputMode={useRecoveryCode ? "text" : "numeric"}
             autoComplete="one-time-code"
             value={code}
             onChange={(e) => setCode(e.target.value.trim())}
@@ -210,15 +211,15 @@ export function ReauthDialog({
           variant="outline"
           disabled={busy}
           onClick={() => {
-            setUseRecoveryCode((value) => !value)
-            setCode('')
-            setError(null)
+            setUseRecoveryCode((value) => !value);
+            setCode("");
+            setError(null);
           }}
         >
           {useRecoveryCode ? m.reauth_2fa_use_authenticator() : m.reauth_2fa_use_recovery()}
         </Button>
       </Modal>
-    )
+    );
   }
 
   // Password step-up (the common self-host path).
@@ -256,5 +257,5 @@ export function ReauthDialog({
       </Field>
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
-  )
+  );
 }

@@ -3,15 +3,19 @@
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "the active section is marked aria-current"
 
 ## Goal
+
 See at a glance which section is open, so it's obvious where you are in the app.
 
 ## Why
+
 Without a clear "you are here" marker, a manager can lose track of which list they're
 editing and make a change on the wrong screen. The active link is styled distinctly
 (brand-soft background + semibold ink) and exactly one link is active at any moment.
 
 ## How (end-to-end)
+
 **Precondition:** Seeded app open at Schedule (`/`).
+
 1. Note the **Schedule** link: it has the brand-soft background and semibold weight
    (the other links are plain with a hover background only).
 2. Click **Clients**. The **Clients** link now takes the active styling.
@@ -20,6 +24,7 @@ editing and make a change on the wrong screen. The active link is styled distinc
 5. At each step, scan the whole sidebar: only one link is in the active state.
 
 ## Acceptance criteria
+
 - ✅ The link matching the current route is active: brand-soft background
   (`bg-brand-soft`) and semibold text (`font-semibold`).
 - ✅ Inactive links use the plain style (no brand-soft background; hover only).

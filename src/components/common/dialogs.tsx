@@ -1,18 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useStore } from '../../store/useStore'
-import { useCanEdit } from '../../auth/permissionContext'
-import { m } from '@/i18n'
-import { Pencil, Plus, Trash2, type LucideIcon } from 'lucide-react'
-import { Button } from '../ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '../ui/empty'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useStore } from "../../store/useStore";
+import { useCanEdit } from "../../auth/permissionContext";
+import { m } from "@/i18n";
+import { Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
+import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,16 +15,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../ui/alert-dialog'
-import { restoreFocus } from './focus'
-import { FormDirtyContext } from './formDirty'
+} from "../ui/alert-dialog";
+import { restoreFocus } from "./focus";
+import { FormDirtyContext } from "./formDirty";
 
 // Product dialog and page compositions. Modal adds the dirty-form guard used by editor forms.
 
 function hasOpenNestedOverlay(): boolean {
-  return document.querySelector(
-    '[data-slot="popover-content"][data-state="open"], [data-slot="select-content"][data-state="open"]',
-  ) !== null
+  return (
+    document.querySelector(
+      '[data-slot="popover-content"][data-state="open"], [data-slot="select-content"][data-state="open"]',
+    ) !== null
+  );
 }
 
 // ─── Row / create action buttons ────────────────────────────────────────────
@@ -48,19 +43,19 @@ export function AddButton({
   testId,
   requiresEdit = true,
 }: {
-  label: string
-  onClick: () => void
-  testId?: string
-  requiresEdit?: boolean
+  label: string;
+  onClick: () => void;
+  testId?: string;
+  requiresEdit?: boolean;
 }) {
-  const canEdit = useCanEdit()
-  if (requiresEdit && !canEdit) return null
+  const canEdit = useCanEdit();
+  if (requiresEdit && !canEdit) return null;
   return (
     <Button size="sm" type="button" onClick={onClick} data-testid={testId}>
       <Plus data-icon="inline-start" />
       {label}
     </Button>
-  )
+  );
 }
 
 /** Icon-only Edit button for a list row. `label` is BOTH the accessible name and the hover
@@ -72,16 +67,24 @@ export function EditButton({
   onClick,
   testId,
 }: {
-  label?: string
-  onClick: () => void
-  testId?: string
+  label?: string;
+  onClick: () => void;
+  testId?: string;
 }) {
-  if (!useCanEdit()) return null
+  if (!useCanEdit()) return null;
   return (
-    <Button type="button" variant="outline" size="icon-sm" aria-label={label} title={label} onClick={onClick} data-testid={testId}>
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      data-testid={testId}
+    >
       <Pencil />
     </Button>
-  )
+  );
 }
 
 /** Icon-only Delete button for a list row — the danger-variant twin of EditButton. `label`
@@ -93,16 +96,24 @@ export function DeleteButton({
   onClick,
   testId,
 }: {
-  label?: string
-  onClick: () => void
-  testId?: string
+  label?: string;
+  onClick: () => void;
+  testId?: string;
 }) {
-  if (!useCanEdit()) return null
+  if (!useCanEdit()) return null;
   return (
-    <Button type="button" variant="danger-soft" size="icon-sm" aria-label={label} title={label} onClick={onClick} data-testid={testId}>
+    <Button
+      type="button"
+      variant="danger-soft"
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      data-testid={testId}
+    >
       <Trash2 />
     </Button>
-  )
+  );
 }
 
 export function Modal({
@@ -115,79 +126,81 @@ export function Modal({
   dirty: controlledDirty,
   onDirtyChange,
 }: {
-  title: ReactNode
-  onClose: () => void
+  title: ReactNode;
+  onClose: () => void;
   /** When provided, wraps the body + footer in a <form> so pressing Enter in any
    *  text input submits. Always rendered (even when undefined) so that implicit
    *  form submission / page navigation is always suppressed. */
-  onSubmit?: () => void
-  children: ReactNode
-  footer?: ReactNode
+  onSubmit?: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
   /** When false, the unsaved-changes guard is disabled so Escape/backdrop always close.
    *  Use for confirmation-only dialogs (e.g. delete-company), whose inputs are a gate,
    *  not savable form data — guarding them only makes aborting harder. */
-  guardDirty?: boolean
+  guardDirty?: boolean;
   /** Optional controlled dirty state. When omitted, Modal owns the flag and form controls signal it
    * through FormDirtyProvider/native form events. */
-  dirty?: boolean
-  onDirtyChange?: (dirty: boolean) => void
+  dirty?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const setNotice = useStore((s) => s.setNotice)
-  const setDirtyFormSource = useStore((s) => s.setDirtyFormSource)
-  const [dirtySource] = useState(() => Symbol('modal-dirty'))
-  const [invoker] = useState(() => document.activeElement as HTMLElement | null)
+  const setNotice = useStore((s) => s.setNotice);
+  const setDirtyFormSource = useStore((s) => s.setDirtyFormSource);
+  const [dirtySource] = useState(() => Symbol("modal-dirty"));
+  const [invoker] = useState(() => document.activeElement as HTMLElement | null);
 
-  const [localDirty, setLocalDirty] = useState(false)
-  const dirty = controlledDirty ?? localDirty
-  const dirtyRef = useRef(dirty)
+  const [localDirty, setLocalDirty] = useState(false);
+  const dirty = controlledDirty ?? localDirty;
+  const dirtyRef = useRef(dirty);
   useEffect(() => {
-    dirtyRef.current = dirty
-  }, [dirty])
+    dirtyRef.current = dirty;
+  }, [dirty]);
   const markDirty = useCallback(() => {
-    if (!guardDirty || dirtyRef.current) return
+    if (!guardDirty || dirtyRef.current) return;
     // React can surface one native edit through both input and change capture before the controlled
     // value re-renders. Flip the live guard immediately so one edit publishes one dirty transition.
-    dirtyRef.current = true
-    setDirtyFormSource(dirtySource, true)
-    if (controlledDirty === undefined) setLocalDirty(true)
-    onDirtyChange?.(true)
-  }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, setDirtyFormSource])
+    dirtyRef.current = true;
+    setDirtyFormSource(dirtySource, true);
+    if (controlledDirty === undefined) setLocalDirty(true);
+    onDirtyChange?.(true);
+  }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, setDirtyFormSource]);
   // Publish this Modal's contribution so global beforeunload/shortcut guards aggregate every open
   // owner. Cleanup releases only this token; a clean overlapping Modal cannot clear another form.
   useEffect(() => {
-    setDirtyFormSource(dirtySource, guardDirty && dirty)
-  }, [dirty, dirtySource, guardDirty, setDirtyFormSource])
-  useEffect(
-    () => () => setDirtyFormSource(dirtySource, false),
-    [dirtySource, setDirtyFormSource],
-  )
-  useEffect(() => () => restoreFocus(invoker), [invoker])
+    setDirtyFormSource(dirtySource, guardDirty && dirty);
+  }, [dirty, dirtySource, guardDirty, setDirtyFormSource]);
+  useEffect(() => () => setDirtyFormSource(dirtySource, false), [dirtySource, setDirtyFormSource]);
+  useEffect(() => () => restoreFocus(invoker), [invoker]);
 
   const requestClose = () => {
     // `dirtyRef` flips synchronously in markDirty, before a controlled parent has had a chance to
     // feed `dirty=true` back through props. Reading it here closes that one-render escape hatch.
     if (guardDirty && dirtyRef.current) {
-      setNotice(m.dialog_unsaved_changes())
-      return
+      setNotice(m.dialog_unsaved_changes());
+      return;
     }
-    onClose()
-  }
+    onClose();
+  };
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) requestClose() }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) requestClose();
+      }}
+    >
       <DialogContent
         showCloseButton={false}
         aria-modal="true"
         aria-describedby={undefined}
         className="max-h-[90dvh] max-w-md gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
-          event.preventDefault()
-          requestClose()
+          event.preventDefault();
+          requestClose();
         }}
         onPointerDownOutside={(event) => {
-          event.preventDefault()
-          if (hasOpenNestedOverlay()) return
-          requestClose()
+          event.preventDefault();
+          if (hasOpenNestedOverlay()) return;
+          requestClose();
         }}
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
@@ -197,14 +210,15 @@ export function Modal({
         <FormDirtyContext.Provider value={markDirty}>
           <form
             noValidate
-            onSubmit={(event) => { event.preventDefault(); onSubmit?.() }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSubmit?.();
+            }}
             onInputCapture={markDirty}
             onChangeCapture={markDirty}
             onClickCapture={(event) => {
-              const toggle = (event.target as HTMLElement).closest(
-                '[aria-pressed],[role="radio"],[role="switch"]',
-              )
-              if (toggle && !toggle.hasAttribute('data-form-dirty-managed')) markDirty()
+              const toggle = (event.target as HTMLElement).closest('[aria-pressed],[role="radio"],[role="switch"]');
+              if (toggle && !toggle.hasAttribute("data-form-dirty-managed")) markDirty();
             }}
           >
             <div className="flex flex-col gap-3 p-4">{children}</div>
@@ -213,27 +227,32 @@ export function Modal({
         </FormDirtyContext.Provider>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 export function ConfirmDialog({
   title,
   message,
   confirmLabel = m.form_delete(),
-  confirmVariant = 'danger-soft',
+  confirmVariant = "danger-soft",
   onConfirm,
   onCancel,
 }: {
-  title: string
-  message: ReactNode
-  confirmLabel?: string
-  confirmVariant?: 'default' | 'outline' | 'danger-soft'
-  onConfirm: () => void
-  onCancel: () => void
+  title: string;
+  message: ReactNode;
+  confirmLabel?: string;
+  confirmVariant?: "default" | "outline" | "danger-soft";
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
-  const confirmingRef = useRef(false)
+  const confirmingRef = useRef(false);
   return (
-    <AlertDialog open onOpenChange={(open) => { if (!open && !confirmingRef.current) onCancel() }}>
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !confirmingRef.current) onCancel();
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -245,14 +264,17 @@ export function ConfirmDialog({
           <AlertDialogCancel>{m.form_cancel()}</AlertDialogCancel>
           <AlertDialogAction
             variant={confirmVariant}
-            onClick={() => { confirmingRef.current = true; onConfirm() }}
+            onClick={() => {
+              confirmingRef.current = true;
+              onConfirm();
+            }}
           >
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }
 
 export function ListPage({
@@ -261,10 +283,10 @@ export function ListPage({
   onAdd,
   children,
 }: {
-  title: string
-  addLabel?: string
-  onAdd?: () => void
-  children?: ReactNode
+  title: string;
+  addLabel?: string;
+  onAdd?: () => void;
+  children?: ReactNode;
 }) {
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -274,7 +296,7 @@ export function ListPage({
       </div>
       {children}
     </div>
-  )
+  );
 }
 
 /** Product empty-state composition with an optional icon, description and single action. */
@@ -284,23 +306,23 @@ export function EmptyState({
   description,
   action,
 }: {
-  children: ReactNode
-  icon?: LucideIcon
-  description?: ReactNode
-  action?: { label: string; onClick: () => void; icon?: LucideIcon; requiresEdit?: boolean }
+  children: ReactNode;
+  icon?: LucideIcon;
+  description?: ReactNode;
+  action?: { label: string; onClick: () => void; icon?: LucideIcon; requiresEdit?: boolean };
 }) {
-  const canEdit = useCanEdit()
-  const showAction = action && (canEdit || !action.requiresEdit)
-  const EmptyIcon = icon
-  const ActionIcon = action?.icon
+  const canEdit = useCanEdit();
+  const showAction = action && (canEdit || !action.requiresEdit);
+  const EmptyIcon = icon;
+  const ActionIcon = action?.icon;
   return (
     <Empty className="border">
       <EmptyHeader>
-      {EmptyIcon && (
-        <EmptyMedia variant="icon">
-          <EmptyIcon />
-        </EmptyMedia>
-      )}
+        {EmptyIcon && (
+          <EmptyMedia variant="icon">
+            <EmptyIcon />
+          </EmptyMedia>
+        )}
         <EmptyTitle>{children}</EmptyTitle>
         {description && <EmptyDescription>{description}</EmptyDescription>}
       </EmptyHeader>
@@ -313,5 +335,5 @@ export function EmptyState({
         </EmptyContent>
       )}
     </Empty>
-  )
+  );
 }

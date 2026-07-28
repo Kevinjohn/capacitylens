@@ -1,12 +1,6 @@
-import { Button } from './ui/button'
-import {
-  introContinueLabel,
-  introHeading,
-  introPara1,
-  introPara2,
-  introPara3,
-} from '../lib/introCopy'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card'
+import { Button } from "./ui/button";
+import { introContinueLabel, introHeading, introPara1, introPara2, introPara3 } from "../lib/introCopy";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 
 // Post-login "What CapacityLens is" intermediary page. A minimal full-screen gate shown once per device
 // (the `capacitylens/introSeen` flag) after the viewer lands on a company, before the app proper —
@@ -23,27 +17,29 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card'
  */
 export function IntroPage({ onContinue }: { onContinue: () => void }) {
   // Copy resolves at render via the introCopy getters (Paraglide-backed) so the active locale applies.
-  const para1 = introPara1()
-  const para2 = introPara2()
+  const para1 = introPara1();
+  const para2 = introPara2();
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
         <Card>
           <CardHeader>
-            <CardTitle><h1>{introHeading()}</h1></CardTitle>
+            <CardTitle>
+              <h1>{introHeading()}</h1>
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">
-            {para1.before}
-            <strong className="font-semibold text-ink">{para1.strong}</strong>
-            {para1.after}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {para2.before}
-            <strong className="font-semibold text-ink">{para2.strong}</strong>
-            {para2.after}
-          </p>
-          <p className="text-sm text-muted-foreground">{introPara3()}</p>
+            <p className="text-sm text-muted-foreground">
+              {para1.before}
+              <strong className="font-semibold text-ink">{para1.strong}</strong>
+              {para1.after}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {para2.before}
+              <strong className="font-semibold text-ink">{para2.strong}</strong>
+              {para2.after}
+            </p>
+            <p className="text-sm text-muted-foreground">{introPara3()}</p>
           </CardContent>
           <CardFooter className="justify-end">
             <Button size="sm" onClick={onContinue} data-testid="intro-continue">
@@ -53,5 +49,5 @@ export function IntroPage({ onContinue }: { onContinue: () => void }) {
         </Card>
       </main>
     </div>
-  )
+  );
 }

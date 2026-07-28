@@ -1,17 +1,7 @@
 import { buildApp, DEFAULT_CORS, parseRateLimit } from "./app";
-import {
-  initializeOpenDb,
-  openDbConnection,
-  planDatabaseMigrations,
-  seedIfUninitialized,
-  type Db,
-} from "./db";
+import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from "./db";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
-import {
-  createLastResortErrorHandler,
-  createShutdownHandler,
-  handleListenFailure,
-} from "./shutdown";
+import { createLastResortErrorHandler, createShutdownHandler, handleListenFailure } from "./shutdown";
 import { installStartupSignalHandlers } from "./startupSignals";
 import { resetForbidden } from "./bootGuard";
 import { evaluateProductionPosture } from "./productionGuard";
@@ -25,19 +15,8 @@ import {
   ensureAuthControlTables,
   planAuthSchemaMigrations,
 } from "./auth";
-import {
-  parseBackupConfig,
-  startBackups,
-  formatBackupStartupFailure,
-  writePreMigrationBackup,
-} from "./backup";
-import {
-  compositeAuditSink,
-  fileAuditSink,
-  noopAuditSink,
-  parseAuditConfig,
-  streamAuditSink,
-} from "./audit";
+import { parseBackupConfig, startBackups, formatBackupStartupFailure, writePreMigrationBackup } from "./backup";
+import { compositeAuditSink, fileAuditSink, noopAuditSink, parseAuditConfig, streamAuditSink } from "./audit";
 import { loadInternalTls } from "./internalTls";
 import { resolveAccountEnvironment } from "./accountConfig";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
@@ -163,9 +142,7 @@ function parsePort(raw: string | undefined): number {
   if (raw === undefined) return 8787;
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 1 || n > 65535) {
-    refuseToStart(
-      `PORT must be an integer 1..65535, got ${JSON.stringify(raw)}.`,
-    );
+    refuseToStart(`PORT must be an integer 1..65535, got ${JSON.stringify(raw)}.`);
   }
   return n;
 }
@@ -202,8 +179,7 @@ const port = parsePort(process.env.PORT);
 const host = process.env.CAPACITYLENS_HOST ?? "127.0.0.1";
 const allowReset = process.env.CAPACITYLENS_ALLOW_RESET === "1";
 const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS;
-const optimisticConcurrency =
-  process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY !== "0";
+const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY !== "0";
 // Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === "1";
@@ -229,17 +205,13 @@ const bootstrapToken = process.env.CAPACITYLENS_BOOTSTRAP_TOKEN || undefined;
 // env var is awkward. Normalized ONCE here; everything downstream (the production refusal,
 // createBootstrapAdmin) sees a single boolean.
 const bootstrapAdmin =
-  process.env.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1" ||
-  process.argv.includes("--create-owner-admin-admin");
+  process.env.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1" || process.argv.includes("--create-owner-admin-admin");
 // Forwarded client identity and public-origin scheme are one trusted-proxy deployment fact. On a
 // loopback listener only the local proxy can reach the API; a directly exposed listener trusts
 // neither client-spoofable header unless the operator explicitly opts in.
 const trustProxyHeaders = trustProxyHeadersFrom(process.env, host);
 const proxyTrustWarning = legacyProxyTrustWarning(process.env);
-if (proxyTrustWarning)
-  console.warn(
-    `capacitylens-server: configuration warning — ${proxyTrustWarning}`,
-  );
+if (proxyTrustWarning) console.warn(`capacitylens-server: configuration warning — ${proxyTrustWarning}`);
 let backupConfig: ReturnType<typeof parseBackupConfig>;
 try {
   backupConfig = parseBackupConfig(process.env);
@@ -250,9 +222,7 @@ try {
 // Validate every pure production posture rule before opening the database. A deployment typo must
 // not advance the schema and then fail for a reason that was knowable without touching storage.
 const posture = evaluateProductionPosture(
-  bootstrapAdmin
-    ? { ...accountEnv, CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" }
-    : accountEnv,
+  bootstrapAdmin ? { ...accountEnv, CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" } : accountEnv,
 );
 for (const w of posture.warnings) {
   console.warn(`capacitylens-server: production posture warning — ${w}`);
@@ -269,9 +239,7 @@ if (posture.refusals.length > 0) {
 // Fastify and the backup controller exist, these listeners are replaced by the full drain handler.
 const startupSignals = installStartupSignalHandlers({
   onRequested: (signal) => {
-    console.log(
-      `capacitylens-server: ${signal} during startup — stopping at the next safe checkpoint`,
-    );
+    console.log(`capacitylens-server: ${signal} during startup — stopping at the next safe checkpoint`);
   },
   onRepeated: () => process.exit(1),
 });
@@ -282,10 +250,7 @@ const stopStartupIfRequested = (openDb?: Db) => {
   try {
     openDb?.close();
   } catch (error) {
-    console.error(
-      "capacitylens-server: database close failed while stopping startup",
-      error,
-    );
+    console.error("capacitylens-server: database close failed while stopping startup", error);
   }
   startupSignals.dispose();
   process.exit(0);
@@ -316,11 +281,8 @@ try {
         candidate,
       }),
   }));
-  const authMigrationPlan = auth
-    ? await planAuthSchemaMigrations(auth)
-    : { pending: false, tables: [] };
-  const needsMigrationSnapshot =
-    migrationPlan.migrations.length > 0 || authMigrationPlan.pending;
+  const authMigrationPlan = auth ? await planAuthSchemaMigrations(auth) : { pending: false, tables: [] };
+  const needsMigrationSnapshot = migrationPlan.migrations.length > 0 || authMigrationPlan.pending;
   if (needsMigrationSnapshot && !migrationPlan.fresh) {
     await writePreMigrationBackup(db, {
       dbPath,
@@ -340,10 +302,7 @@ try {
   try {
     db?.close();
   } catch (closeError) {
-    console.error(
-      "capacitylens-server: database close also failed during startup refusal",
-      closeError,
-    );
+    console.error("capacitylens-server: database close also failed during startup refusal", closeError);
   }
   refuseToStart(e instanceof Error ? e.message : String(e));
 }
@@ -375,8 +334,7 @@ try {
   // which this catch frames as a legible refusal; with users already present it logs one
   // "skipped" line and boot continues (deliberately NOT an error — see its TSDoc).
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth);
-  if (process.env.CAPACITYLENS_SEED_DEMO === "1")
-    seedIfUninitialized(db, seedForCurrentWeek());
+  if (process.env.CAPACITYLENS_SEED_DEMO === "1") seedIfUninitialized(db, seedForCurrentWeek());
   stopStartupIfRequested(db);
   if (
     authMode === "password" &&
@@ -418,8 +376,7 @@ const { app, backups } = (() => {
 
     // Audit log (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT; =off is development-only).
     const auditCfg = parseAuditConfig(process.env, dbPath);
-    const auditMaxBytes =
-      parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
+    const auditMaxBytes = parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024;
     const auditFileSink = auditCfg.enabled
       ? fileAuditSink(auditCfg.file, (m) => console.error(m), {
           maxBytes: auditMaxBytes,
@@ -468,11 +425,7 @@ const { app, backups } = (() => {
     // Backups (P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: no timer, no writes).
     if (backupConfig) {
       startingBackups = true;
-      backupController = startBackups(
-        db,
-        backupConfig,
-        log ? (m) => app.log.info(m) : console.log,
-      );
+      backupController = startBackups(db, backupConfig, log ? (m) => app.log.info(m) : console.log);
       startingBackups = false;
     }
     return { app, backups: backupController };
@@ -480,10 +433,7 @@ const { app, backups } = (() => {
     try {
       db.close();
     } catch (closeError) {
-      console.error(
-        "capacitylens-server: database close also failed during startup refusal",
-        closeError,
-      );
+      console.error("capacitylens-server: database close also failed during startup refusal", closeError);
     }
     startupSignals.dispose();
     refuseToStart(
@@ -518,10 +468,8 @@ startupSignals.dispose();
 process.on("SIGTERM", () => onSignal("SIGTERM"));
 process.on("SIGINT", () => onSignal("SIGINT"));
 
-const lastResort = createLastResortErrorHandler(
-  shutdown,
-  securityLog,
-  (message, error) => console.error(message, error),
+const lastResort = createLastResortErrorHandler(shutdown, securityLog, (message, error) =>
+  console.error(message, error),
 );
 process.on("uncaughtException", (error) => {
   void lastResort("uncaught_exception", error);
@@ -532,11 +480,7 @@ process.on("unhandledRejection", (reason) => {
 
 app
   .listen({ port, host })
-  .then((addr) =>
-    console.log(
-      `capacitylens-server listening on ${addr} (db=${dbPath}, reset=${allowReset})`,
-    ),
-  )
+  .then((addr) => console.log(`capacitylens-server listening on ${addr} (db=${dbPath}, reset=${allowReset})`))
   .catch((err) => {
     void handleListenFailure(err, shutdown);
   });

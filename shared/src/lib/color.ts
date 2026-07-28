@@ -1,31 +1,79 @@
-import { isExternalResource } from '../types/entities'
-import type { Allocation, Client, ID, InternalColourMode, Project, Resource, Activity } from '../types/entities'
+import { isExternalResource } from "../types/entities";
+import type { Allocation, Client, ID, InternalColourMode, Project, Resource, Activity } from "../types/entities";
 
 /** The single neutral grey — the bar/colour fallback AND the colour of external / 3rd-party
  *  identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
  *  src/lib/palette so both sides share ONE definition. */
-export const NEUTRAL_COLOR = '#9ca3af'
+export const NEUTRAL_COLOR = "#9ca3af";
 /** Canonical user-selectable colour palette. Persisted user colours must belong to this set.
  * `NEUTRAL_COLOR` (external resources) and the Internal-client colour are deliberate system
  * exceptions and are therefore not included here. */
 export const PRESET_COLORS = Object.freeze([
-  '#f5bcbc', '#f7caba', '#f9d9b8', '#f9e6b8', '#f9f1b8', '#d9f2c0', '#c2f0d1', '#c0edf2', '#bed4f4', '#ccc0f2', '#e0c2f0', '#f4bedd', '#d8b397',
-  '#eb7272', '#ef906e', '#f3ae6a', '#f3ca6a', '#f3e16a', '#aee37a', '#7edf9e', '#7adae3', '#76a5e7', '#947ae3', '#be7edf', '#e776b8', '#c38c61',
-  '#e02727', '#e65621', '#ed841b', '#edae1b', '#edd11b', '#84d434', '#3ace6b', '#34c7d4', '#2d75da', '#5c34d4', '#9c3ace', '#da2d92', '#9e663c',
-  '#9c1616', '#a13812', '#a5590d', '#a5780d', '#a5910d', '#59931f', '#248f47', '#1f8a93', '#1b4f98', '#3c1f93', '#6b248f', '#981b64', '#684327',
-] as const)
-const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS)
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+  "#f5bcbc",
+  "#f7caba",
+  "#f9d9b8",
+  "#f9e6b8",
+  "#f9f1b8",
+  "#d9f2c0",
+  "#c2f0d1",
+  "#c0edf2",
+  "#bed4f4",
+  "#ccc0f2",
+  "#e0c2f0",
+  "#f4bedd",
+  "#d8b397",
+  "#eb7272",
+  "#ef906e",
+  "#f3ae6a",
+  "#f3ca6a",
+  "#f3e16a",
+  "#aee37a",
+  "#7edf9e",
+  "#7adae3",
+  "#76a5e7",
+  "#947ae3",
+  "#be7edf",
+  "#e776b8",
+  "#c38c61",
+  "#e02727",
+  "#e65621",
+  "#ed841b",
+  "#edae1b",
+  "#edd11b",
+  "#84d434",
+  "#3ace6b",
+  "#34c7d4",
+  "#2d75da",
+  "#5c34d4",
+  "#9c3ace",
+  "#da2d92",
+  "#9e663c",
+  "#9c1616",
+  "#a13812",
+  "#a5590d",
+  "#a5780d",
+  "#a5910d",
+  "#59931f",
+  "#248f47",
+  "#1f8a93",
+  "#1b4f98",
+  "#3c1f93",
+  "#6b248f",
+  "#981b64",
+  "#684327",
+] as const);
+const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS);
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 export function isPresetColor(value: unknown): value is string {
-  return typeof value === 'string' && PRESET_COLOR_SET.has(value.trim().toLowerCase())
+  return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
 }
 
 /** Used by {@link snapToPresetColor} ONLY when the input can't be parsed as a 6-digit hex at
  *  all (so no "nearest" distance can even be computed) — e.g. `null`, `undefined`, `"nope"`.
  *  This is the ONE fixed colour left in the system; every *parseable* colour, however far off
  *  the palette, is snapped to its nearest preset instead — see snapToPresetColor. */
-export const FALLBACK_PRESET_COLOR = '#5c34d4'
+export const FALLBACK_PRESET_COLOR = "#5c34d4";
 
 /**
  * Snap ANY colour value to the canonical `PRESET_COLORS` palette:
@@ -42,42 +90,42 @@ export const FALLBACK_PRESET_COLOR = '#5c34d4'
  * See DECISIONS.md for the policy this implements.
  */
 export function snapToPresetColor(value: unknown): string {
-  if (typeof value !== 'string') return FALLBACK_PRESET_COLOR
-  const normalized = value.trim().toLowerCase()
-  if (PRESET_COLOR_SET.has(normalized)) return normalized
-  const rgb = toRgb(normalized)
-  if (!rgb) return FALLBACK_PRESET_COLOR
-  const [r, g, b] = rgb
-  let nearest: string = PRESET_COLORS[0]
-  let nearestDistance = Infinity
+  if (typeof value !== "string") return FALLBACK_PRESET_COLOR;
+  const normalized = value.trim().toLowerCase();
+  if (PRESET_COLOR_SET.has(normalized)) return normalized;
+  const rgb = toRgb(normalized);
+  if (!rgb) return FALLBACK_PRESET_COLOR;
+  const [r, g, b] = rgb;
+  let nearest: string = PRESET_COLORS[0];
+  let nearestDistance = Infinity;
   for (const preset of PRESET_COLORS) {
-    const presetRgb = toRgb(preset)
-    if (!presetRgb) continue // unreachable: every PRESET_COLORS entry is a valid 6-digit hex (pinned by a test)
-    const [pr, pg, pb] = presetRgb
+    const presetRgb = toRgb(preset);
+    if (!presetRgb) continue; // unreachable: every PRESET_COLORS entry is a valid 6-digit hex (pinned by a test)
+    const [pr, pg, pb] = presetRgb;
     // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
-    const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2
+    const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
     // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie — palette order
     // is the deterministic tie-break.
     if (distance < nearestDistance) {
-      nearestDistance = distance
-      nearest = preset
+      nearestDistance = distance;
+      nearest = preset;
     }
   }
-  return nearest
+  return nearest;
 }
 
-const FALLBACK = NEUTRAL_COLOR
+const FALLBACK = NEUTRAL_COLOR;
 
 /** Id→entity maps for O(1) colour resolution. The scheduler model already builds
  *  these to position bars, so colour resolution reuses them instead of re-scanning
  *  the raw arrays once per bar. */
 export interface BarColorMaps {
-  activities: Map<ID, Activity>
-  projects: Map<ID, Project>
-  clients: Map<ID, Client>
-  resources: Map<ID, Resource>
+  activities: Map<ID, Activity>;
+  projects: Map<ID, Project>;
+  clients: Map<ID, Client>;
+  resources: Map<ID, Resource>;
   /** Account display preference. Absent means the default neutral-grey Internal treatment. */
-  internalColourMode?: InternalColourMode
+  internalColourMode?: InternalColourMode;
 }
 
 /** Resolve a project's displayed colour without mutating its saved palette choice. Internal-owned
@@ -85,85 +133,86 @@ export interface BarColorMaps {
 export function resolveProjectColor(
   project: Project,
   client: Client | undefined,
-  internalColourMode: InternalColourMode = 'grey',
+  internalColourMode: InternalColourMode = "grey",
 ): string {
-  return internalColourMode === 'grey' && client?.builtin === true ? NEUTRAL_COLOR : project.color
+  return internalColourMode === "grey" && client?.builtin === true ? NEUTRAL_COLOR : project.color;
 }
 
 /** Resolve an allocation bar colour. External work is always grey. In the default Internal-grey
  * mode, `internal` activities and activities under Internal-owned projects are also grey; otherwise
  * bars use project → client → resource → neutral fallback order. */
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
-  const resource = maps.resources.get(allocation.resourceId)
+  const resource = maps.resources.get(allocation.resourceId);
   // External / 3rd-party work reads as a single neutral colour (an "awareness" signal),
   // overriding the usual project→client colouring so an outsourced bar never looks like one of
   // our own. See DECISIONS.md "external kind": single neutral colour.
-  if (resource && isExternalResource(resource)) return NEUTRAL_COLOR
-  const activity = maps.activities.get(allocation.activityId)
-  const project = activity?.projectId ? maps.projects.get(activity.projectId) : undefined
-  const client = project ? maps.clients.get(project.clientId) : undefined
-  const internalColourMode = maps.internalColourMode ?? 'grey'
-  if (
-    internalColourMode === 'grey' &&
-    (activity?.kind === 'internal' || client?.builtin === true)
-  ) return NEUTRAL_COLOR
-  if (project?.color) return project.color
-  if (client?.color) return client.color
+  if (resource && isExternalResource(resource)) return NEUTRAL_COLOR;
+  const activity = maps.activities.get(allocation.activityId);
+  const project = activity?.projectId ? maps.projects.get(activity.projectId) : undefined;
+  const client = project ? maps.clients.get(project.clientId) : undefined;
+  const internalColourMode = maps.internalColourMode ?? "grey";
+  if (internalColourMode === "grey" && (activity?.kind === "internal" || client?.builtin === true))
+    return NEUTRAL_COLOR;
+  if (project?.color) return project.color;
+  if (client?.color) return client.color;
 
-  return resource?.color ?? FALLBACK
+  return resource?.color ?? FALLBACK;
 }
 
-const DARK_INK = '#1c2230'
-const LIGHT_INK = '#ffffff'
+const DARK_INK = "#1c2230";
+const LIGHT_INK = "#ffffff";
 
 // WCAG relative luminance: linearise each sRGB channel before weighting.
 function channelLin(c: number): number {
-  const s = c / 255
-  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  const s = c / 255;
+  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
 }
 
 function toRgb(hex: string): [number, number, number] | null {
-  const normalized = hex.trim()
-  if (!HEX_COLOR_RE.test(normalized)) return null
-  const body = normalized.slice(1)
-  return [
-    parseInt(body.slice(0, 2), 16),
-    parseInt(body.slice(2, 4), 16),
-    parseInt(body.slice(4, 6), 16),
-  ]
+  const normalized = hex.trim();
+  if (!HEX_COLOR_RE.test(normalized)) return null;
+  const body = normalized.slice(1);
+  return [parseInt(body.slice(0, 2), 16), parseInt(body.slice(2, 4), 16), parseInt(body.slice(4, 6), 16)];
 }
 
 function relativeLuminance(hex: string): number | null {
-  const rgb = toRgb(hex)
-  if (!rgb) return null
-  const [r, g, b] = rgb
-  return 0.2126 * channelLin(r) + 0.7152 * channelLin(g) + 0.0722 * channelLin(b)
+  const rgb = toRgb(hex);
+  if (!rgb) return null;
+  const [r, g, b] = rgb;
+  return 0.2126 * channelLin(r) + 0.7152 * channelLin(g) + 0.0722 * channelLin(b);
 }
 
 export function contrastRatio(hexA: string, hexB: string): number {
-  const la = relativeLuminance(hexA)
-  const lb = relativeLuminance(hexB)
-  if (la === null || lb === null) return 1
-  const hi = Math.max(la, lb)
-  const lo = Math.min(la, lb)
-  return (hi + 0.05) / (lo + 0.05)
+  const la = relativeLuminance(hexA);
+  const lb = relativeLuminance(hexB);
+  if (la === null || lb === null) return 1;
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
 }
 
-const DARK_INK_LUM = relativeLuminance(DARK_INK) ?? 0
+const DARK_INK_LUM = relativeLuminance(DARK_INK) ?? 0;
 
 /** Pick whichever of white / dark ink has the higher WCAG contrast on `hex`. */
 export function readableTextColor(hex: string): string {
-  const bg = relativeLuminance(hex)
-  if (bg === null) return DARK_INK
-  const contrastWhite = (1 + 0.05) / (bg + 0.05)
-  const contrastDark = (Math.max(bg, DARK_INK_LUM) + 0.05) / (Math.min(bg, DARK_INK_LUM) + 0.05)
-  return contrastWhite >= contrastDark ? LIGHT_INK : DARK_INK
+  const bg = relativeLuminance(hex);
+  if (bg === null) return DARK_INK;
+  const contrastWhite = (1 + 0.05) / (bg + 0.05);
+  const contrastDark = (Math.max(bg, DARK_INK_LUM) + 0.05) / (Math.min(bg, DARK_INK_LUM) + 0.05);
+  return contrastWhite >= contrastDark ? LIGHT_INK : DARK_INK;
 }
 
-const AA_NORMAL = 4.5
+const AA_NORMAL = 4.5;
 
 const toHex = (r: number, g: number, b: number) =>
-  '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')
+  "#" +
+  [r, g, b]
+    .map((v) =>
+      Math.max(0, Math.min(255, Math.round(v)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("");
 
 /**
  * Bar label legibility: many mid-tone colours give neither white nor dark ink a
@@ -172,28 +221,28 @@ const toHex = (r: number, g: number, b: number) =>
  * ink — until the label clears WCAG AA. Returns the adjusted background + its ink.
  */
 export function ensureBarColors(hex: string): { bg: string; ink: string } {
-  const rgb = toRgb(hex)
-  const ink = readableTextColor(hex)
-  if (!rgb) return { bg: FALLBACK, ink: readableTextColor(FALLBACK) }
-  let [r, g, b] = rgb
-  const darken = ink === LIGHT_INK
-  let bg = hex
+  const rgb = toRgb(hex);
+  const ink = readableTextColor(hex);
+  if (!rgb) return { bg: FALLBACK, ink: readableTextColor(FALLBACK) };
+  let [r, g, b] = rgb;
+  const darken = ink === LIGHT_INK;
+  let bg = hex;
   for (let i = 0; i < 30 && contrastRatio(bg, ink) < AA_NORMAL; i++) {
     if (darken) {
-      r *= 0.92
-      g *= 0.92
-      b *= 0.92
+      r *= 0.92;
+      g *= 0.92;
+      b *= 0.92;
     } else {
-      r += (255 - r) * 0.12
-      g += (255 - g) * 0.12
-      b += (255 - b) * 0.12
+      r += (255 - r) * 0.12;
+      g += (255 - g) * 0.12;
+      b += (255 - b) * 0.12;
     }
-    bg = toHex(r, g, b)
+    bg = toHex(r, g, b);
   }
-  return { bg, ink }
+  return { bg, ink };
 }
 
 /** True when 6-digit hex `#rrggbb`. Used to validate user colour input. */
 export function isHexColor(value: string): boolean {
-  return HEX_COLOR_RE.test(value.trim())
+  return HEX_COLOR_RE.test(value.trim());
 }

@@ -42,9 +42,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
       backupHealth: () => backupHealth,
     });
 
-    expect(
-      (await app.inject({ method: "GET", url: "/api/health" })).json(),
-    ).toEqual({
+    expect((await app.inject({ method: "GET", url: "/api/health" })).json()).toEqual({
       ok: true,
       db: true,
       audit: "ok",
@@ -52,18 +50,14 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     });
 
     backupHealth.degraded = true;
-    expect(
-      (await app.inject({ method: "GET", url: "/api/health" })).json().backup,
-    ).toEqual({
+    expect((await app.inject({ method: "GET", url: "/api/health" })).json().backup).toEqual({
       status: "degraded",
       lastSuccessAt: "2026-07-27T12:00:00.000Z",
     });
   });
 
   it("surfaces an internal certificate inside the renewal window without failing readiness", async () => {
-    const expiresAt = new Date(
-      Date.now() + 29 * 24 * 60 * 60 * 1_000,
-    ).toISOString();
+    const expiresAt = new Date(Date.now() + 29 * 24 * 60 * 60 * 1_000).toISOString();
     const app = buildApp(openDb(":memory:"), {
       healthDeep: true,
       internalTlsExpiresAt: expiresAt,

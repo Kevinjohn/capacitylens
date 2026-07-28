@@ -11,21 +11,11 @@ describe("runtime demo seed", () => {
       startDate: "2031-09-15",
       endDate: "2031-09-18",
     });
-    expect(current.allocations.map((row) => row.id)).toEqual(
-      fixed.allocations.map((row) => row.id),
+    expect(current.allocations.map((row) => row.id)).toEqual(fixed.allocations.map((row) => row.id));
+    expect(current.allocations.map((row) => dayIndex(row.startDate, current.allocations[0].startDate))).toEqual(
+      fixed.allocations.map((row) => dayIndex(row.startDate, fixed.allocations[0].startDate)),
     );
-    expect(
-      current.allocations.map((row) =>
-        dayIndex(row.startDate, current.allocations[0].startDate),
-      ),
-    ).toEqual(
-      fixed.allocations.map((row) =>
-        dayIndex(row.startDate, fixed.allocations[0].startDate),
-      ),
-    );
-    expect(
-      current.allocations.map((row) => dayIndex(row.endDate, row.startDate)),
-    ).toEqual(
+    expect(current.allocations.map((row) => dayIndex(row.endDate, row.startDate))).toEqual(
       fixed.allocations.map((row) => dayIndex(row.endDate, row.startDate)),
     );
     expect(current.timeOff[0]).toMatchObject({

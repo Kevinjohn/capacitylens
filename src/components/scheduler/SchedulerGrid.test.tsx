@@ -1,344 +1,478 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SchedulerGrid } from './SchedulerGrid'
-import { useStore } from '../../store/useStore'
-import type { AppData } from '@capacitylens/shared/types/entities'
-import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
-import { LAYOUT } from './layout'
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { SchedulerGrid } from "./SchedulerGrid";
+import { useStore } from "../../store/useStore";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { DEFAULT_ACCOUNT_ID, makeAppData } from "../../test/fixtures";
+import { LAYOUT } from "./layout";
 
-const ACC = DEFAULT_ACCOUNT_ID
+const ACC = DEFAULT_ACCOUNT_ID;
 
 // SchedulerGrid calls useNavigate (the empty-state "Go to Resources" CTA), so every render must
 // sit inside a Router.
 function renderGrid() {
-  return render(<SchedulerGrid />, { wrapper: MemoryRouter })
+  return render(<SchedulerGrid />, { wrapper: MemoryRouter });
 }
 
 function dataset(): AppData {
   return makeAppData({
-    disciplines: [{ id: 'd1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 }],
+    disciplines: [{ id: "d1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 }],
     resources: [
-      { id: 'r1', accountId: ACC, createdAt: 't', updatedAt: 't', kind: 'person', name: 'Tyler', role: 'Designer', disciplineId: 'd1', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111' },
-      { id: 'r-ext', accountId: ACC, createdAt: 't', updatedAt: 't', kind: 'external', name: 'Northstar Partners', role: 'Partner studio', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#999' },
+      {
+        id: "r1",
+        accountId: ACC,
+        createdAt: "t",
+        updatedAt: "t",
+        kind: "person",
+        name: "Tyler",
+        role: "Designer",
+        disciplineId: "d1",
+        employmentType: "permanent",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        color: "#111",
+      },
+      {
+        id: "r-ext",
+        accountId: ACC,
+        createdAt: "t",
+        updatedAt: "t",
+        kind: "external",
+        name: "Northstar Partners",
+        role: "Partner studio",
+        employmentType: "permanent",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        color: "#999",
+      },
     ],
-    clients: [{ id: 'c1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Acme', color: '#222' }],
-    projects: [{ id: 'p1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' }],
+    clients: [{ id: "c1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Acme", color: "#222" }],
+    projects: [
+      { id: "p1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Lightning", clientId: "c1", color: "#ec4899" },
+    ],
     phases: [],
-    activities: [{ id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', kind: 'project', projectId: 'p1' }],
+    activities: [
+      {
+        id: "t1",
+        accountId: ACC,
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Wireframes",
+        kind: "project",
+        projectId: "p1",
+      },
+    ],
     allocations: [
-      { id: 'a1', accountId: ACC, createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      {
+        id: "a1",
+        accountId: ACC,
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
     ],
     timeOff: [],
-  })
+  });
 }
 
 beforeEach(() => {
-  useStore.getState().replaceAll(dataset())
-  useStore.getState().setActiveAccount(ACC)
-  useStore.getState().setOriginDate('2026-06-01')
-  useStore.getState().setZoom(1) // widest columns
-  useStore.getState().setUtilizationPref('showTotal', true)
-  useStore.getState().clearFilters()
-  useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }))
-})
+  useStore.getState().replaceAll(dataset());
+  useStore.getState().setActiveAccount(ACC);
+  useStore.getState().setOriginDate("2026-06-01");
+  useStore.getState().setZoom(1); // widest columns
+  useStore.getState().setUtilizationPref("showTotal", true);
+  useStore.getState().clearFilters();
+  useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
+});
 
-describe('SchedulerGrid', () => {
-  it('names the resource column when the optional total utilisation is hidden', () => {
-    useStore.getState().setUtilizationPref('showTotal', false)
+describe("SchedulerGrid", () => {
+  it("names the resource column when the optional total utilisation is hidden", () => {
+    useStore.getState().setUtilizationPref("showTotal", false);
 
-    renderGrid()
+    renderGrid();
 
-    expect(screen.getByRole('columnheader', { name: 'Resources' })).toHaveAttribute('aria-colindex', '1')
-    expect(screen.queryByTestId('overall-utilization')).not.toBeInTheDocument()
-  })
+    expect(screen.getByRole("columnheader", { name: "Resources" })).toHaveAttribute("aria-colindex", "1");
+    expect(screen.queryByTestId("overall-utilization")).not.toBeInTheDocument();
+  });
 
-  it('positions a bar by start date with inclusive width', () => {
-    renderGrid()
-    const bar = screen.getByTestId('allocation-bar')
+  it("positions a bar by start date with inclusive width", () => {
+    renderGrid();
+    const bar = screen.getByTestId("allocation-bar");
     // origin === start -> left is just the visual inset; width is a positive multiple of
     // the (responsive) dayWidth. Exact px geometry is covered by schedulerModel.test.
-    expect(bar.style.left).toBe(`${LAYOUT.barInset}px`)
-    expect(Number.parseInt(bar.style.width, 10)).toBeGreaterThan(0)
-    expect(bar).toHaveAttribute('data-status', 'confirmed')
-  })
+    expect(bar.style.left).toBe(`${LAYOUT.barInset}px`);
+    expect(Number.parseInt(bar.style.width, 10)).toBeGreaterThan(0);
+    expect(bar).toHaveAttribute("data-status", "confirmed");
+  });
 
-  it('groups resource rows under their discipline', () => {
-    renderGrid()
-    expect(screen.getByText('Design')).toBeInTheDocument()
-    expect(screen.getByText('Tyler')).toBeInTheDocument()
-    expect(screen.getByText(/Wireframes/)).toBeInTheDocument()
-  })
+  it("groups resource rows under their discipline", () => {
+    renderGrid();
+    expect(screen.getByText("Design")).toBeInTheDocument();
+    expect(screen.getByText("Tyler")).toBeInTheDocument();
+    expect(screen.getByText(/Wireframes/)).toBeInTheDocument();
+  });
 
-  it('keeps the dragged source mounted while vertical windowing exposes a distant target', () => {
-    const base = dataset()
+  it("keeps the dragged source mounted while vertical windowing exposes a distant target", () => {
+    const base = dataset();
     const resources = Array.from({ length: 100 }, (_, index) => ({
       ...base.resources[0],
       id: `r${index}`,
       name: `Person ${index}`,
-    }))
+    }));
     useStore.getState().replaceAll({
       ...base,
       resources,
-      allocations: [{ ...base.allocations[0], resourceId: 'r0' }],
-    })
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 })
-    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 180 })
-    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      callback(0)
-      return 1
-    })
+      allocations: [{ ...base.allocations[0], resourceId: "r0" }],
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1200 });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 180 });
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
 
-    const view = renderGrid()
+    const view = renderGrid();
     try {
-      expect(document.querySelector('[data-resource-id="r0"]')).not.toBeNull()
-      expect(document.querySelector('[data-resource-id="r99"]')).toBeNull()
+      expect(document.querySelector('[data-resource-id="r0"]')).not.toBeNull();
+      expect(document.querySelector('[data-resource-id="r99"]')).toBeNull();
 
-      act(() => useStore.setState({ draggingAllocationId: 'a1' }))
-      const grid = screen.getByTestId('scheduler-grid')
+      act(() => useStore.setState({ draggingAllocationId: "a1" }));
+      const grid = screen.getByTestId("scheduler-grid");
       act(() => {
-        grid.scrollTop = 100_000
-        grid.dispatchEvent(new Event('scroll'))
-      })
+        grid.scrollTop = 100_000;
+        grid.dispatchEvent(new Event("scroll"));
+      });
 
-      expect(document.querySelector('[data-resource-id="r99"]')).not.toBeNull()
-      expect(document.querySelector('[data-resource-id="r0"]')).not.toBeNull()
-      expect(screen.getByTestId('allocation-bar')).toBeInTheDocument()
+      expect(document.querySelector('[data-resource-id="r99"]')).not.toBeNull();
+      expect(document.querySelector('[data-resource-id="r0"]')).not.toBeNull();
+      expect(screen.getByTestId("allocation-bar")).toBeInTheDocument();
     } finally {
-      view.unmount()
-      rafSpy.mockRestore()
-      delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth
-      delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight
-      useStore.setState({ draggingAllocationId: null })
+      view.unmount();
+      rafSpy.mockRestore();
+      delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth;
+      delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight;
+      useStore.setState({ draggingAllocationId: null });
     }
-  })
+  });
 
-  it('exposes grid semantics + an sr-only capacity summary for screen readers', () => {
-    renderGrid()
-    expect(screen.getByRole('grid', { name: 'Resource schedule' })).toBeInTheDocument()
-    expect(screen.getAllByRole('row').length).toBeGreaterThan(0)
-    expect(screen.getByRole('rowheader', { name: /Tyler/ })).toBeInTheDocument()
-    expect(screen.getByText(/1 allocation\./)).toBeInTheDocument() // sr-only row summary
-  })
+  it("exposes grid semantics + an sr-only capacity summary for screen readers", () => {
+    renderGrid();
+    expect(screen.getByRole("grid", { name: "Resource schedule" })).toBeInTheDocument();
+    expect(screen.getAllByRole("row").length).toBeGreaterThan(0);
+    expect(screen.getByRole("rowheader", { name: /Tyler/ })).toBeInTheDocument();
+    expect(screen.getByText(/1 allocation\./)).toBeInTheDocument(); // sr-only row summary
+  });
 
-  it('folds the per-row utilisation % into the sr-only summary (WCAG 1.3.1)', () => {
-    renderGrid()
+  it("folds the per-row utilisation % into the sr-only summary (WCAG 1.3.1)", () => {
+    renderGrid();
     // The utilisation % is otherwise only a `title` on a non-interactive span (AT may not expose it);
     // the sr-only summary must carry it, using the "Utilisation" term and the visible-window phrasing.
-    expect(screen.getByText(/% utilisation over the visible/)).toBeInTheDocument()
-  })
+    expect(screen.getByText(/% utilisation over the visible/)).toBeInTheDocument();
+  });
 
-  it('marks over-allocated days and shows a utilization figure', () => {
+  it("marks over-allocated days and shows a utilization figure", () => {
     // Tyler has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({
-      resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 4, status: 'confirmed',
-    })
-    renderGrid()
-    expect(screen.getAllByTestId('over-marker').length).toBeGreaterThan(0)
-    expect(screen.getAllByTestId('utilization').length).toBeGreaterThan(0)
-  })
+      resourceId: "r1",
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 4,
+      status: "confirmed",
+    });
+    renderGrid();
+    expect(screen.getAllByTestId("over-marker").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("utilization").length).toBeGreaterThan(0);
+  });
 
-  it('does not replay a handled resource jump after a later model change', () => {
-    renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
+  it("does not replay a handled resource jump after a later model change", () => {
+    renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
 
-    act(() => useStore.getState().jumpToResource('r1'))
-    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight)
-    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true)
+    act(() => useStore.getState().jumpToResource("r1"));
+    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight);
+    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
     act(() => {
-      grid.scrollTop = 777
+      grid.scrollTop = 777;
       useStore.getState().addAllocation({
-        resourceId: 'r1',
-        activityId: 't1',
-        startDate: '2026-06-03',
-        endDate: '2026-06-03',
+        resourceId: "r1",
+        activityId: "t1",
+        startDate: "2026-06-03",
+        endDate: "2026-06-03",
         hoursPerDay: 1,
-        status: 'confirmed',
-      })
-    })
+        status: "confirmed",
+      });
+    });
 
-    expect(grid.scrollTop).toBe(777)
-  })
+    expect(grid.scrollTop).toBe(777);
+  });
 
-  it('expands a collapsed discipline before scrolling to its resource', () => {
-    useStore.getState().toggleGroup('d1')
-    renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
-    grid.scrollTop = 444
+  it("expands a collapsed discipline before scrolling to its resource", () => {
+    useStore.getState().toggleGroup("d1");
+    renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
+    grid.scrollTop = 444;
 
-    act(() => useStore.getState().jumpToResource('r1'))
-    expect(useStore.getState().ui.collapsedGroups).not.toContain('d1')
-    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight)
-    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true)
-  })
+    act(() => useStore.getState().jumpToResource("r1"));
+    expect(useStore.getState().ui.collapsedGroups).not.toContain("d1");
+    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight);
+    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
+  });
 
-  it('expands the collapsed External band before scrolling to its resource', () => {
-    useStore.getState().updateAccount(ACC, { externalEnabled: true })
-    useStore.getState().toggleGroup('external')
-    renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
-    grid.scrollTop = 444
+  it("expands the collapsed External band before scrolling to its resource", () => {
+    useStore.getState().updateAccount(ACC, { externalEnabled: true });
+    useStore.getState().toggleGroup("external");
+    renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
+    grid.scrollTop = 444;
 
-    act(() => useStore.getState().jumpToResource('r-ext'))
-    expect(useStore.getState().ui.collapsedGroups).not.toContain('external')
-    expect(screen.getByText('Northstar Partners')).toBeInTheDocument()
-    expect(grid.scrollTop).not.toBe(444)
-    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true)
-  })
-})
+    act(() => useStore.getState().jumpToResource("r-ext"));
+    expect(useStore.getState().ui.collapsedGroups).not.toContain("external");
+    expect(screen.getByText("Northstar Partners")).toBeInTheDocument();
+    expect(grid.scrollTop).not.toBe(444);
+    expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
+  });
+});
 
-describe('SchedulerGrid visible-window utilisation', () => {
+describe("SchedulerGrid visible-window utilisation", () => {
   // A single Mon–Fri resource (8h/day → 40h/week) with a different booking density each week, so the
   // displayed overall % must change EXACTLY with the 1/2/4/8-week toggle (and stay distinct across them).
   function densityDataset(): AppData {
     return makeAppData({
-      disciplines: [{ id: 'd1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 }],
+      disciplines: [{ id: "d1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 }],
       resources: [
-        { id: 'r1', accountId: ACC, createdAt: 't', updatedAt: 't', kind: 'person', name: 'Dana', role: 'Designer', disciplineId: 'd1', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111' },
+        {
+          id: "r1",
+          accountId: ACC,
+          createdAt: "t",
+          updatedAt: "t",
+          kind: "person",
+          name: "Dana",
+          role: "Designer",
+          disciplineId: "d1",
+          employmentType: "permanent",
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5],
+          color: "#111",
+        },
       ],
-      clients: [{ id: 'c1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Acme', color: '#222' }],
-      projects: [{ id: 'p1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' }],
+      clients: [{ id: "c1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Acme", color: "#222" }],
+      projects: [
+        {
+          id: "p1",
+          accountId: ACC,
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Lightning",
+          clientId: "c1",
+          color: "#ec4899",
+        },
+      ],
       phases: [],
-      activities: [{ id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', kind: 'project', projectId: 'p1' }],
+      activities: [
+        {
+          id: "t1",
+          accountId: ACC,
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Wireframes",
+          kind: "project",
+          projectId: "p1",
+        },
+      ],
       allocations: [
-        { id: 'w1', accountId: ACC, createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' }, // wk1 100%
-        { id: 'w2', accountId: ACC, createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-08', endDate: '2026-06-12', hoursPerDay: 4, status: 'confirmed' }, // wk2 50%
-        { id: 'w34', accountId: ACC, createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-15', endDate: '2026-06-26', hoursPerDay: 2, status: 'confirmed' }, // wk3–4 25%
+        {
+          id: "w1",
+          accountId: ACC,
+          createdAt: "t",
+          updatedAt: "t",
+          resourceId: "r1",
+          activityId: "t1",
+          startDate: "2026-06-01",
+          endDate: "2026-06-05",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }, // wk1 100%
+        {
+          id: "w2",
+          accountId: ACC,
+          createdAt: "t",
+          updatedAt: "t",
+          resourceId: "r1",
+          activityId: "t1",
+          startDate: "2026-06-08",
+          endDate: "2026-06-12",
+          hoursPerDay: 4,
+          status: "confirmed",
+        }, // wk2 50%
+        {
+          id: "w34",
+          accountId: ACC,
+          createdAt: "t",
+          updatedAt: "t",
+          resourceId: "r1",
+          activityId: "t1",
+          startDate: "2026-06-15",
+          endDate: "2026-06-26",
+          hoursPerDay: 2,
+          status: "confirmed",
+        }, // wk3–4 25%
         // wk5–8 idle
       ],
       timeOff: [],
-    })
+    });
   }
 
   // Anchor the timeline AND the focus date at Mon 2026-06-01 so the visible window starts there
   // (leftEdgeIdx stays -1 in jsdom — the container is never measured — so the % anchors at focusDate).
   const renderAtZoom = (zoom: 1 | 2 | 4 | 8) => {
-    useStore.getState().replaceAll(densityDataset())
-    useStore.getState().setActiveAccount(ACC)
-    useStore.getState().clearFilters()
-    useStore.setState((st) => ({ ui: { ...st.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom, collapsedGroups: [] } }))
-    return renderGrid()
-  }
-  const overallPct = () => Number.parseInt(screen.getByTestId('overall-utilization').textContent ?? '', 10)
+    useStore.getState().replaceAll(densityDataset());
+    useStore.getState().setActiveAccount(ACC);
+    useStore.getState().clearFilters();
+    useStore.setState((st) => ({
+      ui: { ...st.ui, originDate: "2026-06-01", focusDate: "2026-06-01", zoom, collapsedGroups: [] },
+    }));
+    return renderGrid();
+  };
+  const overallPct = () => Number.parseInt(screen.getByTestId("overall-utilization").textContent ?? "", 10);
 
-  it('the week-range toggle changes the overall % to reflect EXACTLY the visible span', () => {
+  it("the week-range toggle changes the overall % to reflect EXACTLY the visible span", () => {
     // 1w → 40/40 = 100%; 2w → 60/80 = 75%; 4w → 80/160 = 50%; 8w → 80/320 = 25%.
-    const v1 = renderAtZoom(1); expect(overallPct()).toBe(100); v1.unmount()
-    const v2 = renderAtZoom(2); expect(overallPct()).toBe(75); v2.unmount()
-    const v4 = renderAtZoom(4); expect(overallPct()).toBe(50); v4.unmount()
-    const v8 = renderAtZoom(8); expect(overallPct()).toBe(25); v8.unmount()
-  })
+    const v1 = renderAtZoom(1);
+    expect(overallPct()).toBe(100);
+    v1.unmount();
+    const v2 = renderAtZoom(2);
+    expect(overallPct()).toBe(75);
+    v2.unmount();
+    const v4 = renderAtZoom(4);
+    expect(overallPct()).toBe(50);
+    v4.unmount();
+    const v8 = renderAtZoom(8);
+    expect(overallPct()).toBe(25);
+    v8.unmount();
+  });
 
   it('the label tracks the zoom (no longer a fixed "next 2w")', () => {
-    const v = renderAtZoom(4)
-    expect(screen.getByText('Utilisation · 4w')).toBeInTheDocument()
-    v.unmount()
-  })
-})
+    const v = renderAtZoom(4);
+    expect(screen.getByText("Utilisation · 4w")).toBeInTheDocument();
+    v.unmount();
+  });
+});
 
-describe('SchedulerGrid account-local day rollover', () => {
+describe("SchedulerGrid account-local day rollover", () => {
   beforeEach(() => {
-    vi.useFakeTimers()
-    const data = dataset()
-    data.accounts = data.accounts.map((account) => ({ ...account, timezone: 'Pacific/Kiritimati' }))
+    vi.useFakeTimers();
+    const data = dataset();
+    data.accounts = data.accounts.map((account) => ({ ...account, timezone: "Pacific/Kiritimati" }));
     data.allocations.push({
-      id: 'boundary-over',
+      id: "boundary-over",
       accountId: ACC,
-      createdAt: 't',
-      updatedAt: 't',
-      resourceId: 'r1',
-      activityId: 't1',
-      startDate: '2026-06-15',
-      endDate: '2026-06-15',
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r1",
+      activityId: "t1",
+      startDate: "2026-06-15",
+      endDate: "2026-06-15",
       hoursPerDay: 9,
-      status: 'confirmed',
-    })
-    useStore.getState().replaceAll(data)
-    useStore.getState().setActiveAccount(ACC)
+      status: "confirmed",
+    });
+    useStore.getState().replaceAll(data);
+    useStore.getState().setActiveAccount(ACC);
     useStore.setState((state) => ({
-      ui: { ...state.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1 },
-    }))
-  })
+      ui: { ...state.ui, originDate: "2026-06-01", focusDate: "2026-06-01", zoom: 1 },
+    }));
+  });
 
   afterEach(() => {
-    vi.useRealTimers()
-  })
+    vi.useRealTimers();
+  });
 
-  it('advances the today marker and fixed over-soon window at company-local midnight', () => {
+  it("advances the today marker and fixed over-soon window at company-local midnight", () => {
     // Pacific/Kiritimati is UTC+14: this instant is 23:59:59 on 1 June for the account even when
     // the test host is in another timezone.
-    vi.setSystemTime(new Date('2026-06-01T09:59:59.000Z'))
-    const view = renderGrid()
-    const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft')
-    expect(currentHeader()).toHaveTextContent('1')
-    const lineBefore = screen.getByTestId('today-line').style.left
-    expect(screen.queryByText(/Overbooked in the next two weeks/)).not.toBeInTheDocument()
+    vi.setSystemTime(new Date("2026-06-01T09:59:59.000Z"));
+    const view = renderGrid();
+    const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft');
+    expect(currentHeader()).toHaveTextContent("1");
+    const lineBefore = screen.getByTestId("today-line").style.left;
+    expect(screen.queryByText(/Overbooked in the next two weeks/)).not.toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(2_000)
-    })
+      vi.advanceTimersByTime(2_000);
+    });
 
-    expect(currentHeader()).toHaveTextContent('2')
-    expect(screen.getByTestId('today-line').style.left).not.toBe(lineBefore)
-    expect(screen.getByText(/Overbooked in the next two weeks/)).toBeInTheDocument()
-  })
+    expect(currentHeader()).toHaveTextContent("2");
+    expect(screen.getByTestId("today-line").style.left).not.toBe(lineBefore);
+    expect(screen.getByText(/Overbooked in the next two weeks/)).toBeInTheDocument();
+  });
 
-  it('refreshes immediately when a visible page resumes without its timer firing', () => {
-    vi.setSystemTime(new Date('2026-06-01T00:00:00.000Z'))
-    useStore.getState().updateAccount(ACC, { timezone: 'Etc/GMT' })
-    const view = renderGrid()
-    const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft')
-    expect(currentHeader()).toHaveTextContent('1')
+  it("refreshes immediately when a visible page resumes without its timer firing", () => {
+    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
+    useStore.getState().updateAccount(ACC, { timezone: "Etc/GMT" });
+    const view = renderGrid();
+    const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft');
+    expect(currentHeader()).toHaveTextContent("1");
 
-    vi.setSystemTime(new Date('2026-06-02T12:00:00.000Z'))
-    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    vi.setSystemTime(new Date("2026-06-02T12:00:00.000Z"));
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     act(() => {
-      document.dispatchEvent(new Event('visibilitychange'))
-    })
-    expect(currentHeader()).toHaveTextContent('2')
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(currentHeader()).toHaveTextContent("2");
 
-    vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'))
+    vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
     act(() => {
-      window.dispatchEvent(new PageTransitionEvent('pageshow'))
-    })
-    expect(currentHeader()).toHaveTextContent('3')
-    visibility.mockRestore()
-  })
-})
+      window.dispatchEvent(new PageTransitionEvent("pageshow"));
+    });
+    expect(currentHeader()).toHaveTextContent("3");
+    visibility.mockRestore();
+  });
+});
 
-describe('SchedulerGrid filters', () => {
+describe("SchedulerGrid filters", () => {
   it('hides tentative allocations when "hide tentative" is on', () => {
     useStore.getState().addAllocation({
-      resourceId: 'r1', activityId: 't1', startDate: '2026-06-10', endDate: '2026-06-11', hoursPerDay: 2, status: 'tentative',
-    })
-    const view = renderGrid()
-    expect(screen.getAllByTestId('allocation-bar')).toHaveLength(2)
-    view.unmount()
+      resourceId: "r1",
+      activityId: "t1",
+      startDate: "2026-06-10",
+      endDate: "2026-06-11",
+      hoursPerDay: 2,
+      status: "tentative",
+    });
+    const view = renderGrid();
+    expect(screen.getAllByTestId("allocation-bar")).toHaveLength(2);
+    view.unmount();
 
-    useStore.getState().setFilters({ hideTentative: true })
-    renderGrid()
-    expect(screen.getAllByTestId('allocation-bar')).toHaveLength(1)
-  })
+    useStore.getState().setFilters({ hideTentative: true });
+    renderGrid();
+    expect(screen.getAllByTestId("allocation-bar")).toHaveLength(1);
+  });
 
-  it('shows an empty state when the search matches nobody', () => {
-    useStore.getState().setFilters({ search: 'no-such-person' })
-    renderGrid()
-    const emptyRow = screen.getByTestId('scheduler-empty')
-    const grid = screen.getByRole('grid', { name: 'Resource schedule' })
-    expect(emptyRow).toBeInTheDocument()
-    expect(emptyRow).toHaveAttribute('aria-rowindex', '2')
-    expect(grid).toHaveAttribute('aria-rowcount', String(screen.getAllByRole('row').length))
-  })
+  it("shows an empty state when the search matches nobody", () => {
+    useStore.getState().setFilters({ search: "no-such-person" });
+    renderGrid();
+    const emptyRow = screen.getByTestId("scheduler-empty");
+    const grid = screen.getByRole("grid", { name: "Resource schedule" });
+    expect(emptyRow).toBeInTheDocument();
+    expect(emptyRow).toHaveAttribute("aria-rowindex", "2");
+    expect(grid).toHaveAttribute("aria-rowcount", String(screen.getAllByRole("row").length));
+  });
 
-  it('collapsing a discipline hides its rows but keeps the header', () => {
-    renderGrid()
-    expect(screen.getByText('Tyler')).toBeInTheDocument()
-    act(() => useStore.getState().toggleGroup('d1'))
-    expect(screen.queryByText('Tyler')).not.toBeInTheDocument()
-    expect(screen.getByTestId('discipline-group')).toBeInTheDocument()
-  })
-})
+  it("collapsing a discipline hides its rows but keeps the header", () => {
+    renderGrid();
+    expect(screen.getByText("Tyler")).toBeInTheDocument();
+    act(() => useStore.getState().toggleGroup("d1"));
+    expect(screen.queryByText("Tyler")).not.toBeInTheDocument();
+    expect(screen.getByTestId("discipline-group")).toBeInTheDocument();
+  });
+});
 
 // Feature 2 (the device-global "Snap to week start" pref) — the scroll-idle floor wired through
 // onScroll. The PURE floor math is unit-tested in weekSnap.test.ts; here we pin the COMPONENT
@@ -350,127 +484,149 @@ describe('SchedulerGrid filters', () => {
 // onScroll's body executes inside the dispatched scroll event, and (3) drive WEEK_SNAP_IDLE_MS with
 // fake timers. minimise-weekends is forced OFF so the column grid is uniform (dayWidth = floor(944/7)
 // = 134, a 938px week) and the snap targets are plain multiples of the week width.
-describe('SchedulerGrid — snap to week start (Feature 2 wiring)', () => {
-  const DAY_WIDTH = 134 // floor((1200 - leftColWidth 256) / 7) at zoom=1, minimise OFF
-  const WEEK = DAY_WIDTH * 7 // 938 — offset of the next Monday from the origin Monday
+describe("SchedulerGrid — snap to week start (Feature 2 wiring)", () => {
+  const DAY_WIDTH = 134; // floor((1200 - leftColWidth 256) / 7) at zoom=1, minimise OFF
+  const WEEK = DAY_WIDTH * 7; // 938 — offset of the next Monday from the origin Monday
   // A mid-week nudge: Wed of week 2 (origin index 9). Floors back to week 2's Monday (index 7).
-  const NUDGE = 9 * DAY_WIDTH // 1206
-  const SNAPPED = 7 * DAY_WIDTH // 938
-  let rafSpy: ReturnType<typeof vi.spyOn>
+  const NUDGE = 9 * DAY_WIDTH; // 1206
+  const SNAPPED = 7 * DAY_WIDTH; // 938
+  let rafSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    vi.useFakeTimers()
+    vi.useFakeTimers();
     // Make the grid measure so timelineWidth > 0 (didScroll flips) and the snap actually runs.
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 })
-    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 })
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1200 });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 600 });
     // Run the onScroll rAF synchronously so its body executes within the dispatched scroll event; the
     // setTimeout(WEEK_SNAP_IDLE_MS) it arms is still driven by the fake timers below.
-    rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
-      cb(0)
-      return 1
-    })
+    rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
     // Uniform columns → predictable week-multiple offsets.
-    useStore.getState().setMinimiseWeekends(false)
+    useStore.getState().setMinimiseWeekends(false);
     // Anchor BOTH origin and focus on Mon 2026-06-01 so first-paint scrollLeft (focusX) is 0.
-    useStore.setState((st) => ({ ui: { ...st.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1, collapsedGroups: [] } }))
-  })
+    useStore.setState((st) => ({
+      ui: { ...st.ui, originDate: "2026-06-01", focusDate: "2026-06-01", zoom: 1, collapsedGroups: [] },
+    }));
+  });
 
   afterEach(() => {
-    rafSpy.mockRestore()
-    vi.useRealTimers()
-    delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth
-    delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight
-    useStore.getState().setSnapToWeekStart(true) // restore the default for other suites
-    useStore.getState().setMinimiseWeekends(true)
-    useStore.setState({ draggingAllocationId: null })
-  })
+    rafSpy.mockRestore();
+    vi.useRealTimers();
+    delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth;
+    delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight;
+    useStore.getState().setSnapToWeekStart(true); // restore the default for other suites
+    useStore.getState().setMinimiseWeekends(true);
+    useStore.setState({ draggingAllocationId: null });
+  });
 
   // Scroll the grid to `px` and fire the scroll event (the component's onScroll listens for it).
   const scrollTo = (px: number) => {
-    const grid = screen.getByTestId('scheduler-grid')
+    const grid = screen.getByTestId("scheduler-grid");
     act(() => {
-      grid.scrollLeft = px
-      grid.dispatchEvent(new Event('scroll'))
-    })
-  }
+      grid.scrollLeft = px;
+      grid.dispatchEvent(new Event("scroll"));
+    });
+  };
 
-  it('pref ON: a mid-week nudge floors back to the week start after the idle (and not before)', () => {
-    useStore.getState().setSnapToWeekStart(true)
-    const view = renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
+  it("pref ON: a mid-week nudge floors back to the week start after the idle (and not before)", () => {
+    useStore.getState().setSnapToWeekStart(true);
+    const view = renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
 
-    scrollTo(NUDGE)
-    expect(grid.scrollLeft).toBe(NUDGE) // debounce: nothing has moved yet
-    act(() => { vi.advanceTimersByTime(50) }) // still inside the idle window
-    expect(grid.scrollLeft).toBe(NUDGE)
+    scrollTo(NUDGE);
+    expect(grid.scrollLeft).toBe(NUDGE); // debounce: nothing has moved yet
+    act(() => {
+      vi.advanceTimersByTime(50);
+    }); // still inside the idle window
+    expect(grid.scrollLeft).toBe(NUDGE);
 
-    act(() => { vi.advanceTimersByTime(100) }) // past WEEK_SNAP_IDLE_MS (120) total
-    expect(grid.scrollLeft).toBe(SNAPPED) // floored back to week 2's Monday
-    view.unmount()
-  })
+    act(() => {
+      vi.advanceTimersByTime(100);
+    }); // past WEEK_SNAP_IDLE_MS (120) total
+    expect(grid.scrollLeft).toBe(SNAPPED); // floored back to week 2's Monday
+    view.unmount();
+  });
 
-  it('re-arms on each scroll: two quick scrolls fire only ONE snap, after the final idle', () => {
-    useStore.getState().setSnapToWeekStart(true)
-    const view = renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
+  it("re-arms on each scroll: two quick scrolls fire only ONE snap, after the final idle", () => {
+    useStore.getState().setSnapToWeekStart(true);
+    const view = renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
 
-    scrollTo(NUDGE) // arms timer A (would fire at t=120)
-    act(() => { vi.advanceTimersByTime(40) }) // t=40, under the idle — no snap yet
-    expect(grid.scrollLeft).toBe(NUDGE)
-    scrollTo(NUDGE + WEEK) // a second scroll (Wed of week 3) clears A and re-arms timer B (fires t=160)
-    act(() => { vi.advanceTimersByTime(40) }) // t=80, still under BOTH idles (A cleared, B fires at 160)
-    expect(grid.scrollLeft).toBe(NUDGE + WEEK) // no premature snap
+    scrollTo(NUDGE); // arms timer A (would fire at t=120)
+    act(() => {
+      vi.advanceTimersByTime(40);
+    }); // t=40, under the idle — no snap yet
+    expect(grid.scrollLeft).toBe(NUDGE);
+    scrollTo(NUDGE + WEEK); // a second scroll (Wed of week 3) clears A and re-arms timer B (fires t=160)
+    act(() => {
+      vi.advanceTimersByTime(40);
+    }); // t=80, still under BOTH idles (A cleared, B fires at 160)
+    expect(grid.scrollLeft).toBe(NUDGE + WEEK); // no premature snap
 
-    act(() => { vi.advanceTimersByTime(120) }) // t=200, past timer B → exactly one snap
-    expect(grid.scrollLeft).toBe(SNAPPED + WEEK) // floored to week 3's Monday
-    view.unmount()
-  })
+    act(() => {
+      vi.advanceTimersByTime(120);
+    }); // t=200, past timer B → exactly one snap
+    expect(grid.scrollLeft).toBe(SNAPPED + WEEK); // floored to week 3's Monday
+    view.unmount();
+  });
 
-  it('pref OFF: a nudge is left where it lands (no snap timer armed)', () => {
-    useStore.getState().setSnapToWeekStart(false)
-    const view = renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
+  it("pref OFF: a nudge is left where it lands (no snap timer armed)", () => {
+    useStore.getState().setSnapToWeekStart(false);
+    const view = renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
 
-    scrollTo(NUDGE)
-    act(() => { vi.advanceTimersByTime(500) })
-    expect(grid.scrollLeft).toBe(NUDGE) // stays put
-    view.unmount()
-  })
+    scrollTo(NUDGE);
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(grid.scrollLeft).toBe(NUDGE); // stays put
+    view.unmount();
+  });
 
-  it('drag-freeze: a snap armed before a drag bails when it fires mid-drag', () => {
-    useStore.getState().setSnapToWeekStart(true)
-    const view = renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
+  it("drag-freeze: a snap armed before a drag bails when it fires mid-drag", () => {
+    useStore.getState().setSnapToWeekStart(true);
+    const view = renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
 
-    scrollTo(NUDGE) // arms the snap timer
+    scrollTo(NUDGE); // arms the snap timer
     // A drag begins before the idle elapses; the timeout re-checks live draggingAllocationId and bails.
-    act(() => useStore.setState({ draggingAllocationId: 'x' }))
-    act(() => { vi.advanceTimersByTime(500) })
-    expect(grid.scrollLeft).toBe(NUDGE) // not snapped — the drag-freeze held
-    view.unmount()
-  })
+    act(() => useStore.setState({ draggingAllocationId: "x" }));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(grid.scrollLeft).toBe(NUDGE); // not snapped — the drag-freeze held
+    view.unmount();
+  });
 
-  it('convergence: a scroll that lands exactly on a week start writes nothing back', () => {
-    useStore.getState().setSnapToWeekStart(true)
-    const view = renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
+  it("convergence: a scroll that lands exactly on a week start writes nothing back", () => {
+    useStore.getState().setSnapToWeekStart(true);
+    const view = renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
 
-    scrollTo(WEEK) // already a Monday offset → helper returns null → no write
-    act(() => { vi.advanceTimersByTime(500) })
-    expect(grid.scrollLeft).toBe(WEEK)
-    view.unmount()
-  })
+    scrollTo(WEEK); // already a Monday offset → helper returns null → no write
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(grid.scrollLeft).toBe(WEEK);
+    view.unmount();
+  });
 
-  it('clears the pending snap timer on unmount (no late write to a detached node)', () => {
-    useStore.getState().setSnapToWeekStart(true)
-    const view = renderGrid()
-    const grid = screen.getByTestId('scheduler-grid')
+  it("clears the pending snap timer on unmount (no late write to a detached node)", () => {
+    useStore.getState().setSnapToWeekStart(true);
+    const view = renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
 
-    scrollTo(NUDGE) // arm the snap
-    view.unmount() // cleanup effect clears snapTimer
+    scrollTo(NUDGE); // arm the snap
+    view.unmount(); // cleanup effect clears snapTimer
     // Advancing past the idle must NOT throw or write (the timer was cleared). The detached node's
     // scrollLeft stays at the nudged value.
-    expect(() => act(() => { vi.advanceTimersByTime(500) })).not.toThrow()
-    expect(grid.scrollLeft).toBe(NUDGE)
-  })
-})
+    expect(() =>
+      act(() => {
+        vi.advanceTimersByTime(500);
+      }),
+    ).not.toThrow();
+    expect(grid.scrollLeft).toBe(NUDGE);
+  });
+});

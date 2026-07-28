@@ -15,44 +15,52 @@
 //
 //   node scripts/e2e-all.mjs   # = pnpm run e2e:all
 
-import { spawnSync } from 'node:child_process'
+import { spawnSync } from "node:child_process";
 
 function childEnvironment(extra) {
-  const env = { ...process.env, ...extra }
-  if ('NO_COLOR' in env) {
-    delete env.NO_COLOR
-    env.FORCE_COLOR = '0'
+  const env = { ...process.env, ...extra };
+  if ("NO_COLOR" in env) {
+    delete env.NO_COLOR;
+    env.FORCE_COLOR = "0";
   }
-  return env
+  return env;
 }
 
 /** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
 function run(label, env, extraArgs = []) {
-  console.log(`\n=== e2e:all — ${label} ===`)
-  const res = spawnSync('pnpm', ['exec', 'playwright', 'test', ...extraArgs], {
-    stdio: 'inherit',
+  console.log(`\n=== e2e:all — ${label} ===`);
+  const res = spawnSync("pnpm", ["exec", "playwright", "test", ...extraArgs], {
+    stdio: "inherit",
     env: childEnvironment(env),
     // shell: true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors dev-fullstack.mjs.
     shell: true,
-  })
-  return res.status ?? 1
+  });
+  return res.status ?? 1;
 }
 
 // 1) Chromium plus the DB/auth projects. No alternative-engine flag means the three server-backed
 //    projects retain their ordinary browser and get the only multi-server invocation.
-const chromium = run('Chromium + DB/auth', { CAPACITYLENS_E2E_PHASE: 'chromium-server' })
+const chromium = run("Chromium + DB/auth", { CAPACITYLENS_E2E_PHASE: "chromium-server" });
 
 // 2) WebKit/Safari against one Vite server, even when Chromium failed.
-const webkit = run('WebKit/Safari', {
-  CAPACITYLENS_E2E_PHASE: 'webkit',
-  CAPACITYLENS_WEBKIT_ONLY: '1',
-}, ['--project', 'webkit'])
+const webkit = run(
+  "WebKit/Safari",
+  {
+    CAPACITYLENS_E2E_PHASE: "webkit",
+    CAPACITYLENS_WEBKIT_ONLY: "1",
+  },
+  ["--project", "webkit"],
+);
 
 // 3) Firefox/Gecko against one Vite server, even when either earlier invocation failed.
-const firefox = run('Firefox/Gecko', {
-  CAPACITYLENS_E2E_PHASE: 'firefox',
-  CAPACITYLENS_FIREFOX_ONLY: '1',
-}, ['--project', 'firefox'])
+const firefox = run(
+  "Firefox/Gecko",
+  {
+    CAPACITYLENS_E2E_PHASE: "firefox",
+    CAPACITYLENS_FIREFOX_ONLY: "1",
+  },
+  ["--project", "firefox"],
+);
 
 // Fail the run if any engine failed; 0 only when ALL passed.
-process.exit(chromium || webkit || firefox)
+process.exit(chromium || webkit || firefox);

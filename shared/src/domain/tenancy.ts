@@ -1,4 +1,4 @@
-import type { ID, ScopedEntity } from '../types/entities'
+import type { ID, ScopedEntity } from "../types/entities";
 
 // THE tenant boundary, in one place. Multi-tenancy is the app's core invariant: every scoped row
 // belongs to exactly one account, every read is narrowed to the active account, and every write
@@ -10,15 +10,14 @@ import type { ID, ScopedEntity } from '../types/entities'
 /** The anchor: does a single, already-located row belong to `accountId`? Every other helper here
  *  is defined in terms of this, and the write-boundary guard (findOwned) and the FK-coherence
  *  checks (assertScopedRefs) use it directly on one row. */
-export const belongsToAccount = (entity: ScopedEntity, accountId: ID): boolean =>
-  entity.accountId === accountId
+export const belongsToAccount = (entity: ScopedEntity, accountId: ID): boolean => entity.accountId === accountId;
 
 /** Curried positive predicate for `.filter(...)`: keep only the rows IN `accountId`. The read-side
  *  seam (useScopedData, scopeData) narrows each table with this. */
 export const byAccount =
   (accountId: ID) =>
   (entity: ScopedEntity): boolean =>
-    belongsToAccount(entity, accountId)
+    belongsToAccount(entity, accountId);
 
 /** Curried complement predicate for `.filter(...)`: keep the rows NOT in `accountId` — i.e. drop
  *  that account's rows while preserving every OTHER account's. Cascade-delete-account, clear,
@@ -26,4 +25,4 @@ export const byAccount =
 export const notInAccount =
   (accountId: ID) =>
   (entity: ScopedEntity): boolean =>
-    !belongsToAccount(entity, accountId)
+    !belongsToAccount(entity, accountId);

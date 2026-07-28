@@ -1,18 +1,6 @@
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
-import {
-  fetchInactiveSlice,
-  InactiveSliceHttpError,
-  InactiveSliceShapeError,
-} from "../../data/fetchInactiveSlice";
+import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../../data/fetchInactiveSlice";
 import { useStore, type LifecycleEntity } from "../../store/useStore";
 import { useInactiveScopedData } from "../../store/useScopedData";
 import { useLifecycleActions } from "../../hooks/useLifecycleActions";
@@ -22,32 +10,11 @@ import { ConfirmDialog } from "../common/ui";
 import { Button } from "../ui/button";
 import { m } from "@/i18n";
 import { can } from "@capacitylens/shared/domain/access";
-import {
-  canPurge,
-  lifecycleStatus,
-  PURGE_MIN_AGE_DAYS,
-} from "@capacitylens/shared/domain/lifecycle";
+import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from "@capacitylens/shared/domain/lifecycle";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
-import type {
-  AppData,
-  Client,
-  Project,
-  Resource,
-} from "@capacitylens/shared/types/entities";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemGroup,
-  ItemSeparator,
-} from "../ui/item";
+import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 
 // Settings → "Archived & deleted" — the client-admin view of the data-lifecycle (P2.5b), the
 // COUNTERPART to the normal active-only views. It lists the resources/clients/projects the scheduler
@@ -73,10 +40,7 @@ interface Row {
 // fall back to a resource's `role` for a nameless placeholder/external. Clients/projects always carry
 // a name. Kept local (not resourceDisplayName) so a placeholder tombstone shows its scrubbed name/role
 // rather than the generic "Placeholder" label the scheduler uses.
-function rowName(
-  entity: LifecycleEntity,
-  e: Resource | Client | Project,
-): string {
+function rowName(entity: LifecycleEntity, e: Resource | Client | Project): string {
   if (entity === "resources") {
     const r = e as Resource;
     return r.name ?? r.role;
@@ -87,13 +51,9 @@ function rowName(
 // Collect every NON-active row across the three tables into a flat list, preserving entity identity.
 function collectInactive(data: AppData): Row[] {
   const out: Row[] = [];
-  const push = (
-    entity: LifecycleEntity,
-    list: (Resource | Client | Project)[],
-  ) => {
+  const push = (entity: LifecycleEntity, list: (Resource | Client | Project)[]) => {
     for (const e of list) {
-      if (lifecycleStatus(e) !== "active")
-        out.push({ entity, id: e.id, name: rowName(entity, e), raw: e });
+      if (lifecycleStatus(e) !== "active") out.push({ entity, id: e.id, name: rowName(entity, e), raw: e });
     }
   };
   push("resources", data.resources);
@@ -106,9 +66,7 @@ function collectInactive(data: AppData): Row[] {
  * private client/project first so a code name still appears with exactly one pair. */
 function confirmationName(row: Row): string {
   if (row.entity === "resources") return row.name;
-  return (row.raw as Client | Project).isPrivate === true
-    ? nameForQuotedContext(row.name)
-    : row.name;
+  return (row.raw as Client | Project).isPrivate === true ? nameForQuotedContext(row.name) : row.name;
 }
 
 const TYPE_LABEL: Record<LifecycleEntity, () => string> = {
@@ -145,9 +103,7 @@ export function ArchivedSection() {
     reloadKey: number;
     rows: Row[];
   } | null>(null);
-  const [gate, setGate] = useState<"loading" | "shown" | "hidden">(
-    server ? "loading" : "shown",
-  );
+  const [gate, setGate] = useState<"loading" | "shown" | "hidden">(server ? "loading" : "shown");
   // Bumped after every successful mutation to re-run the inactive fetch (server) — the MembersSection
   // reloadKey idiom. (The demo build re-renders off the store directly, so the bump is a harmless no-op.)
   const [reloadKey, setReloadKey] = useState(0);
@@ -183,8 +139,7 @@ export function ArchivedSection() {
     if (!server || !activeAccountId) return;
     const generation = ++requestGeneration.current;
     let cancelled = false;
-    const current = () =>
-      !cancelled && requestGeneration.current === generation;
+    const current = () => !cancelled && requestGeneration.current === generation;
     void (async () => {
       try {
         // The shared, body-validating reader of the ?includeInactive=1 admin endpoint (also
@@ -212,11 +167,7 @@ export function ArchivedSection() {
         setServerRows(null);
         setGate("shown");
         if (e instanceof InactiveSliceHttpError) {
-          setNotice(
-            e.serverMessage ??
-              m.settings_archived_err_load({ status: e.status }),
-            "error",
-          );
+          setNotice(e.serverMessage ?? m.settings_archived_err_load({ status: e.status }), "error");
         } else if (e instanceof InactiveSliceShapeError) {
           setNotice(m.settings_archived_err_incomplete(), "error");
         } else {
@@ -233,8 +184,7 @@ export function ArchivedSection() {
   const rows = useMemo(
     () =>
       server
-        ? serverRows?.accountId === activeAccountId &&
-          serverRows.reloadKey === reloadKey
+        ? serverRows?.accountId === activeAccountId && serverRows.reloadKey === reloadKey
           ? serverRows.rows
           : []
         : collectInactive(localData),
@@ -261,33 +211,20 @@ export function ArchivedSection() {
           <CardDescription>{m.settings_archived_intro()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {rows.length === 0 && (
-            <p className="py-2 text-sm text-muted-foreground">
-              {m.settings_archived_empty()}
-            </p>
-          )}
+          {rows.length === 0 && <p className="py-2 text-sm text-muted-foreground">{m.settings_archived_empty()}</p>}
 
           {/* Archived group — restore (→ active) or delete (→ tombstone). */}
           {archived.length > 0 && (
             <div className="flex flex-col gap-1">
-              <h3 className="mb-1 text-xs font-semibold text-ink">
-                {m.settings_archived_group_archived()}
-              </h3>
+              <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_archived()}</h3>
               <ItemGroup>
                 {archived.map((r, index) => (
                   <Fragment key={`${r.entity}-${r.id}`}>
                     {index > 0 && <ItemSeparator />}
-                    <Item
-                      size="sm"
-                      role="listitem"
-                      className="rounded-none px-0"
-                      data-testid="archived-row"
-                    >
+                    <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="archived-row">
                       <ItemContent className="min-w-0">
                         <span className="text-sm text-ink">{r.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          · {TYPE_LABEL[r.entity]()}
-                        </span>
+                        <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
                       </ItemContent>
                       <ItemActions>
                         <Button
@@ -298,11 +235,7 @@ export function ArchivedSection() {
                           aria-label={m.settings_archived_restore_aria({
                             name: r.name,
                           })}
-                          onClick={() =>
-                            runLifecycle(() =>
-                              actions.unarchive(r.entity, r.id),
-                            )
-                          }
+                          onClick={() => runLifecycle(() => actions.unarchive(r.entity, r.id))}
                         >
                           {m.settings_archived_restore()}
                         </Button>
@@ -333,9 +266,7 @@ export function ArchivedSection() {
           {/* Deleted (tombstone) group — permanent purge, gated by canPurge + the purge role tier. */}
           {deleted.length > 0 && (
             <div className="flex flex-col gap-1">
-              <h3 className="mb-1 text-xs font-semibold text-ink">
-                {m.settings_archived_group_deleted()}
-              </h3>
+              <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_deleted()}</h3>
               <ItemGroup>
                 {deleted.map((r, index) => {
                   // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would
@@ -347,25 +278,15 @@ export function ArchivedSection() {
                   return (
                     <Fragment key={`${r.entity}-${r.id}`}>
                       {index > 0 && <ItemSeparator />}
-                      <Item
-                        size="sm"
-                        role="listitem"
-                        className="rounded-none px-0"
-                        data-testid="deleted-row"
-                      >
+                      <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="deleted-row">
                         <ItemContent className="min-w-0">
                           <span className="text-sm text-ink">{r.name}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            · {TYPE_LABEL[r.entity]()}
-                          </span>
+                          <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
                         </ItemContent>
                         {mayPurge && (
                           <ItemActions>
                             {!purgeable && (
-                              <span
-                                id={hintId}
-                                className="text-xs text-muted-foreground"
-                              >
+                              <span id={hintId} className="text-xs text-muted-foreground">
                                 {m.settings_archived_purge_locked_hint({
                                   days: PURGE_MIN_AGE_DAYS,
                                 })}
@@ -405,9 +326,7 @@ export function ArchivedSection() {
           })}
           confirmLabel={m.settings_archived_delete()}
           onConfirm={() => {
-            runLifecycle(() =>
-              actions.softDelete(confirmingDelete.entity, confirmingDelete.id),
-            );
+            runLifecycle(() => actions.softDelete(confirmingDelete.entity, confirmingDelete.id));
             setConfirmingDelete(null);
           }}
           onCancel={() => setConfirmingDelete(null)}
@@ -422,9 +341,7 @@ export function ArchivedSection() {
           })}
           confirmLabel={m.settings_archived_purge_confirm()}
           onConfirm={() => {
-            runLifecycle(() =>
-              actions.purge(confirmingPurge.entity, confirmingPurge.id),
-            );
+            runLifecycle(() => actions.purge(confirmingPurge.entity, confirmingPurge.id));
             setConfirmingPurge(null);
           }}
           onCancel={() => setConfirmingPurge(null)}

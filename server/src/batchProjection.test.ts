@@ -8,11 +8,7 @@ import {
   deleteResourceCascade,
 } from "@capacitylens/shared/lib/integrity";
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
-import {
-  APP_DATA_KEYS,
-  emptyAppData,
-  type AppData,
-} from "@capacitylens/shared/types/entities";
+import { APP_DATA_KEYS, emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { BatchStateProjection } from "./batchProjection";
 import { validateWrite } from "./validate";
 
@@ -22,12 +18,8 @@ const meta = { createdAt: TS, updatedAt: TS };
 function relationshipFixture(): AppData {
   return {
     accounts: [{ id: "a1", name: "Studio", color: "#5c34d4", ...meta }],
-    clients: [
-      { id: "c1", accountId: "a1", name: "Client", color: "#5c34d4", ...meta },
-    ],
-    disciplines: [
-      { id: "d1", accountId: "a1", name: "Design", sortOrder: 0, ...meta },
-    ],
+    clients: [{ id: "c1", accountId: "a1", name: "Client", color: "#5c34d4", ...meta }],
+    disciplines: [{ id: "d1", accountId: "a1", name: "Design", sortOrder: 0, ...meta }],
     projects: [
       {
         id: "p1",
@@ -38,9 +30,7 @@ function relationshipFixture(): AppData {
         ...meta,
       },
     ],
-    phases: [
-      { id: "ph1", accountId: "a1", projectId: "p1", name: "Phase", ...meta },
-    ],
+    phases: [{ id: "ph1", accountId: "a1", projectId: "p1", name: "Phase", ...meta }],
     resources: [
       {
         id: "r1",
@@ -96,40 +86,26 @@ function relationshipFixture(): AppData {
 
 const canonical = (data: AppData): AppData =>
   Object.fromEntries(
-    APP_DATA_KEYS.map((table) => [
-      table,
-      [...data[table]].sort((left, right) => left.id.localeCompare(right.id)),
-    ]),
+    APP_DATA_KEYS.map((table) => [table, [...data[table]].sort((left, right) => left.id.localeCompare(right.id))]),
   ) as unknown as AppData;
 
 describe("BatchStateProjection", () => {
   it.each([
     ["accounts", "a1", (data: AppData) => deleteAccountCascade(data, "a1")],
     ["clients", "c1", (data: AppData) => deleteClientCascade(data, "c1", TS)],
-    [
-      "disciplines",
-      "d1",
-      (data: AppData) => deleteDisciplineCascade(data, "d1", TS),
-    ],
+    ["disciplines", "d1", (data: AppData) => deleteDisciplineCascade(data, "d1", TS)],
     ["projects", "p1", (data: AppData) => deleteProjectCascade(data, "p1", TS)],
     ["phases", "ph1", (data: AppData) => deletePhaseCascade(data, "ph1", TS)],
     ["resources", "r1", (data: AppData) => deleteResourceCascade(data, "r1")],
-    [
-      "activities",
-      "act1",
-      (data: AppData) => deleteActivityCascade(data, "act1"),
-    ],
-  ] as const)(
-    "mirrors %s cascade and SET NULL behavior",
-    (table, id, expected) => {
-      const initial = relationshipFixture();
-      const projection = new BatchStateProjection(structuredClone(initial));
+    ["activities", "act1", (data: AppData) => deleteActivityCascade(data, "act1")],
+  ] as const)("mirrors %s cascade and SET NULL behavior", (table, id, expected) => {
+    const initial = relationshipFixture();
+    const projection = new BatchStateProjection(structuredClone(initial));
 
-      projection.delete(table, id);
+    projection.delete(table, id);
 
-      expect(canonical(projection.data)).toEqual(canonical(expected(initial)));
-    },
-  );
+    expect(canonical(projection.data)).toEqual(canonical(expected(initial)));
+  });
 
   it("updates and deletes the supported 5,000-row boundary without per-op array rebuilding", () => {
     const data = emptyAppData();
@@ -215,33 +191,23 @@ describe("BatchStateProjection", () => {
       ...meta,
     });
 
-    expect(projection.data.clients.map((client) => client.id)).toEqual([
-      "imported-internal",
-    ]);
+    expect(projection.data.clients.map((client) => client.id)).toEqual(["imported-internal"]);
     expect(projection.data.projects[0].clientId).toBe("imported-internal");
   });
 
   it("keeps reverse allocation lookups current across resource and activity edits", () => {
     const projection = new BatchStateProjection(relationshipFixture());
 
-    expect(
-      projection.allocationsForResource("a1", "r1").map((row) => row.id),
-    ).toEqual(["al1"]);
-    expect(
-      projection.allocationsForActivity("a1", "act1").map((row) => row.id),
-    ).toEqual(["al1"]);
+    expect(projection.allocationsForResource("a1", "r1").map((row) => row.id)).toEqual(["al1"]);
+    expect(projection.allocationsForActivity("a1", "act1").map((row) => row.id)).toEqual(["al1"]);
     projection.upsert("allocations", {
       ...projection.data.allocations[0],
       resourceId: "r2",
       activityId: "act2",
     });
     expect(projection.allocationsForResource("a1", "r1")).toEqual([]);
-    expect(
-      projection.allocationsForResource("a1", "r2").map((row) => row.id),
-    ).toEqual(["al1"]);
+    expect(projection.allocationsForResource("a1", "r2").map((row) => row.id)).toEqual(["al1"]);
     expect(projection.allocationsForActivity("a1", "act1")).toEqual([]);
-    expect(
-      projection.allocationsForActivity("a1", "act2").map((row) => row.id),
-    ).toEqual(["al1"]);
+    expect(projection.allocationsForActivity("a1", "act2").map((row) => row.id)).toEqual(["al1"]);
   });
 });

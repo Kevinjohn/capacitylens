@@ -1,23 +1,22 @@
-import { memo, useMemo, useState } from 'react'
-import { format } from 'date-fns'
-import { m } from '@/i18n'
-import { useStore } from '../../store/useStore'
-import { useCanEdit } from '../../auth/permissionContext'
-import { ensureBarColors } from '@capacitylens/shared/lib/color'
-import { parseDate } from '@capacitylens/shared/lib/dateMath'
-import { allocationStatusLabels } from '../../lib/metadata'
-import { LAYOUT } from './layout'
-import type { ColumnGeometry } from './columnGeometry'
-import type { ID } from '@capacitylens/shared/types/entities'
-import type { BarLayout } from './schedulerModel'
-import { useAllocationGesture } from './useAllocationGesture'
-import { TooltipRoot, TooltipContent, TooltipTrigger } from '../ui/tooltip'
+import { memo, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { m } from "@/i18n";
+import { useStore } from "../../store/useStore";
+import { useCanEdit } from "../../auth/permissionContext";
+import { ensureBarColors } from "@capacitylens/shared/lib/color";
+import { parseDate } from "@capacitylens/shared/lib/dateMath";
+import { allocationStatusLabels } from "../../lib/metadata";
+import { LAYOUT } from "./layout";
+import type { ColumnGeometry } from "./columnGeometry";
+import type { ID } from "@capacitylens/shared/types/entities";
+import type { BarLayout } from "./schedulerModel";
+import { useAllocationGesture } from "./useAllocationGesture";
+import { TooltipRoot, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 /** Hours/day for display: days-mode rescaling can yield a repeating decimal
  *  (e.g. 24h over 7 working days = 3.4285…), so round to 2 dp for labels/popovers.
  *  The stored value stays exact; only what's shown is trimmed. */
-const hoursLabel = (n: number) => Math.round(n * 100) / 100
-
+const hoursLabel = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * One draggable/resizable allocation bar in a resource lane.
@@ -43,31 +42,35 @@ export const AllocationBar = memo(function AllocationBar({
   indexAtClientX,
   onEdit,
 }: {
-  bar: BarLayout
+  bar: BarLayout;
   // The column geometry the view-model used to place bar.x / bar.width — the live drag
   // preview goes back through it so a drag across a narrowed weekend doesn't jump on release.
-  geom: ColumnGeometry
+  geom: ColumnGeometry;
   // The lane's clientX→day-index resolver (live lane rect + geom), shared with the lane's
   // draw gesture so the bar's drag and the lane's draw use ONE inverse — never diverging
   // across narrow weekend columns.
-  indexAtClientX: (clientX: number) => number
+  indexAtClientX: (clientX: number) => number;
   // Takes the allocation id so the prop is a STABLE reference (the lane passes the
   // same callback for every bar) — which is what lets React.memo skip re-renders.
   // ABSENT for a Viewer (P1.12): the bar then renders display-only (no edit modal). The drag/resize
   // gating keys off `useCanEdit()` directly (below) so the hooks order stays stable across roles.
-  onEdit?: (id: ID) => void
+  onEdit?: (id: ID) => void;
 }) {
   // Viewer read-only (P1.12): a viewer bar is display-only — no drag/resize wiring, no resize grips,
   // no edit modal, no keyboard move. The popover (a read) still works. null/owner/admin/editor (incl.
   // OFF/local) → fully interactive, byte-identical to today. The server 403 backstops a write anyway.
-  const canEdit = useCanEdit()
-  const { isBlocks, dragging, left, width, translateY, onPointerDown, nudge } =
-    useAllocationGesture({ bar, geom, indexAtClientX, onEdit })
+  const canEdit = useCanEdit();
+  const { isBlocks, dragging, left, width, translateY, onPointerDown, nudge } = useAllocationGesture({
+    bar,
+    geom,
+    indexAtClientX,
+    onEdit,
+  });
   // External / 3rd-party work carries no hours either (hoursPerDay 0); hide the load the same way
   // blocks do. The assignee's kind is already on the bar (from the model), so read it there rather
   // than re-scanning the store per render.
-  const hideHours = isBlocks || bar.external
-  const barLabelPrefs = useStore((s) => s.barLabelPrefs)
+  const hideHours = isBlocks || bar.external;
+  const barLabelPrefs = useStore((s) => s.barLabelPrefs);
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   // Radix Tooltip owns positioning/collision/portal-layering now; the manual enter/leave/focus/blur
   // handlers below are the SOLE authors of this open flag. We deliberately do NOT wire Radix's
@@ -82,27 +85,27 @@ export const AllocationBar = memo(function AllocationBar({
   // pointerdown/click close that caused the alpha.9 regression. It closes the popover while the bar
   // KEEPS focus; because open is authored purely on focus/hover EDGES, nothing re-opens it until a
   // fresh blur→refocus or mouseleave→mouseenter.
-  const [popoverOpen, setPopoverOpen] = useState(false)
-  const showPopover = () => setPopoverOpen(true)
-  const hidePopover = () => setPopoverOpen(false)
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const showPopover = () => setPopoverOpen(true);
+  const hidePopover = () => setPopoverOpen(false);
 
   // Inset the bar by a few px on each side so it sits inside the day cell rather than flush
   // against the gridlines. Visual only — drag/resize deltas come from the pointer, not these
   // styled coords. Cap the inset to a third of the width so a single-day bar at tight zoom
   // stays visible and CENTRED, instead of a fixed inset collapsing it to a 1px sliver shoved
   // to one side (when dayWidth approaches 2·barInset).
-  const inset = Math.min(LAYOUT.barInset, width / 3)
-  const insetLeft = left + inset
-  const insetWidth = Math.max(1, width - inset * 2)
+  const inset = Math.min(LAYOUT.barInset, width / 3);
+  const insetLeft = left + inset;
+  const insetWidth = Math.max(1, width - inset * 2);
 
-  const tentative = bar.allocation.status === 'tentative'
-  const completed = bar.allocation.status === 'completed'
+  const tentative = bar.allocation.status === "tentative";
+  const completed = bar.allocation.status === "completed";
   // Nudge the bar colour so the label clears WCAG AA against its ink (many mid-tones don't).
   // Memoised on the colour: the 0–30-iteration contrast loop must not re-run on every render.
   // bar.color is always a valid preset hex — resolveBarColor (schedulerModel) returns a preset
   // or discipline-derived swatch, never a user-typed hex ("preset swatches only" invariant) — so
   // the contrast loop is bounded (a malformed hex couldn't send it off the WCAG-step rails).
-  const { bg, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color])
+  const { bg, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color]);
 
   // Client · Project context ahead of the activity name, per the device-global display
   // toggles. A bar without the metadata (e.g. a general activity with no project) skips
@@ -113,23 +116,21 @@ export const AllocationBar = memo(function AllocationBar({
     bar.label,
   ]
     .filter(Boolean)
-    .join(' · ')
+    .join(" · ");
   // A Viewer cannot fall back to the edit modal, so its accessible name carries every read-only
   // detail even when the device has hidden client/project from the compact face label. Editors keep
   // the shorter note-presence cue because Enter exposes the complete editable record.
-  const viewerLabelText = [
-    bar.label,
-    [bar.project, bar.client].filter(Boolean).join(' · '),
-  ]
-    .filter(Boolean)
-    .join(', ')
-  const popoverFooter = canEdit
-    ? m.scheduler_bar_pop_footer()
-    : m.scheduler_bar_pop_footer_viewer()
+  const viewerLabelText = [bar.label, [bar.project, bar.client].filter(Boolean).join(" · ")].filter(Boolean).join(", ");
+  const popoverFooter = canEdit ? m.scheduler_bar_pop_footer() : m.scheduler_bar_pop_footer_viewer();
 
-  const fmt = (d: string) => format(parseDate(d), 'd MMM')
-  const gripClass = 'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center'
-  const gripLine = <span aria-hidden className="pointer-events-none h-4 w-0.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-60" />
+  const fmt = (d: string) => format(parseDate(d), "d MMM");
+  const gripClass = "group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center";
+  const gripLine = (
+    <span
+      aria-hidden
+      className="pointer-events-none h-4 w-0.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-60"
+    />
+  );
 
   return (
     // Radix Tooltip: fully controlled `open` (no onOpenChange) so we keep the hand-tuned
@@ -140,145 +141,148 @@ export const AllocationBar = memo(function AllocationBar({
     // TooltipProvider lives in SchedulerGrid so the grid pays that machinery once, not per bar.
     <TooltipRoot open={popoverOpen && !dragging}>
       <TooltipTrigger asChild>
-      <div
-        data-testid="allocation-bar"
-        data-alloc-id={bar.allocation.id}
-        data-status={bar.allocation.status}
-        // Viewer (P1.12): a read-only bar is NOT an edit button — role="img" + a description-only
-        // aria-label, no edit/move keys and no drag pointerdown. It remains a tab stop so the same
-        // detail popover available on hover is also reachable from the keyboard. An editor keeps the
-        // full interactive button semantics below.
-        role={canEdit ? 'button' : 'img'}
-        tabIndex={0}
-        aria-label={
-          canEdit
-            ? m.scheduler_bar_aria_editor({
-                label: labelText,
-                hours: hideHours ? '' : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
-                // Speak the HUMANISED status + 'd MMM' dates the popover already shows — a SR must hear
-                // "Tentative … 1 Jun to 5 Jun", not the raw enum + ISO ("tentative … 2026-06-01").
-                status: allocationStatusLabels()[bar.allocation.status],
-                start: fmt(bar.allocation.startDate),
-                end: fmt(bar.allocation.endDate),
-                // The visible "•" note dot (below) is otherwise lost to AT; surface its PRESENCE here
-                // (the note CONTENT lives in the edit modal). Empty when there's no note.
-                note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : '',
-              })
-            : m.scheduler_bar_aria_viewer({
-                label: viewerLabelText,
-                hours: hideHours ? '' : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
-                status: allocationStatusLabels()[bar.allocation.status],
-                start: fmt(bar.allocation.startDate),
-                end: fmt(bar.allocation.endDate),
-                note: bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : '',
-              })
-        }
-        onPointerDown={
-          canEdit
-            ? (e) => {
-                hidePopover()
-                onPointerDown(e)
-              }
-            : undefined
-        }
-        onMouseEnter={showPopover}
-        onMouseLeave={hidePopover}
-        onFocus={showPopover}
-        onBlur={hidePopover}
-        onKeyDown={(e) => {
-          // Escape closes an OPEN popover — the keyboard user's topmost transient surface — while
-          // the bar keeps focus (closing the innermost overlay is the platform convention). This is
-          // gated on the SETTLED popover, not a drag: while a drag is in progress `dragging` is true,
-          // the popover is already force-closed, and Escape belongs to the gesture hook's own
-          // document keydown listener (cancel-drag). So we defer to that path — don't consume Escape
-          // here — and only stop the event when we actually close a popover, so a closed popover lets
-          // Escape bubble to ancestor handlers (dialogs, sidebar) unchanged.
-          if (e.key === 'Escape' && popoverOpen && !dragging) {
-            e.preventDefault()
-            e.stopPropagation()
-            hidePopover()
-            return
+        <div
+          data-testid="allocation-bar"
+          data-alloc-id={bar.allocation.id}
+          data-status={bar.allocation.status}
+          // Viewer (P1.12): a read-only bar is NOT an edit button — role="img" + a description-only
+          // aria-label, no edit/move keys and no drag pointerdown. It remains a tab stop so the same
+          // detail popover available on hover is also reachable from the keyboard. An editor keeps the
+          // full interactive button semantics below.
+          role={canEdit ? "button" : "img"}
+          tabIndex={0}
+          aria-label={
+            canEdit
+              ? m.scheduler_bar_aria_editor({
+                  label: labelText,
+                  hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
+                  // Speak the HUMANISED status + 'd MMM' dates the popover already shows — a SR must hear
+                  // "Tentative … 1 Jun to 5 Jun", not the raw enum + ISO ("tentative … 2026-06-01").
+                  status: allocationStatusLabels()[bar.allocation.status],
+                  start: fmt(bar.allocation.startDate),
+                  end: fmt(bar.allocation.endDate),
+                  // The visible "•" note dot (below) is otherwise lost to AT; surface its PRESENCE here
+                  // (the note CONTENT lives in the edit modal). Empty when there's no note.
+                  note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : "",
+                })
+              : m.scheduler_bar_aria_viewer({
+                  label: viewerLabelText,
+                  hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
+                  status: allocationStatusLabels()[bar.allocation.status],
+                  start: fmt(bar.allocation.startDate),
+                  end: fmt(bar.allocation.endDate),
+                  note: bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : "",
+                })
           }
-          // Everything below is editor-only interaction; viewers still get Escape-to-close above.
-          if (!canEdit) return
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onEdit?.(bar.allocation.id)
-          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-            e.preventDefault()
-            // Alt = resize the start edge, Shift = resize the end edge, neither = move.
-            const mode = e.altKey ? 'resize-start' : e.shiftKey ? 'resize-end' : 'move'
-            nudge(mode, e.key === 'ArrowRight' ? 1 : -1)
+          onPointerDown={
+            canEdit
+              ? (e) => {
+                  hidePopover();
+                  onPointerDown(e);
+                }
+              : undefined
           }
-        }}
-        // `scheduler-bar` is the semantic hook for BOTH the time-off draw-mode recede AND the
-        // focus indicator (index.css `.scheduler-bar:focus-visible`); the app styles by this class,
-        // NOT by `data-testid` (which stays test-only selection). The focus indicator is a DUAL-TONE
-        // ring (WCAG 1.4.11): a single edge can't pass because the over-capacity cell is a PALE rose
-        // in light (needs a dark edge) but a DEEP red in dark (needs a light edge) — opposite
-        // requirements — so a near-black + near-white pair straddles the bar's outer border, and at
-        // least one always clears 3:1 against any adjacency in both themes. See the CSS rule + the
-        // pinned regression in src/lib/color.test.ts. Defined in CSS (not Tailwind utilities here); on
-        // focus this box-shadow overrides the resting `ring-1 ring-black/5` (intentional — the bold focus
-        // ring replaces the faint resting ring while focused).
-        className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md ${dragging ? 'shadow-lg ring-black/10' : ''}`}
-        style={{
-          left: insetLeft,
-          width: insetWidth,
-          top: bar.top,
-          height: LAYOUT.barHeight,
-          backgroundColor: bg,
-          color: ink,
-          // Tentative is signalled by the dashed border + hatch overlay below — NOT by
-          // element opacity, which used to wash out the label and break its contrast.
-          border: tentative ? `1px dashed ${ink}` : undefined,
-          transform: translateY ? `translateY(${translateY}px)` : undefined,
-          zIndex: dragging ? 'var(--z-index-drag)' : undefined,
-          // WCAG 2.4.11 (Focus Not Obscured): on focus the browser scrolls this bar into view, but
-          // the grid's sticky date header (top, z-20) and sticky utilisation column (left, z-30)
-          // overlap the scroll viewport — without a margin a near-edge bar lands fully behind them.
-          // scroll-margin reserves the sticky chrome's footprint so scroll-into-view stops the
-          // focused bar clear of both.
-          // - TOP: the date header is a TWO-TIER header whose REAL rendered height (~51px at zoom 4,
-          //   ~67px at zoom 2, more at a larger font size) exceeds LAYOUT.headerHeight (44 — only a
-          //   min-height floor). So we track the height SchedulerGrid measures and publishes as
-          //   --sched-sticky-top (44px fallback before the first measure / in jsdom), NOT the
-          //   constant, or a near-top bar would land partly behind the header.
-          // - LEFT: the utilisation column is a genuine compile-time width (LAYOUT.leftColWidth),
-          //   so the constant is exact here.
-          scrollMarginTop: 'var(--sched-sticky-top, 44px)',
-          scrollMarginLeft: LAYOUT.leftColWidth,
-          // Viewer (P1.12): a display-only bar shows the default cursor (nothing to grab) and lets
-          // touch-scroll through (no drag to win over it).
-          cursor: !canEdit ? 'default' : dragging ? 'grabbing' : 'grab',
-          touchAction: canEdit ? 'none' : undefined, // editor: bar drag/resize should win over touch-scroll
-        }}
-      >
-        {/* Resize grips: editor-only (P1.12) — a viewer bar has no resize affordance. */}
-        {canEdit && (
-        <span data-handle="start" data-testid="resize-start" className={`left-0 ${gripClass}`}>
-          {gripLine}
-        </span>
-        )}
-        {tentative && (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{ background: 'repeating-linear-gradient(45deg, color-mix(in oklab, currentColor 16%, transparent) 0 4px, transparent 4px 8px)' }}
-          />
-        )}
-        <span className="truncate px-2.5">
-          {completed ? '✓ ' : ''}
-          {labelText}
-          {hideHours ? '' : m.scheduler_bar_hours_suffix({ hours: hoursLabel(bar.allocation.hoursPerDay) })}
-          {bar.allocation.note ? ' •' : ''}
-        </span>
-        {canEdit && (
-        <span data-handle="end" data-testid="resize-end" className={`right-0 ${gripClass}`}>
-          {gripLine}
-        </span>
-        )}
-      </div>
+          onMouseEnter={showPopover}
+          onMouseLeave={hidePopover}
+          onFocus={showPopover}
+          onBlur={hidePopover}
+          onKeyDown={(e) => {
+            // Escape closes an OPEN popover — the keyboard user's topmost transient surface — while
+            // the bar keeps focus (closing the innermost overlay is the platform convention). This is
+            // gated on the SETTLED popover, not a drag: while a drag is in progress `dragging` is true,
+            // the popover is already force-closed, and Escape belongs to the gesture hook's own
+            // document keydown listener (cancel-drag). So we defer to that path — don't consume Escape
+            // here — and only stop the event when we actually close a popover, so a closed popover lets
+            // Escape bubble to ancestor handlers (dialogs, sidebar) unchanged.
+            if (e.key === "Escape" && popoverOpen && !dragging) {
+              e.preventDefault();
+              e.stopPropagation();
+              hidePopover();
+              return;
+            }
+            // Everything below is editor-only interaction; viewers still get Escape-to-close above.
+            if (!canEdit) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onEdit?.(bar.allocation.id);
+            } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+              e.preventDefault();
+              // Alt = resize the start edge, Shift = resize the end edge, neither = move.
+              const mode = e.altKey ? "resize-start" : e.shiftKey ? "resize-end" : "move";
+              nudge(mode, e.key === "ArrowRight" ? 1 : -1);
+            }
+          }}
+          // `scheduler-bar` is the semantic hook for BOTH the time-off draw-mode recede AND the
+          // focus indicator (index.css `.scheduler-bar:focus-visible`); the app styles by this class,
+          // NOT by `data-testid` (which stays test-only selection). The focus indicator is a DUAL-TONE
+          // ring (WCAG 1.4.11): a single edge can't pass because the over-capacity cell is a PALE rose
+          // in light (needs a dark edge) but a DEEP red in dark (needs a light edge) — opposite
+          // requirements — so a near-black + near-white pair straddles the bar's outer border, and at
+          // least one always clears 3:1 against any adjacency in both themes. See the CSS rule + the
+          // pinned regression in src/lib/color.test.ts. Defined in CSS (not Tailwind utilities here); on
+          // focus this box-shadow overrides the resting `ring-1 ring-black/5` (intentional — the bold focus
+          // ring replaces the faint resting ring while focused).
+          className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md ${dragging ? "shadow-lg ring-black/10" : ""}`}
+          style={{
+            left: insetLeft,
+            width: insetWidth,
+            top: bar.top,
+            height: LAYOUT.barHeight,
+            backgroundColor: bg,
+            color: ink,
+            // Tentative is signalled by the dashed border + hatch overlay below — NOT by
+            // element opacity, which used to wash out the label and break its contrast.
+            border: tentative ? `1px dashed ${ink}` : undefined,
+            transform: translateY ? `translateY(${translateY}px)` : undefined,
+            zIndex: dragging ? "var(--z-index-drag)" : undefined,
+            // WCAG 2.4.11 (Focus Not Obscured): on focus the browser scrolls this bar into view, but
+            // the grid's sticky date header (top, z-20) and sticky utilisation column (left, z-30)
+            // overlap the scroll viewport — without a margin a near-edge bar lands fully behind them.
+            // scroll-margin reserves the sticky chrome's footprint so scroll-into-view stops the
+            // focused bar clear of both.
+            // - TOP: the date header is a TWO-TIER header whose REAL rendered height (~51px at zoom 4,
+            //   ~67px at zoom 2, more at a larger font size) exceeds LAYOUT.headerHeight (44 — only a
+            //   min-height floor). So we track the height SchedulerGrid measures and publishes as
+            //   --sched-sticky-top (44px fallback before the first measure / in jsdom), NOT the
+            //   constant, or a near-top bar would land partly behind the header.
+            // - LEFT: the utilisation column is a genuine compile-time width (LAYOUT.leftColWidth),
+            //   so the constant is exact here.
+            scrollMarginTop: "var(--sched-sticky-top, 44px)",
+            scrollMarginLeft: LAYOUT.leftColWidth,
+            // Viewer (P1.12): a display-only bar shows the default cursor (nothing to grab) and lets
+            // touch-scroll through (no drag to win over it).
+            cursor: !canEdit ? "default" : dragging ? "grabbing" : "grab",
+            touchAction: canEdit ? "none" : undefined, // editor: bar drag/resize should win over touch-scroll
+          }}
+        >
+          {/* Resize grips: editor-only (P1.12) — a viewer bar has no resize affordance. */}
+          {canEdit && (
+            <span data-handle="start" data-testid="resize-start" className={`left-0 ${gripClass}`}>
+              {gripLine}
+            </span>
+          )}
+          {tentative && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "repeating-linear-gradient(45deg, color-mix(in oklab, currentColor 16%, transparent) 0 4px, transparent 4px 8px)",
+              }}
+            />
+          )}
+          <span className="truncate px-2.5">
+            {completed ? "✓ " : ""}
+            {labelText}
+            {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: hoursLabel(bar.allocation.hoursPerDay) })}
+            {bar.allocation.note ? " •" : ""}
+          </span>
+          {canEdit && (
+            <span data-handle="end" data-testid="resize-end" className={`right-0 ${gripClass}`}>
+              {gripLine}
+            </span>
+          )}
+        </div>
       </TooltipTrigger>
       {/* Render the content subtree ONLY when it can actually show (`popoverOpen && !dragging`):
           Radix never mounts it mid-drag anyway, so gating here stops the date-fns format/parse,
@@ -286,49 +290,53 @@ export const AllocationBar = memo(function AllocationBar({
           pointermove frame during a drag (they used to run on every render). Radix tolerates a
           conditionally-mounted Content. */}
       {popoverOpen && !dragging && (
-      // Radix portals this to <body> (TooltipPrimitive.Portal), so the time-off draw-mode net in
-      // index.css (`body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover`) still matches —
-      // it's keyed off the `.scheduler-alloc-popover` class (a body descendant), not the DOM nesting.
-      // Belt-and-braces with the bar-layer `inert` (which blocks the enter/focus that opens it) and
-      // the `!dragging` gate. z-(--z-index-popover) lifts this ONE call site to the popover tier (60,
-      // matching the old `fixed z-[60]`) over the shared component's z-50 default; the shared default
-      // is left untouched so every other overlay stays at z-50. `aria-hidden` keeps the visible card
-      // out of the a11y tree (the trigger's aria-label already speaks the humanised status/dates/note).
-      // `aria-label` is Radix's escape hatch: it REPLACES the VisuallyHidden children-duplicate that
-      // the trigger's aria-describedby points at — so the accessible description resolves to this short
-      // affordance hint, not a second copy of the card content. Side/align/offset reproduce the old
-      // below-the-bar, left-aligned placement; showArrow={false} matches the old arrow-less card.
-      <TooltipContent
-        side="bottom"
-        align="start"
-        sideOffset={6}
-        showArrow={false}
-        data-testid="allocation-popover"
-        aria-hidden
-        aria-label={popoverFooter}
-        className="scheduler-alloc-popover pointer-events-none z-(--z-index-popover) w-60 rounded-lg p-3 font-normal"
-      >
-        <div className="mb-1 flex items-center gap-2">
-          <span className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bg }} />
-          <span className="font-semibold">{bar.label}</span>
-        </div>
-        {(bar.project || bar.client) && (
-          <div className="mb-1 text-muted-foreground">
-            {bar.project}
-            {bar.project && bar.client ? ' · ' : ''}
-            {bar.client}
+        // Radix portals this to <body> (TooltipPrimitive.Portal), so the time-off draw-mode net in
+        // index.css (`body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover`) still matches —
+        // it's keyed off the `.scheduler-alloc-popover` class (a body descendant), not the DOM nesting.
+        // Belt-and-braces with the bar-layer `inert` (which blocks the enter/focus that opens it) and
+        // the `!dragging` gate. z-(--z-index-popover) lifts this ONE call site to the popover tier (60,
+        // matching the old `fixed z-[60]`) over the shared component's z-50 default; the shared default
+        // is left untouched so every other overlay stays at z-50. `aria-hidden` keeps the visible card
+        // out of the a11y tree (the trigger's aria-label already speaks the humanised status/dates/note).
+        // `aria-label` is Radix's escape hatch: it REPLACES the VisuallyHidden children-duplicate that
+        // the trigger's aria-describedby points at — so the accessible description resolves to this short
+        // affordance hint, not a second copy of the card content. Side/align/offset reproduce the old
+        // below-the-bar, left-aligned placement; showArrow={false} matches the old arrow-less card.
+        <TooltipContent
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          showArrow={false}
+          data-testid="allocation-popover"
+          aria-hidden
+          aria-label={popoverFooter}
+          className="scheduler-alloc-popover pointer-events-none z-(--z-index-popover) w-60 rounded-lg p-3 font-normal"
+        >
+          <div className="mb-1 flex items-center gap-2">
+            <span
+              className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10"
+              style={{ backgroundColor: bg }}
+            />
+            <span className="font-semibold">{bar.label}</span>
           </div>
-        )}
-        <div className="text-muted-foreground">
-          {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
-          {hideHours ? '' : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} · {allocationStatusLabels()[bar.allocation.status]}
-        </div>
-        {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>}
-        <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">
-          {popoverFooter}
-        </div>
-      </TooltipContent>
+          {(bar.project || bar.client) && (
+            <div className="mb-1 text-muted-foreground">
+              {bar.project}
+              {bar.project && bar.client ? " · " : ""}
+              {bar.client}
+            </div>
+          )}
+          <div className="text-muted-foreground">
+            {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
+            {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} ·{" "}
+            {allocationStatusLabels()[bar.allocation.status]}
+          </div>
+          {bar.allocation.note && (
+            <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>
+          )}
+          <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">{popoverFooter}</div>
+        </TooltipContent>
       )}
     </TooltipRoot>
-  )
-})
+  );
+});

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   attachPersistence,
   bootstrap,
@@ -7,93 +7,83 @@ import {
   refreshActiveAccountSlice,
   ReloadDiscardedEditError,
   suspendServerWrites,
-} from './persist'
-import { InMemoryDemoAdapter } from './InMemoryDemoAdapter'
+} from "./persist";
+import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
 import {
   ServerSyncAdapter,
   BatchCommitUncertainError,
   BatchConflictError,
   BatchValidationError,
   BatchTooLargeError,
-} from './ServerSyncAdapter'
-import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
-import { useStore } from '../store/useStore'
-import { emptyAppData } from '@capacitylens/shared/types/entities'
-import type { AppData } from '@capacitylens/shared/types/entities'
-import { seed } from '@capacitylens/shared/data/seed'
-import {
-  DEFAULT_ACCOUNT_ID,
-  makeAppData,
-  resetStoreWithAccount,
-} from '../test/fixtures'
+} from "./ServerSyncAdapter";
+import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
+import { useStore } from "../store/useStore";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { seed } from "@capacitylens/shared/data/seed";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
 
 const internalClient = (accountId: string) => ({
   id: `internal:${accountId}`,
   accountId,
-  name: 'Internal',
-  color: '#2d75da',
+  name: "Internal",
+  color: "#2d75da",
   builtin: true as const,
-  createdAt: 't',
-  updatedAt: 't',
-})
+  createdAt: "t",
+  updatedAt: "t",
+});
 
 beforeEach(() => {
-  localStorage.clear()
+  localStorage.clear();
   // Seeds a single account AND makes it active, so the add* calls below
   // (which now require an active account) work.
-  resetStoreWithAccount()
-})
+  resetStoreWithAccount();
+});
 
-describe('attachPersistence', () => {
-  it('persists data changes (immediate mode)', async () => {
-    const adapter = new InMemoryDemoAdapter()
-    const detach = attachPersistence(useStore, adapter, 0)
-    useStore.getState().addClient({ name: 'Acme', color: '#1' })
-    const loaded = await adapter.loadAll()
-    expect(loaded.clients).toHaveLength(1)
-    detach()
-  })
+describe("attachPersistence", () => {
+  it("persists data changes (immediate mode)", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    const detach = attachPersistence(useStore, adapter, 0);
+    useStore.getState().addClient({ name: "Acme", color: "#1" });
+    const loaded = await adapter.loadAll();
+    expect(loaded.clients).toHaveLength(1);
+    detach();
+  });
 
-  it('stops persisting after detach', async () => {
-    const adapter = new InMemoryDemoAdapter()
-    const detach = attachPersistence(useStore, adapter, 0)
-    detach()
-    useStore.getState().addClient({ name: 'Acme', color: '#1' })
-    expect(await adapter.loadAll()).toEqual(emptyAppData())
-  })
+  it("stops persisting after detach", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    const detach = attachPersistence(useStore, adapter, 0);
+    detach();
+    useStore.getState().addClient({ name: "Acme", color: "#1" });
+    expect(await adapter.loadAll()).toEqual(emptyAppData());
+  });
 
-  it('detach cancels a pending debounce without initiating a cleanup write', async () => {
-    vi.useFakeTimers()
+  it("detach cancels a pending debounce without initiating a cleanup write", async () => {
+    vi.useFakeTimers();
     try {
-      const saveAll = vi.fn().mockResolvedValue(undefined)
-      const detach = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll },
-        300,
-      )
-      useStore
-        .getState()
-        .addClient({ name: 'Pending at detach', color: '#111111' })
-      detach()
-      await vi.advanceTimersByTimeAsync(1_000)
-      expect(saveAll).not.toHaveBeenCalled()
+      const saveAll = vi.fn().mockResolvedValue(undefined);
+      const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 300);
+      useStore.getState().addClient({ name: "Pending at detach", color: "#111111" });
+      detach();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(saveAll).not.toHaveBeenCalled();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('a rejected save settling after detach cannot callback, retry, or write over a new owner', async () => {
-    vi.useFakeTimers()
+  it("a rejected save settling after detach cannot callback, retry, or write over a new owner", async () => {
+    vi.useFakeTimers();
     try {
-      let rejectOld!: (error: unknown) => void
+      let rejectOld!: (error: unknown) => void;
       const oldSave = vi.fn(
         () =>
           new Promise<void>((_resolve, reject) => {
-            rejectOld = reject
+            rejectOld = reject;
           }),
-      )
-      const oldError = vi.fn()
-      const oldSuccess = vi.fn()
+      );
+      const oldError = vi.fn();
+      const oldSuccess = vi.fn();
       const detachOld = attachPersistence(
         useStore,
         { loadAll: async () => emptyAppData(), saveAll: oldSave },
@@ -101,14 +91,12 @@ describe('attachPersistence', () => {
         oldError,
         oldSuccess,
         true,
-      )
-      useStore
-        .getState()
-        .addClient({ name: 'Old owner edit', color: '#111111' })
-      expect(oldSave).toHaveBeenCalledOnce()
-      detachOld()
+      );
+      useStore.getState().addClient({ name: "Old owner edit", color: "#111111" });
+      expect(oldSave).toHaveBeenCalledOnce();
+      detachOld();
 
-      const newSave = vi.fn().mockResolvedValue(undefined)
+      const newSave = vi.fn().mockResolvedValue(undefined);
       const detachNew = attachPersistence(
         useStore,
         { loadAll: async () => emptyAppData(), saveAll: newSave },
@@ -116,434 +104,352 @@ describe('attachPersistence', () => {
         undefined,
         undefined,
         true,
-      )
-      rejectOld(new Error('late network failure'))
+      );
+      rejectOld(new Error("late network failure"));
       // The complete retry horizon is 31 seconds; stay below the independent one-minute
       // visible-session refresh owned by the replacement adapter.
-      await vi.advanceTimersByTimeAsync(35_000)
+      await vi.advanceTimersByTimeAsync(35_000);
 
-      expect(oldSave).toHaveBeenCalledOnce()
-      expect(oldError).not.toHaveBeenCalled()
-      expect(oldSuccess).not.toHaveBeenCalled()
-      useStore
-        .getState()
-        .addClient({ name: 'New owner edit', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(0)
-      expect(newSave).toHaveBeenCalledOnce()
-      expect(oldSave).toHaveBeenCalledOnce()
-      detachNew()
+      expect(oldSave).toHaveBeenCalledOnce();
+      expect(oldError).not.toHaveBeenCalled();
+      expect(oldSuccess).not.toHaveBeenCalled();
+      useStore.getState().addClient({ name: "New owner edit", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(newSave).toHaveBeenCalledOnce();
+      expect(oldSave).toHaveBeenCalledOnce();
+      detachNew();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
   it("a conflict settling after detach cannot start the old owner's resolution reload", async () => {
-    let rejectSave!: (error: unknown) => void
+    let rejectSave!: (error: unknown) => void;
     const saveAll = vi.fn(
       () =>
         new Promise<void>((_resolve, reject) => {
-          rejectSave = reject
+          rejectSave = reject;
         }),
-    )
-    const loadAll = vi.fn(async () => emptyAppData())
-    const onError = vi.fn()
-    const detach = attachPersistence(
-      useStore,
-      { loadAll, saveAll },
-      0,
-      onError,
-      undefined,
-      true,
-    )
-    useStore
-      .getState()
-      .addClient({ name: 'Conflicted old edit', color: '#111111' })
-    detach()
+    );
+    const loadAll = vi.fn(async () => emptyAppData());
+    const onError = vi.fn();
+    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, undefined, true);
+    useStore.getState().addClient({ name: "Conflicted old edit", color: "#111111" });
+    detach();
 
-    rejectSave(new BatchConflictError('late conflict'))
-    await Promise.resolve()
-    await Promise.resolve()
+    rejectSave(new BatchConflictError("late conflict"));
+    await Promise.resolve();
+    await Promise.resolve();
 
-    expect(loadAll).not.toHaveBeenCalled()
-    expect(onError).not.toHaveBeenCalled()
-    expect(saveAll).toHaveBeenCalledOnce()
-  })
+    expect(loadAll).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(saveAll).toHaveBeenCalledOnce();
+  });
 
   it("a successful save settling after detach cannot call the old owner's success callback", async () => {
-    let resolveSave!: () => void
+    let resolveSave!: () => void;
     const saveAll = vi.fn(
       () =>
         new Promise<void>((resolve) => {
-          resolveSave = resolve
+          resolveSave = resolve;
         }),
-    )
-    const onSuccess = vi.fn()
+    );
+    const onSuccess = vi.fn();
     const detach = attachPersistence(
       useStore,
       { loadAll: async () => emptyAppData(), saveAll },
       0,
       undefined,
       onSuccess,
-    )
-    useStore.getState().addClient({ name: 'Late success', color: '#111111' })
-    detach()
+    );
+    useStore.getState().addClient({ name: "Late success", color: "#111111" });
+    detach();
 
-    resolveSave()
-    await Promise.resolve()
-    await Promise.resolve()
+    resolveSave();
+    await Promise.resolve();
+    await Promise.resolve();
 
-    expect(onSuccess).not.toHaveBeenCalled()
-    expect(saveAll).toHaveBeenCalledOnce()
-  })
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(saveAll).toHaveBeenCalledOnce();
+  });
 
-  it('flushes a pending debounced write on pagehide (so a tab close does not lose it)', async () => {
-    const adapter = new InMemoryDemoAdapter()
-    const detach = attachPersistence(useStore, adapter, 300) // debounced, NOT immediate
-    useStore.getState().addClient({ name: 'Acme', color: '#1' })
-    expect((await adapter.loadAll()).clients).toHaveLength(0) // still inside the debounce window
-    window.dispatchEvent(new Event('pagehide'))
-    expect((await adapter.loadAll()).clients).toHaveLength(1) // flushed synchronously
-    detach()
-  })
+  it("flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    const detach = attachPersistence(useStore, adapter, 300); // debounced, NOT immediate
+    useStore.getState().addClient({ name: "Acme", color: "#1" });
+    expect((await adapter.loadAll()).clients).toHaveLength(0); // still inside the debounce window
+    window.dispatchEvent(new Event("pagehide"));
+    expect((await adapter.loadAll()).clients).toHaveLength(1); // flushed synchronously
+    detach();
+  });
 
-  it('uses the normal save path when a surviving tab becomes hidden', async () => {
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const visibility = vi
-      .spyOn(document, 'visibilityState', 'get')
-      .mockReturnValue('hidden')
-    const detach = attachPersistence(
-      useStore,
-      { loadAll: async () => emptyAppData(), saveAll },
-      300,
-    )
-    useStore.getState().addClient({ name: 'Hidden tab', color: '#111111' })
+  it("uses the normal save path when a surviving tab becomes hidden", async () => {
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 300);
+    useStore.getState().addClient({ name: "Hidden tab", color: "#111111" });
 
-    document.dispatchEvent(new Event('visibilitychange'))
-    await Promise.resolve()
+    document.dispatchEvent(new Event("visibilitychange"));
+    await Promise.resolve();
 
-    expect(saveAll).toHaveBeenCalledOnce()
-    expect(saveAll.mock.calls[0][1]).toBeUndefined()
-    visibility.mockRestore()
-    detach()
-  })
+    expect(saveAll).toHaveBeenCalledOnce();
+    expect(saveAll.mock.calls[0][1]).toBeUndefined();
+    visibility.mockRestore();
+    detach();
+  });
 
-  it('keeps a newer failed teardown snapshot dirty when an older normal save later succeeds', async () => {
-    vi.useFakeTimers()
+  it("keeps a newer failed teardown snapshot dirty when an older normal save later succeeds", async () => {
+    vi.useFakeTimers();
     try {
-      let releaseFirst: (() => void) | null = null
-      const normalSnapshots: AppData[] = []
-      const saveAll = vi.fn(
-        (data: AppData, opts?: { unload?: boolean }): Promise<void> => {
-          if (opts?.unload)
-            return Promise.reject(new Error('keepalive dropped'))
-          normalSnapshots.push(data)
-          if (normalSnapshots.length === 1) {
-            return new Promise((resolve) => {
-              releaseFirst = resolve
-            })
-          }
-          return Promise.resolve()
-        },
-      )
-      const onError = vi.fn()
-      const detach = attachPersistence(
-        useStore,
-        { loadAll: async () => emptyAppData(), saveAll },
-        300,
-        onError,
-      )
+      let releaseFirst: (() => void) | null = null;
+      const normalSnapshots: AppData[] = [];
+      const saveAll = vi.fn((data: AppData, opts?: { unload?: boolean }): Promise<void> => {
+        if (opts?.unload) return Promise.reject(new Error("keepalive dropped"));
+        normalSnapshots.push(data);
+        if (normalSnapshots.length === 1) {
+          return new Promise((resolve) => {
+            releaseFirst = resolve;
+          });
+        }
+        return Promise.resolve();
+      });
+      const onError = vi.fn();
+      const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 300, onError);
 
-      useStore.getState().addClient({ name: 'First', color: '#111111' })
-      await vi.advanceTimersByTimeAsync(300) // first normal save is now in flight
-      useStore.getState().addClient({ name: 'Latest', color: '#222222' }) // still debounced
-      window.dispatchEvent(new Event('pagehide')) // newer teardown save rejects
-      await Promise.resolve()
-      expect(onError).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'keepalive dropped' }),
-      )
-      expect(hasUnsavedPersistenceWrites()).toBe(true)
+      useStore.getState().addClient({ name: "First", color: "#111111" });
+      await vi.advanceTimersByTimeAsync(300); // first normal save is now in flight
+      useStore.getState().addClient({ name: "Latest", color: "#222222" }); // still debounced
+      window.dispatchEvent(new Event("pagehide")); // newer teardown save rejects
+      await Promise.resolve();
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));
+      expect(hasUnsavedPersistenceWrites()).toBe(true);
 
-      releaseFirst!() // the older success must not cancel the newer snapshot's retry
-      await Promise.resolve()
-      await vi.advanceTimersByTimeAsync(1000)
+      releaseFirst!(); // the older success must not cancel the newer snapshot's retry
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1000);
 
-      expect(normalSnapshots).toHaveLength(2)
-      expect(
-        normalSnapshots[1].clients.some((client) => client.name === 'Latest'),
-      ).toBe(true)
-      expect(hasUnsavedPersistenceWrites()).toBe(false)
-      detach()
+      expect(normalSnapshots).toHaveLength(2);
+      expect(normalSnapshots[1].clients.some((client) => client.name === "Latest")).toBe(true);
+      expect(hasUnsavedPersistenceWrites()).toBe(false);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('keeps a lifecycle-only pagehide deletion dirty until its archive keepalive is confirmed', async () => {
-    const slice = a2Slice()
-    let failKeepalive = true
-    const archiveRequests: Array<{ keepalive?: boolean }> = []
+  it("keeps a lifecycle-only pagehide deletion dirty until its archive keepalive is confirmed", async () => {
+    const slice = a2Slice();
+    let failKeepalive = true;
+    const archiveRequests: Array<{ keepalive?: boolean }> = [];
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes('/api/state'))
-        return new Response(JSON.stringify(slice), { status: 200 })
-      if (url.endsWith('/clients/c2/archive')) {
-        archiveRequests.push({ keepalive: init?.keepalive })
-        if (failKeepalive) throw new Error('lifecycle keepalive dropped')
-        return new Response('{}', { status: 200 })
+      if (url.includes("/api/state")) return new Response(JSON.stringify(slice), { status: 200 });
+      if (url.endsWith("/clients/c2/archive")) {
+        archiveRequests.push({ keepalive: init?.keepalive });
+        if (failKeepalive) throw new Error("lifecycle keepalive dropped");
+        return new Response("{}", { status: 200 });
       }
-      return new Response(
-        JSON.stringify({ ok: true, applied: 0, revisions: [] }),
-        { status: 200 },
-      )
-    }) as unknown as typeof fetch
-    const adapter = new ServerSyncAdapter('http://x', fetchImpl)
-    const onError = vi.fn()
-    const detach = await attachActiveA2(adapter, 300, onError)
+      return new Response(JSON.stringify({ ok: true, applied: 0, revisions: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const onError = vi.fn();
+    const detach = await attachActiveA2(adapter, 300, onError);
 
     useStore.getState().replaceAll({
       ...useStore.getState().data,
-      clients: useStore
-        .getState()
-        .data.clients.filter((client) => client.id !== 'c2'),
-    })
-    window.dispatchEvent(new Event('pagehide'))
-    await new Promise((resolve) => setTimeout(resolve, 0))
+      clients: useStore.getState().data.clients.filter((client) => client.id !== "c2"),
+    });
+    window.dispatchEvent(new Event("pagehide"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(archiveRequests).toEqual([{ keepalive: true }])
-    expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'lifecycle keepalive dropped' }),
-    )
-    expect(hasUnsavedPersistenceWrites()).toBe(true)
+    expect(archiveRequests).toEqual([{ keepalive: true }]);
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "lifecycle keepalive dropped" }));
+    expect(hasUnsavedPersistenceWrites()).toBe(true);
 
     // A bfcache-surviving page retries through the ordinary foreground path and only then becomes
     // clean. visibilitychange also cancels the scheduled backoff, keeping this deterministic.
-    failKeepalive = false
-    const visibility = vi
-      .spyOn(document, 'visibilityState', 'get')
-      .mockReturnValue('hidden')
-    document.dispatchEvent(new Event('visibilitychange'))
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    failKeepalive = false;
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(archiveRequests).toEqual([
-      { keepalive: true },
-      { keepalive: undefined },
-    ])
-    expect(hasUnsavedPersistenceWrites()).toBe(false)
-    visibility.mockRestore()
-    detach()
-  })
+    expect(archiveRequests).toEqual([{ keepalive: true }, { keepalive: undefined }]);
+    expect(hasUnsavedPersistenceWrites()).toBe(false);
+    visibility.mockRestore();
+    detach();
+  });
 
-  it('reports a failed write via onError, then a recovered write via onSuccess', async () => {
+  it("reports a failed write via onError, then a recovered write via onSuccess", async () => {
     // A transient write failure (e.g. server unreachable) should fire onError; the
     // next successful write must fire onSuccess so the caller can clear the banner.
-    const adapter = new InMemoryDemoAdapter()
-    const realSave = adapter.saveAll.bind(adapter)
-    let calls = 0
-    vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
-      calls += 1
-      if (calls === 1) throw new Error('write unavailable')
-      return realSave(d)
-    })
-    const onError = vi.fn()
-    const onSuccess = vi.fn()
-    const detach = attachPersistence(useStore, adapter, 0, onError, onSuccess)
+    const adapter = new InMemoryDemoAdapter();
+    const realSave = adapter.saveAll.bind(adapter);
+    let calls = 0;
+    vi.spyOn(adapter, "saveAll").mockImplementation(async (d) => {
+      calls += 1;
+      if (calls === 1) throw new Error("write unavailable");
+      return realSave(d);
+    });
+    const onError = vi.fn();
+    const onSuccess = vi.fn();
+    const detach = attachPersistence(useStore, adapter, 0, onError, onSuccess);
 
-    useStore.getState().addClient({ name: 'A', color: '#111111' })
-    await new Promise((r) => setTimeout(r, 5))
-    expect(onError).toHaveBeenCalledTimes(1)
-    expect(onSuccess).not.toHaveBeenCalled()
+    useStore.getState().addClient({ name: "A", color: "#111111" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
 
-    useStore.getState().addClient({ name: 'B', color: '#222222' })
-    await new Promise((r) => setTimeout(r, 5))
-    expect(onSuccess).toHaveBeenCalled()
-    detach()
-  })
+    useStore.getState().addClient({ name: "B", color: "#222222" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(onSuccess).toHaveBeenCalled();
+    detach();
+  });
 
-  it('retries a failed write in the background without waiting for another edit', async () => {
+  it("retries a failed write in the background without waiting for another edit", async () => {
     // Server-backed mode has no localStorage fallback: if a write fails and the user
     // reloads before their next edit, unsynced changes would be lost. A bounded
     // background retry (re-sending the latest store state) self-heals once the
     // adapter recovers — proven here with a one-shot failure + a short backoff.
-    vi.useFakeTimers()
+    vi.useFakeTimers();
     try {
-      const adapter = new InMemoryDemoAdapter()
-      const realSave = adapter.saveAll.bind(adapter)
-      let calls = 0
-      vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
-        calls += 1
-        if (calls === 1) throw new Error('temporarily unavailable')
-        return realSave(d)
-      })
-      const onSuccess = vi.fn()
-      const detach = attachPersistence(
-        useStore,
-        adapter,
-        0,
-        undefined,
-        onSuccess,
-      )
+      const adapter = new InMemoryDemoAdapter();
+      const realSave = adapter.saveAll.bind(adapter);
+      let calls = 0;
+      vi.spyOn(adapter, "saveAll").mockImplementation(async (d) => {
+        calls += 1;
+        if (calls === 1) throw new Error("temporarily unavailable");
+        return realSave(d);
+      });
+      const onSuccess = vi.fn();
+      const detach = attachPersistence(useStore, adapter, 0, undefined, onSuccess);
 
-      useStore.getState().addClient({ name: 'Retry Me', color: '#333333' })
-      await vi.advanceTimersByTimeAsync(0) // first attempt → fails, schedules retry
-      expect(calls).toBe(1)
-      expect(onSuccess).not.toHaveBeenCalled()
+      useStore.getState().addClient({ name: "Retry Me", color: "#333333" });
+      await vi.advanceTimersByTimeAsync(0); // first attempt → fails, schedules retry
+      expect(calls).toBe(1);
+      expect(onSuccess).not.toHaveBeenCalled();
 
-      await vi.advanceTimersByTimeAsync(1000) // backoff #1 (2^0 * 1000ms) → succeeds
-      expect(calls).toBe(2)
-      expect(onSuccess).toHaveBeenCalled()
-      expect(
-        (await adapter.loadAll()).clients.some((c) => c.name === 'Retry Me'),
-      ).toBe(true)
-      detach()
+      await vi.advanceTimersByTimeAsync(1000); // backoff #1 (2^0 * 1000ms) → succeeds
+      expect(calls).toBe(2);
+      expect(onSuccess).toHaveBeenCalled();
+      expect((await adapter.loadAll()).clients.some((c) => c.name === "Retry Me")).toBe(true);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('re-attempts a write stranded after the retry budget is spent when the browser comes back online', async () => {
+  it("re-attempts a write stranded after the retry budget is spent when the browser comes back online", async () => {
     // The bounded retry budget stops a PERMANENTLY-failing write from retrying forever, but a
     // mere network outage shouldn't strand the delta until the next edit: an `online` event
     // re-attempts it with a fresh budget (so a reload after recovery doesn't lose it).
-    vi.useFakeTimers()
+    vi.useFakeTimers();
     try {
-      const adapter = new InMemoryDemoAdapter()
-      const realSave = adapter.saveAll.bind(adapter)
-      let online = false
-      vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
-        if (!online) throw new Error('offline')
-        return realSave(d)
-      })
-      const onSuccess = vi.fn()
-      const detach = attachPersistence(
-        useStore,
-        adapter,
-        0,
-        undefined,
-        onSuccess,
-      )
+      const adapter = new InMemoryDemoAdapter();
+      const realSave = adapter.saveAll.bind(adapter);
+      let online = false;
+      vi.spyOn(adapter, "saveAll").mockImplementation(async (d) => {
+        if (!online) throw new Error("offline");
+        return realSave(d);
+      });
+      const onSuccess = vi.fn();
+      const detach = attachPersistence(useStore, adapter, 0, undefined, onSuccess);
 
-      useStore.getState().addClient({ name: 'Stranded', color: '#444444' })
-      await vi.advanceTimersByTimeAsync(0) // initial attempt fails
-      await vi.advanceTimersByTimeAsync(60_000) // 1+2+4+8+16s backoffs all fail → budget exhausted
-      expect(onSuccess).not.toHaveBeenCalled()
+      useStore.getState().addClient({ name: "Stranded", color: "#444444" });
+      await vi.advanceTimersByTimeAsync(0); // initial attempt fails
+      await vi.advanceTimersByTimeAsync(60_000); // 1+2+4+8+16s backoffs all fail → budget exhausted
+      expect(onSuccess).not.toHaveBeenCalled();
 
       // A bare `online` while still failing would also be gated by failedSinceSuccess; here
       // the connection truly returns, so the re-attempt lands.
-      online = true
-      window.dispatchEvent(new Event('online'))
-      await vi.advanceTimersByTimeAsync(0)
-      expect(onSuccess).toHaveBeenCalled()
-      expect(
-        (await adapter.loadAll()).clients.some((c) => c.name === 'Stranded'),
-      ).toBe(true)
-      detach()
+      online = true;
+      window.dispatchEvent(new Event("online"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(onSuccess).toHaveBeenCalled();
+      expect((await adapter.loadAll()).clients.some((c) => c.name === "Stranded")).toBe(true);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('does NOT re-write on an online event when nothing is stranded (no needless full rewrite)', async () => {
-    const adapter = new InMemoryDemoAdapter()
-    const saveAll = vi.spyOn(adapter, 'saveAll')
-    const detach = attachPersistence(useStore, adapter, 0)
-    useStore.getState().addClient({ name: 'Synced', color: '#555555' })
-    await new Promise((r) => setTimeout(r, 5))
-    const callsAfterSync = saveAll.mock.calls.length
+  it("does NOT re-write on an online event when nothing is stranded (no needless full rewrite)", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    const saveAll = vi.spyOn(adapter, "saveAll");
+    const detach = attachPersistence(useStore, adapter, 0);
+    useStore.getState().addClient({ name: "Synced", color: "#555555" });
+    await new Promise((r) => setTimeout(r, 5));
+    const callsAfterSync = saveAll.mock.calls.length;
     // No prior failure → an online event is a no-op (gated on failedSinceSuccess).
-    window.dispatchEvent(new Event('online'))
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll.mock.calls.length).toBe(callsAfterSync)
-    detach()
-  })
-})
+    window.dispatchEvent(new Event("online"));
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll.mock.calls.length).toBe(callsAfterSync);
+    detach();
+  });
+});
 
-describe('account-switch orchestrator (P1.13, server mode)', () => {
+describe("account-switch orchestrator (P1.13, server mode)", () => {
   // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
   // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
 
-  it('loads the picked account slice into the store and does NOT push it back as a save', async () => {
+  it("loads the picked account slice into the store and does NOT push it back as a save", async () => {
     const a2Slice = {
       ...emptyAppData(),
-      accounts: [
-        { id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
-      ],
+      accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
       clients: [
         {
-          id: 'c2',
-          accountId: 'a2',
-          name: 'Beta Client',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "c2",
+          accountId: "a2",
+          name: "Beta Client",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
-    const loadAll = vi.fn(async (accountId?: string) =>
-      accountId === 'a2' ? a2Slice : emptyAppData(),
-    )
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
+    };
+    const loadAll = vi.fn(async (accountId?: string) => (accountId === "a2" ? a2Slice : emptyAppData()));
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
 
     // Server-mode attach with an empty store (the pre-pick state in auth-on).
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
-    useStore
-      .getState()
-      .setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      0,
-      undefined,
-      undefined,
-      true,
-    )
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
 
     // Pick a2 (existence via the summary) → the orchestrator loads a2's slice.
-    useStore.getState().setActiveAccount('a2')
-    await new Promise((r) => setTimeout(r, 5))
+    useStore.getState().setActiveAccount("a2");
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(loadAll).toHaveBeenCalledWith('a2') // per-account hydration
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['c2']) // slice loaded into the store
+    expect(loadAll).toHaveBeenCalledWith("a2"); // per-account hydration
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2"]); // slice loaded into the store
     // The slice load must NOT read as a user edit → no save of the loaded slice.
-    expect(saveAll).not.toHaveBeenCalled()
-    detach()
-  })
+    expect(saveAll).not.toHaveBeenCalled();
+    detach();
+  });
 
-  it('a genuine edit AFTER a switch still saves (the guard only suppresses the slice load)', async () => {
+  it("a genuine edit AFTER a switch still saves (the guard only suppresses the slice load)", async () => {
     const a2Slice = {
       ...emptyAppData(),
-      accounts: [
-        { id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
-      ],
-    }
-    const loadAll = vi.fn(async () => a2Slice)
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
+      accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+    };
+    const loadAll = vi.fn(async () => a2Slice);
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
 
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
-    useStore
-      .getState()
-      .setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      0,
-      undefined,
-      undefined,
-      true,
-    )
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
 
-    useStore.getState().setActiveAccount('a2')
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).not.toHaveBeenCalled() // the load itself didn't save
+    useStore.getState().setActiveAccount("a2");
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).not.toHaveBeenCalled(); // the load itself didn't save
 
     // A real edit in the now-active account DOES save.
-    useStore.getState().addClient({ name: 'New Client', color: '#222222' })
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).toHaveBeenCalledTimes(1)
-    detach()
-  })
+    useStore.getState().addClient({ name: "New Client", color: "#222222" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    detach();
+  });
 
   it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
     // Regression guard for the data-loss edge (P1.13): a user edits account A and switches to B
@@ -556,247 +462,202 @@ describe('account-switch orchestrator (P1.13, server mode)', () => {
       ...emptyAppData(),
       accounts: [
         {
-          id: 'a1',
-          name: 'Alpha',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "a1",
+          name: "Alpha",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-      clients: [internalClient('a1')],
-    }
+      clients: [internalClient("a1")],
+    };
     const bSlice = {
       ...emptyAppData(),
-      accounts: [
-        { id: 'b1', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
-      ],
-      clients: [internalClient('b1')],
-    }
+      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+      clients: [internalClient("b1")],
+    };
     type Wire = {
-      url: string
+      url: string;
       ops?: Array<{
-        method: string
-        table: string
-        id: string
-        accountId?: string
-        row?: { accountId?: string; createdAt?: string; updatedAt?: string }
-      }>
-    }
-    const wire: Wire[] = []
-    const fetchImpl = vi.fn(
-      async (url: string | URL | Request, init?: RequestInit) => {
-        const u = String(url)
-        if (u.includes('/api/state')) {
-          wire.push({ url: u })
-          return new Response(
-            JSON.stringify(u.includes('accountId=b1') ? bSlice : aSlice),
-            { status: 200 },
-          )
-        }
-        // /api/batch — capture the ops carried on the wire.
-        const body = JSON.parse(String(init?.body)) as { ops: Wire['ops'] }
-        wire.push({ url: u, ops: body.ops })
-        return new Response(
-          JSON.stringify({
-            ok: true,
-            applied: body.ops?.length ?? 0,
-            revisions: (body.ops ?? [])
-              .filter((op) => op.method === 'PUT')
-              .map((op) => ({
-                table: op.table,
-                id: op.id,
-                createdAt: op.row?.createdAt ?? 't',
-                updatedAt: op.row?.updatedAt ?? 't',
-              })),
-          }),
-          { status: 200 },
-        )
-      },
-    )
-    const adapter = new ServerSyncAdapter(
-      'http://api.test',
-      fetchImpl as unknown as typeof fetch,
-    )
+        method: string;
+        table: string;
+        id: string;
+        accountId?: string;
+        row?: { accountId?: string; createdAt?: string; updatedAt?: string };
+      }>;
+    };
+    const wire: Wire[] = [];
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/api/state")) {
+        wire.push({ url: u });
+        return new Response(JSON.stringify(u.includes("accountId=b1") ? bSlice : aSlice), { status: 200 });
+      }
+      // /api/batch — capture the ops carried on the wire.
+      const body = JSON.parse(String(init?.body)) as { ops: Wire["ops"] };
+      wire.push({ url: u, ops: body.ops });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          applied: body.ops?.length ?? 0,
+          revisions: (body.ops ?? [])
+            .filter((op) => op.method === "PUT")
+            .map((op) => ({
+              table: op.table,
+              id: op.id,
+              createdAt: op.row?.createdAt ?? "t",
+              updatedAt: op.row?.updatedAt ?? "t",
+            })),
+        }),
+        { status: 200 },
+      );
+    });
+    const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
 
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([
-      { id: 'a1', name: 'Alpha', role: 'owner' },
-      { id: 'b1', name: 'Beta', role: 'owner' },
-    ])
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      300,
-      undefined,
-      undefined,
-      true,
-    ) // genuinely debounced
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence(useStore, adapter, 300, undefined, undefined, true); // genuinely debounced
 
     // Pick A → orchestrator hydrates A's slice (snapshot := A).
-    useStore.getState().setActiveAccount('a1')
-    await new Promise((r) => setTimeout(r, 5))
-    expect(useStore.getState().activeAccountId).toBe('a1')
+    useStore.getState().setActiveAccount("a1");
+    await new Promise((r) => setTimeout(r, 5));
+    expect(useStore.getState().activeAccountId).toBe("a1");
 
     // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
-    const edited = useStore
-      .getState()
-      .addClient({ name: 'A only', color: '#222222' })
-    expect(wire.some((w) => w.ops)).toBe(false) // nothing flushed yet — still inside the 300ms window
+    const edited = useStore.getState().addClient({ name: "A only", color: "#222222" });
+    expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet — still inside the 300ms window
 
     // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
-    useStore.getState().setActiveAccount('b1')
-    await new Promise((r) => setTimeout(r, 20)) // < 300ms, so a dropped edit would NOT have its timer fire
+    useStore.getState().setActiveAccount("b1");
+    await new Promise((r) => setTimeout(r, 20)); // < 300ms, so a dropped edit would NOT have its timer fire
 
     // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
     // its accountId rides on the row — DELETEs carry a top-level accountId, PUTs carry the full row).
-    const carriesA = (o: NonNullable<Wire['ops']>[number]) =>
-      o.row?.accountId === 'a1' || o.accountId === 'a1'
-    const aBatchIdx = wire.findIndex((w) =>
-      w.ops?.some((o) => o.id === edited.id && carriesA(o)),
-    )
-    expect(aBatchIdx).toBeGreaterThanOrEqual(0)
+    const carriesA = (o: NonNullable<Wire["ops"]>[number]) => o.row?.accountId === "a1" || o.accountId === "a1";
+    const aBatchIdx = wire.findIndex((w) => w.ops?.some((o) => o.id === edited.id && carriesA(o)));
+    expect(aBatchIdx).toBeGreaterThanOrEqual(0);
     // And it landed BEFORE B's slice load (no window where a diff could cross accounts).
-    const bLoadIdx = wire.findIndex((w) => w.url.includes('accountId=b1'))
-    expect(bLoadIdx).toBeGreaterThanOrEqual(0)
-    expect(aBatchIdx).toBeLessThan(bLoadIdx)
+    const bLoadIdx = wire.findIndex((w) => w.url.includes("accountId=b1"));
+    expect(bLoadIdx).toBeGreaterThanOrEqual(0);
+    expect(aBatchIdx).toBeLessThan(bLoadIdx);
 
     // After B loaded, NO batch carries A's ops (no cross-account diff B-vs-A).
-    const afterB = wire.slice(bLoadIdx)
-    expect(afterB.some((w) => w.ops?.some(carriesA))).toBe(false)
-    expect(useStore.getState().activeAccountId).toBe('b1')
-    detach()
-  })
+    const afterB = wire.slice(bLoadIdx);
+    expect(afterB.some((w) => w.ops?.some(carriesA))).toBe(false);
+    expect(useStore.getState().activeAccountId).toBe("b1");
+    detach();
+  });
 
-  it('rebases an edit landing while a switch load is in flight onto the newly active account', async () => {
+  it("rebases an edit landing while a switch load is in flight onto the newly active account", async () => {
     const aSlice: AppData = {
       ...emptyAppData(),
       accounts: [
         {
-          id: 'a1',
-          name: 'Alpha',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "a1",
+          name: "Alpha",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
       clients: [
         {
-          id: 'ca',
-          accountId: 'a1',
-          name: 'Alpha Client',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "ca",
+          accountId: "a1",
+          name: "Alpha Client",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
+    };
     const bSlice: AppData = {
       ...emptyAppData(),
-      accounts: [
-        { id: 'b1', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
-      ],
+      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
       clients: [
         {
-          id: 'cb',
-          accountId: 'b1',
-          name: 'Beta Client',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "cb",
+          accountId: "b1",
+          name: "Beta Client",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
-    let releaseB: (() => void) | null = null
+    };
+    let releaseB: (() => void) | null = null;
     const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
-      if (accountId === 'b1') {
+      if (accountId === "b1") {
         return new Promise<AppData>((resolve) => {
-          releaseB = () => resolve(bSlice)
-        })
+          releaseB = () => resolve(bSlice);
+        });
       }
-      return Promise.resolve(aSlice)
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
-    const onError = vi.fn()
+      return Promise.resolve(aSlice);
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
+    const onError = vi.fn();
 
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([
-      { id: 'a1', name: 'Alpha', role: 'owner' },
-      { id: 'b1', name: 'Beta', role: 'owner' },
-    ])
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      300,
-      onError,
-      undefined,
-      true,
-    ) // debounced
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence(useStore, adapter, 300, onError, undefined, true); // debounced
 
-    useStore.getState().setActiveAccount('a1')
-    await new Promise((r) => setTimeout(r, 5))
-    useStore.getState().setActiveAccount('b1') // B's load held open
-    await new Promise((r) => setTimeout(r, 5))
-    expect(releaseB).not.toBeNull()
+    useStore.getState().setActiveAccount("a1");
+    await new Promise((r) => setTimeout(r, 5));
+    useStore.getState().setActiveAccount("b1"); // B's load held open
+    await new Promise((r) => setTimeout(r, 5));
+    expect(releaseB).not.toBeNull();
 
     // Edit lands mid-switch (still inside the debounce window when B's slice arrives).
-    const edit = useStore
-      .getState()
-      .addClient({ name: 'Mid-switch edit', color: '#222222' })
-    saveAll.mockClear()
-    releaseB!()
-    await new Promise((r) => setTimeout(r, 5))
+    const edit = useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" });
+    saveAll.mockClear();
+    releaseB!();
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual([
-      'cb',
-      edit.id,
-    ])
-    expect(
-      useStore.getState().data.clients.find((c) => c.id === edit.id)?.accountId,
-    ).toBe('b1')
-    expect(onError).not.toHaveBeenCalled()
-    await new Promise((r) => setTimeout(r, 400))
-    expect(saveAll).toHaveBeenCalledTimes(1)
-    const saved = saveAll.mock.calls[0][0] as AppData
-    expect(saved.clients.map((c) => c.id)).toEqual(['cb', edit.id])
-    expect(saved.clients.every((c) => c.accountId === 'b1')).toBe(true)
-    detach()
-  })
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
+    expect(useStore.getState().data.clients.find((c) => c.id === edit.id)?.accountId).toBe("b1");
+    expect(onError).not.toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 400));
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    const saved = saveAll.mock.calls[0][0] as AppData;
+    expect(saved.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
+    expect(saved.clients.every((c) => c.accountId === "b1")).toBe(true);
+    detach();
+  });
 
-  it('is INERT in the demo build — a switch does NOT call loadAll(accountId)', async () => {
-    const loadAll = vi.fn(async () => emptyAppData())
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
+  it("is INERT in the demo build — a switch does NOT call loadAll(accountId)", async () => {
+    const loadAll = vi.fn(async () => emptyAppData());
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
 
-    useStore.getState().replaceAll(makeLocalTwoAccounts())
-    useStore.getState().setActiveAccount('a1')
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      0,
-      undefined,
-      undefined,
-      false,
-    ) // demo build
+    useStore.getState().replaceAll(makeLocalTwoAccounts());
+    useStore.getState().setActiveAccount("a1");
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false); // demo build
 
-    useStore.getState().setActiveAccount('a2')
-    await new Promise((r) => setTimeout(r, 5))
+    useStore.getState().setActiveAccount("a2");
+    await new Promise((r) => setTimeout(r, 5));
     // Demo build: data already holds all accounts, so the orchestrator never fetches a slice.
-    expect(loadAll).not.toHaveBeenCalled()
-    detach()
-  })
-})
+    expect(loadAll).not.toHaveBeenCalled();
+    detach();
+  });
+});
 
 function makeLocalTwoAccounts() {
   return {
     ...emptyAppData(),
     accounts: [
-      { id: 'a1', name: 'Alpha', color: '#1', createdAt: 't', updatedAt: 't' },
-      { id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
+      { id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" },
+      { id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" },
     ],
-  }
+  };
 }
 
 // ── Shared server-mode refresh helpers ────────────────────────────────────────────────────────────
@@ -805,29 +666,27 @@ function makeLocalTwoAccounts() {
 
 /** A recording adapter whose loadAll serves a fixed slice for the active account. */
 function recordingAdapter(slice: AppData) {
-  const loadAll = vi.fn(async (): Promise<AppData> => slice)
-  const saveAll = vi.fn().mockResolvedValue(undefined)
-  const adapter: PersistenceAdapter = { loadAll, saveAll }
-  return { adapter, loadAll, saveAll }
+  const loadAll = vi.fn(async (): Promise<AppData> => slice);
+  const saveAll = vi.fn().mockResolvedValue(undefined);
+  const adapter: PersistenceAdapter = { loadAll, saveAll };
+  return { adapter, loadAll, saveAll };
 }
 
 const a2Slice = (): AppData => ({
   ...emptyAppData(),
-  accounts: [
-    { id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
-  ],
+  accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
   clients: [
     {
-      id: 'c2',
-      accountId: 'a2',
-      name: 'Beta Client',
-      color: '#1',
-      createdAt: 't',
-      updatedAt: 't',
+      id: "c2",
+      accountId: "a2",
+      name: "Beta Client",
+      color: "#1",
+      createdAt: "t",
+      updatedAt: "t",
     },
-    internalClient('a2'),
+    internalClient("a2"),
   ],
-})
+});
 
 /** Server-mode attach with a2 already the active account (post-pick steady state). */
 async function attachActiveA2(
@@ -836,466 +695,414 @@ async function attachActiveA2(
   onError?: (e: unknown) => void,
   onSuccess?: () => void,
 ) {
-  useStore.getState().replaceAll(emptyAppData())
-  useStore.getState().setActiveAccount(null)
-  useStore
-    .getState()
-    .setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
-  const detach = attachPersistence(
-    useStore,
-    adapter,
-    debounceMs,
-    onError,
-    onSuccess,
-    true,
-  )
-  useStore.getState().setActiveAccount('a2') // hydrates a2, seeds snapshot := a2
-  await new Promise((r) => setTimeout(r, 5))
-  return detach
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.getState().setActiveAccount(null);
+  useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+  const detach = attachPersistence(useStore, adapter, debounceMs, onError, onSuccess, true);
+  useStore.getState().setActiveAccount("a2"); // hydrates a2, seeds snapshot := a2
+  await new Promise((r) => setTimeout(r, 5));
+  return detach;
 }
 
-describe('refresh-on-focus (P1.16, server mode)', () => {
+describe("refresh-on-focus (P1.16, server mode)", () => {
   // Coming back to the tab/window re-hydrates the active account's slice by REUSING refreshActive
   // (the switch orchestrator's body) — so the adapter's private lastSynced snapshot is re-seeded
   // atomically with `data`. Proven here against a recording adapter + window 'focus' events (the
   // same shape as the pagehide tests above). Uses the module-scope recordingAdapter / a2Slice /
   // attachActiveA2 helpers (shared with the refreshActiveAccountSlice + batch-conflict suites).
 
-  it('re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)', async () => {
-    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter)
-    const loadsAfterPick = loadAll.mock.calls.length // the switch already loaded once
-    saveAll.mockClear()
+  it("re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)", async () => {
+    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter);
+    const loadsAfterPick = loadAll.mock.calls.length; // the switch already loaded once
+    saveAll.mockClear();
 
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((r) => setTimeout(r, 5))
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(loadAll).toHaveBeenCalledWith('a2') // re-hydrated the active account
-    expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
+    expect(loadAll).toHaveBeenCalledWith("a2"); // re-hydrated the active account
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
     // The re-hydration re-seeds lastSynced atomically: loading the same slice it already holds is
     // NOT a user edit, so it must NOT push a save back.
-    expect(saveAll).not.toHaveBeenCalled()
-    detach()
-  })
+    expect(saveAll).not.toHaveBeenCalled();
+    detach();
+  });
 
-  it('preserves undo history when focus republishes the same authoritative revisions', async () => {
-    let remote = a2Slice()
-    const loadAll = vi.fn(async () => structuredClone(remote))
+  it("preserves undo history when focus republishes the same authoritative revisions", async () => {
+    let remote = a2Slice();
+    const loadAll = vi.fn(async () => structuredClone(remote));
     const saveAll = vi.fn(async (data: AppData) => {
-      remote = structuredClone(data)
-    })
-    const detach = await attachActiveA2({ loadAll, saveAll })
+      remote = structuredClone(data);
+    });
+    const detach = await attachActiveA2({ loadAll, saveAll });
 
-    useStore.getState().addClient({ name: 'Undo me', color: '#222222' })
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    expect(useStore.getState().past).toHaveLength(1)
+    useStore.getState().addClient({ name: "Undo me", color: "#222222" });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(useStore.getState().past).toHaveLength(1);
 
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 5));
 
-    expect(useStore.getState().past).toHaveLength(1)
-    useStore.getState().undo()
-    expect(
-      useStore
-        .getState()
-        .data.clients.some((client) => client.name === 'Undo me'),
-    ).toBe(false)
-    detach()
-  })
+    expect(useStore.getState().past).toHaveLength(1);
+    useStore.getState().undo();
+    expect(useStore.getState().data.clients.some((client) => client.name === "Undo me")).toBe(false);
+    detach();
+  });
 
-  it('THROTTLES through the exact 30-second focus interval boundary', async () => {
-    vi.useFakeTimers()
+  it("THROTTLES through the exact 30-second focus interval boundary", async () => {
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll } = recordingAdapter(a2Slice())
-      const detachPromise = attachActiveA2(adapter)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachPromise
-      const before = loadAll.mock.calls.length
+      const { adapter, loadAll } = recordingAdapter(a2Slice());
+      const detachPromise = attachActiveA2(adapter);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachPromise;
+      const before = loadAll.mock.calls.length;
 
-      window.dispatchEvent(new Event('focus'))
-      await vi.advanceTimersByTimeAsync(29_999)
-      window.dispatchEvent(new Event('focus'))
-      await vi.advanceTimersByTimeAsync(0)
-      expect(loadAll.mock.calls.length).toBe(before + 1)
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(29_999);
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(loadAll.mock.calls.length).toBe(before + 1);
 
-      await vi.advanceTimersByTimeAsync(1)
-      window.dispatchEvent(new Event('focus'))
-      await vi.advanceTimersByTimeAsync(0)
-      expect(loadAll.mock.calls.length).toBe(before + 1)
+      await vi.advanceTimersByTimeAsync(1);
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(loadAll.mock.calls.length).toBe(before + 1);
 
-      await vi.advanceTimersByTimeAsync(1)
-      window.dispatchEvent(new Event('focus'))
-      await vi.advanceTimersByTimeAsync(0)
-      expect(loadAll.mock.calls.length).toBe(before + 2)
-      detach()
+      await vi.advanceTimersByTimeAsync(1);
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(loadAll.mock.calls.length).toBe(before + 2);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('detach prevents an in-flight focus refresh from installing its late slice', async () => {
-    const initial = a2Slice()
-    const late = { ...a2Slice(), clients: [] }
-    let release!: () => void
-    let hold = false
+  it("detach prevents an in-flight focus refresh from installing its late slice", async () => {
+    const initial = a2Slice();
+    const late = { ...a2Slice(), clients: [] };
+    let release!: () => void;
+    let hold = false;
     const loadAll = vi.fn(() => {
-      if (!hold) return Promise.resolve(initial)
+      if (!hold) return Promise.resolve(initial);
       return new Promise<AppData>((resolve) => {
-        release = () => resolve(late)
-      })
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const detach = await attachActiveA2({ loadAll, saveAll })
+        release = () => resolve(late);
+      });
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const detach = await attachActiveA2({ loadAll, saveAll });
 
-    hold = true
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    expect(release).toBeTypeOf('function')
-    detach()
-    release()
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    hold = true;
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(release).toBeTypeOf("function");
+    detach();
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 5));
 
     expect(
       useStore
         .getState()
         .data.clients.map((client) => client.id)
         .sort(),
-    ).toEqual(initial.clients.map((client) => client.id).sort())
-  })
+    ).toEqual(initial.clients.map((client) => client.id).sort());
+  });
 
-  it('periodically re-hydrates a continuously visible server session', async () => {
-    vi.useFakeTimers()
+  it("periodically re-hydrates a continuously visible server session", async () => {
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll } = recordingAdapter(a2Slice())
-      const detachPromise = attachActiveA2(adapter)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachPromise
-      const loadsAfterPick = loadAll.mock.calls.length
+      const { adapter, loadAll } = recordingAdapter(a2Slice());
+      const detachPromise = attachActiveA2(adapter);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachPromise;
+      const loadsAfterPick = loadAll.mock.calls.length;
 
-      await vi.advanceTimersByTimeAsync(59_000)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick)
-      await vi.advanceTimersByTimeAsync(1_000)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
+      await vi.advanceTimersByTimeAsync(59_000);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
 
-      detach()
-      await vi.advanceTimersByTimeAsync(60_000)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
+      detach();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('does not poll while hidden and refreshes when the tab becomes visible', async () => {
-    vi.useFakeTimers()
-    const visibility = vi
-      .spyOn(document, 'visibilityState', 'get')
-      .mockReturnValue('hidden')
+  it("does not poll while hidden and refreshes when the tab becomes visible", async () => {
+    vi.useFakeTimers();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
     try {
-      const { adapter, loadAll } = recordingAdapter(a2Slice())
-      const detachPromise = attachActiveA2(adapter)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachPromise
-      const loadsAfterPick = loadAll.mock.calls.length
+      const { adapter, loadAll } = recordingAdapter(a2Slice());
+      const detachPromise = attachActiveA2(adapter);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachPromise;
+      const loadsAfterPick = loadAll.mock.calls.length;
 
-      await vi.advanceTimersByTimeAsync(120_000)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick)
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
 
-      visibility.mockReturnValue('visible')
-      document.dispatchEvent(new Event('visibilitychange'))
-      await vi.advanceTimersByTimeAsync(0)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
-      detach()
+      visibility.mockReturnValue("visible");
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
+      detach();
     } finally {
-      visibility.mockRestore()
-      vi.useRealTimers()
+      visibility.mockRestore();
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('SKIPS refresh when there is no active account (on the picker)', async () => {
-    const { adapter, loadAll } = recordingAdapter(a2Slice())
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
-    useStore
-      .getState()
-      .setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      0,
-      undefined,
-      undefined,
-      true,
-    )
+  it("SKIPS refresh when there is no active account (on the picker)", async () => {
+    const { adapter, loadAll } = recordingAdapter(a2Slice());
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
     // No account picked → still on the picker.
-    loadAll.mockClear()
+    loadAll.mockClear();
 
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((r) => setTimeout(r, 5))
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(loadAll).not.toHaveBeenCalled() // nothing to refresh
-    detach()
-  })
+    expect(loadAll).not.toHaveBeenCalled(); // nothing to refresh
+    detach();
+  });
 
-  it('FLUSHES a pending debounced edit BEFORE the focus refetch (user edit lands first)', async () => {
+  it("FLUSHES a pending debounced edit BEFORE the focus refetch (user edit lands first)", async () => {
     // The unsaved-edit safety: a pending debounced edit + a focus must POST that edit BEFORE loadAll
     // re-seeds the snapshot (last-writer-wins, user wins). Order-assert on the recorded call sequence.
-    const order: string[] = []
+    const order: string[] = [];
     const loadAll = vi.fn(async () => {
-      order.push('loadAll')
-      return a2Slice()
-    })
+      order.push("loadAll");
+      return a2Slice();
+    });
     const saveAll = vi.fn(async () => {
-      order.push('saveAll')
-    })
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
-    const detach = await attachActiveA2(adapter, 300) // genuinely debounced
-    order.length = 0 // ignore the initial switch's loadAll
+      order.push("saveAll");
+    });
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
+    const detach = await attachActiveA2(adapter, 300); // genuinely debounced
+    order.length = 0; // ignore the initial switch's loadAll
 
-    useStore.getState().addClient({ name: 'Unsaved', color: '#222222' }) // debounced — not yet on the wire
-    expect(saveAll).not.toHaveBeenCalled()
+    useStore.getState().addClient({ name: "Unsaved", color: "#222222" }); // debounced — not yet on the wire
+    expect(saveAll).not.toHaveBeenCalled();
 
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((r) => setTimeout(r, 20)) // < 300ms: a dropped edit's timer would NOT fire
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 20)); // < 300ms: a dropped edit's timer would NOT fire
 
     // The edit's save flushed BEFORE the refresh loadAll (no cross-account / lost-edit window).
-    expect(order[0]).toBe('saveAll')
-    expect(order).toContain('loadAll')
-    expect(order.indexOf('saveAll')).toBeLessThan(order.indexOf('loadAll'))
-    detach()
-  })
+    expect(order[0]).toBe("saveAll");
+    expect(order).toContain("loadAll");
+    expect(order.indexOf("saveAll")).toBeLessThan(order.indexOf("loadAll"));
+    detach();
+  });
 
-  it('is INERT in the demo build — focus does NOT call loadAll', async () => {
-    const { adapter, loadAll } = recordingAdapter(a2Slice())
-    useStore.getState().replaceAll(makeLocalTwoAccounts())
-    useStore.getState().setActiveAccount('a1')
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      0,
-      undefined,
-      undefined,
-      false,
-    ) // demo build
-    loadAll.mockClear()
+  it("is INERT in the demo build — focus does NOT call loadAll", async () => {
+    const { adapter, loadAll } = recordingAdapter(a2Slice());
+    useStore.getState().replaceAll(makeLocalTwoAccounts());
+    useStore.getState().setActiveAccount("a1");
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false); // demo build
+    loadAll.mockClear();
 
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((r) => setTimeout(r, 5))
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(loadAll).not.toHaveBeenCalled() // local holds every account — no refetch
-    detach()
-  })
+    expect(loadAll).not.toHaveBeenCalled(); // local holds every account — no refetch
+    detach();
+  });
 
-  it('ABORTS the focus refresh while a save is FAILED — the un-persisted edit must not be clobbered', async () => {
+  it("ABORTS the focus refresh while a save is FAILED — the un-persisted edit must not be clobbered", async () => {
     // The data-loss trap: an edit's save fails (retry scheduled), the user tabs away and back, and the
     // focus refresh loadAll+replaceAll's the SERVER's copy over the optimistic state — re-seeding the
     // snapshot so the pending retry diffs to ZERO ops, "succeeds", and the edit is silently gone
     // forever. The refresh must abort instead: the retry machinery still holds the edit, and the
     // persist banner (onError) already tells the user they're unsynced.
-    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter) // debounceMs 0 — saves fire immediately
-    const loadsAfterPick = loadAll.mock.calls.length
-    saveAll.mockRejectedValue(new Error('write unavailable')) // every save now fails
+    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter); // debounceMs 0 — saves fire immediately
+    const loadsAfterPick = loadAll.mock.calls.length;
+    saveAll.mockRejectedValue(new Error("write unavailable")); // every save now fails
 
-    useStore.getState().addClient({ name: 'Unsynced', color: '#222222' })
-    await new Promise((r) => setTimeout(r, 5)) // let the immediate save fail (failedSinceSuccess set)
+    useStore.getState().addClient({ name: "Unsynced", color: "#222222" });
+    await new Promise((r) => setTimeout(r, 5)); // let the immediate save fail (failedSinceSuccess set)
 
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((r) => setTimeout(r, 5))
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // NO reload — the refresh aborted
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // NO reload — the refresh aborted
     // The optimistic edit is still in the store, available to the retry/stranded-write machinery.
-    expect(
-      useStore.getState().data.clients.some((c) => c.name === 'Unsynced'),
-    ).toBe(true)
-    detach()
-  })
+    expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
+    detach();
+  });
 
-  it('retries a stranded write on focus without throttling the next visible recovery', async () => {
-    vi.useFakeTimers()
-    const visibility = vi
-      .spyOn(document, 'visibilityState', 'get')
-      .mockReturnValue('visible')
+  it("retries a stranded write on focus without throttling the next visible recovery", async () => {
+    vi.useFakeTimers();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     try {
-      let remote = a2Slice()
-      let writable = false
-      const loadAll = vi.fn(async () => remote)
+      let remote = a2Slice();
+      let writable = false;
+      const loadAll = vi.fn(async () => remote);
       const saveAll = vi.fn(async (data: AppData) => {
-        if (!writable) throw new Error('write unavailable')
-        remote = data
-      })
-      const detachPromise = attachActiveA2({ loadAll, saveAll })
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachPromise
-      const loadsAfterPick = loadAll.mock.calls.length
+        if (!writable) throw new Error("write unavailable");
+        remote = data;
+      });
+      const detachPromise = attachActiveA2({ loadAll, saveAll });
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachPromise;
+      const loadsAfterPick = loadAll.mock.calls.length;
 
-      useStore.getState().addClient({ name: 'Stranded', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(31_000) // initial attempt + 1/2/4/8/16s retries all fail
-      const savesAfterBudget = saveAll.mock.calls.length
+      useStore.getState().addClient({ name: "Stranded", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(31_000); // initial attempt + 1/2/4/8/16s retries all fail
+      const savesAfterBudget = saveAll.mock.calls.length;
 
-      window.dispatchEvent(new Event('focus'))
-      await vi.advanceTimersByTimeAsync(0)
-      expect(saveAll.mock.calls.length).toBe(savesAfterBudget + 1)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick)
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(saveAll.mock.calls.length).toBe(savesAfterBudget + 1);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
 
-      writable = true
-      document.dispatchEvent(new Event('visibilitychange'))
-      await vi.advanceTimersByTimeAsync(0)
+      writable = true;
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.advanceTimersByTimeAsync(0);
 
-      expect(saveAll.mock.calls.length).toBe(savesAfterBudget + 2)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
-      expect(remote.clients.some((client) => client.name === 'Stranded')).toBe(
-        true,
-      )
-      detach()
+      expect(saveAll.mock.calls.length).toBe(savesAfterBudget + 2);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
+      expect(remote.clients.some((client) => client.name === "Stranded")).toBe(true);
+      detach();
     } finally {
-      visibility.mockRestore()
-      vi.useRealTimers()
+      visibility.mockRestore();
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('a failed-save focus refresh does not orphan an in-flight company switch', async () => {
+  it("a failed-save focus refresh does not orphan an in-flight company switch", async () => {
     const aSlice: AppData = {
       ...emptyAppData(),
       accounts: [
         {
-          id: 'a1',
-          name: 'Alpha',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "a1",
+          name: "Alpha",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
       clients: [
         {
-          id: 'ca',
-          accountId: 'a1',
-          name: 'Alpha Client',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "ca",
+          accountId: "a1",
+          name: "Alpha Client",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
+    };
     const bSlice: AppData = {
       ...emptyAppData(),
-      accounts: [
-        { id: 'b1', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
-      ],
+      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
       clients: [
         {
-          id: 'cb',
-          accountId: 'b1',
-          name: 'Beta Client',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "cb",
+          accountId: "b1",
+          name: "Beta Client",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
-    let releaseB: (() => void) | null = null
+    };
+    let releaseB: (() => void) | null = null;
     const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
-      if (accountId === 'b1') {
+      if (accountId === "b1") {
         return new Promise((resolve) => {
-          releaseB = () => resolve(bSlice)
-        })
+          releaseB = () => resolve(bSlice);
+        });
       }
-      return Promise.resolve(aSlice)
-    })
-    let rejectSaves = false
+      return Promise.resolve(aSlice);
+    });
+    let rejectSaves = false;
     const saveAll = vi.fn(async () => {
-      if (rejectSaves) throw new Error('write unavailable')
-    })
+      if (rejectSaves) throw new Error("write unavailable");
+    });
 
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([
-      { id: 'a1', name: 'Alpha', role: 'owner' },
-      { id: 'b1', name: 'Beta', role: 'owner' },
-    ])
-    const detach = attachPersistence(
-      useStore,
-      { loadAll, saveAll },
-      0,
-      undefined,
-      undefined,
-      true,
-    )
-    useStore.getState().setActiveAccount('a1')
-    await new Promise((resolve) => setTimeout(resolve, 5))
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, undefined, undefined, true);
+    useStore.getState().setActiveAccount("a1");
+    await new Promise((resolve) => setTimeout(resolve, 5));
 
-    rejectSaves = true
-    useStore.getState().addClient({ name: 'Unsynced in A', color: '#222222' })
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    useStore.getState().setActiveAccount('b1')
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    expect(releaseB).not.toBeNull()
+    rejectSaves = true;
+    useStore.getState().addClient({ name: "Unsynced in A", color: "#222222" });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    useStore.getState().setActiveAccount("b1");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(releaseB).not.toBeNull();
 
     // The focus refresh sees B active but must not supersede B's already-running load merely to
     // abort on A's failed-save flag. Otherwise the adapter snapshot becomes B while data stays A.
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    releaseB!()
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    releaseB!();
+    await new Promise((resolve) => setTimeout(resolve, 5));
 
-    expect(useStore.getState().activeAccountId).toBe('b1')
-    expect(
-      useStore.getState().data.accounts.map((account) => account.id),
-    ).toEqual(['b1'])
-    expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(
-      ['cb'],
-    )
-    detach()
-  })
-})
+    expect(useStore.getState().activeAccountId).toBe("b1");
+    expect(useStore.getState().data.accounts.map((account) => account.id)).toEqual(["b1"]);
+    expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]);
+    detach();
+  });
+});
 
-describe('refreshActiveAccountSlice (the lifecycle hook reload seam)', () => {
+describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   // The out-of-band server writers (archive/delete/purge routes) reload the active slice THROUGH the
   // orchestrator via this export — a bare loadAll+replaceAll would clobber a still-debounced edit and
   // re-seed the snapshot under it (the same permanent-loss mechanism the focus-refresh abort guards).
   // Uses the module-scope recordingAdapter / a2Slice / attachActiveA2 helpers.
 
   it("returns 'unattached' when no orchestrator is attached (the caller falls back to a bare reload)", async () => {
-    expect(await refreshActiveAccountSlice('a2')).toBe('unattached')
-  })
+    expect(await refreshActiveAccountSlice("a2")).toBe("unattached");
+  });
 
   it("FLUSHES a pending debounced edit BEFORE reloading (returns 'reloaded'; the edit lands first)", async () => {
-    const order: string[] = []
+    const order: string[] = [];
     const loadAll = vi.fn(async () => {
-      order.push('loadAll')
-      return a2Slice()
-    })
+      order.push("loadAll");
+      return a2Slice();
+    });
     const saveAll = vi.fn(async () => {
-      order.push('saveAll')
-    })
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
-    const detach = await attachActiveA2(adapter, 300) // genuinely debounced
-    order.length = 0 // ignore the initial switch's loadAll
+      order.push("saveAll");
+    });
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
+    const detach = await attachActiveA2(adapter, 300); // genuinely debounced
+    order.length = 0; // ignore the initial switch's loadAll
 
-    useStore.getState().addClient({ name: 'Mid-debounce', color: '#222222' }) // not yet on the wire
-    expect(await refreshActiveAccountSlice('a2')).toBe('reloaded')
+    useStore.getState().addClient({ name: "Mid-debounce", color: "#222222" }); // not yet on the wire
+    expect(await refreshActiveAccountSlice("a2")).toBe("reloaded");
 
-    expect(order[0]).toBe('saveAll') // the edit POSTed before the reload re-seeded the snapshot
-    expect(order).toContain('loadAll')
-    detach()
-  })
+    expect(order[0]).toBe("saveAll"); // the edit POSTed before the reload re-seeded the snapshot
+    expect(order).toContain("loadAll");
+    detach();
+  });
 
-  it('SKIPS the reload when the flush FAILS — preserving the edit beats reflecting the mutation', async () => {
-    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter, 300)
-    const loadsAfterPick = loadAll.mock.calls.length
-    saveAll.mockRejectedValue(new Error('write unavailable'))
+  it("SKIPS the reload when the flush FAILS — preserving the edit beats reflecting the mutation", async () => {
+    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter, 300);
+    const loadsAfterPick = loadAll.mock.calls.length;
+    saveAll.mockRejectedValue(new Error("write unavailable"));
 
-    useStore.getState().addClient({ name: 'Unsynced', color: '#222222' })
-    expect(await refreshActiveAccountSlice('a2')).toBe('skipped') // the orchestrator DECLINED, honestly…
+    useStore.getState().addClient({ name: "Unsynced", color: "#222222" });
+    expect(await refreshActiveAccountSlice("a2")).toBe("skipped"); // the orchestrator DECLINED, honestly…
 
-    expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // …which refused to clobber the edit
-    expect(
-      useStore.getState().data.clients.some((c) => c.name === 'Unsynced'),
-    ).toBe(true)
-    detach()
-  })
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // …which refused to clobber the edit
+    expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
+    detach();
+  });
 
-  it('with a STALE id is a no-op and does NOT cancel an in-flight newer switch (wrong-tenant race)', async () => {
+  it("with a STALE id is a no-op and does NOT cancel an in-flight newer switch (wrong-tenant race)", async () => {
     // The P1 race: a lifecycle POST for account A resolves AFTER the user switched A→B while B's
     // slice load is still on the wire. Pre-fix, the stale refreshActive(A) bumped the switch token —
     // CANCELLING B's late-resolving load — then installed A's slice while activeAccountId === B
@@ -1305,172 +1112,154 @@ describe('refreshActiveAccountSlice (the lifecycle hook reload seam)', () => {
       ...emptyAppData(),
       accounts: [
         {
-          id: 'a1',
-          name: 'Alpha',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "a1",
+          name: "Alpha",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
       clients: [
         {
-          id: 'ca',
-          accountId: 'a1',
-          name: 'Alpha Client',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "ca",
+          accountId: "a1",
+          name: "Alpha Client",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
+    };
     const bSlice: AppData = {
       ...emptyAppData(),
-      accounts: [
-        { id: 'b1', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
-      ],
+      accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
       clients: [
         {
-          id: 'cb',
-          accountId: 'b1',
-          name: 'Beta Client',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "cb",
+          accountId: "b1",
+          name: "Beta Client",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
-    let releaseB: (() => void) | null = null
+    };
+    let releaseB: (() => void) | null = null;
     const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
-      if (accountId === 'b1') {
+      if (accountId === "b1") {
         // Hold B's slice load open so the stale refresh races it mid-flight.
         return new Promise<AppData>((resolve) => {
-          releaseB = () => resolve(bSlice)
-        })
+          releaseB = () => resolve(bSlice);
+        });
       }
-      return Promise.resolve(aSlice)
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
+      return Promise.resolve(aSlice);
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
 
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([
-      { id: 'a1', name: 'Alpha', role: 'owner' },
-      { id: 'b1', name: 'Beta', role: 'owner' },
-    ])
-    const detach = attachPersistence(
-      useStore,
-      adapter,
-      0,
-      undefined,
-      undefined,
-      true,
-    )
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true);
 
-    useStore.getState().setActiveAccount('a1') // hydrate A
-    await new Promise((r) => setTimeout(r, 5))
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['ca'])
+    useStore.getState().setActiveAccount("a1"); // hydrate A
+    await new Promise((r) => setTimeout(r, 5));
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["ca"]);
 
-    useStore.getState().setActiveAccount('b1') // switch — B's load is now held open
-    await new Promise((r) => setTimeout(r, 5))
-    expect(releaseB).not.toBeNull() // B's loadAll dispatched, unresolved
-    const aLoadsBefore = loadAll.mock.calls.filter((c) => c[0] === 'a1').length
+    useStore.getState().setActiveAccount("b1"); // switch — B's load is now held open
+    await new Promise((r) => setTimeout(r, 5));
+    expect(releaseB).not.toBeNull(); // B's loadAll dispatched, unresolved
+    const aLoadsBefore = loadAll.mock.calls.filter((c) => c[0] === "a1").length;
 
     // The lifecycle hook's stale reload lands NOW (mutation ran in A; user is on B).
-    expect(await refreshActiveAccountSlice('a1')).toBe('skipped') // stale id — declined, honestly…
-    expect(loadAll.mock.calls.filter((c) => c[0] === 'a1').length).toBe(
-      aLoadsBefore,
-    ) // …as a no-op
+    expect(await refreshActiveAccountSlice("a1")).toBe("skipped"); // stale id — declined, honestly…
+    expect(loadAll.mock.calls.filter((c) => c[0] === "a1").length).toBe(aLoadsBefore); // …as a no-op
 
     // B's in-flight load was NOT cancelled: when it resolves, B's slice still lands.
-    releaseB!()
-    await new Promise((r) => setTimeout(r, 5))
-    expect(useStore.getState().activeAccountId).toBe('b1')
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['cb']) // B's slice, never A's
-    detach()
-  })
+    releaseB!();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(useStore.getState().activeAccountId).toBe("b1");
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb"]); // B's slice, never A's
+    detach();
+  });
 
-  it('is UNREGISTERED after detach (a later call falls back)', async () => {
-    const { adapter } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter)
-    detach()
-    expect(await refreshActiveAccountSlice('a2')).toBe('unattached')
-  })
-})
+  it("is UNREGISTERED after detach (a later call falls back)", async () => {
+    const { adapter } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter);
+    detach();
+    expect(await refreshActiveAccountSlice("a2")).toBe("unattached");
+  });
+});
 
-describe('flushPendingWrites (the import seam)', () => {
-  it('lands a pending debounced edit and reports clean; reports NOT clean while a write is failed', async () => {
-    const { adapter, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter, 300) // genuinely debounced
-    saveAll.mockClear()
+describe("flushPendingWrites (the import seam)", () => {
+  it("lands a pending debounced edit and reports clean; reports NOT clean while a write is failed", async () => {
+    const { adapter, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter, 300); // genuinely debounced
+    saveAll.mockClear();
 
-    useStore.getState().addClient({ name: 'Pending', color: '#222222' }) // parked in the debounce
-    expect(saveAll).not.toHaveBeenCalled()
-    expect(await flushPendingWrites()).toBe(true) // flushed + landed
-    expect(saveAll).toHaveBeenCalledTimes(1)
+    useStore.getState().addClient({ name: "Pending", color: "#222222" }); // parked in the debounce
+    expect(saveAll).not.toHaveBeenCalled();
+    expect(await flushPendingWrites()).toBe(true); // flushed + landed
+    expect(saveAll).toHaveBeenCalledTimes(1);
 
     // A failing write makes the seam report dirty — the import path must refuse to proceed.
-    saveAll.mockRejectedValueOnce(new Error('server down'))
-    useStore.getState().addClient({ name: 'Doomed', color: '#333333' })
-    expect(await flushPendingWrites()).toBe(false)
-    detach()
-  })
+    saveAll.mockRejectedValueOnce(new Error("server down"));
+    useStore.getState().addClient({ name: "Doomed", color: "#333333" });
+    expect(await flushPendingWrites()).toBe(false);
+    detach();
+  });
 
-  it('returns true (clean, nothing to flush) when no orchestrator is attached', async () => {
-    expect(await flushPendingWrites()).toBe(true)
-  })
+  it("returns true (clean, nothing to flush) when no orchestrator is attached", async () => {
+    expect(await flushPendingWrites()).toBe(true);
+  });
 
   it('loops until QUIESCENT — an edit landing mid-flush is also flushed before "clean" is reported', async () => {
     // Writes are unsuspended during the flush's await, so an edit can arm a fresh debounce whose
     // save outlives a single round. A one-shot flush returned "clean" while that save was still
     // on the wire — the import POST then raced it against the pre-import snapshot.
-    let releaseFirst: (() => void) | null = null
-    let firstHeld = true
+    let releaseFirst: (() => void) | null = null;
+    let firstHeld = true;
     const saveAll = vi.fn<(data: AppData) => Promise<void>>(() => {
       if (firstHeld) {
-        firstHeld = false
+        firstHeld = false;
         return new Promise((resolve) => {
-          releaseFirst = () => resolve()
-        })
+          releaseFirst = () => resolve();
+        });
       }
-      return Promise.resolve()
-    })
-    const loadAll = vi.fn(async () => a2Slice())
-    const detach = await attachActiveA2({ loadAll, saveAll }, 300)
+      return Promise.resolve();
+    });
+    const loadAll = vi.fn(async () => a2Slice());
+    const detach = await attachActiveA2({ loadAll, saveAll }, 300);
 
-    useStore.getState().addClient({ name: 'First', color: '#222222' }) // parked in the debounce
-    const flush = flushPendingWrites() // consumes it → round-trip A, held open
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).toHaveBeenCalledTimes(1)
+    useStore.getState().addClient({ name: "First", color: "#222222" }); // parked in the debounce
+    const flush = flushPendingWrites(); // consumes it → round-trip A, held open
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).toHaveBeenCalledTimes(1);
 
-    useStore.getState().addClient({ name: 'Mid-flush', color: '#333333' }) // lands during A's await
-    releaseFirst!()
-    expect(await flush).toBe(true)
+    useStore.getState().addClient({ name: "Mid-flush", color: "#333333" }); // lands during A's await
+    releaseFirst!();
+    expect(await flush).toBe(true);
     // The flush swept the mid-flush edit too before reporting clean — nothing left on the wire.
-    expect(saveAll).toHaveBeenCalledTimes(2)
-    expect(
-      (saveAll.mock.calls[1][0] as AppData).clients.some(
-        (c) => c.name === 'Mid-flush',
-      ),
-    ).toBe(true)
-    detach()
-  })
-})
+    expect(saveAll).toHaveBeenCalledTimes(2);
+    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Mid-flush")).toBe(true);
+    detach();
+  });
+});
 
-describe('suspendServerWrites (the import write-suspension seam)', () => {
+describe("suspendServerWrites (the import write-suspension seam)", () => {
   // The server-mode import suspends writes across its POST + re-hydrate: flushPendingWrites only
   // proves cleanliness at one INSTANT, so an edit made while the POST is pending must be PARKED —
   // sending it would either land just before the import (silently wiped) or be flushed by the
   // post-import reload against the pre-import snapshot (stale rows upserted into the imported
   // slice — remapped ids insert cleanly, no 409 stops them).
 
-  it('parks an already armed retry until the suspension resumes', async () => {
-    vi.useFakeTimers()
+  it("parks an already armed retry until the suspension resumes", async () => {
+    vi.useFakeTimers();
     try {
-      const saveAll = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('temporary failure'))
-        .mockResolvedValue(undefined)
+      const saveAll = vi.fn().mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValue(undefined);
       const detach = attachPersistence(
         useStore,
         { loadAll: async () => emptyAppData(), saveAll },
@@ -1478,32 +1267,30 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
         vi.fn(),
         undefined,
         true,
-      )
+      );
 
-      useStore.getState().addClient({ name: 'Retry me', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(0)
-      expect(saveAll).toHaveBeenCalledOnce()
+      useStore.getState().addClient({ name: "Retry me", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(saveAll).toHaveBeenCalledOnce();
 
-      const resume = suspendServerWrites()
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll).toHaveBeenCalledOnce()
+      const resume = suspendServerWrites();
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll).toHaveBeenCalledOnce();
 
-      resume()
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll).toHaveBeenCalledTimes(2)
-      detach()
+      resume();
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll).toHaveBeenCalledTimes(2);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('keeps a hidden-tab visibility flush parked until an external suspension resumes', async () => {
-    vi.useFakeTimers()
-    const visibility = vi
-      .spyOn(document, 'visibilityState', 'get')
-      .mockReturnValue('hidden')
+  it("keeps a hidden-tab visibility flush parked until an external suspension resumes", async () => {
+    vi.useFakeTimers();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
     try {
-      const saveAll = vi.fn().mockResolvedValue(undefined)
+      const saveAll = vi.fn().mockResolvedValue(undefined);
       const detach = attachPersistence(
         useStore,
         { loadAll: async () => emptyAppData(), saveAll },
@@ -1511,291 +1298,251 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
         undefined,
         undefined,
         true,
-      )
-      const resume = suspendServerWrites()
-      useStore
-        .getState()
-        .addClient({ name: 'Parked while hidden', color: '#222222' })
+      );
+      const resume = suspendServerWrites();
+      useStore.getState().addClient({ name: "Parked while hidden", color: "#222222" });
 
-      document.dispatchEvent(new Event('visibilitychange'))
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll).not.toHaveBeenCalled()
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll).not.toHaveBeenCalled();
 
-      resume()
-      await vi.advanceTimersByTimeAsync(300)
-      expect(saveAll).toHaveBeenCalledOnce()
-      detach()
+      resume();
+      await vi.advanceTimersByTimeAsync(300);
+      expect(saveAll).toHaveBeenCalledOnce();
+      detach();
     } finally {
-      visibility.mockRestore()
-      vi.useRealTimers()
+      visibility.mockRestore();
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('parks an edit made while suspended (nothing sent) and re-schedules it on resume when no reload ran', async () => {
-    const { adapter, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter) // immediate saves
-    saveAll.mockClear()
+  it("parks an edit made while suspended (nothing sent) and re-schedules it on resume when no reload ran", async () => {
+    const { adapter, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter); // immediate saves
+    saveAll.mockClear();
 
-    const resume = suspendServerWrites()
-    useStore.getState().addClient({ name: 'Mid-import', color: '#222222' })
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).not.toHaveBeenCalled() // parked, not sent
+    const resume = suspendServerWrites();
+    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).not.toHaveBeenCalled(); // parked, not sent
 
     // The suspending operation FAILED before any reload (e.g. the POST was refused): the slice is
     // unchanged, so the parked edit saves on resume — losing it would be a silent drop, no notice.
-    resume()
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).toHaveBeenCalledTimes(1)
-    expect(
-      (saveAll.mock.calls[0][0] as AppData).clients.some(
-        (c) => c.name === 'Mid-import',
-      ),
-    ).toBe(true)
-    detach()
-  })
+    resume();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    expect((saveAll.mock.calls[0][0] as AppData).clients.some((c) => c.name === "Mid-import")).toBe(true);
+    detach();
+  });
 
-  it('a reload during suspension rebases and saves the parked edit on the imported slice', async () => {
-    const onError = vi.fn()
-    const onSuccess = vi.fn()
-    const { adapter, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter, 0, onError, onSuccess)
-    saveAll.mockClear()
-    onSuccess.mockClear()
+  it("a reload during suspension rebases and saves the parked edit on the imported slice", async () => {
+    const onError = vi.fn();
+    const onSuccess = vi.fn();
+    const { adapter, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter, 0, onError, onSuccess);
+    saveAll.mockClear();
+    onSuccess.mockClear();
 
-    const resume = suspendServerWrites()
-    useStore.getState().addClient({ name: 'Mid-import', color: '#222222' })
-    expect(await refreshActiveAccountSlice('a2')).toBe('reloaded') // the post-import re-hydrate
-    resume()
-    await new Promise((r) => setTimeout(r, 5))
+    const resume = suspendServerWrites();
+    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    expect(await refreshActiveAccountSlice("a2")).toBe("reloaded"); // the post-import re-hydrate
+    resume();
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(saveAll).toHaveBeenCalledTimes(1)
-    expect(
-      (saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name),
-    ).toEqual(['Beta Client', 'Internal', 'Mid-import'])
-    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual([
-      'Beta Client',
-      'Internal',
-      'Mid-import',
-    ])
-    expect(onError).not.toHaveBeenCalled()
-    expect(onSuccess).toHaveBeenCalled()
-    detach()
-  })
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name)).toEqual([
+      "Beta Client",
+      "Internal",
+      "Mid-import",
+    ]);
+    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(["Beta Client", "Internal", "Mid-import"]);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalled();
+    detach();
+  });
 
-  it('resume({dropParkedEdits}) DROPS the parked edit + surfaces it — the import COMMITTED but its re-hydrate failed', async () => {
+  it("resume({dropParkedEdits}) DROPS the parked edit + surfaces it — the import COMMITTED but its re-hydrate failed", async () => {
     // The committed-but-not-reloaded edge: the slice was replaced server-side but the snapshot was
     // never reseeded, so re-saving the parked edit would diff its stale pre-import tree against
     // the stale snapshot and upsert ghost rows into the imported slice (remapped ids → no 409).
-    const onError = vi.fn()
-    const { adapter, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter, 0, onError)
-    saveAll.mockClear()
+    const onError = vi.fn();
+    const { adapter, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter, 0, onError);
+    saveAll.mockClear();
 
-    const resume = suspendServerWrites()
-    useStore.getState().addClient({ name: 'Mid-import', color: '#222222' })
-    resume({ dropParkedEdits: true })
-    await new Promise((r) => setTimeout(r, 5))
+    const resume = suspendServerWrites();
+    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    resume({ dropParkedEdits: true });
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(saveAll).not.toHaveBeenCalled() // never re-scheduled
-    expect(
-      onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError),
-    ).toBe(true) // surfaced, not silent
-    detach()
-  })
+    expect(saveAll).not.toHaveBeenCalled(); // never re-scheduled
+    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true); // surfaced, not silent
+    detach();
+  });
 
-  it('an edit during the (a′) flush await is parked, rebased after load, and saved', async () => {
+  it("an edit during the (a′) flush await is parked, rebased after load, and saved", async () => {
     // Pre-fix, an edit arriving while the entry flush was awaited re-armed a debounce timer at
     // depth 0; the timer fired mid-load, its save was silently eaten by the seedGen guard, and the
     // (c) check couldn't see it — a silent loss. The suspension now covers the WHOLE sequence.
-    let releaseSave: (() => void) | null = null
-    const slice = a2Slice()
-    const loadAll = vi.fn(async () => slice)
+    let releaseSave: (() => void) | null = null;
+    const slice = a2Slice();
+    const loadAll = vi.fn(async () => slice);
     const saveAll = vi.fn((data: AppData) => {
-      void data
+      void data;
       return new Promise<void>((resolve) => {
-        releaseSave = () => resolve()
-      })
-    })
-    const onError = vi.fn()
-    const detach = await attachActiveA2({ loadAll, saveAll }, 300, onError) // genuinely debounced
+        releaseSave = () => resolve();
+      });
+    });
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ loadAll, saveAll }, 300, onError); // genuinely debounced
 
-    useStore.getState().addClient({ name: 'Pre-reload', color: '#222222' }) // pending, debounced
-    const refresh = refreshActiveAccountSlice('a2') // (a′) flushes it → saveAll held open
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).toHaveBeenCalledTimes(1) // the flush is on the wire
+    useStore.getState().addClient({ name: "Pre-reload", color: "#222222" }); // pending, debounced
+    const refresh = refreshActiveAccountSlice("a2"); // (a′) flushes it → saveAll held open
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).toHaveBeenCalledTimes(1); // the flush is on the wire
 
-    useStore.getState().addClient({ name: 'During flush', color: '#333333' }) // arrives mid-flush-await
-    await new Promise((r) => setTimeout(r, 350)) // longer than the debounce — a re-armed timer WOULD have fired
-    expect(saveAll).toHaveBeenCalledTimes(1) // parked instead
+    useStore.getState().addClient({ name: "During flush", color: "#333333" }); // arrives mid-flush-await
+    await new Promise((r) => setTimeout(r, 350)); // longer than the debounce — a re-armed timer WOULD have fired
+    expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
 
-    releaseSave!()
-    expect(await refresh).toBe('reloaded')
-    await new Promise((r) => setTimeout(r, 350))
-    expect(saveAll).toHaveBeenCalledTimes(2)
-    expect(
-      (saveAll.mock.calls[1][0] as AppData).clients.some(
-        (c) => c.name === 'During flush',
-      ),
-    ).toBe(true)
-    expect(onError).not.toHaveBeenCalled()
-    detach()
-  })
+    releaseSave!();
+    expect(await refresh).toBe("reloaded");
+    await new Promise((r) => setTimeout(r, 350));
+    expect(saveAll).toHaveBeenCalledTimes(2);
+    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "During flush")).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
+    detach();
+  });
 
-  it('a FAILED load re-schedules an edit parked during it — nothing strands unsaved until the next reload', async () => {
+  it("a FAILED load re-schedules an edit parked during it — nothing strands unsaved until the next reload", async () => {
     // Pre-fix, a parked edit survived a loadAll throw with no timer, no retry, and
     // failedSinceSuccess=false — the online/visible re-attempts declined it and it sat unsaved
     // indefinitely. The finally-resume re-schedules it: slice + snapshot are unchanged, so the
     // save diffs self-vs-self and is correct.
-    let release: (() => void) | null = null
-    let hold = false
-    const slice = a2Slice()
+    let release: (() => void) | null = null;
+    let hold = false;
+    const slice = a2Slice();
     const loadAll = vi.fn((): Promise<AppData> => {
-      if (!hold) return Promise.resolve(slice)
+      if (!hold) return Promise.resolve(slice);
       return new Promise((_resolve, reject) => {
-        release = () => reject(new Error('load down'))
-      })
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const onError = vi.fn()
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError)
-    saveAll.mockClear()
+        release = () => reject(new Error("load down"));
+      });
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    saveAll.mockClear();
 
-    hold = true
-    const refresh = refreshActiveAccountSlice('a2')
-    await new Promise((r) => setTimeout(r, 5))
-    useStore
-      .getState()
-      .addClient({ name: 'Mid-failed-reload', color: '#222222' }) // parked
-    release!()
-    expect(await refresh).toBe('failed')
-    await new Promise((r) => setTimeout(r, 5))
+    hold = true;
+    const refresh = refreshActiveAccountSlice("a2");
+    await new Promise((r) => setTimeout(r, 5));
+    useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" }); // parked
+    release!();
+    expect(await refresh).toBe("failed");
+    await new Promise((r) => setTimeout(r, 5));
 
-    expect(saveAll).toHaveBeenCalledTimes(1) // re-scheduled on resume
-    expect(
-      (saveAll.mock.calls[0][0] as AppData).clients.some(
-        (c) => c.name === 'Mid-failed-reload',
-      ),
-    ).toBe(true)
-    detach()
-  })
+    expect(saveAll).toHaveBeenCalledTimes(1); // re-scheduled on resume
+    expect((saveAll.mock.calls[0][0] as AppData).clients.some((c) => c.name === "Mid-failed-reload")).toBe(true);
+    detach();
+  });
 
-  it('unload flush still keepalive-pushes an edit parked by a RELOAD suspension — WITHOUT consuming it', async () => {
+  it("unload flush still keepalive-pushes an edit parked by a RELOAD suspension — WITHOUT consuming it", async () => {
     // The snapshot is still the pre-reload one until loadAll resolves, so the keepalive diff is
     // self-vs-self and safe — declining (as the external-import guard does) would silently lose
     // the edit on every tab close during a reload window. The edit stays PARKED besides: if the
     // keepalive fails and the page survives (tab merely hidden), the reload's (c) check must
     // still own its fate — consuming it here erased the only remaining record of the edit.
-    let release: (() => void) | null = null
-    let hold = false
-    const slice = a2Slice()
+    let release: (() => void) | null = null;
+    let hold = false;
+    const slice = a2Slice();
     const loadAll = vi.fn((): Promise<AppData> => {
-      if (!hold) return Promise.resolve(slice)
+      if (!hold) return Promise.resolve(slice);
       return new Promise((resolve) => {
-        release = () => resolve(slice)
-      })
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const onError = vi.fn()
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError)
-    saveAll.mockClear()
+        release = () => resolve(slice);
+      });
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    saveAll.mockClear();
 
-    hold = true
-    const refresh = refreshActiveAccountSlice('a2')
-    await new Promise((r) => setTimeout(r, 5))
-    useStore.getState().addClient({ name: 'Mid-reload', color: '#222222' }) // parked
-    window.dispatchEvent(new Event('pagehide'))
-    expect(saveAll).toHaveBeenCalledTimes(1) // keepalive-flushed, not dropped
-    expect(saveAll.mock.calls[0][1]).toEqual({ unload: true })
-    expect(
-      (saveAll.mock.calls[0][0] as AppData).clients.some(
-        (c) => c.name === 'Mid-reload',
-      ),
-    ).toBe(true)
+    hold = true;
+    const refresh = refreshActiveAccountSlice("a2");
+    await new Promise((r) => setTimeout(r, 5));
+    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" }); // parked
+    window.dispatchEvent(new Event("pagehide"));
+    expect(saveAll).toHaveBeenCalledTimes(1); // keepalive-flushed, not dropped
+    expect(saveAll.mock.calls[0][1]).toEqual({ unload: true });
+    expect((saveAll.mock.calls[0][0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
 
-    release!()
-    expect(await refresh).toBe('reloaded')
+    release!();
+    expect(await refresh).toBe("reloaded");
     // The page survived: the reload rebases the parked edit and performs a normal confirmed save.
-    expect(saveAll).toHaveBeenCalledTimes(2)
-    expect(
-      (saveAll.mock.calls[1][0] as AppData).clients.some(
-        (c) => c.name === 'Mid-reload',
-      ),
-    ).toBe(true)
-    expect(onError).not.toHaveBeenCalled()
-    detach()
-  })
+    expect(saveAll).toHaveBeenCalledTimes(2);
+    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
+    detach();
+  });
 
-  it('a failed keepalive during the pre-load window is followed by a normal rebased save', async () => {
+  it("a failed keepalive during the pre-load window is followed by a normal rebased save", async () => {
     // Pre-fix, the hidden-tab flush CONSUMED `pending` before dataAtLoad was snapshotted; when the
     // swallowed keepalive then failed and the page survived, every signal at (c) read clean and
     // the edit vanished with zero surface.
-    let releaseLoad: (() => void) | null = null
-    let hold = false
-    const slice = a2Slice()
+    let releaseLoad: (() => void) | null = null;
+    let hold = false;
+    const slice = a2Slice();
     const loadAll = vi.fn((): Promise<AppData> => {
-      if (!hold) return Promise.resolve(slice)
+      if (!hold) return Promise.resolve(slice);
       return new Promise((resolve) => {
-        releaseLoad = () => resolve(slice)
-      })
-    })
+        releaseLoad = () => resolve(slice);
+      });
+    });
     const saveAll = vi.fn((_data: AppData, opts?: { unload?: boolean }) =>
-      opts?.unload
-        ? Promise.reject(new Error('keepalive dropped'))
-        : Promise.resolve(),
-    )
-    const onError = vi.fn()
-    const detach = await attachActiveA2(
-      { loadAll, saveAll: saveAll as PersistenceAdapter['saveAll'] },
-      0,
-      onError,
-    )
+      opts?.unload ? Promise.reject(new Error("keepalive dropped")) : Promise.resolve(),
+    );
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ loadAll, saveAll: saveAll as PersistenceAdapter["saveAll"] }, 0, onError);
 
-    hold = true
-    const refresh = refreshActiveAccountSlice('a2')
-    await new Promise((r) => setTimeout(r, 5))
-    useStore.getState().addClient({ name: 'Hidden-tab edit', color: '#222222' }) // parked
-    window.dispatchEvent(new Event('pagehide')) // keepalive dispatched — and REJECTS
+    hold = true;
+    const refresh = refreshActiveAccountSlice("a2");
+    await new Promise((r) => setTimeout(r, 5));
+    useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" }); // parked
+    window.dispatchEvent(new Event("pagehide")); // keepalive dispatched — and REJECTS
 
-    releaseLoad!()
-    expect(await refresh).toBe('reloaded')
-    expect(saveAll).toHaveBeenCalledTimes(2)
-    expect(saveAll.mock.calls[1][1]).toBeUndefined()
-    expect(
-      (saveAll.mock.calls[1][0] as AppData).clients.some(
-        (c) => c.name === 'Hidden-tab edit',
-      ),
-    ).toBe(true)
-    expect(onError).toHaveBeenCalledOnce()
-    expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'keepalive dropped' }),
-    )
-    detach()
-  })
+    releaseLoad!();
+    expect(await refresh).toBe("reloaded");
+    expect(saveAll).toHaveBeenCalledTimes(2);
+    expect(saveAll.mock.calls[1][1]).toBeUndefined();
+    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Hidden-tab edit")).toBe(true);
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));
+    detach();
+  });
 
-  it('a reload superseded by sign-out rebases and saves only the parked edit against the fresh seed', async () => {
+  it("a reload superseded by sign-out rebases and saves only the parked edit against the fresh seed", async () => {
     // The null-switch arm bumps the token but loads nothing, so the superseded load's reseed of
     // the adapter snapshot stands. Re-scheduling the whole parked tree would emit DELETEs for rows
     // the reload just fetched, so only the operations made during the network window are rebased
     // onto that seed and saved without reinstalling the signed-out account in the UI.
-    let release: (() => void) | null = null
-    let hold = false
-    const slice = a2Slice()
+    let release: (() => void) | null = null;
+    let hold = false;
+    const slice = a2Slice();
     const loadAll = vi.fn((): Promise<AppData> => {
-      if (!hold) return Promise.resolve(slice)
+      if (!hold) return Promise.resolve(slice);
       return new Promise((resolve) => {
-        release = () => resolve(slice)
-      })
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const onError = vi.fn()
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError)
-    saveAll.mockClear()
+        release = () => resolve(slice);
+      });
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    saveAll.mockClear();
 
-    hold = true
-    const refresh = refreshActiveAccountSlice('a2') // load held open
-    await new Promise((r) => setTimeout(r, 5))
-    useStore.getState().setActiveAccount(null) // sign-out — token bump, loads nothing
-    await new Promise((r) => setTimeout(r, 5))
+    hold = true;
+    const refresh = refreshActiveAccountSlice("a2"); // load held open
+    await new Promise((r) => setTimeout(r, 5));
+    useStore.getState().setActiveAccount(null); // sign-out — token bump, loads nothing
+    await new Promise((r) => setTimeout(r, 5));
     // A data write lands while the superseded load is still on the wire (e.g. a mutation that was
     // already dispatched at sign-out) — parked under the refresh's still-held suspension.
     useStore.getState().replaceAll({
@@ -1803,759 +1550,682 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
       clients: [
         ...useStore.getState().data.clients,
         {
-          id: 'stale-c',
-          accountId: 'a2',
-          name: 'Stale',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "stale-c",
+          accountId: "a2",
+          name: "Stale",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    })
+    });
 
-    release!()
-    expect(await refresh).toBe('skipped')
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).toHaveBeenCalledTimes(1)
-    expect(
-      (saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.id),
-    ).toEqual(['c2', 'internal:a2', 'stale-c'])
-    expect(onError).not.toHaveBeenCalled()
-    detach()
-  })
+    release!();
+    expect(await refresh).toBe("skipped");
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.id)).toEqual(["c2", "internal:a2", "stale-c"]);
+    expect(onError).not.toHaveBeenCalled();
+    detach();
+  });
 
-  it('unload flush DECLINES under an EXTERNAL (import) suspension — the parked edit must not diff a mid-replacement snapshot', async () => {
-    const { adapter, saveAll } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter, 0)
-    saveAll.mockClear()
+  it("unload flush DECLINES under an EXTERNAL (import) suspension — the parked edit must not diff a mid-replacement snapshot", async () => {
+    const { adapter, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter, 0);
+    saveAll.mockClear();
 
-    const resume = suspendServerWrites()
-    useStore.getState().addClient({ name: 'Mid-import', color: '#222222' })
-    window.dispatchEvent(new Event('pagehide'))
-    expect(saveAll).not.toHaveBeenCalled()
-    resume({ dropParkedEdits: true })
-    detach()
-  })
+    const resume = suspendServerWrites();
+    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    window.dispatchEvent(new Event("pagehide"));
+    expect(saveAll).not.toHaveBeenCalled();
+    resume({ dropParkedEdits: true });
+    detach();
+  });
 
-  it('flushPendingWrites reports NOT clean while suspended (a second import cannot slip in)', async () => {
-    const { adapter } = recordingAdapter(a2Slice())
-    const detach = await attachActiveA2(adapter)
-    const resume = suspendServerWrites()
-    expect(await flushPendingWrites()).toBe(false)
-    resume()
-    expect(await flushPendingWrites()).toBe(true)
-    detach()
-  })
+  it("flushPendingWrites reports NOT clean while suspended (a second import cannot slip in)", async () => {
+    const { adapter } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter);
+    const resume = suspendServerWrites();
+    expect(await flushPendingWrites()).toBe(false);
+    resume();
+    expect(await flushPendingWrites()).toBe(true);
+    detach();
+  });
 
-  it('is a no-op (with a no-op resume) when no orchestrator is attached', () => {
-    expect(() => suspendServerWrites()()).not.toThrow()
-  })
-})
+  it("is a no-op (with a no-op resume) when no orchestrator is attached", () => {
+    expect(() => suspendServerWrites()()).not.toThrow();
+  });
+});
 
-describe('mid-reload edits are rebased onto the fresh server slice', () => {
-  it('parks an edit during a held-open reload, then installs and saves it after the response', async () => {
-    let release: (() => void) | null = null
-    let hold = false
-    const slice = a2Slice()
+describe("mid-reload edits are rebased onto the fresh server slice", () => {
+  it("parks an edit during a held-open reload, then installs and saves it after the response", async () => {
+    let release: (() => void) | null = null;
+    let hold = false;
+    const slice = a2Slice();
     const loadAll = vi.fn((): Promise<AppData> => {
-      if (!hold) return Promise.resolve(slice)
+      if (!hold) return Promise.resolve(slice);
       return new Promise((resolve) => {
-        release = () => resolve(slice)
-      })
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const onError = vi.fn()
-    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError)
-    saveAll.mockClear()
+        release = () => resolve(slice);
+      });
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ loadAll, saveAll }, 0, onError);
+    saveAll.mockClear();
 
-    hold = true
-    const refresh = refreshActiveAccountSlice('a2') // e.g. a focus refresh, held open on the wire
-    await new Promise((r) => setTimeout(r, 5))
-    useStore.getState().addClient({ name: 'Mid-reload', color: '#222222' }) // immediate-save mode…
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).not.toHaveBeenCalled() // …yet nothing was sent: writes are suspended during the load
+    hold = true;
+    const refresh = refreshActiveAccountSlice("a2"); // e.g. a focus refresh, held open on the wire
+    await new Promise((r) => setTimeout(r, 5));
+    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" }); // immediate-save mode…
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).not.toHaveBeenCalled(); // …yet nothing was sent: writes are suspended during the load
 
-    release!()
-    expect(await refresh).toBe('reloaded')
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).toHaveBeenCalledTimes(1)
-    expect(
-      (saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name),
-    ).toEqual(['Beta Client', 'Internal', 'Mid-reload'])
-    expect(onError).not.toHaveBeenCalled()
-    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual([
-      'Beta Client',
-      'Internal',
-      'Mid-reload',
-    ])
-    detach()
-  })
-})
+    release!();
+    expect(await refresh).toBe("reloaded");
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name)).toEqual([
+      "Beta Client",
+      "Internal",
+      "Mid-reload",
+    ]);
+    expect(onError).not.toHaveBeenCalled();
+    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(["Beta Client", "Internal", "Mid-reload"]);
+    detach();
+  });
+});
 
-describe('a successful reload clears the failure state (cross-tenant leak + stuck banner)', () => {
+describe("a successful reload clears the failure state (cross-tenant leak + stuck banner)", () => {
   it("a successful TENANT SWITCH clears the prior tenant's failed-write state — B's import/refresh are not blocked by A", async () => {
     const bSlice: AppData = {
       ...emptyAppData(),
       accounts: [
         {
-          id: 'b1',
-          name: 'Beta Two',
-          color: '#1',
-          createdAt: 't',
-          updatedAt: 't',
+          id: "b1",
+          name: "Beta Two",
+          color: "#1",
+          createdAt: "t",
+          updatedAt: "t",
         },
       ],
-    }
-    const aSlice = a2Slice()
-    const loadAll = vi.fn(
-      async (accountId?: string): Promise<AppData> =>
-        accountId === 'b1' ? bSlice : aSlice,
-    )
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const onError = vi.fn()
-    const onSuccess = vi.fn()
+    };
+    const aSlice = a2Slice();
+    const loadAll = vi.fn(async (accountId?: string): Promise<AppData> => (accountId === "b1" ? bSlice : aSlice));
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    const onSuccess = vi.fn();
 
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries([
-      { id: 'a2', name: 'Beta', role: 'owner' },
-      { id: 'b1', name: 'Beta Two', role: 'owner' },
-    ])
-    const detach = attachPersistence(
-      useStore,
-      { loadAll, saveAll },
-      0,
-      onError,
-      onSuccess,
-      true,
-    )
-    useStore.getState().setActiveAccount('a2')
-    await new Promise((r) => setTimeout(r, 5))
+      { id: "a2", name: "Beta", role: "owner" },
+      { id: "b1", name: "Beta Two", role: "owner" },
+    ]);
+    const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, onSuccess, true);
+    useStore.getState().setActiveAccount("a2");
+    await new Promise((r) => setTimeout(r, 5));
 
     // A's write fails → the failure state is up (import blocked, focus refresh suppressed).
-    saveAll.mockRejectedValueOnce(new Error('server down'))
-    useStore.getState().addClient({ name: 'Doomed in A', color: '#222222' })
-    await new Promise((r) => setTimeout(r, 5))
-    expect(await flushPendingWrites()).toBe(false)
+    saveAll.mockRejectedValueOnce(new Error("server down"));
+    useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(await flushPendingWrites()).toBe(false);
 
     // Switching to B succeeds: B's writes are clean BY CONSTRUCTION (fresh authoritative slice,
     // snapshot re-seeded) — A's abandoned failure must not follow the user into B.
-    onSuccess.mockClear()
-    useStore.getState().setActiveAccount('b1')
-    await new Promise((r) => setTimeout(r, 5))
-    expect(await flushPendingWrites()).toBe(true) // an import in B is no longer falsely blocked
-    expect(onSuccess).toHaveBeenCalled() // and the "changes aren't saving" banner came down
+    onSuccess.mockClear();
+    useStore.getState().setActiveAccount("b1");
+    await new Promise((r) => setTimeout(r, 5));
+    expect(await flushPendingWrites()).toBe(true); // an import in B is no longer falsely blocked
+    expect(onSuccess).toHaveBeenCalled(); // and the "changes aren't saving" banner came down
 
     // The focus refresh in B is no longer suppressed by A's stale failedSinceSuccess.
-    const loadsBefore = loadAll.mock.calls.length
-    window.dispatchEvent(new Event('focus'))
-    await new Promise((r) => setTimeout(r, 5))
-    expect(loadAll.mock.calls.length).toBe(loadsBefore + 1)
-    detach()
-  })
+    const loadsBefore = loadAll.mock.calls.length;
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 5));
+    expect(loadAll.mock.calls.length).toBe(loadsBefore + 1);
+    detach();
+  });
 
-  it('a switch past FAILED edits SURFACES the loss (typed sticky error) and cancels the stale backoff retry', async () => {
+  it("a switch past FAILED edits SURFACES the loss (typed sticky error) and cancels the stale backoff retry", async () => {
     // Two failure modes this pins: (1) the reset that makes B's writes clean must not SILENTLY
     // swallow the loss of A's un-persisted edits — the reload raises the typed sticky error for
     // them (the banner it clears was their only surface before); (2) the backoff retry armed by
     // A's failure must not survive into the reload and fire mid-/post-load with A's stale tree.
-    vi.useFakeTimers()
+    vi.useFakeTimers();
     try {
       const bSlice: AppData = {
         ...emptyAppData(),
         accounts: [
           {
-            id: 'b1',
-            name: 'Beta Two',
-            color: '#1',
-            createdAt: 't',
-            updatedAt: 't',
+            id: "b1",
+            name: "Beta Two",
+            color: "#1",
+            createdAt: "t",
+            updatedAt: "t",
           },
         ],
-      }
-      const aSlice = a2Slice()
-      let releaseB: (() => void) | null = null
+      };
+      const aSlice = a2Slice();
+      let releaseB: (() => void) | null = null;
       const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
-        if (accountId !== 'b1') return Promise.resolve(aSlice)
+        if (accountId !== "b1") return Promise.resolve(aSlice);
         return new Promise<AppData>((resolve) => {
-          releaseB = () => resolve(bSlice)
-        })
-      })
-      const saveAll = vi.fn().mockResolvedValue(undefined)
-      const onError = vi.fn()
+          releaseB = () => resolve(bSlice);
+        });
+      });
+      const saveAll = vi.fn().mockResolvedValue(undefined);
+      const onError = vi.fn();
 
-      useStore.getState().replaceAll(emptyAppData())
-      useStore.getState().setActiveAccount(null)
+      useStore.getState().replaceAll(emptyAppData());
+      useStore.getState().setActiveAccount(null);
       useStore.getState().setAccountSummaries([
-        { id: 'a2', name: 'Beta', role: 'owner' },
-        { id: 'b1', name: 'Beta Two', role: 'owner' },
-      ])
-      const detach = attachPersistence(
-        useStore,
-        { loadAll, saveAll },
-        0,
-        onError,
-        undefined,
-        true,
-      )
-      useStore.getState().setActiveAccount('a2')
-      await vi.advanceTimersByTimeAsync(5)
+        { id: "a2", name: "Beta", role: "owner" },
+        { id: "b1", name: "Beta Two", role: "owner" },
+      ]);
+      const detach = attachPersistence(useStore, { loadAll, saveAll }, 0, onError, undefined, true);
+      useStore.getState().setActiveAccount("a2");
+      await vi.advanceTimersByTimeAsync(5);
 
-      saveAll.mockRejectedValue(new Error('server down')) // every save now fails
-      useStore.getState().addClient({ name: 'Doomed in A', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(5) // save failed → failure state up, backoff retry armed
-      const savesBeforeSwitch = saveAll.mock.calls.length
+      saveAll.mockRejectedValue(new Error("server down")); // every save now fails
+      useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(5); // save failed → failure state up, backoff retry armed
+      const savesBeforeSwitch = saveAll.mock.calls.length;
 
-      saveAll.mockResolvedValue(undefined) // the connection heals — but A's edit is already lost
-      useStore.getState().setActiveAccount('b1')
-      await vi.advanceTimersByTimeAsync(5)
-      expect(releaseB).not.toBeNull()
-      const midSwitchEdit = useStore
-        .getState()
-        .addClient({ name: 'New in B', color: '#333333' })
-      releaseB!()
-      await vi.advanceTimersByTimeAsync(5)
+      saveAll.mockResolvedValue(undefined); // the connection heals — but A's edit is already lost
+      useStore.getState().setActiveAccount("b1");
+      await vi.advanceTimersByTimeAsync(5);
+      expect(releaseB).not.toBeNull();
+      const midSwitchEdit = useStore.getState().addClient({ name: "New in B", color: "#333333" });
+      releaseB!();
+      await vi.advanceTimersByTimeAsync(5);
 
       // The destination edit is rebased and saved, but that must not hide the older source loss.
       expect(useStore.getState().data.clients).toContainEqual(
         expect.objectContaining({
           id: midSwitchEdit.id,
-          accountId: 'b1',
+          accountId: "b1",
         }),
-      )
-      expect(
-        onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError),
-      ).toBe(true)
+      );
+      expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true);
       // …and no retry ever replayed A's stale tree after the switch (35s covers every backoff).
-      await vi.advanceTimersByTimeAsync(35_000)
+      await vi.advanceTimersByTimeAsync(35_000);
       for (const [payload] of saveAll.mock.calls.slice(savesBeforeSwitch)) {
-        expect(
-          (payload as AppData).clients.some((c) => c.name === 'Doomed in A'),
-        ).toBe(false)
+        expect((payload as AppData).clients.some((c) => c.name === "Doomed in A")).toBe(false);
       }
       expect(
         saveAll.mock.calls
           .slice(savesBeforeSwitch)
-          .some(([payload]) =>
-            (payload as AppData).clients.some((c) => c.id === midSwitchEdit.id),
-          ),
-      ).toBe(true)
-      detach()
+          .some(([payload]) => (payload as AppData).clients.some((c) => c.id === midSwitchEdit.id)),
+      ).toBe(true);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
-})
+  });
+});
 
-describe('batch reconciliation (authoritative reload)', () => {
+describe("batch reconciliation (authoritative reload)", () => {
   // A 409 from /api/batch (optimistic concurrency) is NOT transient: retrying the same stale diff
   // 409s forever, and abortIfSaveFailed blocks the focus refresh that could break the loop — a
   // self-sustaining error wedge. The persist layer must instead resolve by RELOADING the active
   // slice (server wins, the local conflicting edit is deliberately discarded), surface the banner
   // via onError, and clear it via the follow-up clean save's onSuccess.
 
-  it('a 409 conflict RELOADS the slice (no abort), does NOT arm the stale-diff retry, and the banner clears', async () => {
-    vi.useFakeTimers()
+  it("a 409 conflict RELOADS the slice (no abort), does NOT arm the stale-diff retry, and the banner clears", async () => {
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-      const onError = vi.fn()
-      const onSuccess = vi.fn()
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachP
-      const loadsAfterPick = loadAll.mock.calls.length
-      saveAll.mockClear()
-      saveAll.mockRejectedValueOnce(new BatchConflictError('stale write'))
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+      const onError = vi.fn();
+      const onSuccess = vi.fn();
+      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachP;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      saveAll.mockClear();
+      saveAll.mockRejectedValueOnce(new BatchConflictError("stale write"));
 
-      useStore.getState().addClient({ name: 'Conflicted', color: '#222222' }) // immediate save → 409
-      await vi.advanceTimersByTimeAsync(5)
+      useStore.getState().addClient({ name: "Conflicted", color: "#222222" }); // immediate save → 409
+      await vi.advanceTimersByTimeAsync(5);
 
-      expect(onError).toHaveBeenCalledTimes(1) // the banner surfaced "your edit did not save"
+      expect(onError).toHaveBeenCalledTimes(1); // the banner surfaced "your edit did not save"
       // The resolution reload ran — deliberately WITHOUT abortIfSaveFailed (this reload IS the
       // resolution), unlike the focus refresh which must abort on a failed save.
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       // Server wins: the conflicting local edit was discarded for the server's slice.
-      expect(useStore.getState().data.clients.map((c) => c.id)).toEqual([
-        'c2',
-        'internal:a2',
-      ])
+      expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2", "internal:a2"]);
       // The follow-up clean save fired onSuccess so the banner comes back down.
-      expect(onSuccess).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalled();
 
       // The backoff retry was NOT armed with the stale diff: 35s covers every backoff step.
-      const savesAfterResolution = saveAll.mock.calls.length // the conflict save + the follow-up
-      expect(savesAfterResolution).toBe(2)
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll.mock.calls.length).toBe(savesAfterResolution)
-      detach()
+      const savesAfterResolution = saveAll.mock.calls.length; // the conflict save + the follow-up
+      expect(savesAfterResolution).toBe(2);
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll.mock.calls.length).toBe(savesAfterResolution);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('an uncertain 2xx receipt reloads before another write and never retries the prior diff', async () => {
-    vi.useFakeTimers()
+  it("an uncertain 2xx receipt reloads before another write and never retries the prior diff", async () => {
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-      const onError = vi.fn()
-      const detachP = attachActiveA2(adapter, 0, onError)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachP
-      const loadsAfterPick = loadAll.mock.calls.length
-      saveAll.mockClear()
-      saveAll.mockRejectedValueOnce(
-        new BatchCommitUncertainError('incomplete revisions'),
-      )
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+      const onError = vi.fn();
+      const detachP = attachActiveA2(adapter, 0, onError);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachP;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      saveAll.mockClear();
+      saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("incomplete revisions"));
 
-      useStore.getState().addClient({ name: 'Uncertain', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(5)
+      useStore.getState().addClient({ name: "Uncertain", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(5);
 
-      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(
-        BatchCommitUncertainError,
-      )
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
-      expect(
-        useStore.getState().data.clients.map((client) => client.id),
-      ).toEqual(['c2', 'internal:a2'])
-      const savesAfterResolution = saveAll.mock.calls.length
-      expect(savesAfterResolution).toBe(2) // uncertain attempt + clean post-reload acknowledgement
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll.mock.calls.length).toBe(savesAfterResolution)
-      detach()
+      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchCommitUncertainError);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
+      expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2"]);
+      const savesAfterResolution = saveAll.mock.calls.length;
+      expect(savesAfterResolution).toBe(2); // uncertain attempt + clean post-reload acknowledgement
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll.mock.calls.length).toBe(savesAfterResolution);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('a 400 validation rejection reloads server truth and never retries the rejected diff', async () => {
-    vi.useFakeTimers()
+  it("a 400 validation rejection reloads server truth and never retries the rejected diff", async () => {
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-      const onError = vi.fn()
-      const onSuccess = vi.fn()
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachP
-      const loadsAfterPick = loadAll.mock.calls.length
-      saveAll.mockClear()
-      onSuccess.mockClear()
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+      const onError = vi.fn();
+      const onSuccess = vi.fn();
+      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachP;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      saveAll.mockClear();
+      onSuccess.mockClear();
       saveAll.mockRejectedValueOnce(
-        new BatchValidationError(
-          'Allocation must reference an active resource in this company.',
-        ),
-      )
+        new BatchValidationError("Allocation must reference an active resource in this company."),
+      );
 
-      useStore
-        .getState()
-        .addClient({ name: 'Rejected local edit', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(5)
+      useStore.getState().addClient({ name: "Rejected local edit", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(5);
 
-      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchValidationError)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
-      expect(
-        useStore.getState().data.clients.map((client) => client.id),
-      ).toEqual(['c2', 'internal:a2'])
-      expect(onSuccess).toHaveBeenCalled()
+      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchValidationError);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
+      expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2"]);
+      expect(onSuccess).toHaveBeenCalled();
 
-      const savesAfterResolution = saveAll.mock.calls.length
-      expect(savesAfterResolution).toBe(2) // rejected attempt + clean post-reload acknowledgement
-      window.dispatchEvent(new Event('focus'))
-      window.dispatchEvent(new Event('online'))
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll.mock.calls.length).toBe(savesAfterResolution)
-      detach()
+      const savesAfterResolution = saveAll.mock.calls.length;
+      expect(savesAfterResolution).toBe(2); // rejected attempt + clean post-reload acknowledgement
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("online"));
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll.mock.calls.length).toBe(savesAfterResolution);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('keeps an uncertain diff write-gated when its reload fails, then retries the reload on recovery', async () => {
-    vi.useFakeTimers()
+  it("keeps an uncertain diff write-gated when its reload fails, then retries the reload on recovery", async () => {
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-      const onError = vi.fn()
-      const detachP = attachActiveA2(adapter, 0, onError)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachP
-      const loadsAfterPick = loadAll.mock.calls.length
-      saveAll.mockClear()
-      loadAll.mockRejectedValueOnce(new Error('reload unavailable'))
-      saveAll.mockRejectedValueOnce(
-        new BatchCommitUncertainError('incomplete revisions'),
-      )
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+      const onError = vi.fn();
+      const detachP = attachActiveA2(adapter, 0, onError);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachP;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      saveAll.mockClear();
+      loadAll.mockRejectedValueOnce(new Error("reload unavailable"));
+      saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("incomplete revisions"));
 
-      useStore.getState().addClient({ name: 'Uncertain', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(5)
+      useStore.getState().addClient({ name: "Uncertain", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(5);
 
-      expect(saveAll).toHaveBeenCalledTimes(1) // the original, commit-uncertain attempt only
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1) // resolution was attempted
-      expect(
-        onError.mock.calls.some(
-          ([error]) => error instanceof BatchCommitUncertainError,
-        ),
-      ).toBe(true)
+      expect(saveAll).toHaveBeenCalledTimes(1); // the original, commit-uncertain attempt only
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1); // resolution was attempted
+      expect(onError.mock.calls.some(([error]) => error instanceof BatchCommitUncertainError)).toBe(true);
 
       // Neither teardown keepalive nor the ordinary retry horizon may replay a batch that could
       // already have committed while the required authoritative load is unavailable.
-      window.dispatchEvent(new Event('pagehide'))
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll).toHaveBeenCalledTimes(1)
+      window.dispatchEvent(new Event("pagehide"));
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll).toHaveBeenCalledTimes(1);
 
       // Connectivity recovery retries loadAll first. Only after that succeeds may a clean/rebased
       // acknowledgement run; the original local edit remains discarded in favour of server truth.
-      window.dispatchEvent(new Event('online'))
-      await vi.advanceTimersByTimeAsync(5)
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 2)
-      expect(
-        useStore.getState().data.clients.map((client) => client.id),
-      ).toEqual(['c2', 'internal:a2'])
-      expect(saveAll).toHaveBeenCalledTimes(2)
-      detach()
+      window.dispatchEvent(new Event("online"));
+      await vi.advanceTimersByTimeAsync(5);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 2);
+      expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2"]);
+      expect(saveAll).toHaveBeenCalledTimes(2);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('a conflict DURING the resolution does not recurse — ONE reload, banner stays up', async () => {
+  it("a conflict DURING the resolution does not recurse — ONE reload, banner stays up", async () => {
     // The re-entry guard: the resolution's follow-up save can itself 409 (other pending edits also
     // stale). That must NOT trigger a second resolution reload (an unbounded reload↔save loop) —
     // it just surfaces the banner; a later focus/online re-attempt retriggers resolution.
-    vi.useFakeTimers()
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-      const onError = vi.fn()
-      const onSuccess = vi.fn()
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachP
-      const loadsAfterPick = loadAll.mock.calls.length
-      saveAll.mockClear()
-      onSuccess.mockClear() // a successful reload (incl. the pick) fires onSuccess by design now
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+      const onError = vi.fn();
+      const onSuccess = vi.fn();
+      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachP;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      saveAll.mockClear();
+      onSuccess.mockClear(); // a successful reload (incl. the pick) fires onSuccess by design now
       saveAll
-        .mockRejectedValueOnce(new BatchConflictError('stale write')) // the edit's save
-        .mockRejectedValueOnce(new BatchConflictError('still stale')) // the resolution's follow-up save
+        .mockRejectedValueOnce(new BatchConflictError("stale write")) // the edit's save
+        .mockRejectedValueOnce(new BatchConflictError("still stale")); // the resolution's follow-up save
 
-      useStore.getState().addClient({ name: 'Conflicted', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(5)
+      useStore.getState().addClient({ name: "Conflicted", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(5);
 
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1) // exactly ONE resolution reload
-      expect(onError).toHaveBeenCalledTimes(2) // both conflicts surfaced
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1); // exactly ONE resolution reload
+      expect(onError).toHaveBeenCalledTimes(2); // both conflicts surfaced
       // The resolution RELOAD fires onSuccess (an installed authoritative slice IS a healthy
       // sync), but the follow-up save's second 409 re-raises the banner AFTER it — the user's
       // final state is the banner up. Assert the ORDER, not "never called".
-      const lastSuccess = Math.max(...onSuccess.mock.invocationCallOrder)
-      const lastError = Math.max(...onError.mock.invocationCallOrder)
-      expect(lastError).toBeGreaterThan(lastSuccess) // banner ends UP — the 409 outlives the reload's clear
-      await vi.advanceTimersByTimeAsync(35_000) // and no retry/reload machinery re-fires
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
-      expect(saveAll.mock.calls.length).toBe(2)
-      detach()
+      const lastSuccess = Math.max(...onSuccess.mock.invocationCallOrder);
+      const lastError = Math.max(...onError.mock.invocationCallOrder);
+      expect(lastError).toBeGreaterThan(lastSuccess); // banner ends UP — the 409 outlives the reload's clear
+      await vi.advanceTimersByTimeAsync(35_000); // and no retry/reload machinery re-fires
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
+      expect(saveAll.mock.calls.length).toBe(2);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('an edit made during the conflict reload is rebased without restoring the original conflicted edit', async () => {
+  it("an edit made during the conflict reload is rebased without restoring the original conflicted edit", async () => {
     // The reload window race: the 409 triggers refreshActive, and the user edits again while
     // loadAll is on the wire. The server slice is AUTHORITATIVE (server-wins): keeping the local
     // state and letting its save diff against the fresh snapshot would push the WHOLE pre-reload
     // tree — re-landing the exact edit the resolution just declared discarded and DELETE-ing rows
     // the other writer committed. Only the operation made during the reload may be rebased onto the
     // authoritative slice; the original conflicted edit must stay discarded.
-    let hold = false
-    let release: (() => void) | null = null
-    const slice = a2Slice()
+    let hold = false;
+    let release: (() => void) | null = null;
+    const slice = a2Slice();
     const loadAll = vi.fn((): Promise<AppData> => {
-      if (!hold) return Promise.resolve(slice)
+      if (!hold) return Promise.resolve(slice);
       return new Promise((resolve) => {
-        release = () => resolve(slice)
-      })
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
-    const onError = vi.fn()
-    const detach = await attachActiveA2(adapter, 0, onError)
+        release = () => resolve(slice);
+      });
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const adapter: PersistenceAdapter = { loadAll, saveAll };
+    const onError = vi.fn();
+    const detach = await attachActiveA2(adapter, 0, onError);
 
-    saveAll.mockRejectedValueOnce(new BatchConflictError('stale write'))
-    hold = true // the resolution reload will now be held open
+    saveAll.mockRejectedValueOnce(new BatchConflictError("stale write"));
+    hold = true; // the resolution reload will now be held open
 
-    useStore.getState().addClient({ name: 'Conflicted', color: '#222222' }) // immediate save → 409
-    await new Promise((r) => setTimeout(r, 5))
-    expect(release).not.toBeNull() // resolution reload in flight
+    useStore.getState().addClient({ name: "Conflicted", color: "#222222" }); // immediate save → 409
+    await new Promise((r) => setTimeout(r, 5));
+    expect(release).not.toBeNull(); // resolution reload in flight
 
     // A second edit lands while the reload is on the wire. (In this immediate-save configuration
     // its own save fires at edit time — pre-seed, so harmless; the danger is a save AFTER the
     // reload installed the slice re-pushing the pre-reload tree.)
-    useStore.getState().addClient({ name: 'During reload', color: '#333333' })
-    await new Promise((r) => setTimeout(r, 5))
-    const savesBeforeReloadSettled = saveAll.mock.calls.length
+    useStore.getState().addClient({ name: "During reload", color: "#333333" });
+    await new Promise((r) => setTimeout(r, 5));
+    const savesBeforeReloadSettled = saveAll.mock.calls.length;
 
-    release!() // the reload resolves LAST
-    await new Promise((r) => setTimeout(r, 5))
+    release!(); // the reload resolves LAST
+    await new Promise((r) => setTimeout(r, 5));
 
-    const names = useStore.getState().data.clients.map((c) => c.name)
-    expect(names).toEqual(['Beta Client', 'Internal', 'During reload'])
-    expect(names).not.toContain('Conflicted')
-    expect(
-      onError.mock.calls.some(([e]) => e instanceof BatchConflictError),
-    ).toBe(true)
-    const postReload = saveAll.mock.calls
-      .slice(savesBeforeReloadSettled)
-      .map(([payload]) => payload as AppData)
-    expect(
-      postReload.some((payload) =>
-        payload.clients.some((c) => c.name === 'During reload'),
-      ),
-    ).toBe(true)
-    expect(
-      postReload.every(
-        (payload) => !payload.clients.some((c) => c.name === 'Conflicted'),
-      ),
-    ).toBe(true)
-    detach()
-  })
+    const names = useStore.getState().data.clients.map((c) => c.name);
+    expect(names).toEqual(["Beta Client", "Internal", "During reload"]);
+    expect(names).not.toContain("Conflicted");
+    expect(onError.mock.calls.some(([e]) => e instanceof BatchConflictError)).toBe(true);
+    const postReload = saveAll.mock.calls.slice(savesBeforeReloadSettled).map(([payload]) => payload as AppData);
+    expect(postReload.some((payload) => payload.clients.some((c) => c.name === "During reload"))).toBe(true);
+    expect(postReload.every((payload) => !payload.clients.some((c) => c.name === "Conflicted"))).toBe(true);
+    detach();
+  });
 
-  it('a NON-conflict failure keeps the existing backoff retry (regression pin) — no conflict reload', async () => {
-    vi.useFakeTimers()
+  it("a NON-conflict failure keeps the existing backoff retry (regression pin) — no conflict reload", async () => {
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-      const onSuccess = vi.fn()
-      const detachP = attachActiveA2(adapter, 0, undefined, onSuccess)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachP
-      const loadsAfterPick = loadAll.mock.calls.length
-      saveAll.mockClear()
-      onSuccess.mockClear() // the pick's successful reload fires onSuccess by design now
-      saveAll.mockRejectedValueOnce(new Error('temporarily unavailable'))
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+      const onSuccess = vi.fn();
+      const detachP = attachActiveA2(adapter, 0, undefined, onSuccess);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachP;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      saveAll.mockClear();
+      onSuccess.mockClear(); // the pick's successful reload fires onSuccess by design now
+      saveAll.mockRejectedValueOnce(new Error("temporarily unavailable"));
 
-      useStore.getState().addClient({ name: 'Transient', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(0) // first attempt fails, retry armed
-      expect(onSuccess).not.toHaveBeenCalled()
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // a transient failure never reloads
+      useStore.getState().addClient({ name: "Transient", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(0); // first attempt fails, retry armed
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // a transient failure never reloads
 
-      await vi.advanceTimersByTimeAsync(1000) // backoff #1 → succeeds
-      expect(onSuccess).toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1000); // backoff #1 → succeeds
+      expect(onSuccess).toHaveBeenCalled();
       // The optimistic edit survived (no server-wins reload for a transient failure).
-      expect(
-        useStore.getState().data.clients.some((c) => c.name === 'Transient'),
-      ).toBe(true)
-      detach()
+      expect(useStore.getState().data.clients.some((c) => c.name === "Transient")).toBe(true);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
+  });
 
-  it('an over-limit failure (BatchTooLargeError) is TERMINAL — no backoff retry, banner via onError', async () => {
+  it("an over-limit failure (BatchTooLargeError) is TERMINAL — no backoff retry, banner via onError", async () => {
     // Unlike a transient failure (the regression pin above), an over-limit diff would throw on EVERY
     // backoff attempt (the atomic batch refuses to split it), so persist.ts must STOP retrying — no
     // self-sustaining error wedge — while still surfacing the banner. It is NOT a conflict either, so
     // it must not trigger a server-wins reload. The durable journal keeps the desired state; a later,
     // smaller diff clears the banner.
-    vi.useFakeTimers()
+    vi.useFakeTimers();
     try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
-      const onError = vi.fn()
-      const onSuccess = vi.fn()
-      const detachP = attachActiveA2(adapter, 0, onError, onSuccess)
-      await vi.advanceTimersByTimeAsync(5)
-      const detach = await detachP
-      const loadsAfterPick = loadAll.mock.calls.length
-      saveAll.mockClear()
-      onSuccess.mockClear() // the pick's successful reload fires onSuccess by design
-      saveAll.mockRejectedValue(
-        new BatchTooLargeError(
-          'Atomic sync exceeds the 5000-operation server limit.',
-        ),
-      )
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
+      const onError = vi.fn();
+      const onSuccess = vi.fn();
+      const detachP = attachActiveA2(adapter, 0, onError, onSuccess);
+      await vi.advanceTimersByTimeAsync(5);
+      const detach = await detachP;
+      const loadsAfterPick = loadAll.mock.calls.length;
+      saveAll.mockClear();
+      onSuccess.mockClear(); // the pick's successful reload fires onSuccess by design
+      saveAll.mockRejectedValue(new BatchTooLargeError("Atomic sync exceeds the 5000-operation server limit."));
 
-      useStore.getState().addClient({ name: 'Too Big', color: '#222222' })
-      await vi.advanceTimersByTimeAsync(0) // the save attempt → throws BatchTooLargeError
-      expect(onError).toHaveBeenCalledTimes(1) // the banner surfaced "changes aren't saving"
-      expect(onError.mock.calls[0][0]).toBeInstanceOf(BatchTooLargeError)
-      const savesAfterEdit = saveAll.mock.calls.length // exactly the one over-limit attempt
-      expect(savesAfterEdit).toBe(1)
+      useStore.getState().addClient({ name: "Too Big", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(0); // the save attempt → throws BatchTooLargeError
+      expect(onError).toHaveBeenCalledTimes(1); // the banner surfaced "changes aren't saving"
+      expect(onError.mock.calls[0][0]).toBeInstanceOf(BatchTooLargeError);
+      const savesAfterEdit = saveAll.mock.calls.length; // exactly the one over-limit attempt
+      expect(savesAfterEdit).toBe(1);
 
       // 35s covers every backoff step: a TRANSIENT error re-attempts across it, a TERMINAL one does
       // not — and it never reloads (that is the conflict path, not this one).
-      await vi.advanceTimersByTimeAsync(35_000)
-      expect(saveAll.mock.calls.length).toBe(savesAfterEdit) // no background retry armed
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // terminal, not a server-wins reload
-      expect(onError).toHaveBeenCalledTimes(1) // surfaced once, not looped
+      await vi.advanceTimersByTimeAsync(35_000);
+      expect(saveAll.mock.calls.length).toBe(savesAfterEdit); // no background retry armed
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // terminal, not a server-wins reload
+      expect(onError).toHaveBeenCalledTimes(1); // surfaced once, not looped
 
-      window.dispatchEvent(new Event('online'))
-      Object.defineProperty(document, 'visibilityState', {
+      window.dispatchEvent(new Event("online"));
+      Object.defineProperty(document, "visibilityState", {
         configurable: true,
-        value: 'visible',
-      })
-      document.dispatchEvent(new Event('visibilitychange'))
-      await vi.advanceTimersByTimeAsync(0)
-      expect(saveAll).toHaveBeenCalledTimes(savesAfterEdit)
-      expect(onError).toHaveBeenCalledTimes(1)
+        value: "visible",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(saveAll).toHaveBeenCalledTimes(savesAfterEdit);
+      expect(onError).toHaveBeenCalledTimes(1);
 
-      saveAll.mockResolvedValue(undefined)
-      useStore
-        .getState()
-        .addClient({ name: 'Smaller follow-up', color: '#333333' })
-      await vi.advanceTimersByTimeAsync(0)
-      expect(saveAll).toHaveBeenCalledTimes(savesAfterEdit + 1)
-      expect(onSuccess).toHaveBeenCalledTimes(1)
-      detach()
+      saveAll.mockResolvedValue(undefined);
+      useStore.getState().addClient({ name: "Smaller follow-up", color: "#333333" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(saveAll).toHaveBeenCalledTimes(savesAfterEdit + 1);
+      expect(onSuccess).toHaveBeenCalledTimes(1);
+      detach();
     } finally {
-      vi.useRealTimers()
+      vi.useRealTimers();
     }
-  })
-})
+  });
+});
 
-describe('bootstrap', () => {
-  it('seeds an empty store and marks it hydrated', async () => {
-    const adapter = new InMemoryDemoAdapter()
+describe("bootstrap", () => {
+  it("seeds an empty store and marks it hydrated", async () => {
+    const adapter = new InMemoryDemoAdapter();
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
-    })
-    expect(useStore.getState().hydrated).toBe(true)
-    expect(useStore.getState().data.resources.length).toBeGreaterThan(0)
+    });
+    expect(useStore.getState().hydrated).toBe(true);
+    expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
     // the seed is also persisted on first run
-    expect((await adapter.loadAll()).resources.length).toBeGreaterThan(0)
-    detach()
-  })
+    expect((await adapter.loadAll()).resources.length).toBeGreaterThan(0);
+    detach();
+  });
 
-  it('does not re-seed after the user has cleared all their data', async () => {
-    const adapter = new InMemoryDemoAdapter()
-    await adapter.saveAll(emptyAppData()) // user deleted everything; empty IS persisted
+  it("does not re-seed after the user has cleared all their data", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    await adapter.saveAll(emptyAppData()); // user deleted everything; empty IS persisted
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
-    })
-    expect(useStore.getState().data.resources).toHaveLength(0) // seed must NOT come back
-    detach()
-  })
+    });
+    expect(useStore.getState().data.resources).toHaveLength(0); // seed must NOT come back
+    detach();
+  });
 
-  it('a failing first-run seed write still hydrates, reports via onError, and attaches persistence', async () => {
-    const adapter = new InMemoryDemoAdapter()
-    const realSave = adapter.saveAll.bind(adapter)
-    let calls = 0
-    const errors: unknown[] = []
-    vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
-      calls += 1
-      if (calls === 1) throw new Error('quota exceeded') // the seed write fails
-      return realSave(d)
-    })
+  it("a failing first-run seed write still hydrates, reports via onError, and attaches persistence", async () => {
+    const adapter = new InMemoryDemoAdapter();
+    const realSave = adapter.saveAll.bind(adapter);
+    let calls = 0;
+    const errors: unknown[] = [];
+    vi.spyOn(adapter, "saveAll").mockImplementation(async (d) => {
+      calls += 1;
+      if (calls === 1) throw new Error("quota exceeded"); // the seed write fails
+      return realSave(d);
+    });
 
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
       onError: (e) => errors.push(e),
-    })
+    });
 
-    expect(useStore.getState().hydrated).toBe(true) // app still renders
-    expect(errors).toHaveLength(1) // the failure surfaced (would flip the banner)
+    expect(useStore.getState().hydrated).toBe(true); // app still renders
+    expect(errors).toHaveLength(1); // the failure surfaced (would flip the banner)
     // Bootstrap deliberately leaves company selection at the picker. Choose the seeded tenant, then
     // prove persistence is STILL attached: a later edit persists via the now-working adapter.
-    useStore
-      .getState()
-      .setActiveAccount(useStore.getState().data.accounts[0].id)
-    useStore.getState().addClient({ name: 'Later', color: '#1' })
-    expect(
-      (await adapter.loadAll()).clients.some((c) => c.name === 'Later'),
-    ).toBe(true)
-    detach()
-  })
+    useStore.getState().setActiveAccount(useStore.getState().data.accounts[0].id);
+    useStore.getState().addClient({ name: "Later", color: "#1" });
+    expect((await adapter.loadAll()).clients.some((c) => c.name === "Later")).toBe(true);
+    detach();
+  });
 
-  it('loads existing data without re-seeding', async () => {
-    const adapter = new InMemoryDemoAdapter()
+  it("loads existing data without re-seeding", async () => {
+    const adapter = new InMemoryDemoAdapter();
     await adapter.saveAll(
       makeAppData({
         clients: [
           {
-            id: 'c1',
+            id: "c1",
             accountId: DEFAULT_ACCOUNT_ID,
-            createdAt: 't',
-            updatedAt: 't',
-            name: 'Saved',
-            color: '#1',
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Saved",
+            color: "#1",
           },
         ],
       }),
-    )
+    );
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
-    })
-    expect(useStore.getState().data.clients).toHaveLength(1)
-    expect(useStore.getState().data.clients[0].name).toBe('Saved')
-    expect(useStore.getState().data.resources).toHaveLength(0)
-    detach()
-  })
+    });
+    expect(useStore.getState().data.clients).toHaveLength(1);
+    expect(useStore.getState().data.clients[0].name).toBe("Saved");
+    expect(useStore.getState().data.resources).toHaveLength(0);
+    detach();
+  });
 
-  it('keeps loaded data and attaches persistence when hasExisting() throws after a successful load', async () => {
+  it("keeps loaded data and attaches persistence when hasExisting() throws after a successful load", async () => {
     // Server mode: /api/state succeeds but /api/meta has a transient blip. The loaded data
     // must NOT be discarded and saving must NOT be bricked by the hasExisting() throw.
     const loaded = makeAppData({
       clients: [
         {
-          id: 'c1',
+          id: "c1",
           accountId: DEFAULT_ACCOUNT_ID,
-          createdAt: 't',
-          updatedAt: 't',
-          name: 'Loaded',
-          color: '#1',
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Loaded",
+          color: "#1",
         },
       ],
-    })
-    const saveAll = vi.fn().mockResolvedValue(undefined)
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
     const adapter: PersistenceAdapter = {
       loadAll: () => Promise.resolve(loaded),
       saveAll,
-      hasExisting: () => Promise.reject(new Error('meta blip')),
-    }
+      hasExisting: () => Promise.reject(new Error("meta blip")),
+    };
 
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
-    })
+    });
 
-    expect(useStore.getState().hydrated).toBe(true)
-    expect(useStore.getState().data.clients).toHaveLength(1) // loaded data kept, not discarded
-    expect(useStore.getState().data.clients[0].name).toBe('Loaded')
-    expect(useStore.getState().data.resources).toHaveLength(0) // NOT re-seeded (data exists)
+    expect(useStore.getState().hydrated).toBe(true);
+    expect(useStore.getState().data.clients).toHaveLength(1); // loaded data kept, not discarded
+    expect(useStore.getState().data.clients[0].name).toBe("Loaded");
+    expect(useStore.getState().data.resources).toHaveLength(0); // NOT re-seeded (data exists)
 
     // Persistence IS attached: a later edit still saves.
-    useStore.getState().addClient({ name: 'Later', color: '#222222' })
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).toHaveBeenCalled()
-    detach()
-  })
+    useStore.getState().addClient({ name: "Later", color: "#222222" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).toHaveBeenCalled();
+    detach();
+  });
 
-  it('flags connectionError (not loadError) and attaches no persistence when a remote load is unavailable', async () => {
-    useStore.getState().setLoadError(false)
-    useStore.getState().setConnectionError(false)
-    const saveAll = vi.fn().mockResolvedValue(undefined)
+  it("flags connectionError (not loadError) and attaches no persistence when a remote load is unavailable", async () => {
+    useStore.getState().setLoadError(false);
+    useStore.getState().setConnectionError(false);
+    const saveAll = vi.fn().mockResolvedValue(undefined);
     // A server-backed adapter whose load fails (server down / network error).
     const adapter: PersistenceAdapter = {
-      loadAll: () =>
-        Promise.reject(new LoadError('unavailable', 'server down')),
+      loadAll: () => Promise.reject(new LoadError("unavailable", "server down")),
       saveAll,
-    }
+    };
 
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
-    })
+    });
 
     // Routed to the retry screen, NOT the corrupt-data reset UI.
-    expect(useStore.getState().connectionError).toBe(true)
-    expect(useStore.getState().loadError).toBe(false)
-    expect(useStore.getState().hydrated).toBe(true)
-    expect(useStore.getState().data.resources).toHaveLength(0) // rendered empty, not seeded
+    expect(useStore.getState().connectionError).toBe(true);
+    expect(useStore.getState().loadError).toBe(false);
+    expect(useStore.getState().hydrated).toBe(true);
+    expect(useStore.getState().data.resources).toHaveLength(0); // rendered empty, not seeded
 
     // No autosave attached: an edit must not be pushed as a destructive diff to a
     // server that merely returned once.
-    useStore.getState().addAccount({ name: 'New', color: '#111111' })
-    await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).not.toHaveBeenCalled()
+    useStore.getState().addAccount({ name: "New", color: "#111111" });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(saveAll).not.toHaveBeenCalled();
 
-    useStore.getState().setConnectionError(false)
-    detach()
-  })
-})
+    useStore.getState().setConnectionError(false);
+    detach();
+  });
+});

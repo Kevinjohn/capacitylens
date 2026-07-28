@@ -5,5 +5,5 @@
 // defaulting a guard to off defeats it (plan exception 3).
 
 export function resetForbidden(env: { CAPACITYLENS_ALLOW_RESET?: string; NODE_ENV?: string }): boolean {
-  return env.CAPACITYLENS_ALLOW_RESET === '1' && env.NODE_ENV === 'production'
+  return env.CAPACITYLENS_ALLOW_RESET === "1" && env.NODE_ENV === "production";
 }

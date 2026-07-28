@@ -1,23 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ArchivedSection } from "./ArchivedSection";
 import { useStore } from "../../store/useStore";
 import { makeAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type {
-  AppData,
-  Client,
-  Project,
-  Resource,
-} from "@capacitylens/shared/types/entities";
+import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { PermissionContext } from "../../auth/permissionContext";
 
 // ArchivedSection is the Settings → "Archived & deleted" admin view (P2.5b). These tests cover the
@@ -86,9 +74,7 @@ function daysAgo(days: number): string {
 }
 
 function seed(data: Partial<AppData>): void {
-  useStore
-    .getState()
-    .replaceAll({ ...emptyAppData(), accounts: [makeAccount()], ...data });
+  useStore.getState().replaceAll({ ...emptyAppData(), accounts: [makeAccount()], ...data });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().setNotice(null);
   useStore.getState().setActiveRole(null);
@@ -108,21 +94,15 @@ describe("ArchivedSection — demo build (store source)", () => {
     seed({ resources: [resource({})] }); // one ACTIVE resource → not listed
     render(<ArchivedSection />);
     expect(screen.getByTestId("archived-section")).toBeInTheDocument();
-    expect(
-      screen.getByText("Nothing archived or deleted."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Nothing archived or deleted.")).toBeInTheDocument();
     expect(screen.queryByTestId("archived-row")).not.toBeInTheDocument();
     expect(screen.queryByTestId("deleted-row")).not.toBeInTheDocument();
   });
 
   it("lists archived and deleted rows across the three tables", () => {
     seed({
-      resources: [
-        resource({ id: "r-arch", name: "Archived Person", archivedAt: TS }),
-      ],
-      clients: [
-        client({ id: "c-arch", name: "Archived Client", archivedAt: TS }),
-      ],
+      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
+      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
       projects: [
         project({
           id: "p-del",
@@ -146,9 +126,7 @@ describe("ArchivedSection — demo build (store source)", () => {
 
   it("hides both destructive lifecycle affordances from a non-purge role", () => {
     seed({
-      resources: [
-        resource({ id: "r-arch", name: "Archived Person", archivedAt: TS }),
-      ],
+      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
       clients: [
         client({
           id: "c-old",
@@ -159,20 +137,14 @@ describe("ArchivedSection — demo build (store source)", () => {
       ],
     });
     render(
-      <PermissionContext.Provider
-        value={{ role: "editor", status: "resolved" }}
-      >
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
         <ArchivedSection />
       </PermissionContext.Provider>,
     );
 
     // Editors may restore archived scheduling data, but delete/purge are both admin-tier actions.
-    expect(
-      screen.getByRole("button", { name: "Restore Archived Person" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Delete Archived Person" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore Archived Person" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Archived Person" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: "Permanently delete Old Tombstone",
@@ -183,41 +155,29 @@ describe("ArchivedSection — demo build (store source)", () => {
   it("Restore dispatches unarchiveEntity (row returns to active)", async () => {
     const user = userEvent.setup();
     seed({
-      resources: [
-        resource({ id: "r-arch", name: "Archived Person", archivedAt: TS }),
-      ],
+      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
     });
     render(<ArchivedSection />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Restore Archived Person" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Restore Archived Person" }));
 
-    const r = useStore
-      .getState()
-      .data.resources.find((x) => x.id === "r-arch")!;
+    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch")!;
     expect(r.archivedAt).toBeUndefined(); // back to active
   });
 
   it("Delete (soft-delete) dispatches softDeleteEntity and scrubs a resource name", async () => {
     const user = userEvent.setup();
     seed({
-      resources: [
-        resource({ id: "r-arch", name: "Archived Person", archivedAt: TS }),
-      ],
+      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
     });
     render(<ArchivedSection />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Delete Archived Person" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Delete Archived Person" }));
     // Confirm the danger dialog.
     const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
-    const r = useStore
-      .getState()
-      .data.resources.find((x) => x.id === "r-arch")!;
+    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch")!;
     expect(r.deletedAt).toBeTruthy();
     // The resource name is scrubbed to the obfuscated token on soft-delete.
     expect(r.name).toMatch(/^Removed person #/);
@@ -237,9 +197,7 @@ describe("ArchivedSection — demo build (store source)", () => {
     });
     render(<ArchivedSection />);
 
-    await user.click(
-      screen.getByRole("button", { name: 'Delete "Northstar"' }),
-    );
+    await user.click(screen.getByRole("button", { name: 'Delete "Northstar"' }));
     const dialog = screen.getByRole("alertdialog", {
       name: "Delete this item?",
     });
@@ -262,9 +220,7 @@ describe("ArchivedSection — demo build (store source)", () => {
       ],
     });
     render(<ArchivedSection />);
-    expect(screen.getByTestId("deleted-row")).toHaveTextContent(
-      /Removed person #/,
-    );
+    expect(screen.getByTestId("deleted-row")).toHaveTextContent(/Removed person #/);
   });
 
   it("DISABLES the purge button for a <30-day tombstone (with the locked hint)", () => {
@@ -284,9 +240,7 @@ describe("ArchivedSection — demo build (store source)", () => {
       name: "Permanently delete Young Tombstone",
     });
     expect(purgeBtn).toBeDisabled();
-    expect(
-      screen.getByText("Can be permanently deleted 30 days after deletion"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Can be permanently deleted 30 days after deletion")).toBeInTheDocument();
   });
 
   it("ENABLES the purge button for a ≥30-day tombstone and purges on confirm", async () => {
@@ -310,14 +264,10 @@ describe("ArchivedSection — demo build (store source)", () => {
 
     await user.click(purgeBtn);
     const dialog = screen.getByRole("alertdialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Delete permanently" }),
-    );
+    await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
 
     // The tombstone is physically removed from the store.
-    expect(
-      useStore.getState().data.clients.find((c) => c.id === "c-old"),
-    ).toBeUndefined();
+    expect(useStore.getState().data.clients.find((c) => c.id === "c-old")).toBeUndefined();
   });
 });
 
@@ -341,9 +291,7 @@ describe("ArchivedSection — server mode self-hide", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<ArchivedSection />);
 
-    expect(
-      await screen.findByText("Previous company archive"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Previous company archive")).toBeInTheDocument();
     act(() => {
       useStore.getState().setAccountSummaries([
         { id: DEFAULT_ACCOUNT_ID, name: "First", role: "owner" },
@@ -352,29 +300,17 @@ describe("ArchivedSection — server mode self-hide", () => {
       useStore.getState().setActiveAccount("account-2");
     });
 
-    expect(
-      screen.queryByText("Previous company archive"),
-    ).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(
-        /new company unavailable/i,
-      ),
-    );
-    expect(
-      screen.queryByText("Previous company archive"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Previous company archive")).not.toBeInTheDocument();
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/new company unavailable/i));
+    expect(screen.queryByText("Previous company archive")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("locks every lifecycle affordance while a mutation is in flight", async () => {
     cfg.serverOn = true;
     seed({
-      resources: [
-        resource({ id: "r-arch", name: "Archived Person", archivedAt: TS }),
-      ],
-      clients: [
-        client({ id: "c-arch", name: "Archived Client", archivedAt: TS }),
-      ],
+      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
+      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
       projects: [
         project({
           id: "p-old",
@@ -390,8 +326,7 @@ describe("ArchivedSection — server mode self-hide", () => {
       finishLifecycle = resolve;
     });
     const fetchMock = vi.fn((url: string) => {
-      if (url.includes("includeInactive=1"))
-        return Promise.resolve(Response.json(slice));
+      if (url.includes("includeInactive=1")) return Promise.resolve(Response.json(slice));
       if (url.includes("/unarchive")) return lifecycleResponse;
       return Promise.reject(new Error(`Unexpected request: ${url}`));
     });
@@ -405,29 +340,15 @@ describe("ArchivedSection — server mode self-hide", () => {
     fireEvent.click(restore);
 
     await waitFor(() =>
-      expect(
-        fetchMock.mock.calls.filter(([url]) =>
-          String(url).includes("/unarchive"),
-        ),
-      ).toHaveLength(1),
+      expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/unarchive"))).toHaveLength(1),
     );
     expect(restore).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete Archived Client" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Permanently delete Old Tombstone" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete Archived Client" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Permanently delete Old Tombstone" })).toBeDisabled();
 
-    finishLifecycle(
-      Response.json({ error: "Transition refused." }, { status: 409 }),
-    );
+    finishLifecycle(Response.json({ error: "Transition refused." }, { status: 409 }));
     await waitFor(() => expect(restore).toBeEnabled());
-    expect(
-      fetchMock.mock.calls.filter(([url]) =>
-        String(url).includes("/unarchive"),
-      ),
-    ).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/unarchive"))).toHaveLength(1);
   });
 
   it("renders nothing when the inactive read returns 403", async () => {
@@ -448,14 +369,8 @@ describe("ArchivedSection — server mode self-hide", () => {
     const { container } = render(<ArchivedSection />);
     // The effect must actually FIRE the ?includeInactive=1 read, then a 403 self-hides the section.
     await waitFor(() => expect(requested.length).toBeGreaterThan(0));
-    await waitFor(() =>
-      expect(
-        container.querySelector('[data-testid="archived-section"]'),
-      ).toBeNull(),
-    );
-    expect(
-      screen.queryByRole("heading", { name: "Archived & deleted" }),
-    ).not.toBeInTheDocument();
+    await waitFor(() => expect(container.querySelector('[data-testid="archived-section"]')).toBeNull());
+    expect(screen.queryByRole("heading", { name: "Archived & deleted" })).not.toBeInTheDocument();
     expect(requested[0]).toContain("includeInactive=1");
   });
 
@@ -478,9 +393,7 @@ describe("ArchivedSection — server mode self-hide", () => {
     render(<ArchivedSection />);
 
     // The structural gate refuses the body and routes it to the section's error surface…
-    await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(/incomplete/i),
-    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/incomplete/i));
     expect(useStore.getState().notice?.tone).toBe("error");
     // …while the section itself still renders (shown, empty) rather than self-hiding.
     expect(screen.getByTestId("archived-section")).toBeInTheDocument();

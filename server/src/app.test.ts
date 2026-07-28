@@ -1,9 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type {
-  FastifyInstance,
-  InjectOptions,
-  LightMyRequestResponse,
-} from "fastify";
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import { buildApp, statusFor, MAX_BATCH_OPS, type AppOptions } from "./app";
 import { ValidationError } from "./validate";
 import { insertRow, openDb, upsertRow, type Db } from "./db";
@@ -95,12 +91,7 @@ const project = (id: string, accountId: string, clientId: string) => ({
   color: "#5c34d4",
   ...meta(),
 });
-const activity = (
-  id: string,
-  accountId: string,
-  projectId: string,
-  phaseId?: string,
-) => ({
+const activity = (id: string, accountId: string, projectId: string, phaseId?: string) => ({
   id,
   accountId,
   name: "Activity",
@@ -151,32 +142,19 @@ const allocation = (
 
 // app.inject's overloads resolve to a union that hides statusCode/json; this wrapper
 // pins the single Promise-returning shape so call sites stay terse.
-const call = (
-  app: FastifyInstance,
-  opts: InjectOptions,
-): Promise<LightMyRequestResponse> =>
+const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
 const body = (payload: unknown) => payload as InjectOptions["payload"];
 
 const post = (app: FastifyInstance, entity: string, payload: unknown) =>
   call(app, { method: "POST", url: `/api/${entity}`, payload: body(payload) });
-const put = (
-  app: FastifyInstance,
-  entity: string,
-  id: string,
-  payload: unknown,
-) =>
+const put = (app: FastifyInstance, entity: string, id: string, payload: unknown) =>
   call(app, {
     method: "PUT",
     url: `/api/${entity}/${id}`,
     payload: body(payload),
   });
-const patch = (
-  app: FastifyInstance,
-  entity: string,
-  id: string,
-  payload: unknown,
-) =>
+const patch = (app: FastifyInstance, entity: string, id: string, payload: unknown) =>
   call(app, {
     method: "PATCH",
     url: `/api/${entity}/${id}`,
@@ -184,26 +162,14 @@ const patch = (
   });
 // Scoped tables now REQUIRE an asserted owning account on DELETE; pass accountId for them.
 // accounts (top-level) carry none, so accountId is omitted there.
-const del = (
-  app: FastifyInstance,
-  entity: string,
-  id: string,
-  accountId?: string,
-) =>
+const del = (app: FastifyInstance, entity: string, id: string, accountId?: string) =>
   call(app, {
     method: "DELETE",
-    url: accountId
-      ? `/api/${entity}/${id}?accountId=${accountId}`
-      : `/api/${entity}/${id}`,
+    url: accountId ? `/api/${entity}/${id}?accountId=${accountId}` : `/api/${entity}/${id}`,
   });
 const batch = (app: FastifyInstance, ops: unknown[]) =>
   call(app, { method: "POST", url: "/api/batch", payload: body({ ops }) });
-const orderedBatch = (
-  app: FastifyInstance,
-  sessionId: string,
-  sequence: number,
-  ops: unknown[],
-) =>
+const orderedBatch = (app: FastifyInstance, sessionId: string, sequence: number, ops: unknown[]) =>
   call(app, {
     method: "POST",
     url: "/api/batch",
@@ -217,9 +183,7 @@ const state = async (app: FastifyInstance) => {
   const data = (await call(app, { method: "GET", url: "/api/state" })).json();
   // Generic account creation now guarantees its required Internal client. Most legacy CRUD tests
   // predate that invariant and reason about the regular clients they explicitly create.
-  data.clients = data.clients.filter(
-    (c: { id: string }) => !c.id.startsWith("internal:"),
-  );
+  data.clients = data.clients.filter((c: { id: string }) => !c.id.startsWith("internal:"));
   return data;
 };
 
@@ -235,14 +199,10 @@ async function scaffold(app: FastifyInstance) {
 describe("health + state", () => {
   it("reports health and starts empty", async () => {
     const { app } = freshApp();
-    expect(
-      (await call(app, { method: "GET", url: "/api/health" })).json(),
-    ).toEqual({ ok: true });
+    expect((await call(app, { method: "GET", url: "/api/health" })).json()).toEqual({ ok: true });
     const s = await state(app);
     expect(s.accounts).toEqual([]);
-    expect(
-      (await call(app, { method: "GET", url: "/api/meta" })).json(),
-    ).toEqual({ hasData: false });
+    expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: false });
   });
 });
 
@@ -263,10 +223,7 @@ describe("CRUD round-trip", () => {
   it("creates every entity type and reads them back via /api/state", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    expect(
-      (await post(app, "allocations", allocation("al1", "a1", "r1", "t1")))
-        .statusCode,
-    ).toBe(201);
+    expect((await post(app, "allocations", allocation("al1", "a1", "r1", "t1"))).statusCode).toBe(201);
     const s = await state(app);
     expect(s.accounts).toHaveLength(1);
     expect(s.clients).toHaveLength(1);
@@ -281,9 +238,7 @@ describe("CRUD round-trip", () => {
         name: "Unnamed person",
       }),
     );
-    expect(withoutRevision(s.allocations[0])).toEqual(
-      withoutRevision(allocation("al1", "a1", "r1", "t1")),
-    );
+    expect(withoutRevision(s.allocations[0])).toEqual(withoutRevision(allocation("al1", "a1", "r1", "t1")));
   });
 
   it("PATCH updates fields; DELETE removes a non-lifecycle row", async () => {
@@ -310,9 +265,7 @@ describe("CRUD round-trip", () => {
   it("PATCH on a missing id is 404; unknown entity is 404", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    expect(
-      (await patch(app, "clients", "nope", client("nope", "a1"))).statusCode,
-    ).toBe(404);
+    expect((await patch(app, "clients", "nope", client("nope", "a1"))).statusCode).toBe(404);
     expect((await post(app, "widgets", { id: "x" })).statusCode).toBe(404);
   });
 
@@ -338,12 +291,8 @@ describe("CRUD round-trip", () => {
     await scaffold(app); // c1 in a1
     await post(app, "accounts", account("a2"));
     // PATCH and PUT that try to move c1 into a2 are both rejected with 409…
-    expect(
-      (await patch(app, "clients", "c1", { accountId: "a2" })).statusCode,
-    ).toBe(409);
-    expect(
-      (await put(app, "clients", "c1", { ...client("c1", "a2") })).statusCode,
-    ).toBe(409);
+    expect((await patch(app, "clients", "c1", { accountId: "a2" })).statusCode).toBe(409);
+    expect((await put(app, "clients", "c1", { ...client("c1", "a2") })).statusCode).toBe(409);
     // …and c1 stays in a1.
     expect((await state(app)).clients[0].accountId).toBe("a1");
   });
@@ -387,10 +336,7 @@ describe("CRUD round-trip", () => {
     await scaffold(app);
     // A scoped delete MUST assert its owner; omitting accountId can't prove ownership, so
     // it is a 400 rather than an unscoped delete-by-id (the old tenant-guard bypass).
-    expect(
-      (await call(app, { method: "DELETE", url: "/api/clients/c1" }))
-        .statusCode,
-    ).toBe(400);
+    expect((await call(app, { method: "DELETE", url: "/api/clients/c1" })).statusCode).toBe(400);
     expect((await state(app)).clients).toHaveLength(1); // not deleted
   });
 
@@ -411,15 +357,11 @@ describe("CRUD round-trip", () => {
   it("reports hasData:true after the user deletes all their data (no demo re-seed)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    expect(
-      (await call(app, { method: "GET", url: "/api/meta" })).json(),
-    ).toEqual({ hasData: true });
+    expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
     await del(app, "accounts", "a1"); // user empties everything
     expect((await state(app)).accounts).toHaveLength(0);
     // Still "initialised" — a reload must NOT mistake an emptied dataset for a fresh one.
-    expect(
-      (await call(app, { method: "GET", url: "/api/meta" })).json(),
-    ).toEqual({ hasData: true });
+    expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
   });
 
   it("DELETE is idempotent for non-lifecycle tables (missing id still 204 when the owner is asserted)", async () => {
@@ -455,18 +397,13 @@ describe("CRUD round-trip", () => {
   it("PUT rejects a body id that disagrees with the URL id", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    expect(
-      (await put(app, "clients", "c1", client("OTHER", "a1"))).statusCode,
-    ).toBe(400);
+    expect((await put(app, "clients", "c1", client("OTHER", "a1"))).statusCode).toBe(400);
   });
 
   it("PUT runs shared-core validation (rejects a dangling FK)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    expect(
-      (await put(app, "projects", "p1", project("p1", "a1", "no-client")))
-        .statusCode,
-    ).toBe(400);
+    expect((await put(app, "projects", "p1", project("p1", "a1", "no-client"))).statusCode).toBe(400);
   });
 });
 
@@ -577,20 +514,14 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     expect(res.json().error).toMatch(/placeholder’s work/i);
     const snapshot = await state(app);
     expect(snapshot.clients[0].name).toBe("Acme");
-    expect(
-      snapshot.resources.find(
-        (resource: { id: string }) => resource.id === "ph",
-      ).projectId,
-    ).toBe("p1");
+    expect(snapshot.resources.find((resource: { id: string }) => resource.id === "ph").projectId).toBe("p1");
   });
 
   it("refuses a cross-account delete inside a batch and rolls back", async () => {
     const { app } = freshApp();
     await scaffold(app); // c1 in a1
     await post(app, "accounts", account("a2"));
-    const res = await batch(app, [
-      { method: "DELETE", table: "clients", id: "c1", accountId: "a2" },
-    ]);
+    const res = await batch(app, [{ method: "DELETE", table: "clients", id: "c1", accountId: "a2" }]);
     expect(res.statusCode).toBe(400);
     expect((await state(app)).clients).toHaveLength(1); // c1 untouched
   });
@@ -598,29 +529,17 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   it("rejects a scoped delete op that omits accountId", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const res = await batch(app, [
-      { method: "DELETE", table: "clients", id: "c1" },
-    ]);
+    const res = await batch(app, [{ method: "DELETE", table: "clients", id: "c1" }]);
     expect(res.statusCode).toBe(400);
     expect((await state(app)).clients).toHaveLength(1);
   });
 
   it("rejects an unknown table / bad op shape", async () => {
     const { app } = freshApp();
-    expect(
-      (
-        await batch(app, [
-          { method: "PUT", table: "widgets", id: "x", row: { id: "x" } },
-        ])
-      ).statusCode,
-    ).toBe(400);
-    expect(
-      (
-        await batch(app, [
-          { method: "PUT", table: "clients", id: "c1", row: { id: "OTHER" } },
-        ])
-      ).statusCode,
-    ).toBe(400);
+    expect((await batch(app, [{ method: "PUT", table: "widgets", id: "x", row: { id: "x" } }])).statusCode).toBe(400);
+    expect((await batch(app, [{ method: "PUT", table: "clients", id: "c1", row: { id: "OTHER" } }])).statusCode).toBe(
+      400,
+    );
     expect(
       (
         await call(app, {
@@ -658,9 +577,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(missingClient.statusCode).toBe(400);
-    expect(missingClient.json().error).toBe(
-      "Project must reference a client in this company.",
-    );
+    expect(missingClient.json().error).toBe("Project must reference a client in this company.");
     expect(missingClient.json().code).toBe("reference_wrong_account");
 
     await post(app, "projects", project("p2", "a1", "c1"));
@@ -672,13 +589,8 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(missingClientOnReplace.statusCode).toBe(400);
-    expect(missingClientOnReplace.json().error).toBe(
-      "Project must reference a client in this company.",
-    );
-    expect(
-      (await patch(app, "projects", "p2", { name: "Partial rename" }))
-        .statusCode,
-    ).toBe(200);
+    expect(missingClientOnReplace.json().error).toBe("Project must reference a client in this company.");
+    expect((await patch(app, "projects", "p2", { name: "Partial rename" })).statusCode).toBe(200);
 
     const missingProject = await post(app, "phases", {
       id: "ph1",
@@ -687,19 +599,13 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(missingProject.statusCode).toBe(400);
-    expect(missingProject.json().error).toBe(
-      "Phase must reference a project in this company.",
-    );
+    expect(missingProject.json().error).toBe("Phase must reference a project in this company.");
   });
 
   it("rejects a project referencing a client outside the account", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    const res = await post(
-      app,
-      "projects",
-      project("p1", "a1", "no-such-client"),
-    );
+    const res = await post(app, "projects", project("p1", "a1", "no-such-client"));
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/client/i);
   });
@@ -748,9 +654,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       }),
     );
     expect(allocationResponse.statusCode).toBe(400);
-    expect(allocationResponse.json().error).toBe(
-      "Date span cannot exceed 36,500 calendar days.",
-    );
+    expect(allocationResponse.json().error).toBe("Date span cannot exceed 36,500 calendar days.");
 
     const timeOffResponse = await post(app, "timeOff", {
       id: "to-over-limit",
@@ -762,9 +666,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
       ...meta(),
     });
     expect(timeOffResponse.statusCode).toBe(400);
-    expect(timeOffResponse.json().error).toBe(
-      "Date span cannot exceed 36,500 calendar days.",
-    );
+    expect(timeOffResponse.json().error).toBe("Date span cannot exceed 36,500 calendar days.");
   });
 
   it("rejects a placeholder assigned outside its bound project", async () => {
@@ -773,11 +675,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     await post(app, "projects", project("p2", "a1", "c1"));
     await post(app, "activities", activity("t2", "a1", "p2"));
     await post(app, "resources", placeholder("ph", "a1", "p1")); // bound to p1
-    const res = await post(
-      app,
-      "allocations",
-      allocation("al", "a1", "ph", "t2"),
-    ); // t2 is in p2
+    const res = await post(app, "allocations", allocation("al", "a1", "ph", "t2")); // t2 is in p2
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/placeholder/i);
   });
@@ -798,26 +696,14 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     expect(reproject.json().error).toMatch(/placeholder work/i);
 
     const snapshot = await state(app);
-    expect(
-      snapshot.resources.find(
-        (resource: { id: string }) => resource.id === "ph",
-      ).projectId,
-    ).toBe("p1");
-    expect(
-      snapshot.activities.find(
-        (activityRow: { id: string }) => activityRow.id === "t1",
-      ).projectId,
-    ).toBe("p1");
+    expect(snapshot.resources.find((resource: { id: string }) => resource.id === "ph").projectId).toBe("p1");
+    expect(snapshot.activities.find((activityRow: { id: string }) => activityRow.id === "t1").projectId).toBe("p1");
   });
 
   it("rejects an allocation referencing a missing resource/activity", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    const res = await post(
-      app,
-      "allocations",
-      allocation("al", "a1", "ghost", "t1"),
-    );
+    const res = await post(app, "allocations", allocation("al", "a1", "ghost", "t1"));
     expect(res.statusCode).toBe(400);
   });
 
@@ -835,26 +721,16 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     db.exec("DROP TRIGGER capacitylens_tenant_activities_projectId_insert");
     insertRow(db, "activities", activity("cross-project", "a1", "p2"));
 
-    const res = await post(
-      app,
-      "allocations",
-      allocation("al", "a1", "r1", "cross-project"),
-    );
+    const res = await post(app, "allocations", allocation("al", "a1", "r1", "cross-project"));
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe(
-      "Allocation must reference an activity under an active project in this company.",
-    );
+    expect(res.json().error).toBe("Allocation must reference an activity under an active project in this company.");
   });
 
   it("rejects a non-zero allocation load on an external / 3rd-party resource (no capacity)", async () => {
     const { app } = freshApp();
     await scaffold(app);
     await post(app, "resources", { ...person("ext", "a1"), kind: "external" });
-    const res = await post(
-      app,
-      "allocations",
-      allocation("al", "a1", "ext", "t1", { hoursPerDay: 8 }),
-    );
+    const res = await post(app, "allocations", allocation("al", "a1", "ext", "t1", { hoursPerDay: 8 }));
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/external/i);
   });
@@ -863,11 +739,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const { app } = freshApp();
     await scaffold(app);
     await post(app, "resources", { ...person("ext", "a1"), kind: "external" });
-    const res = await post(
-      app,
-      "allocations",
-      allocation("al", "a1", "ext", "t1", { hoursPerDay: 0 }),
-    );
+    const res = await post(app, "allocations", allocation("al", "a1", "ext", "t1", { hoursPerDay: 0 }));
     expect(res.statusCode).toBe(201);
   });
 
@@ -894,11 +766,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
   it("rejects PATCH setting kind:external on a resource that has a loaded allocation", async () => {
     const { app } = freshApp();
     await scaffold(app); // r1 is a person
-    await post(
-      app,
-      "allocations",
-      allocation("al", "a1", "r1", "t1", { hoursPerDay: 8 }),
-    );
+    await post(app, "allocations", allocation("al", "a1", "r1", "t1", { hoursPerDay: 8 }));
     const res = await patch(app, "resources", "r1", { kind: "external" });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/work and time off/i);
@@ -928,18 +796,9 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
     const { app } = freshApp();
     await scaffold(app);
     // A zero-load allocation is already valid for an external, so it must NOT block the flip.
-    await post(
-      app,
-      "allocations",
-      allocation("al", "a1", "r1", "t1", { hoursPerDay: 0 }),
-    );
-    expect(
-      (await patch(app, "resources", "r1", { kind: "external" })).statusCode,
-    ).toBe(200);
-    expect(
-      (await state(app)).resources.find((r: { id: string }) => r.id === "r1")
-        .kind,
-    ).toBe("external");
+    await post(app, "allocations", allocation("al", "a1", "r1", "t1", { hoursPerDay: 0 }));
+    expect((await patch(app, "resources", "r1", { kind: "external" })).statusCode).toBe(200);
+    expect((await state(app)).resources.find((r: { id: string }) => r.id === "r1").kind).toBe("external");
   });
 
   it("accepts creating an external resource with no dependents, and editing its name", async () => {
@@ -953,9 +812,7 @@ describe("validation (shared domain-core) rejects bad writes with 400", () => {
         })
       ).statusCode,
     ).toBe(201);
-    expect(
-      (await patch(app, "resources", "ext", { role: "Overflow" })).statusCode,
-    ).toBe(200);
+    expect((await patch(app, "resources", "ext", { role: "Overflow" })).statusCode).toBe(200);
   });
 });
 
@@ -973,28 +830,16 @@ describe("built-in Internal client is a per-account singleton on direct writes",
       builtin: true,
     });
     expect(replacement.statusCode).toBe(400);
-    const snapshot = (
-      await call(app, { method: "GET", url: "/api/state?accountId=a1" })
-    ).json();
-    expect(
-      snapshot.projects.find((p: { id: string }) => p.id === "p-internal")
-        ?.clientId,
-    ).toBe("internal:a1");
-    expect(
-      snapshot.activities.some((a: { id: string }) => a.id === "t-internal"),
-    ).toBe(true);
-    expect(
-      snapshot.allocations.some((a: { id: string }) => a.id === "al1"),
-    ).toBe(true);
+    const snapshot = (await call(app, { method: "GET", url: "/api/state?accountId=a1" })).json();
+    expect(snapshot.projects.find((p: { id: string }) => p.id === "p-internal")?.clientId).toBe("internal:a1");
+    expect(snapshot.activities.some((a: { id: string }) => a.id === "t-internal")).toBe(true);
+    expect(snapshot.allocations.some((a: { id: string }) => a.id === "al1")).toBe(true);
   });
 
   it("rejects every generic attempt to create a builtin client", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    expect(
-      (await post(app, "clients", { ...client("c-int", "a1"), builtin: true }))
-        .statusCode,
-    ).toBe(400);
+    expect((await post(app, "clients", { ...client("c-int", "a1"), builtin: true })).statusCode).toBe(400);
     const dup = await post(app, "clients", {
       ...client("c-int2", "a1"),
       builtin: true,
@@ -1051,9 +896,7 @@ describe("built-in Internal client is a per-account singleton on direct writes",
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ ok: true, applied: 2 });
-    const stored = (
-      await call(app, { method: "GET", url: "/api/state" })
-    ).json();
+    const stored = (await call(app, { method: "GET", url: "/api/state" })).json();
     expect(stored.clients).toMatchObject([
       {
         id: "internal:a1",
@@ -1087,12 +930,8 @@ describe("built-in Internal client is a per-account singleton on direct writes",
         })
       ).statusCode,
     ).toBe(400);
-    const snapshot = (
-      await call(app, { method: "GET", url: "/api/state" })
-    ).json();
-    expect(
-      snapshot.clients.filter((c: { builtin?: boolean }) => c.builtin),
-    ).toHaveLength(2);
+    const snapshot = (await call(app, { method: "GET", url: "/api/state" })).json();
+    expect(snapshot.clients.filter((c: { builtin?: boolean }) => c.builtin)).toHaveLength(2);
   });
 });
 
@@ -1182,20 +1021,14 @@ describe("import", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ imported: 6, skipped: 0 });
-    const importedResource = db
-      .prepare(`SELECT name, deletedAt FROM resources WHERE accountId = 'a1'`)
-      .get() as {
+    const importedResource = db.prepare(`SELECT name, deletedAt FROM resources WHERE accountId = 'a1'`).get() as {
       name: string;
       deletedAt: string | null;
     };
     expect(importedResource.name).toMatch(/^Removed person #[a-zA-Z0-9]{4}$/);
     expect(importedResource.deletedAt).toBe(deleted.deletedAt);
-    expect(
-      db.prepare(`SELECT note FROM allocations WHERE accountId = 'a1'`).get(),
-    ).toEqual({ note: null });
-    expect(
-      db.prepare(`SELECT note FROM timeOff WHERE accountId = 'a1'`).get(),
-    ).toEqual({ note: null });
+    expect(db.prepare(`SELECT note FROM allocations WHERE accountId = 'a1'`).get()).toEqual({ note: null });
+    expect(db.prepare(`SELECT note FROM timeOff WHERE accountId = 'a1'`).get()).toEqual({ note: null });
   });
 
   it("drops records with dangling required FKs and unbinds dangling optional ones", async () => {
@@ -1305,9 +1138,7 @@ describe("import", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(
-      /schema version must be a non-negative safe integer/i,
-    );
+    expect(res.json().error).toMatch(/schema version must be a non-negative safe integer/i);
     expect(await state(app)).toEqual(before);
   });
 });
@@ -1388,11 +1219,7 @@ describe("tenant-scoped mutation projections", () => {
     });
     const importReads = fullTableSelects.splice(0).length;
 
-    expect([
-      emptyResult.statusCode,
-      batchResult.statusCode,
-      importResult.statusCode,
-    ]).toEqual([200, 200, 200]);
+    expect([emptyResult.statusCode, batchResult.statusCode, importResult.statusCode]).toEqual([200, 200, 200]);
     expect({ emptyBatchReads, singleAccountBatchReads, importReads }).toEqual({
       emptyBatchReads: 0,
       singleAccountBatchReads: 0,
@@ -1449,24 +1276,11 @@ describe("guards", () => {
       `INSERT INTO invites
       (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "old-token-hash",
-      "old-invite",
-      "old-account",
-      "viewer",
-      null,
-      TS,
-      null,
-      TS,
-    );
+    ).run("old-token-hash", "old-invite", "old-account", "viewer", null, TS, null, TS);
 
-    expect(
-      (await call(app, { method: "POST", url: "/api/test/reset" })).statusCode,
-    ).toBe(200);
+    expect((await call(app, { method: "POST", url: "/api/test/reset" })).statusCode).toBe(200);
 
-    expect(
-      db.prepare(`SELECT COUNT(*) AS count FROM account_members`).get(),
-    ).toEqual({ count: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM account_members`).get()).toEqual({ count: 0 });
     expect(db.prepare(`SELECT COUNT(*) AS count FROM invites`).get()).toEqual({
       count: 0,
     });
@@ -1475,9 +1289,7 @@ describe("guards", () => {
   it("rolls the wipe back when re-seeding fails", async () => {
     const { app, db } = freshApp(true);
     await scaffold(app);
-    const accountsBefore = db
-      .prepare(`SELECT id FROM accounts ORDER BY id`)
-      .all();
+    const accountsBefore = db.prepare(`SELECT id FROM accounts ORDER BY id`).all();
     db.exec(`
       CREATE TRIGGER reject_seeded_accounts
       BEFORE INSERT ON accounts
@@ -1493,19 +1305,14 @@ describe("guards", () => {
     });
 
     expect(response.statusCode).toBe(500);
-    expect(db.prepare(`SELECT id FROM accounts ORDER BY id`).all()).toEqual(
-      accountsBefore,
-    );
+    expect(db.prepare(`SELECT id FROM accounts ORDER BY id`).all()).toEqual(accountsBefore);
   });
 });
 
 describe("value-level sanitization on direct writes (server is the integrity boundary)", () => {
   it("stores a validated account colour without surrounding whitespace", async () => {
     const { app } = freshApp();
-    expect(
-      (await post(app, "accounts", { ...account("a1"), color: "  #aAbBcC  " }))
-        .statusCode,
-    ).toBe(201);
+    expect((await post(app, "accounts", { ...account("a1"), color: "  #aAbBcC  " })).statusCode).toBe(201);
     // #aabbcc is not itself a preset — sanitizeWrite snaps it to its NEAREST preset (shared
     // snapToPresetColor), not a fixed fallback colour. See the "snaps a non-preset account
     // colour to its nearest preset" test below for the policy this replaced.
@@ -1524,9 +1331,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     // A colour on the opposite side of the palette snaps to a DIFFERENT preset — proving the two
     // don't collapse onto the same fixed fallback.
     await post(app, "accounts", { ...account("a2"), color: "#f6c3bb" });
-    const accounts = (await state(app)).accounts as Array<
-      Record<string, unknown>
-    >;
+    const accounts = (await state(app)).accounts as Array<Record<string, unknown>>;
     expect(accounts.find((a) => a.id === "a2")?.color).toBe("#f5bcbc");
   });
 
@@ -1607,10 +1412,7 @@ describe("scheduling-mode fields round-trip through the DB", () => {
     const { app } = freshApp();
     await scaffold(app);
     // Switch the company into blocks mode.
-    expect(
-      (await patch(app, "accounts", "a1", { schedulingMode: "blocks" }))
-        .statusCode,
-    ).toBe(200);
+    expect((await patch(app, "accounts", "a1", { schedulingMode: "blocks" })).statusCode).toBe(200);
     // A block booking persists hoursPerDay 0 (load ignored) + ignoreWeekends true. The
     // 0 must NOT be sanitized up to a full day, and the boolean must round-trip.
     const res = await post(
@@ -1637,9 +1439,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     language: "en",
   };
   async function seedFrozen(app: FastifyInstance) {
-    expect(
-      (await post(app, "accounts", { ...account("a1"), ...FROZEN })).statusCode,
-    ).toBe(201);
+    expect((await post(app, "accounts", { ...account("a1"), ...FROZEN })).statusCode).toBe(201);
   }
 
   it("PATCH changing weekStartsOn → 409", async () => {
@@ -1653,19 +1453,14 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   it("PATCH changing timezone → 409", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect(
-      (await patch(app, "accounts", "a1", { timezone: "Europe/London" }))
-        .statusCode,
-    ).toBe(409);
+    expect((await patch(app, "accounts", "a1", { timezone: "Europe/London" })).statusCode).toBe(409);
     expect((await state(app)).accounts[0].timezone).toBe("Etc/GMT");
   });
 
   it("PATCH with an unsupported language is sanitised to an unchanged no-op", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect(
-      (await patch(app, "accounts", "a1", { language: "fr" })).statusCode,
-    ).toBe(200);
+    expect((await patch(app, "accounts", "a1", { language: "fr" })).statusCode).toBe(200);
     expect((await state(app)).accounts[0].language).toBe("en");
   });
 
@@ -1698,9 +1493,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   it("an UNCHANGED PATCH of a frozen field → 200", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect(
-      (await patch(app, "accounts", "a1", { weekStartsOn: 1 })).statusCode,
-    ).toBe(200);
+    expect((await patch(app, "accounts", "a1", { weekStartsOn: 1 })).statusCode).toBe(200);
   });
 
   it("lets a minimal /api/orgs account set each missing frozen field once", async () => {
@@ -1724,9 +1517,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
         })
       ).statusCode,
     ).toBe(200);
-    expect(
-      (await patch(app, "accounts", "a1", { timezone: "Etc/GMT" })).statusCode,
-    ).toBe(409);
+    expect((await patch(app, "accounts", "a1", { timezone: "Etc/GMT" })).statusCode).toBe(409);
 
     const stored = (await state(app)).accounts[0];
     expect(stored).toMatchObject({
@@ -1785,17 +1576,9 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
   it("PATCH name → 200; disciplinesEnabled → 200; schedulingMode → 200 (mutable regression)", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
-    expect(
-      (await patch(app, "accounts", "a1", { name: "New Name" })).statusCode,
-    ).toBe(200);
-    expect(
-      (await patch(app, "accounts", "a1", { disciplinesEnabled: true }))
-        .statusCode,
-    ).toBe(200);
-    expect(
-      (await patch(app, "accounts", "a1", { schedulingMode: "blocks" }))
-        .statusCode,
-    ).toBe(200);
+    expect((await patch(app, "accounts", "a1", { name: "New Name" })).statusCode).toBe(200);
+    expect((await patch(app, "accounts", "a1", { disciplinesEnabled: true })).statusCode).toBe(200);
+    expect((await patch(app, "accounts", "a1", { schedulingMode: "blocks" })).statusCode).toBe(200);
   });
 
   it("a batch PUT op changing a frozen field is rejected (400) and the row is unchanged", async () => {
@@ -1842,9 +1625,7 @@ describe("error status mapping (statusFor)", () => {
         }),
       ),
     ).toBe(500);
-    expect(
-      statusFor(new Error("upstream constraint failed unexpectedly")),
-    ).toBe(500);
+    expect(statusFor(new Error("upstream constraint failed unexpectedly"))).toBe(500);
     expect(statusFor(new Error("something unexpected blew up"))).toBe(500);
     expect(statusFor("a string")).toBe(500);
   });
@@ -1870,22 +1651,16 @@ describe("error status mapping (statusFor)", () => {
     it("maps a real NOT NULL violation to 400", () => {
       const db = openDb(":memory:");
       const e = grab(() =>
-        db.exec(
-          `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', NULL, '#fff', 't', 't')`,
-        ),
+        db.exec(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', NULL, '#fff', 't', 't')`),
       );
       expectConstraint(e);
     });
 
     it("maps a real UNIQUE/PRIMARY KEY violation to 400", () => {
       const db = openDb(":memory:");
-      db.exec(
-        `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', 'Studio', '#fff', 't', 't')`,
-      );
+      db.exec(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', 'Studio', '#fff', 't', 't')`);
       const e = grab(() =>
-        db.exec(
-          `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', 'Dup', '#fff', 't', 't')`,
-        ),
+        db.exec(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', 'Dup', '#fff', 't', 't')`),
       );
       expectConstraint(e);
     });
@@ -1907,12 +1682,8 @@ describe("global error redaction", () => {
     const app = buildApp(openDb(":memory:"));
     const sentinel = "PRIVATE schema path /srv/capacitylens.db clients.color";
     const cause = Object.assign(new Error(sentinel), { statusCode: 400 });
-    const constraintPhraseCause = new Error(
-      "upstream constraint failed unexpectedly",
-    );
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const constraintPhraseCause = new Error("upstream constraint failed unexpectedly");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     app.get("/api/test/decorated-client-error", () => {
       throw cause;
     });
@@ -1969,9 +1740,7 @@ describe("CORS allow-list", () => {
       url: "/api/health",
       headers: { origin: "http://localhost:5173" },
     });
-    expect(local.headers["access-control-allow-origin"]).toBe(
-      "http://localhost:5173",
-    );
+    expect(local.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
     // …but an arbitrary site gets NO ACAO header (the browser blocks it) — the factory
     // never opens to '*' unless explicitly told to.
     const evil = await call(app, {
@@ -1983,9 +1752,7 @@ describe("CORS allow-list", () => {
   });
 
   it("rejects '*' because credentialed CORS requires explicit origins", () => {
-    expect(() => buildApp(openDb(":memory:"), { corsOrigin: "*" })).toThrow(
-      /explicit/i,
-    );
+    expect(() => buildApp(openDb(":memory:"), { corsOrigin: "*" })).toThrow(/explicit/i);
   });
 
   it("normalizes harmless origin spellings and rejects non-origin URLs at startup", async () => {
@@ -1998,17 +1765,13 @@ describe("CORS allow-list", () => {
       url: "/api/health",
       headers: { origin: "https://app.example.com" },
     });
-    expect(canonicalHttps.headers["access-control-allow-origin"]).toBe(
-      "https://app.example.com",
-    );
+    expect(canonicalHttps.headers["access-control-allow-origin"]).toBe("https://app.example.com");
     const canonicalHttp = await call(app, {
       method: "GET",
       url: "/api/health",
       headers: { origin: "http://localhost" },
     });
-    expect(canonicalHttp.headers["access-control-allow-origin"]).toBe(
-      "http://localhost",
-    );
+    expect(canonicalHttp.headers["access-control-allow-origin"]).toBe("http://localhost");
 
     for (const corsOrigin of [
       "not an origin",
@@ -2018,9 +1781,7 @@ describe("CORS allow-list", () => {
       "https://app.example.com?query=1",
       "https://app.example.com#fragment",
     ]) {
-      expect(() => buildApp(openDb(":memory:"), { corsOrigin })).toThrow(
-        /bare HTTP\(S\) origin/i,
-      );
+      expect(() => buildApp(openDb(":memory:"), { corsOrigin })).toThrow(/bare HTTP\(S\) origin/i);
     }
   });
 
@@ -2057,9 +1818,7 @@ describe("CORS allow-list", () => {
       url: "/api/health",
       headers: { origin: "http://evil.test" },
     });
-    expect(
-      disallowed.headers["access-control-allow-credentials"],
-    ).toBeUndefined();
+    expect(disallowed.headers["access-control-allow-credentials"]).toBeUndefined();
   });
 
   it("answers a write preflight with 204 + CORS headers (no OPTIONS route exists)", async () => {
@@ -2078,9 +1837,7 @@ describe("CORS allow-list", () => {
       },
     });
     expect(res.statusCode).toBe(204);
-    expect(res.headers["access-control-allow-origin"]).toBe(
-      "http://localhost:5173",
-    );
+    expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
     expect(res.headers["access-control-allow-methods"]).toContain("POST");
   });
 
@@ -2107,9 +1864,7 @@ describe("CORS allow-list", () => {
 
   it("keeps non-browser clients and allowed same-origin writes working", async () => {
     const { app } = freshApp();
-    expect(
-      (await call(app, { method: "POST", url: "/api/test/reset" })).statusCode,
-    ).toBe(200);
+    expect((await call(app, { method: "POST", url: "/api/test/reset" })).statusCode).toBe(200);
     expect(
       (
         await call(app, {
@@ -2141,9 +1896,7 @@ describe("CORS allow-list", () => {
       },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.headers["access-control-allow-origin"]).toBe(
-      "https://capacity.example.com",
-    );
+    expect(response.headers["access-control-allow-origin"]).toBe("https://capacity.example.com");
   });
 
   it("falls back to exact trusted-proxy scheme and Host comparison without Fetch Metadata", async () => {
@@ -2182,9 +1935,7 @@ describe("CORS allow-list", () => {
       },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.headers["access-control-allow-origin"]).toBe(
-      "https://app.example.com",
-    );
+    expect(res.headers["access-control-allow-origin"]).toBe("https://app.example.com");
   });
 
   it("still 403s a genuinely cross-site write from a NON-listed Origin", async () => {
@@ -2293,24 +2044,12 @@ describe("CORS allow-list", () => {
       },
     });
     expect(res.statusCode).toBe(204);
-    expect(res.headers["access-control-allow-headers"]).toContain(
-      "Content-Type",
-    );
-    expect(res.headers["access-control-allow-headers"]).toContain(
-      "x-capacitylens-bootstrap-token",
-    );
-    expect(res.headers["access-control-allow-headers"]).toContain(
-      "x-capacitylens-setup-token",
-    );
-    expect(res.headers["access-control-allow-headers"]).toContain(
-      "x-capacitylens-sync-session",
-    );
-    expect(res.headers["access-control-allow-headers"]).toContain(
-      "x-capacitylens-sync-sequence",
-    );
-    expect(res.headers["access-control-expose-headers"]).toContain(
-      "x-capacitylens-audit-warning",
-    );
+    expect(res.headers["access-control-allow-headers"]).toContain("Content-Type");
+    expect(res.headers["access-control-allow-headers"]).toContain("x-capacitylens-bootstrap-token");
+    expect(res.headers["access-control-allow-headers"]).toContain("x-capacitylens-setup-token");
+    expect(res.headers["access-control-allow-headers"]).toContain("x-capacitylens-sync-session");
+    expect(res.headers["access-control-allow-headers"]).toContain("x-capacitylens-sync-sequence");
+    expect(res.headers["access-control-expose-headers"]).toContain("x-capacitylens-audit-warning");
   });
 });
 
@@ -2423,9 +2162,7 @@ describe("optimistic concurrency (default-on)", () => {
     ]);
     expect(res.statusCode).toBe(409);
     // The direct PUT route's exact conflict shape: a message + the stored row for client re-sync.
-    expect(res.json().error).toBe(
-      "The record was modified more recently on the server.",
-    );
+    expect(res.json().error).toBe("The record was modified more recently on the server.");
     expect(res.json().current).toMatchObject({
       id: "c1",
       name: "Acme",
@@ -2669,11 +2406,7 @@ describe("optimistic concurrency (default-on)", () => {
   it("ordered stale DELETE rolls back its batch and preserves an externally edited row", async () => {
     const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });
     await scaffold(app);
-    const created = await post(
-      app,
-      "allocations",
-      allocation("al1", "a1", "r1", "t1"),
-    );
+    const created = await post(app, "allocations", allocation("al1", "a1", "r1", "t1"));
     const createdRow = created.json() as Record<string, unknown>;
     const baseRevision = createdRow.updatedAt as string;
     const external = await put(app, "allocations", "al1", {
@@ -2743,10 +2476,7 @@ describe("optimistic concurrency (default-on)", () => {
         createdAt: TS,
         updatedAt: TS,
       };
-      const create = () =>
-        orderedBatch(app, sessionId, 1, [
-          { method: "PUT", table: "disciplines", id: "d1", row },
-        ]);
+      const create = () => orderedBatch(app, sessionId, 1, [{ method: "PUT", table: "disciplines", id: "d1", row }]);
       const undo = () =>
         orderedBatch(app, sessionId, 2, [
           {
@@ -2759,13 +2489,9 @@ describe("optimistic concurrency (default-on)", () => {
         ]);
 
       const responses =
-        arrivalOrder === "first-before-undo"
-          ? [await create(), await undo()]
-          : [await undo(), await create()];
+        arrivalOrder === "first-before-undo" ? [await create(), await undo()] : [await undo(), await create()];
 
-      expect(responses.every((response) => response.statusCode === 200)).toBe(
-        true,
-      );
+      expect(responses.every((response) => response.statusCode === 200)).toBe(true);
       expect((await state(app)).disciplines).toEqual([]);
     },
   );
@@ -2810,15 +2536,9 @@ describe("batch op-count cap (MAX_BATCH_OPS)", () => {
     const handlerMs = performance.now() - startedAt;
     expect(res.statusCode).toBe(200);
     expect(handlerMs).toBeLessThan(MAX_BATCH_HANDLER_BUDGET_MS);
-    expect(
-      (
-        db
-          .prepare(
-            `SELECT COUNT(*) AS n FROM clients WHERE name LIKE 'Updated %'`,
-          )
-          .get() as { n: number }
-      ).n,
-    ).toBe(MAX_BATCH_OPS);
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE name LIKE 'Updated %'`).get() as { n: number }).n).toBe(
+      MAX_BATCH_OPS,
+    );
   });
 });
 
@@ -2959,9 +2679,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   async function seedFixtureDeps(app: FastifyInstance) {
     expect((await post(app, "accounts", FIXTURE_ACCOUNT)).statusCode).toBe(201);
     expect((await post(app, "clients", FIXTURE_CLIENT)).statusCode).toBe(201);
-    expect(
-      (await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode,
-    ).toBe(201);
+    expect((await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode).toBe(201);
     expect((await post(app, "projects", FIXTURE_PROJECT)).statusCode).toBe(201);
     expect((await post(app, "phases", FIXTURE_PHASE)).statusCode).toBe(201);
   }
@@ -2971,9 +2689,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   // round-tripped through POST comes back MINUS its tombstones — those columns' persistence is covered
   // by app.lifecycle.test.ts (archive/delete → includeInactive read). Stripping them here keeps this
   // column-spec-gap check honest for every OTHER field on clients/projects/resources.
-  function stripTombstones<
-    T extends { archivedAt?: string; deletedAt?: string },
-  >(fixture: T): T {
+  function stripTombstones<T extends { archivedAt?: string; deletedAt?: string }>(fixture: T): T {
     const copy = { ...fixture };
     delete copy.archivedAt;
     delete copy.deletedAt;
@@ -2997,18 +2713,13 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
     expect((await post(app, "clients", FIXTURE_CLIENT)).statusCode).toBe(201);
-    expectFixture(
-      (await state(app)).clients[0],
-      stripTombstones(FIXTURE_CLIENT),
-    );
+    expectFixture((await state(app)).clients[0], stripTombstones(FIXTURE_CLIENT));
   });
 
   it("discipline: every field round-trips (including optional color)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", FIXTURE_ACCOUNT);
-    expect(
-      (await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode,
-    ).toBe(201);
+    expect((await post(app, "disciplines", FIXTURE_DISCIPLINE)).statusCode).toBe(201);
     expectFixture((await state(app)).disciplines[0], FIXTURE_DISCIPLINE);
   });
 
@@ -3017,10 +2728,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await post(app, "accounts", FIXTURE_ACCOUNT);
     await post(app, "clients", FIXTURE_CLIENT);
     expect((await post(app, "projects", FIXTURE_PROJECT)).statusCode).toBe(201);
-    expectFixture(
-      (await state(app)).projects[0],
-      stripTombstones(FIXTURE_PROJECT),
-    );
+    expectFixture((await state(app)).projects[0], stripTombstones(FIXTURE_PROJECT));
   });
 
   it("phase: every field round-trips", async () => {
@@ -3035,53 +2743,36 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
   it("resource: every field round-trips (including optional name/disciplineId/projectId + json workingDays + lifecycle archivedAt/deletedAt)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    expect((await post(app, "resources", FIXTURE_RESOURCE)).statusCode).toBe(
-      201,
-    );
-    expectFixture(
-      (await state(app)).resources[0],
-      stripTombstones(FIXTURE_RESOURCE),
-    );
+    expect((await post(app, "resources", FIXTURE_RESOURCE)).statusCode).toBe(201);
+    expectFixture((await state(app)).resources[0], stripTombstones(FIXTURE_RESOURCE));
   });
 
   it("external resource: kind + company name round-trip (no discipline/project binding)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    expect(
-      (await post(app, "resources", FIXTURE_RESOURCE_EXTERNAL)).statusCode,
-    ).toBe(201);
+    expect((await post(app, "resources", FIXTURE_RESOURCE_EXTERNAL)).statusCode).toBe(201);
     expectFixture((await state(app)).resources[0], FIXTURE_RESOURCE_EXTERNAL);
   });
 
   it("activity: every field round-trips (including optional projectId/phaseId)", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    expect((await post(app, "activities", FIXTURE_ACTIVITY)).statusCode).toBe(
-      201,
-    );
+    expect((await post(app, "activities", FIXTURE_ACTIVITY)).statusCode).toBe(201);
     expectFixture((await state(app)).activities[0], FIXTURE_ACTIVITY);
   });
 
   it("internal + repeatable activities round-trip with kind and no projectId/phaseId", async () => {
     const { app } = freshApp();
     await seedFixtureDeps(app);
-    expect(
-      (await post(app, "activities", FIXTURE_ACTIVITY_INTERNAL)).statusCode,
-    ).toBe(201);
-    expect(
-      (await post(app, "activities", FIXTURE_ACTIVITY_REPEATABLE)).statusCode,
-    ).toBe(201);
+    expect((await post(app, "activities", FIXTURE_ACTIVITY_INTERNAL)).statusCode).toBe(201);
+    expect((await post(app, "activities", FIXTURE_ACTIVITY_REPEATABLE)).statusCode).toBe(201);
     const activities = (await state(app)).activities;
     expectFixture(
-      activities.find(
-        (a: { id: string }) => a.id === FIXTURE_ACTIVITY_INTERNAL.id,
-      ),
+      activities.find((a: { id: string }) => a.id === FIXTURE_ACTIVITY_INTERNAL.id),
       FIXTURE_ACTIVITY_INTERNAL,
     );
     expectFixture(
-      activities.find(
-        (a: { id: string }) => a.id === FIXTURE_ACTIVITY_REPEATABLE.id,
-      ),
+      activities.find((a: { id: string }) => a.id === FIXTURE_ACTIVITY_REPEATABLE.id),
       FIXTURE_ACTIVITY_REPEATABLE,
     );
   });
@@ -3091,9 +2782,7 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app);
     await post(app, "resources", FIXTURE_RESOURCE);
     await post(app, "activities", FIXTURE_ACTIVITY);
-    expect(
-      (await post(app, "allocations", FIXTURE_ALLOCATION)).statusCode,
-    ).toBe(201);
+    expect((await post(app, "allocations", FIXTURE_ALLOCATION)).statusCode).toBe(201);
     expectFixture((await state(app)).allocations[0], FIXTURE_ALLOCATION);
   });
 

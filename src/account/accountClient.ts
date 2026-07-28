@@ -1,10 +1,6 @@
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
-import {
-  apiFetch,
-  API_BULK_TIMEOUT_MS,
-  requestSignal,
-} from "../data/requestTimeout";
+import { apiFetch, API_BULK_TIMEOUT_MS, requestSignal } from "../data/requestTimeout";
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 
 export interface BrowserAccountCommand {
@@ -35,26 +31,18 @@ export function clearStoredAccountCommands(): void {
   activeCommandIdentity = undefined;
   let keys: string[];
   try {
-    keys = Array.from({ length: sessionStorage.length }, (_unused, index) =>
-      sessionStorage.key(index),
-    ).filter(
+    keys = Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)).filter(
       (key): key is string => key?.startsWith(COMMAND_STORAGE_PREFIX) === true,
     );
   } catch (error) {
-    console.error(
-      "Account command storage could not be inspected during sign-out",
-      error,
-    );
+    console.error("Account command storage could not be inspected during sign-out", error);
     return;
   }
   for (const key of keys) {
     try {
       sessionStorage.removeItem(key);
     } catch (error) {
-      console.error(
-        "An account command could not be cleared during sign-out",
-        error,
-      );
+      console.error("An account command could not be cleared during sign-out", error);
     }
   }
 }
@@ -97,44 +85,30 @@ function compareCanonicalKeys(left: string, right: string): number {
  * semantic payloads. Without this binding, changing (for example) the workspace name after a 5xx
  * reuses the old command, receives IDEMPOTENCY_CONFLICT, clears the only recovery handle, and can
  * then submit a fresh duplicate while the original outcome is still unknown. */
-async function payloadOperationKey(
-  operation: string,
-  body: unknown,
-): Promise<string> {
+async function payloadOperationKey(operation: string, body: unknown): Promise<string> {
   const canonical =
     JSON.stringify(body, (_key, value: unknown) => {
-      if (typeof value !== "object" || value === null || Array.isArray(value))
-        return value;
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
       return Object.fromEntries(
-        Object.entries(value as Record<string, unknown>).sort(
-          ([left], [right]) => compareCanonicalKeys(left, right),
-        ),
+        Object.entries(value as Record<string, unknown>).sort(([left], [right]) => compareCanonicalKeys(left, right)),
       );
     }) ?? "null";
   const bytes = new TextEncoder().encode(canonical);
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  const fingerprint = [...digest]
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
+  const fingerprint = [...digest].map((value) => value.toString(16).padStart(2, "0")).join("");
   return `${operation}:${fingerprint}`;
 }
 
 /** HTTP responses for which the client cannot prove whether a command committed. */
-export async function accountCommandOutcomeUnknown(
-  response: Response,
-): Promise<boolean> {
+export async function accountCommandOutcomeUnknown(response: Response): Promise<boolean> {
   if (response.status === 408 || response.status >= 500) return true;
   if (response.status !== 409) return false;
   try {
-    const readable =
-      typeof response.clone === "function" ? response.clone() : response;
+    const readable = typeof response.clone === "function" ? response.clone() : response;
     const body: unknown = await readable.json();
-    if (typeof body !== "object" || body === null || !("code" in body))
-      return true;
+    if (typeof body !== "object" || body === null || !("code" in body)) return true;
     const code = (body as { code?: unknown }).code;
-    return (
-      typeof code !== "string" || !TERMINAL_COMMAND_CONFLICT_CODES.has(code)
-    );
+    return typeof code !== "string" || !TERMINAL_COMMAND_CONFLICT_CODES.has(code);
   } catch {
     // Status alone cannot distinguish a terminal rejection from an in-flight command. Retain the
     // identity unless a readable, known code proves finality.
@@ -147,9 +121,7 @@ function storedCommand(operationKey: string): BrowserAccountCommand {
   const memoryCommand = memoryCommands.get(storageKey);
   if (memoryCommand) return memoryCommand;
   try {
-    const parsed = JSON.parse(
-      sessionStorage.getItem(storageKey) ?? "null",
-    ) as Partial<BrowserAccountCommand> | null;
+    const parsed = JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as Partial<BrowserAccountCommand> | null;
     if (
       parsed &&
       typeof parsed.commandId === "string" &&
@@ -193,51 +165,30 @@ async function runCommand(
   request: (command: BrowserAccountCommand) => Promise<Response>,
   ambiguousStatus?: number,
 ): Promise<Response> {
-  const command =
-    explicit ??
-    (operationKey === null
-      ? newBrowserAccountCommand()
-      : storedCommand(operationKey));
+  const command = explicit ?? (operationKey === null ? newBrowserAccountCommand() : storedCommand(operationKey));
   const response = await request(command);
   // A transport failure, HTTP 408, 5xx or ambiguous 409 has an unknown commit outcome, so retain
   // the same command. A definitive success or decoded known caller/policy rejection closes it.
-  const outcomeUnknown =
-    response.status === ambiguousStatus ||
-    (await accountCommandOutcomeUnknown(response));
-  const terminalCallerFailure =
-    response.status >= 400 && response.status < 500 && !outcomeUnknown;
+  const outcomeUnknown = response.status === ambiguousStatus || (await accountCommandOutcomeUnknown(response));
+  const terminalCallerFailure = response.status >= 400 && response.status < 500 && !outcomeUnknown;
   // An explicit command is caller-owned and must never discard an older implicit ceremony for the
   // same operation. Only the implicit command loaded from session storage may close that record.
-  if (
-    explicit === undefined &&
-    operationKey !== null &&
-    (response.ok || terminalCallerFailure)
-  ) {
+  if (explicit === undefined && operationKey !== null && (response.ok || terminalCallerFailure)) {
     clearStoredCommand(operationKey);
   }
   return response;
 }
 
-function commandInit(
-  init: RequestInit,
-  command = newBrowserAccountCommand(),
-): RequestInit {
+function commandInit(init: RequestInit, command = newBrowserAccountCommand()): RequestInit {
   const headers = new Headers(init.headers);
   headers.set("Idempotency-Key", command.idempotencyKey);
   headers.set("X-Account-Command-Id", command.commandId);
   return { ...init, headers };
 }
 
-function jsonCommandInit(
-  method: "POST" | "PATCH",
-  body: unknown,
-  command?: BrowserAccountCommand,
-): RequestInit {
+function jsonCommandInit(method: "POST" | "PATCH", body: unknown, command?: BrowserAccountCommand): RequestInit {
   const headers = new Headers({ "Content-Type": "application/json" });
-  return commandInit(
-    { method, credentials: "include", headers, body: JSON.stringify(body) },
-    command,
-  );
+  return commandInit({ method, credentials: "include", headers, body: JSON.stringify(body) }, command);
 }
 
 export const accountClient = {
@@ -268,10 +219,7 @@ export const accountClient = {
     });
   },
 
-  revokeOwnSession(
-    sessionId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
+  revokeOwnSession(sessionId: string, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand(`own-session:${sessionId}`, command, (resolved) =>
       apiFetch(
         `${API_BASE}/api/account/sessions/${encodeURIComponent(sessionId)}`,
@@ -280,25 +228,13 @@ export const accountClient = {
     );
   },
 
-  async createWorkspace(
-    body: unknown,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand(
-      await payloadOperationKey("workspace-create", body),
-      command,
-      (resolved) =>
-        apiFetch(
-          `${API_BASE}/api/orgs`,
-          jsonCommandInit("POST", body, resolved),
-        ),
+  async createWorkspace(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand(await payloadOperationKey("workspace-create", body), command, (resolved) =>
+      apiFetch(`${API_BASE}/api/orgs`, jsonCommandInit("POST", body, resolved)),
     );
   },
 
-  eraseWorkspace(
-    workspaceId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
+  eraseWorkspace(workspaceId: string, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand(
       `workspace-erase:${workspaceId}`,
       command,
@@ -313,21 +249,15 @@ export const accountClient = {
   },
 
   listMembers(workspaceId: string): Promise<Response> {
-    return apiFetchReauth(
-      `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members`,
-      {
-        credentials: "include",
-      },
-    );
+    return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members`, {
+      credentials: "include",
+    });
   },
 
   listInvitations(workspaceId: string): Promise<Response> {
-    return apiFetchReauth(
-      `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites`,
-      {
-        credentials: "include",
-      },
-    );
+    return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites`, {
+      credentials: "include",
+    });
   },
 
   changeMemberRole(
@@ -336,30 +266,20 @@ export const accountClient = {
     role: string,
     command?: BrowserAccountCommand,
   ): Promise<Response> {
-    return runCommand(
-      `member-role:${workspaceId}:${principalId}:${role}`,
-      command,
-      (resolved) =>
-        apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
-          jsonCommandInit("PATCH", { role }, resolved),
-        ),
+    return runCommand(`member-role:${workspaceId}:${principalId}:${role}`, command, (resolved) =>
+      apiFetchReauth(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
+        jsonCommandInit("PATCH", { role }, resolved),
+      ),
     );
   },
 
-  removeMember(
-    workspaceId: string,
-    principalId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand(
-      `member-remove:${workspaceId}:${principalId}`,
-      command,
-      (resolved) =>
-        apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
-          commandInit({ method: "DELETE", credentials: "include" }, resolved),
-        ),
+  removeMember(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand(`member-remove:${workspaceId}:${principalId}`, command, (resolved) =>
+      apiFetchReauth(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
+        commandInit({ method: "DELETE", credentials: "include" }, resolved),
+      ),
     );
   },
 
@@ -368,97 +288,58 @@ export const accountClient = {
     targetPrincipalId: string,
     command?: BrowserAccountCommand,
   ): Promise<Response> {
-    return runCommand(
-      `ownership-transfer:${workspaceId}:${targetPrincipalId}`,
-      command,
-      (resolved) =>
-        apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/transfer-ownership`,
-          jsonCommandInit("POST", { toUserId: targetPrincipalId }, resolved),
-        ),
+    return runCommand(`ownership-transfer:${workspaceId}:${targetPrincipalId}`, command, (resolved) =>
+      apiFetchReauth(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/transfer-ownership`,
+        jsonCommandInit("POST", { toUserId: targetPrincipalId }, resolved),
+      ),
     );
   },
 
-  issuePasswordReset(
-    workspaceId: string,
-    principalId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand(
-      `password-reset:${workspaceId}:${principalId}`,
-      command,
-      (resolved) =>
-        apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/reset-password`,
-          commandInit({ method: "POST", credentials: "include" }, resolved),
-        ),
+  issuePasswordReset(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand(`password-reset:${workspaceId}:${principalId}`, command, (resolved) =>
+      apiFetchReauth(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/reset-password`,
+        commandInit({ method: "POST", credentials: "include" }, resolved),
+      ),
     );
   },
 
-  revokeMemberSessions(
-    workspaceId: string,
-    principalId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand(
-      `member-sessions:${workspaceId}:${principalId}`,
-      command,
-      (resolved) =>
-        apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/revoke-sessions`,
-          commandInit({ method: "POST", credentials: "include" }, resolved),
-        ),
+  revokeMemberSessions(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand(`member-sessions:${workspaceId}:${principalId}`, command, (resolved) =>
+      apiFetchReauth(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/revoke-sessions`,
+        commandInit({ method: "POST", credentials: "include" }, resolved),
+      ),
     );
   },
 
-  async createInvitation(
-    body: unknown,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
+  async createInvitation(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
     const accountId =
       typeof body === "object" && body !== null && "accountId" in body
         ? String((body as { accountId: unknown }).accountId)
         : "unknown";
-    return runCommand(
-      await payloadOperationKey(`invitation-create:${accountId}`, body),
-      command,
-      (resolved) =>
-        apiFetchReauth(
-          `${API_BASE}/api/invites`,
-          jsonCommandInit("POST", body, resolved),
-        ),
+    return runCommand(await payloadOperationKey(`invitation-create:${accountId}`, body), command, (resolved) =>
+      apiFetchReauth(`${API_BASE}/api/invites`, jsonCommandInit("POST", body, resolved)),
     );
   },
 
-  revokeInvitation(
-    workspaceId: string,
-    invitationId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand(
-      `invitation-revoke:${workspaceId}:${invitationId}`,
-      command,
-      (resolved) =>
-        apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(invitationId)}`,
-          commandInit({ method: "DELETE", credentials: "include" }, resolved),
-        ),
+  revokeInvitation(workspaceId: string, invitationId: string, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand(`invitation-revoke:${workspaceId}:${invitationId}`, command, (resolved) =>
+      apiFetchReauth(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(invitationId)}`,
+        commandInit({ method: "DELETE", credentials: "include" }, resolved),
+      ),
     );
   },
 
   previewInvitation(token: string): Promise<Response> {
-    return apiFetch(
-      `${API_BASE}/api/invites/${encodeURIComponent(token)}/preview`,
-      {
-        credentials: "include",
-      },
-    );
+    return apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/preview`, {
+      credentials: "include",
+    });
   },
 
-  acceptInvitation(
-    token: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
+  acceptInvitation(token: string, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand(null, command, (resolved) =>
       apiFetch(
         `${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`,
@@ -467,23 +348,13 @@ export const accountClient = {
     );
   },
 
-  signupWithInvitation(
-    token: string,
-    body: unknown,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
+  signupWithInvitation(token: string, body: unknown, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand(null, command, (resolved) =>
-      apiFetch(
-        `${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`,
-        jsonCommandInit("POST", body, resolved),
-      ),
+      apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`, jsonCommandInit("POST", body, resolved)),
     );
   },
 
-  reconcileCommand(
-    command: BrowserAccountCommand,
-    operation: string,
-  ): Promise<Response> {
+  reconcileCommand(command: BrowserAccountCommand, operation: string): Promise<Response> {
     return apiFetch(`${API_BASE}/api/account-commands/reconcile`, {
       method: "POST",
       credentials: "include",

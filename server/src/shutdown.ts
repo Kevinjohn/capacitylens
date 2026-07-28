@@ -14,10 +14,7 @@ interface ClosableDb {
 
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000;
 export type ShutdownReason =
-  | `signal:${NodeJS.Signals}`
-  | `process_failure:${LastResortFailureKind}`
-  | "listen_failure"
-  | "requested";
+  `signal:${NodeJS.Signals}` | `process_failure:${LastResortFailureKind}` | "listen_failure" | "requested";
 
 /** A failed listener is fatal, but it happens after background work may have started. Preserve the
  * ordinary shutdown contract so snapshots drain and SQLite closes before the process exits. */
@@ -40,9 +37,7 @@ export function createShutdownHandler(
   let draining = false;
   return async (exitCode = 0, reason = "requested") => {
     if (draining) {
-      console.error(
-        `capacitylens-server: shutdown re-entered during drain (reason=${reason}); forcing exit`,
-      );
+      console.error(`capacitylens-server: shutdown re-entered during drain (reason=${reason}); forcing exit`);
       exit(1); // forced: the drain was cut short, so don't report a clean stop
       return;
     }
@@ -51,9 +46,7 @@ export function createShutdownHandler(
     // Fastify still considers live. In production exit(1) terminates the process and the OS closes
     // its handles; the supervisor therefore has time to replace it before Compose's 15s SIGKILL.
     const deadline = setTimeout(() => {
-      console.error(
-        `capacitylens-server: shutdown exceeded ${deadlineMs}ms; forcing exit`,
-      );
+      console.error(`capacitylens-server: shutdown exceeded ${deadlineMs}ms; forcing exit`);
       exit(1);
     }, deadlineMs);
     deadline.unref();
@@ -88,10 +81,7 @@ export function createShutdownHandler(
       clearTimeout(deadline);
       try {
         for (const failure of failures) {
-          console.error(
-            `capacitylens-server: shutdown ${failure.stage} failed`,
-            failure.error,
-          );
+          console.error(`capacitylens-server: shutdown ${failure.stage} failed`, failure.error);
         }
       } finally {
         exit(1);
@@ -103,9 +93,7 @@ export function createShutdownHandler(
   };
 }
 
-export type LastResortFailureKind =
-  | "uncaught_exception"
-  | "unhandled_rejection";
+export type LastResortFailureKind = "uncaught_exception" | "unhandled_rejection";
 
 /**
  * Process-wide last resort for failures outside Fastify's request error boundary. Continuing after
@@ -119,10 +107,7 @@ export function createLastResortErrorHandler(
   logError: (message: string, error: Error) => void,
 ): (kind: LastResortFailureKind, reason: unknown) => Promise<void> {
   return async (kind, reason) => {
-    const error =
-      reason instanceof Error
-        ? reason
-        : new Error(`Non-Error rejection: ${String(reason)}`);
+    const error = reason instanceof Error ? reason : new Error(`Non-Error rejection: ${String(reason)}`);
     try {
       logError(`capacitylens-server: last-resort ${kind}`, error);
     } catch {

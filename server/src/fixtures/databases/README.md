@@ -7,16 +7,16 @@ Each listed version has an `off` fixture containing only the application/control
 The generator revision is the historical source revision used to open and migrate a copy of the
 sanitised v7 seed into that released shape.
 
-| Top-level schema | Generator revision | Package version |
-|---:|---|---|
-| 7 | `36b6084` | `0.20.0-alpha.1` |
-| 8 | `f0aa3b3` | `0.20.1-alpha.2` |
-| 9 | `0f0fbdc` | `0.21.0-alpha.0` |
-| 12 | `fd5374b` | `0.21.0-alpha.0` |
-| 13 | `eda9243` | `0.23.0-alpha.0` |
-| 14 | `00748d0` | `0.23.3-alpha.0` |
-| 15 | `f6454ed` | `0.23.3-alpha.0` |
-| 16 | `630c75d` | `0.26.0-alpha.1` |
+| Top-level schema | Generator revision | Package version  |
+| ---------------: | ------------------ | ---------------- |
+|                7 | `36b6084`          | `0.20.0-alpha.1` |
+|                8 | `f0aa3b3`          | `0.20.1-alpha.2` |
+|                9 | `0f0fbdc`          | `0.21.0-alpha.0` |
+|               12 | `fd5374b`          | `0.21.0-alpha.0` |
+|               13 | `eda9243`          | `0.23.0-alpha.0` |
+|               14 | `00748d0`          | `0.23.3-alpha.0` |
+|               15 | `f6454ed`          | `0.23.3-alpha.0` |
+|               16 | `630c75d`          | `0.26.0-alpha.1` |
 
 Versions 10 and 11 were ordered migration steps first shipped together in the v12 build; no
 released build used either as its top-level `user_version`, so there is no synthetic v10 or v11

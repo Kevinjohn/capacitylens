@@ -29,9 +29,7 @@ describe("CAPACITYLENS_LOG on", () => {
   });
 
   it("routes the 500-path error through the request logger, not console.error", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const { lines, stream } = capture();
     const db = openDb(":memory:");
     const app = buildApp(db, { log: true, logStream: stream });
@@ -47,11 +45,7 @@ describe("CAPACITYLENS_LOG on", () => {
 describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
   it("wires remove:true to every secret header path before serializers run", () => {
     expect(requestLoggerOptions().redact).toEqual({
-      paths: [
-        "req.headers.authorization",
-        "req.headers.cookie",
-        'res.headers["set-cookie"]',
-      ],
+      paths: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'],
       remove: true,
     });
   });
@@ -95,25 +89,22 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
     expect(out).not.toContain(TOKEN); // the live token never reaches the log
   });
 
-  it.each(["preview", "signup"])(
-    "also redacts the token from the %s URL",
-    async (operation) => {
-      const { lines, stream } = capture();
-      const app = buildApp(openDb(":memory:"), {
-        log: true,
-        logStream: stream,
-      });
-      const TOKEN = `SENTINEL_${operation.toUpperCase()}_INVITE_TOKEN`;
-      await app.inject({
-        method: operation === "preview" ? "GET" : "POST",
-        url: `/api/invites/${TOKEN}/${operation}`,
-        ...(operation === "signup" ? { payload: {} } : {}),
-      });
-      const out = lines.join("");
-      expect(out).toContain(`"url":"/api/invites/[redacted]/${operation}"`);
-      expect(out).not.toContain(TOKEN);
-    },
-  );
+  it.each(["preview", "signup"])("also redacts the token from the %s URL", async (operation) => {
+    const { lines, stream } = capture();
+    const app = buildApp(openDb(":memory:"), {
+      log: true,
+      logStream: stream,
+    });
+    const TOKEN = `SENTINEL_${operation.toUpperCase()}_INVITE_TOKEN`;
+    await app.inject({
+      method: operation === "preview" ? "GET" : "POST",
+      url: `/api/invites/${TOKEN}/${operation}`,
+      ...(operation === "signup" ? { payload: {} } : {}),
+    });
+    const out = lines.join("");
+    expect(out).toContain(`"url":"/api/invites/[redacted]/${operation}"`);
+    expect(out).not.toContain(TOKEN);
+  });
 
   it("also redacts token paths in structured security events", async () => {
     const db = openDb(":memory:");
@@ -153,9 +144,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
     });
 
     const out = lines.join("");
-    expect(out).toContain(
-      '"url":"/api/health?code=%5Bredacted%5D&state=%5Bredacted%5D&keep=1"',
-    );
+    expect(out).toContain('"url":"/api/health?code=%5Bredacted%5D&state=%5Bredacted%5D&keep=1"');
     expect(out).not.toContain(CODE);
     expect(out).not.toContain(STATE);
   });
@@ -172,35 +161,32 @@ describe("security-event client identity", () => {
   it.each([
     [true, "198.51.100.7"],
     [false, "127.0.0.1"],
-  ])(
-    "uses the forwarded client only when proxy headers are trusted (%s)",
-    async (trustProxyHeaders, expectedIp) => {
-      const db = openDb(":memory:");
-      const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
-      await runAuthMigrations(auth!);
-      const events: Array<Record<string, unknown>> = [];
-      const app = buildApp(db, {
-        authMode: mode,
-        auth,
-        trustProxyHeaders,
-        securityLog: (event) => events.push(event),
-      });
+  ])("uses the forwarded client only when proxy headers are trusted (%s)", async (trustProxyHeaders, expectedIp) => {
+    const db = openDb(":memory:");
+    const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(auth!);
+    const events: Array<Record<string, unknown>> = [];
+    const app = buildApp(db, {
+      authMode: mode,
+      auth,
+      trustProxyHeaders,
+      securityLog: (event) => events.push(event),
+    });
 
-      const response = await app.inject({
-        method: "GET",
-        url: "/api/state",
-        headers: { "x-forwarded-for": "198.51.100.7, 127.0.0.1" },
-      });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/state",
+      headers: { "x-forwarded-for": "198.51.100.7, 127.0.0.1" },
+    });
 
-      expect(response.statusCode).toBe(401);
-      expect(events).toContainEqual(
-        expect.objectContaining({
-          event: "authentication_required",
-          remoteIp: expectedIp,
-        }),
-      );
-    },
-  );
+    expect(response.statusCode).toBe(401);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        event: "authentication_required",
+        remoteIp: expectedIp,
+      }),
+    );
+  });
 });
 
 describe("CAPACITYLENS_LOG off (default)", () => {
@@ -212,9 +198,7 @@ describe("CAPACITYLENS_LOG off (default)", () => {
   });
 
   it("keeps the 500-path on console.error (today, byte for byte)", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const { lines, stream } = capture();
     const db = openDb(":memory:");
     const app = buildApp(db, { logStream: stream });
@@ -269,9 +253,7 @@ describe("authentication security events", () => {
     });
     expect(events.at(-1)).not.toHaveProperty("userId");
     expect(JSON.stringify(events.at(-1))).not.toContain(email);
-    expect(JSON.stringify(events.at(-1))).not.toContain(
-      "wrong-password-123456",
-    );
+    expect(JSON.stringify(events.at(-1))).not.toContain("wrong-password-123456");
 
     const signIn = await call(app, {
       method: "POST",

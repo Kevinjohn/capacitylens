@@ -30,8 +30,6 @@ describe("pre-hydration external sign-in error cleanup", () => {
   });
 
   it("does not rewrite an unmarked application query", () => {
-    expect(
-      runAt("https://app.example/?error=ordinary-product-value"),
-    ).not.toHaveBeenCalled();
+    expect(runAt("https://app.example/?error=ordinary-product-value")).not.toHaveBeenCalled();
   });
 });

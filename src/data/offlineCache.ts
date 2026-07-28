@@ -71,14 +71,10 @@ interface WriteBoundary {
 }
 
 function originKey(): string {
-  const frontendOrigin =
-    typeof window === "undefined" ? "server" : window.location.origin;
+  const frontendOrigin = typeof window === "undefined" ? "server" : window.location.origin;
   if (API_BASE.length === 0) return `${frontendOrigin}|api:${frontendOrigin}`;
   try {
-    const resolutionBase =
-      frontendOrigin === "server"
-        ? "http://capacitylens.invalid"
-        : frontendOrigin;
+    const resolutionBase = frontendOrigin === "server" ? "http://capacitylens.invalid" : frontendOrigin;
     return `${frontendOrigin}|api:${new URL(API_BASE, resolutionBase).origin}`;
   } catch {
     // Invalid build-time URLs already make live requests unusable. Keep their offline namespace
@@ -108,10 +104,7 @@ function openOfflineDb(): Promise<IDBDatabase> {
         request.result.createObjectStore(KEY_STORE_NAME, { keyPath: "id" });
       }
       // Version 1 stored plaintext values. Never carry them across the encrypted-cache upgrade.
-      if (
-        event.oldVersion < 2 &&
-        request.result.objectStoreNames.contains(STORE_NAME)
-      ) {
+      if (event.oldVersion < 2 && request.result.objectStoreNames.contains(STORE_NAME)) {
         request.transaction?.objectStore(STORE_NAME).clear();
       }
     };
@@ -139,15 +132,10 @@ function openOfflineDb(): Promise<IDBDatabase> {
         },
       );
     };
-    request.onerror = () =>
-      rejectOpen(
-        request.error ?? new Error("The offline cache could not be opened."),
-      );
+    request.onerror = () => rejectOpen(request.error ?? new Error("The offline cache could not be opened."));
     request.onblocked = () =>
       rejectOpen(
-        new Error(
-          "The offline cache upgrade is blocked by another open tab. Close or reload it and try again.",
-        ),
+        new Error("The offline cache upgrade is blocked by another open tab. Close or reload it and try again."),
       );
   });
 }
@@ -163,71 +151,48 @@ function sweepExpiredRecords(db: IDBDatabase): Promise<void> {
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
-      const savedAt = (cursor.value as { savedAt?: unknown } | undefined)
-        ?.savedAt;
+      const savedAt = (cursor.value as { savedAt?: unknown } | undefined)?.savedAt;
       const age = typeof savedAt === "number" ? now - savedAt : Number.NaN;
       if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) cursor.delete();
       cursor.continue();
     };
-    request.onerror = () =>
-      reject(
-        request.error ??
-          new Error("Expired offline data could not be inspected."),
-      );
+    request.onerror = () => reject(request.error ?? new Error("Expired offline data could not be inspected."));
     tx.oncomplete = () => resolve();
-    tx.onerror = () =>
-      reject(
-        tx.error ?? new Error("Expired offline data could not be removed."),
-      );
-    tx.onabort = () =>
-      reject(tx.error ?? new Error("Offline retention cleanup was aborted."));
+    tx.onerror = () => reject(tx.error ?? new Error("Expired offline data could not be removed."));
+    tx.onabort = () => reject(tx.error ?? new Error("Offline retention cleanup was aborted."));
   });
 }
 
 function webCrypto(): Crypto {
   if (typeof crypto === "undefined" || !crypto.subtle) {
-    throw new Error(
-      "Web Crypto is unavailable; encrypted offline access cannot be enabled.",
-    );
+    throw new Error("Web Crypto is unavailable; encrypted offline access cannot be enabled.");
   }
   return crypto;
 }
 
 async function readDeviceKey(db: IDBDatabase): Promise<CryptoKey | null> {
   return new Promise((resolve, reject) => {
-    const request = db
-      .transaction(KEY_STORE_NAME, "readonly")
-      .objectStore(KEY_STORE_NAME)
-      .get(DEVICE_KEY_ID);
+    const request = db.transaction(KEY_STORE_NAME, "readonly").objectStore(KEY_STORE_NAME).get(DEVICE_KEY_ID);
     request.onsuccess = () => {
-      const value = request.result as
-        | { id?: unknown; value?: unknown }
-        | undefined;
+      const value = request.result as { id?: unknown; value?: unknown } | undefined;
       const candidate = value?.value as Partial<CryptoKey> | undefined;
       resolve(
-        value?.id === DEVICE_KEY_ID &&
-          candidate?.type === "secret" &&
-          candidate.algorithm?.name === "AES-GCM"
+        value?.id === DEVICE_KEY_ID && candidate?.type === "secret" && candidate.algorithm?.name === "AES-GCM"
           ? (candidate as CryptoKey)
           : null,
       );
     };
-    request.onerror = () =>
-      reject(
-        request.error ??
-          new Error("The offline encryption key could not be read."),
-      );
+    request.onerror = () => reject(request.error ?? new Error("The offline encryption key could not be read."));
   });
 }
 
 async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
   const existing = await readDeviceKey(db);
   if (existing) return existing;
-  const generated = await webCrypto().subtle.generateKey(
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
+  const generated = await webCrypto().subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+    "encrypt",
+    "decrypt",
+  ]);
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(KEY_STORE_NAME, "readwrite");
@@ -236,16 +201,8 @@ async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
         value: generated,
       });
       tx.oncomplete = () => resolve();
-      tx.onerror = () =>
-        reject(
-          tx.error ??
-            new Error("The offline encryption key could not be stored."),
-        );
-      tx.onabort = () =>
-        reject(
-          tx.error ??
-            new Error("The offline encryption key write was aborted."),
-        );
+      tx.onerror = () => reject(tx.error ?? new Error("The offline encryption key could not be stored."));
+      tx.onabort = () => reject(tx.error ?? new Error("The offline encryption key write was aborted."));
     });
     return generated;
   } catch {
@@ -260,10 +217,7 @@ function storedWriteBoundaryToken(): string | null {
   try {
     return localStorage.getItem(WRITE_BOUNDARY_STORAGE_KEY);
   } catch (error) {
-    console.warn(
-      "offlineCache: the offline write boundary could not be read; rejecting cache writes",
-      error,
-    );
+    console.warn("offlineCache: the offline write boundary could not be read; rejecting cache writes", error);
     return null;
   }
 }
@@ -295,26 +249,14 @@ function advanceWriteBoundary(): {
   }
 }
 
-function readDurableWriteBoundary(
-  store: IDBObjectStore,
-): Promise<string | null> {
+function readDurableWriteBoundary(store: IDBObjectStore): Promise<string | null> {
   return new Promise((resolve, reject) => {
     const request = store.get(WRITE_BOUNDARY_ID);
     request.onsuccess = () => {
-      const value = request.result as
-        | { id?: unknown; token?: unknown }
-        | undefined;
-      resolve(
-        value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string"
-          ? value.token
-          : null,
-      );
+      const value = request.result as { id?: unknown; token?: unknown } | undefined;
+      resolve(value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null);
     };
-    request.onerror = () =>
-      reject(
-        request.error ??
-          new Error("The offline write boundary could not be read."),
-      );
+    request.onerror = () => reject(request.error ?? new Error("The offline write boundary could not be read."));
   });
 }
 
@@ -322,20 +264,12 @@ async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
   const tx = db.transaction(KEY_STORE_NAME, "readwrite");
   const store = tx.objectStore(KEY_STORE_NAME);
   const durableToken = await readDurableWriteBoundary(store);
-  const token =
-    durableToken ?? storedWriteBoundaryToken() ?? newWriteBoundaryToken();
+  const token = durableToken ?? storedWriteBoundaryToken() ?? newWriteBoundaryToken();
   if (durableToken === null) store.put({ id: WRITE_BOUNDARY_ID, token });
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () =>
-      reject(
-        tx.error ??
-          new Error("The offline write boundary could not be established."),
-      );
-    tx.onabort = () =>
-      reject(
-        tx.error ?? new Error("The offline write boundary update was aborted."),
-      );
+    tx.onerror = () => reject(tx.error ?? new Error("The offline write boundary could not be established."));
+    tx.onabort = () => reject(tx.error ?? new Error("The offline write boundary update was aborted."));
   });
   localStorage.setItem(WRITE_BOUNDARY_STORAGE_KEY, token);
 }
@@ -352,9 +286,7 @@ async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<void> {
   const db = await openOfflineDb();
   try {
     const encryptionKey = await deviceKey(db);
-    const iv: Uint8Array<ArrayBuffer> = webCrypto().getRandomValues(
-      new Uint8Array(12),
-    );
+    const iv: Uint8Array<ArrayBuffer> = webCrypto().getRandomValues(new Uint8Array(12));
     const plaintext = new TextEncoder().encode(JSON.stringify(record.value));
     const ciphertext = await webCrypto().subtle.encrypt(
       {
@@ -381,32 +313,17 @@ async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<void> {
       // transaction wins, this sees its new token and refuses the stale write. If this transaction
       // wins, cleanup necessarily runs after it and deletes the record.
       const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
-      const boundaryRequest = tx
-        .objectStore(KEY_STORE_NAME)
-        .get(WRITE_BOUNDARY_ID);
+      const boundaryRequest = tx.objectStore(KEY_STORE_NAME).get(WRITE_BOUNDARY_ID);
       boundaryRequest.onsuccess = () => {
-        const value = boundaryRequest.result as
-          | { id?: unknown; token?: unknown }
-          | undefined;
-        const durableToken =
-          value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string"
-            ? value.token
-            : null;
-        if (durableToken === writeBoundary.token)
-          tx.objectStore(STORE_NAME).put(encrypted);
+        const value = boundaryRequest.result as { id?: unknown; token?: unknown } | undefined;
+        const durableToken = value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
+        if (durableToken === writeBoundary.token) tx.objectStore(STORE_NAME).put(encrypted);
       };
       boundaryRequest.onerror = () =>
-        reject(
-          boundaryRequest.error ??
-            new Error("The offline write boundary could not be read."),
-        );
+        reject(boundaryRequest.error ?? new Error("The offline write boundary could not be read."));
       tx.oncomplete = () => resolve();
-      tx.onerror = () =>
-        reject(
-          tx.error ?? new Error("The offline cache could not be updated."),
-        );
-      tx.onabort = () =>
-        reject(tx.error ?? new Error("The offline cache update was aborted."));
+      tx.onerror = () => reject(tx.error ?? new Error("The offline cache could not be updated."));
+      tx.onabort = () => reject(tx.error ?? new Error("The offline cache update was aborted."));
     });
   } finally {
     db.close();
@@ -420,9 +337,7 @@ const pendingWrites = new Map<string, Promise<void>>();
  * queue for a later live value. */
 async function put<T>(record: CachedRecord<T>): Promise<void> {
   const previous = pendingWrites.get(record.key) ?? Promise.resolve();
-  const current = previous
-    .catch(() => undefined)
-    .then(() => writeEncryptedRecord(record));
+  const current = previous.catch(() => undefined).then(() => writeEncryptedRecord(record));
   pendingWrites.set(record.key, current);
   try {
     await current;
@@ -431,8 +346,7 @@ async function put<T>(record: CachedRecord<T>): Promise<void> {
     setOfflineCacheWriteFailed(true);
     throw error;
   } finally {
-    if (pendingWrites.get(record.key) === current)
-      pendingWrites.delete(record.key);
+    if (pendingWrites.get(record.key) === current) pendingWrites.delete(record.key);
   }
 }
 
@@ -440,15 +354,9 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
   const db = await openOfflineDb();
   try {
     const record = await new Promise<unknown>((resolve, reject) => {
-      const request = db
-        .transaction(STORE_NAME, "readonly")
-        .objectStore(STORE_NAME)
-        .get(key);
+      const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(key);
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () =>
-        reject(
-          request.error ?? new Error("The offline cache could not be read."),
-        );
+      request.onerror = () => reject(request.error ?? new Error("The offline cache could not be read."));
     });
     if (!record) return null;
     if (!isRecord(record)) {
@@ -485,10 +393,7 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
           value: JSON.parse(new TextDecoder().decode(plaintext)) as T,
         };
       } catch (error) {
-        console.warn(
-          "offlineCache: encrypted cache authentication failed; deleting the entry",
-          error,
-        );
+        console.warn("offlineCache: encrypted cache authentication failed; deleting the entry", error);
       }
     }
     await deleteKey(key);
@@ -510,10 +415,7 @@ function isArrayBuffer(value: unknown): value is ArrayBuffer {
   return Object.prototype.toString.call(value) === "[object ArrayBuffer]";
 }
 
-async function getValidated<T>(
-  key: string,
-  validate: (value: unknown) => T | null,
-): Promise<CachedRecord<T> | null> {
+async function getValidated<T>(key: string, validate: (value: unknown) => T | null): Promise<CachedRecord<T> | null> {
   const record = await get<unknown>(key);
   if (!record) return null;
   const value = validate(record.value);
@@ -525,23 +427,13 @@ async function getValidated<T>(
 }
 
 function validateAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
-  if (
-    !isRecord(value) ||
-    !["off", "password", "sso"].includes(String(value.authMode))
-  )
-    return null;
+  if (!isRecord(value) || !["off", "password", "sso"].includes(String(value.authMode))) return null;
   if (!validateAuthUser(value.user, value.authMode !== "off")) return null;
-  if (
-    typeof value.canCreateAccount !== "boolean" ||
-    typeof value.multiAccount !== "boolean"
-  )
-    return null;
+  if (typeof value.canCreateAccount !== "boolean" || typeof value.multiAccount !== "boolean") return null;
   return value as unknown as OfflineAuthSnapshot;
 }
 
-function validateAccountSummaries(
-  value: unknown,
-): OfflineAccountSummary[] | null {
+function validateAccountSummaries(value: unknown): OfflineAccountSummary[] | null {
   if (!Array.isArray(value)) return null;
   for (const row of value) {
     if (
@@ -563,15 +455,8 @@ async function deleteKey(key: string): Promise<void> {
       const tx = db.transaction(STORE_NAME, "readwrite");
       tx.objectStore(STORE_NAME).delete(key);
       tx.oncomplete = () => resolve();
-      tx.onerror = () =>
-        reject(
-          tx.error ??
-            new Error("The offline cache entry could not be removed."),
-        );
-      tx.onabort = () =>
-        reject(
-          tx.error ?? new Error("Offline cache entry deletion was aborted."),
-        );
+      tx.onerror = () => reject(tx.error ?? new Error("The offline cache entry could not be removed."));
+      tx.onabort = () => reject(tx.error ?? new Error("Offline cache entry deletion was aborted."));
     });
   } finally {
     db.close();
@@ -583,10 +468,7 @@ function authKey(): string {
 }
 
 function scopedKey(kind: "accounts" | "slice", suffix = ""): string {
-  if (!scope)
-    throw new Error(
-      "Offline cache scope is unavailable until a user has been verified.",
-    );
+  if (!scope) throw new Error("Offline cache scope is unavailable until a user has been verified.");
   return `${kind}:${scope.origin}:${scope.userId}${suffix}`;
 }
 
@@ -595,10 +477,7 @@ export function offlineReadEnabled(): boolean {
   try {
     return localStorage.getItem(OFFLINE_PREF_KEY) === "on";
   } catch (error) {
-    console.warn(
-      "offlineCache: the offline preference could not be read; disabling offline access",
-      error,
-    );
+    console.warn("offlineCache: the offline preference could not be read; disabling offline access", error);
     return false;
   }
 }
@@ -606,15 +485,9 @@ export function offlineReadEnabled(): boolean {
 /** Registration creation precedes the worker's install/activate lifecycle. The worker publishes
  * its active-shell pointer inside activate.waitUntil(), so `activated` is the first state that
  * proves every shell asset was staged and the neutral index entry was promoted successfully. */
-async function waitForOfflineShellActivation(
-  registration: ServiceWorkerRegistration,
-): Promise<void> {
-  const worker =
-    registration.installing ?? registration.waiting ?? registration.active;
-  if (!worker)
-    throw new Error(
-      "Offline shell registration did not provide a service worker.",
-    );
+async function waitForOfflineShellActivation(registration: ServiceWorkerRegistration): Promise<void> {
+  const worker = registration.installing ?? registration.waiting ?? registration.active;
+  if (!worker) throw new Error("Offline shell registration did not provide a service worker.");
   if (worker.state === "activated") return;
   if (worker.state === "redundant") {
     throw new Error("Offline shell installation failed before activation.");
@@ -633,14 +506,11 @@ async function waitForOfflineShellActivation(
     const onStateChange = () => {
       if (worker.state === "activated") finish();
       else if (worker.state === "redundant") {
-        finish(
-          new Error("Offline shell installation failed before activation."),
-        );
+        finish(new Error("Offline shell installation failed before activation."));
       }
     };
     const timer = setTimeout(
-      () =>
-        finish(new Error("Offline shell installation did not finish in time.")),
+      () => finish(new Error("Offline shell installation did not finish in time.")),
       SHELL_ACTIVATION_TIMEOUT_MS,
     );
     worker.addEventListener("statechange", onStateChange);
@@ -664,10 +534,7 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
       } finally {
         db.close();
       }
-      const registration = await navigator.serviceWorker.register(
-        "/offline-worker.js",
-        { scope: "/" },
-      );
+      const registration = await navigator.serviceWorker.register("/offline-worker.js", { scope: "/" });
       await waitForOfflineShellActivation(registration);
       localStorage.setItem(OFFLINE_PREF_KEY, "on");
       return;
@@ -681,11 +548,9 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
     await Promise.all(
       registrations
         .filter((registration) =>
-          [
-            registration.active,
-            registration.waiting,
-            registration.installing,
-          ].some((worker) => worker?.scriptURL.endsWith("/offline-worker.js")),
+          [registration.active, registration.waiting, registration.installing].some((worker) =>
+            worker?.scriptURL.endsWith("/offline-worker.js"),
+          ),
         )
         .map((registration) => registration.unregister()),
     );
@@ -693,11 +558,7 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
       const names = await caches.keys();
       await Promise.all(
         names
-          .filter(
-            (name) =>
-              name.startsWith(SHELL_CACHE_PREFIX) ||
-              name === SHELL_METADATA_CACHE,
-          )
+          .filter((name) => name.startsWith(SHELL_CACHE_PREFIX) || name === SHELL_METADATA_CACHE)
           .map((name) => caches.delete(name)),
       );
     }
@@ -709,10 +570,7 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
       try {
         localStorage.removeItem(OFFLINE_PREF_KEY);
       } catch (cleanupError) {
-        console.warn(
-          "offlineCache: failed to clean up after offline enablement failed",
-          cleanupError,
-        );
+        console.warn("offlineCache: failed to clean up after offline enablement failed", cleanupError);
       }
     }
     throw error;
@@ -720,9 +578,7 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
 }
 
 /** Persist the last verified identity and make it the cache scope for this page. */
-export async function cacheAuthSnapshot(
-  snapshot: OfflineAuthSnapshot,
-): Promise<void> {
+export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<void> {
   if (!offlineReadEnabled()) return;
   scope = { origin: originKey(), userId: snapshot.user.id };
   await put({ key: authKey(), savedAt: Date.now(), value: snapshot });
@@ -743,9 +599,7 @@ export async function readCachedAuthSnapshot(
   return record;
 }
 
-export async function cacheAccountSummaries(
-  summaries: OfflineAccountSummary[],
-): Promise<void> {
+export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]): Promise<void> {
   if (!offlineReadEnabled() || !scope) return;
   await put({
     key: scopedKey("accounts"),
@@ -754,17 +608,12 @@ export async function cacheAccountSummaries(
   });
 }
 
-export async function readCachedAccountSummaries(): Promise<CachedRecord<
-  OfflineAccountSummary[]
-> | null> {
+export async function readCachedAccountSummaries(): Promise<CachedRecord<OfflineAccountSummary[]> | null> {
   if (!offlineReadEnabled() || !scope) return null;
   return getValidated(scopedKey("accounts"), validateAccountSummaries);
 }
 
-export async function cacheAccountSlice(
-  accountId: string,
-  data: AppData,
-): Promise<void> {
+export async function cacheAccountSlice(accountId: string, data: AppData): Promise<void> {
   if (!offlineReadEnabled() || !scope) return;
   await put({
     key: scopedKey("slice", `:${accountId}`),
@@ -773,20 +622,13 @@ export async function cacheAccountSlice(
   });
 }
 
-export async function readCachedAccountSlice(
-  accountId: string,
-): Promise<CachedRecord<AppData> | null> {
+export async function readCachedAccountSlice(accountId: string): Promise<CachedRecord<AppData> | null> {
   if (!offlineReadEnabled() || !scope) return null;
-  return getValidated(scopedKey("slice", `:${accountId}`), (value) =>
-    validateAccountSlice(value, accountId),
-  );
+  return getValidated(scopedKey("slice", `:${accountId}`), (value) => validateAccountSlice(value, accountId));
 }
 
 /** Publish whether the currently rendered slice came from the offline cache. */
-export function setOfflineReadState(
-  readOnly: boolean,
-  lastUpdated: number | null = null,
-): void {
+export function setOfflineReadState(readOnly: boolean, lastUpdated: number | null = null): void {
   if (state.readOnly === readOnly && state.lastUpdated === lastUpdated) return;
   if (readOnly && !state.readOnly) offlineEpisode += 1;
   state = { ...state, readOnly, lastUpdated };
@@ -841,31 +683,15 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
         const cursor = request.result;
         if (!cursor) return;
         const key = String(cursor.key);
-        const accountsKey = currentScope
-          ? `accounts:${currentScope.origin}:${currentScope.userId}`
-          : null;
-        const slicePrefix = currentScope
-          ? `slice:${currentScope.origin}:${currentScope.userId}:`
-          : null;
-        if (
-          key === authKey() ||
-          key === accountsKey ||
-          (slicePrefix && key.startsWith(slicePrefix))
-        )
-          cursor.delete();
+        const accountsKey = currentScope ? `accounts:${currentScope.origin}:${currentScope.userId}` : null;
+        const slicePrefix = currentScope ? `slice:${currentScope.origin}:${currentScope.userId}:` : null;
+        if (key === authKey() || key === accountsKey || (slicePrefix && key.startsWith(slicePrefix))) cursor.delete();
         cursor.continue();
       };
-      request.onerror = () =>
-        reject(
-          request.error ?? new Error("The offline cache could not be cleared."),
-        );
+      request.onerror = () => reject(request.error ?? new Error("The offline cache could not be cleared."));
       tx.oncomplete = () => resolve();
-      tx.onerror = () =>
-        reject(
-          tx.error ?? new Error("The offline cache could not be cleared."),
-        );
-      tx.onabort = () =>
-        reject(tx.error ?? new Error("The offline cache clear was aborted."));
+      tx.onerror = () => reject(tx.error ?? new Error("The offline cache could not be cleared."));
+      tx.onabort = () => reject(tx.error ?? new Error("The offline cache clear was aborted."));
     });
   } finally {
     db.close();
@@ -899,12 +725,8 @@ export async function clearAllOfflineData(): Promise<void> {
       keyStore.put({ id: WRITE_BOUNDARY_ID, token: boundary.token });
       tx.objectStore(STORE_NAME).clear();
       tx.oncomplete = () => resolve();
-      tx.onerror = () =>
-        reject(
-          tx.error ?? new Error("The offline cache could not be cleared."),
-        );
-      tx.onabort = () =>
-        reject(tx.error ?? new Error("The offline cache clear was aborted."));
+      tx.onerror = () => reject(tx.error ?? new Error("The offline cache could not be cleared."));
+      tx.onabort = () => reject(tx.error ?? new Error("The offline cache clear was aborted."));
     });
   } finally {
     db.close();

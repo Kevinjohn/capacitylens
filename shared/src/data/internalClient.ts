@@ -1,4 +1,4 @@
-import type { AppData, Client, ID, ISOTimestamp } from '../types/entities'
+import type { AppData, Client, ID, ISOTimestamp } from "../types/entities";
 
 // The built-in "Internal" pseudo-client. It is a REAL, persisted {@link Client} (it carries an
 // `accountId` and a primary-key id like any other) — NOT a virtual/sentinel id — so it can own
@@ -27,11 +27,11 @@ import type { AppData, Client, ID, ISOTimestamp } from '../types/entities'
 //      ({@link wouldAddSecondBuiltin}).
 
 /** The display name of the built-in Internal client (also recognised on import/migrate). */
-export const INTERNAL_CLIENT_NAME = 'Internal'
+export const INTERNAL_CLIENT_NAME = "Internal";
 
 /** A preset swatch colour for the Internal client (Blue bright — a valid `#rrggbb` from the
  *  palette, distinct from NEUTRAL_COLOR which is reserved for external resources). */
-export const INTERNAL_CLIENT_COLOR = '#2d75da'
+export const INTERNAL_CLIENT_COLOR = "#2d75da";
 
 /**
  * Return a deterministic repair revision that differs from, and never precedes, the row's current
@@ -39,33 +39,29 @@ export const INTERNAL_CLIENT_COLOR = '#2d75da'
  * leave the revision unchanged (or move it backwards) and make updatedAt-based sync miss the repair.
  */
 function repairRevision(current: ISOTimestamp, now: ISOTimestamp): ISOTimestamp {
-  const currentMs = Date.parse(current)
-  const nowMs = Date.parse(now)
-  if (!Number.isFinite(currentMs) || !Number.isFinite(nowMs) || currentMs < nowMs) return now
-  return new Date(currentMs + 1).toISOString()
+  const currentMs = Date.parse(current);
+  const nowMs = Date.parse(now);
+  if (!Number.isFinite(currentMs) || !Number.isFinite(nowMs) || currentMs < nowMs) return now;
+  return new Date(currentMs + 1).toISOString();
 }
 
 /** Choose the deterministic Internal id when available, otherwise the first free deterministic
  * suffix. Client ids are table-global in SQLite, so callers must supply ids from every account. */
 export function availableInternalClientId(accountId: ID, usedIds: ReadonlySet<ID>): ID {
-  const base = `internal:${accountId}`
-  let candidate = base
-  let suffix = 0
+  const base = `internal:${accountId}`;
+  let candidate = base;
+  let suffix = 0;
   while (usedIds.has(candidate)) {
-    suffix += 1
-    candidate = `${base}:${suffix}`
+    suffix += 1;
+    candidate = `${base}:${suffix}`;
   }
-  return candidate
+  return candidate;
 }
 
 /** Build the Internal client for one account: a real Client with `builtin: true`, its selected id,
  * the reserved name + colour, and the given timestamps. Ordinary creation uses the account-derived
  * default; repair callers may provide a collision-free fallback from availableInternalClientId. */
-export function buildInternalClient(
-  accountId: ID,
-  now: ISOTimestamp,
-  id: ID = `internal:${accountId}`,
-): Client {
+export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = `internal:${accountId}`): Client {
   return {
     id,
     accountId,
@@ -74,21 +70,19 @@ export function buildInternalClient(
     builtin: true,
     createdAt: now,
     updatedAt: now,
-  }
+  };
 }
 
 /** The account's built-in Internal client, or undefined if none exists yet. Identifies it by the
  *  `builtin` flag (id-independent so it survives import-remap). First match wins — the seed /
  *  addAccount / migrate paths guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
-  return clients.find(
-    (c) => !!c && typeof c === 'object' && c.builtin === true && c.accountId === accountId,
-  )
+  return clients.find((c) => !!c && typeof c === "object" && c.builtin === true && c.accountId === accountId);
 }
 
 /** True when this client is the protected built-in (cannot be renamed or deleted). */
-export function isBuiltinClient(client: Pick<Client, 'builtin'>): boolean {
-  return client.builtin === true
+export function isBuiltinClient(client: Pick<Client, "builtin">): boolean {
+  return client.builtin === true;
 }
 
 /**
@@ -99,8 +93,8 @@ export function isBuiltinClient(client: Pick<Client, 'builtin'>): boolean {
  * would silently shadow data under an arbitrary Internal — reject it at the API boundary instead.
  */
 export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID): boolean {
-  const existing = internalClientFor(clients, accountId)
-  return existing !== undefined && existing.id !== id
+  const existing = internalClientFor(clients, accountId);
+  return existing !== undefined && existing.id !== id;
 }
 
 /**
@@ -115,67 +109,73 @@ export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID):
  * @param now timestamp stamped on newly-created rows and used as the floor for repair revisions.
  */
 export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData {
-  const added: Client[] = []
-  const usedIds = new Set(data.clients.flatMap((client) =>
-    client && typeof client === 'object' && typeof client.id === 'string' ? [client.id] : [],
-  ))
-  const duplicateIds = new Map<ID, ID>()
-  const duplicateIndexes = new Set<number>()
-  const retainedIndexes = new Set<number>()
-  const builtinsByAccount = new Map<ID, Array<{ client: Client; index: number }>>()
+  const added: Client[] = [];
+  const usedIds = new Set(
+    data.clients.flatMap((client) =>
+      client && typeof client === "object" && typeof client.id === "string" ? [client.id] : [],
+    ),
+  );
+  const duplicateIds = new Map<ID, ID>();
+  const duplicateIndexes = new Set<number>();
+  const retainedIndexes = new Set<number>();
+  const builtinsByAccount = new Map<ID, Array<{ client: Client; index: number }>>();
   data.clients.forEach((client, index) => {
     if (
       !client ||
-      typeof client !== 'object' ||
-      typeof client.id !== 'string' ||
-      typeof client.accountId !== 'string' ||
+      typeof client !== "object" ||
+      typeof client.id !== "string" ||
+      typeof client.accountId !== "string" ||
       client.builtin !== true
-    ) return
-    const rows = builtinsByAccount.get(client.accountId)
-    const entry = { client, index }
-    if (rows) rows.push(entry)
-    else builtinsByAccount.set(client.accountId, [entry])
-  })
+    )
+      return;
+    const rows = builtinsByAccount.get(client.accountId);
+    const entry = { client, index };
+    if (rows) rows.push(entry);
+    else builtinsByAccount.set(client.accountId, [entry]);
+  });
   for (const account of data.accounts) {
-    if (!account || typeof account !== 'object' || typeof account.id !== 'string') continue
-    const generatedId = `internal:${account.id}`
-    const builtins = builtinsByAccount.get(account.id)
+    if (!account || typeof account !== "object" || typeof account.id !== "string") continue;
+    const generatedId = `internal:${account.id}`;
+    const builtins = builtinsByAccount.get(account.id);
     if (!builtins || builtins.length === 0) {
-      const id = availableInternalClientId(account.id, usedIds)
-      usedIds.add(id)
-      added.push(buildInternalClient(account.id, now, id))
-      continue
+      const id = availableInternalClientId(account.id, usedIds);
+      usedIds.add(id);
+      added.push(buildInternalClient(account.id, now, id));
+      continue;
     }
     builtins.sort((left, right) => {
-      if (left.client.id === generatedId && right.client.id !== generatedId) return -1
-      if (right.client.id === generatedId && left.client.id !== generatedId) return 1
-      const leftCreatedAt = typeof left.client.createdAt === 'string' ? left.client.createdAt : ''
-      const rightCreatedAt = typeof right.client.createdAt === 'string' ? right.client.createdAt : ''
-      return leftCreatedAt.localeCompare(rightCreatedAt) ||
+      if (left.client.id === generatedId && right.client.id !== generatedId) return -1;
+      if (right.client.id === generatedId && left.client.id !== generatedId) return 1;
+      const leftCreatedAt = typeof left.client.createdAt === "string" ? left.client.createdAt : "";
+      const rightCreatedAt = typeof right.client.createdAt === "string" ? right.client.createdAt : "";
+      return (
+        leftCreatedAt.localeCompare(rightCreatedAt) ||
         left.client.id.localeCompare(right.client.id) ||
         left.index - right.index
-    })
-    const retained = builtins[0]
-    retainedIndexes.add(retained.index)
+      );
+    });
+    const retained = builtins[0];
+    retainedIndexes.add(retained.index);
     for (const duplicate of builtins.slice(1)) {
-      duplicateIndexes.add(duplicate.index)
+      duplicateIndexes.add(duplicate.index);
       if (duplicate.client.id !== retained.client.id) {
-        duplicateIds.set(duplicate.client.id, retained.client.id)
+        duplicateIds.set(duplicate.client.id, retained.client.id);
       }
     }
   }
   const needsRepair = data.clients.some(
-    (client, index) => retainedIndexes.has(index) &&
+    (client, index) =>
+      retainedIndexes.has(index) &&
       (client.name !== INTERNAL_CLIENT_NAME ||
         client.color !== INTERNAL_CLIENT_COLOR ||
         client.builtin !== true ||
         client.archivedAt !== undefined ||
         client.deletedAt !== undefined),
-  )
-  if (added.length === 0 && duplicateIndexes.size === 0 && !needsRepair) return data
+  );
+  if (added.length === 0 && duplicateIndexes.size === 0 && !needsRepair) return data;
   const clients = data.clients.flatMap((client, index): Client[] => {
-    if (duplicateIndexes.has(index)) return []
-    if (!retainedIndexes.has(index)) return [client]
+    if (duplicateIndexes.has(index)) return [];
+    if (!retainedIndexes.has(index)) return [client];
     // Bump updatedAt ONLY when the repair actually ALTERS a field. ServerSyncAdapter.diffOps detects
     // changes solely by updatedAt, so a name/colour/builtin correction that left updatedAt untouched
     // would be re-applied in memory on every load yet never emit a PUT — the repair never reaches the
@@ -186,20 +186,21 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
       client.color !== INTERNAL_CLIENT_COLOR ||
       client.builtin !== true ||
       client.archivedAt !== undefined ||
-      client.deletedAt !== undefined
-    const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const }
-    delete repaired.archivedAt
-    delete repaired.deletedAt
-    return [altered ? { ...repaired, updatedAt: repairRevision(client.updatedAt, now) } : repaired]
-  })
-  const projects = duplicateIds.size === 0
-    ? data.projects
-    : data.projects.map((project) => {
-        if (!project || typeof project !== 'object') return project
-        const replacement = duplicateIds.get(project.clientId)
-        return replacement
-          ? { ...project, clientId: replacement, updatedAt: repairRevision(project.updatedAt, now) }
-          : project
-      })
-  return { ...data, clients: [...clients, ...added], projects }
+      client.deletedAt !== undefined;
+    const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const };
+    delete repaired.archivedAt;
+    delete repaired.deletedAt;
+    return [altered ? { ...repaired, updatedAt: repairRevision(client.updatedAt, now) } : repaired];
+  });
+  const projects =
+    duplicateIds.size === 0
+      ? data.projects
+      : data.projects.map((project) => {
+          if (!project || typeof project !== "object") return project;
+          const replacement = duplicateIds.get(project.clientId);
+          return replacement
+            ? { ...project, clientId: replacement, updatedAt: repairRevision(project.updatedAt, now) }
+            : project;
+        });
+  return { ...data, clients: [...clients, ...added], projects };
 }

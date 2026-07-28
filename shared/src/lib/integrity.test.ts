@@ -192,18 +192,10 @@ describe("isValidISODate", () => {
 
 describe("parseISOTimestamp", () => {
   it("accepts canonical UTC, supported fractional precision, and explicit offsets", () => {
-    expect(parseISOTimestamp("2026-01-01T00:00:00.000Z")).toBe(
-      Date.UTC(2026, 0, 1),
-    );
-    expect(parseISOTimestamp("2026-01-01T00:00:00.1Z")).toBe(
-      Date.UTC(2026, 0, 1, 0, 0, 0, 100),
-    );
-    expect(parseISOTimestamp("2026-01-01T01:00:00+01:00")).toBe(
-      Date.UTC(2026, 0, 1),
-    );
-    expect(parseISOTimestamp("2024-02-29T12:00:00Z")).toBe(
-      Date.UTC(2024, 1, 29, 12),
-    );
+    expect(parseISOTimestamp("2026-01-01T00:00:00.000Z")).toBe(Date.UTC(2026, 0, 1));
+    expect(parseISOTimestamp("2026-01-01T00:00:00.1Z")).toBe(Date.UTC(2026, 0, 1, 0, 0, 0, 100));
+    expect(parseISOTimestamp("2026-01-01T01:00:00+01:00")).toBe(Date.UTC(2026, 0, 1));
+    expect(parseISOTimestamp("2024-02-29T12:00:00Z")).toBe(Date.UTC(2024, 1, 29, 12));
   });
 
   it.each([
@@ -238,9 +230,7 @@ describe("validateDateRange", () => {
   });
   it("accepts the maximum calendar span and rejects one day more", () => {
     const start = "2026-01-01";
-    expect(
-      validateDateRange(start, addDaysISO(start, MAX_SPAN_DAYS - 1)).ok,
-    ).toBe(true);
+    expect(validateDateRange(start, addDaysISO(start, MAX_SPAN_DAYS - 1)).ok).toBe(true);
     expect(validateDateRange(start, addDaysISO(start, MAX_SPAN_DAYS))).toEqual({
       ok: false,
       errors: ["Date span cannot exceed 36,500 calendar days."],
@@ -255,9 +245,7 @@ describe("validateDateRange", () => {
     expect(validateDateRange("2026-13-01", "2026-12-01").ok).toBe(false); // impossible month
     expect(validateDateRange("2026-02-30", "2026-03-05").ok).toBe(false); // 30 Feb rolls over
     // and the rejection names the calendar-date rule (not some other error)
-    expect(validateDateRange("2026-13-01", "2026-12-01").errors[0]).toMatch(
-      /valid calendar dates/i,
-    );
+    expect(validateDateRange("2026-13-01", "2026-12-01").errors[0]).toMatch(/valid calendar dates/i);
   });
 });
 
@@ -273,16 +261,9 @@ describe("placeholder binding", () => {
   });
 
   it("validateAllocationAssignment explains the rejection", () => {
-    expect(
-      validateAllocationAssignment(placeholder({ projectId: "p1" }), "p2").ok,
-    ).toBe(false);
-    expect(
-      validateAllocationAssignment(placeholder({ projectId: undefined }), "p1")
-        .ok,
-    ).toBe(false);
-    expect(
-      validateAllocationAssignment(placeholder({ projectId: "p1" }), "p1").ok,
-    ).toBe(true);
+    expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), "p2").ok).toBe(false);
+    expect(validateAllocationAssignment(placeholder({ projectId: undefined }), "p1").ok).toBe(false);
+    expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), "p1").ok).toBe(true);
     expect(validateAllocationAssignment(person(), "p1").ok).toBe(true);
   });
 
@@ -290,29 +271,19 @@ describe("placeholder binding", () => {
     // An unbound placeholder (no projectId) and one bound to the WRONG project both reject,
     // but with DIFFERENT reasons — so the `!resource.projectId` branch and each message string
     // are load-bearing, not interchangeable.
-    expect(
-      validateAllocationAssignment(placeholder({ projectId: undefined }), "p1")
-        .errors[0],
-    ).toMatch(/not bound to a project/i);
-    expect(
-      validateAllocationAssignment(placeholder({ projectId: "p1" }), "p2")
-        .errors[0],
-    ).toMatch(/only be assigned to activities from its bound project/i);
+    expect(validateAllocationAssignment(placeholder({ projectId: undefined }), "p1").errors[0]).toMatch(
+      /not bound to a project/i,
+    );
+    expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), "p2").errors[0]).toMatch(
+      /only be assigned to activities from its bound project/i,
+    );
   });
 
   it("a general (no-project) activity can be assigned to anyone — people and placeholders", () => {
     expect(validateAllocationAssignment(person(), undefined).ok).toBe(true);
     // The project restriction does not bite when the activity has no project.
-    expect(
-      validateAllocationAssignment(placeholder({ projectId: "p1" }), undefined)
-        .ok,
-    ).toBe(true);
-    expect(
-      validateAllocationAssignment(
-        placeholder({ projectId: undefined }),
-        undefined,
-      ).ok,
-    ).toBe(true);
+    expect(validateAllocationAssignment(placeholder({ projectId: "p1" }), undefined).ok).toBe(true);
+    expect(validateAllocationAssignment(placeholder({ projectId: undefined }), undefined).ok).toBe(true);
   });
 });
 
@@ -389,9 +360,7 @@ describe("cascade deletes", () => {
     expect(next.phases).toHaveLength(0);
     expect(next.activities).toHaveLength(0);
     expect(next.allocations).toHaveLength(0); // both allocations referenced p1 activities
-    expect(
-      next.resources.find((r) => r.id === "ph1")!.projectId,
-    ).toBeUndefined();
+    expect(next.resources.find((r) => r.id === "ph1")!.projectId).toBeUndefined();
     expect(next.resources).toHaveLength(2); // resources are NOT deleted
   });
 
@@ -596,9 +565,7 @@ describe("cascade deletes", () => {
     expect(next.projects).toHaveLength(0);
     expect(next.activities).toHaveLength(0);
     expect(next.allocations).toHaveLength(0);
-    expect(
-      next.resources.find((r) => r.id === "ph1")!.projectId,
-    ).toBeUndefined();
+    expect(next.resources.find((r) => r.id === "ph1")!.projectId).toBeUndefined();
   });
 
   it("deleteClientCascade removes ONLY the target client’s subtree, sparing a sibling client", () => {
@@ -719,10 +686,7 @@ describe("cascade deletes", () => {
           status: "confirmed",
         },
       ],
-      resources: [
-        placeholder({ id: "phc1", projectId: "p1" }),
-        placeholder({ id: "phc2", projectId: "p2" }),
-      ],
+      resources: [placeholder({ id: "phc1", projectId: "p1" }), placeholder({ id: "phc2", projectId: "p2" })],
     };
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteClientCascade(data, "c1", revision);
@@ -733,22 +697,16 @@ describe("cascade deletes", () => {
     expect(next.activities.find((t) => t.id === "a2")!.name).toBe("A2"); // record kept whole, not blanked
     expect(next.activities.find((t) => t.id === "a2")!.phaseId).toBe("ph2"); // coherent phase NOT unbound
     expect(next.activities.find((t) => t.id === "a3")!.phaseId).toBeUndefined(); // dangling c1 phase unbound
-    expect(next.activities.find((t) => t.id === "a3")!.updatedAt).toBe(
-      revision,
-    );
+    expect(next.activities.find((t) => t.id === "a3")!.updatedAt).toBe(revision);
     expect(next.allocations.map((a) => a.id)).toEqual(["al2"]); // a1's allocation removed, a2's kept
-    expect(
-      next.resources.find((r) => r.id === "phc1")!.projectId,
-    ).toBeUndefined(); // bound to removed p1
+    expect(next.resources.find((r) => r.id === "phc1")!.projectId).toBeUndefined(); // bound to removed p1
     expect(next.resources.find((r) => r.id === "phc2")!.projectId).toBe("p2"); // bound to surviving p2
   });
 
   it("deleteDisciplineCascade ungroups resources but keeps them", () => {
     const next = deleteDisciplineCascade(sampleData(), "d1", CASCADE_REVISION);
     expect(next.disciplines).toHaveLength(0);
-    expect(next.resources.every((r) => r.disciplineId === undefined)).toBe(
-      true,
-    );
+    expect(next.resources.every((r) => r.disciplineId === undefined)).toBe(true);
     expect(next.resources).toHaveLength(2);
   });
 
@@ -796,11 +754,7 @@ describe("cascade deletes", () => {
       updatedAt: revision,
     });
 
-    const afterDiscipline = deleteDisciplineCascade(
-      sampleData(),
-      "d1",
-      revision,
-    );
+    const afterDiscipline = deleteDisciplineCascade(sampleData(), "d1", revision);
     expect(afterDiscipline.resources.find((r) => r.id === "r1")).toMatchObject({
       id: "r1",
       disciplineId: undefined,

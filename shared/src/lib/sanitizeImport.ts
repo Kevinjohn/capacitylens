@@ -1,8 +1,8 @@
-import { NEUTRAL_COLOR, snapToPresetColor } from './color'
-import { INTERNAL_CLIENT_COLOR } from '../data/internalClient'
-import { cleanText } from './strings'
-import { parseISOTimestamp } from './integrity'
-import { normalizeCodeName, PRIVATE_CODE_NAME_FALLBACK } from '../domain/privateNames'
+import { NEUTRAL_COLOR, snapToPresetColor } from "./color";
+import { INTERNAL_CLIENT_COLOR } from "../data/internalClient";
+import { cleanText } from "./strings";
+import { parseISOTimestamp } from "./integrity";
+import { normalizeCodeName, PRIVATE_CODE_NAME_FALLBACK } from "../domain/privateNames";
 import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
@@ -11,7 +11,7 @@ import {
   type AppData,
   type ScopedEntityKey,
   type Weekday,
-} from '../types/entities'
+} from "../types/entities";
 
 // Import is the one write path that bypasses the form validators (a hand-edited or
 // corrupt file never went through them). The store already drops allocations/time-off
@@ -19,93 +19,74 @@ import {
 // would otherwise have guarded — so a negative/NaN hoursPerDay, a junk status enum, or
 // a non-hex colour can't land in the store and render as broken geometry.
 
-const VALID_STATUS = ['confirmed', 'tentative', 'completed'] as const
-const VALID_KIND = ['person', 'placeholder', 'external'] as const
-const VALID_ACTIVITY_KIND = ['project', 'internal', 'repeatable'] as const
-const VALID_EMPLOYMENT = ['permanent', 'freelancer', 'contractor'] as const
-const VALID_TIMEOFF = ['holiday', 'sick', 'unpaid', 'other'] as const
+const VALID_STATUS = ["confirmed", "tentative", "completed"] as const;
+const VALID_KIND = ["person", "placeholder", "external"] as const;
+const VALID_ACTIVITY_KIND = ["project", "internal", "repeatable"] as const;
+const VALID_EMPLOYMENT = ["permanent", "freelancer", "contractor"] as const;
+const VALID_TIMEOFF = ["holiday", "sick", "unpaid", "other"] as const;
 
-const SCOPED_META_FIELDS = ['id', 'accountId', 'createdAt', 'updatedAt'] as const
+const SCOPED_META_FIELDS = ["id", "accountId", "createdAt", "updatedAt"] as const;
 
 /** Exact portable fields accepted for each scoped entity. Import runs in both the in-memory demo
  * and SQLite modes, so project onto the shared domain schema before value repair rather than rely
  * on SQLite's column list to discard undeclared properties later. The type checks below make a
  * domain-field addition fail compilation until this boundary is updated deliberately. */
 const IMPORTED_FIELDS = {
-  disciplines: [...SCOPED_META_FIELDS, 'name', 'color', 'sortOrder'],
+  disciplines: [...SCOPED_META_FIELDS, "name", "color", "sortOrder"],
   resources: [
     ...SCOPED_META_FIELDS,
-    'kind',
-    'name',
-    'role',
-    'disciplineId',
-    'employmentType',
-    'workingHoursPerDay',
-    'workingDays',
-    'projectId',
-    'color',
-    'archivedAt',
-    'deletedAt',
+    "kind",
+    "name",
+    "role",
+    "disciplineId",
+    "employmentType",
+    "workingHoursPerDay",
+    "workingDays",
+    "projectId",
+    "color",
+    "archivedAt",
+    "deletedAt",
   ],
-  clients: [
-    ...SCOPED_META_FIELDS,
-    'name',
-    'color',
-    'isPrivate',
-    'codeName',
-    'builtin',
-    'archivedAt',
-    'deletedAt',
-  ],
-  projects: [
-    ...SCOPED_META_FIELDS,
-    'name',
-    'clientId',
-    'color',
-    'isPrivate',
-    'codeName',
-    'archivedAt',
-    'deletedAt',
-  ],
-  phases: [...SCOPED_META_FIELDS, 'name', 'projectId'],
-  activities: [...SCOPED_META_FIELDS, 'name', 'kind', 'projectId', 'phaseId'],
+  clients: [...SCOPED_META_FIELDS, "name", "color", "isPrivate", "codeName", "builtin", "archivedAt", "deletedAt"],
+  projects: [...SCOPED_META_FIELDS, "name", "clientId", "color", "isPrivate", "codeName", "archivedAt", "deletedAt"],
+  phases: [...SCOPED_META_FIELDS, "name", "projectId"],
+  activities: [...SCOPED_META_FIELDS, "name", "kind", "projectId", "phaseId"],
   allocations: [
     ...SCOPED_META_FIELDS,
-    'resourceId',
-    'activityId',
-    'startDate',
-    'endDate',
-    'hoursPerDay',
-    'status',
-    'note',
-    'ignoreWeekends',
+    "resourceId",
+    "activityId",
+    "startDate",
+    "endDate",
+    "hoursPerDay",
+    "status",
+    "note",
+    "ignoreWeekends",
   ],
-  timeOff: [...SCOPED_META_FIELDS, 'resourceId', 'startDate', 'endDate', 'type', 'note'],
+  timeOff: [...SCOPED_META_FIELDS, "resourceId", "startDate", "endDate", "type", "note"],
 } as const satisfies {
-  [K in ScopedEntityKey]: readonly (keyof AppData[K][number])[]
-}
+  [K in ScopedEntityKey]: readonly (keyof AppData[K][number])[];
+};
 
 type MissingImportedField = {
-  [K in ScopedEntityKey]: Exclude<keyof AppData[K][number], (typeof IMPORTED_FIELDS)[K][number]>
-}[ScopedEntityKey]
-const importedFieldsAreComplete: MissingImportedField extends never ? true : never = true
-void importedFieldsAreComplete
+  [K in ScopedEntityKey]: Exclude<keyof AppData[K][number], (typeof IMPORTED_FIELDS)[K][number]>;
+}[ScopedEntityKey];
+const importedFieldsAreComplete: MissingImportedField extends never ? true : never = true;
+void importedFieldsAreComplete;
 
 const stripUnknownFields = (key: ScopedEntityKey, rec: Record<string, unknown>): void => {
-  const allowed: readonly string[] = IMPORTED_FIELDS[key]
+  const allowed: readonly string[] = IMPORTED_FIELDS[key];
   for (const field of Object.keys(rec)) {
-    if (!allowed.includes(field)) delete rec[field]
+    if (!allowed.includes(field)) delete rec[field];
   }
-}
+};
 
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
-  typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : fallback
+  typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
 
 // A RESOURCE's working day must be POSITIVE (a 0-hour working day has no capacity) — route
 // it through the SHARED clampWorkingHoursPerDay so import and the store resource path agree
 // (a finite value clamps to (0,24]; junk / <= 0 / a non-number falls back to a normal 8h day).
-const clampHours = (v: unknown): number =>
-  typeof v === 'number' ? clampWorkingHoursPerDay(v) : 8
+const clampHours = (v: unknown): number => (typeof v === "number" ? clampWorkingHoursPerDay(v) : 8);
 
 // Allocation hours/day, unlike a resource's working day, may legitimately be 0 (a
 // "blocks"-mode booking persists hoursPerDay: 0 — the span counts but the load doesn't).
@@ -113,10 +94,10 @@ const clampHours = (v: unknown): number =>
 // boundary can never drift (a negative clamps to 0, not the fallback); only a missing /
 // non-numeric / NaN value falls back to a normal 8h day.
 const clampAllocHours = (v: unknown, fallback: number): number =>
-  typeof v === 'number' && Number.isFinite(v) ? clampHoursPerDay(v) : fallback
+  typeof v === "number" && Number.isFinite(v) ? clampHoursPerDay(v) : fallback;
 
 const safeInt = (v: unknown, fallback: number): number =>
-  typeof v === 'number' && Number.isSafeInteger(v) ? v : fallback
+  typeof v === "number" && Number.isSafeInteger(v) ? v : fallback;
 
 // Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
 // app relies on dates being zero-padded so they sort chronologically as strings (see
@@ -125,33 +106,33 @@ const safeInt = (v: unknown, fallback: number): number =>
 // it — silently loses real data). A value that isn't a recognizable Y-M-D is left as-is
 // for validateDateRange to reject. Real-calendar validity (e.g. month 13) is still its job.
 const normalizeISODate = (v: unknown): unknown => {
-  if (typeof v !== 'string') return v
-  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v.trim())
-  if (!m) return v
-  return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
-}
+  if (typeof v !== "string") return v;
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v.trim());
+  if (!m) return v;
+  return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+};
 
 // DE-DUPLICATE: the scheduling math keys weekend-awareness on workingDays.length (a
 // length-7 array means "works every calendar day"), so a duplicated set like
 // [1,1,1,1,1,1,1] would otherwise reach length 7 and model a Monday-only resource as a
 // 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
 const safeWorkingDays = (v: unknown): Weekday[] => {
-  if (!Array.isArray(v)) return [1, 2, 3, 4, 5]
-  const days = v.filter((d): d is Weekday => Number.isInteger(d) && d >= 0 && d <= 6)
-  const unique = [...new Set(days)].sort((a, b) => a - b)
-  return unique.length ? unique : [1, 2, 3, 4, 5]
-}
+  if (!Array.isArray(v)) return [1, 2, 3, 4, 5];
+  const days = v.filter((d): d is Weekday => Number.isInteger(d) && d >= 0 && d <= 6);
+  const unique = [...new Set(days)].sort((a, b) => a - b);
+  return unique.length ? unique : [1, 2, 3, 4, 5];
+};
 
 // Strip emoji / control / zero-width junk from a free-text field in place (the forms
 // reject it; import can't, so it repairs). No-op on a missing/non-string field.
 const cleanField = (rec: Record<string, unknown>, field: string, multiline = false): void => {
-  if (rec[field] === undefined) return
-  if (typeof rec[field] !== 'string') {
-    delete rec[field]
-    return
+  if (rec[field] === undefined) return;
+  if (typeof rec[field] !== "string") {
+    delete rec[field];
+    return;
   }
-  rec[field] = cleanText(rec[field] as string, { multiline })
-}
+  rec[field] = cleanText(rec[field] as string, { multiline });
+};
 
 // Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
 // Cleaning a hand-edited value can collapse it to empty (e.g. an emoji-only name), and a
@@ -159,23 +140,21 @@ const cleanField = (rec: Record<string, unknown>, field: string, multiline = fal
 // yet be REJECTED by the server, diverging the two import paths. Fall back to a placeholder
 // so a required column is never empty and both paths accept the record identically.
 const cleanRequiredField = (rec: Record<string, unknown>, field: string, fallback: string): void => {
-  const cleaned = typeof rec[field] === 'string' ? cleanText(rec[field] as string) : ''
-  rec[field] = cleaned.length > 0 ? cleaned : fallback
-}
+  const cleaned = typeof rec[field] === "string" ? cleanText(rec[field] as string) : "";
+  rec[field] = cleaned.length > 0 ? cleaned : fallback;
+};
 
 /** Keep the two optional privacy fields coherent. Public is represented by absence; malformed
  * private imports fail closed to a neutral code name rather than exposing the real name. */
 const normalizePrivateNameFields = (rec: Record<string, unknown>): void => {
   if (rec.isPrivate !== true) {
-    delete rec.isPrivate
-    delete rec.codeName
-    return
+    delete rec.isPrivate;
+    delete rec.codeName;
+    return;
   }
-  const cleaned = typeof rec.codeName === 'string'
-    ? normalizeCodeName(cleanText(rec.codeName))
-    : ''
-  rec.codeName = cleaned || PRIVATE_CODE_NAME_FALLBACK
-}
+  const cleaned = typeof rec.codeName === "string" ? normalizeCodeName(cleanText(rec.codeName)) : "";
+  rec.codeName = cleaned || PRIVATE_CODE_NAME_FALLBACK;
+};
 
 /** Normalize lifecycle tombstones through the state machine's stored invariants. Invalid values
  * become absent; deletion without prior archival, or deletion before archival, is repaired back to
@@ -183,136 +162,130 @@ const normalizePrivateNameFields = (rec: Record<string, unknown>): void => {
  * the purge clock. */
 const normalizeLifecycleFields = (rec: Record<string, unknown>): void => {
   const timestamp = (value: unknown): string | null => {
-    if (typeof value !== 'string' || value.trim() === '') return null
-    const milliseconds = parseISOTimestamp(value)
-    return milliseconds === null ? null : new Date(milliseconds).toISOString()
-  }
+    if (typeof value !== "string" || value.trim() === "") return null;
+    const milliseconds = parseISOTimestamp(value);
+    return milliseconds === null ? null : new Date(milliseconds).toISOString();
+  };
 
-  const archivedAt = timestamp(rec.archivedAt)
-  const deletedAt = timestamp(rec.deletedAt)
-  if (archivedAt === null) delete rec.archivedAt
-  else rec.archivedAt = archivedAt
+  const archivedAt = timestamp(rec.archivedAt);
+  const deletedAt = timestamp(rec.deletedAt);
+  if (archivedAt === null) delete rec.archivedAt;
+  else rec.archivedAt = archivedAt;
 
-  if (deletedAt === null || archivedAt === null || deletedAt < archivedAt) delete rec.deletedAt
-  else rec.deletedAt = deletedAt
-}
+  if (deletedAt === null || archivedAt === null || deletedAt < archivedAt) delete rec.deletedAt;
+  else rec.deletedAt = deletedAt;
+};
 
 /** Sanitize the optional calendar fields of an account record in place.
  *  Called by the server write path; the import path doesn't re-import accounts. */
 export function sanitizeAccount(rec: Record<string, unknown>): Record<string, unknown> {
   if (rec.timezone !== undefined) {
-    if (typeof rec.timezone !== 'string') {
-      delete rec.timezone
+    if (typeof rec.timezone !== "string") {
+      delete rec.timezone;
     } else {
       try {
-        new Intl.DateTimeFormat(undefined, { timeZone: rec.timezone as string })
+        new Intl.DateTimeFormat(undefined, { timeZone: rec.timezone as string });
       } catch {
-        delete rec.timezone
+        delete rec.timezone;
       }
     }
   }
   if (rec.weekStartsOn !== undefined && rec.weekStartsOn !== 0 && rec.weekStartsOn !== 1) {
-    delete rec.weekStartsOn
+    delete rec.weekStartsOn;
   }
   // Drop any language that isn't the one supported value ('en'). English-only until P1.5.1
   // (Paraglide); a hand-edited 'fr'/123/etc. must not persist — its absence reads back as 'en'.
-  if (rec.language !== undefined && rec.language !== 'en') {
-    delete rec.language
+  if (rec.language !== undefined && rec.language !== "en") {
+    delete rec.language;
   }
   // Drop a non-boolean disciplinesEnabled rather than persist junk; its absence reads
   // back as the default (true) on the client.
-  if (rec.disciplinesEnabled !== undefined && typeof rec.disciplinesEnabled !== 'boolean') {
-    delete rec.disciplinesEnabled
+  if (rec.disciplinesEnabled !== undefined && typeof rec.disciplinesEnabled !== "boolean") {
+    delete rec.disciplinesEnabled;
   }
   // Drop a non-boolean placeholdersEnabled rather than persist junk; its absence reads
   // back as the default (false — hidden) on the client.
-  if (rec.placeholdersEnabled !== undefined && typeof rec.placeholdersEnabled !== 'boolean') {
-    delete rec.placeholdersEnabled
+  if (rec.placeholdersEnabled !== undefined && typeof rec.placeholdersEnabled !== "boolean") {
+    delete rec.placeholdersEnabled;
   }
   // Drop a non-boolean externalEnabled rather than persist junk; its absence reads
   // back as the default (false — hidden) on the client.
-  if (rec.externalEnabled !== undefined && typeof rec.externalEnabled !== 'boolean') {
-    delete rec.externalEnabled
+  if (rec.externalEnabled !== undefined && typeof rec.externalEnabled !== "boolean") {
+    delete rec.externalEnabled;
   }
   // Drop an unknown Internal colour mode; absence deliberately reads as the safe/default grey.
-  if (
-    rec.internalColourMode !== undefined &&
-    !INTERNAL_COLOUR_MODES.includes(rec.internalColourMode as never)
-  ) {
-    delete rec.internalColourMode
+  if (rec.internalColourMode !== undefined && !INTERNAL_COLOUR_MODES.includes(rec.internalColourMode as never)) {
+    delete rec.internalColourMode;
   }
   // Drop a non-boolean showInternalProjects rather than persist junk; its absence reads back as the
   // default (true — shown) on the client (`?? true`), mirroring the disciplinesEnabled precedent.
-  if (rec.showInternalProjects !== undefined && typeof rec.showInternalProjects !== 'boolean') {
-    delete rec.showInternalProjects
+  if (rec.showInternalProjects !== undefined && typeof rec.showInternalProjects !== "boolean") {
+    delete rec.showInternalProjects;
   }
   // Drop a non-boolean showInternalActivities rather than persist junk; absence reads back as true (shown).
-  if (rec.showInternalActivities !== undefined && typeof rec.showInternalActivities !== 'boolean') {
-    delete rec.showInternalActivities
+  if (rec.showInternalActivities !== undefined && typeof rec.showInternalActivities !== "boolean") {
+    delete rec.showInternalActivities;
   }
   // Drop a non-boolean inlineActivityCreateEnabled rather than persist junk; absence reads back as true (enabled).
-  if (rec.inlineActivityCreateEnabled !== undefined && typeof rec.inlineActivityCreateEnabled !== 'boolean') {
-    delete rec.inlineActivityCreateEnabled
+  if (rec.inlineActivityCreateEnabled !== undefined && typeof rec.inlineActivityCreateEnabled !== "boolean") {
+    delete rec.inlineActivityCreateEnabled;
   }
-  return rec
+  return rec;
 }
 
 /** Project one imported scoped record onto its declared schema, then repair constrained values in
  * place. The record has already had its id remapped + accountId stamped. */
-export function sanitizeImportedRecord(
-  key: ScopedEntityKey,
-  rec: Record<string, unknown>,
-): Record<string, unknown> {
-  stripUnknownFields(key, rec)
+export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string, unknown>): Record<string, unknown> {
+  stripUnknownFields(key, rec);
   switch (key) {
-    case 'resources':
-      rec.kind = oneOf(rec.kind, VALID_KIND, 'person')
-      if (rec.kind === 'external') {
-        Object.assign(rec, externalCapacityDefaults())
-        rec.color = NEUTRAL_COLOR
-        delete rec.disciplineId
-        delete rec.projectId
+    case "resources":
+      rec.kind = oneOf(rec.kind, VALID_KIND, "person");
+      if (rec.kind === "external") {
+        Object.assign(rec, externalCapacityDefaults());
+        rec.color = NEUTRAL_COLOR;
+        delete rec.disciplineId;
+        delete rec.projectId;
       } else {
-        rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, 'permanent')
-        rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay)
-        rec.workingDays = safeWorkingDays(rec.workingDays)
-        rec.color = snapToPresetColor(rec.color)
-        if (rec.kind !== 'placeholder') delete rec.projectId
+        rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, "permanent");
+        rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay);
+        rec.workingDays = safeWorkingDays(rec.workingDays);
+        rec.color = snapToPresetColor(rec.color);
+        if (rec.kind !== "placeholder") delete rec.projectId;
       }
-      if (rec.kind === 'placeholder') {
-        cleanField(rec, 'name')
+      if (rec.kind === "placeholder") {
+        cleanField(rec, "name");
       } else {
-        cleanRequiredField(rec, 'name', rec.kind === 'external' ? 'Unnamed company' : 'Unnamed person')
+        cleanRequiredField(rec, "name", rec.kind === "external" ? "Unnamed company" : "Unnamed person");
       }
       // Role is optional in both resource forms, but the storage column is NOT NULL. Preserve an
       // intentionally blank (or cleaning-to-blank) string; only synthesize a value when no string
       // was supplied at all.
-      if (typeof rec.role === 'string') cleanField(rec, 'role')
-      else rec.role = 'Team member'
-      normalizeLifecycleFields(rec)
-      break
-    case 'allocations':
-      rec.status = oneOf(rec.status, VALID_STATUS, 'confirmed')
-      rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8)
-      if (typeof rec.ignoreWeekends !== 'boolean') delete rec.ignoreWeekends
-      rec.startDate = normalizeISODate(rec.startDate)
-      rec.endDate = normalizeISODate(rec.endDate)
-      cleanField(rec, 'note', true)
-      break
-    case 'timeOff':
-      rec.type = oneOf(rec.type, VALID_TIMEOFF, 'other')
-      rec.startDate = normalizeISODate(rec.startDate)
-      rec.endDate = normalizeISODate(rec.endDate)
-      cleanField(rec, 'note', true)
-      break
-    case 'disciplines':
-      rec.sortOrder = safeInt(rec.sortOrder, 0)
-      if (rec.color !== undefined) rec.color = snapToPresetColor(rec.color)
-      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
-      break
-    case 'clients':
-      rec.color = rec.builtin === true ? INTERNAL_CLIENT_COLOR : snapToPresetColor(rec.color)
-      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
+      if (typeof rec.role === "string") cleanField(rec, "role");
+      else rec.role = "Team member";
+      normalizeLifecycleFields(rec);
+      break;
+    case "allocations":
+      rec.status = oneOf(rec.status, VALID_STATUS, "confirmed");
+      rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8);
+      if (typeof rec.ignoreWeekends !== "boolean") delete rec.ignoreWeekends;
+      rec.startDate = normalizeISODate(rec.startDate);
+      rec.endDate = normalizeISODate(rec.endDate);
+      cleanField(rec, "note", true);
+      break;
+    case "timeOff":
+      rec.type = oneOf(rec.type, VALID_TIMEOFF, "other");
+      rec.startDate = normalizeISODate(rec.startDate);
+      rec.endDate = normalizeISODate(rec.endDate);
+      cleanField(rec, "note", true);
+      break;
+    case "disciplines":
+      rec.sortOrder = safeInt(rec.sortOrder, 0);
+      if (rec.color !== undefined) rec.color = snapToPresetColor(rec.color);
+      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
+      break;
+    case "clients":
+      rec.color = rec.builtin === true ? INTERNAL_CLIENT_COLOR : snapToPresetColor(rec.color);
+      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
       // `builtin` is an OPTIONAL boolean (true only for the Internal pseudo-client). This is
       // DEFENSIVE NORMALISATION for a hand-edited / legacy file: drop anything that isn't strictly
       // `true` so junk (a string, 0, or an explicit `false`) can't persist — its absence reads back
@@ -321,45 +294,45 @@ export function sanitizeImportedRecord(
       // (remapAndValidateImport) does NOT remove imported builtins — it normalises them to exactly
       // one per account (keeps the FIRST, re-stamping its name/colour, and folds any duplicates into
       // it). This sanitiser still runs per-record there, so a kept builtin's flag survives untouched.
-      if (rec.builtin !== true) delete rec.builtin
+      if (rec.builtin !== true) delete rec.builtin;
       // The built-in Internal bucket is never embargoed. A normal client keeps a coherent optional
       // privacy pair (isPrivate:true + non-empty codeName), defaulting to public when absent/junk.
       if (rec.builtin === true) {
-        delete rec.isPrivate
-        delete rec.codeName
+        delete rec.isPrivate;
+        delete rec.codeName;
         // Supported mutation paths never allow the protected singleton to enter the lifecycle
         // state machine. Imports repair hand-edited or legacy tombstones back to active.
-        delete rec.archivedAt
-        delete rec.deletedAt
+        delete rec.archivedAt;
+        delete rec.deletedAt;
       } else {
-        normalizePrivateNameFields(rec)
-        normalizeLifecycleFields(rec)
+        normalizePrivateNameFields(rec);
+        normalizeLifecycleFields(rec);
       }
-      break
-    case 'projects':
-      rec.color = snapToPresetColor(rec.color)
-      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
-      normalizePrivateNameFields(rec)
-      normalizeLifecycleFields(rec)
-      break
-    case 'phases':
-      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
-      break
-    case 'activities':
-      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
+      break;
+    case "projects":
+      rec.color = snapToPresetColor(rec.color);
+      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
+      normalizePrivateNameFields(rec);
+      normalizeLifecycleFields(rec);
+      break;
+    case "phases":
+      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
+      break;
+    case "activities":
+      cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
       // kind is NOT NULL. Default a missing/junk value from the only signal a legacy (pre-kind)
       // record carried: a project-bound activity is 'project', a project-less one is 'repeatable'
       // (the rename of "general"). The referential repair pass then strips any project/phase an
       // internal/repeatable activity carries, keeping kind ⇆ projectId coherent.
-      rec.kind = oneOf(rec.kind, VALID_ACTIVITY_KIND, rec.projectId !== undefined ? 'project' : 'repeatable')
-      break
+      rec.kind = oneOf(rec.kind, VALID_ACTIVITY_KIND, rec.projectId !== undefined ? "project" : "repeatable");
+      break;
     default: {
       // Exhaustiveness check: if a new ScopedEntityKey is added to the union without
       // a corresponding case above, this line will fail to compile.
-      const _exhaustive: never = key
-      void _exhaustive
-      break
+      const _exhaustive: never = key;
+      void _exhaustive;
+      break;
     }
   }
-  return rec
+  return rec;
 }

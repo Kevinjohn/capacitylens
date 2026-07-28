@@ -5,11 +5,7 @@ import {
   unicodeCharacterCount,
   utf8ByteLength,
 } from "../lib/strings";
-import {
-  MAX_PASSWORD_LENGTH,
-  passwordCharacterCount,
-  passwordLengthFailure,
-} from "../domain/password";
+import { MAX_PASSWORD_LENGTH, passwordCharacterCount, passwordLengthFailure } from "../domain/password";
 import type { BoundApplication } from "./types";
 
 /** Maximum number of application-specific terms screened from each password. */
@@ -22,18 +18,11 @@ export const MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS = 32;
  * application id, display branding and password-context vocabulary satisfy their shared bounds.
  */
 export function boundApplicationFailure(application: unknown): string | null {
-  if (
-    typeof application !== "object" ||
-    application === null ||
-    Array.isArray(application)
-  ) {
+  if (typeof application !== "object" || application === null || Array.isArray(application)) {
     return "The account application binding must be an object.";
   }
   const candidate = application as Partial<BoundApplication>;
-  if (
-    typeof candidate.applicationId !== "string" ||
-    !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(candidate.applicationId)
-  ) {
+  if (typeof candidate.applicationId !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(candidate.applicationId)) {
     return "The account application id must match ^[a-z0-9][a-z0-9_-]{0,63}$.";
   }
   if (
@@ -57,10 +46,7 @@ export function boundApplicationFailure(application: unknown): string | null {
     branding.passwordContextWords.length === 0 ||
     branding.passwordContextWords.length > MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS ||
     Array.from(branding.passwordContextWords).some(
-      (word) =>
-        typeof word !== "string" ||
-        !word.trim() ||
-        passwordCharacterCount(word) > MAX_PASSWORD_LENGTH,
+      (word) => typeof word !== "string" || !word.trim() || passwordCharacterCount(word) > MAX_PASSWORD_LENGTH,
     )
   ) {
     return `Account branding must define a TOTP issuer and provider label of at most ${MAX_NAME_LENGTH} characters, plus 1–${MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS} non-empty password context words of at most ${MAX_PASSWORD_LENGTH} characters each.`;
@@ -99,10 +85,7 @@ export function isAccountEmail(value: string): boolean {
 }
 
 /** Stable failure vocabulary returned by {@link validateCredentialInput}. */
-export type CredentialInputFailure =
-  | "email"
-  | "display-name"
-  | "password-length";
+export type CredentialInputFailure = "email" | "display-name" | "password-length";
 
 /**
  * Validate normalized identity credentials at the shared adapter boundary without throwing.
@@ -115,11 +98,7 @@ export function validateCredentialInput(input: {
   displayName: string;
   password: string;
 }): CredentialInputFailure | null {
-  if (
-    !isAccountEmail(input.email) ||
-    normalizeAccountEmail(input.email) !== input.email
-  )
-    return "email";
+  if (!isAccountEmail(input.email) || normalizeAccountEmail(input.email) !== input.email) return "email";
   if (
     input.displayName !== input.displayName.trim() ||
     input.displayName.length === 0 ||

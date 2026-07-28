@@ -1,4 +1,4 @@
-import { announceAuditWarning } from '../lib/auditWarning'
+import { announceAuditWarning } from "../lib/auditWarning";
 
 // Two deadline tiers, because one bound can't fit every call. Interactive calls (a single
 // entity write, an auth check, a `hasData` probe) must fail FAST — a wedged socket should
@@ -8,17 +8,17 @@ import { announceAuditWarning } from '../lib/auditWarning'
 // batch is the dangerous one: aborting a still-in-flight batch makes `drain` NOT advance
 // `lastSynced`, so persist.ts retries the identical diff forever (the banner never clears) even
 // though nothing is actually broken. So bulk calls get a much longer bound.
-export const API_REQUEST_TIMEOUT_MS = 15_000
-export const API_BULK_TIMEOUT_MS = 120_000
+export const API_REQUEST_TIMEOUT_MS = 15_000;
+export const API_BULK_TIMEOUT_MS = 120_000;
 
 /** Browser fetch failures that mean the service was unreachable rather than semantically invalid. */
 export function isTransportFailure(error: unknown): boolean {
   return (
     error instanceof TypeError ||
-    (typeof DOMException !== 'undefined' &&
+    (typeof DOMException !== "undefined" &&
       error instanceof DOMException &&
-      (error.name === 'AbortError' || error.name === 'TimeoutError'))
-  )
+      (error.name === "AbortError" || error.name === "TimeoutError"))
+  );
 }
 
 // Combine abort signals with a fallback for engines that ship `AbortSignal.timeout` but not the
@@ -26,27 +26,27 @@ export function isTransportFailure(error: unknown): boolean {
 // `AbortSignal.any is not a function` and the whole app can neither hydrate nor save. The fallback
 // mirrors `any` — a controller that aborts as soon as any input signal does.
 function anySignal(signals: AbortSignal[]): AbortSignal {
-  if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals)
-  const controller = new AbortController()
-  const listeners = new Map<AbortSignal, () => void>()
+  if (typeof AbortSignal.any === "function") return AbortSignal.any(signals);
+  const controller = new AbortController();
+  const listeners = new Map<AbortSignal, () => void>();
   const cleanup = () => {
-    for (const [signal, listener] of listeners) signal.removeEventListener('abort', listener)
-    listeners.clear()
-  }
+    for (const [signal, listener] of listeners) signal.removeEventListener("abort", listener);
+    listeners.clear();
+  };
   for (const signal of signals) {
     if (signal.aborted) {
-      controller.abort(signal.reason)
-      cleanup()
-      break
+      controller.abort(signal.reason);
+      cleanup();
+      break;
     }
     const listener = () => {
-      cleanup()
-      controller.abort(signal.reason)
-    }
-    listeners.set(signal, listener)
-    signal.addEventListener('abort', listener, { once: true })
+      cleanup();
+      controller.abort(signal.reason);
+    };
+    listeners.set(signal, listener);
+    signal.addEventListener("abort", listener, { once: true });
   }
-  return controller.signal
+  return controller.signal;
 }
 
 /**
@@ -61,12 +61,12 @@ export function requestSignal(
   signal?: AbortSignal | null,
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): AbortSignal {
-  const timeout = timeoutMs === null ? null : AbortSignal.timeout(timeoutMs)
-  if (timeout && signal) return anySignal([signal, timeout])
-  if (timeout) return timeout
-  if (signal) return signal
+  const timeout = timeoutMs === null ? null : AbortSignal.timeout(timeoutMs);
+  if (timeout && signal) return anySignal([signal, timeout]);
+  if (timeout) return timeout;
+  if (signal) return signal;
   // No timeout and no caller signal: a signal that never aborts (equivalent to omitting one).
-  return new AbortController().signal
+  return new AbortController().signal;
 }
 
 export async function apiFetch(
@@ -74,11 +74,11 @@ export async function apiFetch(
   init: RequestInit = {},
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
-  const response = await fetch(input, { ...init, signal: requestSignal(init.signal, timeoutMs) })
+  const response = await fetch(input, { ...init, signal: requestSignal(init.signal, timeoutMs) });
   // Defer until the direct action's own success notice has run; otherwise that notice immediately
   // overwrites the more important persistent audit warning in the single-notice store.
-  if (response.headers?.get?.('x-capacitylens-audit-warning') === 'true') {
-    globalThis.setTimeout(() => announceAuditWarning(), 0)
+  if (response.headers?.get?.("x-capacitylens-audit-warning") === "true") {
+    globalThis.setTimeout(() => announceAuditWarning(), 0);
   }
-  return response
+  return response;
 }

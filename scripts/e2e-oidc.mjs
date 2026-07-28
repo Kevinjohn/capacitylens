@@ -4,14 +4,11 @@ import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { spawnPnpm } from "./pnpm-spawn.mjs";
 
-const image =
-  "ghcr.io/dexidp/dex:v2.45.1@sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462";
+const image = "ghcr.io/dexidp/dex:v2.45.1@sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462";
 const container = `capacitylens-oidc-e2e-${process.pid}`;
 const config = fileURLToPath(new URL("../e2e/oidc/dex.yaml", import.meta.url));
 const discovery = "http://127.0.0.1:5556/dex/.well-known/openid-configuration";
-const dexLog = fileURLToPath(
-  new URL("../test-results/oidc/dex.log", import.meta.url),
-);
+const dexLog = fileURLToPath(new URL("../test-results/oidc/dex.log", import.meta.url));
 let discoveryFault = "healthy";
 let dexStarted = false;
 let primaryFailure = null;
@@ -34,8 +31,7 @@ function run(command, args, options = {}) {
     env: childEnvironment(env),
   });
   if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(`${command} exited with status ${result.status}.`);
+  if (result.status !== 0) throw new Error(`${command} exited with status ${result.status}.`);
 }
 
 async function waitForDiscovery() {
@@ -51,9 +47,7 @@ async function waitForDiscovery() {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(
-    "Dex did not publish OIDC discovery metadata within 30 seconds.",
-  );
+  throw new Error("Dex did not publish OIDC discovery metadata within 30 seconds.");
 }
 
 const faultProxy = createServer(async (request, response) => {
@@ -71,15 +65,11 @@ const faultProxy = createServer(async (request, response) => {
     return;
   }
   if (discoveryFault === "unavailable") {
-    response
-      .writeHead(503, { "content-type": "application/json" })
-      .end('{"error":"unavailable"}');
+    response.writeHead(503, { "content-type": "application/json" }).end('{"error":"unavailable"}');
     return;
   }
   if (discoveryFault === "malformed") {
-    response
-      .writeHead(200, { "content-type": "application/json" })
-      .end("{malformed");
+    response.writeHead(200, { "content-type": "application/json" }).end("{malformed");
     return;
   }
   try {
@@ -88,16 +78,13 @@ const faultProxy = createServer(async (request, response) => {
     });
     response
       .writeHead(upstream.status, {
-        "content-type":
-          upstream.headers.get("content-type") ?? "application/json",
+        "content-type": upstream.headers.get("content-type") ?? "application/json",
         "cache-control": "no-store",
       })
       .end(Buffer.from(await upstream.arrayBuffer()));
   } catch (error) {
     console.error("OIDC discovery fault proxy could not reach Dex.", error);
-    response
-      .writeHead(503, { "content-type": "application/json" })
-      .end('{"error":"unavailable"}');
+    response.writeHead(503, { "content-type": "application/json" }).end('{"error":"unavailable"}');
   }
 });
 
@@ -110,22 +97,13 @@ async function listenForDiscoveryFaults() {
 
 async function playwright(phase, filterArgs) {
   await new Promise((resolve, reject) => {
-    const child = spawnPnpm(
-      [
-        "exec",
-        "playwright",
-        "test",
-        "--project=oidc-backed",
-        ...filterArgs,
-      ],
-      {
-        stdio: "inherit",
-        env: childEnvironment({
-          CAPACITYLENS_E2E_PHASE: `oidc-${phase}`,
-          CAPACITYLENS_OIDC_E2E: "1",
-        }),
-      },
-    );
+    const child = spawnPnpm(["exec", "playwright", "test", "--project=oidc-backed", ...filterArgs], {
+      stdio: "inherit",
+      env: childEnvironment({
+        CAPACITYLENS_E2E_PHASE: `oidc-${phase}`,
+        CAPACITYLENS_OIDC_E2E: "1",
+      }),
+    });
     child.once("error", reject);
     child.once("exit", (status) => {
       if (status === 0) resolve();
@@ -166,9 +144,7 @@ function cleanup() {
       if (removed.error || removed.status !== 0) {
         cleanupFailure ??=
           removed.error ??
-          new Error(
-            `Could not remove Dex container: ${removed.stderr?.trim() || `status ${removed.status}`}`,
-          );
+          new Error(`Could not remove Dex container: ${removed.stderr?.trim() || `status ${removed.status}`}`);
       }
     }
     if (cleanupFailure) throw cleanupFailure;
@@ -179,9 +155,7 @@ function cleanup() {
 const signalExitCodes = { SIGINT: 130, SIGTERM: 143 };
 function stopForSignal(signal) {
   void cleanup()
-    .catch((error) =>
-      console.error(`OIDC cleanup failed after ${signal}.`, error),
-    )
+    .catch((error) => console.error(`OIDC cleanup failed after ${signal}.`, error))
     .finally(() => process.exit(signalExitCodes[signal]));
 }
 for (const signal of Object.keys(signalExitCodes)) {
@@ -212,10 +186,7 @@ try {
   discoveryFault = "malformed";
   await playwright("malformed-discovery", ["--grep", "@malformed-discovery"]);
   discoveryFault = "unavailable";
-  await playwright("unavailable-discovery", [
-    "--grep",
-    "@unavailable-discovery",
-  ]);
+  await playwright("unavailable-discovery", ["--grep", "@unavailable-discovery"]);
 } catch (error) {
   primaryFailure = error;
 } finally {
@@ -226,10 +197,7 @@ try {
     cleanupFailure = error;
   }
   if (primaryFailure && cleanupFailure) {
-    throw new AggregateError(
-      [primaryFailure, cleanupFailure],
-      "OIDC conformance and cleanup failed.",
-    );
+    throw new AggregateError([primaryFailure, cleanupFailure], "OIDC conformance and cleanup failed.");
   }
   if (primaryFailure) throw primaryFailure;
   if (cleanupFailure) throw cleanupFailure;

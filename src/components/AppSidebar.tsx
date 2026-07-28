@@ -1,13 +1,13 @@
-import { EyeIcon } from 'lucide-react'
-import { matchPath, NavLink, useLocation } from 'react-router-dom'
-import { useAuth } from '../auth/authContext'
-import { usePermissionStatus, useRole } from '../auth/permissionContext'
-import { useOfflineState } from '../data/useOfflineState'
-import { accessLabelFor } from '../lib/accessCopy'
-import { accessExperienceFor } from '../lib/accessMode'
-import type { NavLinkDef } from '../lib/navLinks'
-import { ImportExport } from './ImportExport'
-import { Badge } from './ui/badge'
+import { EyeIcon } from "lucide-react";
+import { matchPath, NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../auth/authContext";
+import { usePermissionStatus, useRole } from "../auth/permissionContext";
+import { useOfflineState } from "../data/useOfflineState";
+import { accessLabelFor } from "../lib/accessCopy";
+import { accessExperienceFor } from "../lib/accessMode";
+import type { NavLinkDef } from "../lib/navLinks";
+import { ImportExport } from "./ImportExport";
+import { Badge } from "./ui/badge";
 import {
   Sidebar,
   SidebarContent,
@@ -22,17 +22,17 @@ import {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
-} from './ui/sidebar'
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
-import { m } from '@/i18n'
+} from "./ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { m } from "@/i18n";
 
 interface AppSidebarProps {
-  activeAccount: { name: string } | null
-  demoAuthActive: boolean
-  navLinks: NavLinkDef[]
-  onSignOut: () => void
-  onSwitchAccount: () => void
-  open: boolean
+  activeAccount: { name: string } | null;
+  demoAuthActive: boolean;
+  navLinks: NavLinkDef[];
+  onSignOut: () => void;
+  onSwitchAccount: () => void;
+  open: boolean;
 }
 
 /** CapacityLens navigation composed from the standard ShadCN Sidebar primitives. */
@@ -44,10 +44,10 @@ export function AppSidebar({
   onSwitchAccount,
   open,
 }: AppSidebarProps) {
-  const { pathname } = useLocation()
-  const { isMobile, openMobile, setOpenMobile } = useSidebar()
-  const expanded = isMobile ? openMobile : open
-  const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu()
+  const { pathname } = useLocation();
+  const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  const expanded = isMobile ? openMobile : open;
+  const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
 
   return (
     <Sidebar collapsible="icon" data-testid="app-sidebar">
@@ -58,9 +58,7 @@ export function AppSidebar({
           </TooltipTrigger>
           <TooltipContent>{toggleLabel}</TooltipContent>
         </Tooltip>
-        <div className="truncate text-xl font-bold text-brand group-data-[collapsible=icon]:hidden">
-          {m.app_name()}
-        </div>
+        <div className="truncate text-xl font-bold text-brand group-data-[collapsible=icon]:hidden">{m.app_name()}</div>
       </SidebarHeader>
 
       <SidebarContent>
@@ -69,17 +67,17 @@ export function AppSidebar({
             <SidebarGroupContent>
               <SidebarMenu>
                 {navLinks.map(([to, label, NavIcon]) => {
-                  const text = label()
-                  const isActive = matchPath({ path: to, end: to === '/' }, pathname) !== null
+                  const text = label();
+                  const isActive = matchPath({ path: to, end: to === "/" }, pathname) !== null;
                   return (
                     <SidebarMenuItem key={to}>
                       <SidebarMenuButton asChild isActive={isActive} tooltip={text}>
                         <NavLink
                           to={to}
-                          end={to === '/'}
+                          end={to === "/"}
                           data-nav={to}
                           onClick={() => {
-                            if (isMobile) setOpenMobile(false)
+                            if (isMobile) setOpenMobile(false);
                           }}
                         >
                           <NavIcon aria-hidden="true" focusable="false" />
@@ -87,7 +85,7 @@ export function AppSidebar({
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  )
+                  );
                 })}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -126,24 +124,24 @@ export function AppSidebar({
 
       <SidebarRail aria-hidden="true" />
     </Sidebar>
-  )
+  );
 }
 
 /** Resolves the current account role from inside PermissionProvider. */
 function ActiveRoleBadge() {
-  const role = useRole()
-  const permissionStatus = usePermissionStatus()
-  const { authMode } = useAuth()
-  const offline = useOfflineState()
-  const accessExperience = accessExperienceFor(authMode)
-  const resolvedRole = accessExperience === 'authenticated' && permissionStatus === 'resolved' ? role : null
+  const role = useRole();
+  const permissionStatus = usePermissionStatus();
+  const { authMode } = useAuth();
+  const offline = useOfflineState();
+  const accessExperience = accessExperienceFor(authMode);
+  const resolvedRole = accessExperience === "authenticated" && permissionStatus === "resolved" ? role : null;
   const label = accessLabelFor({
     offlineReadOnly: offline.readOnly,
     experience: accessExperience,
     permissionStatus,
     role: resolvedRole,
-  })
-  const viewOnly = offline.readOnly || resolvedRole === 'viewer'
+  });
+  const viewOnly = offline.readOnly || resolvedRole === "viewer";
 
   return (
     <Badge
@@ -155,11 +153,13 @@ function ActiveRoleBadge() {
       {viewOnly && <EyeIcon aria-hidden="true" focusable="false" />}
       {offline.readOnly ? (
         <span data-testid="view-only">{label}</span>
-      ) : resolvedRole === 'viewer' ? (
+      ) : resolvedRole === "viewer" ? (
         <>
           {label} · <span data-testid="view-only">{m.nav_view_only()}</span>
         </>
-      ) : label}
+      ) : (
+        label
+      )}
     </Badge>
-  )
+  );
 }

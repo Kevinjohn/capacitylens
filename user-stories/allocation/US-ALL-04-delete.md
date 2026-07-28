@@ -6,18 +6,23 @@
 `src/components/scheduler/AllocationModal.test.tsx`
 
 ## Goal
+
 Remove a single allocation from the schedule, and be able to undo that removal.
 
 ## Why
+
 Bookings get cancelled. The manager needs a quick, single-click way to drop one allocation — and the safety of undo in case it was a mistake, since the deletion is immediate (no confirmation prompt for allocations).
 
 ## How (end-to-end)
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a *Brand System* bar (on **Pam Gonzalez**).
+
+**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a _Brand System_ bar (on **Pam Gonzalez**).
+
 1. Click the **Brand System** bar. The **Edit allocation** dialog opens.
 2. Click **Delete**. The dialog closes immediately and the bar disappears (there is no "Delete allocation?" confirmation — that confirm dialog exists only for list-page entity deletes).
 3. Press **⌘Z** (Undo).
 
 ## Acceptance criteria
+
 - ✅ After clicking **Delete**, the **Brand System** bar is gone from the schedule and the total `allocation-bar` count drops by one.
 - ✅ No confirmation dialog appears for an allocation delete — it is immediate.
 - ✅ If the removal is rejected, the dialog remains open and shows the safe rejection reason.

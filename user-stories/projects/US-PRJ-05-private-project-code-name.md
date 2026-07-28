@@ -18,14 +18,14 @@ be inferred from the client or allowed to weaken the rule that every project bel
 ## How (end-to-end)
 
 **Precondition:** Open the seeded demo at **Projects** (`/projects`). The trusted local/demo role is
-owner-equivalent; *Acme Inc.* and *Globex* are available clients.
+owner-equivalent; _Acme Inc._ and _Globex_ are available clients.
 
 1. Click **Add project** and confirm **Use a code name** is off and **Code name** is absent.
-2. Enter **Name** = `Acquisition Launch`, choose **Client** = *Acme Inc.*, and enable
+2. Enter **Name** = `Acquisition Launch`, choose **Client** = _Acme Inc._, and enable
    **Use a code name**.
 3. Try to save with `“”` as **Code name**; confirm the form rejects it.
 4. Enter `"Aurora"` and save.
-5. Confirm the owner-facing Projects list shows **Acquisition Launch** under *Acme Inc.*, then reopen
+5. Confirm the owner-facing Projects list shows **Acquisition Launch** under _Acme Inc._, then reopen
    it and confirm the stored form value is `Aurora` without quotes.
 6. Repeat with a public project under a private client, and a private project under a public client,
    to confirm the two privacy choices are independent.

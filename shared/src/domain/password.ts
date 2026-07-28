@@ -13,7 +13,7 @@
  * OWASP ASVS 5.0.0 V6.2.1 requires at least 8 and strongly recommends 15 when passwords are used;
  * CapacityLens uses the stronger recommendation because password mode is internet-deployable.
  */
-export const MIN_PASSWORD_LENGTH = 15
+export const MIN_PASSWORD_LENGTH = 15;
 
 /**
  * The maximum password length, in Unicode code points. Same no-drift contract as
@@ -25,26 +25,26 @@ export const MIN_PASSWORD_LENGTH = 15
  * 128 preserves the product's established ceiling independently of Better Auth's UTF-16-based
  * transport guard.
  */
-export const MAX_PASSWORD_LENGTH = 128
+export const MAX_PASSWORD_LENGTH = 128;
 
 /**
  * Better Auth and HTML `maxlength` count UTF-16 code units. A valid password may use two code units
  * for every code point, so their transport/input ceiling must allow this many code units before
  * CapacityLens applies its own code-point policy.
  */
-export const MAX_PASSWORD_INPUT_CODE_UNITS = MAX_PASSWORD_LENGTH * 2
+export const MAX_PASSWORD_INPUT_CODE_UNITS = MAX_PASSWORD_LENGTH * 2;
 
-export type PasswordLengthFailure = 'too-short' | 'too-long'
+export type PasswordLengthFailure = "too-short" | "too-long";
 
 /** Count the length unit CapacityLens calls a password "character": a Unicode code point. */
 export function passwordCharacterCount(password: string): number {
-  return Array.from(password).length
+  return Array.from(password).length;
 }
 
 /** Return the precise password-length policy failure, if any. */
 export function passwordLengthFailure(password: string): PasswordLengthFailure | null {
-  const length = passwordCharacterCount(password)
-  if (length < MIN_PASSWORD_LENGTH) return 'too-short'
-  if (length > MAX_PASSWORD_LENGTH) return 'too-long'
-  return null
+  const length = passwordCharacterCount(password);
+  if (length < MIN_PASSWORD_LENGTH) return "too-short";
+  if (length > MAX_PASSWORD_LENGTH) return "too-long";
+  return null;
 }

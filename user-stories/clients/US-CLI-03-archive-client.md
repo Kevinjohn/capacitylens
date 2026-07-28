@@ -3,20 +3,24 @@
 **Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "archiving a client hides it from the list, restorable with undo"
 
 ## Goal
+
 Remove a client from the active views **reversibly** — archive it (with a clear warning and one-step
 undo) so the client and everything underneath it (its projects → activities → allocations) are
 retained and can be restored, or later permanently deleted from Settings → Archived & deleted.
 
 ## Why
+
 When an account pauses or ends, the manager wants the client off the schedule in one action — but
 without destroying months of work. Archiving hides the client from the active views while retaining
 its data; soft-delete and permanent removal (which DO cascade to children) are separate, later steps
 reached from Settings → Archived & deleted. Because archiving is reversible, the action is undoable.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). *Acme Inc.* owns
-**Project Lightning**, which has activities (*Wireframes*, *Visual Design*, *CMS Review*) and
+
+**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). _Acme Inc._ owns
+**Project Lightning**, which has activities (_Wireframes_, _Visual Design_, _CMS Review_) and
 allocations.
+
 1. On the **Acme Inc.** row, click the **Archive Acme Inc.** (trash) icon. The "Archive client?"
    confirmation dialog opens.
 2. Read the dialog: it explains the client's work will be hidden from the schedule and can be restored
@@ -25,6 +29,7 @@ allocations.
 4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Acme Inc. returns to the Clients list.
 
 ## Acceptance criteria
+
 - ✅ The confirmation dialog is titled **Archive client?** and explains the client is hidden from the
   schedule and is restorable from Settings → Archived & deleted.
 - ✅ After confirming, **Acme Inc.** is gone from the Clients management list (archived, not destroyed).

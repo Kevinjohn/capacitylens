@@ -6,27 +6,27 @@
 // `m.app_name()` becomes a tsc error and `pnpm run build`/`gate` fails. That compile-time safety is the
 // whole point of choosing Paraglide; these runtime tests are the render/value smoke that rides on top.
 
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import { baseLocale, locales } from '@/paraglide/runtime.js'
-import { m } from '@/i18n'
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { baseLocale, locales } from "@/paraglide/runtime.js";
+import { m } from "@/i18n";
 
-describe('i18n scaffolding (Paraglide)', () => {
-  it('compiles English as the base locale', () => {
-    expect(baseLocale).toBe('en')
-    expect(locales).toContain('en')
-  })
+describe("i18n scaffolding (Paraglide)", () => {
+  it("compiles English as the base locale", () => {
+    expect(baseLocale).toBe("en");
+    expect(locales).toContain("en");
+  });
 
-  it('resolves the demonstrator message to the brand string', () => {
+  it("resolves the demonstrator message to the brand string", () => {
     // Value MUST equal APP_NAME from shared/brand so there is no brand drift / no visible change.
-    expect(m.app_name()).toBe('CapacityLens')
-  })
+    expect(m.app_name()).toBe("CapacityLens");
+  });
 
-  it('renders a typed message in a component', () => {
+  it("renders a typed message in a component", () => {
     function Wordmark() {
-      return <div>{m.app_name()}</div>
+      return <div>{m.app_name()}</div>;
     }
-    render(<Wordmark />)
-    expect(screen.getByText('CapacityLens')).toBeInTheDocument()
-  })
-})
+    render(<Wordmark />);
+    expect(screen.getByText("CapacityLens")).toBeInTheDocument();
+  });
+});

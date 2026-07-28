@@ -1,141 +1,141 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { ActivityList } from './ActivityList'
-import { useStore } from '../../store/useStore'
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../../test/fixtures'
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ActivityList } from "./ActivityList";
+import { useStore } from "../../store/useStore";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../../test/fixtures";
 
-beforeEach(() => resetStoreWithAccount())
+beforeEach(() => resetStoreWithAccount());
 
-describe('ActivityList', () => {
-  it('saves an internal activity under the Internal activities section', async () => {
-    const user = userEvent.setup()
-    render(<ActivityList />)
+describe("ActivityList", () => {
+  it("saves an internal activity under the Internal activities section", async () => {
+    const user = userEvent.setup();
+    render(<ActivityList />);
 
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
-    const dialog = screen.getByRole('dialog', { name: 'Add activity' })
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
-    await user.type(within(dialog).getByLabelText('Name'), 'Internal sync')
+    await user.type(within(dialog).getByLabelText("Name"), "Internal sync");
     // Pick the Internal kind — the project picker disappears (project-less).
-    await user.click(within(dialog).getByRole('radio', { name: 'Internal' }))
-    expect(within(dialog).queryByLabelText('Project')).not.toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await user.click(within(dialog).getByRole("radio", { name: "Internal" }));
+    expect(within(dialog).queryByLabelText("Project")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(useStore.getState().data.activities).toHaveLength(1)
-    expect(useStore.getState().data.activities[0].kind).toBe('internal')
-    expect(useStore.getState().data.activities[0].projectId).toBeUndefined()
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(useStore.getState().data.activities).toHaveLength(1);
+    expect(useStore.getState().data.activities[0].kind).toBe("internal");
+    expect(useStore.getState().data.activities[0].projectId).toBeUndefined();
 
-    expect(screen.getByRole('heading', { name: 'Internal activities' })).toBeInTheDocument()
-    const row = within(screen.getByTestId('internal-activities')).getByTestId('activity-row')
-    expect(row).toHaveTextContent('Internal sync')
-  })
+    expect(screen.getByRole("heading", { name: "Internal activities" })).toBeInTheDocument();
+    const row = within(screen.getByTestId("internal-activities")).getByTestId("activity-row");
+    expect(row).toHaveTextContent("Internal sync");
+  });
 
-  it('saves a cross-project activity under the Cross-project activities section', async () => {
-    const user = userEvent.setup()
-    render(<ActivityList />)
+  it("saves a cross-project activity under the Cross-project activities section", async () => {
+    const user = userEvent.setup();
+    render(<ActivityList />);
 
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
-    const dialog = screen.getByRole('dialog', { name: 'Add activity' })
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
-    await user.type(within(dialog).getByLabelText('Name'), 'Design')
-    await user.click(within(dialog).getByRole('radio', { name: 'Cross-project' }))
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await user.type(within(dialog).getByLabelText("Name"), "Design");
+    await user.click(within(dialog).getByRole("radio", { name: "Cross-project" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(useStore.getState().data.activities[0].kind).toBe('repeatable')
-    expect(screen.getByRole('heading', { name: 'Cross-project activities' })).toBeInTheDocument()
-    const row = within(screen.getByTestId('cross-project-activities')).getByTestId('activity-row')
-    expect(row).toHaveTextContent('Design')
-  })
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(useStore.getState().data.activities[0].kind).toBe("repeatable");
+    expect(screen.getByRole("heading", { name: "Cross-project activities" })).toBeInTheDocument();
+    const row = within(screen.getByTestId("cross-project-activities")).getByTestId("activity-row");
+    expect(row).toHaveTextContent("Design");
+  });
 
-  it('does not show global first-activity onboarding when only a later section has rows', () => {
-    useStore.getState().addActivity({ name: 'Design system', kind: 'repeatable' })
+  it("does not show global first-activity onboarding when only a later section has rows", () => {
+    useStore.getState().addActivity({ name: "Design system", kind: "repeatable" });
 
-    render(<ActivityList />)
+    render(<ActivityList />);
 
-    expect(screen.getByText('Design system')).toBeInTheDocument()
-    expect(screen.getByText('No internal activities yet.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Add your first activity' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Activities are the work you allocate/)).not.toBeInTheDocument()
-  })
+    expect(screen.getByText("Design system")).toBeInTheDocument();
+    expect(screen.getByText("No internal activities yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add your first activity" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Activities are the work you allocate/)).not.toBeInTheDocument();
+  });
 
-  it('gives repeated row delete controls distinct contextual names', () => {
-    useStore.getState().addActivity({ name: 'Planning', kind: 'internal' })
-    useStore.getState().addActivity({ name: 'Operations', kind: 'internal' })
+  it("gives repeated row delete controls distinct contextual names", () => {
+    useStore.getState().addActivity({ name: "Planning", kind: "internal" });
+    useStore.getState().addActivity({ name: "Operations", kind: "internal" });
 
-    render(<ActivityList />)
+    render(<ActivityList />);
 
-    expect(screen.getByRole('button', { name: 'Delete Planning' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Delete Operations' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
-  })
+    expect(screen.getByRole("button", { name: "Delete Planning" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Operations" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
 
-  it('adds a project-specific activity, showing the client / project label in the Project-specific activities section', async () => {
-    const user = userEvent.setup()
-    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    render(<ActivityList />)
+  it("adds a project-specific activity, showing the client / project label in the Project-specific activities section", async () => {
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    render(<ActivityList />);
 
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
-    const dialog = screen.getByRole('dialog', { name: 'Add activity' })
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
     // 'Project-specific' is the default kind, so the project picker is shown.
-    await user.type(within(dialog).getByLabelText('Name'), 'My Activity')
-    fireEvent.keyDown(within(dialog).getByLabelText('Project'), { key: 'ArrowDown' })
-    fireEvent.click(screen.getByRole('option', { name: 'Acme / Lightning' }))
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await user.type(within(dialog).getByLabelText("Name"), "My Activity");
+    fireEvent.keyDown(within(dialog).getByLabelText("Project"), { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Acme / Lightning" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(useStore.getState().data.activities[0].kind).toBe('project')
-    expect(useStore.getState().data.activities[0].projectId).toBe(project.id)
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(useStore.getState().data.activities[0].kind).toBe("project");
+    expect(useStore.getState().data.activities[0].projectId).toBe(project.id);
 
-    const row = within(screen.getByTestId('project-specific-activities')).getByTestId('activity-row')
-    expect(row).toHaveTextContent('My Activity')
-    expect(row).toHaveTextContent('Acme / Lightning')
-  })
+    const row = within(screen.getByTestId("project-specific-activities")).getByTestId("activity-row");
+    expect(row).toHaveTextContent("My Activity");
+    expect(row).toHaveTextContent("Acme / Lightning");
+  });
 
-  it('rejects a project-specific activity with no project chosen', async () => {
-    const user = userEvent.setup()
-    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    render(<ActivityList />)
+  it("rejects a project-specific activity with no project chosen", async () => {
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    render(<ActivityList />);
 
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
-    const dialog = screen.getByRole('dialog', { name: 'Add activity' })
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    const dialog = screen.getByRole("dialog", { name: "Add activity" });
 
     // Default kind is Project-specific; leave the project unselected and Save.
-    await user.type(within(dialog).getByLabelText('Name'), 'Orphan')
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await user.type(within(dialog).getByLabelText("Name"), "Orphan");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     // The dialog stays open with a field error, and no activity is created.
-    expect(screen.getByRole('dialog', { name: 'Add activity' })).toBeInTheDocument()
-    expect(within(dialog).getByText('A project-specific activity must be assigned to a project.')).toBeInTheDocument()
-    expect(useStore.getState().data.activities).toHaveLength(0)
-  })
+    expect(screen.getByRole("dialog", { name: "Add activity" })).toBeInTheDocument();
+    expect(within(dialog).getByText("A project-specific activity must be assigned to a project.")).toBeInTheDocument();
+    expect(useStore.getState().data.activities).toHaveLength(0);
+  });
 
-  it('hides an activity under an archived project', () => {
-    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    useStore.getState().addActivity({ name: 'My Activity', kind: 'project', projectId: project.id })
-    useStore.getState().archiveEntity('projects', project.id)
+  it("hides an activity under an archived project", () => {
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
+    useStore.getState().archiveEntity("projects", project.id);
 
-    render(<ActivityList />)
+    render(<ActivityList />);
 
-    expect(screen.queryByText('My Activity')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('project-specific-activities')).not.toBeInTheDocument()
-  })
+    expect(screen.queryByText("My Activity")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-specific-activities")).not.toBeInTheDocument();
+  });
 
-  it('hides an activity whose project belongs to an archived client', () => {
-    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    useStore.getState().addActivity({ name: 'My Activity', kind: 'project', projectId: project.id })
-    useStore.getState().archiveEntity('clients', client.id)
+  it("hides an activity whose project belongs to an archived client", () => {
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
+    useStore.getState().archiveEntity("clients", client.id);
 
-    render(<ActivityList />)
+    render(<ActivityList />);
 
-    expect(screen.queryByText('My Activity')).not.toBeInTheDocument()
-  })
+    expect(screen.queryByText("My Activity")).not.toBeInTheDocument();
+  });
 
   // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
   // tests): in SERVER mode the per-account read strips archived parents from the slice, so it
@@ -146,105 +146,111 @@ describe('ActivityList', () => {
       makeAppData({
         activities: [
           {
-            id: 'act-orphan',
+            id: "act-orphan",
             accountId: DEFAULT_ACCOUNT_ID,
-            createdAt: 't',
-            updatedAt: 't',
-            name: 'Orphan Activity',
-            kind: 'project',
-            projectId: 'nonexistent-project',
+            createdAt: "t",
+            updatedAt: "t",
+            name: "Orphan Activity",
+            kind: "project",
+            projectId: "nonexistent-project",
           },
         ],
       }),
-    )
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
-  }
+    );
+    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+  };
 
-  it('server mode hides an activity whose project resolves nowhere', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '') // server mode is any value other than '1'
-    seedOrphanActivity()
+  it("server mode hides an activity whose project resolves nowhere", () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", ""); // server mode is any value other than '1'
+    seedOrphanActivity();
 
-    render(<ActivityList />)
+    render(<ActivityList />);
 
-    expect(screen.queryByText('Orphan Activity')).not.toBeInTheDocument()
-    vi.unstubAllEnvs()
-  })
+    expect(screen.queryByText("Orphan Activity")).not.toBeInTheDocument();
+    vi.unstubAllEnvs();
+  });
 
-  it('demo mode also hides an activity whose project resolves nowhere', () => {
-    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1')
-    seedOrphanActivity()
+  it("demo mode also hides an activity whose project resolves nowhere", () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+    seedOrphanActivity();
 
-    render(<ActivityList />)
+    render(<ActivityList />);
 
-    expect(screen.queryByText('Orphan Activity')).not.toBeInTheDocument()
-    vi.unstubAllEnvs()
-  })
+    expect(screen.queryByText("Orphan Activity")).not.toBeInTheDocument();
+    vi.unstubAllEnvs();
+  });
 
-  it('confirms before deleting and removes the activity from the list', async () => {
-    const user = userEvent.setup()
-    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    useStore.getState().addActivity({ name: 'My Activity', kind: 'project', projectId: project.id })
-    render(<ActivityList />)
+  it("confirms before deleting and removes the activity from the list", async () => {
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
+    render(<ActivityList />);
 
-    expect(screen.getByTestId('activity-row')).toBeInTheDocument()
+    expect(screen.getByTestId("activity-row")).toBeInTheDocument();
 
     // Click Delete on the activity row — a confirm dialog appears
-    await user.click(screen.getByRole('button', { name: 'Delete My Activity' }))
-    const dialog = screen.getByRole('alertdialog')
-    expect(dialog).toHaveTextContent(/Delete activity\?/i)
+    await user.click(screen.getByRole("button", { name: "Delete My Activity" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent(/Delete activity\?/i);
 
     // Cancel keeps the activity
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    expect(useStore.getState().data.activities).toHaveLength(1)
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(useStore.getState().data.activities).toHaveLength(1);
 
     // Confirm removes the activity
-    await user.click(screen.getByRole('button', { name: 'Delete My Activity' }))
-    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole("button", { name: "Delete My Activity" }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete" }));
 
-    expect(useStore.getState().data.activities).toHaveLength(0)
-    expect(screen.queryByTestId('activity-row')).not.toBeInTheDocument()
-  })
+    expect(useStore.getState().data.activities).toHaveLength(0);
+    expect(screen.queryByTestId("activity-row")).not.toBeInTheDocument();
+  });
 
-  it('keeps deletion open and surfaces a store integrity failure', async () => {
-    const user = userEvent.setup()
-    const activity = useStore.getState().addActivity({ name: 'Internal sync', kind: 'internal' })
-    const originalDelete = useStore.getState().deleteActivity
-    useStore.setState({ deleteActivity: () => { throw new Error('Stored activity is inconsistent.') } })
+  it("keeps deletion open and surfaces a store integrity failure", async () => {
+    const user = userEvent.setup();
+    const activity = useStore.getState().addActivity({ name: "Internal sync", kind: "internal" });
+    const originalDelete = useStore.getState().deleteActivity;
+    useStore.setState({
+      deleteActivity: () => {
+        throw new Error("Stored activity is inconsistent.");
+      },
+    });
     try {
-      render(<ActivityList />)
-      await user.click(within(screen.getByTestId('activity-row')).getByRole('button', { name: 'Delete Internal sync' }))
-      const dialog = screen.getByRole('alertdialog')
+      render(<ActivityList />);
+      await user.click(
+        within(screen.getByTestId("activity-row")).getByRole("button", { name: "Delete Internal sync" }),
+      );
+      const dialog = screen.getByRole("alertdialog");
 
-      await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
-      expect(dialog).toBeInTheDocument()
-      expect(useStore.getState().data.activities).toContainEqual(activity)
+      expect(dialog).toBeInTheDocument();
+      expect(useStore.getState().data.activities).toContainEqual(activity);
       expect(useStore.getState().notice).toMatchObject({
-        message: 'Stored activity is inconsistent.',
-        tone: 'error',
-      })
+        message: "Stored activity is inconsistent.",
+        tone: "error",
+      });
     } finally {
-      useStore.setState({ deleteActivity: originalDelete })
+      useStore.setState({ deleteActivity: originalDelete });
     }
-  })
+  });
 
-  it('keeps the edit form open when its activity vanished during editing', async () => {
-    const user = userEvent.setup()
-    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    const activity = useStore.getState().addActivity({ name: 'A1', kind: 'project', projectId: project.id })
-    render(<ActivityList />)
+  it("keeps the edit form open when its activity vanished during editing", async () => {
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const activity = useStore.getState().addActivity({ name: "A1", kind: "project", projectId: project.id });
+    render(<ActivityList />);
 
-    await user.click(within(screen.getByTestId('activity-row')).getByRole('button', { name: 'Edit' }))
-    const dialog = screen.getByRole('dialog', { name: 'Edit activity' })
-    act(() => useStore.getState().deleteActivity(activity.id))
-    await user.clear(within(dialog).getByLabelText('Name'))
-    await user.type(within(dialog).getByLabelText('Name'), 'Renamed')
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await user.click(within(screen.getByTestId("activity-row")).getByRole("button", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit activity" });
+    act(() => useStore.getState().deleteActivity(activity.id));
+    await user.clear(within(dialog).getByLabelText("Name"));
+    await user.type(within(dialog).getByLabelText("Name"), "Renamed");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole('dialog', { name: 'Edit activity' })).toBeInTheDocument()
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(/changed while you were editing/i)
-    expect(useStore.getState().data.activities).toHaveLength(0)
-  })
-})
+    expect(screen.getByRole("dialog", { name: "Edit activity" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(/changed while you were editing/i);
+    expect(useStore.getState().data.activities).toHaveLength(0);
+  });
+});

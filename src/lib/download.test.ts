@@ -12,14 +12,14 @@ describe("downloadTextFile", () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
 
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(function (this: HTMLAnchorElement) {
-        // At click time the anchor is in the DOM (not detached) with the right attributes.
-        expect(this.getAttribute("download")).toBe("out.json");
-        expect(this.getAttribute("href")).toBe("blob:abc");
-        expect(document.body.contains(this)).toBe(true);
-      });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      // At click time the anchor is in the DOM (not detached) with the right attributes.
+      expect(this.getAttribute("download")).toBe("out.json");
+      expect(this.getAttribute("href")).toBe("blob:abc");
+      expect(document.body.contains(this)).toBe(true);
+    });
 
     downloadTextFile("out.json", '{"a":1}');
 
@@ -55,11 +55,11 @@ describe("downloadTextFile", () => {
       createObjectURL: vi.fn().mockReturnValue("blob:abc"),
       revokeObjectURL: vi.fn(),
     });
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(function (this: HTMLAnchorElement) {
-        expect(this.style.display).toBe("none");
-      });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      expect(this.style.display).toBe("none");
+    });
 
     downloadTextFile("out.json", "{}");
     expect(clickSpy).toHaveBeenCalledOnce();
@@ -77,9 +77,7 @@ describe("downloadTextFile", () => {
       throw new Error("click blocked");
     });
 
-    expect(() => downloadTextFile("out.json", "{}")).toThrow(
-      "Could not start the download — your file was NOT saved.",
-    );
+    expect(() => downloadTextFile("out.json", "{}")).toThrow("Could not start the download — your file was NOT saved.");
     // The half-built anchor/object-URL must be cleaned up, not leaked.
     expect(document.querySelector('a[download="out.json"]')).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");
@@ -97,9 +95,7 @@ describe("downloadTextFile", () => {
       revokeObjectURL,
     });
 
-    expect(() => downloadTextFile("out.json", "{}")).toThrow(
-      "Could not start the download — your file was NOT saved.",
-    );
+    expect(() => downloadTextFile("out.json", "{}")).toThrow("Could not start the download — your file was NOT saved.");
     expect(revokeObjectURL).not.toHaveBeenCalled();
   });
 
@@ -147,10 +143,7 @@ describe("downloadTextFile", () => {
       });
     }
     expect(document.querySelector('a[download="out.json"]')).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith(
-      "downloadTextFile: cleanup after failed download failed",
-      cleanupFailure,
-    );
+    expect(warnSpy).toHaveBeenCalledWith("downloadTextFile: cleanup after failed download failed", cleanupFailure);
   });
 
   it("warns instead of throwing when the deferred cleanup itself fails", async () => {
@@ -169,9 +162,6 @@ describe("downloadTextFile", () => {
     downloadTextFile("out.json", "{}");
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      "downloadTextFile: cleanup after download failed",
-      expect.any(Error),
-    );
+    expect(warnSpy).toHaveBeenCalledWith("downloadTextFile: cleanup after download failed", expect.any(Error));
   });
 });

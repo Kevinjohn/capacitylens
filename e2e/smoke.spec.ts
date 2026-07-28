@@ -1,8 +1,8 @@
-import { test, expect } from './fixtures'
+import { test, expect } from "./fixtures";
 
-test('app boots and mounts the React root', async ({ page }) => {
-  await page.goto('/')
-  await expect(page.locator('#root')).toBeVisible()
+test("app boots and mounts the React root", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#root")).toBeVisible();
   // Brand smoke (P0.0 rebrand): the document title carries the product name.
-  await expect(page).toHaveTitle(/CapacityLens/)
-})
+  await expect(page).toHaveTitle(/CapacityLens/);
+});

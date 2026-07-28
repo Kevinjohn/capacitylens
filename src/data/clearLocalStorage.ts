@@ -1,14 +1,14 @@
-import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
+import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 
 // The current prefix every device-global preference uses (theme, sidebar, minimiseWeekends, …,
 // see lib/displayPrefs.ts). Sourced from the brand module so the prefix is
 // defined ONCE (see shared/src/brand.ts). Clearing by this prefix wipes CapacityLens's own state
 // WITHOUT touching unrelated origin keys (a shared origin could carry keys from other tools), which
 // a blind `localStorage.clear()` would destroy.
-export const CAPACITYLENS_KEY_PREFIX = STORAGE_KEY_PREFIX
+export const CAPACITYLENS_KEY_PREFIX = STORAGE_KEY_PREFIX;
 
 // Historical Floaty preferences are included so “Clear device data” is complete for upgraded users.
-const OWNED_KEY_PREFIXES = [CAPACITYLENS_KEY_PREFIX, 'floaty/'] as const
+const OWNED_KEY_PREFIXES = [CAPACITYLENS_KEY_PREFIX, "floaty/"] as const;
 
 /**
  * Remove EVERY current `capacitylens/` and legacy `floaty/` key from this browser's localStorage —
@@ -26,11 +26,11 @@ const OWNED_KEY_PREFIXES = [CAPACITYLENS_KEY_PREFIX, 'floaty/'] as const
  *   surfaces it; clearing is all-or-nothing only up to the failing key.
  */
 export function clearCapacitylensLocalStorage(store: Storage = localStorage): number {
-  const keys: string[] = []
+  const keys: string[] = [];
   for (let i = 0; i < store.length; i++) {
-    const key = store.key(i)
-    if (key !== null && OWNED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) keys.push(key)
+    const key = store.key(i);
+    if (key !== null && OWNED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) keys.push(key);
   }
-  for (const key of keys) store.removeItem(key)
-  return keys.length
+  for (const key of keys) store.removeItem(key);
+  return keys.length;
 }

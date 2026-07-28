@@ -1,8 +1,5 @@
 import { m } from "@/i18n";
-import {
-  DomainError,
-  type DomainErrorCode,
-} from "@capacitylens/shared/domain/errors";
+import { DomainError, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 
 export const domainErrorMessage = (code: DomainErrorCode): string => {

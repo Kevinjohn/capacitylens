@@ -1,31 +1,22 @@
-import * as React from "react"
-import { Command as CommandPrimitive } from "cmdk"
+import * as React from "react";
+import { Command as CommandPrimitive } from "cmdk";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 // ShadCN/cmdk primitives with CapacityLens colour tokens. CommandPalette composes these inside
 // the shared ShadCN Dialog.
 
-function Command({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive>) {
+function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
     <CommandPrimitive
       data-slot="command"
-      className={cn(
-        "flex h-full w-full flex-col overflow-hidden bg-elevated text-ink",
-        className,
-      )}
+      className={cn("flex h-full w-full flex-col overflow-hidden bg-elevated text-ink", className)}
       {...props}
     />
-  )
+  );
 }
 
-function CommandInput({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+function CommandInput({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <CommandPrimitive.Input
       data-slot="command-input"
@@ -35,26 +26,20 @@ function CommandInput({
       )}
       {...props}
     />
-  )
+  );
 }
 
-function CommandList({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive.List>) {
+function CommandList({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.List>) {
   return (
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn("overflow-x-hidden overflow-y-auto py-1", className)}
       {...props}
     />
-  )
+  );
 }
 
-function CommandGroup({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive.Group>) {
+function CommandGroup({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Group>) {
   return (
     <CommandPrimitive.Group
       data-slot="command-group"
@@ -64,13 +49,10 @@ function CommandGroup({
       )}
       {...props}
     />
-  )
+  );
 }
 
-function CommandItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive.Item>) {
+function CommandItem({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Item>) {
   return (
     <CommandPrimitive.Item
       data-slot="command-item"
@@ -85,13 +67,7 @@ function CommandItem({
       )}
       {...props}
     />
-  )
+  );
 }
 
-export {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandGroup,
-  CommandItem,
-}
+export { Command, CommandInput, CommandList, CommandGroup, CommandItem };

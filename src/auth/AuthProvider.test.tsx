@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IDBFactory } from "fake-indexeddb";
 
 // P3.3: the auth boundary's three behaviours. The demo build (VITE_CAPACITYLENS_DEMO=1) is a
@@ -33,8 +27,7 @@ async function freshProvider() {
   const { useStore } = await import("../store/useStore");
   const { attachPersistence } = await import("../data/persist");
   const { resetStoreWithAccount } = await import("../test/fixtures");
-  const { cacheAuthSnapshot, offlineStateSnapshot, setOfflineReadState } =
-    await import("../data/offlineCache");
+  const { cacheAuthSnapshot, offlineStateSnapshot, setOfflineReadState } = await import("../data/offlineCache");
   // authContext must come from the SAME fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's DEFAULT value, not whatever this AuthProvider instance provides.
@@ -57,15 +50,9 @@ async function freshProvider() {
 /** Renders the two single-company-per-instance fields off `useAuth()` as plain text, so a test can
  *  assert on them without reaching into React internals. Takes the hook as a PROP (rather than a
  *  static import) for the module-identity reason above. */
-function Probe({
-  useAuth,
-}: {
-  useAuth: () => { canCreateAccount: boolean; multiAccount: boolean };
-}) {
+function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean; multiAccount: boolean } }) {
   const { canCreateAccount, multiAccount } = useAuth();
-  return (
-    <div>{`canCreateAccount:${canCreateAccount} multiAccount:${multiAccount}`}</div>
-  );
+  return <div>{`canCreateAccount:${canCreateAccount} multiAccount:${multiAccount}`}</div>;
 }
 
 /** Like {@link Probe} but with a button that triggers `refreshAuth` — the fire-and-forget shape
@@ -89,11 +76,7 @@ function RefreshProbe({
 /** Renders the SESSION-shaped fields off `useAuth()` (authMode + user id) so a test can assert a
  *  live authenticated snapshot survives — or doesn't — a failing re-check. Hook-as-prop for the
  *  module-identity reason above. */
-function SessionProbe({
-  useAuth,
-}: {
-  useAuth: () => { authMode: string; user: { id: string } | null };
-}) {
+function SessionProbe({ useAuth }: { useAuth: () => { authMode: string; user: { id: string } | null } }) {
   const { authMode, user } = useAuth();
   return <div>{`authMode:${authMode} user:${user?.id ?? "none"}`}</div>;
 }
@@ -144,9 +127,7 @@ describe("AuthProvider — server mode", () => {
 
     expect(onTenantAccessReady).not.toHaveBeenCalled();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Checking your session…",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Checking your session…");
 
     await act(async () => {
       auth.resolve(
@@ -176,13 +157,48 @@ describe("AuthProvider — server mode", () => {
       }),
       "Secure your account",
     ],
-  ] as const)(
-    "does not signal tenant-data access for a %s boot",
-    async (_state, response, heading) => {
+  ] as const)("does not signal tenant-data access for a %s boot", async (_state, response, heading) => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response),
+    );
+    const onTenantAccessReady = vi.fn();
+    const { AuthProvider } = await freshProvider();
+    render(
+      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
+        <div>app-content</div>
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+    expect(onTenantAccessReady).not.toHaveBeenCalled();
+    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "/reset-password/reset-token",
+      "Finish securing your account first, or choose Sign out to use this password reset link without the current session.",
+    ],
+    ["/invite/invite-token", "Finish securing your account before accepting this invitation."],
+  ] as const)("explains why mandatory MFA outranks the public entry at %s", async (path, explanation) => {
+    window.history.replaceState({}, "", path);
+    try {
       vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => response),
+        vi.fn(async () =>
+          me(200, {
+            authMode: "password",
+            user: {
+              id: "mfa-user",
+              name: "MFA user",
+              email: "mfa@example.test",
+            },
+            mfaRequired: true,
+          }),
+        ),
       );
       const onTenantAccessReady = vi.fn();
       const { AuthProvider } = await freshProvider();
@@ -192,69 +208,19 @@ describe("AuthProvider — server mode", () => {
         </AuthProvider>,
       );
 
-      expect(
-        await screen.findByRole("heading", { name: heading }),
-      ).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Secure your account" })).toBeInTheDocument();
+      expect(screen.getByText(explanation)).toBeInTheDocument();
       expect(onTenantAccessReady).not.toHaveBeenCalled();
       expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    },
-  );
-
-  it.each([
-    [
-      "/reset-password/reset-token",
-      "Finish securing your account first, or choose Sign out to use this password reset link without the current session.",
-    ],
-    [
-      "/invite/invite-token",
-      "Finish securing your account before accepting this invitation.",
-    ],
-  ] as const)(
-    "explains why mandatory MFA outranks the public entry at %s",
-    async (path, explanation) => {
-      window.history.replaceState({}, "", path);
-      try {
-        vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-        vi.stubGlobal(
-          "fetch",
-          vi.fn(async () =>
-            me(200, {
-              authMode: "password",
-              user: {
-                id: "mfa-user",
-                name: "MFA user",
-                email: "mfa@example.test",
-              },
-              mfaRequired: true,
-            }),
-          ),
-        );
-        const onTenantAccessReady = vi.fn();
-        const { AuthProvider } = await freshProvider();
-        render(
-          <AuthProvider onTenantAccessReady={onTenantAccessReady}>
-            <div>app-content</div>
-          </AuthProvider>,
-        );
-
-        expect(
-          await screen.findByRole("heading", { name: "Secure your account" }),
-        ).toBeInTheDocument();
-        expect(screen.getByText(explanation)).toBeInTheDocument();
-        expect(onTenantAccessReady).not.toHaveBeenCalled();
-        expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-      } finally {
-        window.history.replaceState({}, "", "/");
-      }
-    },
-  );
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
 
   it("a TRULY empty env (no demo flag, no API origin) is server mode: same-origin /api/auth/me, NOT a pass-through", async () => {
     // Guards the production same-origin deploy: an empty env must drive the credentialed auth check,
     // never the demo pass-through (which would silently bypass auth). API_BASE='' → relative /api/auth/me.
-    const fetchSpy = vi.fn(async () =>
-      me(200, { authMode: "off", user: { id: "demo", name: "Demo" } }),
-    );
+    const fetchSpy = vi.fn(async () => me(200, { authMode: "off", user: { id: "demo", name: "Demo" } }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider } = await freshProvider();
     render(
@@ -274,9 +240,7 @@ describe("AuthProvider — server mode", () => {
 
   it("authMode 'off' renders children after one credentialed /api/auth/me check", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const fetchSpy = vi.fn(async () =>
-      me(200, { authMode: "off", user: { id: "demo", name: "Demo" } }),
-    );
+    const fetchSpy = vi.fn(async () => me(200, { authMode: "off", user: { id: "demo", name: "Demo" } }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider } = await freshProvider();
     render(
@@ -329,14 +293,11 @@ describe("AuthProvider — server mode", () => {
       expect(await screen.findByText("authenticated-app")).toBeInTheDocument();
       await waitFor(() =>
         expect(useStore.getState().notice).toMatchObject({
-          message:
-            "Single sign-on was not completed. Try again or contact your administrator.",
+          message: "Single sign-on was not completed. Try again or contact your administrator.",
           tone: "error",
         }),
       );
-      expect(window.location.href).toBe(
-        "http://localhost:3000/team?tab=access",
-      );
+      expect(window.location.href).toBe("http://localhost:3000/team?tab=access");
     } finally {
       window.history.replaceState({}, "", "/");
     }
@@ -348,12 +309,7 @@ describe("AuthProvider — server mode", () => {
       "fetch",
       vi.fn(async () => me(200, { authMode: "off", user: null })),
     );
-    const {
-      AuthProvider,
-      useStore,
-      offlineStateSnapshot,
-      setOfflineReadState,
-    } = await freshProvider();
+    const { AuthProvider, useStore, offlineStateSnapshot, setOfflineReadState } = await freshProvider();
     useStore.setState({ activeAccountId: "a1" });
     setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
 
@@ -379,16 +335,12 @@ describe("AuthProvider — server mode", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
     // A well-formed password-mode body is a real signal, not a guess — no degraded notice.
-    expect(
-      screen.queryByText(/sign-in configuration could not be loaded/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
 
   it("a 401 with authMode 'sso' and a valid providers array shows the SSO sign-in form", async () => {
@@ -415,17 +367,11 @@ describe("AuthProvider — server mode", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Continue with Google" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
     // A well-formed SSO body is a real signal too — no degraded notice.
-    expect(
-      screen.queryByText(/sign-in configuration could not be loaded/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
 
   it("rejects duplicate provider identities instead of rendering order-dependent sign-in choices", async () => {
@@ -460,15 +406,9 @@ describe("AuthProvider — server mode", () => {
       </AuthProvider>,
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /continue with/i }),
-    ).not.toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("duplicate provider identities"),
-    );
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /continue with/i })).not.toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate provider identities"));
   });
 
   it("drops an unsupported named social provider with a diagnostic breadcrumb", async () => {
@@ -503,16 +443,12 @@ describe("AuthProvider — server mode", () => {
       </AuthProvider>,
     );
 
-    expect(
-      await screen.findByRole("button", { name: "Continue with Work SSO" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Continue with Mastodon" }),
-    ).not.toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(
-      "AuthProvider: dropped an unsupported or malformed /api/auth/me provider",
-      { id: "mastodon", kind: "social" },
-    );
+    expect(await screen.findByRole("button", { name: "Continue with Work SSO" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue with Mastodon" })).not.toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith("AuthProvider: dropped an unsupported or malformed /api/auth/me provider", {
+      id: "mastodon",
+      kind: "social",
+    });
   });
 
   it("DEFECT A — a 401 whose body OMITS the providers array still lands on the password sign-in wall (version-skew)", async () => {
@@ -529,21 +465,13 @@ describe("AuthProvider — server mode", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(
-      screen.queryByText(
-        "The authentication service returned an invalid configuration.",
-      ),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("The authentication service returned an invalid configuration.")).not.toBeInTheDocument();
     // Merely omitting `providers` is old-server compatibility, not a malformed body — the explicit
     // authMode is still a trustworthy signal, so no degraded notice.
-    expect(
-      screen.queryByText(/sign-in configuration could not be loaded/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
 
   it("DEFECT A — a 401 with an empty / HTML / non-JSON body falls back to the password sign-in wall (proxy)", async () => {
@@ -560,16 +488,12 @@ describe("AuthProvider — server mode", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     // The body couldn't be trusted at all — this fallback is a GUESS, not a confirmed password-mode
     // signal, so the login wall must hint that an SSO-only instance could be hiding behind it.
-    expect(
-      screen.getByText(/sign-in configuration could not be loaded/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
 
   it("DEFECT A — a 401 with a junk authMode value falls back to the password sign-in wall WITH the degraded notice", async () => {
@@ -586,12 +510,8 @@ describe("AuthProvider — server mode", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/sign-in configuration could not be loaded/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
 
   it("DEFECT A — a NON-401 failure is unchanged: it still renders the retryable auth error boundary", async () => {
@@ -630,9 +550,7 @@ describe("AuthProvider — server mode", () => {
         </AuthProvider>,
       );
       expect(await screen.findByText("invite-page")).toBeInTheDocument();
-      expect(
-        screen.queryByRole("heading", { name: "Sign in" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Sign in" })).not.toBeInTheDocument();
     } finally {
       window.history.pushState({}, "", "/");
     }
@@ -665,9 +583,7 @@ describe("AuthProvider — server mode", () => {
         </AuthProvider>,
       );
       expect(await screen.findByText("invite-page")).toBeInTheDocument();
-      expect(
-        screen.queryByRole("heading", { name: "Sign in" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Sign in" })).not.toBeInTheDocument();
     } finally {
       window.history.pushState({}, "", "/");
     }
@@ -677,9 +593,7 @@ describe("AuthProvider — server mode", () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        me(401, { authMode: "password", needsSetup: true, providers: [] }),
-      ),
+      vi.fn(async () => me(401, { authMode: "password", needsSetup: true, providers: [] })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -687,9 +601,7 @@ describe("AuthProvider — server mode", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", { name: "Create the owner account" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Create the owner account" })).toBeInTheDocument();
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
@@ -700,9 +612,7 @@ describe("AuthProvider — server mode", () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        me(401, { authMode: "password", needsSetup: "yes", providers: [] }),
-      ),
+      vi.fn(async () => me(401, { authMode: "password", needsSetup: "yes", providers: [] })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -710,9 +620,7 @@ describe("AuthProvider — server mode", () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
 
@@ -739,17 +647,9 @@ describe("AuthProvider — server mode", () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal("indexedDB", new IDBFactory());
     localStorage.setItem("capacitylens/offlineRead", "on");
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockRejectedValue(
-          new DOMException("signal timed out", "TimeoutError"),
-        ),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { AuthProvider, useAuth, cacheAuthSnapshot, offlineStateSnapshot } =
-      await freshProvider();
+    const { AuthProvider, useAuth, cacheAuthSnapshot, offlineStateSnapshot } = await freshProvider();
     const savedAt = Date.parse("2026-07-20T12:00:00.000Z");
     vi.spyOn(Date, "now").mockReturnValue(savedAt);
     await cacheAuthSnapshot({
@@ -769,9 +669,7 @@ describe("AuthProvider — server mode", () => {
       </AuthProvider>,
     );
 
-    expect(
-      await screen.findByText("authMode:password user:offline-user"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("authMode:password user:offline-user")).toBeInTheDocument();
     expect(offlineStateSnapshot()).toEqual({
       readOnly: true,
       lastUpdated: savedAt,
@@ -781,14 +679,7 @@ describe("AuthProvider — server mode", () => {
 
   it("describes an auth timeout as an unreachable service when no cached identity exists", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockRejectedValue(
-          new DOMException("signal timed out", "TimeoutError"),
-        ),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { AuthProvider } = await freshProvider();
 
@@ -804,40 +695,33 @@ describe("AuthProvider — server mode", () => {
       }),
     ).toBeInTheDocument();
     expect(document.title).toBe("Unable to verify your session · CapacityLens");
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The authentication service could not be reached.",
-    );
-    expect(
-      screen.getByText("The authentication service could not be reached."),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("The authentication service could not be reached.");
+    expect(screen.getByText("The authentication service could not be reached.")).toBeInTheDocument();
   });
 
   it.each([
     ["no user", null],
     ["no email", { id: "u1" }],
     ["an empty email", { id: "u1", email: "   " }],
-  ])(
-    "fails closed when an auth-on 200 response has %s",
-    async (_case, user) => {
-      vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => me(200, { authMode: "password", user })),
-      );
-      const { AuthProvider } = await freshProvider();
-      render(
-        <AuthProvider>
-          <div>app-content</div>
-        </AuthProvider>,
-      );
-      expect(
-        await screen.findByRole("heading", {
-          name: "Unable to verify your session",
-        }),
-      ).toBeInTheDocument();
-      expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-    },
-  );
+  ])("fails closed when an auth-on 200 response has %s", async (_case, user) => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => me(200, { authMode: "password", user })),
+    );
+    const { AuthProvider } = await freshProvider();
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "Unable to verify your session",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+  });
 
   it("treats malformed JSON from a reachable auth service as invalid, not offline", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
@@ -856,11 +740,7 @@ describe("AuthProvider — server mode", () => {
         name: "Unable to verify your session",
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "The authentication service returned an invalid response.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("The authentication service returned an invalid response.")).toBeInTheDocument();
   });
 
   it("re-checks on persistError and swaps to the login screen when the session is gone", async () => {
@@ -884,9 +764,7 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByText("app-content")).toBeInTheDocument();
     // A failed write raises the banner → the provider re-checks → 401 → login screen.
     act(() => useStore.getState().setPersistError(true));
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 
   it("cancels a pending step-up when a session re-check removes its React host", async () => {
@@ -901,8 +779,7 @@ describe("AuthProvider — server mode", () => {
       )
       .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { AuthProvider, useStore, requestReauth, reauthPending } =
-      await freshProvider();
+    const { AuthProvider, useStore, requestReauth, reauthPending } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -913,15 +790,11 @@ describe("AuthProvider — server mode", () => {
     const outcome = requestReauth();
     expect(reauthPending()).toBe(true);
     act(() => useStore.getState().setPersistError(true));
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
 
     const settled = await Promise.race([
       outcome,
-      new Promise<"unsettled">((resolve) =>
-        setTimeout(() => resolve("unsettled"), 100),
-      ),
+      new Promise<"unsettled">((resolve) => setTimeout(() => resolve("unsettled"), 100)),
     ]);
     expect(settled).toBe(false);
     expect(reauthPending()).toBe(false);
@@ -939,8 +812,7 @@ describe("AuthProvider — server mode", () => {
       )
       .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { AuthProvider, useStore, attachPersistence, resetStoreWithAccount } =
-      await freshProvider();
+    const { AuthProvider, useStore, attachPersistence, resetStoreWithAccount } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -994,16 +866,10 @@ describe("AuthProvider — server mode", () => {
         <SessionProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByText("authMode:password user:u1"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("authMode:password user:u1")).toBeInTheDocument();
     act(() => useStore.getState().setPersistError(true));
     await waitFor(() =>
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "refresh failed; keeping the previous auth snapshot",
-        ),
-      ),
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh failed; keeping the previous auth snapshot")),
     );
     // Still the LIVE session — not passOpen('off', null).
     expect(screen.getByText("authMode:password user:u1")).toBeInTheDocument();
@@ -1034,14 +900,10 @@ describe("AuthProvider — server mode", () => {
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByRole("button", { name: /refresh/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /refresh/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /refresh/ })); // request #2, still in flight
     act(() => useStore.getState().setPersistError(true)); // request #3 → 401 → login screen
-    expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     // NOW the stale request resolves with the old authenticated snapshot…
     await act(async () => {
       slow.resolve(
@@ -1053,12 +915,8 @@ describe("AuthProvider — server mode", () => {
       await slow.promise;
     });
     // …and must be dropped: the login screen stays, the app does not come back on a dead session.
-    expect(
-      screen.getByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /refresh/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /refresh/ })).not.toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 });
@@ -1087,9 +945,7 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByText("canCreateAccount:false multiAccount:false"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:false multiAccount:false")).toBeInTheDocument();
   });
 
   it("parses canCreateAccount:true / multiAccount:true from a mocked /api/auth/me", async () => {
@@ -1111,9 +967,7 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByText("canCreateAccount:true multiAccount:true"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
   });
 
   it("defaults BOTH fields to true when an older server omits them from an otherwise-valid body", async () => {
@@ -1128,9 +982,7 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByText("canCreateAccount:true multiAccount:true"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
   });
 
   it("fails closed on a boot-time auth fetch failure", async () => {
@@ -1201,13 +1053,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByText("canCreateAccount:false"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
-    expect(
-      await screen.findByText("canCreateAccount:true"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:true")).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
@@ -1235,16 +1083,10 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <RefreshProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByText("canCreateAccount:false"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
     await waitFor(() =>
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "refresh failed; keeping the previous auth snapshot",
-        ),
-      ),
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh failed; keeping the previous auth snapshot")),
     );
     // Degraded to the STALE value — not reset to the fail-open boot default.
     expect(screen.getByText("canCreateAccount:false")).toBeInTheDocument();
@@ -1261,9 +1103,7 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(
-      await screen.findByText("canCreateAccount:true multiAccount:true"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

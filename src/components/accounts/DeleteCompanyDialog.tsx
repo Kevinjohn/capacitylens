@@ -1,21 +1,17 @@
-import { useId, useState } from 'react'
-import { useStore } from '../../store/useStore'
-import { scopeData } from '../../store/selectors'
-import { serializeData } from '@capacitylens/shared/data/transfer'
-import { todayISO } from '@capacitylens/shared/lib/dateMath'
-import { isServerConfigured } from '../../data/apiConfig'
-import {
-  fetchInactiveSlice,
-  InactiveSliceHttpError,
-  InactiveSliceShapeError,
-} from '../../data/fetchInactiveSlice'
-import { downloadTextFile } from '../../lib/download'
-import { errorMessage } from '../../lib/errorMessage'
-import { m } from '@/i18n'
-import { Modal, TextField } from '../common/ui'
-import { Button } from '../ui/button'
-import { SCOPED_KEYS } from '@capacitylens/shared/types/entities'
-import type { AppData, ID } from '@capacitylens/shared/types/entities'
+import { useId, useState } from "react";
+import { useStore } from "../../store/useStore";
+import { scopeData } from "../../store/selectors";
+import { serializeData } from "@capacitylens/shared/data/transfer";
+import { todayISO } from "@capacitylens/shared/lib/dateMath";
+import { isServerConfigured } from "../../data/apiConfig";
+import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../../data/fetchInactiveSlice";
+import { downloadTextFile } from "../../lib/download";
+import { errorMessage } from "../../lib/errorMessage";
+import { m } from "@/i18n";
+import { Modal, TextField } from "../common/ui";
+import { Button } from "../ui/button";
+import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import type { AppData, ID } from "@capacitylens/shared/types/entities";
 
 // Friction for the one irreversible action in the app. Deleting a company cascade-
 // drops all of its data with no undo, so we (a) offer a one-click export of that
@@ -44,34 +40,34 @@ export function DeleteCompanyDialog({
   onConfirm,
   onCancel,
 }: {
-  account: { id: ID; name: string }
+  account: { id: ID; name: string };
   /** True while the caller's delete round-trip is in flight: disarms the confirm button so a
    *  double-click can't fire an overlapping DELETE that may still be in progress and raise a
    *  spurious retry error after a successful delete. Optional so the demo build's synchronous
    *  delete path needn't thread it. */
-  busy?: boolean
-  onConfirm: () => void
-  onCancel: () => void
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
-  const data = useStore((s) => s.data)
-  const [typed, setTyped] = useState('')
+  const data = useStore((s) => s.data);
+  const [typed, setTyped] = useState("");
   // Surface a failed "export first" inline: this is the LAST backup before a no-undo cascade delete,
   // so a silently-failed export (the user thinks they're covered, then deletes) is the worst case.
-  const [exportError, setExportError] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null);
   // Separate from exportError: an all-empty slice is a WARNING ("no file was saved — is that
   // expected?"), not a failure, and must not carry the error path's "get a backup first" suffix
   // (backing up an empty company is impossible advice). Mutually exclusive with exportError.
-  const [exportEmpty, setExportEmpty] = useState(false)
+  const [exportEmpty, setExportEmpty] = useState(false);
   // True while an export attempt is pending. Disarms BOTH buttons: Delete, so the no-undo cascade
   // can't race the in-flight backup (deleting mid-fetch would erase the very slice being saved);
   // Export, so a double-click can't start a second overlapping fetch. Once the attempt settles —
   // success OR failure — Delete re-arms: export is deliberately optional (the user may already
   // hold their own backup), so a failed export warns loudly but never locks the dialog.
-  const [exporting, setExporting] = useState(false)
-  const matches = typed.trim() === account.name
+  const [exporting, setExporting] = useState(false);
+  const matches = typed.trim() === account.name;
   // Hint id so the disabled Delete button can point at the type-to-confirm instruction —
   // a screen reader then announces WHY Delete is unavailable, not just that it's disabled.
-  const hintId = useId()
+  const hintId = useId();
 
   // SERVER mode: fetch the COMPLETE per-tenant slice (archived + soft-deleted retained) via the
   // shared, body-validating fetchInactiveSlice — see the header comment and that helper's TSDoc
@@ -82,55 +78,58 @@ export function DeleteCompanyDialog({
   // backup.
   const fetchCompleteSlice = async (): Promise<AppData> => {
     try {
-      return await fetchInactiveSlice(account.id)
+      return await fetchInactiveSlice(account.id);
     } catch (e) {
       // Re-throw with the export-specific i18n sentence (prefer the server's own sentence on a
       // non-OK response); exportFirst's catch routes the message to the inline error surface.
       if (e instanceof InactiveSliceHttpError) {
-        throw new Error(
-          e.serverMessage ?? m.dialog_delete_company_export_fetch_failed({ status: e.status }),
-          { cause: e },
-        )
+        throw new Error(e.serverMessage ?? m.dialog_delete_company_export_fetch_failed({ status: e.status }), {
+          cause: e,
+        });
       }
       if (e instanceof InactiveSliceShapeError) {
-        throw new Error(m.dialog_delete_company_export_incomplete(), { cause: e })
+        throw new Error(m.dialog_delete_company_export_incomplete(), { cause: e });
       }
-      throw e // network/parse failure — errorMessage(e) in exportFirst surfaces it verbatim.
+      throw e; // network/parse failure — errorMessage(e) in exportFirst surfaces it verbatim.
     }
-  }
+  };
 
   // Export just this company's slice (same shape as the in-app export, which import
   // re-stamps into whichever account is active).
   const exportFirst = async () => {
-    const slug = account.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'company'
-    setExporting(true)
+    const slug =
+      account.name
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase() || "company";
+    setExporting(true);
     try {
       // scopeData narrows both sources identically: the fetched server slice is already
       // single-account (it just re-filters and blanks `accounts`, matching the demo export shape);
       // the demo blob genuinely needs the account filter.
-      const scoped = scopeData(isServerConfigured() ? await fetchCompleteSlice() : data, account.id)
+      const scoped = scopeData(isServerConfigured() ? await fetchCompleteSlice() : data, account.id);
       // Zero-record guard: every real slice carries at least the built-in Internal client, so an
       // all-empty scoped export means the company's data never reached us (or the company is
       // genuinely empty). Refuse to save a file the user would mistake for a real backup.
-      const total = SCOPED_KEYS.reduce((n, key) => n + scoped[key].length, 0)
+      const total = SCOPED_KEYS.reduce((n, key) => n + scoped[key].length, 0);
       if (total === 0) {
-        setExportError(null)
-        setExportEmpty(true)
-        return
+        setExportError(null);
+        setExportEmpty(true);
+        return;
       }
-      downloadTextFile(`capacitylens-${slug}-${todayISO()}.json`, serializeData(scoped))
-      setExportError(null)
-      setExportEmpty(false)
+      downloadTextFile(`capacitylens-${slug}-${todayISO()}.json`, serializeData(scoped));
+      setExportError(null);
+      setExportEmpty(false);
     } catch (e) {
       // The backup did NOT save (fetch, serialize or download failed). Make it loud and inline so
       // the user does NOT proceed to delete believing they have an export they don't. Export and
       // Delete are separate steps, so they can retry or back out.
-      setExportEmpty(false)
-      setExportError(errorMessage(e))
+      setExportEmpty(false);
+      setExportError(errorMessage(e));
     } finally {
-      setExporting(false)
+      setExporting(false);
     }
-  }
+  };
 
   return (
     <Modal
@@ -157,7 +156,9 @@ export function DeleteCompanyDialog({
       }
     >
       <p className="text-sm text-muted-foreground">
-        {m.dialog_delete_company_body_prefix()}<span className="font-medium text-ink">{account.name}</span>{m.dialog_delete_company_body_suffix()}
+        {m.dialog_delete_company_body_prefix()}
+        <span className="font-medium text-ink">{account.name}</span>
+        {m.dialog_delete_company_body_suffix()}
       </p>
       <div className="flex justify-start">
         <Button size="sm" variant="outline" disabled={exporting} onClick={() => void exportFirst()}>
@@ -166,7 +167,8 @@ export function DeleteCompanyDialog({
       </div>
       {exportError && (
         <p role="alert" className="text-sm font-medium text-danger">
-          {exportError}{m.dialog_delete_company_export_failed_suffix()}
+          {exportError}
+          {m.dialog_delete_company_export_failed_suffix()}
         </p>
       )}
       {exportEmpty && (
@@ -184,5 +186,5 @@ export function DeleteCompanyDialog({
         {m.dialog_delete_company_hint()}
       </p>
     </Modal>
-  )
+  );
 }

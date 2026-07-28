@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest'
-import { constants as sqliteConstants } from 'node:sqlite'
-import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
-import { buildApp } from './app'
-import { openDb, insertAll, getRow, type Db } from './db'
-import { upsertMember } from './controlTables'
-import { authFromEnv, runAuthMigrations } from './auth'
-import { PASSWORD_ENV, call, signUp } from './testHelpers'
-import { can, type Role } from '@capacitylens/shared/domain/access'
-import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
-import { seed } from '@capacitylens/shared/data/seed'
-import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { describe, it, expect } from "vitest";
+import { constants as sqliteConstants } from "node:sqlite";
+import type { FastifyInstance, LightMyRequestResponse } from "fastify";
+import { buildApp } from "./app";
+import { openDb, insertAll, getRow, type Db } from "./db";
+import { upsertMember } from "./controlTables";
+import { authFromEnv, runAuthMigrations } from "./auth";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { can, type Role } from "@capacitylens/shared/domain/access";
+import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { seed } from "@capacitylens/shared/data/seed";
+import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
 // P1.5 requirePermission — the auth-on 403 matrix for the authorize() route gate, plus the #1
 // invariant that OFF mode stays allow-all/no-op (cross-account ids included). The gate maps each
@@ -17,37 +17,44 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 // suite drives those routes end-to-end (sign-up → membership → request) and asserts the resulting
 // 2xx/403, NOT the matrix in isolation (access.test.ts owns the matrix unit).
 
-const TS = '2026-01-01T00:00:00.000Z'
-const meta = () => ({ createdAt: TS, updatedAt: TS })
+const TS = "2026-01-01T00:00:00.000Z";
+const meta = () => ({ createdAt: TS, updatedAt: TS });
 
-const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
-const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
-const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
+const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#3b82f6", ...meta() });
+const client = (id: string, accountId: string) => ({ id, accountId, name: "Acme", color: "#3b82f6", ...meta() });
+const project = (id: string, accountId: string, clientId: string) => ({
+  id,
+  accountId,
+  name: "Web",
+  clientId,
+  color: "#3b82f6",
+  ...meta(),
+});
 const person = (id: string, accountId: string) => ({
   id,
   accountId,
-  kind: 'person',
-  role: 'Designer',
-  employmentType: 'permanent',
+  kind: "person",
+  role: "Designer",
+  employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
-  color: '#3b82f6',
+  color: "#3b82f6",
   ...meta(),
-})
+});
 const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
   id,
   accountId,
   resourceId,
-  startDate: '2026-02-01',
-  endDate: '2026-02-03',
-  type: 'vacation',
+  startDate: "2026-02-01",
+  endDate: "2026-02-03",
+  type: "vacation",
   ...(note !== undefined ? { note } : {}),
   ...meta(),
-})
+});
 
 // P1.6: a recognizable sentinel for a1's time-off note. Asserting it is ABSENT from the raw response
 // BODY (not just the parsed key) is what proves the redaction is SERVER-SIDE — the note never serialized.
-const SENTINEL_TIMEOFF_NOTE = 'SENTINEL_TIMEOFF_NOTE'
+const SENTINEL_TIMEOFF_NOTE = "SENTINEL_TIMEOFF_NOTE";
 
 /**
  * Two accounts a1/a2, seeded directly via insertAll (parent-first). a1 additionally carries a
@@ -55,25 +62,33 @@ const SENTINEL_TIMEOFF_NOTE = 'SENTINEL_TIMEOFF_NOTE'
  * suite can assert owner/admin SEE it and editor/viewer do NOT.
  */
 function seedTwo(db: Db): void {
-  const d = emptyAppData() as unknown as Record<string, unknown[]>
-  d.accounts = [account('a1'), account('a2')]
-  d.clients = [client('c1', 'a1'), client('c2', 'a2')]
-  d.projects = [project('p1', 'a1', 'c1'), project('p2', 'a2', 'c2')]
-  d.resources = [person('r1', 'a1'), person('r2', 'a2')]
-  d.timeOff = [timeOff('to1', 'a1', 'r1', SENTINEL_TIMEOFF_NOTE), timeOff('to-a2', 'a2', 'r2')]
-  insertAll(db, d as unknown as AppData)
+  const d = emptyAppData() as unknown as Record<string, unknown[]>;
+  d.accounts = [account("a1"), account("a2")];
+  d.clients = [client("c1", "a1"), client("c2", "a2")];
+  d.projects = [project("p1", "a1", "c1"), project("p2", "a2", "c2")];
+  d.resources = [person("r1", "a1"), person("r2", "a2")];
+  d.timeOff = [timeOff("to1", "a1", "r1", SENTINEL_TIMEOFF_NOTE), timeOff("to-a2", "a2", "r2")];
+  insertAll(db, d as unknown as AppData);
 }
 
-const REAL_CLIENT_NAME = 'SENTINEL_REAL_CLIENT_NAME'
-const REAL_PROJECT_NAME = 'SENTINEL_REAL_PROJECT_NAME'
+const REAL_CLIENT_NAME = "SENTINEL_REAL_CLIENT_NAME";
+const REAL_PROJECT_NAME = "SENTINEL_REAL_PROJECT_NAME";
 
 /** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
 function seedPrivateNames(db: Db): void {
-  seedTwo(db)
-  db.prepare('UPDATE clients SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?')
-    .run(REAL_CLIENT_NAME, JSON.stringify(true), 'Northstar', 'c1')
-  db.prepare('UPDATE projects SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?')
-    .run(REAL_PROJECT_NAME, JSON.stringify(true), 'Aurora', 'p1')
+  seedTwo(db);
+  db.prepare("UPDATE clients SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?").run(
+    REAL_CLIENT_NAME,
+    JSON.stringify(true),
+    "Northstar",
+    "c1",
+  );
+  db.prepare("UPDATE projects SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?").run(
+    REAL_PROJECT_NAME,
+    JSON.stringify(true),
+    "Aurora",
+    "p1",
+  );
 }
 
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed.
@@ -82,9 +97,9 @@ function seedPrivateNames(db: Db): void {
 async function appWithAuth(
   opts: { multiAccount?: boolean; optimisticConcurrency?: boolean } = {},
 ): Promise<{ app: FastifyInstance; db: Db }> {
-  const db = openDb(':memory:')
-  const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
-  await runAuthMigrations(auth!)
+  const db = openDb(":memory:");
+  const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
+  await runAuthMigrations(auth!);
   return {
     app: buildApp(db, {
       authMode: mode,
@@ -93,622 +108,652 @@ async function appWithAuth(
       optimisticConcurrency: opts.optimisticConcurrency ?? false,
     }),
     db,
-  }
+  };
 }
 
 // ---- Per-verb requests against a1's seeded rows (cookie carries the session in auth-on). ----
 // Each returns the status of ONE write/read so a test can assert allow (2xx) vs deny (403).
 
 const getState = (app: FastifyInstance, accountId: string, cookie?: string) =>
-  call(app, { method: 'GET', url: `/api/state?accountId=${accountId}`, headers: cookie ? { cookie } : {} })
+  call(app, { method: "GET", url: `/api/state?accountId=${accountId}`, headers: cookie ? { cookie } : {} });
 
 /** POST a NEW client into `accountId`. */
 const postClient = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
-  call(app, { method: 'POST', url: '/api/clients', payload: client(id, accountId), headers: cookie ? { cookie } : {} })
+  call(app, { method: "POST", url: "/api/clients", payload: client(id, accountId), headers: cookie ? { cookie } : {} });
 
 /** PUT (upsert) a client by id into `accountId`. */
 const putClient = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
-  call(app, { method: 'PUT', url: `/api/clients/${id}`, payload: client(id, accountId), headers: cookie ? { cookie } : {} })
+  call(app, {
+    method: "PUT",
+    url: `/api/clients/${id}`,
+    payload: client(id, accountId),
+    headers: cookie ? { cookie } : {},
+  });
 
 /** PATCH the seeded client c1/c2 (no accountId in the body — it merges from the stored row). */
 const patchClient = (app: FastifyInstance, id: string, cookie?: string) =>
-  call(app, { method: 'PATCH', url: `/api/clients/${id}`, payload: { name: 'Renamed' }, headers: cookie ? { cookie } : {} })
+  call(app, {
+    method: "PATCH",
+    url: `/api/clients/${id}`,
+    payload: { name: "Renamed" },
+    headers: cookie ? { cookie } : {},
+  });
 
 /** DELETE a seeded non-lifecycle row (scoped delete needs ?accountId=). */
 const deleteProject = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
-  call(app, { method: 'DELETE', url: `/api/timeOff/${id === 'p1' ? 'to1' : 'to-a2'}?accountId=${accountId}`, headers: cookie ? { cookie } : {} })
+  call(app, {
+    method: "DELETE",
+    url: `/api/timeOff/${id === "p1" ? "to1" : "to-a2"}?accountId=${accountId}`,
+    headers: cookie ? { cookie } : {},
+  });
 
 /** A batch that upserts a NEW client into `accountId`. */
 const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
   call(app, {
-    method: 'POST',
-    url: '/api/batch',
-    payload: { ops: [{ method: 'PUT', table: 'clients', id, row: client(id, accountId) }] },
+    method: "POST",
+    url: "/api/batch",
+    payload: { ops: [{ method: "PUT", table: "clients", id, row: client(id, accountId) }] },
     headers: cookie ? { cookie } : {},
-  })
+  });
 
-const replaceGeneratedInternal = (
-  app: FastifyInstance,
-  cookie: string,
-  batched: boolean,
-) => {
-  const row = { ...buildInternalClient('a1', TS), id: 'legacy-internal' }
-  return call(app, batched
-    ? {
-        method: 'POST',
-        url: '/api/batch',
-        payload: { ops: [{ method: 'PUT', table: 'clients', id: row.id, row }] },
-        headers: { cookie },
-      }
-    : {
-        method: 'PUT',
-        url: `/api/clients/${row.id}`,
-        payload: row,
-        headers: { cookie },
-      })
-}
+const replaceGeneratedInternal = (app: FastifyInstance, cookie: string, batched: boolean) => {
+  const row = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
+  return call(
+    app,
+    batched
+      ? {
+          method: "POST",
+          url: "/api/batch",
+          payload: { ops: [{ method: "PUT", table: "clients", id: row.id, row }] },
+          headers: { cookie },
+        }
+      : {
+          method: "PUT",
+          url: `/api/clients/${row.id}`,
+          payload: row,
+          headers: { cookie },
+        },
+  );
+};
 
 /** Import a single-client slice into `accountId`. */
 const importInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) => {
-  const data = { ...emptyAppData(), clients: [client(id, accountId)] }
-  return call(app, { method: 'POST', url: '/api/import', payload: { accountId, data }, headers: cookie ? { cookie } : {} })
-}
+  const data = { ...emptyAppData(), clients: [client(id, accountId)] };
+  return call(app, {
+    method: "POST",
+    url: "/api/import",
+    payload: { accountId, data },
+    headers: cookie ? { cookie } : {},
+  });
+};
 
-describe('P1.5 authorize — auth-on 403 matrix', () => {
-  it('non-member: account-asserted operations are 403 while row-addressed PATCH conceals as 404', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie } = await signUp(app, 'stranger@capacitylens.dev') // NO membership upserted
+describe("P1.5 authorize — auth-on 403 matrix", () => {
+  it("non-member: account-asserted operations are 403 while row-addressed PATCH conceals as 404", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie } = await signUp(app, "stranger@capacitylens.dev"); // NO membership upserted
 
-    expect((await getState(app, 'a1', cookie)).statusCode).toBe(403)
-    expect((await postClient(app, 'a1', 'nc1', cookie)).statusCode).toBe(403)
-    expect((await putClient(app, 'a1', 'nc2', cookie)).statusCode).toBe(403)
-    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(404)
-    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(403)
-    expect((await batchInto(app, 'a1', 'nc3', cookie)).statusCode).toBe(403)
-    expect((await importInto(app, 'a1', 'nc4', cookie)).statusCode).toBe(403)
-  })
+    expect((await getState(app, "a1", cookie)).statusCode).toBe(403);
+    expect((await postClient(app, "a1", "nc1", cookie)).statusCode).toBe(403);
+    expect((await putClient(app, "a1", "nc2", cookie)).statusCode).toBe(403);
+    expect((await patchClient(app, "c1", cookie)).statusCode).toBe(404);
+    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(403);
+    expect((await batchInto(app, "a1", "nc3", cookie)).statusCode).toBe(403);
+    expect((await importInto(app, "a1", "nc4", cookie)).statusCode).toBe(403);
+  });
 
-  it('cross-account: asserted a2 operations are 403 while row-addressed PATCH conceals as 404', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, 'a1member@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+  it("cross-account: asserted a2 operations are 403 while row-addressed PATCH conceals as 404", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "a1member@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
-    expect((await getState(app, 'a2', cookie)).statusCode).toBe(403)
-    expect((await postClient(app, 'a2', 'x1', cookie)).statusCode).toBe(403)
-    expect((await putClient(app, 'a2', 'x2', cookie)).statusCode).toBe(403)
-    expect((await patchClient(app, 'c2', cookie)).statusCode).toBe(404) // c2 belongs to a2
-    expect((await deleteProject(app, 'a2', 'p2', cookie)).statusCode).toBe(403)
-    expect((await batchInto(app, 'a2', 'x3', cookie)).statusCode).toBe(403)
-    expect((await importInto(app, 'a2', 'x4', cookie)).statusCode).toBe(403)
-  })
+    expect((await getState(app, "a2", cookie)).statusCode).toBe(403);
+    expect((await postClient(app, "a2", "x1", cookie)).statusCode).toBe(403);
+    expect((await putClient(app, "a2", "x2", cookie)).statusCode).toBe(403);
+    expect((await patchClient(app, "c2", cookie)).statusCode).toBe(404); // c2 belongs to a2
+    expect((await deleteProject(app, "a2", "p2", cookie)).statusCode).toBe(403);
+    expect((await batchInto(app, "a2", "x3", cookie)).statusCode).toBe(403);
+    expect((await importInto(app, "a2", "x4", cookie)).statusCode).toBe(403);
+  });
 
-  it('cross-account batch (one a1 op + one a2 op) → 403 AND the a1 op is NOT applied', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, 'mixed@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+  it("cross-account batch (one a1 op + one a2 op) → 403 AND the a1 op is NOT applied", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "mixed@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
     const res = await call(app, {
-      method: 'POST',
-      url: '/api/batch',
+      method: "POST",
+      url: "/api/batch",
       payload: {
         ops: [
-          { method: 'PUT', table: 'clients', id: 'mixA', row: client('mixA', 'a1') }, // allowed alone
-          { method: 'PUT', table: 'clients', id: 'mixB', row: client('mixB', 'a2') }, // denied → rejects WHOLE
+          { method: "PUT", table: "clients", id: "mixA", row: client("mixA", "a1") }, // allowed alone
+          { method: "PUT", table: "clients", id: "mixB", row: client("mixB", "a2") }, // denied → rejects WHOLE
         ],
       },
       headers: { cookie },
-    })
-    expect(res.statusCode).toBe(403)
+    });
+    expect(res.statusCode).toBe(403);
 
     // Pre-scan rejected the batch before the tx opened, so the a1 op left NO trace. Read a1 as a
     // member and confirm only the originally-seeded client c1 exists.
-    const a1 = await getState(app, 'a1', cookie)
-    expect(a1.statusCode).toBe(200)
-    expect(a1.json().clients.map((c: { id: string }) => c.id).sort()).toEqual(['c1'])
-  })
+    const a1 = await getState(app, "a1", cookie);
+    expect(a1.statusCode).toBe(200);
+    expect(
+      a1
+        .json()
+        .clients.map((c: { id: string }) => c.id)
+        .sort(),
+    ).toEqual(["c1"]);
+  });
 
-  it('viewer of a1: read → 200; any write to a1 → 403', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, 'viewer@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'viewer', status: 'active', createdAt: TS })
+  it("viewer of a1: read → 200; any write to a1 → 403", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "viewer@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "viewer", status: "active", createdAt: TS });
 
-    expect((await getState(app, 'a1', cookie)).statusCode).toBe(200)
-    expect((await postClient(app, 'a1', 'vc1', cookie)).statusCode).toBe(403)
-    expect((await putClient(app, 'a1', 'vc2', cookie)).statusCode).toBe(403)
-    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(403)
-    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(403)
-    expect((await batchInto(app, 'a1', 'vc3', cookie)).statusCode).toBe(403)
-    expect((await importInto(app, 'a1', 'vc4', cookie)).statusCode).toBe(403)
-  })
+    expect((await getState(app, "a1", cookie)).statusCode).toBe(200);
+    expect((await postClient(app, "a1", "vc1", cookie)).statusCode).toBe(403);
+    expect((await putClient(app, "a1", "vc2", cookie)).statusCode).toBe(403);
+    expect((await patchClient(app, "c1", cookie)).statusCode).toBe(403);
+    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(403);
+    expect((await batchInto(app, "a1", "vc3", cookie)).statusCode).toBe(403);
+    expect((await importInto(app, "a1", "vc4", cookie)).statusCode).toBe(403);
+  });
 
-  it('editor of a1: read → 200; every row-level write to a1 → 2xx; import → 403 (owner-only)', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, 'editor@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+  it("editor of a1: read → 200; every row-level write to a1 → 2xx; import → 403 (owner-only)", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "editor@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
-    expect((await getState(app, 'a1', cookie)).statusCode).toBe(200)
-    expect((await postClient(app, 'a1', 'ec1', cookie)).statusCode).toBe(201)
-    expect((await putClient(app, 'a1', 'ec2', cookie)).statusCode).toBe(200)
-    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(200)
-    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(204)
-    expect((await batchInto(app, 'a1', 'ec3', cookie)).statusCode).toBe(200)
+    expect((await getState(app, "a1", cookie)).statusCode).toBe(200);
+    expect((await postClient(app, "a1", "ec1", cookie)).statusCode).toBe(201);
+    expect((await putClient(app, "a1", "ec2", cookie)).statusCode).toBe(200);
+    expect((await patchClient(app, "c1", cookie)).statusCode).toBe(200);
+    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(204);
+    expect((await batchInto(app, "a1", "ec3", cookie)).statusCode).toBe(200);
     // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses
     // the P1.6 note pin — ultimately gated to owner. See the dedicated import-tier suite below.
-    expect((await importInto(app, 'a1', 'ec4', cookie)).statusCode).toBe(403)
-  })
+    expect((await importInto(app, "a1", "ec4", cookie)).statusCode).toBe(403);
+  });
 
   it.each([
-    ['direct PUT', false],
-    ['atomic batch', true],
+    ["direct PUT", false],
+    ["atomic batch", true],
   ] as const)(
-    'requires admin authority to replace the generated Internal client through %s',
+    "requires admin authority to replace the generated Internal client through %s",
     async (_path, batched) => {
-      const { app, db } = await appWithAuth()
+      const { app, db } = await appWithAuth();
       insertAll(db, {
         ...emptyAppData(),
-        accounts: [account('a1')],
-        clients: [buildInternalClient('a1', TS)],
-        projects: [project('internal-project', 'a1', 'internal:a1')],
-      })
-      const editor = await signUp(app, `internal-editor-${batched}@capacitylens.dev`)
+        accounts: [account("a1")],
+        clients: [buildInternalClient("a1", TS)],
+        projects: [project("internal-project", "a1", "internal:a1")],
+      });
+      const editor = await signUp(app, `internal-editor-${batched}@capacitylens.dev`);
       upsertMember(db, {
-        accountId: 'a1',
+        accountId: "a1",
         userId: editor.userId,
-        role: 'editor',
-        status: 'active',
+        role: "editor",
+        status: "active",
         createdAt: TS,
-      })
+      });
 
-      expect((await replaceGeneratedInternal(app, editor.cookie, batched)).statusCode).toBe(403)
-      expect(getRow(db, 'clients', 'internal:a1')?.builtin).toBe(true)
-      expect(getRow(db, 'clients', 'legacy-internal')).toBeUndefined()
-      expect(getRow(db, 'projects', 'internal-project')?.clientId).toBe('internal:a1')
+      expect((await replaceGeneratedInternal(app, editor.cookie, batched)).statusCode).toBe(403);
+      expect(getRow(db, "clients", "internal:a1")?.builtin).toBe(true);
+      expect(getRow(db, "clients", "legacy-internal")).toBeUndefined();
+      expect(getRow(db, "projects", "internal-project")?.clientId).toBe("internal:a1");
 
-      const admin = await signUp(app, `internal-admin-${batched}@capacitylens.dev`)
+      const admin = await signUp(app, `internal-admin-${batched}@capacitylens.dev`);
       upsertMember(db, {
-        accountId: 'a1',
+        accountId: "a1",
         userId: admin.userId,
-        role: 'admin',
-        status: 'active',
+        role: "admin",
+        status: "active",
         createdAt: TS,
-      })
+      });
 
-      db.prepare('UPDATE session SET createdAt = ? WHERE userId = ?')
-        .run(new Date(Date.now() - 16 * 60 * 1000).toISOString(), admin.userId)
-      const stale = await replaceGeneratedInternal(app, admin.cookie, batched)
-      expect(stale.statusCode).toBe(403)
-      expect(stale.json()).toMatchObject({ code: 'SESSION_NOT_FRESH' })
-      expect(getRow(db, 'clients', 'internal:a1')?.builtin).toBe(true)
-      expect(getRow(db, 'clients', 'legacy-internal')).toBeUndefined()
+      db.prepare("UPDATE session SET createdAt = ? WHERE userId = ?").run(
+        new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+        admin.userId,
+      );
+      const stale = await replaceGeneratedInternal(app, admin.cookie, batched);
+      expect(stale.statusCode).toBe(403);
+      expect(stale.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
+      expect(getRow(db, "clients", "internal:a1")?.builtin).toBe(true);
+      expect(getRow(db, "clients", "legacy-internal")).toBeUndefined();
 
-      db.prepare('UPDATE session SET createdAt = ? WHERE userId = ?')
-        .run(new Date().toISOString(), admin.userId)
-      expect((await replaceGeneratedInternal(app, admin.cookie, batched)).statusCode).toBe(200)
-      expect(getRow(db, 'clients', 'internal:a1')).toBeUndefined()
-      expect(getRow(db, 'clients', 'legacy-internal')?.builtin).toBe(true)
-      expect(getRow(db, 'projects', 'internal-project')?.clientId).toBe('legacy-internal')
+      db.prepare("UPDATE session SET createdAt = ? WHERE userId = ?").run(new Date().toISOString(), admin.userId);
+      expect((await replaceGeneratedInternal(app, admin.cookie, batched)).statusCode).toBe(200);
+      expect(getRow(db, "clients", "internal:a1")).toBeUndefined();
+      expect(getRow(db, "clients", "legacy-internal")?.builtin).toBe(true);
+      expect(getRow(db, "projects", "internal-project")?.clientId).toBe("legacy-internal");
     },
-  )
+  );
 
-  it('resolves one membership role per account/action in each batch authorization pass', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, 'batch-role-cache@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+  it("resolves one membership role per account/action in each batch authorization pass", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "batch-role-cache@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
-    let membershipRoleReads = 0
+    let membershipRoleReads = 0;
     db.setAuthorizer((actionCode, tableName, columnName) => {
-      if (
-        actionCode === sqliteConstants.SQLITE_READ &&
-        tableName === 'account_members' &&
-        columnName === 'role'
-      ) {
-        membershipRoleReads += 1
+      if (actionCode === sqliteConstants.SQLITE_READ && tableName === "account_members" && columnName === "role") {
+        membershipRoleReads += 1;
       }
-      return sqliteConstants.SQLITE_OK
-    })
+      return sqliteConstants.SQLITE_OK;
+    });
 
     try {
       const res = await call(app, {
-        method: 'POST',
-        url: '/api/batch',
+        method: "POST",
+        url: "/api/batch",
         payload: {
           ops: Array.from({ length: 25 }, (_, index) => ({
-            method: 'PUT',
-            table: 'activities',
+            method: "PUT",
+            table: "activities",
             id: `batch-activity-${index}`,
             row: {
               id: `batch-activity-${index}`,
-              accountId: 'a1',
+              accountId: "a1",
               name: `Batch activity ${index}`,
-              kind: 'repeatable',
+              kind: "repeatable",
               ...meta(),
             },
           })),
         },
         headers: { cookie },
-      })
+      });
 
-      expect(res.statusCode).toBe(200)
+      expect(res.statusCode).toBe(200);
     } finally {
-      db.setAuthorizer(null)
+      db.setAuthorizer(null);
     }
 
     // The two reads are deliberately independent: one before lock acquisition and one after it.
-    expect(membershipRoleReads).toBe(2)
-  })
+    expect(membershipRoleReads).toBe(2);
+  });
 
-  it.each(['admin', 'owner'] as const)('%s of a1: row writes succeed; only owner may import', async (role) => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, `${role}@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+  it.each(["admin", "owner"] as const)("%s of a1: row writes succeed; only owner may import", async (role) => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, `${role}@capacitylens.dev`);
+    upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
-    expect((await getState(app, 'a1', cookie)).statusCode).toBe(200)
-    expect((await postClient(app, 'a1', `${role}-c1`, cookie)).statusCode).toBe(201)
-    expect((await putClient(app, 'a1', `${role}-c2`, cookie)).statusCode).toBe(200)
-    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(200)
-    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(204)
-    expect((await batchInto(app, 'a1', `${role}-c3`, cookie)).statusCode).toBe(200)
-    expect((await importInto(app, 'a1', `${role}-c4`, cookie)).statusCode).toBe(role === 'owner' ? 200 : 403)
-  })
+    expect((await getState(app, "a1", cookie)).statusCode).toBe(200);
+    expect((await postClient(app, "a1", `${role}-c1`, cookie)).statusCode).toBe(201);
+    expect((await putClient(app, "a1", `${role}-c2`, cookie)).statusCode).toBe(200);
+    expect((await patchClient(app, "c1", cookie)).statusCode).toBe(200);
+    expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(204);
+    expect((await batchInto(app, "a1", `${role}-c3`, cookie)).statusCode).toBe(200);
+    expect((await importInto(app, "a1", `${role}-c4`, cookie)).statusCode).toBe(role === "owner" ? 200 : 403);
+  });
 
-  it('generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs', async () => {
-    const { app, db } = await appWithAuth()
-    const { cookie } = await signUp(app, 'onboarding@capacitylens.dev') // no membership → no account yet
+  it("generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs", async () => {
+    const { app, db } = await appWithAuth();
+    const { cookie } = await signUp(app, "onboarding@capacitylens.dev"); // no membership → no account yet
     const res = await call(app, {
-      method: 'POST',
-      url: '/api/accounts',
-      payload: account('newAcct'),
+      method: "POST",
+      url: "/api/accounts",
+      payload: account("newAcct"),
       headers: { cookie },
-    })
+    });
     // The old onboarding exemption (this POST used to 201 for a membership-less user) became an
     // authz bypass once POST /api/orgs landed: the bare row write never mints a membership (and
     // none is ever backfilled), so every generic auth-on create is now refused. Even the zero-
     // account first-run goes through /api/orgs, which handles it atomically.
-    expect(res.statusCode).toBe(403)
-    expect(res.json().error).toContain('/api/orgs')
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0)
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toContain("/api/orgs");
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
     // …and /api/orgs DOES let the same user bootstrap their first company (201 + owner membership).
-    const orgs = await call(app, { method: 'POST', url: '/api/orgs', payload: account('newAcct'), headers: { cookie } })
-    expect(orgs.statusCode).toBe(201)
-  })
-})
+    const orgs = await call(app, {
+      method: "POST",
+      url: "/api/orgs",
+      payload: account("newAcct"),
+      headers: { cookie },
+    });
+    expect(orgs.statusCode).toBe(201);
+  });
+});
 
-describe('scoped generic writes conceal foreign row existence', () => {
+describe("scoped generic writes conceal foreign row existence", () => {
   const foreignIds = {
-    disciplines: 'd-loft-design',
-    resources: 'r-jo',
-    clients: 'c-internal-loft',
-    projects: 'p-loft-app',
-    phases: 'ph-loft',
-    activities: 't-loft-screens',
-    allocations: 'a-jo-1',
-    timeOff: 'to-loft',
-  } as const
+    disciplines: "d-loft-design",
+    resources: "r-jo",
+    clients: "c-internal-loft",
+    projects: "p-loft-app",
+    phases: "ph-loft",
+    activities: "t-loft-screens",
+    allocations: "a-jo-1",
+    timeOff: "to-loft",
+  } as const;
 
-  type ScopedEntity = keyof typeof foreignIds
-  const scopedEntities = Object.keys(foreignIds) as ScopedEntity[]
+  type ScopedEntity = keyof typeof foreignIds;
+  const scopedEntities = Object.keys(foreignIds) as ScopedEntity[];
 
   function seedOracleRows(db: Db): void {
-    const data = seed()
+    const data = seed();
     data.phases.push({
       id: foreignIds.phases,
-      accountId: 'a-loft',
-      name: 'Loft discovery',
-      projectId: 'p-loft-app',
+      accountId: "a-loft",
+      name: "Loft discovery",
+      projectId: "p-loft-app",
       ...meta(),
-    })
+    });
     data.timeOff.push({
       id: foreignIds.timeOff,
-      accountId: 'a-loft',
-      resourceId: 'r-jo',
-      startDate: '2026-06-08',
-      endDate: '2026-06-09',
-      type: 'holiday',
+      accountId: "a-loft",
+      resourceId: "r-jo",
+      startDate: "2026-06-08",
+      endDate: "2026-06-09",
+      type: "holiday",
       ...meta(),
-    })
-    insertAll(db, data)
+    });
+    insertAll(db, data);
   }
 
   const responseShape = (response: LightMyRequestResponse) => ({
     statusCode: response.statusCode,
     body: response.body,
-  })
+  });
 
   const patch = (app: FastifyInstance, entity: ScopedEntity, id: string, cookie: string) =>
     call(app, {
-      method: 'PATCH',
+      method: "PATCH",
       url: `/api/${entity}/${id}`,
       payload: { updatedAt: TS },
       headers: { cookie },
-    })
+    });
 
-  const put = (
-    app: FastifyInstance,
-    db: Db,
-    entity: ScopedEntity,
-    sourceId: string,
-    id: string,
-    cookie: string,
-  ) => call(app, {
-    method: 'PUT',
-    url: `/api/${entity}/${id}`,
-    payload: { ...getRow(db, entity, sourceId), id, accountId: 'a-studio' },
-    headers: { cookie },
-  })
+  const put = (app: FastifyInstance, db: Db, entity: ScopedEntity, sourceId: string, id: string, cookie: string) =>
+    call(app, {
+      method: "PUT",
+      url: `/api/${entity}/${id}`,
+      payload: { ...getRow(db, entity, sourceId), id, accountId: "a-studio" },
+      headers: { cookie },
+    });
 
   const remove = (app: FastifyInstance, entity: ScopedEntity, id: string, cookie: string) =>
     call(app, {
-      method: 'DELETE',
+      method: "DELETE",
       url: `/api/${entity}/${id}?accountId=a-studio`,
       headers: { cookie },
-    })
+    });
 
-  it('gives a membership-less principal byte-identical absent/foreign responses for every scoped verb and entity', async () => {
-    const { app, db } = await appWithAuth()
-    seedOracleRows(db)
-    const { cookie } = await signUp(app, 'row-oracle-stranger@capacitylens.dev')
+  it("gives a membership-less principal byte-identical absent/foreign responses for every scoped verb and entity", async () => {
+    const { app, db } = await appWithAuth();
+    seedOracleRows(db);
+    const { cookie } = await signUp(app, "row-oracle-stranger@capacitylens.dev");
 
     for (const entity of scopedEntities) {
-      const foreignId = foreignIds[entity]
-      const absentId = `absent-${entity}`
-      expect(
-        responseShape(await patch(app, entity, foreignId, cookie)),
-        `PATCH ${entity}`,
-      ).toEqual(responseShape(await patch(app, entity, absentId, cookie)))
-      expect(
-        responseShape(await put(app, db, entity, foreignId, foreignId, cookie)),
-        `PUT ${entity}`,
-      ).toEqual(responseShape(await put(app, db, entity, foreignId, absentId, cookie)))
-      expect(
-        responseShape(await remove(app, entity, foreignId, cookie)),
-        `DELETE ${entity}`,
-      ).toEqual(responseShape(await remove(app, entity, absentId, cookie)))
+      const foreignId = foreignIds[entity];
+      const absentId = `absent-${entity}`;
+      expect(responseShape(await patch(app, entity, foreignId, cookie)), `PATCH ${entity}`).toEqual(
+        responseShape(await patch(app, entity, absentId, cookie)),
+      );
+      expect(responseShape(await put(app, db, entity, foreignId, foreignId, cookie)), `PUT ${entity}`).toEqual(
+        responseShape(await put(app, db, entity, foreignId, absentId, cookie)),
+      );
+      expect(responseShape(await remove(app, entity, foreignId, cookie)), `DELETE ${entity}`).toEqual(
+        responseShape(await remove(app, entity, absentId, cookie)),
+      );
     }
-  })
+  });
 
-  it('conceals a foreign account whose built-in client has its deterministic account-derived id', async () => {
-    const { app, db } = await appWithAuth()
-    const accountId = 'derived-account'
+  it("conceals a foreign account whose built-in client has its deterministic account-derived id", async () => {
+    const { app, db } = await appWithAuth();
+    const accountId = "derived-account";
     insertAll(db, {
       ...emptyAppData(),
       accounts: [account(accountId)],
       clients: [buildInternalClient(accountId, TS)],
-    })
-    const { cookie } = await signUp(app, 'derived-internal-oracle@capacitylens.dev')
-    const existingId = `internal:${accountId}`
-    const absentId = 'internal:absent-account'
+    });
+    const { cookie } = await signUp(app, "derived-internal-oracle@capacitylens.dev");
+    const existingId = `internal:${accountId}`;
+    const absentId = "internal:absent-account";
 
-    expect(responseShape(await patch(app, 'clients', existingId, cookie)))
-      .toEqual(responseShape(await patch(app, 'clients', absentId, cookie)))
-    expect(responseShape(await call(app, {
-      method: 'PUT',
-      url: `/api/clients/${existingId}`,
-      payload: client(existingId, accountId),
-      headers: { cookie },
-    }))).toEqual(responseShape(await call(app, {
-      method: 'PUT',
-      url: `/api/clients/${absentId}`,
-      payload: client(absentId, accountId),
-      headers: { cookie },
-    })))
-  })
+    expect(responseShape(await patch(app, "clients", existingId, cookie))).toEqual(
+      responseShape(await patch(app, "clients", absentId, cookie)),
+    );
+    expect(
+      responseShape(
+        await call(app, {
+          method: "PUT",
+          url: `/api/clients/${existingId}`,
+          payload: client(existingId, accountId),
+          headers: { cookie },
+        }),
+      ),
+    ).toEqual(
+      responseShape(
+        await call(app, {
+          method: "PUT",
+          url: `/api/clients/${absentId}`,
+          payload: client(absentId, accountId),
+          headers: { cookie },
+        }),
+      ),
+    );
+  });
 
-  it('gives a member byte-identical absent/foreign PATCH and DELETE responses across every scoped entity', async () => {
-    const { app, db } = await appWithAuth()
-    seedOracleRows(db)
-    const { cookie, userId } = await signUp(app, 'row-oracle-member@capacitylens.dev')
+  it("gives a member byte-identical absent/foreign PATCH and DELETE responses across every scoped entity", async () => {
+    const { app, db } = await appWithAuth();
+    seedOracleRows(db);
+    const { cookie, userId } = await signUp(app, "row-oracle-member@capacitylens.dev");
     upsertMember(db, {
-      accountId: 'a-studio',
+      accountId: "a-studio",
       userId,
-      role: 'editor',
-      status: 'active',
+      role: "editor",
+      status: "active",
       createdAt: TS,
-    })
+    });
 
     for (const entity of scopedEntities) {
-      const foreignId = foreignIds[entity]
-      const absentId = `absent-${entity}`
-      expect(
-        responseShape(await patch(app, entity, foreignId, cookie)),
-        `PATCH ${entity}`,
-      ).toEqual(responseShape(await patch(app, entity, absentId, cookie)))
-      expect(
-        responseShape(await remove(app, entity, foreignId, cookie)),
-        `DELETE ${entity}`,
-      ).toEqual(responseShape(await remove(app, entity, absentId, cookie)))
+      const foreignId = foreignIds[entity];
+      const absentId = `absent-${entity}`;
+      expect(responseShape(await patch(app, entity, foreignId, cookie)), `PATCH ${entity}`).toEqual(
+        responseShape(await patch(app, entity, absentId, cookie)),
+      );
+      expect(responseShape(await remove(app, entity, foreignId, cookie)), `DELETE ${entity}`).toEqual(
+        responseShape(await remove(app, entity, absentId, cookie)),
+      );
     }
-  })
-})
+  });
+});
 
-describe('P1.6 time-off note redaction — owner/admin see it; editor/viewer never receive it', () => {
+describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer never receive it", () => {
   // a1 carries a time-off row whose note === SENTINEL_TIMEOFF_NOTE (see seedTwo). The note is
   // owner/admin-only (canSeeTimeOffNote), redacted SERVER-SIDE in the scoped read. For editor/viewer
   // we assert BOTH the parsed `note` is absent AND the sentinel appears NOWHERE in the raw body — the
   // latter is what proves the redaction is server-side (the string was never serialized), not a
   // client-side hide.
-  const noteOf = (res: LightMyRequestResponse): string | undefined =>
-    (res.json().timeOff[0] as { note?: string }).note
+  const noteOf = (res: LightMyRequestResponse): string | undefined => (res.json().timeOff[0] as { note?: string }).note;
 
-  it.each(['owner', 'admin'] as const)('%s of a1: scoped read INCLUDES the note', async (role) => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+  it.each(["owner", "admin"] as const)("%s of a1: scoped read INCLUDES the note", async (role) => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`);
+    upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
-    const res = await getState(app, 'a1', cookie)
-    expect(res.statusCode).toBe(200)
-    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE)
-    expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE)
-  })
+    const res = await getState(app, "a1", cookie);
+    expect(res.statusCode).toBe(200);
+    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+    expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
+  });
 
-  it.each(['editor', 'viewer'] as const)('%s of a1: note ABSENT and sentinel not in the raw body', async (role) => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+  it.each(["editor", "viewer"] as const)("%s of a1: note ABSENT and sentinel not in the raw body", async (role) => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`);
+    upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
-    const res = await getState(app, 'a1', cookie)
-    expect(res.statusCode).toBe(200)
-    expect(res.json().timeOff.length).toBe(1) // the row is returned…
-    expect('note' in (res.json().timeOff[0] as object)).toBe(false) // …minus its note key
-    expect(noteOf(res)).toBeUndefined()
+    const res = await getState(app, "a1", cookie);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().timeOff.length).toBe(1); // the row is returned…
+    expect("note" in (res.json().timeOff[0] as object)).toBe(false); // …minus its note key
+    expect(noteOf(res)).toBeUndefined();
     // The clincher: the sentinel was never serialized onto the wire (server-side redaction).
-    expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE)
-  })
+    expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
+  });
 
-  it('OFF mode (trusted-local): scoped read INCLUDES the note', async () => {
-    const db = openDb(':memory:')
-    const app = buildApp(db, { optimisticConcurrency: false }) // no authMode ⇒ OFF
-    seedTwo(db)
-    const res = await getState(app, 'a1') // no cookie needed in OFF
-    expect(res.statusCode).toBe(200)
-    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE)
-    expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE)
-  })
-})
+  it("OFF mode (trusted-local): scoped read INCLUDES the note", async () => {
+    const db = openDb(":memory:");
+    const app = buildApp(db, { optimisticConcurrency: false }); // no authMode ⇒ OFF
+    seedTwo(db);
+    const res = await getState(app, "a1"); // no cookie needed in OFF
+    expect(res.statusCode).toBe(200);
+    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+    expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
+  });
+});
 
-describe('P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note', () => {
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
   // The write-side counterpart of the read redaction above. An editor's reads have the `note`
   // REDACTED, so every row they round-trip back (PUT / batch PUT — the client's real save paths)
   // is note-less by construction; without the sanitizeWrite pin, upsertRow would store NULL and
   // silently erase a note the editor never saw. Owner/admin (and OFF mode) writers keep full
   // control: they can still change or clear the note.
 
-  const SENTINEL = SENTINEL_TIMEOFF_NOTE
+  const SENTINEL = SENTINEL_TIMEOFF_NOTE;
   const stampedTimeOff = (over: Record<string, unknown> = {}) =>
-    ({ ...timeOff('to1', 'a1', 'r1'), ...over }) as Record<string, unknown>
+    ({ ...timeOff("to1", "a1", "r1"), ...over }) as Record<string, unknown>;
 
   /** The note as an OWNER sees it after the write under test (the ground truth in the DB). */
   const noteInDb = (db: Db): unknown =>
-    (db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown }).note
+    (db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown }).note;
 
   /** Auth-on app + seed + a signed-up member of a1 with `role`. */
   async function memberApp(role: Role, opts: { optimisticConcurrency?: boolean } = {}) {
-    const { app, db } = await appWithAuth(opts)
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, `${role}-notewrite-${Math.random().toString(36).slice(2)}@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
-    return { app, db, cookie }
+    const { app, db } = await appWithAuth(opts);
+    seedTwo(db);
+    const { cookie, userId } = await signUp(
+      app,
+      `${role}-notewrite-${Math.random().toString(36).slice(2)}@capacitylens.dev`,
+    );
+    upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
+    return { app, db, cookie };
   }
 
-  it('editor PUT of a redacted round-trip (no note key, edited dates) → 200 and the note SURVIVES', async () => {
-    const { app, db, cookie } = await memberApp('editor')
+  it("editor PUT of a redacted round-trip (no note key, edited dates) → 200 and the note SURVIVES", async () => {
+    const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {
-      method: 'PUT',
-      url: '/api/timeOff/to1',
-      payload: stampedTimeOff({ endDate: '2026-02-05' }), // what the editor actually has: note-less
+      method: "PUT",
+      url: "/api/timeOff/to1",
+      payload: stampedTimeOff({ endDate: "2026-02-05" }), // what the editor actually has: note-less
       headers: { cookie },
-    })
-    expect(res.statusCode).toBe(200)
-    expect(noteInDb(db)).toBe(SENTINEL) // pinned to the stored value, not NULLed
+    });
+    expect(res.statusCode).toBe(200);
+    expect(noteInDb(db)).toBe(SENTINEL); // pinned to the stored value, not NULLed
     // …and the write itself took effect (the pin is surgical, not a rejected write).
-    expect((db.prepare(`SELECT endDate FROM timeOff WHERE id = 'to1'`).get() as { endDate: string }).endDate).toBe('2026-02-05')
+    expect((db.prepare(`SELECT endDate FROM timeOff WHERE id = 'to1'`).get() as { endDate: string }).endDate).toBe(
+      "2026-02-05",
+    );
     // The write's ECHO is a read: the pinned note must NOT ride the response back to the
     // note-blind writer (redactNoteEcho) — same server-side proof as the read-redaction suite.
-    expect(res.body).not.toContain(SENTINEL)
-  })
+    expect(res.body).not.toContain(SENTINEL);
+  });
 
-  it('editor batch PUT (the client sync path) → 200 and the note SURVIVES', async () => {
-    const { app, db, cookie } = await memberApp('editor')
+  it("editor batch PUT (the client sync path) → 200 and the note SURVIVES", async () => {
+    const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {
-      method: 'POST',
-      url: '/api/batch',
-      payload: { ops: [{ method: 'PUT', table: 'timeOff', id: 'to1', row: stampedTimeOff({ type: 'sick' }) }] },
+      method: "POST",
+      url: "/api/batch",
+      payload: { ops: [{ method: "PUT", table: "timeOff", id: "to1", row: stampedTimeOff({ type: "sick" }) }] },
       headers: { cookie },
-    })
-    expect(res.statusCode).toBe(200)
-    expect(noteInDb(db)).toBe(SENTINEL)
-    expect((db.prepare(`SELECT type FROM timeOff WHERE id = 'to1'`).get() as { type: string }).type).toBe('sick')
-  })
+    });
+    expect(res.statusCode).toBe(200);
+    expect(noteInDb(db)).toBe(SENTINEL);
+    expect((db.prepare(`SELECT type FROM timeOff WHERE id = 'to1'`).get() as { type: string }).type).toBe("sick");
+  });
 
   it("editor STALE write (optimistic concurrency) → the 409's `current` payload is note-REDACTED too", async () => {
     // The conflict path is a READ of the stored row: without redaction, an editor could learn a
     // note they can't read simply by sending a stale write. Both write paths must redact it.
-    const { app, cookie } = await memberApp('editor', { optimisticConcurrency: true })
-    const stale = stampedTimeOff({ updatedAt: '1999-01-01T00:00:00.000Z' }) // stored TS is strictly newer
+    const { app, cookie } = await memberApp("editor", { optimisticConcurrency: true });
+    const stale = stampedTimeOff({ updatedAt: "1999-01-01T00:00:00.000Z" }); // stored TS is strictly newer
 
-    const put = await call(app, { method: 'PUT', url: '/api/timeOff/to1', payload: stale, headers: { cookie } })
-    expect(put.statusCode).toBe(409)
-    expect((put.json() as { current?: Record<string, unknown> }).current?.id).toBe('to1') // payload present…
-    expect(put.body).not.toContain(SENTINEL) // …but the note never rides it
+    const put = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stale, headers: { cookie } });
+    expect(put.statusCode).toBe(409);
+    expect((put.json() as { current?: Record<string, unknown> }).current?.id).toBe("to1"); // payload present…
+    expect(put.body).not.toContain(SENTINEL); // …but the note never rides it
 
     const batch = await call(app, {
-      method: 'POST',
-      url: '/api/batch',
-      payload: { ops: [{ method: 'PUT', table: 'timeOff', id: 'to1', row: stale }] },
+      method: "POST",
+      url: "/api/batch",
+      payload: { ops: [{ method: "PUT", table: "timeOff", id: "to1", row: stale }] },
       headers: { cookie },
-    })
-    expect(batch.statusCode).toBe(409)
-    expect((batch.json() as { current?: Record<string, unknown> }).current?.id).toBe('to1')
-    expect(batch.body).not.toContain(SENTINEL)
-  })
+    });
+    expect(batch.statusCode).toBe(409);
+    expect((batch.json() as { current?: Record<string, unknown> }).current?.id).toBe("to1");
+    expect(batch.body).not.toContain(SENTINEL);
+  });
 
-  it('editor PATCH of an unrelated field → 200 and the note SURVIVES (and a smuggled note change is pinned back)', async () => {
-    const { app, db, cookie } = await memberApp('editor')
+  it("editor PATCH of an unrelated field → 200 and the note SURVIVES (and a smuggled note change is pinned back)", async () => {
+    const { app, db, cookie } = await memberApp("editor");
     const patched = await call(app, {
-      method: 'PATCH',
-      url: '/api/timeOff/to1',
-      payload: { type: 'sick', note: 'smuggled edit of a note I cannot see' },
+      method: "PATCH",
+      url: "/api/timeOff/to1",
+      payload: { type: "sick", note: "smuggled edit of a note I cannot see" },
       headers: { cookie },
-    })
-    expect(patched.statusCode).toBe(200)
-    expect(noteInDb(db)).toBe(SENTINEL) // the crafted note change did not land
+    });
+    expect(patched.statusCode).toBe(200);
+    expect(noteInDb(db)).toBe(SENTINEL); // the crafted note change did not land
     // PATCH's merge pulls the stored row (note included) into its echo — redactNoteEcho must strip
     // it for a note-blind patcher, closing the pre-existing merge-echo leak.
-    expect(patched.body).not.toContain(SENTINEL)
-  })
+    expect(patched.body).not.toContain(SENTINEL);
+  });
 
-  it('editor CREATE of NEW time off works; a note they cannot see is stripped, not stored', async () => {
-    const { app, db, cookie } = await memberApp('editor')
+  it("editor CREATE of NEW time off works; a note they cannot see is stripped, not stored", async () => {
+    const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {
-      method: 'POST',
-      url: '/api/timeOff',
-      payload: { ...timeOff('to2', 'a1', 'r1'), note: 'smuggled onto a create' },
+      method: "POST",
+      url: "/api/timeOff",
+      payload: { ...timeOff("to2", "a1", "r1"), note: "smuggled onto a create" },
       headers: { cookie },
-    })
-    expect(res.statusCode).toBe(201) // the create itself is fine — nothing existing to preserve
-    expect((db.prepare(`SELECT note FROM timeOff WHERE id = 'to2'`).get() as { note: unknown }).note).toBeNull()
-  })
+    });
+    expect(res.statusCode).toBe(201); // the create itself is fine — nothing existing to preserve
+    expect((db.prepare(`SELECT note FROM timeOff WHERE id = 'to2'`).get() as { note: unknown }).note).toBeNull();
+  });
 
-  it.each(['owner', 'admin'] as const)('%s PUT can still CHANGE the note, and clear it by omitting the key', async (role) => {
-    const { app, db, cookie } = await memberApp(role)
-    const changed = await call(app, {
-      method: 'PUT',
-      url: '/api/timeOff/to1',
-      payload: stampedTimeOff({ note: 'rescheduled to March' }),
-      headers: { cookie },
-    })
-    expect(changed.statusCode).toBe(200)
-    expect(noteInDb(db)).toBe('rescheduled to March')
+  it.each(["owner", "admin"] as const)(
+    "%s PUT can still CHANGE the note, and clear it by omitting the key",
+    async (role) => {
+      const { app, db, cookie } = await memberApp(role);
+      const changed = await call(app, {
+        method: "PUT",
+        url: "/api/timeOff/to1",
+        payload: stampedTimeOff({ note: "rescheduled to March" }),
+        headers: { cookie },
+      });
+      expect(changed.statusCode).toBe(200);
+      expect(noteInDb(db)).toBe("rescheduled to March");
 
-    const cleared = await call(app, {
-      method: 'PUT',
-      url: '/api/timeOff/to1',
-      payload: stampedTimeOff(), // note key absent — a note-visible writer clears it
-      headers: { cookie },
-    })
-    expect(cleared.statusCode).toBe(200)
-    expect(noteInDb(db)).toBeNull()
-  })
+      const cleared = await call(app, {
+        method: "PUT",
+        url: "/api/timeOff/to1",
+        payload: stampedTimeOff(), // note key absent — a note-visible writer clears it
+        headers: { cookie },
+      });
+      expect(cleared.statusCode).toBe(200);
+      expect(noteInDb(db)).toBeNull();
+    },
+  );
 
-  it('OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact', async () => {
-    const db = openDb(':memory:')
-    const app = buildApp(db, { optimisticConcurrency: false }) // OFF ⇒ the writer always "sees" the note
-    seedTwo(db)
-    const res = await call(app, { method: 'PUT', url: '/api/timeOff/to1', payload: stampedTimeOff() })
-    expect(res.statusCode).toBe(200)
-    expect(noteInDb(db)).toBeNull()
-  })
-})
+  it("OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact", async () => {
+    const db = openDb(":memory:");
+    const app = buildApp(db, { optimisticConcurrency: false }); // OFF ⇒ the writer always "sees" the note
+    seedTwo(db);
+    const res = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stampedTimeOff() });
+    expect(res.statusCode).toBe(200);
+    expect(noteInDb(db)).toBeNull();
+  });
+});
 
-describe('P1.5 authorize — account hard-delete is owner-only and dedicated-route-only', () => {
+describe("P1.5 authorize — account hard-delete is owner-only and dedicated-route-only", () => {
   // Account hard-delete CASCADES (FK ON DELETE CASCADE wipes all the account's scoped data), so in
   // auth-on it must NOT be reachable by an arbitrary signed-in user. Only the direct
   // DELETE /api/accounts/:id route may invoke it; generic sync rejects account DELETE operations
@@ -716,85 +761,92 @@ describe('P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   // account's own id; admin-tier record purge remains a separate action.
 
   const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
-    call(app, { method: 'DELETE', url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} })
+    call(app, { method: "DELETE", url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} });
 
   const batchDeleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
     call(app, {
-      method: 'POST',
-      url: '/api/batch',
-      payload: { ops: [{ method: 'DELETE', table: 'accounts', id }] },
+      method: "POST",
+      url: "/api/batch",
+      payload: { ops: [{ method: "DELETE", table: "accounts", id }] },
       headers: cookie ? { cookie } : {},
-    })
+    });
 
   /** Does the accounts row still exist? Read it back through an authorized member session. */
   const accountExists = async (app: FastifyInstance, id: string, cookie: string): Promise<boolean> => {
-    const res = await getState(app, id, cookie)
-    return res.statusCode === 200 && Array.isArray(res.json().accounts) && res.json().accounts.length === 1
-  }
+    const res = await getState(app, id, cookie);
+    return res.statusCode === 200 && Array.isArray(res.json().accounts) && res.json().accounts.length === 1;
+  };
 
-  it('non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie } = await signUp(app, 'stranger-del@capacitylens.dev') // NO membership
+  it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie } = await signUp(app, "stranger-del@capacitylens.dev"); // NO membership
     // A separate ADMIN of a1 so we can read a1 back afterwards (the stranger can't read it).
-    const admin = await signUp(app, 'a1admin-witness@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: admin.userId, role: 'admin', status: 'active', createdAt: TS })
+    const admin = await signUp(app, "a1admin-witness@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: admin.userId, role: "admin", status: "active", createdAt: TS });
 
-    expect((await deleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
-    expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
+    expect((await deleteAccount(app, "a1", cookie)).statusCode).toBe(403);
+    expect(await accountExists(app, "a1", admin.cookie)).toBe(true);
 
-    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(400)
+    expect((await batchDeleteAccount(app, "a1", cookie)).statusCode).toBe(400);
     // Pre-scan rejected the batch before the tx opened — a1 left wholly intact.
-    expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
-  })
+    expect(await accountExists(app, "a1", admin.cookie)).toBe(true);
+  });
 
-  it.each(['viewer', 'editor', 'admin'] as const)('%s of a1: route is 403 and generic batch DELETE is 400', async (role) => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, `${role}-del@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
-    // A read-witness owner so the survival read-back can resolve a role for a1.
-    const owner = await signUp(app, `${role}-del-witness@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+  it.each(["viewer", "editor", "admin"] as const)(
+    "%s of a1: route is 403 and generic batch DELETE is 400",
+    async (role) => {
+      const { app, db } = await appWithAuth();
+      seedTwo(db);
+      const { cookie, userId } = await signUp(app, `${role}-del@capacitylens.dev`);
+      upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
+      // A read-witness owner so the survival read-back can resolve a role for a1.
+      const owner = await signUp(app, `${role}-del-witness@capacitylens.dev`);
+      upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
 
-    expect((await deleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
-    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(400)
-    expect(await accountExists(app, 'a1', owner.cookie)).toBe(true)
-  })
+      expect((await deleteAccount(app, "a1", cookie)).statusCode).toBe(403);
+      expect((await batchDeleteAccount(app, "a1", cookie)).statusCode).toBe(400);
+      expect(await accountExists(app, "a1", owner.cookie)).toBe(true);
+    },
+  );
 
-  it('owner of an account: DELETE /api/accounts/:id → 204 (account gone)', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('purgeMe')] } as unknown as AppData)
-    const { cookie, userId } = await signUp(app, 'owner-delete@capacitylens.dev')
-    upsertMember(db, { accountId: 'purgeMe', userId, role: 'owner', status: 'active', createdAt: TS })
+  it("owner of an account: DELETE /api/accounts/:id → 204 (account gone)", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, { ...emptyAppData(), accounts: [account("purgeMe")] } as unknown as AppData);
+    const { cookie, userId } = await signUp(app, "owner-delete@capacitylens.dev");
+    upsertMember(db, { accountId: "purgeMe", userId, role: "owner", status: "active", createdAt: TS });
 
-    const res = await deleteAccount(app, 'purgeMe', cookie)
-    expect(res.statusCode).toBe(204)
+    const res = await deleteAccount(app, "purgeMe", cookie);
+    expect(res.statusCode).toBe(204);
     // P2.6b: this is now a TENANT ERASURE, not a bare row delete. The caller is the SOLE member, so the
     // erasure also removes their identity and KILLS their session — their cookie no longer authenticates, so a
     // read-back as them is 401 (not 200). "Account gone" is therefore asserted on observable DB state
     // directly: the accounts row, the membership row, and the member's auth session are all removed.
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeMe'`).get() as { n: number }).n).toBe(0)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeMe'`).get() as { n: number }).n).toBe(0)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0)
-  })
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeMe'`).get() as { n: number }).n).toBe(0);
+    expect(
+      (db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeMe'`).get() as { n: number }).n,
+    ).toBe(0);
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0);
+  });
 
-  it('owner of an account: generic batch DELETE is rejected without erasing account or identity', async () => {
-    const { app, db } = await appWithAuth()
-    insertAll(db, { ...emptyAppData(), accounts: [account('purgeBatch')] } as unknown as AppData)
-    const { cookie, userId } = await signUp(app, 'owner-delete-batch@capacitylens.dev')
-    upsertMember(db, { accountId: 'purgeBatch', userId, role: 'owner', status: 'active', createdAt: TS })
+  it("owner of an account: generic batch DELETE is rejected without erasing account or identity", async () => {
+    const { app, db } = await appWithAuth();
+    insertAll(db, { ...emptyAppData(), accounts: [account("purgeBatch")] } as unknown as AppData);
+    const { cookie, userId } = await signUp(app, "owner-delete-batch@capacitylens.dev");
+    upsertMember(db, { accountId: "purgeBatch", userId, role: "owner", status: "active", createdAt: TS });
 
-    const res = await batchDeleteAccount(app, 'purgeBatch', cookie)
-    expect(res.statusCode).toBe(400)
-    expect(res.json()).toEqual({ error: 'Use the dedicated company deletion endpoint.' })
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeBatch'`).get() as { n: number }).n).toBe(1)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeBatch'`).get() as { n: number }).n).toBe(1)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(1)
-  })
-})
+    const res = await batchDeleteAccount(app, "purgeBatch", cookie);
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: "Use the dedicated company deletion endpoint." });
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeBatch'`).get() as { n: number }).n).toBe(1);
+    expect(
+      (db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeBatch'`).get() as { n: number }).n,
+    ).toBe(1);
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(1);
+  });
+});
 
-describe('P1.5 authorize — /api/import is owner-only', () => {
+describe("P1.5 authorize — /api/import is owner-only", () => {
   // Import is a destructive delete-all + re-insert of the tenant slice (replaceAccountSlice) — the
   // purge tier's hard-delete semantics — AND it bypasses field-level write pins: every id is
   // remapped, so the P1.6 timeOff note pin can never match a stored row. At 'write' tier a
@@ -808,69 +860,72 @@ describe('P1.5 authorize — /api/import is owner-only', () => {
     // (their reads are redacted), so importing it would silently erase the stored note.
     const data = {
       ...emptyAppData(),
-      resources: [person('r1', accountId)],
-      timeOff: [timeOff('to1', accountId, 'r1')], // no note key
-    }
-    return call(app, { method: 'POST', url: '/api/import', payload: { accountId, data }, headers: { cookie } })
-  }
+      resources: [person("r1", accountId)],
+      timeOff: [timeOff("to1", accountId, "r1")], // no note key
+    };
+    return call(app, { method: "POST", url: "/api/import", payload: { accountId, data }, headers: { cookie } });
+  };
 
-  it.each(['viewer', 'editor', 'admin'] as const)('%s of a1 → 403 and the slice (sentinel note included) survives', async (role) => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, `${role}-import@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+  it.each(["viewer", "editor", "admin"] as const)(
+    "%s of a1 → 403 and the slice (sentinel note included) survives",
+    async (role) => {
+      const { app, db } = await appWithAuth();
+      seedTwo(db);
+      const { cookie, userId } = await signUp(app, `${role}-import@capacitylens.dev`);
+      upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
-    expect((await importSlice(app, 'a1', cookie)).statusCode).toBe(403)
-    // Nothing was replaced: the seeded client is still there and the confidential note is intact.
-    const row = db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown }
-    expect(row.note).toBe(SENTINEL_TIMEOFF_NOTE)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE id = 'c1'`).get() as { n: number }).n).toBe(1)
-  })
+      expect((await importSlice(app, "a1", cookie)).statusCode).toBe(403);
+      // Nothing was replaced: the seeded client is still there and the confidential note is intact.
+      const row = db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown };
+      expect(row.note).toBe(SENTINEL_TIMEOFF_NOTE);
+      expect((db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE id = 'c1'`).get() as { n: number }).n).toBe(1);
+    },
+  );
 
-  it('owner of a1 → 200 (the full-fidelity role may replace the slice)', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, 'owner-import@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+  it("owner of a1 → 200 (the full-fidelity role may replace the slice)", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "owner-import@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "owner", status: "active", createdAt: TS });
 
-    const res = await importSlice(app, 'a1', cookie)
-    expect(res.statusCode).toBe(200)
-    expect(res.json().imported).toBeGreaterThan(0)
-  })
+    const res = await importSlice(app, "a1", cookie);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().imported).toBeGreaterThan(0);
+  });
 
-  it('refuses an admin re-import of their redacted export without changing private database names', async () => {
-    const { app, db } = await appWithAuth()
-    seedPrivateNames(db)
-    const { cookie, userId } = await signUp(app, 'admin-redacted-import@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
+  it("refuses an admin re-import of their redacted export without changing private database names", async () => {
+    const { app, db } = await appWithAuth();
+    seedPrivateNames(db);
+    const { cookie, userId } = await signUp(app, "admin-redacted-import@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "admin", status: "active", createdAt: TS });
 
-    const exported = await getState(app, 'a1', cookie)
-    expect(exported.statusCode).toBe(200)
-    expect(exported.json().clients.find((row: { id: string }) => row.id === 'c1')).toMatchObject({
+    const exported = await getState(app, "a1", cookie);
+    expect(exported.statusCode).toBe(200);
+    expect(exported.json().clients.find((row: { id: string }) => row.id === "c1")).toMatchObject({
       name: '"Northstar"',
       isPrivate: true,
-    })
+    });
 
     const res = await call(app, {
-      method: 'POST',
-      url: '/api/import',
-      payload: { accountId: 'a1', data: exported.json() },
+      method: "POST",
+      url: "/api/import",
+      payload: { accountId: "a1", data: exported.json() },
       headers: { cookie },
-    })
-    expect(res.statusCode).toBe(403)
-    expect(res.json().error).toMatch(/account owner/i)
-    expect(getRow(db, 'clients', 'c1')).toMatchObject({
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toMatch(/account owner/i);
+    expect(getRow(db, "clients", "c1")).toMatchObject({
       name: REAL_CLIENT_NAME,
-      codeName: 'Northstar',
-    })
-    expect(getRow(db, 'projects', 'p1')).toMatchObject({
+      codeName: "Northstar",
+    });
+    expect(getRow(db, "projects", "p1")).toMatchObject({
       name: REAL_PROJECT_NAME,
-      codeName: 'Aurora',
-    })
-  })
-})
+      codeName: "Aurora",
+    });
+  });
+});
 
-describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE', () => {
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
   // The scoped tables carry accountId and pass through the isScopedTable() authorize gate; `accounts`
   // does NOT (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
   // mode / feature toggles) needs its OWN gate — else any signed-in user could rewrite another tenant's
@@ -880,311 +935,331 @@ describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   // this is a deliberate compatibility boundary.)
 
   const putAccount = (app: FastifyInstance, id: string, cookie?: string) =>
-    call(app, { method: 'PUT', url: `/api/accounts/${id}`, payload: account(id), headers: cookie ? { cookie } : {} })
+    call(app, { method: "PUT", url: `/api/accounts/${id}`, payload: account(id), headers: cookie ? { cookie } : {} });
   const patchAccount = (app: FastifyInstance, id: string, cookie?: string) =>
-    call(app, { method: 'PATCH', url: `/api/accounts/${id}`, payload: { name: 'Renamed' }, headers: cookie ? { cookie } : {} })
+    call(app, {
+      method: "PATCH",
+      url: `/api/accounts/${id}`,
+      payload: { name: "Renamed" },
+      headers: cookie ? { cookie } : {},
+    });
   const batchPutAccount = (app: FastifyInstance, id: string, cookie?: string) =>
     call(app, {
-      method: 'POST',
-      url: '/api/batch',
-      payload: { ops: [{ method: 'PUT', table: 'accounts', id, row: account(id) }] },
+      method: "POST",
+      url: "/api/batch",
+      payload: { ops: [{ method: "PUT", table: "accounts", id, row: account(id) }] },
       headers: cookie ? { cookie } : {},
-    })
+    });
 
-  it('non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie } = await signUp(app, 'acct-stranger@capacitylens.dev') // NO membership
-    expect((await putAccount(app, 'a1', cookie)).statusCode).toBe(403)
-    expect((await patchAccount(app, 'a1', cookie)).statusCode).toBe(403)
-    expect((await batchPutAccount(app, 'a1', cookie)).statusCode).toBe(403)
-  })
+  it("non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie } = await signUp(app, "acct-stranger@capacitylens.dev"); // NO membership
+    expect((await putAccount(app, "a1", cookie)).statusCode).toBe(403);
+    expect((await patchAccount(app, "a1", cookie)).statusCode).toBe(403);
+    expect((await batchPutAccount(app, "a1", cookie)).statusCode).toBe(403);
+  });
 
-  it('cross-account: a member of a1 only, updating a2 → 403 (all three vectors)', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const { cookie, userId } = await signUp(app, 'acct-a1only@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
-    expect((await putAccount(app, 'a2', cookie)).statusCode).toBe(403)
-    expect((await patchAccount(app, 'a2', cookie)).statusCode).toBe(403)
-    expect((await batchPutAccount(app, 'a2', cookie)).statusCode).toBe(403)
-  })
+  it("cross-account: a member of a1 only, updating a2 → 403 (all three vectors)", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "acct-a1only@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "admin", status: "active", createdAt: TS });
+    expect((await putAccount(app, "a2", cookie)).statusCode).toBe(403);
+    expect((await patchAccount(app, "a2", cookie)).statusCode).toBe(403);
+    expect((await batchPutAccount(app, "a2", cookie)).statusCode).toBe(403);
+  });
 
-  it('viewer of a1: account update → 403 (write tier); editor of a1: → 2xx', async () => {
-    const { app, db } = await appWithAuth()
-    seedTwo(db)
-    const viewer = await signUp(app, 'acct-viewer@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: viewer.userId, role: 'viewer', status: 'active', createdAt: TS })
-    expect((await patchAccount(app, 'a1', viewer.cookie)).statusCode).toBe(403)
+  it("viewer of a1: account update → 403 (write tier); editor of a1: → 2xx", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const viewer = await signUp(app, "acct-viewer@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: viewer.userId, role: "viewer", status: "active", createdAt: TS });
+    expect((await patchAccount(app, "a1", viewer.cookie)).statusCode).toBe(403);
 
-    const editor = await signUp(app, 'acct-editor@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: editor.userId, role: 'editor', status: 'active', createdAt: TS })
-    expect((await putAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
-    expect((await patchAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
-    expect((await batchPutAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
-  })
+    const editor = await signUp(app, "acct-editor@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: editor.userId, role: "editor", status: "active", createdAt: TS });
+    expect((await putAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
+    expect((await patchAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
+    expect((await batchPutAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
+  });
 
   // Auth-on, a CREATE via any generic vector is CLOSED outright — 403 directing to POST /api/orgs
   // (the atomic account + Internal client + owner-membership path). The refusal is UNCONDITIONAL in
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
   // belongs to /api/orgs too), and regardless of multiAccount. Three cases pin the full behaviour:
-  it('(a) zero-account instance, auth-on: a non-member PUT / batch-PUT of the FIRST account → 403 → /api/orgs (bootstrap moved there)', async () => {
-    const put = await appWithAuth() // fresh db, zero accounts
-    const { cookie: putCookie } = await signUp(put.app, 'acct-onboard-put@capacitylens.dev') // no membership
-    const putRes = await putAccount(put.app, 'brandNew1', putCookie)
-    expect(putRes.statusCode).toBe(403)
-    expect(putRes.json().error).toContain('/api/orgs')
-    expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0)
+  it("(a) zero-account instance, auth-on: a non-member PUT / batch-PUT of the FIRST account → 403 → /api/orgs (bootstrap moved there)", async () => {
+    const put = await appWithAuth(); // fresh db, zero accounts
+    const { cookie: putCookie } = await signUp(put.app, "acct-onboard-put@capacitylens.dev"); // no membership
+    const putRes = await putAccount(put.app, "brandNew1", putCookie);
+    expect(putRes.statusCode).toBe(403);
+    expect(putRes.json().error).toContain("/api/orgs");
+    expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
 
-    const batch = await appWithAuth() // separate fresh instance — also zero accounts
-    const { cookie: batchCookie } = await signUp(batch.app, 'acct-onboard-batch@capacitylens.dev')
-    const batchRes = await batchPutAccount(batch.app, 'brandNew2', batchCookie)
-    expect(batchRes.statusCode).toBe(403)
-    expect(batchRes.json().error).toContain('/api/orgs')
-    expect((batch.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0)
-  })
+    const batch = await appWithAuth(); // separate fresh instance — also zero accounts
+    const { cookie: batchCookie } = await signUp(batch.app, "acct-onboard-batch@capacitylens.dev");
+    const batchRes = await batchPutAccount(batch.app, "brandNew2", batchCookie);
+    expect(batchRes.statusCode).toBe(403);
+    expect(batchRes.json().error).toContain("/api/orgs");
+    expect((batch.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
+  });
 
-  it('(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 → /api/orgs (the auth-on closure outranks the cap message)', async () => {
-    const { app, db } = await appWithAuth() // multiAccount defaults to false
-    seedTwo(db) // a1 + a2 already exist
-    const { cookie } = await signUp(app, 'acct-onboard-cap@capacitylens.dev') // no membership
+  it("(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 → /api/orgs (the auth-on closure outranks the cap message)", async () => {
+    const { app, db } = await appWithAuth(); // multiAccount defaults to false
+    seedTwo(db); // a1 + a2 already exist
+    const { cookie } = await signUp(app, "acct-onboard-cap@capacitylens.dev"); // no membership
 
-    const put = await putAccount(app, 'brandNew3', cookie)
-    expect(put.statusCode).toBe(403)
-    expect(put.json().error).toContain('/api/orgs')
+    const put = await putAccount(app, "brandNew3", cookie);
+    expect(put.statusCode).toBe(403);
+    expect(put.json().error).toContain("/api/orgs");
 
-    const batch = await batchPutAccount(app, 'brandNew4', cookie)
-    expect(batch.statusCode).toBe(403)
-    expect(batch.json().error).toContain('/api/orgs')
+    const batch = await batchPutAccount(app, "brandNew4", cookie);
+    expect(batch.statusCode).toBe(403);
+    expect(batch.json().error).toContain("/api/orgs");
     // /api/orgs then applies the single-company cap itself (its own GATE 0) — see app.orgs.test.ts.
-  })
+  });
 
-  it('(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs', async () => {
-    const { app, db } = await appWithAuth({ multiAccount: true })
-    seedTwo(db)
-    const { cookie } = await signUp(app, 'acct-onboard-multi@capacitylens.dev') // no membership
-    expect((await putAccount(app, 'brandNew5', cookie)).statusCode).toBe(403)
-    expect((await batchPutAccount(app, 'brandNew6', cookie)).statusCode).toBe(403)
-    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id LIKE 'brandNew%'`).get() as { n: number }).n).toBe(0)
-  })
+  it("(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs", async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true });
+    seedTwo(db);
+    const { cookie } = await signUp(app, "acct-onboard-multi@capacitylens.dev"); // no membership
+    expect((await putAccount(app, "brandNew5", cookie)).statusCode).toBe(403);
+    expect((await batchPutAccount(app, "brandNew6", cookie)).statusCode).toBe(403);
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id LIKE 'brandNew%'`).get() as { n: number }).n).toBe(
+      0,
+    );
+  });
 
-  it('OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)', async () => {
-    const db = openDb(':memory:')
-    const app = buildApp(db, { optimisticConcurrency: false }) // OFF
-    seedTwo(db)
-    expect((await putAccount(app, 'a1')).statusCode).toBe(200)
-    expect((await patchAccount(app, 'a1')).statusCode).toBe(200)
-    expect((await batchPutAccount(app, 'a1')).statusCode).toBe(200)
-  })
-})
+  it("OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)", async () => {
+    const db = openDb(":memory:");
+    const app = buildApp(db, { optimisticConcurrency: false }); // OFF
+    seedTwo(db);
+    expect((await putAccount(app, "a1")).statusCode).toBe(200);
+    expect((await patchAccount(app, "a1")).statusCode).toBe(200);
+    expect((await batchPutAccount(app, "a1")).statusCode).toBe(200);
+  });
+});
 
-describe('private client/project names — owner-only server projection', () => {
+describe("private client/project names — owner-only server projection", () => {
   it.each([
-    ['owner', REAL_CLIENT_NAME, REAL_PROJECT_NAME, true],
-    ['admin', '"Northstar"', '"Aurora"', false],
-    ['editor', '"Northstar"', '"Aurora"', false],
-    ['viewer', '"Northstar"', '"Aurora"', false],
-  ] as const)('%s receives the correct client/project identity fields', async (role, clientName, projectName, seesCodeNameField) => {
-    const { app, db } = await appWithAuth()
-    seedPrivateNames(db)
-    const { cookie, userId } = await signUp(app, `private-read-${role}@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+    ["owner", REAL_CLIENT_NAME, REAL_PROJECT_NAME, true],
+    ["admin", '"Northstar"', '"Aurora"', false],
+    ["editor", '"Northstar"', '"Aurora"', false],
+    ["viewer", '"Northstar"', '"Aurora"', false],
+  ] as const)(
+    "%s receives the correct client/project identity fields",
+    async (role, clientName, projectName, seesCodeNameField) => {
+      const { app, db } = await appWithAuth();
+      seedPrivateNames(db);
+      const { cookie, userId } = await signUp(app, `private-read-${role}@capacitylens.dev`);
+      upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
 
-    const res = await getState(app, 'a1', cookie)
-    expect(res.statusCode).toBe(200)
-    const body = res.json() as AppData
-    expect(body.clients.find((row) => row.id === 'c1')?.name).toBe(clientName)
-    expect(body.projects.find((row) => row.id === 'p1')?.name).toBe(projectName)
-    expect('codeName' in body.clients.find((row) => row.id === 'c1')!).toBe(seesCodeNameField)
-    expect('codeName' in body.projects.find((row) => row.id === 'p1')!).toBe(seesCodeNameField)
-    if (role !== 'owner') {
-      expect(res.body).not.toContain(REAL_CLIENT_NAME)
-      expect(res.body).not.toContain(REAL_PROJECT_NAME)
-    }
-  })
+      const res = await getState(app, "a1", cookie);
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as AppData;
+      expect(body.clients.find((row) => row.id === "c1")?.name).toBe(clientName);
+      expect(body.projects.find((row) => row.id === "p1")?.name).toBe(projectName);
+      expect("codeName" in body.clients.find((row) => row.id === "c1")!).toBe(seesCodeNameField);
+      expect("codeName" in body.projects.find((row) => row.id === "p1")!).toBe(seesCodeNameField);
+      if (role !== "owner") {
+        expect(res.body).not.toContain(REAL_CLIENT_NAME);
+        expect(res.body).not.toContain(REAL_PROJECT_NAME);
+      }
+    },
+  );
 
-  it('pins real names and privacy settings when an editor PATCHes or batch-round-trips redacted rows', async () => {
-    const { app, db } = await appWithAuth()
-    seedPrivateNames(db)
-    const { cookie, userId } = await signUp(app, 'private-editor@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+  it("pins real names and privacy settings when an editor PATCHes or batch-round-trips redacted rows", async () => {
+    const { app, db } = await appWithAuth();
+    seedPrivateNames(db);
+    const { cookie, userId } = await signUp(app, "private-editor@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
     const patched = await call(app, {
-      method: 'PATCH',
-      url: '/api/clients/c1',
-      payload: { name: 'Attempted overwrite', isPrivate: false, codeName: 'Attempted code' },
+      method: "PATCH",
+      url: "/api/clients/c1",
+      payload: { name: "Attempted overwrite", isPrivate: false, codeName: "Attempted code" },
       headers: { cookie },
-    })
-    expect(patched.statusCode).toBe(200)
-    expect(patched.json()).toMatchObject({ name: '"Northstar"', isPrivate: true })
-    expect(patched.body).not.toContain(REAL_CLIENT_NAME)
+    });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json()).toMatchObject({ name: '"Northstar"', isPrivate: true });
+    expect(patched.body).not.toContain(REAL_CLIENT_NAME);
 
-    const visible = (await getState(app, 'a1', cookie)).json() as AppData
-    const redactedClient = visible.clients.find((row) => row.id === 'c1')!
-    const redactedProject = visible.projects.find((row) => row.id === 'p1')!
+    const visible = (await getState(app, "a1", cookie)).json() as AppData;
+    const redactedClient = visible.clients.find((row) => row.id === "c1")!;
+    const redactedProject = visible.projects.find((row) => row.id === "p1")!;
     const batch = await call(app, {
-      method: 'POST',
-      url: '/api/batch',
+      method: "POST",
+      url: "/api/batch",
       payload: {
         ops: [
-          { method: 'PUT', table: 'clients', id: 'c1', row: { ...redactedClient, color: '#da2d92' } },
-          { method: 'PUT', table: 'projects', id: 'p1', row: { ...redactedProject, color: '#2d75da' } },
+          { method: "PUT", table: "clients", id: "c1", row: { ...redactedClient, color: "#da2d92" } },
+          { method: "PUT", table: "projects", id: "p1", row: { ...redactedProject, color: "#2d75da" } },
         ],
       },
       headers: { cookie },
-    })
-    expect(batch.statusCode).toBe(200)
+    });
+    expect(batch.statusCode).toBe(200);
 
-    expect(getRow(db, 'clients', 'c1')).toMatchObject({
+    expect(getRow(db, "clients", "c1")).toMatchObject({
       name: REAL_CLIENT_NAME,
       isPrivate: true,
-      codeName: 'Northstar',
-      color: '#da2d92',
-    })
-    expect(getRow(db, 'projects', 'p1')).toMatchObject({
+      codeName: "Northstar",
+      color: "#da2d92",
+    });
+    expect(getRow(db, "projects", "p1")).toMatchObject({
       name: REAL_PROJECT_NAME,
       isPrivate: true,
-      codeName: 'Aurora',
-      color: '#2d75da',
-    })
-  })
+      codeName: "Aurora",
+      color: "#2d75da",
+    });
+  });
 
-  it('redacts a private lifecycle response while retaining the real database name', async () => {
-    const { app, db } = await appWithAuth()
-    seedPrivateNames(db)
-    const { cookie, userId } = await signUp(app, 'private-archive-editor@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+  it("redacts a private lifecycle response while retaining the real database name", async () => {
+    const { app, db } = await appWithAuth();
+    seedPrivateNames(db);
+    const { cookie, userId } = await signUp(app, "private-archive-editor@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
     const res = await call(app, {
-      method: 'POST',
-      url: '/api/projects/p1/archive',
-      payload: { accountId: 'a1' },
+      method: "POST",
+      url: "/api/projects/p1/archive",
+      payload: { accountId: "a1" },
       headers: { cookie },
-    })
-    expect(res.statusCode).toBe(200)
-    expect(res.json()).toMatchObject({ name: '"Aurora"', isPrivate: true })
-    expect(res.body).not.toContain(REAL_PROJECT_NAME)
-    expect(getRow(db, 'projects', 'p1')).toMatchObject({ name: REAL_PROJECT_NAME, codeName: 'Aurora' })
-  })
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ name: '"Aurora"', isPrivate: true });
+    expect(res.body).not.toContain(REAL_PROJECT_NAME);
+    expect(getRow(db, "projects", "p1")).toMatchObject({ name: REAL_PROJECT_NAME, codeName: "Aurora" });
+  });
 
-  it('redacts the current row in an optimistic-concurrency conflict response', async () => {
-    const { app, db } = await appWithAuth({ optimisticConcurrency: true })
-    seedPrivateNames(db)
-    const { cookie, userId } = await signUp(app, 'private-conflict-editor@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
-    const stale = ((await getState(app, 'a1', cookie)).json() as AppData).clients
-      .find((row) => row.id === 'c1')!
-    db.prepare('UPDATE clients SET updatedAt = ? WHERE id = ?')
-      .run('2026-02-01T00:00:00.000Z', 'c1')
+  it("redacts the current row in an optimistic-concurrency conflict response", async () => {
+    const { app, db } = await appWithAuth({ optimisticConcurrency: true });
+    seedPrivateNames(db);
+    const { cookie, userId } = await signUp(app, "private-conflict-editor@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
+    const stale = ((await getState(app, "a1", cookie)).json() as AppData).clients.find((row) => row.id === "c1")!;
+    db.prepare("UPDATE clients SET updatedAt = ? WHERE id = ?").run("2026-02-01T00:00:00.000Z", "c1");
 
     const res = await call(app, {
-      method: 'PUT',
-      url: '/api/clients/c1',
+      method: "PUT",
+      url: "/api/clients/c1",
       payload: stale,
       headers: { cookie },
-    })
-    expect(res.statusCode).toBe(409)
-    expect(res.json().current).toMatchObject({ name: '"Northstar"', isPrivate: true })
-    expect(res.json().current).not.toHaveProperty('codeName')
-    expect(res.body).not.toContain(REAL_CLIENT_NAME)
-  })
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().current).toMatchObject({ name: '"Northstar"', isPrivate: true });
+    expect(res.json().current).not.toHaveProperty("codeName");
+    expect(res.body).not.toContain(REAL_CLIENT_NAME);
+  });
 
-  it('strips attempted privacy fields from a non-owner create, while an owner may update them', async () => {
-    const editorSetup = await appWithAuth()
-    seedPrivateNames(editorSetup.db)
-    const editor = await signUp(editorSetup.app, 'private-create-editor@capacitylens.dev')
-    upsertMember(editorSetup.db, { accountId: 'a1', userId: editor.userId, role: 'editor', status: 'active', createdAt: TS })
+  it("strips attempted privacy fields from a non-owner create, while an owner may update them", async () => {
+    const editorSetup = await appWithAuth();
+    seedPrivateNames(editorSetup.db);
+    const editor = await signUp(editorSetup.app, "private-create-editor@capacitylens.dev");
+    upsertMember(editorSetup.db, {
+      accountId: "a1",
+      userId: editor.userId,
+      role: "editor",
+      status: "active",
+      createdAt: TS,
+    });
     const created = await call(editorSetup.app, {
-      method: 'POST',
-      url: '/api/clients',
-      payload: { ...client('editor-private', 'a1'), name: 'Editor client', isPrivate: true, codeName: 'Shadow' },
+      method: "POST",
+      url: "/api/clients",
+      payload: { ...client("editor-private", "a1"), name: "Editor client", isPrivate: true, codeName: "Shadow" },
       headers: { cookie: editor.cookie },
-    })
-    expect(created.statusCode).toBe(201)
-    expect(created.json()).toMatchObject({ name: 'Editor client' })
-    expect(created.json()).not.toHaveProperty('isPrivate')
-    expect(created.json()).not.toHaveProperty('codeName')
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ name: "Editor client" });
+    expect(created.json()).not.toHaveProperty("isPrivate");
+    expect(created.json()).not.toHaveProperty("codeName");
 
-    const ownerSetup = await appWithAuth()
-    seedPrivateNames(ownerSetup.db)
-    const owner = await signUp(ownerSetup.app, 'private-update-owner@capacitylens.dev')
-    upsertMember(ownerSetup.db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    const ownerSetup = await appWithAuth();
+    seedPrivateNames(ownerSetup.db);
+    const owner = await signUp(ownerSetup.app, "private-update-owner@capacitylens.dev");
+    upsertMember(ownerSetup.db, {
+      accountId: "a1",
+      userId: owner.userId,
+      role: "owner",
+      status: "active",
+      createdAt: TS,
+    });
     const updated = await call(ownerSetup.app, {
-      method: 'PATCH',
-      url: '/api/projects/p1',
-      payload: { name: 'Owner renamed project', isPrivate: true, codeName: ' “Nova” ' },
+      method: "PATCH",
+      url: "/api/projects/p1",
+      payload: { name: "Owner renamed project", isPrivate: true, codeName: " “Nova” " },
       headers: { cookie: owner.cookie },
-    })
-    expect(updated.statusCode).toBe(200)
+    });
+    expect(updated.statusCode).toBe(200);
     expect(updated.json()).toMatchObject({
-      name: 'Owner renamed project',
+      name: "Owner renamed project",
       isPrivate: true,
-      codeName: 'Nova',
-    })
-  })
-})
+      codeName: "Nova",
+    });
+  });
+});
 
-describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)', () => {
+describe("P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)", () => {
   // No authMode ⇒ OFF (trusted-local). Every read/write succeeds, INCLUDING cross-account ids —
   // authorize() short-circuits to true on its first line, so membership/policy resolution never runs.
   function offApp(): FastifyInstance {
-    const db = openDb(':memory:')
-    const app = buildApp(db, { allowReset: true, optimisticConcurrency: false })
-    seedTwo(db)
-    return app
+    const db = openDb(":memory:");
+    const app = buildApp(db, { allowReset: true, optimisticConcurrency: false });
+    seedTwo(db);
+    return app;
   }
 
-  it('reads any account (no cookie) → 200', async () => {
-    const app = offApp()
-    expect((await getState(app, 'a1')).statusCode).toBe(200)
-    expect((await getState(app, 'a2')).statusCode).toBe(200)
-  })
+  it("reads any account (no cookie) → 200", async () => {
+    const app = offApp();
+    expect((await getState(app, "a1")).statusCode).toBe(200);
+    expect((await getState(app, "a2")).statusCode).toBe(200);
+  });
 
-  it('every write (incl. cross-account ids) succeeds with NO membership and NO session', async () => {
-    const app = offApp()
-    expect((await postClient(app, 'a1', 'off1')).statusCode).toBe(201)
-    expect((await postClient(app, 'a2', 'off2')).statusCode).toBe(201)
-    expect((await putClient(app, 'a2', 'off3')).statusCode).toBe(200)
-    expect((await patchClient(app, 'c2')).statusCode).toBe(200)
-    expect((await deleteProject(app, 'a2', 'p2')).statusCode).toBe(204)
-    expect((await batchInto(app, 'a2', 'off4')).statusCode).toBe(200)
-    expect((await importInto(app, 'a2', 'off5')).statusCode).toBe(200)
-  })
+  it("every write (incl. cross-account ids) succeeds with NO membership and NO session", async () => {
+    const app = offApp();
+    expect((await postClient(app, "a1", "off1")).statusCode).toBe(201);
+    expect((await postClient(app, "a2", "off2")).statusCode).toBe(201);
+    expect((await putClient(app, "a2", "off3")).statusCode).toBe(200);
+    expect((await patchClient(app, "c2")).statusCode).toBe(200);
+    expect((await deleteProject(app, "a2", "p2")).statusCode).toBe(204);
+    expect((await batchInto(app, "a2", "off4")).statusCode).toBe(200);
+    expect((await importInto(app, "a2", "off5")).statusCode).toBe(200);
+  });
 
-  it('account hard-delete uses only the dedicated endpoint in trusted-local mode', async () => {
+  it("account hard-delete uses only the dedicated endpoint in trusted-local mode", async () => {
     // The default deploy can still delete companies through the coordinated erasure route, while
     // a generic sync diff can never become a tenant-erasure command.
-    const app = offApp()
+    const app = offApp();
     // Direct route: DELETE /api/accounts/a1 (no cookie, no membership) → 204.
-    const direct = await call(app, { method: 'DELETE', url: '/api/accounts/a1' })
-    expect(direct.statusCode).toBe(204)
+    const direct = await call(app, { method: "DELETE", url: "/api/accounts/a1" });
+    expect(direct.statusCode).toBe(204);
     // The trusted-local contract remains idempotent after the coordinator extraction.
-    expect((await call(app, { method: 'DELETE', url: '/api/accounts/a1' })).statusCode).toBe(204)
+    expect((await call(app, { method: "DELETE", url: "/api/accounts/a1" })).statusCode).toBe(204);
     // Batch op: {method:'DELETE',table:'accounts',id:'a2'} is rejected and leaves a2 intact.
     const batch = await call(app, {
-      method: 'POST',
-      url: '/api/batch',
-      payload: { ops: [{ method: 'DELETE', table: 'accounts', id: 'a2' }] },
-    })
-    expect(batch.statusCode).toBe(400)
-    expect(batch.json()).toEqual({ error: 'Use the dedicated company deletion endpoint.' })
-    expect((await getState(app, 'a2')).statusCode).toBe(200)
-  })
-})
+      method: "POST",
+      url: "/api/batch",
+      payload: { ops: [{ method: "DELETE", table: "accounts", id: "a2" }] },
+    });
+    expect(batch.statusCode).toBe(400);
+    expect(batch.json()).toEqual({ error: "Use the dedicated company deletion endpoint." });
+    expect((await getState(app, "a2")).statusCode).toBe(200);
+  });
+});
 
-describe('P1.5 access matrix sanity (pure can()) — companion to access.test.ts', () => {
+describe("P1.5 access matrix sanity (pure can()) — companion to access.test.ts", () => {
   // The route gate above proves read/write tiers end-to-end; pin the remaining distinctions directly
   // against the pure authority too, including record purge vs whole-account deletion.
-  it('admin can manage and purge records but cannot delete an account or transfer ownership', () => {
-    const editor: Role = 'editor'
-    const admin: Role = 'admin'
-    const owner: Role = 'owner'
-    expect(can(editor, 'manageMembers')).toBe(false)
-    expect(can(admin, 'manageMembers')).toBe(true)
-    expect(can(admin, 'purge')).toBe(true)
-    expect(can(admin, 'deleteAccount')).toBe(false)
-    expect(can(owner, 'deleteAccount')).toBe(true)
-    expect(can(admin, 'transferOwnership')).toBe(false)
-    expect(can(owner, 'transferOwnership')).toBe(true)
-  })
-})
+  it("admin can manage and purge records but cannot delete an account or transfer ownership", () => {
+    const editor: Role = "editor";
+    const admin: Role = "admin";
+    const owner: Role = "owner";
+    expect(can(editor, "manageMembers")).toBe(false);
+    expect(can(admin, "manageMembers")).toBe(true);
+    expect(can(admin, "purge")).toBe(true);
+    expect(can(admin, "deleteAccount")).toBe(false);
+    expect(can(owner, "deleteAccount")).toBe(true);
+    expect(can(admin, "transferOwnership")).toBe(false);
+    expect(can(owner, "transferOwnership")).toBe(true);
+  });
+});

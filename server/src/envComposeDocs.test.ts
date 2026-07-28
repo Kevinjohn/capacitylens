@@ -2,18 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const envExample = readFileSync(
-  fileURLToPath(new URL("../../.env.example", import.meta.url)),
-  "utf8",
-);
-const compose = readFileSync(
-  fileURLToPath(new URL("../../docker-compose.yml", import.meta.url)),
-  "utf8",
-);
-const dockerfile = readFileSync(
-  fileURLToPath(new URL("../../Dockerfile", import.meta.url)),
-  "utf8",
-);
+const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
+const compose = readFileSync(fileURLToPath(new URL("../../docker-compose.yml", import.meta.url)), "utf8");
+const dockerfile = readFileSync(fileURLToPath(new URL("../../Dockerfile", import.meta.url)), "utf8");
 
 describe("Compose exceptions in the environment register", () => {
   it("documents runtime values that Compose pins to its private network and durable volume", () => {
@@ -26,10 +17,7 @@ describe("Compose exceptions in the environment register", () => {
   });
 
   it("documents development-only values deliberately omitted from the production container", () => {
-    for (const name of [
-      "CAPACITYLENS_ALLOW_RESET",
-      "CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD",
-    ]) {
+    for (const name of ["CAPACITYLENS_ALLOW_RESET", "CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD"]) {
       expect(envExample).toMatch(
         new RegExp(
           `Compose (?:deliberately )?does\\n?#? ?not pass[\\s\\S]*?${name}|${name}[\\s\\S]*?Compose (?:deliberately )?does\\n?#? ?not pass`,

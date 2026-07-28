@@ -22,9 +22,7 @@ describe("AppEntryGate connection failures", () => {
   ])("gates the application on a %s", (_label, errorState) => {
     render(<AppEntryGate {...baseProps} {...errorState} />);
 
-    expect(
-      screen.getByRole("heading", { name: "Can’t reach the server" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Can’t reach the server" })).toBeInTheDocument();
     expect(screen.queryByText("application shell")).not.toBeInTheDocument();
   });
 });

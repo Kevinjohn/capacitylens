@@ -1,12 +1,12 @@
-import { useCallback, useRef } from 'react'
-import { API_BASE, isServerConfigured } from '../data/apiConfig'
-import { persistenceAdapter } from '../data/storageAdapter'
-import { refreshActiveAccountSlice, type RefreshOutcome } from '../data/persist'
-import { useStore, type LifecycleEntity } from '../store/useStore'
-import { errorMessage } from '../lib/errorMessage'
-import { readApiError } from '../lib/readApiError'
-import { m } from '@/i18n'
-import { apiFetchReauth } from '../auth/apiFetchReauth'
+import { useCallback, useRef } from "react";
+import { API_BASE, isServerConfigured } from "../data/apiConfig";
+import { persistenceAdapter } from "../data/storageAdapter";
+import { refreshActiveAccountSlice, type RefreshOutcome } from "../data/persist";
+import { useStore, type LifecycleEntity } from "../store/useStore";
+import { errorMessage } from "../lib/errorMessage";
+import { readApiError } from "../lib/readApiError";
+import { m } from "@/i18n";
+import { apiFetchReauth } from "../auth/apiFetchReauth";
 
 // The SINGLE dispatch seam for the Active → Archived → Soft-deleted → Purged data-lifecycle (P2.5b),
 // shared by BOTH the management lists' Archive affordance (ResourceList/ClientList/ProjectList) and
@@ -32,11 +32,11 @@ import { apiFetchReauth } from '../auth/apiFetchReauth'
 //     pre-gates with the shared can* predicates but must still surface if they fire.
 
 /** A lifecycle transition verb. Mirrors the four dedicated server routes + the four store actions. */
-export type LifecycleVerb = 'archive' | 'unarchive' | 'delete' | 'purge'
+export type LifecycleVerb = "archive" | "unarchive" | "delete" | "purge";
 
 /** A timeout or server/intermediary failure cannot prove whether the dispatched write committed. */
 function lifecycleOutcomeUnknown(response: Response): boolean {
-  return response.status === 408 || response.status >= 500
+  return response.status === 408 || response.status >= 500;
 }
 
 /**
@@ -47,12 +47,12 @@ function lifecycleOutcomeUnknown(response: Response): boolean {
  * resolves, so a caller can `void` it without an unhandled rejection (the MembersSection idiom).
  */
 export interface LifecycleActions {
-  archive: (entity: LifecycleEntity, id: string) => Promise<void>
-  unarchive: (entity: LifecycleEntity, id: string) => Promise<void>
+  archive: (entity: LifecycleEntity, id: string) => Promise<void>;
+  unarchive: (entity: LifecycleEntity, id: string) => Promise<void>;
   /** Soft-delete (archived → tombstone; a resource's name is scrubbed server- or store-side). */
-  softDelete: (entity: LifecycleEntity, id: string) => Promise<void>
+  softDelete: (entity: LifecycleEntity, id: string) => Promise<void>;
   /** Hard-purge a ≥30-day tombstone (admin-only / purge tier server-side). */
-  purge: (entity: LifecycleEntity, id: string) => Promise<void>
+  purge: (entity: LifecycleEntity, id: string) => Promise<void>;
 }
 
 /**
@@ -74,7 +74,7 @@ export interface LifecycleActions {
  * with no orchestrator there is no debounce/retry state to clobber, so it is safe there. The demo
  * build never calls this (its store actions already mutate `data`).
  */
-async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutcome, 'unattached'>> {
+async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutcome, "unattached">> {
   // STALE-TENANT GUARD: the lifecycle POST may resolve AFTER the user switched company, so re-read
   // the CURRENT active account and skip the reload when it no longer matches the account the
   // mutation ran in. The mutation already committed server-side (it shows on that account's next
@@ -82,15 +82,15 @@ async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutco
   // stale reload must not fight it — the bare fallback below would install the OLD tenant's slice
   // under the NEW active id (cross-tenant display → cross-tenant writes). persist.ts's
   // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
-  if (useStore.getState().activeAccountId !== accountId) return 'skipped'
+  if (useStore.getState().activeAccountId !== accountId) return "skipped";
   // Anything but 'unattached' means the orchestrator OWNED the call — including 'skipped' (a
   // failed save's edits win; the committed change appears on the next successful refresh) and
   // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
-  const outcome = await refreshActiveAccountSlice(accountId)
-  if (outcome !== 'unattached') return outcome
-  const slice = await persistenceAdapter.loadAll(accountId)
-  useStore.getState().replaceAll(slice)
-  return 'reloaded'
+  const outcome = await refreshActiveAccountSlice(accountId);
+  if (outcome !== "unattached") return outcome;
+  const slice = await persistenceAdapter.loadAll(accountId);
+  useStore.getState().replaceAll(slice);
+  return "reloaded";
 }
 
 /**
@@ -104,20 +104,20 @@ async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutco
  *                     reload, so a caller maintaining its own inactive-row list can re-fetch it.
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
-  const mutationQueue = useRef<Promise<void>>(Promise.resolve())
-  const activeAccountId = useStore((s) => s.activeAccountId)
-  const setNotice = useStore((s) => s.setNotice)
-  const archiveEntity = useStore((s) => s.archiveEntity)
-  const unarchiveEntity = useStore((s) => s.unarchiveEntity)
-  const softDeleteEntity = useStore((s) => s.softDeleteEntity)
-  const purgeEntity = useStore((s) => s.purgeEntity)
+  const mutationQueue = useRef<Promise<void>>(Promise.resolve());
+  const activeAccountId = useStore((s) => s.activeAccountId);
+  const setNotice = useStore((s) => s.setNotice);
+  const archiveEntity = useStore((s) => s.archiveEntity);
+  const unarchiveEntity = useStore((s) => s.unarchiveEntity);
+  const softDeleteEntity = useStore((s) => s.softDeleteEntity);
+  const purgeEntity = useStore((s) => s.purgeEntity);
 
   // The single server-mode dispatch: POST the dedicated route with {accountId}, reconcile an
   // ambiguous timeout/5xx, surface body.error on a definitive non-OK reply, else reload the active
   // slice + ping onReloaded. Mirrors MembersSection's fetches.
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
-      if (!activeAccountId) return
+      if (!activeAccountId) return;
       try {
         // apiFetchReauth (not raw fetch) so: (1) the server's `x-capacitylens-audit-warning` header
         // on these destructive lifecycle writes is surfaced (announceAuditWarning) exactly like
@@ -127,47 +127,47 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         // SESSION_NOT_FRESH raise the step-up dialog and retry after re-auth (DEFECT B).
         // archive/unarchive are ordinary writes and never trip freshness, so this is a no-op there.
         const res = await apiFetchReauth(`${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accountId: activeAccountId }),
-        })
+        });
         if (lifecycleOutcomeUnknown(res)) {
-          throw new Error(`HTTP ${res.status} did not confirm whether the lifecycle mutation committed.`)
+          throw new Error(`HTTP ${res.status} did not confirm whether the lifecycle mutation committed.`);
         }
         if (!res.ok && res.status !== 204) {
           // A <30d / non-admin purge is a 409/403 with a server message — show it, never crash.
-          setNotice((await readApiError(res)) ?? m.settings_archived_err_action({ status: res.status }), 'error')
-          return
+          setNotice((await readApiError(res)) ?? m.settings_archived_err_action({ status: res.status }), "error");
+          return;
         }
         // The dedicated routes write the DB out-of-band from the snapshot-diff sync, so a reload is
         // REQUIRED to refresh the active views + re-seed the adapter snapshot (see reloadFromServer).
-        if ((await reloadFromServer(activeAccountId)) === 'reloaded') onReloaded?.()
+        if ((await reloadFromServer(activeAccountId)) === "reloaded") onReloaded?.();
       } catch (e) {
         // A route change during the request makes this reconciliation intentionally stale. The
         // original company will hydrate its committed state when selected again; do not attach an
         // alarming old-company notice to the picker or the newly active company.
-        if (useStore.getState().activeAccountId !== activeAccountId) return
+        if (useStore.getState().activeAccountId !== activeAccountId) return;
         try {
-          const outcome = await reloadFromServer(activeAccountId)
-          if (outcome !== 'reloaded') {
-            throw new Error(`Authoritative reload did not complete (${outcome}).`, { cause: e })
+          const outcome = await reloadFromServer(activeAccountId);
+          if (outcome !== "reloaded") {
+            throw new Error(`Authoritative reload did not complete (${outcome}).`, { cause: e });
           }
-          onReloaded?.()
+          onReloaded?.();
           setNotice(
             `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${errorMessage(e)}`,
-            'warning',
-          )
+            "warning",
+          );
         } catch (reloadError) {
           setNotice(
             `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${errorMessage(reloadError)}`,
-            'error',
-          )
+            "error",
+          );
         }
       }
     },
     [activeAccountId, setNotice, onReloaded],
-  )
+  );
 
   // The single demo-build dispatch: call the store action; wrap so the store's deliberate display-safe
   // throws (builtin-Internal guard, illegal-transition backstop) surface as a notice rather than a
@@ -176,56 +176,56 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       try {
         switch (verb) {
-          case 'archive':
-            archiveEntity(entity, id)
-            break
-          case 'unarchive':
-            unarchiveEntity(entity, id)
-            break
-          case 'delete':
-            softDeleteEntity(entity, id)
-            break
-          case 'purge':
-            purgeEntity(entity, id)
-            break
+          case "archive":
+            archiveEntity(entity, id);
+            break;
+          case "unarchive":
+            unarchiveEntity(entity, id);
+            break;
+          case "delete":
+            softDeleteEntity(entity, id);
+            break;
+          case "purge":
+            purgeEntity(entity, id);
+            break;
         }
       } catch (e) {
-        setNotice(errorMessage(e), 'error')
+        setNotice(errorMessage(e), "error");
       }
     },
     [archiveEntity, unarchiveEntity, softDeleteEntity, purgeEntity, setNotice],
-  )
+  );
 
   const run = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string): Promise<void> => {
       const execute = async () => {
         try {
           if (isServerConfigured()) {
-            await dispatchServer(verb, entity, id)
+            await dispatchServer(verb, entity, id);
           } else {
-            dispatchLocal(verb, entity, id)
+            dispatchLocal(verb, entity, id);
           }
         } catch (e) {
           // Preserve the public never-reject contract even if a configuration seam or future
           // dispatch branch throws outside the existing server/local error boundaries.
-          setNotice(errorMessage(e), 'error')
+          setNotice(errorMessage(e), "error");
         }
-      }
+      };
 
       // Lifecycle routes mutate outside snapshot-diff sync, and each operation must complete its
       // authoritative reload before the next starts. Queue confirmed intent instead of silently
       // discarding a second click while the first transition is still settling.
-      const scheduled = mutationQueue.current.then(execute, execute)
-      mutationQueue.current = scheduled
-      return scheduled
+      const scheduled = mutationQueue.current.then(execute, execute);
+      mutationQueue.current = scheduled;
+      return scheduled;
     },
     [dispatchServer, dispatchLocal, setNotice],
-  )
+  );
 
   return {
-    archive: useCallback((entity, id) => run('archive', entity, id), [run]),
-    unarchive: useCallback((entity, id) => run('unarchive', entity, id), [run]),
-    softDelete: useCallback((entity, id) => run('delete', entity, id), [run]),
-    purge: useCallback((entity, id) => run('purge', entity, id), [run]),
-  }
+    archive: useCallback((entity, id) => run("archive", entity, id), [run]),
+    unarchive: useCallback((entity, id) => run("unarchive", entity, id), [run]),
+    softDelete: useCallback((entity, id) => run("delete", entity, id), [run]),
+    purge: useCallback((entity, id) => run("purge", entity, id), [run]),
+  };
 }

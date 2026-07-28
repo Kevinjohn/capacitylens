@@ -1,8 +1,8 @@
-import type { AppData, Client } from '@capacitylens/shared/types/entities'
-import { type Db, deleteRow, getRow, upsertRow } from './db'
-import { acceptedWriteFields, sanitizeWrite, validateWrite } from './validate'
-import type { SanitizeWriteOptions } from './fieldPolicy'
-import type { TenantStore } from './tenantStore'
+import type { AppData, Client } from "@capacitylens/shared/types/entities";
+import { type Db, deleteRow, getRow, upsertRow } from "./db";
+import { acceptedWriteFields, sanitizeWrite, validateWrite } from "./validate";
+import type { SanitizeWriteOptions } from "./fieldPolicy";
+import type { TenantStore } from "./tenantStore";
 
 // THE SINGLE GENERIC-WRITE FUNNEL (Finding 7).
 //
@@ -15,13 +15,13 @@ import type { TenantStore } from './tenantStore'
 
 /** The write verb, so the funnel can vary the few genuinely verb-specific rules (id matching,
  *  whether an incoming `builtin` is a create attempt, whether builtin-replacement applies). */
-export type WriteVerb = 'create' | 'replace' | 'patch'
+export type WriteVerb = "create" | "replace" | "patch";
 
 /** A caller-fault write rejection: the status + safe message a route replies with, or a batch op
  *  turns into a thrown ValidationError. All current cases are 400. */
 export interface WriteRejection {
-  status: number
-  error: string
+  status: number;
+  error: string;
 }
 
 /**
@@ -35,7 +35,7 @@ export const FULL_SLICE_READ = Object.freeze({
   includeTimeOffNote: true,
   includeInactive: true,
   includePrivateNames: true,
-})
+});
 
 /**
  * Unified body-shape + id + accountId checks for the three generic entity routes (Finding 7 folds
@@ -56,27 +56,27 @@ export function checkEntityWriteBody(
 ): WriteRejection | null {
   // Array bodies are rejected for EVERY verb (PUT already did; POST/PATCH now match — a spread of an
   // array into a merge/write is never a valid entity body).
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return { status: 400, error: 'A request body is required.' }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { status: 400, error: "A request body is required." };
   }
-  const row = body as Record<string, unknown>
-  if (verb === 'create') {
-    if (typeof row.id !== 'string') return { status: 400, error: 'A string id is required.' }
-  } else if (verb === 'replace') {
-    if (row.id !== urlId) return { status: 400, error: 'Body id must match the URL id.' }
+  const row = body as Record<string, unknown>;
+  if (verb === "create") {
+    if (typeof row.id !== "string") return { status: 400, error: "A string id is required." };
+  } else if (verb === "replace") {
+    if (row.id !== urlId) return { status: 400, error: "Body id must match the URL id." };
   }
   if (scoped) {
     // PATCH: accountId is OPTIONAL (partial patch inherits the stored one) — reject only a present
     // non-string. create/replace: accountId is REQUIRED. Unified message across all three.
-    const present = verb === 'patch' ? 'accountId' in row : true
-    if (present && typeof row.accountId !== 'string') {
-      return { status: 400, error: 'A string accountId is required.' }
+    const present = verb === "patch" ? "accountId" in row : true;
+    if (present && typeof row.accountId !== "string") {
+      return { status: 400, error: "A string accountId is required." };
     }
   }
   if (Object.keys(acceptedWriteFields(entity, row)).length === 0) {
-    return { status: 400, error: 'The request body contains no recognized fields.' }
+    return { status: 400, error: "The request body contains no recognized fields." };
   }
-  return null
+  return null;
 }
 
 /**
@@ -98,25 +98,25 @@ export function builtinInternalWriteGuard(
   existing: Record<string, unknown> | undefined,
   incoming: Record<string, unknown>,
 ): WriteRejection | null {
-  if (entity !== 'clients') return null
+  if (entity !== "clients") return null;
   if (existing?.builtin === true) {
-    return { status: 400, error: 'The built-in Internal client cannot be modified.' }
+    return { status: 400, error: "The built-in Internal client cannot be modified." };
   }
-  if (verb === 'create' && incoming.builtin === true) {
-    return { status: 400, error: 'The built-in Internal client is managed by the server.' }
+  if (verb === "create" && incoming.builtin === true) {
+    return { status: 400, error: "The built-in Internal client is managed by the server." };
   }
-  return null
+  return null;
 }
 
 export interface PreparedWrite {
   /** The sanitized + revision-stamped row ready to persist. */
-  row: Record<string, unknown>
+  row: Record<string, unknown>;
   /** The generated Internal-client id this write REPLACES (PUT legacy-id adoption path), or
    *  null. When non-null the caller runs replaceGeneratedBuiltin inside its transaction. */
-  generatedReplacement: string | null
+  generatedReplacement: string | null;
   /** The account-scoped slice validateWrite ran against — reused by the builtin-replacement path
    *  and (for accounts) the provisioning closure, so no site re-reads the DB. */
-  scopedState: AppData
+  scopedState: AppData;
 }
 
 /**
@@ -133,31 +133,30 @@ export interface PreparedWrite {
  * its re-pointed projection). Everything else validates here.
  */
 export function prepareScopedWrite(params: {
-  store: TenantStore
-  entity: string
-  body: Record<string, unknown>
-  existing: Record<string, unknown> | undefined
-  vis: SanitizeWriteOptions
-  verb: WriteVerb
+  store: TenantStore;
+  entity: string;
+  body: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+  vis: SanitizeWriteOptions;
+  verb: WriteVerb;
 }): PreparedWrite {
-  const { store, entity, body, existing, vis, verb } = params
-  const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing)
+  const { store, entity, body, existing, vis, verb } = params;
+  const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing);
   // Finding 9: scope the referential read to the write's OWN account (accounts key on id; scoped
   // tables on accountId) instead of loadState(db)'s SELECT * over every tenant.
-  const scopeId = entity === 'accounts' ? String(row.id) : String(row.accountId)
-  const scopedState = store.readSlice(scopeId, FULL_SLICE_READ)
+  const scopeId = entity === "accounts" ? String(row.id) : String(row.accountId);
+  const scopedState = store.readSlice(scopeId, FULL_SLICE_READ);
   // Builtin-client replacement is a PUT affordance only. POST cannot hand-craft builtin rows, and
   // PATCH never rewrites the generated Internal client.
-  const generatedReplacement =
-    verb === 'replace' ? generatedBuiltinReplacement(scopedState, entity, row) : null
+  const generatedReplacement = verb === "replace" ? generatedBuiltinReplacement(scopedState, entity, row) : null;
   // Defer ONLY an accounts CREATE (provisioning validates it inside its replay-safe closure) and a
   // generated-builtin replacement (replaceGeneratedBuiltin validates its own projection). An accounts
   // UPDATE, and every scoped write, validates here.
-  const deferAccountsCreate = entity === 'accounts' && existing === undefined
+  const deferAccountsCreate = entity === "accounts" && existing === undefined;
   if (!deferAccountsCreate && !generatedReplacement) {
-    validateWrite(scopedState, entity, row, existing)
+    validateWrite(scopedState, entity, row, existing);
   }
-  return { row, generatedReplacement, scopedState }
+  return { row, generatedReplacement, scopedState };
 }
 
 // ── Pure write-path helpers (moved verbatim from app.ts so the funnel and its call sites share one
@@ -165,8 +164,8 @@ export function prepareScopedWrite(params: {
 
 /** Produce a server-side revision strictly newer than the stored row when possible. */
 export function nextRevision(updatedAt: unknown): string {
-  const previous = typeof updatedAt === 'string' ? Date.parse(updatedAt) : Number.NaN
-  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString()
+  const previous = typeof updatedAt === "string" ? Date.parse(updatedAt) : Number.NaN;
+  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString();
 }
 
 /** The server owns persistence timestamps; request timestamps are only precondition versions. */
@@ -174,12 +173,12 @@ export function stampServerRevision(
   row: Record<string, unknown>,
   existing?: Record<string, unknown>,
 ): Record<string, unknown> {
-  const now = nextRevision(existing?.updatedAt)
+  const now = nextRevision(existing?.updatedAt);
   return {
     ...row,
-    createdAt: typeof existing?.createdAt === 'string' ? existing.createdAt : now,
+    createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now,
     updatedAt: now,
-  }
+  };
 }
 
 // STATE parameter, not `db`: a pure existence check against the caller's already-loaded AppData
@@ -190,9 +189,9 @@ export function generatedBuiltinReplacement(
   table: string,
   row: Record<string, unknown>,
 ): string | null {
-  if (table !== 'clients' || row.builtin !== true || typeof row.accountId !== 'string') return null
-  const generatedId = `internal:${row.accountId}`
-  return row.id !== generatedId && state.clients.some((c) => c.id === generatedId) ? generatedId : null
+  if (table !== "clients" || row.builtin !== true || typeof row.accountId !== "string") return null;
+  const generatedId = `internal:${row.accountId}`;
+  return row.id !== generatedId && state.clients.some((c) => c.id === generatedId) ? generatedId : null;
 }
 
 /** Replace the deterministic auto-created Internal client with a legacy/client-supplied id
@@ -206,11 +205,11 @@ export function replaceGeneratedBuiltin(
   row: Record<string, unknown>,
 ): void {
   if (!db.isTransaction) {
-    throw new Error('Internal-client replacement must run inside an existing transaction.')
+    throw new Error("Internal-client replacement must run inside an existing transaction.");
   }
-  const accountId = row.accountId
-  if (typeof accountId !== 'string') {
-    throw new Error('Internal-client replacement requires a string accountId.')
+  const accountId = row.accountId;
+  if (typeof accountId !== "string") {
+    throw new Error("Internal-client replacement requires a string accountId.");
   }
   const projected = {
     ...state,
@@ -218,27 +217,27 @@ export function replaceGeneratedBuiltin(
     projects: state.projects.map((project) =>
       project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
     ),
-  }
-  const existing = typeof row.id === 'string'
-    ? state.clients.find((client) => client.id === row.id)
-    : undefined
-  validateWrite(projected, 'clients', row, existing as unknown as Record<string, unknown> | undefined)
+  };
+  const existing = typeof row.id === "string" ? state.clients.find((client) => client.id === row.id) : undefined;
+  validateWrite(projected, "clients", row, existing as unknown as Record<string, unknown> | undefined);
 
   // Temporarily unflag the old row before inserting the replacement so the partial unique index is
   // never violated. The old FK target remains present until every dependent project has moved.
-  db.prepare(`UPDATE clients SET builtin = NULL WHERE id = ? AND accountId = ? AND builtin = 'true'`)
-    .run(generatedId, accountId)
-  upsertRow(db, 'clients', row)
+  db.prepare(`UPDATE clients SET builtin = NULL WHERE id = ? AND accountId = ? AND builtin = 'true'`).run(
+    generatedId,
+    accountId,
+  );
+  upsertRow(db, "clients", row);
   for (const project of projected.projects.filter((project) => project.clientId === row.id)) {
-    const existing = getRow(db, 'projects', project.id)
-    if (existing?.clientId !== generatedId) continue
-    upsertRow(db, 'projects', {
+    const existing = getRow(db, "projects", project.id);
+    if (existing?.clientId !== generatedId) continue;
+    upsertRow(db, "projects", {
       ...project,
       createdAt: existing.createdAt,
       updatedAt: nextRevision(existing.updatedAt),
-    } as unknown as Record<string, unknown>)
+    } as unknown as Record<string, unknown>);
   }
-  deleteRow(db, 'clients', generatedId)
+  deleteRow(db, "clients", generatedId);
 }
 
 /** Mirror of replaceGeneratedBuiltin's DB effect onto an in-memory AppData projection (batch loop):
@@ -252,11 +251,9 @@ export function applyGeneratedBuiltinReplacement(
 ): AppData {
   return {
     ...state,
-    clients: state.clients
-      .filter((client) => client.id !== generatedId)
-      .concat(row as unknown as Client),
+    clients: state.clients.filter((client) => client.id !== generatedId).concat(row as unknown as Client),
     projects: state.projects.map((project) =>
       project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
     ),
-  }
+  };
 }
