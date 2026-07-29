@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth } from "../../auth/authContext";
 import { buildStamp, feedbackMailto } from "../../data/buildInfo";
 import { isServerConfigured } from "../../data/apiConfig";
@@ -9,6 +9,7 @@ import {
   cacheAccountSummaries,
   cacheAuthSnapshot,
   offlineReadEnabled,
+  subscribeOfflinePreference,
   setOfflineReadEnabled,
 } from "../../data/offlineCache";
 import { useStore } from "../../store/useStore";
@@ -163,7 +164,7 @@ export function SettingsView() {
   const [name, setName] = useState(accountName);
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const { authMode, user, canCreateAccount, multiAccount, signOut } = useAuth();
-  const [offlineEnabled, setOfflineEnabledState] = useState(offlineReadEnabled);
+  const offlineEnabled = useSyncExternalStore(subscribeOfflinePreference, offlineReadEnabled, offlineReadEnabled);
   const offlineActionLock = useRef(false);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const offlineState = useOfflineState();
@@ -206,7 +207,6 @@ export function SettingsView() {
         await cacheAccountSummaries(accountSummaries);
         if (activeAccountId) await cacheAccountSlice(activeAccountId, data);
       }
-      setOfflineEnabledState(next);
       setNotice(next ? m.settings_offline_enabled_notice() : m.settings_offline_disabled_notice(), "info");
     } catch (e) {
       let surfaced: unknown = e;
@@ -220,10 +220,8 @@ export function SettingsView() {
           surfaced = new AggregateError([e, rollbackError], m.settings_offline_cleanup_incomplete());
         }
       }
-      setOfflineEnabledState(offlineReadEnabled());
       setNotice(m.settings_offline_error({ error: errorMessage(surfaced) }), "error");
     } finally {
-      setOfflineEnabledState(offlineReadEnabled());
       offlineActionLock.current = false;
       setOfflineBusy(false);
     }

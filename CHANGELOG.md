@@ -10,6 +10,23 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.3-alpha.4] — 2026-07-29
+
+This patch closes the P3 concurrency review row. It strengthens cross-tab coordination, write
+preconditions, reauthentication and persistence suspension without changing the portable export
+schema or SQLite database schema versions.
+
+### Fixed
+
+- Synchronized offline preference and cache-boundary changes across tabs, clearing stale page-local
+  state while retaining the durable stale-writer guard.
+- Made full and batch writes require the exact stored revision while retaining compatible PATCH
+  omission and recovery from corrupt legacy revisions.
+- Added a reauthentication resolution epoch so late sibling freshness failures reuse an already
+  completed success or cancellation instead of opening another prompt.
+- Prevented sign-out, refresh and flush overlap from starting or acknowledging persistence work
+  while internal suspension is active.
+
 ## [0.27.3-alpha.3] — 2026-07-29
 
 This patch closes the P3 durability review row. It strengthens acknowledged-write, offline-cache,
@@ -2084,7 +2101,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.3...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.4...HEAD
+[0.27.3-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.3...v0.27.3-alpha.4
 [0.27.3-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.2...v0.27.3-alpha.3
 [0.27.3-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.1...v0.27.3-alpha.2
 [0.27.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.2-alpha.1...v0.27.3-alpha.1

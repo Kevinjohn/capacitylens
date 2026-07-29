@@ -32,6 +32,9 @@ locked device: JavaScript running in the unlocked application origin can ask the
 device key. Do not enable offline access on a shared, compromised or untrusted device.
 
 Signing out clears that user's cached identity and snapshots before ending the server session.
+Offline preference changes and cleanup boundaries propagate across open tabs: disabling or signing
+out clears every tab's read-only marker and page-local cache scope, while enabling lets a tab with
+an already verified live identity participate in subsequent cache writes.
 “Clear device data” clears the offline cache, its device encryption key and CapacityLens
 preferences. Browser or operating system storage eviction can remove the cache earlier than seven
 days. Cache maintenance physically removes expired records the next time the application opens or

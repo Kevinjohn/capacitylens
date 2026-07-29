@@ -331,6 +331,9 @@ sequence that arrives late and uses the exact hashed row result of the preceding
 to distinguish a safe successor from an intervening external edit. Ordered browser batches always
 enforce these stale preconditions, even in the explicit single-writer concurrency mode; direct API
 writes retain their configured optimistic-concurrency policy. Ordering rows expire after seven days.
+For an existing-row PUT or batch PUT, `updatedAt` is an exact server-revision precondition: omission,
+malformation, an older value or a caller-authored future value returns 409. A partial PATCH may omit
+the precondition for compatibility, but any supplied value must match exactly.
 Row provenance carries its owning account explicitly and is removed as part of workspace erasure.
 Current servers return one server-owned revision for each PUT table/id and no others; a superseded
 ordered batch returns an empty revision list. During a rolling-version window the client also

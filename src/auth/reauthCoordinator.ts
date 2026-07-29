@@ -22,6 +22,7 @@ let pending: {
   resolve: Resolver;
   timeout: ReturnType<typeof setTimeout>;
 } | null = null;
+let resolution = { epoch: 0, outcome: null as boolean | null };
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -52,9 +53,15 @@ export function resolveReauth(reauthenticated: boolean): void {
   const current = pending;
   if (!current) return;
   pending = null;
+  resolution = { epoch: resolution.epoch + 1, outcome: reauthenticated };
   clearTimeout(current.timeout);
   emit();
   current.resolve(reauthenticated);
+}
+
+/** Last completed step-up, used to collapse late responses from the same request burst. */
+export function reauthResolution(): Readonly<{ epoch: number; outcome: boolean | null }> {
+  return resolution;
 }
 
 /** Snapshot for useSyncExternalStore — whether a step-up dialog should currently be shown. */

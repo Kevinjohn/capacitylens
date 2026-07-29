@@ -1,5 +1,5 @@
 import { apiFetch, API_REQUEST_TIMEOUT_MS } from "../data/requestTimeout";
-import { requestReauth } from "./reauthCoordinator";
+import { reauthResolution, requestReauth } from "./reauthCoordinator";
 
 // The step-up interception seam (DEFECT B). A drop-in replacement for `apiFetch` used only at
 // security-sensitive call sites: membership/invitation administration (including reads of those
@@ -52,6 +52,7 @@ export async function apiFetchReauth(
   init: RequestInit = {},
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
+  const resolutionAtDispatch = reauthResolution();
   // Request bodies are one-shot. Clone both attempts before the first dispatch so a successful
   // step-up can replay the same bytes. A stream supplied separately through RequestInit cannot be
   // cloned safely here, so reject it before sending anything rather than fail only after reauth.
@@ -66,6 +67,10 @@ export async function apiFetchReauth(
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(init.headers).forEach((value, key) => headers.set(key, value));
   if (method !== "GET" && method !== "HEAD" && !headers.has("Idempotency-Key")) return res;
+  const resolutionAfterResponse = reauthResolution();
+  if (resolutionAfterResponse.epoch !== resolutionAtDispatch.epoch) {
+    return resolutionAfterResponse.outcome ? apiFetch(retryInput, init, timeoutMs) : res;
+  }
   const reauthenticated = await requestReauth();
   if (!reauthenticated) return res;
   return apiFetch(retryInput, init, timeoutMs);

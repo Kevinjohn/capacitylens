@@ -12,11 +12,16 @@ const offlineMocks = vi.hoisted(() => ({
   cacheAuth: vi.fn(async () => {}),
   cacheSummaries: vi.fn(async () => {}),
   cacheSlice: vi.fn(async () => {}),
+  preferenceListeners: new Set<() => void>(),
 }));
 
 vi.mock("../../data/offlineCache", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../data/offlineCache")>()),
   offlineReadEnabled: () => offlineMocks.enabled,
+  subscribeOfflinePreference: (listener: () => void) => {
+    offlineMocks.preferenceListeners.add(listener);
+    return () => offlineMocks.preferenceListeners.delete(listener);
+  },
   setOfflineReadEnabled: offlineMocks.setEnabled,
   cacheAuthSnapshot: offlineMocks.cacheAuth,
   cacheAccountSummaries: offlineMocks.cacheSummaries,
@@ -25,9 +30,11 @@ vi.mock("../../data/offlineCache", async (importOriginal) => ({
 
 beforeEach(() => {
   offlineMocks.enabled = false;
+  offlineMocks.preferenceListeners.clear();
   offlineMocks.setEnabled.mockReset();
   offlineMocks.setEnabled.mockImplementation(async (enabled) => {
     offlineMocks.enabled = enabled;
+    for (const listener of offlineMocks.preferenceListeners) listener();
   });
   offlineMocks.cacheAuth.mockClear();
   offlineMocks.cacheSummaries.mockClear();

@@ -20,6 +20,30 @@ afterEach(() => {
 });
 
 describe("apiFetchReauth", () => {
+  it.each([true, false])("reuses a completed %s step-up for a late response from the same burst", async (outcome) => {
+    let releaseSecond!: (response: Response) => void;
+    const secondResponse = new Promise<Response>((resolve) => {
+      releaseSecond = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(403, { code: "SESSION_NOT_FRESH" }))
+      .mockImplementationOnce(() => secondResponse)
+      .mockResolvedValue(json(200, { ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = apiFetchReauth("http://api.test/api/accounts/a1/members");
+    const late = apiFetchReauth("http://api.test/api/accounts/a1/invitations");
+    await vi.waitFor(() => expect(reauthPending()).toBe(true));
+    resolveReauth(outcome);
+    await expect(first).resolves.toMatchObject({ status: outcome ? 200 : 403 });
+
+    releaseSecond(json(403, { code: "SESSION_NOT_FRESH" }));
+    await expect(late).resolves.toMatchObject({ status: outcome ? 200 : 403 });
+    expect(reauthPending()).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(outcome ? 4 : 2);
+  });
+
   it("passes an ordinary 200 straight through and never raises a step-up", async () => {
     const fetchMock = vi.fn(async () => json(200, { ok: true }));
     vi.stubGlobal("fetch", fetchMock);

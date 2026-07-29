@@ -2219,10 +2219,7 @@ describe("optimistic concurrency (default-on)", () => {
     expect((await state(app)).clients[0].name).toBe("Fresh");
   });
 
-  it("applies an existing-row update that omits updatedAt — no basis for a conflict (batch and direct PUT alike)", async () => {
-    // isStaleWrite's documented policy: a missing/non-string updatedAt on EITHER side is never a
-    // conflict, so an update that omits it can't be turned into a 409 (there is nothing to compare
-    // against — it falls back to last-writer-wins for that write). Both write paths must agree.
+  it("rejects existing-row PUTs that omit the required revision precondition", async () => {
     const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
     await post(app, "accounts", account("a1"));
     await put(app, "clients", "c1", {
@@ -2244,8 +2241,23 @@ describe("optimistic concurrency (default-on)", () => {
       name: "NoStamp",
     });
     expect(viaBatch.statusCode).toBe(viaPut.statusCode);
-    expect(viaBatch.statusCode).toBe(200);
-    expect((await state(app)).clients[0].name).toBe("NoStamp");
+    expect(viaBatch.statusCode).toBe(409);
+    expect((await state(app)).clients[0].name).toBe("Acme");
+  });
+
+  it("rejects a future-authored revision instead of treating it as fresher than the server", async () => {
+    const app = buildApp(openDb(":memory:"), { optimisticConcurrency: true });
+    await post(app, "accounts", account("a1"));
+    await put(app, "clients", "c1", client("c1", "a1"));
+
+    const res = await put(app, "clients", "c1", {
+      ...client("c1", "a1"),
+      name: "Future overwrite",
+      updatedAt: "9999-12-31T23:59:59.999Z",
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect((await state(app)).clients[0].name).toBe("Acme");
   });
 
   it("accepts a partial PATCH that omits updatedAt (a normal partial edit is never a 409)", async () => {

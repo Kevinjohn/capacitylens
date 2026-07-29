@@ -1258,6 +1258,29 @@ describe("flushPendingWrites (the import seam)", () => {
     expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === "Mid-flush")).toBe(true);
     detach();
   });
+
+  it("reports not clean when a slice refresh starts while the flush awaits a write", async () => {
+    let releaseSave!: () => void;
+    const saveAll = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseSave = resolve;
+        }),
+    );
+    const loadAll = vi.fn(async () => a2Slice());
+    const detach = await attachActiveA2({ loadAll, saveAll }, 300);
+    loadAll.mockClear();
+
+    useStore.getState().addClient({ name: "Pending", color: "#222222" });
+    const flush = flushPendingWrites();
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
+    const refresh = refreshActiveAccountSlice("a2");
+    releaseSave();
+
+    await expect(flush).resolves.toBe(false);
+    await expect(refresh).resolves.toBe("reloaded");
+    detach();
+  });
 });
 
 describe("suspendServerWrites (the import write-suspension seam)", () => {

@@ -15,6 +15,8 @@ import {
   readCachedAccountSlice,
   offlineShellAvailable,
   setOfflineReadEnabled,
+  setOfflineReadState,
+  subscribeOfflinePreference,
 } from "./offlineCache";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -271,6 +273,45 @@ describe("offline tenant cache", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("observes offline preference and cleanup boundaries from another tab", async () => {
+    localStorage.removeItem("capacitylens/offlineRead");
+    await cacheAuthSnapshot(authSnapshot("user-a")); // establishes the live page's identity scope
+    const preferenceChanged = vi.fn();
+    const unsubscribe = subscribeOfflinePreference(preferenceChanged);
+
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "capacitylens/offlineRead",
+        newValue: "on",
+      }),
+    );
+    await cacheAccountSlice("a-studio", accountSlice("a-studio"));
+    expect(preferenceChanged).toHaveBeenCalledOnce();
+    await expect(getRaw(`slice:${currentCacheNamespace()}:user-a:a-studio`)).resolves.toBeDefined();
+
+    setOfflineReadState(true, 123);
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "capacitylens/offlineWriteBoundary",
+        newValue: "other-tab-sign-out",
+      }),
+    );
+    expect(offlineStateSnapshot().readOnly).toBe(false);
+    await cacheAccountSummaries([{ id: "a-studio", name: "Should not write", role: "owner" }]);
+    await expect(getRaw(`accounts:${currentCacheNamespace()}:user-a`)).resolves.toBeUndefined();
+
+    localStorage.removeItem("capacitylens/offlineRead");
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "capacitylens/offlineRead",
+        newValue: null,
+      }),
+    );
+    expect(preferenceChanged).toHaveBeenCalledTimes(2);
+    unsubscribe();
   });
 
   it("does not restore an identity cached for another configured backend origin", async () => {

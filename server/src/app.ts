@@ -681,32 +681,26 @@ class BatchAuthorizationResponseSent extends Error {}
 
 /**
  * The stale-write predicate (optimistic concurrency), shared by the direct PUT route and the batch
- * PUT loop so the two paths can never drift: a write is stale ONLY when a stored row exists, BOTH
- * `updatedAt` values are strings, and the stored one is STRICTLY newer — a missing/non-string
- * `updatedAt` on either side is never a conflict. The concurrency policy stays at the call sites:
- * direct and unordered API writes honor the explicit opt-out, while ordered browser sync does not.
+ * PUT loop so the two paths can never drift. An existing-row replacement must echo the exact
+ * server revision; a caller-authored future value is not evidence of freshness. Partial PATCH may
+ * omit the precondition for compatibility, but a supplied malformed or mismatched value conflicts.
  */
 function isStaleWrite(
   existing: Record<string, unknown> | undefined,
   row: Record<string, unknown>,
+  requirePrecondition = true,
 ): existing is Record<string, unknown> {
   // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactWriteEcho inside
   // the 409 branch, which needs the `existing`-is-present narrowing the old inline check gave.)
   if (existing === undefined) return false;
-  // Never a conflict unless BOTH sides carry a parseable timestamp to compare (the documented
-  // policy above). A missing/non-string/unparseable updatedAt on either side means we have no
-  // basis for an ordering, so we do NOT invent a 409: a normal partial PATCH that omits updatedAt
-  // must still apply, and a row whose STORED updatedAt is somehow unparseable must stay writable
-  // (never write-bricked). The accepted trade-off is that such a write falls back to
-  // last-writer-wins rather than optimistic rejection — a lost precondition, not lost data.
-  if (
-    typeof existing.updatedAt !== "string" ||
-    typeof row.updatedAt !== "string" ||
-    !Number.isFinite(Date.parse(existing.updatedAt)) ||
-    !Number.isFinite(Date.parse(row.updatedAt))
-  )
-    return false;
-  return Date.parse(existing.updatedAt) > Date.parse(row.updatedAt);
+  // A corrupt STORED revision must remain repairable rather than write-bricked. Incoming full-row
+  // writes, however, require a valid exact precondition; PATCH retains its documented omission-only
+  // compatibility path while rejecting an explicitly malformed value.
+  if (typeof existing.updatedAt !== "string" || !Number.isFinite(Date.parse(existing.updatedAt))) return false;
+  if (typeof row.updatedAt !== "string" || !Number.isFinite(Date.parse(row.updatedAt))) {
+    return requirePrecondition || Object.hasOwn(row, "updatedAt");
+  }
+  return Date.parse(existing.updatedAt) !== Date.parse(row.updatedAt);
 }
 
 /** Server-owned revision fields are result metadata, not semantic account-command input. */
@@ -2158,7 +2152,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             error: "Language, week start and time zone are set when the company is created and cannot be changed.",
           });
         }
-        if (opts.optimisticConcurrency !== false && isStaleWrite(existing, req.body as Record<string, unknown>)) {
+        if (
+          opts.optimisticConcurrency !== false &&
+          isStaleWrite(existing, req.body as Record<string, unknown>, false)
+        ) {
           return reply.code(409).send({
             error: "The record was modified more recently on the server.",
             current: redactWriteEcho(entity, existing, vis),

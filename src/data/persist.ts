@@ -764,11 +764,10 @@ export function attachPersistence(
             if (inFlightSave) await inFlightSave;
             if (disposed || myToken !== switchToken) return; // detached/newer owner owns effects
             cancelDebounce();
-            // Same external-suspension rule as refreshActive's (a′): a parked edit belongs to the
-            // suspending slice replacement's drop/resume, not to this flush. (An INTERNAL
-            // suspension can't hold here — this token bump superseded any in-flight refresh, and
-            // its resume defers to whoever holds the depth; a pre-reseed flush stays safe anyway.)
-            if (pending && externalSuspendDepth === 0) {
+            // A parked edit belongs to whichever slice replacement still holds the suspension.
+            // A token bump supersedes an internal refresh's outcome, not its outstanding load or
+            // suspension; that refresh rebases and saves the edit when it settles.
+            if (pending && suspendDepth === 0) {
               save(pending);
               if (inFlightSave) await inFlightSave;
             }
@@ -843,8 +842,17 @@ export function attachPersistence(
           cancelDebounce();
           if (pending) save(pending); // consumes pending, sets inFlightSave synchronously
           if (inFlightSave) await inFlightSave;
+          if (suspendDepth > 0) return false;
         }
-        return !disposed && !timer && !pending && !inFlightSave && !failedSinceSuccess && unacknowledged === null;
+        return (
+          !disposed &&
+          suspendDepth === 0 &&
+          !timer &&
+          !pending &&
+          !inFlightSave &&
+          !failedSinceSuccess &&
+          unacknowledged === null
+        );
       }
     : null;
   // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL

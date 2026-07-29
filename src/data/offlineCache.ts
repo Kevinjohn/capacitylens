@@ -65,6 +65,33 @@ let offlineEpisode = 0;
 // race across tabs, whose JavaScript modules necessarily have independent counters.
 let cacheGeneration = 0;
 const listeners = new Set<() => void>();
+const preferenceListeners = new Set<() => void>();
+
+function publishPreference(): void {
+  for (const listener of preferenceListeners) listener();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === OFFLINE_PREF_KEY) {
+      if (event.newValue !== "on") {
+        scope = null;
+        setOfflineCacheWriteFailed(false);
+        setOfflineReadState(false);
+      }
+      publishPreference();
+      return;
+    }
+    if (event.key === WRITE_BOUNDARY_STORAGE_KEY) {
+      // Sign-out/device cleanup in another tab owns the new boundary. Drop all page-local claims
+      // immediately; the durable token independently rejects writes that began before the sweep.
+      cacheGeneration += 1;
+      scope = null;
+      setOfflineCacheWriteFailed(false);
+      setOfflineReadState(false);
+    }
+  });
+}
 
 interface WriteBoundary {
   generation: number;
@@ -487,6 +514,11 @@ export function offlineReadEnabled(): boolean {
   }
 }
 
+export function subscribeOfflinePreference(listener: () => void): () => void {
+  preferenceListeners.add(listener);
+  return () => preferenceListeners.delete(listener);
+}
+
 /** Registration creation precedes the worker's install/activate lifecycle. The worker publishes
  * its active-shell pointer inside activate.waitUntil(), so `activated` is the first state that
  * proves every shell asset was staged and the neutral index entry was promoted successfully. */
@@ -545,10 +577,12 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
       const registration = await navigator.serviceWorker.register("/offline-worker.js", { scope: "/" });
       await waitForOfflineShellActivation(registration);
       localStorage.setItem(OFFLINE_PREF_KEY, "on");
+      publishPreference();
       return;
     }
 
     localStorage.removeItem(OFFLINE_PREF_KEY);
+    publishPreference();
     setOfflineCacheWriteFailed(false);
     await clearAllOfflineData();
     if (!("serviceWorker" in navigator)) return;
@@ -587,8 +621,8 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
 
 /** Persist the last verified identity and make it the cache scope for this page. */
 export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<void> {
-  if (!offlineReadEnabled()) return;
   scope = { origin: originKey(), userId: snapshot.user.id };
+  if (!offlineReadEnabled()) return;
   await put({ key: authKey(), savedAt: Date.now(), value: snapshot });
 }
 
