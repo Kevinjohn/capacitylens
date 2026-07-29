@@ -22,6 +22,11 @@ afterEach(() => {
 });
 
 describe("DeleteCompanyDialog", () => {
+  it("disables the last-chance export while deletion is in flight", () => {
+    render(<DeleteCompanyDialog account={makeAccount()} busy onConfirm={() => {}} onCancel={() => {}} />);
+    expect(screen.getByRole("button", { name: "Export first" })).toBeDisabled();
+  });
+
   it("keeps Delete disabled until the typed name matches, then confirms", () => {
     const account = makeAccount({ name: "Acme Co" });
     const onConfirm = vi.fn();

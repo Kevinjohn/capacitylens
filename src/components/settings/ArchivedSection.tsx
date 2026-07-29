@@ -116,6 +116,7 @@ export function ArchivedSection() {
   const [confirmingPurge, setConfirmingPurge] = useState<Row | null>(null);
   const actionLock = useRef(false);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [purgeClock, setPurgeClock] = useState(Date.now);
 
   const actions = useLifecycleActions(reload);
   const runLifecycle = useCallback(
@@ -192,6 +193,21 @@ export function ArchivedSection() {
   );
   const archived = rows.filter((r) => lifecycleStatus(r.raw) === "archived");
   const deleted = rows.filter((r) => lifecycleStatus(r.raw) === "deleted");
+  const nextPurgeAt = deleted.reduce<number | null>((nearest, row) => {
+    const deletedAt = row.raw.deletedAt ? Date.parse(row.raw.deletedAt) : Number.NaN;
+    if (!Number.isFinite(deletedAt)) return nearest;
+    const candidate = deletedAt + PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
+    if (candidate <= purgeClock) return nearest;
+    return nearest === null || candidate < nearest ? candidate : nearest;
+  }, null);
+  useEffect(() => {
+    if (nextPurgeAt === null) return;
+    const timer = window.setTimeout(
+      () => setPurgeClock(Date.now()),
+      Math.min(nextPurgeAt - Date.now() + 1, 2_147_483_647),
+    );
+    return () => window.clearTimeout(timer);
+  }, [nextPurgeAt]);
 
   // Soft-delete and purge share the admin tier: in OFF/local `role` is null (full access); on an
   // auth-on server only admin+ may perform either transition. The server is the backstop; this gate
@@ -271,7 +287,7 @@ export function ArchivedSection() {
                 {deleted.map((r, index) => {
                   // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would
                   // let the client stay up to ~24h more conservative than the server's own boundary check.
-                  const purgeable = canPurge(r.raw, new Date().toISOString());
+                  const purgeable = canPurge(r.raw, new Date(purgeClock).toISOString());
                   // The "locked" hint only renders (and is only referenced) while the purge button is
                   // disabled, so a screen reader hears WHY it can't act yet, not just the button name.
                   const hintId = `${hintBaseId}-${r.entity}-${r.id}`;

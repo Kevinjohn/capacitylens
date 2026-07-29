@@ -85,6 +85,7 @@ beforeEach(() => {
   seed({});
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals(); // drop any per-test fetch stub so server-mode tests can't leak into each other
 });
@@ -241,6 +242,32 @@ describe("ArchivedSection — demo build (store source)", () => {
     });
     expect(purgeBtn).toBeDisabled();
     expect(screen.getByText("Can be permanently deleted 30 days after deletion")).toBeInTheDocument();
+  });
+
+  it("enables purge when a mounted tombstone crosses the 30-day boundary", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-01T12:00:00.000Z"));
+    seed({
+      clients: [
+        client({
+          id: "c-boundary",
+          name: "Boundary Tombstone",
+          archivedAt: TS,
+          deletedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000 + 50).toISOString(),
+        }),
+      ],
+    });
+    render(<ArchivedSection />);
+
+    const purge = screen.getByRole("button", {
+      name: "Permanently delete Boundary Tombstone",
+    });
+    expect(purge).toBeDisabled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(51);
+    });
+    expect(purge).toBeEnabled();
   });
 
   it("ENABLES the purge button for a ≥30-day tombstone and purges on confirm", async () => {

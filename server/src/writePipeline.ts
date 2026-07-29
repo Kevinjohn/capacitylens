@@ -3,6 +3,7 @@ import { type Db, deleteRow, getRow, upsertRow } from "./db";
 import { acceptedWriteFields, sanitizeWrite, validateWrite } from "./validate";
 import type { SanitizeWriteOptions } from "./fieldPolicy";
 import type { TenantStore } from "./tenantStore";
+import { nextServerRevision } from "./revision";
 
 // THE SINGLE GENERIC-WRITE FUNNEL (Finding 7).
 //
@@ -164,8 +165,7 @@ export function prepareScopedWrite(params: {
 
 /** Produce a server-side revision strictly newer than the stored row when possible. */
 export function nextRevision(updatedAt: unknown): string {
-  const previous = typeof updatedAt === "string" ? Date.parse(updatedAt) : Number.NaN;
-  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString();
+  return nextServerRevision(updatedAt);
 }
 
 /** The server owns persistence timestamps; request timestamps are only precondition versions. */

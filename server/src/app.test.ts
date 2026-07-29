@@ -21,6 +21,7 @@ import {
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
+import { isIsoInstant } from "@capacitylens/shared/account/types";
 
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
@@ -2280,6 +2281,22 @@ describe("optimistic concurrency (default-on)", () => {
     expect(res.json().name).toBe("Recovered");
     expect(Date.parse(res.json().updatedAt)).not.toBeNaN();
   });
+
+  it.each(["9999-12-31T23:59:59.999Z", "+010000-01-01T00:00:00.000Z", "+275760-09-13T00:00:00.000Z"])(
+    "repairs an unincrementable or expanded stored revision through the API: %s",
+    async (storedRevision) => {
+      const db = openDb(":memory:");
+      const app = buildApp(db, { optimisticConcurrency: false });
+      insertRow(db, "accounts", account("a1"));
+      insertRow(db, "clients", { ...client("c1", "a1"), updatedAt: storedRevision });
+
+      const res = await patch(app, "clients", "c1", { name: "Recovered boundary" });
+
+      expect(res.statusCode).toBe(200);
+      expect(isIsoInstant(res.json().updatedAt)).toBe(true);
+      expect(res.json().updatedAt).not.toBe(storedRevision);
+    },
+  );
 
   it("batch: explicit opt-out restores last-writer-wins semantics", async () => {
     const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });

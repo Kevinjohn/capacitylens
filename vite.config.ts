@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import { loadEnv } from "vite";
+import { loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
@@ -9,6 +9,24 @@ import { clientApiOrigin } from "./scripts/render-client-nginx.mjs";
 import { isAccountEmail } from "./shared/src/account/validation";
 
 const devApiPort = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, "CAPACITYLENS_DEV_API_PORT");
+
+function offlineShellManifest(): Plugin {
+  return {
+    name: "capacitylens-offline-shell-manifest",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      const assets = Object.keys(bundle)
+        .filter((fileName) => fileName !== "offline-shell.json" && fileName !== "index.html")
+        .map((fileName) => `/${fileName}`)
+        .sort();
+      this.emitFile({
+        type: "asset",
+        fileName: "offline-shell.json",
+        source: JSON.stringify(assets),
+      });
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -25,6 +43,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      offlineShellManifest(),
       // Paraglide (inlang) i18n (P1.5.1) — compile-time, type-safe messages. The plugin re-runs the
       // message compiler into ./src/paraglide on dev/build (the package scripts also precompile so a
       // bare `tsc -b`/`vitest` finds the output). strategy = ['globalVariable','baseLocale']: locale is

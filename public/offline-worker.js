@@ -2,6 +2,7 @@ const SHELL_CACHE_PREFIX = "capacitylens-shell-";
 const SHELL_METADATA_CACHE = "capacitylens-offline-shell-metadata-v1";
 const ACTIVE_SHELL_POINTER = "/__capacitylens-offline/active-shell";
 const PENDING_SHELL_POINTER = "/__capacitylens-offline/pending-shell";
+const SHELL_MANIFEST = "/offline-shell.json";
 
 function newShellCacheName() {
   const bytes = crypto.getRandomValues(new Uint32Array(4));
@@ -27,14 +28,28 @@ async function stageShell() {
     const index = await fetch("/", { cache: "no-store" });
     if (!index.ok) throw new Error(`Could not cache the CapacityLens shell (${index.status}).`);
     const html = await index.clone().text();
-    const assets = [...html.matchAll(/(?:src|href)="(\/[^"?#]+)"/g)]
+    const linkedAssets = [...html.matchAll(/(?:src|href)="(\/[^"?#]+)"/g)]
       .map((match) => match[1])
       .filter((path) => !path.startsWith("/api/"));
+    const manifestResponse = await fetch(SHELL_MANIFEST, { cache: "no-store" });
+    if (!manifestResponse.ok) {
+      throw new Error(`Could not cache the CapacityLens asset manifest (${manifestResponse.status}).`);
+    }
+    const manifestForCache = manifestResponse.clone();
+    const manifestAssets = await manifestResponse.json();
+    if (
+      !Array.isArray(manifestAssets) ||
+      !manifestAssets.every((path) => typeof path === "string" && path.startsWith("/"))
+    ) {
+      throw new Error("The CapacityLens asset manifest is invalid.");
+    }
+    const assets = [...new Set([...linkedAssets, ...manifestAssets])];
 
     const cache = await caches.open(cacheName);
     // Keep the active release untouched until every new asset is available. Cache.addAll may have
     // written a partial set before rejecting, so a failed installation deletes this private cache.
-    await cache.addAll([...new Set(assets)]);
+    await cache.addAll(assets);
+    await cache.put(SHELL_MANIFEST, manifestForCache);
     await cache.put("/", index);
 
     metadata = await caches.open(SHELL_METADATA_CACHE);

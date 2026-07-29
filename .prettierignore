@@ -6,6 +6,7 @@ coverage
 playwright-report
 test-results
 reports
+code-reviews
 .stryker-tmp
 
 # Generated source — Paraglide compiles this from messages/*.json

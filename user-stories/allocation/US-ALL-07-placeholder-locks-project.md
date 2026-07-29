@@ -16,7 +16,7 @@ A placeholder is a reserved slot for one project (e.g. _Senior Designer_ on _Pro
 **Schedule** (`/`), set zoom to **4w**, and set **Jump to date** → `2026-06-01`. The **Senior
 Designer** placeholder (`r-ph-designer`) is bound to **Project Lightning** (`p-acme`).
 
-1. On the **Senior Designer** placeholder's row (shown on the schedule with its name in quotes — _"Senior Designer"_ — and an `@` avatar), click **+** to open **New allocation** — or draw on its lane in Work mode. In create mode the assignee is fixed to that row (no Assignee select), so the modal opens already bound to the placeholder.
+1. On the seeded **Senior Designer** placeholder's row (shown on the schedule as the literal **Placeholder** with a `?` avatar), click **+** to open **New allocation** — or draw on its lane in Work mode. In create mode the assignee is fixed to that row (no Assignee select), so the modal opens already bound to the placeholder.
 2. Observe the **Project** field.
 
 ## Acceptance criteria

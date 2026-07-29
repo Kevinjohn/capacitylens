@@ -670,6 +670,17 @@ describe("assertResourceExists", () => {
       "Time off must reference an active resource in this company.",
     );
   });
+  it("rejects a resource hidden by an inactive project ancestor", () => {
+    const data = {
+      ...base(),
+      clients: [client("c1", A1)],
+      projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
+      resources: [{ ...person("r1", A1), kind: "placeholder" as const, projectId: "p1" }],
+    };
+    expect(() => assertResourceExists(data, A1, "r1")).toThrow(
+      "Time off must reference an active resource in this company.",
+    );
+  });
   it("throws for an external / 3rd-party resource (no capacity → no time off)", () => {
     const data = { ...base(), resources: [external("ext", A1)] };
     expect(() => assertResourceExists(data, A1, "ext")).toThrow(

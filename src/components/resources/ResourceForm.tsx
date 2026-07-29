@@ -129,8 +129,14 @@ export function ResourceForm({
     // empty-working-days backstop) as a form error rather than an uncaught React error — see the
     // store CRUD contract.
     try {
-      if (resource) update(resource.id, patch);
-      else add(patch);
+      if (resource) {
+        const current = useStore.getState().data.resources.find((candidate) => candidate.id === resource.id);
+        if (!current || current.updatedAt !== resource.updatedAt) {
+          fail(null, m.form_resource_err_changed());
+          return;
+        }
+        update(resource.id, patch);
+      } else add(patch);
       onClose();
     } catch (e) {
       fail(null, errorMessage(e));

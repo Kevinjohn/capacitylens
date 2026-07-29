@@ -1,6 +1,6 @@
 # US-SCH-07 — Reassigning onto a mismatched placeholder is rejected
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `src/components/scheduler/AllocationBar.interaction.test.tsx` → "surfaces a notice (instead of failing silently) when a reassign is rejected"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `src/components/scheduler/AllocationBar.interaction.test.tsx` → "leaves assignee, dates and hours unchanged when a diagonal reassign is rejected"
 
 ## Goal
 
@@ -26,4 +26,4 @@ to the left. The **Senior Designer** placeholder (`data-resource-id="r-ph-design
 
 - ✅ After the invalid drop, the allocation's **resourceId is unchanged** — the bar is still on its original resource, not the placeholder.
 - ✅ A toast appears mentioning the placeholder rule ("A placeholder can only be assigned to activities from its bound project.").
-- ✅ Any **date shift** performed during the same drag still applies (the reject blocks the reassignment, not the move) — the dates change but the resource does not.
+- ✅ The rejected diagonal drag is atomic: the allocation's **assignee, dates and hours are all unchanged**.

@@ -3,6 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chmodSync, copyFileSync, existsSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import { spawn } from "node:child_process";
 import {
   CAPACITYLENS_APPLICATION_ID,
   DATABASE_MIGRATION_TABLE,
@@ -619,6 +620,48 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(seedIfUninitialized(db, seed())).toBe(false);
     expect(isEmpty(loadState(db))).toBe(true);
     db.close();
+  });
+
+  it("serializes two database handles racing to seed the same fresh file", async () => {
+    const path = join(tmpdir(), `capacitylens-seed-race-${process.pid}-${Date.now()}.db`);
+    const parentDb = openDb(path);
+    const childSource = `
+      import { openDb, seedIfUninitialized } from ${JSON.stringify(new URL("./db.ts", import.meta.url).href)};
+      import { seed } from "@capacitylens/shared/data/seed";
+      const db = openDb(process.argv[1]);
+      process.stdout.write("ready\\n");
+      process.stdin.once("data", () => {
+        try { process.stdout.write(String(seedIfUninitialized(db, seed())) + "\\n"); }
+        finally { db.close(); }
+      });
+    `;
+    const child = spawn(process.execPath, ["--import", "tsx", "--eval", childSource, path], {
+      cwd: new URL("..", import.meta.url),
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk) => (stdout += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk) => (stderr += chunk));
+    await new Promise<void>((resolve) => child.stdout.once("data", () => resolve()));
+
+    child.stdin.write("go\n");
+    const parentResult = seedIfUninitialized(parentDb, seed());
+    child.stdin.end();
+    const exitCode = await new Promise<number | null>((resolve) => child.once("close", resolve));
+
+    expect(exitCode, stderr).toBe(0);
+    const childResult = stdout.trim().split("\n").at(-1);
+    expect([String(parentResult), childResult].sort()).toEqual(["false", "true"]);
+    expect(loadState(parentDb).accounts.length).toBeGreaterThan(0);
+    parentDb.close();
+    for (const suffix of ["", "-wal", "-shm"]) {
+      try {
+        unlinkSync(path + suffix);
+      } catch {
+        // Not all SQLite sidecars are created on every platform.
+      }
+    }
   });
 
   it("generically ADDs a missing OPTIONAL column with no hard-coded migration step", () => {

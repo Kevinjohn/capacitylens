@@ -38,7 +38,7 @@ export function activeDateLocale(): DateFnsLocale {
 /**
  * Apply the active company's UI language to the i18n runtime.
  *
- * Reads {@link import('@capacitylens/shared/types').Account.language} (the per-account language seam)
+ * Reads {@link import('@capacitylens/shared/types/entities').Account.language} (the per-account language seam)
  * and switches the Paraglide runtime to it. `language` is optional/free-form on the Account, so we
  * validate it through the generated {@link isLocale} guard and fall back to {@link baseLocale} ('en')
  * for an absent or unrecognised value — a bad stored value can never throw or blank the UI here.

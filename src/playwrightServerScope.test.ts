@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { selectsOnlyExplicitCoreSpecs } from "../scripts/playwright-server-scope";
+import { coreSpecPattern, selectsOnlyExplicitCoreSpecs } from "../scripts/playwright-server-scope";
 
 describe("Playwright server scope", () => {
+  it.each(["ts", "tsx", "mts", "cts"])("matches core .spec.%s files without matching server flavours", (extension) => {
+    expect(coreSpecPattern.test(`toolbar.spec.${extension}`)).toBe(true);
+    expect(coreSpecPattern.test(`toolbar.db.spec.${extension}`)).toBe(false);
+    expect(coreSpecPattern.test(`toolbar.auth.spec.${extension}`)).toBe(false);
+    expect(coreSpecPattern.test(`toolbar.oidc.spec.${extension}`)).toBe(false);
+  });
+
   it("recognises one or more explicitly selected core specs", () => {
     expect(
       selectsOnlyExplicitCoreSpecs(["node", "playwright", "test", "e2e/scheduler.spec.ts", "e2e/timeoff.spec.ts"]),

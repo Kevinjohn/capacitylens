@@ -37,7 +37,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 
 ## Authentication
 
-- Password auth is stable; social/OIDC is experimental.
+- Password auth and strict OIDC are supported; named social providers remain experimental.
 - Production password mode supports optional required TOTP MFA and defaults to breached-password
   screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory.
 - External identities require verified email plus an unused pre-authorised invitation. The first

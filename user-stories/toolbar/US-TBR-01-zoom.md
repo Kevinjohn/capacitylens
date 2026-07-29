@@ -21,6 +21,6 @@ Some questions need a day-level view of this week; others need a two-month overv
 ## Acceptance criteria
 
 - ✅ The zoom buttons are `1w` / `2w` / `4w` / `6w` / `8w`; clicking one sets that many weeks across the viewport.
-- ✅ The clicked button has `aria-pressed="true"`; all other zoom buttons have `aria-pressed="false"`.
+- ✅ The zoom choices form a radiogroup; the selected radio has `aria-checked="true"` and all other zoom radios have `aria-checked="false"`.
 - ✅ The same allocation bar is physically **narrower at 8w than at 1w** (day columns shrink to fit more weeks).
 - ✅ Switching zoom rescales the day columns and re-anchors the grid's **left edge to the week start** (see **US-TBR-08**); it does not change the zoom of any other control or alter any allocation.

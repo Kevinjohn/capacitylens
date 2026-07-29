@@ -20,6 +20,24 @@ const personDraft = {
 };
 
 describe("store CRUD", () => {
+  it("publishes account deletion without an invalid active-tenant snapshot", () => {
+    const accountId = s().activeAccountId!;
+    const snapshots: Array<{ activeAccountId: string | null; accountExists: boolean }> = [];
+    const unsubscribe = useStore.subscribe((state) => {
+      snapshots.push({
+        activeAccountId: state.activeAccountId,
+        accountExists: state.data.accounts.some((account) => account.id === accountId),
+      });
+    });
+    try {
+      s().deleteAccount(accountId);
+    } finally {
+      unsubscribe();
+    }
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]).toEqual({ activeAccountId: null, accountExists: false });
+  });
+
   it("adds entities with a generated id and timestamps", () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
     expect(r.id).toBeTruthy();
@@ -335,6 +353,11 @@ describe("store scheduler UI", () => {
     s().setFilters({ activityKind: "repeatable" });
     expect(s().ui.filters.activityKind).toBe("repeatable");
     expect(s().ui.filters.activityId).toBeNull();
+  });
+  it("clears a stale project when the client filter changes", () => {
+    s().setFilters({ clientId: "client-1", projectId: "project-1" });
+    s().setFilters({ clientId: "client-2" });
+    expect(s().ui.filters).toMatchObject({ clientId: "client-2", projectId: null });
   });
 
   it("gives the activity lens precedence when one patch spans both lens families", () => {

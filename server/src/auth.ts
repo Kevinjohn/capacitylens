@@ -188,28 +188,46 @@ interface RawSessionUser {
   image?: string | null;
 }
 
-interface SessionActivityAdapter {
-  deleteSession(token: string): Promise<void>;
-  updateSession(token: string, session: { updatedAt: Date }): Promise<unknown>;
-}
-
 /** Apply the app's idle timeout to a session Better Auth has already resolved. */
-async function enforceSessionActivity<
+export async function enforceSessionActivity<
   Session extends {
     session: { token: string; updatedAt: Date | string };
   },
->(session: Session, adapter: SessionActivityAdapter): Promise<Session | null> {
+>(session: Session, db: Db): Promise<Session | null> {
   const lastActivity = new Date(session.session.updatedAt).getTime();
   const now = Date.now();
   const elapsed = now - lastActivity;
   if (!Number.isFinite(lastActivity) || elapsed < 0 || elapsed > SESSION_INACTIVITY_TTL_SECONDS * 1000) {
-    await adapter.deleteSession(session.session.token);
-    return null;
+    if (!Number.isFinite(lastActivity)) {
+      db.prepare(`DELETE FROM session WHERE token = ?`).run(session.session.token);
+      return null;
+    }
+    const removed = db
+      .prepare(`DELETE FROM session WHERE token = ? AND updatedAt = ?`)
+      .run(session.session.token, lastActivity);
+    if (removed.changes === 1) return null;
+    // A concurrent request may have touched the row after this request resolved its session.
+    // Re-read instead of deleting that newer activity from a stale snapshot.
+    const current = db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(session.session.token) as
+      { updatedAt: number } | undefined;
+    if (!current) return null;
+    session.session.updatedAt = new Date(current.updatedAt);
+    return session;
   }
   if (elapsed >= SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS * 1000) {
-    const updatedAt = new Date(now);
-    await adapter.updateSession(session.session.token, { updatedAt });
-    session.session.updatedAt = updatedAt;
+    // Better Auth's node:sqlite schema is deliberately pinned by our auth migration rehearsal:
+    // session.updatedAt is integer epoch milliseconds. Direct conditional SQL is required here
+    // because the adapter exposes only unconditional async writes and cannot provide compare-and-set.
+    // The predicate makes touches monotonic even when overlapping requests settle out of order.
+    db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ? AND updatedAt < ?`).run(
+      now,
+      session.session.token,
+      now,
+    );
+    const current = db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(session.session.token) as
+      { updatedAt: number } | undefined;
+    if (!current) return null;
+    session.session.updatedAt = new Date(current.updatedAt);
   }
   return session;
 }
@@ -582,9 +600,19 @@ export function ensureAuthControlTables(db: Db, env: Env): void {
   void env;
   assertBootstrapClaimCurrent(db);
   // A crash before user creation must not permanently strand first-run setup.
-  db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE claimedAt < ?`).run(
-    new Date(Date.now() - 5 * 60_000).toISOString(),
-  );
+  const now = Date.now();
+  const leaseMs = 5 * 60_000;
+  const claims = db.prepare(`SELECT id, claimedAt FROM capacitylens_bootstrap_claim`).all() as Array<{
+    id: number;
+    claimedAt: string;
+  }>;
+  const remove = db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = ? AND claimedAt = ?`);
+  for (const claim of claims) {
+    const claimedAt = Date.parse(claim.claimedAt);
+    if (!Number.isFinite(claimedAt) || claimedAt < now - leaseMs || claimedAt > now + leaseMs) {
+      remove.run(claim.id, claim.claimedAt);
+    }
+  }
 }
 
 /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
@@ -1044,7 +1072,7 @@ export function authFromEnv(
             disableCookieCache: true,
             disableRefresh: true,
           });
-          activeHookSession = resolved ? await enforceSessionActivity(resolved, ctx.context.internalAdapter) : null;
+          activeHookSession = resolved ? await enforceSessionActivity(resolved, db) : null;
           ctx.context.session = activeHookSession;
           if (ctx.path === "/get-session" && activeHookSession) return activeHookSession;
         }
@@ -1396,7 +1424,35 @@ export async function createBootstrapAdmin(
       `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must be ${MIN_PASSWORD_LENGTH}..${MAX_PASSWORD_LENGTH} characters.`,
     );
   }
-  await auth.createCredentialUser(BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_NAME, bootstrapPassword);
+  const claimToken = randomBytes(24).toString("base64url");
+  try {
+    db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
+      new Date().toISOString(),
+      claimToken,
+    );
+  } catch (error) {
+    const sqlite = error as { code?: unknown; errcode?: unknown; message?: unknown };
+    const collision =
+      sqlite.errcode === 19 ||
+      (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT")) ||
+      (typeof sqlite.message === "string" &&
+        /unique constraint failed.*capacitylens_bootstrap_claim/i.test(sqlite.message));
+    if (!collision) throw error;
+    throw new AuthConfigError(
+      "--create-owner-admin-admin could not acquire the first-owner claim because setup is already in progress; retry startup after the active setup completes or its five-minute crash lease expires.",
+    );
+  }
+  try {
+    // The durable singleton claim is acquired before hashing, so overlapping processes cannot both
+    // pass the empty-user predicate and race the fixed bootstrap email inside separate transactions.
+    if (countUsers(db) > 0) {
+      log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
+      return "skipped";
+    }
+    await auth.createCredentialUser(BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_NAME, bootstrapPassword);
+  } finally {
+    db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
+  }
   // Print the one-time credential prominently. The frame is measured
   // from the content (not hand-padded) so a future wording tweak can't skew the box.
   const content = [

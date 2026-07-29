@@ -24,7 +24,10 @@ async function expectDiscoveryFault(page: Page, expected: "malformed" | "unavail
 
 test.describe("strict OIDC account front door", () => {
   test.describe.configure({ mode: "serial" });
-  test("completes bootstrap, invitation, callback, membership, and local sign-out flows", async ({ page, browser }) => {
+  test("completes bootstrap, invitation, callback, membership, and local sign-out flows", async ({
+    page,
+    newObservedContext,
+  }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     await expect(page.getByText(/experimental/i)).toHaveCount(0);
@@ -84,7 +87,7 @@ test.describe("strict OIDC account front door", () => {
     expect(invitation.status()).toBe(201);
     const invite = (await invitation.json()) as { token: string };
 
-    const memberContext = await browser.newContext();
+    const memberContext = await newObservedContext();
     const memberPage = await memberContext.newPage();
     await memberPage.goto(`/invite/${encodeURIComponent(invite.token)}`);
     await expect(memberPage.getByTestId("invite-preview")).toContainText("OIDC conformance company");

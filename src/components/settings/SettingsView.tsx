@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useAuth } from "../../auth/authContext";
 import { buildStamp, feedbackMailto } from "../../data/buildInfo";
 import { isServerConfigured } from "../../data/apiConfig";
@@ -164,6 +164,8 @@ export function SettingsView() {
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const { authMode, user, canCreateAccount, multiAccount, signOut } = useAuth();
   const [offlineEnabled, setOfflineEnabledState] = useState(offlineReadEnabled);
+  const offlineActionLock = useRef(false);
+  const [offlineBusy, setOfflineBusy] = useState(false);
   const offlineState = useOfflineState();
 
   // A user-triggered wipe of everything CapacityLens keeps in this browser: the opt-in read-only
@@ -187,6 +189,9 @@ export function SettingsView() {
   };
 
   const toggleOffline = async () => {
+    if (offlineActionLock.current) return;
+    offlineActionLock.current = true;
+    setOfflineBusy(true);
     const next = !offlineEnabled;
     try {
       await setOfflineReadEnabled(next);
@@ -217,6 +222,10 @@ export function SettingsView() {
       }
       setOfflineEnabledState(offlineReadEnabled());
       setNotice(m.settings_offline_error({ error: errorMessage(surfaced) }), "error");
+    } finally {
+      setOfflineEnabledState(offlineReadEnabled());
+      offlineActionLock.current = false;
+      setOfflineBusy(false);
     }
   };
 
@@ -508,7 +517,12 @@ export function SettingsView() {
 
         {serverMode && authMode !== "off" && user && (
           <SettingsCard title={m.settings_offline_heading()} description={m.settings_offline_description()}>
-            <ToggleRow label={m.settings_offline_toggle()} on={offlineEnabled} onToggle={() => void toggleOffline()} />
+            <ToggleRow
+              label={m.settings_offline_toggle()}
+              on={offlineEnabled}
+              onToggle={() => void toggleOffline()}
+              disabled={offlineBusy}
+            />
             {offlineEnabled && offlineState.cacheWriteFailed && (
               <p role="status" className="text-sm text-danger">
                 {m.settings_offline_write_failed()}

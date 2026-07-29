@@ -11,6 +11,11 @@ async function box(locator: Locator) {
 test.describe("Toolbar", () => {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
+    await page.getByRole("radio", { name: "6w", exact: true }).click();
+    await expect(page.getByRole("radio", { name: "6w", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("radio", { name: "1w", exact: true })).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByText("Utilisation · 6w")).toBeVisible();
+
     await page.getByRole("radio", { name: "8w", exact: true }).click();
     await expect(page.getByRole("radio", { name: "8w", exact: true })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByRole("radio", { name: "1w", exact: true })).toHaveAttribute("aria-checked", "false");

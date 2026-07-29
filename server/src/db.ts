@@ -1140,16 +1140,29 @@ export function isInitialized(db: Db): boolean {
  *  dataset back on the next restart (the same predicate /api/meta reports). Seeding sets
  *  the marker, so it fires exactly once. Returns whether it seeded. */
 export function seedIfUninitialized(db: Db, data: AppData): boolean {
-  if (isInitialized(db)) return false;
-  insertAll(db, data);
-  return true;
+  return tx(
+    db,
+    () => {
+      // Reserve SQLite's single writer before inspecting the marker. Concurrent first boots then
+      // serialize here, so the loser observes the winner's marker instead of colliding on seed ids.
+      if (isInitialized(db)) return false;
+      insertAllRows(db, data);
+      markInitialized(db);
+      return true;
+    },
+    "immediate",
+  );
+}
+
+function insertAllRows(db: Db, data: AppData): void {
+  const rows = data as unknown as Record<string, Row[]>;
+  for (const table of CREATE_ORDER) for (const row of rows[table] ?? []) insertRowRaw(db, table, row);
 }
 
 /** Insert an entire AppData tree (parent-first). Used by seeding and reset. */
 export function insertAll(db: Db, data: AppData): void {
-  const d = data as unknown as Record<string, Row[]>;
   tx(db, () => {
-    for (const table of CREATE_ORDER) for (const row of d[table] ?? []) insertRowRaw(db, table, row);
+    insertAllRows(db, data);
     markInitialized(db); // once for the whole batch, not per row
   });
 }

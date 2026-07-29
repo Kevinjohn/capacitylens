@@ -93,6 +93,7 @@ export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<
         } else if (patchesProjectLens) {
           filters.activityId = null;
           filters.activityKind = null;
+          if (patch.clientId !== undefined && patch.projectId === undefined) filters.projectId = null;
         }
         return { ui: { ...state.ui, filters } };
       }),

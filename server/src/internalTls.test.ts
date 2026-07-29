@@ -118,6 +118,14 @@ describe("loadInternalTls", () => {
     });
   });
 
+  it("fails a malformed projected expiry closed instead of reporting healthy", () => {
+    expect(internalTlsHealth("not-a-certificate-expiry", Date.parse("2026-01-01T00:00:00.000Z"))).toEqual({
+      status: "expired",
+      expiresAt: "not-a-certificate-expiry",
+      daysRemaining: 0,
+    });
+  });
+
   it("uses the same renewal boundary as the certificate initializer", () => {
     const script = readFileSync(new URL("../../scripts/internal-tls.sh", import.meta.url), "utf8");
     expect(script).toContain(

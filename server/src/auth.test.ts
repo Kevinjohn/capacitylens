@@ -47,6 +47,20 @@ describe("startup configuration before database migration", () => {
     db.close();
   });
 
+  it.each(["not-a-timestamp", "2999-01-01T00:00:00.000Z"])(
+    "repairs a stranded bootstrap claim with invalid timing metadata: %s",
+    (claimedAt) => {
+      const db = openDb(":memory:");
+      db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
+        claimedAt,
+        "stranded-claim",
+      );
+      ensureAuthControlTables(db, PASSWORD_ENV);
+      expect(db.prepare(`SELECT id FROM capacitylens_bootstrap_claim`).get()).toBeUndefined();
+      db.close();
+    },
+  );
+
   it("leaves a bare database untouched when provider configuration is invalid", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     expect(() => authFromEnv(db, { ...PASSWORD_ENV, CAPACITYLENS_GOOGLE_CLIENT_ID: "id-without-secret" })).toThrow(

@@ -88,8 +88,14 @@ export function TimeOffForm({
     }
     const patch = canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
     try {
-      if (timeOff) update(timeOff.id, patch);
-      else add(patch);
+      if (timeOff) {
+        const current = useStore.getState().data.timeOff.find((candidate) => candidate.id === timeOff.id);
+        if (!current || current.updatedAt !== timeOff.updatedAt) {
+          fail(null, m.form_timeoff_err_changed());
+          return;
+        }
+        update(timeOff.id, patch);
+      } else add(patch);
       onClose();
     } catch (e) {
       fail(null, e instanceof Error ? errorMessage(e) : m.form_timeoff_err_save_failed());

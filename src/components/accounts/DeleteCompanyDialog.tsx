@@ -163,7 +163,7 @@ export function DeleteCompanyDialog({
         {m.dialog_delete_company_body_suffix()}
       </p>
       <div className="flex justify-start">
-        <Button size="sm" variant="outline" disabled={exporting} onClick={() => void exportFirst()}>
+        <Button size="sm" variant="outline" disabled={busy || exporting} onClick={() => void exportFirst()}>
           {m.dialog_delete_company_export_first()}
         </Button>
       </div>

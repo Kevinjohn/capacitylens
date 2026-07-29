@@ -97,6 +97,29 @@ describe("teamAccessClient identity validation", () => {
     });
   });
 
+  it.each(["2026-02-30T10:00:00.000Z", "0", "2026-08-27", "2026-08-27T11:00:00.000+01:00"])(
+    "rejects a non-canonical invitation timestamp: %s",
+    async (expiresAt) => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.spyOn(accountClient, "listInvitations").mockResolvedValue(
+        json({
+          invites: [
+            {
+              id: "invite-1",
+              role: "viewer",
+              preauthEmail: null,
+              expiresAt,
+              usedAt: null,
+              createdAt: "2026-07-27T10:00:00.000Z",
+            },
+          ],
+        }),
+      );
+
+      await expect(teamAccessClient.listInvitations("account-1")).resolves.toMatchObject({ kind: "invalid" });
+    },
+  );
+
   it("rejects duplicate member identities", async () => {
     const member = {
       userId: "user-1",

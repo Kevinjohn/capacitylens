@@ -24,4 +24,7 @@ describe("runtime demo seed", () => {
     });
     expect(current.accounts).toEqual(fixed.accounts);
   });
+  it("rejects a reference week whose scenarios exceed the four-digit date domain", () => {
+    expect(() => seedForCurrentWeek("9999-12-31")).toThrow(RangeError);
+  });
 });

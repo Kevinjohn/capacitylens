@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { spawnPnpm } from "./pnpm-spawn.mjs";
+import { nonColourEnvironment, spawnPnpm } from "./pnpm-spawn.mjs";
 
 const image = "ghcr.io/dexidp/dex:v2.45.1@sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462";
 const container = `capacitylens-oidc-e2e-${process.pid}`;
@@ -14,21 +14,12 @@ let dexStarted = false;
 let primaryFailure = null;
 let cleanupPromise = null;
 
-function childEnvironment(extra = {}) {
-  const env = { ...process.env, ...extra };
-  if ("NO_COLOR" in env) {
-    delete env.NO_COLOR;
-    env.FORCE_COLOR = "0";
-  }
-  return env;
-}
-
 function run(command, args, options = {}) {
   const { env, ...spawnOptions } = options;
   const result = spawnSync(command, args, {
     stdio: "inherit",
     ...spawnOptions,
-    env: childEnvironment(env),
+    env: nonColourEnvironment(env),
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} exited with status ${result.status}.`);
@@ -107,7 +98,7 @@ async function playwright(phase, filterArgs) {
   await new Promise((resolve, reject) => {
     const child = spawnPnpm(["exec", "playwright", "test", "--project=oidc-backed", ...filterArgs], {
       stdio: "inherit",
-      env: childEnvironment({
+      env: nonColourEnvironment({
         CAPACITYLENS_E2E_PHASE: `oidc-${phase}`,
         CAPACITYLENS_OIDC_E2E: "1",
       }),
@@ -132,7 +123,7 @@ function cleanup() {
       if (dexStarted) {
         const logs = spawnSync("docker", ["logs", "--timestamps", container], {
           encoding: "utf8",
-          env: childEnvironment(),
+          env: nonColourEnvironment(),
           maxBuffer: 10 * 1024 * 1024,
         });
         if (logs.error) throw logs.error;
@@ -147,7 +138,7 @@ function cleanup() {
     if (dexStarted) {
       const removed = spawnSync("docker", ["rm", "--force", container], {
         encoding: "utf8",
-        env: childEnvironment(),
+        env: nonColourEnvironment(),
       });
       if (removed.error || removed.status !== 0) {
         cleanupFailure ??=

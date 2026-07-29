@@ -28,6 +28,7 @@ export function boundApplicationFailure(application: unknown): string | null {
   if (
     typeof candidate.displayName !== "string" ||
     !candidate.displayName.trim() ||
+    hasDisallowedChars(candidate.displayName) ||
     unicodeCharacterCount(candidate.displayName) > MAX_NAME_LENGTH
   ) {
     return `The account application display name must be 1–${MAX_NAME_LENGTH} characters.`;
@@ -38,15 +39,21 @@ export function boundApplicationFailure(application: unknown): string | null {
     branding === null ||
     typeof branding.totpIssuer !== "string" ||
     !branding.totpIssuer.trim() ||
+    hasDisallowedChars(branding.totpIssuer) ||
     unicodeCharacterCount(branding.totpIssuer) > MAX_NAME_LENGTH ||
     typeof branding.defaultProviderLabel !== "string" ||
     !branding.defaultProviderLabel.trim() ||
+    hasDisallowedChars(branding.defaultProviderLabel) ||
     unicodeCharacterCount(branding.defaultProviderLabel) > MAX_NAME_LENGTH ||
     !Array.isArray(branding.passwordContextWords) ||
     branding.passwordContextWords.length === 0 ||
     branding.passwordContextWords.length > MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS ||
     Array.from(branding.passwordContextWords).some(
-      (word) => typeof word !== "string" || !word.trim() || passwordCharacterCount(word) > MAX_PASSWORD_LENGTH,
+      (word) =>
+        typeof word !== "string" ||
+        !word.trim() ||
+        hasDisallowedChars(word) ||
+        passwordCharacterCount(word) > MAX_PASSWORD_LENGTH,
     )
   ) {
     return `Account branding must define a TOTP issuer and provider label of at most ${MAX_NAME_LENGTH} characters, plus 1–${MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS} non-empty password context words of at most ${MAX_PASSWORD_LENGTH} characters each.`;

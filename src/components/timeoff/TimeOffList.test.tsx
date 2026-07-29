@@ -215,6 +215,29 @@ describe("TimeOffList", () => {
 });
 
 describe("TimeOffForm note visibility", () => {
+  it("rejects a stale edit instead of overwriting a concurrent change", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource(resourceDraft);
+    const entry = useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-09-01",
+      endDate: "2026-09-05",
+      type: "holiday",
+      note: "Original note",
+    });
+    const onClose = vi.fn();
+    render(<TimeOffForm timeOff={entry} onClose={onClose} />);
+
+    useStore.getState().updateTimeOff(entry.id, { type: "sick" });
+    await user.clear(screen.getByLabelText("Note"));
+    await user.type(screen.getByLabelText("Note"), "Edited note");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/time off changed while you were editing/i);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useStore.getState().data.timeOff[0]).toMatchObject({ type: "sick", note: "Original note" });
+  });
+
   it.each([null, "owner", "admin"] as const)("shows Note for role %s", (role) => {
     render(
       <PermissionContext.Provider value={{ role }}>

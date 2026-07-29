@@ -45,8 +45,14 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       color: NEUTRAL_COLOR,
     };
     try {
-      if (resource) update(resource.id, patch);
-      else add(patch);
+      if (resource) {
+        const current = useStore.getState().data.resources.find((candidate) => candidate.id === resource.id);
+        if (!current || current.updatedAt !== resource.updatedAt) {
+          fail(null, m.form_external_err_changed());
+          return;
+        }
+        update(resource.id, patch);
+      } else add(patch);
       onClose();
     } catch (e) {
       fail(null, errorMessage(e));

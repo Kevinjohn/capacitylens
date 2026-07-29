@@ -128,6 +128,52 @@ describe("durable audit outbox", () => {
     db.close();
   });
 
+  it("retains a parseable malformed payload instead of delivering and deleting it", () => {
+    const db = openDb(":memory:");
+    db.prepare(`INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`).run(
+      "audit-malformed-1",
+      JSON.stringify({ auditId: "forged" }),
+      "2026-07-29T12:00:00.000Z",
+    );
+    const sink = { append: vi.fn(() => true), degraded: false } satisfies AuditSink;
+
+    expect(() => drainAuditOutbox(db, sink)).toThrow(/does not contain a valid audit payload/);
+    expect(sink.append).not.toHaveBeenCalled();
+    expect(pendingAuditCount(db)).toBe(1);
+    db.close();
+  });
+
+  it.each([
+    { ...record(), ts: "not-a-time" },
+    { ...record(), action: "invented-action" },
+    { ...record(), id: "" },
+    {
+      id: "account-event-1",
+      occurredAt: "2026-07-26T12:00:00.000Z",
+      applicationId: "capacitylens",
+      workspaceId: "account-1",
+      actorPrincipalId: "user-1",
+      targetPrincipalId: null,
+      commandId: null,
+      action: "invented.account_action",
+      outcome: "success",
+      changedFields: [],
+    },
+  ])("retains a complete-looking audit payload with invalid union semantics: %#", (payload) => {
+    const db = openDb(":memory:");
+    db.prepare(`INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`).run(
+      "audit-invalid-semantics",
+      JSON.stringify(payload),
+      "2026-07-29T12:00:00.000Z",
+    );
+    const sink = { append: vi.fn(() => true), degraded: false } satisfies AuditSink;
+
+    expect(() => drainAuditOutbox(db, sink)).toThrow(/does not contain a valid audit payload/);
+    expect(sink.append).not.toHaveBeenCalled();
+    expect(pendingAuditCount(db)).toBe(1);
+    db.close();
+  });
+
   it("retains the failed record and every later record while removing delivered predecessors", () => {
     const db = openDb(":memory:");
     enqueueAudit(db, { ...record(), id: "project-1" }, "audit-batch-1");

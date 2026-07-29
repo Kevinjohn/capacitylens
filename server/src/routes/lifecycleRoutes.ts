@@ -14,6 +14,7 @@ import {
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import type { AuditRecord } from "../audit";
 import type { LifecycleRow, TenantStore } from "../tenantStore";
+import { nextServerRevision } from "../revision";
 
 class LifecycleResponseError extends Error {
   constructor(
@@ -37,11 +38,6 @@ interface LifecycleRouteDependencies {
     row: Record<string, unknown>,
     accountId: string,
   ) => Record<string, unknown>;
-}
-
-function nextRevision(updatedAt: unknown): string {
-  const previous = typeof updatedAt === "string" ? Date.parse(updatedAt) : Number.NaN;
-  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString();
 }
 
 function lifecycleFailure(reply: FastifyReply, error: unknown, fail: LifecycleRouteDependencies["fail"]): FastifyReply {
@@ -145,7 +141,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     protectedVerb: "archived",
     auditAction: "archive",
     apply: (row) => {
-      const now = nextRevision(row.updatedAt);
+      const now = nextServerRevision(row.updatedAt);
       const next = { ...archive(row, now), updatedAt: now };
       return { next, changedFields: ["archivedAt"] };
     },
@@ -157,7 +153,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     protectedVerb: "unarchived",
     auditAction: "unarchive",
     apply: (row) => {
-      const next = { ...unarchive(row), updatedAt: nextRevision(row.updatedAt) };
+      const next = { ...unarchive(row), updatedAt: nextServerRevision(row.updatedAt) };
       return { next, changedFields: ["archivedAt"] };
     },
   });
@@ -168,7 +164,7 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
     protectedVerb: "deleted",
     auditAction: "softDelete",
     apply: (row, entity) => {
-      const now = nextRevision(row.updatedAt);
+      const now = nextServerRevision(row.updatedAt);
       const tombstone = softDelete(row, now);
       const deleted = { ...tombstone, updatedAt: tombstone.deletedAt ?? now };
       const next = entity === "resources" ? obfuscateResource(deleted as Resource) : deleted;

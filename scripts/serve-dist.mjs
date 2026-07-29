@@ -29,6 +29,7 @@ const MIME = {
   ".webmanifest": "application/manifest+json",
   ".woff2": "font/woff2",
 };
+const FILE_LIKE_PATH = /\.(?:css|js|mjs|json|map|svg|png|jpe?g|gif|webp|ico|woff2?|ttf|txt|xml|webmanifest)$/i;
 
 if (!existsSync(join(DIST, "index.html"))) {
   console.error("serve-dist: no dist/index.html — run the production build first (see runbook).");
@@ -65,17 +66,13 @@ createServer((req, res) => {
   }
 
   // Static files + SPA fallback, mirroring the packaged nginx.conf's three static blocks:
-  //  • `location /assets/ { try_files $uri =404; }` — ONLY under /assets/ does a missing file
-  //    404 (hashed bundles are content-addressed; the SPA fallback would mask a broken asset
-  //    reference that production nginx rejects).
-  //  • `location / { try_files $uri $uri/ /index.html; }` — everywhere else a real file is
-  //    served in place and ANY miss (extensioned or not: /favicon.ico, /invite/abc, …) falls
-  //    back to index.html so client-side routes resolve.
+  //  • `location /assets/ { try_files $uri =404; }` and nginx's file-extension matcher keep
+  //    missing asset and file-like paths as 404s instead of masking broken references with HTML.
+  //  • `location / { try_files $uri $uri/ /index.html; }` serves real files and falls back only
+  //    for extensionless client routes such as /projects or /invite/abc.
   //  • `location ~ ^/(invite|reset-password)/ { try_files /index.html =404; }` — also serves
   //    index.html for a miss, so the plain fallback above already matches its response shape
   //    (the access-log redaction it exists for has no analogue here).
-  // An earlier version 404'd EVERY missing extensioned path — stricter than nginx, so the
-  // rehearsal failed requests (e.g. a missing /favicon.ico) that production serves as the SPA.
   const path = normalize((req.url ?? "/").split("?")[0]).replace(/^([.][.][/\\])+/, "");
   // createReadStream can open a directory and emit EISDIR only after its `open` event. Avoid
   // committing a 200 for the dist directory at GET /; the SPA root is index.html.
@@ -107,7 +104,7 @@ createServer((req, res) => {
       }
     });
   };
-  void serve(requested, !path.startsWith("/assets/"));
+  void serve(requested, !path.startsWith("/assets/") && !FILE_LIKE_PATH.test(path));
 }).listen(PORT, "127.0.0.1", () => {
   console.log(`serve-dist: http://127.0.0.1:${PORT} (dist/ + /api → 127.0.0.1:${API_PORT})`);
 });

@@ -10,12 +10,12 @@ export const ACCOUNT_CONFORMANCE_VERSION = "1.0.0";
 export const MINIMUM_ACCOUNT_SECURITY_VERSION = "1.0.0";
 export const ACCOUNT_SECURITY_BASELINE_ID = "ACCOUNT-SEC-2026-07-18-01";
 
-export const ACCOUNT_DEPLOYMENT_PROFILES = [
+export const ACCOUNT_DEPLOYMENT_PROFILES = Object.freeze([
   "self-hosted-password",
   "self-hosted-mixed",
   "self-hosted-sso-only",
   "hosted-oidc-only",
-] as const;
+] as const);
 
 export type AccountDeploymentProfile = (typeof ACCOUNT_DEPLOYMENT_PROFILES)[number];
 

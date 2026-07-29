@@ -7,6 +7,8 @@ import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { toggleVariants } from "@/components/ui/toggle";
 
+// Local shadcn deviation: preserve configurable spacing plus the connected-control borders,
+// product padding, and focus stacking when comparing or refreshing this source-owned primitive.
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants> & {
     spacing?: number;

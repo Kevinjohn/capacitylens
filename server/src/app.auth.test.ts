@@ -7,6 +7,7 @@ import {
   authFromEnv,
   countUsers,
   createBootstrapAdmin,
+  enforceSessionActivity,
   parseAuthMode,
   runAuthMigrations,
   AuthConfigError,
@@ -730,6 +731,47 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(new Date(touched.expiresAt).getTime()).toBe(new Date(initial.expiresAt).getTime());
   });
 
+  it("does not delete a session touched after an expired request resolved its stale snapshot", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(configured.auth!);
+    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth });
+    await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "stale-delete@capacitylens.dev", password: "password-123456", name: "Stale" },
+    });
+    const stored = db.prepare(`SELECT token FROM session`).get() as { token: string };
+    const stale = Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000;
+    const newer = Date.now();
+    db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(newer, stored.token);
+
+    const resolved = await enforceSessionActivity({ session: { token: stored.token, updatedAt: new Date(stale) } }, db);
+
+    expect(resolved).not.toBeNull();
+    expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(stored.token)).toEqual({ updatedAt: newer });
+  });
+
+  it("does not move a concurrent newer session touch backward", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(configured.auth!);
+    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth });
+    await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "monotonic-touch@capacitylens.dev", password: "password-123456", name: "Touch" },
+    });
+    const stored = db.prepare(`SELECT token FROM session`).get() as { token: string };
+    const stale = Date.now() - 2 * 60 * 1000;
+    const newer = Date.now() + 1_000;
+    db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(newer, stored.token);
+
+    await enforceSessionActivity({ session: { token: stored.token, updatedAt: new Date(stale) } }, db);
+
+    expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(stored.token)).toEqual({ updatedAt: newer });
+  });
+
   it("sign-out invalidates the session again", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
     const signUp = await call(app, {
@@ -1279,6 +1321,19 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe("skipped");
     expect(lines).toEqual(["capacitylens-server: --create-owner-admin-admin skipped: users already exist"]);
     expect(countUsers(db)).toBe(1); // no second account, no throw
+  });
+
+  it("fails startup recoverably while another first-owner flow holds the claim, then succeeds after release", async () => {
+    const { db, mode, auth } = await bootstrapFixture();
+    db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
+      new Date().toISOString(),
+      "other-process",
+    );
+    await expect(createBootstrapAdmin(db, mode, auth, () => {})).rejects.toThrow(/retry startup.*five-minute/i);
+    expect(countUsers(db)).toBe(0);
+    db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE claimToken = ?`).run("other-process");
+    expect(await createBootstrapAdmin(db, mode, auth, () => {})).toBe("created");
+    expect(countUsers(db)).toBe(1);
   });
 
   it("refuses loudly (AuthConfigError) when auth is off or sso — the flag is meaningless there", async () => {

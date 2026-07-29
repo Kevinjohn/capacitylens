@@ -24,7 +24,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - A day is over capacity only when allocated capacity is strictly greater than available capacity.
 - Normal allocations do not consume a resource's non-working weekdays. `ignoreWeekends` is the
   explicit exception.
-- Displayed utilisation is calculated over the visible 1/2/4/8-week window.
+- Displayed utilisation is calculated over the visible 1/2/4/6/8-week window.
 - `overSoon` is calculated over a fixed forward 14-day window from today and never changes with
   zoom or pan.
 
@@ -156,7 +156,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
   proxy. Legacy product/vendor-prefixed account variables remain warning aliases until both two
   stable minor releases and 90 days have elapsed from the first stable release carrying the
-  canonical namespace. The 0.26 alpha does not start that clock; after 0.26.0 stable, removal is no
+  canonical namespace. Prereleases do not start that clock; after 0.26.0 stable, removal is no
   earlier than 0.28.0 and 90 days after its recorded release date. Conflicting aliases refuse startup.
 - Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
   Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than

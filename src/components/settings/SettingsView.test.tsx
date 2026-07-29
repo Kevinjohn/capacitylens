@@ -1,12 +1,37 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
 import { AuthContext } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 
+const offlineMocks = vi.hoisted(() => ({
+  enabled: false,
+  setEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
+  cacheAuth: vi.fn(async () => {}),
+  cacheSummaries: vi.fn(async () => {}),
+  cacheSlice: vi.fn(async () => {}),
+}));
+
+vi.mock("../../data/offlineCache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../data/offlineCache")>()),
+  offlineReadEnabled: () => offlineMocks.enabled,
+  setOfflineReadEnabled: offlineMocks.setEnabled,
+  cacheAuthSnapshot: offlineMocks.cacheAuth,
+  cacheAccountSummaries: offlineMocks.cacheSummaries,
+  cacheAccountSlice: offlineMocks.cacheSlice,
+}));
+
 beforeEach(() => {
+  offlineMocks.enabled = false;
+  offlineMocks.setEnabled.mockReset();
+  offlineMocks.setEnabled.mockImplementation(async (enabled) => {
+    offlineMocks.enabled = enabled;
+  });
+  offlineMocks.cacheAuth.mockClear();
+  offlineMocks.cacheSummaries.mockClear();
+  offlineMocks.cacheSlice.mockClear();
   resetStoreWithAccount();
   useStore.getState().setTheme("light");
 });
@@ -193,6 +218,42 @@ describe("SettingsView — Account section (auth)", () => {
     expect(screen.getByText(/Signed in as tester@capacitylens\.dev/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Sign out" }));
     expect(signOut).toHaveBeenCalled();
+  });
+
+  it("runs only one offline activation when the switch is triggered twice", async () => {
+    let finishActivation!: () => void;
+    offlineMocks.setEnabled.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishActivation = () => {
+            offlineMocks.enabled = true;
+            resolve();
+          };
+        }),
+    );
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: "password",
+          user: { id: "u1", email: "tester@capacitylens.dev" },
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <SettingsView />
+      </AuthContext.Provider>,
+    );
+
+    const toggle = screen.getByRole("switch", { name: "Make this device available offline" });
+    fireEvent.click(toggle);
+    fireEvent.click(toggle);
+
+    expect(offlineMocks.setEnabled).toHaveBeenCalledTimes(1);
+    expect(toggle).toBeDisabled();
+    finishActivation();
+    await waitFor(() => expect(toggle).toBeEnabled());
   });
 });
 

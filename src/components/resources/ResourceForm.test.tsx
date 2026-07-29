@@ -8,6 +8,30 @@ import { resetStoreWithAccount } from "../../test/fixtures";
 beforeEach(() => resetStoreWithAccount());
 
 describe("ResourceForm placeholder binding", () => {
+  it("rejects a stale person edit instead of overwriting a concurrent change", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Alice",
+      role: "Designer",
+      employmentType: "permanent",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      color: "#737373",
+    });
+    render(<ResourceForm resource={resource} onClose={onClose} />);
+
+    useStore.getState().updateResource(resource.id, { role: "Design lead" });
+    await user.clear(screen.getByLabelText("Name"));
+    await user.type(screen.getByLabelText("Name"), "Alice renamed");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/resource changed while you were editing/i);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useStore.getState().data.resources[0]).toMatchObject({ name: "Alice", role: "Design lead" });
+  });
+
   it("requires a placeholder to be bound to a project", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

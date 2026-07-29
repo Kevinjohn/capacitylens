@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
+import { coreSpecPattern, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
 
 // Playwright drives the real app via Vite. Three project flavours:
 //   chromium    — the in-memory DEMO build on :5173 (VITE_CAPACITYLENS_DEMO=1; the existing specs).
@@ -16,7 +16,7 @@ const AUTH_WEB_PORT = 5373;
 const OIDC_API_PORT = 8897;
 const OIDC_WEB_PORT = 5473;
 const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
-const coreSpec = new RegExp(String.raw`^(?!.*\.(?:db|auth|oidc)\.spec\.${specExtension}$).*\.spec\.ts$`, "i");
+const coreSpec = coreSpecPattern;
 const flavourSpec = (flavour: "db" | "auth" | "oidc") =>
   new RegExp(String.raw`\.${flavour}\.spec\.${specExtension}$`, "i");
 

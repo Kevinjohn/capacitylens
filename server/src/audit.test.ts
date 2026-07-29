@@ -728,6 +728,22 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     expect(sink.degraded).toBe(false);
   });
 
+  it("forgets delivery ids after their retained generation is overwritten", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-id-window-"));
+    const file = join(dir, "audit.jsonl");
+    const delivered = (auditId: string) => ({ ...rec("r1"), auditId });
+    const lineBytes = Buffer.byteLength(JSON.stringify(delivered("audit-a")) + "\n", "utf8");
+    const sink = fileAuditSink(file, vi.fn(), { maxBytes: lineBytes });
+
+    expect(sink.append(delivered("audit-a"))).toBe(true);
+    expect(sink.append(delivered("audit-b"))).toBe(true);
+    expect(sink.append(delivered("audit-c"))).toBe(true);
+    // audit-a is now in neither retained generation, so it must not remain in the in-memory
+    // idempotency window and suppress a legitimate later delivery that reuses that opaque id.
+    expect(sink.append(delivered("audit-a"))).toBe(true);
+    expect(readFileSync(file, "utf8")).toBe(JSON.stringify(delivered("audit-a")) + "\n");
+  });
+
   it("rotates before an append would make the active generation exceed maxBytes", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
     const file = join(dir, "audit.jsonl");

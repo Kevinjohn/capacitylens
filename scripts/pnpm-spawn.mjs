@@ -1,5 +1,13 @@
 import { spawn } from "node:child_process";
 
+/** Build deterministic non-colour child output without inheriting contradictory controls. */
+export function nonColourEnvironment(extra = {}, parent = process.env) {
+  const env = { ...parent, ...extra };
+  delete env.NO_COLOR;
+  env.FORCE_COLOR = "0";
+  return env;
+}
+
 /**
  * Spawn the repository package manager through the platform shell.
  *

@@ -15,6 +15,7 @@ import {
   isLifecycleEntityKey,
   PURGE_MIN_AGE_DAYS,
   LifecycleTransitionError,
+  LIFECYCLE_ENTITY_KEYS,
 } from "./lifecycle";
 import type { LifecycleAncestryLookup, LifecycleAncestryRow, LifecycleState, LifecycleFields } from "./lifecycle";
 import { emptyAppData } from "../types/entities";
@@ -28,6 +29,14 @@ import type { AppData, Resource } from "../types/entities";
 // Fixed ISO consts so every assertion is deterministic (no ambient clock anywhere in the machine).
 const T_ARCH = "2026-01-01T00:00:00.000Z";
 const T_DEL = "2026-02-01T00:00:00.000Z";
+
+describe("lifecycle vocabulary", () => {
+  it("is immutable and keeps the narrowing guard closed", () => {
+    expect(Object.isFrozen(LIFECYCLE_ENTITY_KEYS)).toBe(true);
+    expect(() => (LIFECYCLE_ENTITY_KEYS as unknown as string[]).push("allocations")).toThrow();
+    expect(isLifecycleEntityKey("allocations")).toBe(false);
+  });
+});
 const NOW = "2026-06-01T00:00:00.000Z"; // an arbitrary "now" used for archive/softDelete timestamps
 
 const DAY_MS = 86_400_000;

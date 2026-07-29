@@ -3,6 +3,7 @@ import { isAccountRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient, accountCommandOutcomeUnknown } from "./accountClient";
 import { hasDuplicateIdentity } from "../lib/arrayIdentity";
+import { isIsoInstant } from "@capacitylens/shared/account/types";
 
 export interface TeamMember {
   userId: string;
@@ -40,8 +41,7 @@ export type TeamAccessResult<T> =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
-const isTimestamp = (value: unknown): value is string =>
-  typeof value === "string" && Number.isFinite(Date.parse(value));
+const isTimestamp = isIsoInstant;
 
 function parseMembers(value: unknown): TeamMember[] | null {
   if (!isRecord(value) || !Array.isArray(value.members)) return null;

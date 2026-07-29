@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { AuditEntry, AuditSink } from "./audit";
+import type { AccountAuditAction, AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import type { AuditEntry, AuditRecord, AuditSink } from "./audit";
 import type { Db } from "./db";
+import { isIsoInstant } from "@capacitylens/shared/account/types";
 
 /** Immutable v17 schema component. Keep changes to this SQL behind a new explicit migration once
  * v17 ships: its exact text is folded into the migration ledger checksum. */
@@ -39,6 +41,111 @@ interface AuditOutboxRow {
   payload: string;
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isNonEmptyString);
+}
+
+const PRODUCT_ACTION_VALUES = [
+  "create",
+  "update",
+  "patch",
+  "delete",
+  "batch",
+  "import",
+  "archive",
+  "unarchive",
+  "softDelete",
+  "purge",
+  "memberRole",
+  "memberRemove",
+  "ownershipTransfer",
+  "inviteCreate",
+  "inviteAccept",
+  "inviteRevoke",
+  "passwordResetIssue",
+  "sessionsRevoke",
+] as const satisfies readonly AuditRecord["action"][];
+const ACCOUNT_ACTION_VALUES = [
+  "workspace.provisioned",
+  "workspace.erased",
+  "invitation.created",
+  "invitation.accepted",
+  "invitation.revoked",
+  "member.role_changed",
+  "member.removed",
+  "ownership.transferred",
+  "identity.password_reset_issued",
+  "identity.sessions_revoked",
+  "identity.local_deprovisioned",
+  "flow.compensated",
+  "flow.reconciliation_required",
+] as const satisfies readonly AccountAuditAction[];
+const ACCOUNT_OUTCOME_VALUES = [
+  "success",
+  "denied",
+  "failed",
+  "compensated",
+] as const satisfies readonly AccountAuditEvent["outcome"][];
+
+// Keep the runtime validators exhaustive when either owning union grows.
+const productActionsAreExhaustive: Exclude<AuditRecord["action"], (typeof PRODUCT_ACTION_VALUES)[number]> extends never
+  ? true
+  : never = true;
+const accountActionsAreExhaustive: Exclude<AccountAuditAction, (typeof ACCOUNT_ACTION_VALUES)[number]> extends never
+  ? true
+  : never = true;
+const accountOutcomesAreExhaustive: Exclude<
+  AccountAuditEvent["outcome"],
+  (typeof ACCOUNT_OUTCOME_VALUES)[number]
+> extends never
+  ? true
+  : never = true;
+void productActionsAreExhaustive;
+void accountActionsAreExhaustive;
+void accountOutcomesAreExhaustive;
+
+const PRODUCT_ACTIONS = new Set<string>(PRODUCT_ACTION_VALUES);
+const ACCOUNT_ACTIONS = new Set<string>(ACCOUNT_ACTION_VALUES);
+const ACCOUNT_OUTCOMES = new Set<string>(ACCOUNT_OUTCOME_VALUES);
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isNullableNonEmptyString(value: unknown): value is string | null {
+  return value === null || isNonEmptyString(value);
+}
+
+function isAuditEntry(value: unknown): value is AuditEntry {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  if (!isStringArray(row.changedFields)) return false;
+  if ("ts" in row) {
+    return (
+      isIsoInstant(row.ts) &&
+      isNonEmptyString(row.userId) &&
+      isNonEmptyString(row.accountId) &&
+      isNonEmptyString(row.entity) &&
+      isNonEmptyString(row.id) &&
+      isNonEmptyString(row.action) &&
+      PRODUCT_ACTIONS.has(row.action)
+    );
+  }
+  return (
+    isNonEmptyString(row.id) &&
+    isIsoInstant(row.occurredAt) &&
+    isNonEmptyString(row.applicationId) &&
+    isNullableNonEmptyString(row.workspaceId) &&
+    isNullableNonEmptyString(row.actorPrincipalId) &&
+    isNullableNonEmptyString(row.targetPrincipalId) &&
+    isNullableNonEmptyString(row.commandId) &&
+    isNonEmptyString(row.action) &&
+    ACCOUNT_ACTIONS.has(row.action) &&
+    isNonEmptyString(row.outcome) &&
+    ACCOUNT_OUTCOMES.has(row.outcome)
+  );
+}
+
 /** Enqueue inside the same SQLite transaction as the represented mutation. */
 export function enqueueAudit(db: Db, record: AuditEntry, id: string = randomUUID()): string {
   db.prepare(`INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`).run(
@@ -58,10 +165,10 @@ export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
     const row = select.get() as AuditOutboxRow | undefined;
     if (!row) return true;
     const parsed: unknown = JSON.parse(row.payload);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      throw new Error(`Audit outbox row ${row.id} does not contain an object payload.`);
+    if (!isAuditEntry(parsed)) {
+      throw new Error(`Audit outbox row ${row.id} does not contain a valid audit payload.`);
     }
-    const entry = { ...(parsed as AuditEntry), auditId: row.id };
+    const entry = { ...parsed, auditId: row.id };
     if (!sink.append(entry)) return false;
     const result = remove.run(row.sequence, row.id);
     if (result.changes !== 1) {

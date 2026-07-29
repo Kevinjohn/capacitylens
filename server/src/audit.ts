@@ -142,6 +142,19 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
   let deliveryStateLoaded = false;
   const deliveredAuditIds = new Set<string>();
 
+  const collectDeliveryIds = (path: string) => {
+    if (!existsSync(path)) return;
+    for (const line of readFileSync(path, "utf8").split("\n")) {
+      if (!line) continue;
+      try {
+        const parsed = JSON.parse(line) as { auditId?: unknown };
+        if (typeof parsed.auditId === "string") deliveredAuditIds.add(parsed.auditId);
+      } catch {
+        // A complete malformed historical line has no trusted delivery id and cannot suppress replay.
+      }
+    }
+  };
+
   const syncParentDirectory = () => {
     const fd = openSync(dirname(file), "r");
     try {
@@ -179,19 +192,9 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
         log("capacitylens-server: audit recovered an unterminated tail; the durable outbox will replay it");
       }
     }
-    for (const path of [`${file}.1`, file]) {
-      if (!existsSync(path)) continue;
-      for (const line of readFileSync(path, "utf8").split("\n")) {
-        if (!line) continue;
-        try {
-          const parsed = JSON.parse(line) as { auditId?: unknown };
-          if (typeof parsed.auditId === "string") deliveredAuditIds.add(parsed.auditId);
-        } catch {
-          // A complete malformed historical line predates the outbox contract and is not safe to
-          // rewrite automatically. It has no trusted delivery id, so it cannot suppress a replay.
-        }
-      }
-    }
+    deliveredAuditIds.clear();
+    collectDeliveryIds(`${file}.1`);
+    collectDeliveryIds(file);
     deliveryStateLoaded = true;
   };
 
@@ -215,6 +218,10 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
         if (size > 0 && size + lineBytes > maxBytes) {
           renameSync(file, `${file}.1`);
           log(`capacitylens-server: audit log rotated — ${file} (${size} bytes) -> ${file}.1`);
+          // The overwritten historical generation can no longer suppress an outbox replay. Bound
+          // the in-memory idempotency index to the two generations that are actually retained.
+          deliveredAuditIds.clear();
+          collectDeliveryIds(`${file}.1`);
           permissionsPinned = false;
         }
         const created = !existsSync(file);

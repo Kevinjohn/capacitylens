@@ -1,5 +1,5 @@
 import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
-import { buildInternalClient, ensureInternalClients } from "./internalClient";
+import { availableInternalClientId, buildInternalClient, ensureInternalClients } from "./internalClient";
 import type { AppData } from "../types/entities";
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
@@ -208,12 +208,21 @@ function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
   );
   // Migrated rows are newly created here; a fixed timestamp keeps the migration deterministic.
   const now = "2026-01-01T00:00:00.000Z";
+  const usedIds = new Set(
+    clients.flatMap((client) =>
+      client && typeof client === "object" && typeof (client as Record<string, unknown>).id === "string"
+        ? [(client as Record<string, unknown>).id as string]
+        : [],
+    ),
+  );
   let added = false;
   for (const account of data.accounts) {
     if (!account || typeof account !== "object") continue;
     const accountId = (account as Record<string, unknown>).id;
     if (typeof accountId !== "string" || accountsWithBuiltin.has(accountId)) continue;
-    clients.push(buildInternalClient(accountId, now));
+    const id = availableInternalClientId(accountId, usedIds);
+    clients.push(buildInternalClient(accountId, now, id));
+    usedIds.add(id);
     accountsWithBuiltin.add(accountId);
     added = true;
   }

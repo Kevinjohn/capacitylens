@@ -36,6 +36,7 @@
     "src/cryptoInventoryGate.test.ts",
     "src/data/offlineWorker.test.ts",
     "src/e2eOidcHarness.test.ts",
+    "src/playwrightFixturesPolicy.test.ts",
     "src/test/privacy-posture.test.ts"
   ]
 }

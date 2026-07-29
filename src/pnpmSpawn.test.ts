@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { spawnPnpm } from "../scripts/pnpm-spawn.mjs";
+import { nonColourEnvironment, spawnPnpm } from "../scripts/pnpm-spawn.mjs";
 
 const processMocks = vi.hoisted(() => ({
   child: { pid: 1234 },
@@ -31,4 +31,15 @@ describe("spawnPnpm", () => {
       shell: true,
     });
   });
+});
+
+describe("nonColourEnvironment", () => {
+  it.each([{}, { NO_COLOR: "1" }, { FORCE_COLOR: "1" }, { NO_COLOR: "1", FORCE_COLOR: "1" }])(
+    "normalizes inherited colour controls for %#",
+    (parent) => {
+      const env = nonColourEnvironment({ RUN: "yes" }, parent);
+      expect(env).not.toHaveProperty("NO_COLOR");
+      expect(env).toMatchObject({ FORCE_COLOR: "0", RUN: "yes" });
+    },
+  );
 });

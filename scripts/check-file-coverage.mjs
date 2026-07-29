@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
  * never use a directory or glob here, because the purpose is to stop new zero-coverage files. */
 export const ZERO_COVERAGE_ALLOWLIST = new Set([
   "shared/src/account/sessionPolicy.ts",
-  "src/components/external/ExternalForm.tsx",
   "src/components/scheduler/SchedulerView.tsx",
   "src/components/ui/skeleton.tsx",
   "src/lib/tour.ts",

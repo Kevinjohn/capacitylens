@@ -12,6 +12,22 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- **Offline read mode now precaches lazy-loaded screens.** Enabling offline access stages the full
+  production asset graph atomically, so an unvisited supported route can still open after the
+  network disappears.
+- **Production rehearsal now matches nginx for missing static files.** Missing file-like paths
+  return 404 instead of being hidden by the SPA fallback.
+- Rejected hidden time-off writes, stale resource edits and contradictory client/project filters,
+  while keeping archive expiry, offline preference changes and account deletion controls coherent
+  during long-running screens and concurrent actions.
+- Made legacy client migration collision-safe, bounded demo dates and server revisions to the
+  supported four-digit timestamp domain, and serialized first-run seeding and bootstrap ownership.
+- Retained malformed audit records for investigation, bounded delivered-audit deduplication state,
+  made session activity updates monotonic and reported malformed internal TLS expiry as unhealthy.
+- Tightened invitation timestamp and provider-failure handling, expanded account and persistence
+  contract tests, and aligned scheduler, accessibility, OIDC and release documentation with the
+  implemented product contracts.
+
 - Serialized account, identity, lifecycle and tenant writes at their SQLite boundaries, while
   retaining exact-command replay after completed company erasure.
 - Hardened database startup, migration rehearsal, TLS configuration, container health checks and
@@ -2016,6 +2032,13 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
 [0.27.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.0-alpha.1...v0.27.1-alpha.1
 [0.27.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.26.0-alpha.1...v0.27.0-alpha.1
 [0.26.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.25.0-alpha.9...v0.26.0-alpha.1
+[0.25.0-alpha.9]: https://github.com/Kevinjohn/capacitylens/commit/308ed761b00fb9976b3269129266c88afd4509cb
+[0.25.0-alpha.8]: https://github.com/Kevinjohn/capacitylens/commit/bd4058e3b14f9f31c907ac0935612a8b0f49cfeb
+[0.25.0-alpha.7]: https://github.com/Kevinjohn/capacitylens/commit/b4394254a843e1f868bf1ac4ccace74e043847bb
+[0.25.0-alpha.6]: https://github.com/Kevinjohn/capacitylens/commit/d0506d5ff809411ebf34429d3d5280d3dbe4e13d
+[0.25.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/commit/4e9d325a4ebdb06a522e53a7749abfd55bdd2e9a
+[0.25.0-alpha.4]: https://github.com/Kevinjohn/capacitylens/commit/67f4a75d2a8c2c140304a65e67653324cb4e55a0
+[0.25.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/commit/c9aeedd5009891b53f0ff72326d04176bc382976
 [0.25.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.1-alpha.2...v0.25.0-alpha.2
 [0.24.1-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.0-alpha.2...v0.24.1-alpha.2
 [0.24.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.4-alpha.0...v0.24.0-alpha.2
@@ -2032,9 +2055,14 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
 [0.19.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.1
 [0.19.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.0
 [0.18.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.18.0
+[0.17.2]: https://github.com/Kevinjohn/capacitylens/commit/b81aecfe80c73df807139abe93e7233ab207c212
+[0.17.1]: https://github.com/Kevinjohn/capacitylens/commit/53cadc102c0c8e741c30271562ec58faeb7773b4
+[0.17.0]: https://github.com/Kevinjohn/capacitylens/commit/0930dd377ae66443475099942509378ffff68e00
+[0.16.0]: https://github.com/Kevinjohn/capacitylens/commit/0930dd377ae66443475099942509378ffff68e00
 [0.15.8]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.8
 [0.15.7]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.7
 [0.15.6]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.6
+[0.15.5]: https://github.com/Kevinjohn/capacitylens/commit/0930dd377ae66443475099942509378ffff68e00
 [0.15.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.1
 [0.15.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.0
 [0.14.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.14.0

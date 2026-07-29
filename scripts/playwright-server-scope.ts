@@ -1,5 +1,6 @@
 const explicitSpecPath = /(?:^|[/\\])e2e[/\\].+\.spec\.(?:ts|tsx|mts|cts)$/i;
 const serverBackedSpec = /\.(?:db|auth|oidc)\.spec\.(?:ts|tsx|mts|cts)$/i;
+export const coreSpecPattern = /^(?!.*\.(?:db|auth|oidc)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
 
 /**
  * Detect the common focused-run form without guessing what arbitrary Playwright

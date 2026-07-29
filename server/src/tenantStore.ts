@@ -2,6 +2,7 @@ import type { AppData, Client, Project, Resource } from "@capacitylens/shared/ty
 import type { LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import { deleteRow, getRow, type Db, readSlice, replaceAccountSlice, upsertRow } from "./db";
 import { tx } from "./txn";
+import { nextServerRevision } from "./revision";
 
 type SynchronousResult<Result> = [Extract<Result, PromiseLike<unknown>>] extends [never] ? Result : never;
 
@@ -16,11 +17,6 @@ export type LifecycleRow = Resource | Client | Project;
 export interface ResourceNoteScrubResult {
   allocationNotes: boolean;
   timeOffNotes: boolean;
-}
-
-function nextRevision(updatedAt: unknown): string {
-  const previous = typeof updatedAt === "string" ? Date.parse(updatedAt) : Number.NaN;
-  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString();
 }
 
 function ownedLifecycleRow(
@@ -40,7 +36,7 @@ function restampRows(
   clearedColumn: "projectId" | "phaseId",
 ): void {
   const update = db.prepare(`UPDATE ${table} SET ${clearedColumn} = NULL, updatedAt = ? WHERE id = ?`);
-  for (const row of rows) update.run(nextRevision(row.updatedAt), row.id);
+  for (const row of rows) update.run(nextServerRevision(row.updatedAt), row.id);
 }
 
 function purgeLifecycleRow(db: Db, accountId: string, entity: LifecycleEntityKey, id: string): boolean {
@@ -238,7 +234,7 @@ export function sqliteTenantStore(db: Db): TenantStore {
           updatedAt: unknown;
         }>;
         const update = db.prepare(`UPDATE ${table} SET note = NULL, updatedAt = ? WHERE id = ?`);
-        for (const row of rows) update.run(nextRevision(row.updatedAt), row.id);
+        for (const row of rows) update.run(nextServerRevision(row.updatedAt), row.id);
         return rows.length > 0;
       };
       return {

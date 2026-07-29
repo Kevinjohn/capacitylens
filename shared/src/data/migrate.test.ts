@@ -297,6 +297,28 @@ describe("migrate", () => {
     expect(out.activities[0]).toMatchObject({ kind: "internal" });
   });
 
+  it("uses a collision-free id when v5 synthesis meets an ordinary internal-shaped id", () => {
+    const out = migrate({
+      schemaVersion: 5,
+      data: {
+        ...emptyAppData(),
+        accounts: [{ id: "a1", name: "Studio", color: "#2d75da", createdAt: "t", updatedAt: "t" }],
+        clients: [
+          {
+            id: "internal:a1",
+            accountId: "a1",
+            name: "Ordinary",
+            color: "#2d75da",
+            createdAt: "t",
+            updatedAt: "t",
+          },
+        ],
+      },
+    });
+    expect(out.clients.map((client) => client.id)).toEqual(["internal:a1", "internal:a1:1"]);
+    expect(out.clients[1]).toMatchObject({ accountId: "a1", builtin: true });
+  });
+
   it("renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)", () => {
     const out = migrate({
       schemaVersion: 4,

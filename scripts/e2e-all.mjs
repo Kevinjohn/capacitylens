@@ -16,22 +16,14 @@
 //   node scripts/e2e-all.mjs   # = pnpm run e2e:all
 
 import { spawnSync } from "node:child_process";
-
-function childEnvironment(extra) {
-  const env = { ...process.env, ...extra };
-  if ("NO_COLOR" in env) {
-    delete env.NO_COLOR;
-    env.FORCE_COLOR = "0";
-  }
-  return env;
-}
+import { nonColourEnvironment } from "./pnpm-spawn.mjs";
 
 /** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:all — ${label} ===`);
   const res = spawnSync("pnpm", ["exec", "playwright", "test", ...extraArgs], {
     stdio: "inherit",
-    env: childEnvironment(env),
+    env: nonColourEnvironment(env),
     // shell: true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors dev-fullstack.mjs.
     shell: true,
   });

@@ -13,6 +13,7 @@ import {
   readCachedAccountSummaries,
   readCachedAuthSnapshot,
   readCachedAccountSlice,
+  offlineShellAvailable,
   setOfflineReadEnabled,
 } from "./offlineCache";
 
@@ -24,6 +25,14 @@ const KEY_STORE_NAME = "keys";
 function currentCacheNamespace(): string {
   return `${window.location.origin}|api:${window.location.origin}`;
 }
+
+describe("offline shell availability", () => {
+  it("allows production and test builds but rejects on-demand development module graphs", () => {
+    expect(offlineShellAvailable({ PROD: true, MODE: "production" })).toBe(true);
+    expect(offlineShellAvailable({ PROD: false, MODE: "test" })).toBe(true);
+    expect(offlineShellAvailable({ PROD: false, MODE: "development" })).toBe(false);
+  });
+});
 
 async function putRaw(record: unknown): Promise<void> {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {

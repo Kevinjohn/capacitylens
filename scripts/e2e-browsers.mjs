@@ -12,13 +12,14 @@
 //   node scripts/e2e-browsers.mjs   # = pnpm run e2e:browsers
 
 import { spawnSync } from "node:child_process";
+import { nonColourEnvironment } from "./pnpm-spawn.mjs";
 
 /** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:browsers — ${label} ===`);
   const res = spawnSync("pnpm", ["exec", "playwright", "test", ...extraArgs], {
     stdio: "inherit",
-    env: { ...process.env, ...env },
+    env: nonColourEnvironment(env),
     // shell: true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors dev-fullstack.mjs.
     shell: true,
   });

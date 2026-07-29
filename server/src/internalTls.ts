@@ -35,7 +35,8 @@ const certificateExpiresAt = (certificate: Buffer): string => {
 
 /** Constant-work health projection over the certificate metadata parsed once at startup. */
 export function internalTlsHealth(expiresAt: string, now = Date.now()): InternalTlsHealth {
-  const remainingMs = Date.parse(expiresAt) - now;
+  const parsedExpiry = Date.parse(expiresAt);
+  const remainingMs = Number.isFinite(parsedExpiry) ? parsedExpiry - now : 0;
   return {
     status: remainingMs <= 0 ? "expired" : remainingMs <= INTERNAL_TLS_RENEW_BEFORE_SECONDS * 1_000 ? "expiring" : "ok",
     expiresAt,

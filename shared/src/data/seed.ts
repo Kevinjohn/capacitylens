@@ -3,6 +3,7 @@ import { NEUTRAL_COLOR } from "../lib/color";
 import { INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from "./internalClient";
 import type { AppData } from "../types/entities";
 import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from "../lib/dateMath";
+import { isValidISODate } from "../lib/integrity";
 
 // Two demo companies, loaded on first run so the account picker isn't empty.
 // "Studio North" is the rich dataset (stacked/overlapping allocations, an
@@ -481,7 +482,11 @@ export function seed(): AppData {
  * entry points use this variant so a new visitor never lands on an empty, expired schedule. */
 export function seedForCurrentWeek(referenceDate = todayISO()): AppData {
   const week = startOfWeekISO(referenceDate);
-  const shift = (date: string) => addDaysISO(week, dayIndex(date, SEED_WEEK));
+  const shift = (date: string) => {
+    const shifted = addDaysISO(week, dayIndex(date, SEED_WEEK));
+    if (!isValidISODate(shifted)) throw new RangeError("The demo week cannot extend beyond the supported date range.");
+    return shifted;
+  };
   const data = seed();
   return {
     ...data,

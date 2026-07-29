@@ -211,6 +211,64 @@ describe("InviteAccept preview and acceptance", () => {
     expect(authClientMock.signInEmail).not.toHaveBeenCalled();
   });
 
+  it("preserves the invite route for social failures and recovers when success does not navigate", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+    renderInvite({
+      ...signedInAuth,
+      user: null,
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+    });
+
+    await screen.findByTestId("invite-preview");
+    const button = screen.getByRole("button", { name: m.invite_continue_provider({ provider: "Google" }) });
+    await user.click(button);
+    expect(authClientMock.signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: window.location.href,
+      errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
+    expect(button).toBeEnabled();
+  });
+
+  it("recovers provider controls when a redirect returns from the back-forward cache", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+    renderInvite({
+      ...signedInAuth,
+      user: null,
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+    });
+
+    const button = await screen.findByRole("button", {
+      name: m.invite_continue_provider({ provider: "Google" }),
+    });
+    await user.click(button);
+    window.dispatchEvent(new Event("pagehide"));
+    const pageShow = new Event("pageshow");
+    Object.defineProperty(pageShow, "persisted", { value: true });
+    window.dispatchEvent(pageShow);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
+    expect(button).toBeEnabled();
+  });
+
+  it.each(["2026-02-30T12:00:00.000Z", "0", "2026-07-29", "2026-07-29T01:00:00+01:00"])(
+    "rejects noncanonical preview expiry %j",
+    async (expiresAt) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ...previewResponse(),
+          json: async () => ({ accountName: "Studio North", role: "editor", expiresAt }),
+        }),
+      );
+      renderInvite();
+      expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
+    },
+  );
+
   it("hands a newly-created invitee to a fresh boot for the verified joined company", async () => {
     resetStoreWithAccount();
     useStore.getState().setActiveAccount(null);

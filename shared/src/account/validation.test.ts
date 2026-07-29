@@ -28,6 +28,33 @@ describe("boundApplicationFailure", () => {
     expect(boundApplicationFailure(validApplication)).toBeNull();
   });
 
+  it.each(["\n", "\0", "\u202e", "\u200b", "\ud800", "\ue000"])(
+    "rejects disallowed branding character %j in every single-line field",
+    (character) => {
+      expect(boundApplicationFailure({ ...validApplication, displayName: `App${character}Name` })).toContain(
+        "display name",
+      );
+      expect(
+        boundApplicationFailure({
+          ...validApplication,
+          branding: { ...validApplication.branding, totpIssuer: `App${character}Issuer` },
+        }),
+      ).toContain("branding");
+      expect(
+        boundApplicationFailure({
+          ...validApplication,
+          branding: { ...validApplication.branding, defaultProviderLabel: `App${character}Provider` },
+        }),
+      ).toContain("branding");
+      expect(
+        boundApplicationFailure({
+          ...validApplication,
+          branding: { ...validApplication.branding, passwordContextWords: [`app${character}word`] },
+        }),
+      ).toContain("branding");
+    },
+  );
+
   it("accepts an application id at the 64-character boundary", () => {
     expect(
       boundApplicationFailure({

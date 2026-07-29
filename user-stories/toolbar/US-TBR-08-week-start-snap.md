@@ -1,6 +1,6 @@
 # US-TBR-08 — Navigation re-anchors the left edge to the week start
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "navigation re-anchors the left edge to the week start" · `e2e/toolbar.spec.ts` → "jumps to a chosen date"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)" · `e2e/toolbar.spec.ts` → "jumps to a chosen date"
 
 ## Goal
 

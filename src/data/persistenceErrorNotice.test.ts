@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { BatchTooLargeError, KeepaliveNotDispatchedError } from "./ServerSyncAdapter";
+import {
+  BatchCommitUncertainError,
+  BatchConflictError,
+  BatchTooLargeError,
+  BatchValidationError,
+  KeepaliveNotDispatchedError,
+} from "./ServerSyncAdapter";
 import { persistenceErrorNotice } from "./persistenceErrorNotice";
 
 describe("persistenceErrorNotice", () => {
@@ -17,5 +23,17 @@ describe("persistenceErrorNotice", () => {
 
   it("does not invent a notice for an untyped transport failure", () => {
     expect(persistenceErrorNotice(new Error("offline"))).toBeNull();
+  });
+
+  it.each([
+    new BatchConflictError("conflict"),
+    new BatchCommitUncertainError("uncertain"),
+    new BatchValidationError("invalid", "time_off_resource_inactive"),
+  ])("maps every actionable reconciliation failure", (error) => {
+    expect(persistenceErrorNotice(error)).toEqual(expect.any(String));
+  });
+
+  it("does not invent guidance for an uncoded validation failure", () => {
+    expect(persistenceErrorNotice(new BatchValidationError("invalid"))).toBeNull();
   });
 });

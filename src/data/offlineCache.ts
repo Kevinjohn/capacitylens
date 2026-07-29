@@ -4,14 +4,15 @@ import { validateAuthUser } from "../auth/validateAuthUser";
 import { validateAccountSlice } from "./validateAccountSlice";
 import { isAccountRole, type Role } from "@capacitylens/shared/account/types";
 import { API_BASE } from "./apiConfig";
+import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 
-const OFFLINE_PREF_KEY = "capacitylens/offlineRead";
+const OFFLINE_PREF_KEY = `${STORAGE_KEY_PREFIX}offlineRead`;
 const DB_NAME = "capacitylens-offline-v1";
 const STORE_NAME = "records";
 const KEY_STORE_NAME = "keys";
 const DEVICE_KEY_ID = "device-aes-gcm-v1";
 const WRITE_BOUNDARY_ID = "write-boundary-v1";
-const WRITE_BOUNDARY_STORAGE_KEY = "capacitylens/offlineWriteBoundary";
+const WRITE_BOUNDARY_STORAGE_KEY = `${STORAGE_KEY_PREFIX}offlineWriteBoundary`;
 const SHELL_CACHE_PREFIX = "capacitylens-shell-";
 const SHELL_METADATA_CACHE = "capacitylens-offline-shell-metadata-v1";
 const SHELL_ACTIVATION_TIMEOUT_MS = 30_000;
@@ -68,6 +69,10 @@ const listeners = new Set<() => void>();
 interface WriteBoundary {
   generation: number;
   token: string | null;
+}
+
+export function offlineShellAvailable(environment: { PROD: boolean; MODE: string }): boolean {
+  return environment.PROD || environment.MODE === "test";
 }
 
 function originKey(): string {
@@ -520,6 +525,9 @@ async function waitForOfflineShellActivation(registration: ServiceWorkerRegistra
 
 /** Enable or disable offline access on this device. Disabling also removes the app-shell worker. */
 export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
+  if (enabled && !offlineShellAvailable(import.meta.env)) {
+    throw new Error("Offline access can only be enabled from a production build.");
+  }
   if (enabled && !("serviceWorker" in navigator)) {
     throw new Error("Offline access is not supported by this browser.");
   }

@@ -450,7 +450,10 @@ export function assertResourceExists(
   if (!resource) {
     domainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
   }
-  if (existing?.resourceId !== resourceId && lifecycleStatus(resource) !== "active") {
+  if (
+    existing?.resourceId !== resourceId &&
+    !isEffectivelyActive(data, "resources", resource as unknown as LifecycleAncestryRow, lookup)
+  ) {
     domainError("time_off_resource_inactive", "Time off must reference an active resource in this company.");
   }
   if (isExternalResource(resource)) {

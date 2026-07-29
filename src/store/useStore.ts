@@ -699,16 +699,33 @@ export const useStore = create<StoreState>()((set, get, store) => {
       if (get().activeAccountId !== null && get().activeAccountId !== id) {
         throw new Error("Cannot delete a company other than the active company.");
       }
-      mutateIrreversible((d) => deleteAccountCascade(d, id));
-      // Drop it from the picker's list too (P1.13). This action now runs only in the DEMO build —
-      // server-mode delete goes through the AccountPicker's dedicated DELETE /api/accounts/:id route,
-      // not here — so this filter is the demo bookkeeping that keeps the picker synchronously fresh
-      // before the useAccountSummaries derive effect flushes.
-      set((s) => ({
-        accountSummaries: s.accountSummaries.filter((a) => a.id !== id),
-        accountSummariesRequestId: s.accountSummariesRequestId + 1,
-      }));
-      if (get().activeAccountId === id) get().setActiveAccount(null);
+      set((s) => {
+        const data = deleteAccountCascade(s.data, id);
+        const weekStart = startOfWeekISO(todayISO(timeZoneFor(data, null)), weekStartsOnFor(data, null));
+        return {
+          data,
+          past: [],
+          future: [],
+          activeAccountId: s.activeAccountId === id ? null : s.activeAccountId,
+          previousAccountId: s.activeAccountId === id ? id : s.previousAccountId,
+          accountSummaries: s.accountSummaries.filter((account) => account.id !== id),
+          accountSummariesRequestId: s.accountSummariesRequestId + 1,
+          notice: null,
+          srAnnouncement: null,
+          dirtyForm: false,
+          dirtyFormSources: new Set<symbol>(),
+          draggingAllocationId: null,
+          ui: {
+            ...s.ui,
+            filters: emptyFilters(),
+            collapsedGroups: [],
+            selectedAllocationId: null,
+            scrollToResource: null,
+            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
+            focusDate: weekStart,
+          },
+        };
+      });
     },
     // Switching tenant resets per-account view state and history — undo must never
     // cross an account boundary, and the previous account's filters/selection don't apply.

@@ -25,7 +25,7 @@ CapacityLens is a deliberately small, self-hosted resource scheduler for agencie
 in weekly blocks.
 
 - Plan clients → projects → activities and people → allocations → time off in one visual schedule.
-- View a 1, 2, 4 or 8 week window.
+- View a 1, 2, 4, 6 or 8 week window.
 - See daily over-capacity, visible-window **Utilisation**, and a separate 14-day forward warning.
 - Include employees, placeholders and capacity-free external partners.
 - Keep accounts isolated with role-based access and a SQLite source of truth.

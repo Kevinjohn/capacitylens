@@ -31,7 +31,7 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
   test("admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak", async ({
     page,
     request,
-    browser,
+    newObservedContext,
   }) => {
     // ── API setup: owner A bootstraps an org, invites B (admin) + C (editor); both accept. ─────────
     // Owner and editor are targeted by userId below (PATCH/DELETE members/<id>, transfer-ownership
@@ -172,7 +172,7 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // ── Owner-only transfer in a separate browser: A hands the account to C atomically. The same
     // mounted app must immediately refetch both membership projections: current access/sidebar show
     // Admin and owner-only transfer controls disappear, without a reload or account switch. ────────
-    const ownerContext = await browser.newContext({ reducedMotion: "reduce" });
+    const ownerContext = await newObservedContext({ reducedMotion: "reduce" });
     const ownerPage = await ownerContext.newPage();
     await ownerPage.goto("/");
     await ownerPage.getByRole("heading", { name: "Sign in" }).waitFor();

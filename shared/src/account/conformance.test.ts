@@ -24,12 +24,16 @@ describe("account conformance metadata", () => {
       "self-hosted-sso-only",
       "hosted-oidc-only",
     ]);
-    expect(ACCOUNT_PROFILE_CAPABILITIES["hosted-oidc-only"]).toEqual({
-      passwordSignIn: false,
-      strictOidc: true,
-      hosted: true,
+    expect(ACCOUNT_PROFILE_CAPABILITIES).toEqual({
+      "self-hosted-password": { passwordSignIn: true, strictOidc: false, hosted: false },
+      "self-hosted-mixed": { passwordSignIn: true, strictOidc: true, hosted: false },
+      "self-hosted-sso-only": { passwordSignIn: false, strictOidc: true, hosted: false },
+      "hosted-oidc-only": { passwordSignIn: false, strictOidc: true, hosted: true },
     });
     expect(Object.isFrozen(ACCOUNT_PROFILE_CAPABILITIES)).toBe(true);
-    expect(Object.isFrozen(ACCOUNT_PROFILE_CAPABILITIES["hosted-oidc-only"])).toBe(true);
+    expect(Object.isFrozen(ACCOUNT_DEPLOYMENT_PROFILES)).toBe(true);
+    for (const profile of ACCOUNT_DEPLOYMENT_PROFILES) {
+      expect(Object.isFrozen(ACCOUNT_PROFILE_CAPABILITIES[profile])).toBe(true);
+    }
   });
 });

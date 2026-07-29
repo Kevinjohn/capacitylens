@@ -5,6 +5,8 @@ Offline access is designed for reading a schedule during unreliable travel, not 
 It is off by default and must be enabled in Settings on each device. When enabled, CapacityLens
 registers a service worker for the application shell and stores the last verified identity,
 accessible account list and account snapshots in IndexedDB. Records expire after seven days.
+Offline shell installation requires a production build; Vite development and demo servers reject
+enablement because their on-demand module graph cannot be promoted as one complete immutable shell.
 
 Each snapshot is encrypted before storage with AES-256-GCM using a non-extractable, per-browser
 device key held in a separate IndexedDB store. Every record has a fresh 96-bit random IV and binds

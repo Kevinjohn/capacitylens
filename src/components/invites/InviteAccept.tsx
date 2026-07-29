@@ -25,7 +25,7 @@ import {
   passwordLengthFailure,
 } from "@capacitylens/shared/domain/password";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { isAccountRole, type InvitationRole } from "@capacitylens/shared/account/types";
+import { isAccountRole, isIsoInstant, type InvitationRole } from "@capacitylens/shared/account/types";
 import { isTransportFailure } from "../../data/requestTimeout";
 import { roleLabel, roleSummary } from "../../lib/accessCopy";
 import { Badge } from "../ui/badge";
@@ -88,7 +88,7 @@ function parsePreview(value: unknown): InvitePreview | null {
   const row = value as Record<string, unknown>;
   if (typeof row.accountName !== "string" || row.accountName.trim().length === 0) return null;
   if (!isAccountRole(row.role) || row.role === "owner") return null;
-  if (typeof row.expiresAt !== "string" || !Number.isFinite(Date.parse(row.expiresAt))) return null;
+  if (!isIsoInstant(row.expiresAt)) return null;
   return {
     accountName: row.accountName,
     role: row.role,
@@ -375,6 +375,18 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const signInWithProvider = async (provider: (typeof providers)[number]): Promise<void> => {
     setBusy(true);
     setState({ kind: "auth" });
+    let navigationStarted = false;
+    const markNavigation = () => {
+      navigationStarted = true;
+    };
+    const restoreAfterCachedNavigation = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      navigationStarted = false;
+      setState({ kind: "auth", message: m.login_failed() });
+      setBusy(false);
+    };
+    window.addEventListener("pagehide", markNavigation, { once: true });
+    window.addEventListener("pageshow", restoreAfterCachedNavigation);
     try {
       const result =
         provider.kind === "oidc"
@@ -386,6 +398,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           : await authClient.signIn.social({
               provider: provider.id as "google" | "microsoft" | "github",
               callbackURL: window.location.href,
+              errorCallbackURL: externalSignInErrorUrl(window.location.href),
             });
       if (result.error) {
         setState({
@@ -393,11 +406,23 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           message: result.error.message ?? m.login_failed(),
         });
         setBusy(false);
+      } else {
+        // Redirect adapters normally unload the page. Only pagehide proves that navigation
+        // committed: visibility can change when the user backgrounds the tab, and beforeunload can
+        // be cancelled by another listener.
+        await new Promise((resolve) => window.setTimeout(resolve, 100));
+        if (!navigationStarted) {
+          setState({ kind: "auth", message: m.login_failed() });
+          setBusy(false);
+        }
       }
     } catch (error) {
       console.error("InviteAccept: SSO sign-in request failed", error);
       setState({ kind: "auth", message: m.login_network_error() });
       setBusy(false);
+    } finally {
+      window.removeEventListener("pagehide", markNavigation);
+      window.removeEventListener("pageshow", restoreAfterCachedNavigation);
     }
   };
 

@@ -35,7 +35,7 @@ export interface AccountBranding {
   defaultProviderLabel: string;
 }
 
-export const ACCOUNT_ROLES = ["owner", "admin", "editor", "viewer"] as const;
+export const ACCOUNT_ROLES = Object.freeze(["owner", "admin", "editor", "viewer"] as const);
 export type Role = (typeof ACCOUNT_ROLES)[number];
 export function isAccountRole(value: unknown): value is Role {
   return typeof value === "string" && (ACCOUNT_ROLES as readonly string[]).includes(value);

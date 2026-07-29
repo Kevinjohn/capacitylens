@@ -281,6 +281,8 @@ private name.` An open client or project edit form never silently overwrites a n
 underneath it. If that entity changes or disappears before **Save**, the form stays open, writes
 nothing, and shows `This client changed while you were editing. Close and reopen the form, then
 re-apply your changes.` or the equivalent `This project changed…` message.
+Resource, external-party and time-off edit forms use the same stale-edit contract and show the
+equivalent entity-specific `changed while you were editing` message.
 The **activity form** has an `Activity kind` radiogroup (`Project-specific` / `Internal` / `Cross-project`); the
 `Project` field shows (and is required) only for the `Project-specific` kind — internal/cross-project
 activities are project-less.
@@ -309,8 +311,8 @@ rejection reason. Viewers see no allocation mutation actions.
 `Cancel`. Dialog/footer action buttons keep their text — only the list-row actions are icon-only.
 The archive flow is reversible and retains children; it must not be described as cascade deletion.
 
-**Scheduler toolbar.** Zoom buttons `1w`/`2w`/`4w`/`6w`/`8w` (the active one has
-`aria-pressed="true"`); `‹ Prev`, `Today`, `Next ›`; a `Jump to date` date input; a
+**Scheduler toolbar.** Zoom radios `1w`/`2w`/`4w`/`6w`/`8w` in a radiogroup (the active one has
+`aria-checked="true"`); `‹ Prev`, `Today`, `Next ›`; a `Jump to date` date input; a
 **Navigation always re-anchors the grid's left edge to the week start** (the account
 `weekStartsOn`, default Monday): a **zoom** click (1/2/4/6/8w), a **Prev/Next** pan, and the
 **date picker** all snap the leftmost column to that week's Monday so the helicopter view always
@@ -319,7 +321,7 @@ snapped focus date — pick a Thursday and it shows that week's Monday). `Today`
 A pure window resize / Minimise-weekends toggle does NOT re-anchor — it preserves the exact
 left-edge date. (This is ALWAYS on; there is no setting.)
 A
-draw-mode toggle `Work`/`Time off` (buttons — note "Time off" here is the _toggle_, distinct
+draw-mode radiogroup `Work`/`Time off` (radios using `aria-checked` — note "Time off" here is the _toggle_, distinct
 from the "Time off" _nav link_). Then **Undo**/**Redo** icon buttons (`undo-button` /
 `redo-button`, `aria-label` "Undo"/"Redo", disabled when the history stack is empty) — the
 visible counterpart to the global ⌘Z / ⌘⇧Z shortcut. **In `Time off` mode the grid signals the mode whole-view:
@@ -434,7 +436,10 @@ keys alone, and reloads. **Cancel is a no-op.**
 **Offline cache health (Settings → Offline access).** When offline access remains opted in but a
 snapshot write fails, Settings keeps the switch on and shows that recent snapshots could not be
 saved on this device. The warning clears after a successful snapshot write or after offline access
-is disabled; it does not claim that already cached data was deleted.
+is disabled; it does not claim that already cached data was deleted. Offline shell installation is
+available in production builds. Vite development/demo servers reject enablement with a clear
+message because their on-demand module graph cannot provide a complete, immutable shell for safe
+offline promotion.
 
 **Build stamp + feedback link (Settings, flag-gated).** When the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the

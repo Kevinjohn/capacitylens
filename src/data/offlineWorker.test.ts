@@ -10,9 +10,14 @@ const SHELL_CACHE_PREFIX = "capacitylens-shell-";
 const SHELL_METADATA_CACHE = "capacitylens-offline-shell-metadata-v1";
 const ACTIVE_SHELL_POINTER = "/__capacitylens-offline/active-shell";
 const PENDING_SHELL_POINTER = "/__capacitylens-offline/pending-shell";
+const SHELL_MANIFEST = "/offline-shell.json";
 const WORKER_SOURCE = readFileSync(join(cwd(), "public/offline-worker.js"), "utf8");
 
 function cacheKey(input: string | Request): string {
+  return new URL(typeof input === "string" ? input : input.url, ORIGIN).href;
+}
+
+function requestPath(input: string | Request): string {
   return new URL(typeof input === "string" ? input : input.url, ORIGIN).pathname;
 }
 
@@ -73,7 +78,12 @@ class MemoryCacheStorage {
   }
 }
 
-type WorkerListener = (event: { waitUntil: (work: Promise<unknown>) => void }) => void;
+type WorkerEvent = {
+  request?: Request;
+  respondWith?: (response: Promise<Response>) => void;
+  waitUntil?: (work: Promise<unknown>) => void;
+};
+type WorkerListener = (event: WorkerEvent) => void;
 
 function workerHarness(fetchImpl: (input: string | Request) => Promise<Response>) {
   const caches = new MemoryCacheStorage(fetchImpl);
@@ -117,6 +127,18 @@ function workerHarness(fetchImpl: (input: string | Request) => Promise<Response>
       if (!work) throw new Error(`${type} did not register lifecycle work.`);
       await work;
     },
+    async dispatchFetch(request: Request): Promise<Response | null> {
+      const listener = listeners.get("fetch");
+      if (!listener) throw new Error("Missing fetch listener.");
+      let response: Promise<Response> | null = null;
+      listener({
+        request,
+        respondWith: (value) => {
+          response = Promise.resolve(value);
+        },
+      });
+      return response ? await response : null;
+    },
   };
 }
 
@@ -135,14 +157,37 @@ async function pointer(caches: MemoryCacheStorage, key: string): Promise<string 
 }
 
 describe("offline service-worker shell upgrades", () => {
+  it("does not intercept API requests", async () => {
+    const fetchImpl = vi.fn(async () => new Response("network"));
+    const worker = workerHarness(fetchImpl);
+
+    await expect(worker.dispatchFetch(new Request(`${ORIGIN}/api/accounts`))).resolves.toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("serves the neutral cached shell when an offline navigation fails", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("offline");
+    });
+    const worker = workerHarness(fetchImpl);
+    await seedActiveShell(worker.caches, `${SHELL_CACHE_PREFIX}active-release`);
+    const request = new Request(`${ORIGIN}/invite/secret-token`);
+    Object.defineProperty(request, "mode", { value: "navigate" });
+
+    const response = await worker.dispatchFetch(request);
+
+    expect(await response?.text()).toContain("/assets/old.js");
+  });
+
   it("leaves the active shell unchanged when a new asset cannot be staged", async () => {
     const fetchImpl = vi.fn(async (input: string | Request) => {
-      const path = cacheKey(input);
+      const path = requestPath(input);
       if (path === "/") {
         return new Response(
           '<link href="/assets/present.css" rel="stylesheet"><script src="/assets/missing.js"></script>',
         );
       }
+      if (path === SHELL_MANIFEST) return Response.json([]);
       if (path === "/assets/present.css") return new Response("new styles");
       throw new Error("new asset unavailable");
     });
@@ -162,9 +207,11 @@ describe("offline service-worker shell upgrades", () => {
 
   it("promotes a complete private shell before deleting the prior release", async () => {
     const fetchImpl = vi.fn(async (input: string | Request) => {
-      const path = cacheKey(input);
+      const path = requestPath(input);
       if (path === "/") return new Response('<script src="/assets/new.js"></script>');
+      if (path === SHELL_MANIFEST) return Response.json(["/assets/lazy-route.js"]);
       if (path === "/assets/new.js") return new Response("new bundle");
+      if (path === "/assets/lazy-route.js") return new Response("lazy route");
       throw new Error(`Unexpected request for ${path}`);
     });
     const worker = workerHarness(fetchImpl);
@@ -187,6 +234,8 @@ describe("offline service-worker shell upgrades", () => {
     const activeShell = await worker.caches.open(stagedCacheName!);
     expect(await (await activeShell.match("/"))?.text()).toContain("/assets/new.js");
     expect(await (await activeShell.match("/assets/new.js"))?.text()).toBe("new bundle");
+    expect(await (await activeShell.match("/assets/lazy-route.js"))?.text()).toBe("lazy route");
+    expect(await (await activeShell.match(SHELL_MANIFEST))?.json()).toEqual(["/assets/lazy-route.js"]);
     expect(worker.claim).toHaveBeenCalledOnce();
   });
 });
