@@ -10,6 +10,22 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.3-alpha.5] — 2026-07-29
+
+This patch closes the P3 reliability review row. It tightens offline fallback, page-teardown
+persistence budgeting and password-processing backpressure without changing the portable export
+schema or SQLite database schema versions.
+
+### Fixed
+
+- Restricted read-only offline snapshot fallback to genuine browser network failures; reachable
+  server errors and client request deadlines now retain the retry screen instead of substituting
+  potentially stale data.
+- Preflighted the aggregate browser keepalive quota across the atomic teardown batch and every
+  sibling lifecycle archive before dispatching any request.
+- Mapped password-hash queue saturation to the same retryable service-unavailable contract used by
+  password verification.
+
 ## [0.27.3-alpha.4] — 2026-07-29
 
 This patch closes the P3 concurrency review row. It strengthens cross-tab coordination, write
@@ -2101,7 +2117,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.4...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.5...HEAD
+[0.27.3-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.4...v0.27.3-alpha.5
 [0.27.3-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.3...v0.27.3-alpha.4
 [0.27.3-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.2...v0.27.3-alpha.3
 [0.27.3-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.1...v0.27.3-alpha.2

@@ -7,6 +7,7 @@ import {
   planAuthSchemaMigrations,
   providerIdFromExternalContext,
   runAuthMigrations,
+  hashPasswordWithBackpressure,
   verifyPasswordWithBackpressure,
 } from "./auth";
 import type { PasswordHasher } from "./passwordSecurity";
@@ -40,6 +41,18 @@ describe("password verification backpressure", () => {
     await expect(
       verifyPasswordWithBackpressure(hasher, { hash: "stored", password: "correct password" }),
     ).rejects.toMatchObject({
+      status: "SERVICE_UNAVAILABLE",
+      body: expect.objectContaining({ code: "PASSWORD_PROCESSING_UNAVAILABLE" }),
+    });
+  });
+
+  it("maps new-hash saturation to the same retryable service-unavailable API error", async () => {
+    const hasher: PasswordHasher = {
+      hash: vi.fn().mockRejectedValue(new WorkQueueFullError("Password processing is at capacity.", "full")),
+      verify: vi.fn(),
+    };
+
+    await expect(hashPasswordWithBackpressure(hasher, "correct horse battery staple")).rejects.toMatchObject({
       status: "SERVICE_UNAVAILABLE",
       body: expect.objectContaining({ code: "PASSWORD_PROCESSING_UNAVAILABLE" }),
     });

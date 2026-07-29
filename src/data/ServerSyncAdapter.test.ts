@@ -176,7 +176,10 @@ describe("offline transport fallback", () => {
     }
   });
 
-  it("loads the verified cached account slice when the state request reaches its deadline", async () => {
+  it.each([
+    ["reaches its deadline", () => Promise.reject(new DOMException("signal timed out", "TimeoutError"))],
+    ["returns a server failure", () => Promise.resolve(new Response(null, { status: 503 }))],
+  ])("does not use a cached account slice when the state request %s", async (_condition, request) => {
     vi.stubGlobal("indexedDB", new IDBFactory());
     localStorage.setItem("capacitylens/offlineRead", "on");
     const cached = scopedData("a1", {});
@@ -193,11 +196,11 @@ describe("offline transport fallback", () => {
         multiAccount: false,
       });
       await cacheAccountSlice("a1", cached);
-      const fetchImpl = vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError"));
+      const fetchImpl = vi.fn(request);
       const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
 
-      await expect(adapter.loadAll("a1")).resolves.toEqual(cached);
-      expect(offlineStateSnapshot()).toMatchObject({ readOnly: true });
+      await expect(adapter.loadAll("a1")).rejects.toThrow(/Failed to load state|signal timed out/);
+      expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
     } finally {
       await clearAllOfflineData();
       setOfflineReadState(false);
@@ -206,7 +209,7 @@ describe("offline transport fallback", () => {
     }
   });
 
-  it("uses the scoped cache for a server failure but not a client rejection", async () => {
+  it("does not use the scoped cache for a client rejection", async () => {
     vi.stubGlobal("indexedDB", new IDBFactory());
     localStorage.setItem("capacitylens/offlineRead", "on");
     const cached = scopedData("a1", {});
@@ -222,13 +225,6 @@ describe("offline transport fallback", () => {
         multiAccount: false,
       });
       await cacheAccountSlice("a1", cached);
-      const serverFailure = new ServerSyncAdapter(
-        "http://api.test",
-        vi.fn(async () => new Response(null, { status: 503 })) as unknown as typeof fetch,
-      );
-      await expect(serverFailure.loadAll("a1")).resolves.toEqual(cached);
-
-      setOfflineReadState(false);
       const clientRejection = new ServerSyncAdapter(
         "http://api.test",
         vi.fn(async () => new Response(null, { status: 403 })) as unknown as typeof fetch,
@@ -1672,6 +1668,39 @@ describe("atomic large diffs and unload behaviour", () => {
     await expect(a.saveAll(withData({ clients: manyClients(1000) }), { unload: true })).rejects.toBeInstanceOf(
       KeepaliveNotDispatchedError,
     );
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("budgets a lifecycle archive with its sibling keepalive batch before dispatching either", async () => {
+    const fetchImpl = okFetch() as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const teardownDiscipline = (updatedAt = TS1): Discipline => ({
+      id: "d1",
+      accountId: "a1",
+      name: "Design",
+      sortOrder: 0,
+      color: "#3b82f6",
+      createdAt: TS1,
+      updatedAt,
+    });
+    await adapter.saveAll(
+      scopedData("a1", {
+        clients: [client("to-archive")],
+        disciplines: [teardownDiscipline()],
+      }),
+    );
+    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+    const nearQuotaName = "x".repeat(59 * 1024);
+    await expect(
+      adapter.saveAll(
+        scopedData("a1", {
+          disciplines: [{ ...teardownDiscipline(TS2), name: nearQuotaName }],
+        }),
+        { unload: true },
+      ),
+    ).rejects.toBeInstanceOf(KeepaliveNotDispatchedError);
 
     expect(fetchImpl).not.toHaveBeenCalled();
   });

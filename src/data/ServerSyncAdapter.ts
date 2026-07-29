@@ -213,13 +213,15 @@ export class KeepaliveNotDispatchedError extends Error {
   }
 }
 
-class OfflineEligibleLoadError extends Error {}
-
 // One logical diff is always one server transaction. The client never slices this limit into
 // separately committed prefixes; an over-limit diff fails atomically. Server-mode imports use
 // their dedicated atomic endpoint.
 export const MAX_OPS_PER_BATCH = 5000;
 const KEEPALIVE_BODY_BUDGET = 60 * 1024;
+// Fetch keepalive quotas are shared by every in-flight request in the page. Reserve a conservative
+// allowance for each request's method, URL and headers instead of spending the entire quota on
+// bodies and assuming sibling lifecycle archives are free.
+const KEEPALIVE_REQUEST_OVERHEAD_BUDGET = 1024;
 
 export class ServerSyncAdapter implements PersistenceAdapter {
   private readonly baseUrl: string;
@@ -403,10 +405,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         }
         return empty;
       }
-      if (!res.ok) {
-        const ErrorType = res.status >= 500 ? OfflineEligibleLoadError : Error;
-        throw new ErrorType(`Failed to load state (${res.status})`);
-      }
+      if (!res.ok) throw new Error(`Failed to load state (${res.status})`);
       // An HTML body — the SPA-fallback index.html or a proxy error page, a REACHABLE case now an
       // empty-env server-default build can hit a backend-less same-origin host — starts with '<', so
       // native res.json() runs JSON.parse and REJECTS with a SyntaxError. That rejection is caught
@@ -501,8 +500,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       }
       return data;
     } catch (e) {
-      const transportFailure = e instanceof OfflineEligibleLoadError || isTransportFailure(e);
-      if (accountId === undefined && transportFailure) {
+      // Only an actual fetch/network rejection proves the service is unreachable enough to use a
+      // stale read-only snapshot. A reachable 5xx and our own Abort/Timeout deadline are server
+      // failures: route them to the retry screen instead of presenting old data as ordinary offline
+      // mode. Browser fetch reports network/DNS/TLS failures as TypeError.
+      const offlineEligible = e instanceof TypeError;
+      if (accountId === undefined && offlineEligible) {
         try {
           const cachedIdentity = await readCachedAuthSnapshot({
             acceptEffects: () => myGen === this.loadGen,
@@ -517,7 +520,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           console.warn("ServerSyncAdapter: the offline identity snapshot could not be read", cacheError);
         }
       }
-      if (accountId !== undefined && transportFailure) {
+      if (accountId !== undefined && offlineEligible) {
         try {
           const cached = await readCachedAccountSlice(accountId);
           if (cached) {
@@ -618,6 +621,17 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     // would invert the load-bearing upserts-before-deletes ordering. Once preflight succeeds,
     // dispatch the atomic batch first so any reparent/upsert reaches the wire before the archives.
     const batchBody = batchOps.length > 0 ? this.prepareBatchBody(batchOps, { keepalive: true }) : null;
+    const archiveBodies = lifecycleDeletes.map((op) => JSON.stringify({ accountId: op.accountId }));
+    const keepaliveRequestCount = archiveBodies.length + (batchBody === null ? 0 : 1);
+    const keepaliveBytes = [batchBody, ...archiveBodies].reduce(
+      (total, body) => total + (body === null ? 0 : new TextEncoder().encode(body).byteLength),
+      keepaliveRequestCount * KEEPALIVE_REQUEST_OVERHEAD_BUDGET,
+    );
+    if (keepaliveBytes > KEEPALIVE_BODY_BUDGET) {
+      throw new KeepaliveNotDispatchedError(
+        "The pending changes and lifecycle archives exceed the page-teardown keepalive budget.",
+      );
+    }
     const batchFlush =
       batchBody !== null
         ? this.dispatchPreparedBatch(batchBody, batchOps, {

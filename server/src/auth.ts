@@ -58,6 +58,22 @@ export async function verifyPasswordWithBackpressure(
   }
 }
 
+/** Apply the same retryable boundary to new hashes; queue pressure is availability, not an
+ * unclassified authentication failure. */
+export async function hashPasswordWithBackpressure(hasher: PasswordHasher, password: string): Promise<string> {
+  try {
+    return await hasher.hash(password);
+  } catch (error) {
+    if (error instanceof WorkQueueFullError) {
+      throw APIError.from("SERVICE_UNAVAILABLE", {
+        message: error.message,
+        code: "PASSWORD_PROCESSING_UNAVAILABLE",
+      });
+    }
+    throw error;
+  }
+}
+
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
 // OSS library owns the session/credential/OIDC machinery — accepted precisely so we
 // don't own crypto/session code. THE OFF GUARANTEE: with CAPACITYLENS_AUTH unset or 'off',
@@ -936,7 +952,7 @@ export function authFromEnv(
       }
       throw error;
     }
-    return baseHasher.hash(password);
+    return hashPasswordWithBackpressure(baseHasher, password);
   };
 
   const cookiePrefix =

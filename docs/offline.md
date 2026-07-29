@@ -17,11 +17,12 @@ its cache key, creation time and record domain as authenticated additional data.
 failure, malformed data and expiry all delete the record instead of returning it. Upgrading from
 the older plaintext cache schema clears those records rather than migrating them.
 
-When a server request fails because the network is unavailable—including a stalled request that
-reaches its client deadline—a valid cached snapshot may be shown with an offline banner. The
-effective role becomes `viewer`, so create, update, delete, import and membership actions are
-unavailable. CapacityLens never queues a mutation for later and never attempts to reconcile offline
-edits.
+When the browser reports that a server request could not reach the network, a valid cached snapshot
+may be shown with an offline banner. A reachable server error and a request that reaches its client
+deadline instead show the retry screen; neither silently substitutes data that may be up to seven
+days old. While a cached snapshot is shown, the effective role becomes `viewer`, so create, update,
+delete, import and membership actions are unavailable. CapacityLens never queues a mutation for
+later and never attempts to reconcile offline edits.
 
 The cache is scoped to the browser origin, canonical configured API origin and verified user id.
 Changing `VITE_CAPACITYLENS_API` on an existing web origin creates a new namespace: snapshots from

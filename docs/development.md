@@ -223,6 +223,11 @@ visibility return (with a shared 30-second throttle). All paths reuse the accoun
 orchestrator so the rendered slice and adapter diff snapshot advance atomically; failed saves defer
 ordinary refreshes until their optimistic state can be preserved or reconciled.
 
+Page-teardown persistence preflights the aggregate browser keepalive budget before dispatching any
+request. The estimate includes every batch and lifecycle-archive body plus a conservative per-request
+allowance for request metadata; do not validate sibling keepalives independently because browsers
+apply their quota across all in-flight keepalive requests for the page.
+
 Batch validation assembles a request-local projection from only the account slices named by its
 operations, then advances that projection in operation order through per-table id and reverse-FK
 indexes. Account import likewise reads only the target slice before replacement. Do not replace the
