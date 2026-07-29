@@ -10,6 +10,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.3-alpha.1] — 2026-07-29
+
+This patch closes the remaining P3 security-assurance review records. Current-source verification
+confirmed that both controls and their regressions were already present, so this release changes no
+runtime behavior, portable export schema or SQLite database schema.
+
+### Security
+
+- Confirmed that purge authorization is enforced by the server for every lifecycle route: viewers,
+  editors and non-members cannot purge, while administrators and owners can.
+- Confirmed that retained migration-rehearsal snapshots reject unclassified columns before copying
+  data, covering newly added or renamed secret-bearing fields.
+
 ## [0.27.2-alpha.1] — 2026-07-29
 
 This patch release resolves the remaining correctness, durability, compatibility, operational,
@@ -2034,7 +2047,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.1...HEAD
+[0.27.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.2-alpha.1...v0.27.3-alpha.1
 [0.27.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.1-alpha.1...v0.27.2-alpha.1
 [0.27.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.0-alpha.1...v0.27.1-alpha.1
 [0.27.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.26.0-alpha.1...v0.27.0-alpha.1
