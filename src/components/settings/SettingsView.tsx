@@ -198,14 +198,21 @@ export function SettingsView() {
       await setOfflineReadEnabled(next);
       if (next) {
         if (!user) throw new Error(m.settings_offline_verified_user_required());
-        await cacheAuthSnapshot({
+        const authWrite = await cacheAuthSnapshot({
           authMode,
           user,
           canCreateAccount,
           multiAccount,
         });
-        await cacheAccountSummaries(accountSummaries);
-        if (activeAccountId) await cacheAccountSlice(activeAccountId, data);
+        const summariesWrite = await cacheAccountSummaries(accountSummaries);
+        const sliceWrite = activeAccountId ? await cacheAccountSlice(activeAccountId, data) : null;
+        if (
+          authWrite.status !== "written" ||
+          summariesWrite.status !== "written" ||
+          (sliceWrite !== null && sliceWrite.status !== "written")
+        ) {
+          throw new Error(m.settings_offline_write_failed());
+        }
       }
       setNotice(next ? m.settings_offline_enabled_notice() : m.settings_offline_disabled_notice(), "info");
     } catch (e) {

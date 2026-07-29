@@ -852,7 +852,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       headers: { cookie },
     });
     expect(listed.statusCode).toBe(200);
-    const sessions = listed.json() as Array<{ id: string; current: boolean }>;
+    const { sessions } = listed.json() as { sessions: Array<{ id: string; current: boolean }> };
     expect(sessions).toHaveLength(1);
     expect(sessions[0]).toMatchObject({ current: true });
     expect(JSON.stringify(sessions)).not.toContain(raw.token);
@@ -868,11 +868,8 @@ describe("CAPACITYLENS_AUTH password", () => {
         "x-account-command-id": "session-command-0000001",
       },
     });
-    expect(revoked.statusCode).toBe(200);
-    expect(revoked.json()).toMatchObject({
-      commandId: "session-command-0000001",
-      changed: true,
-    });
+    expect(revoked.statusCode).toBe(204);
+    expect(revoked.body).toBe("");
     expect(
       (
         await call(app, {

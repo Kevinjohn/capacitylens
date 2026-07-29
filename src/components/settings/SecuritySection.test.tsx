@@ -41,7 +41,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 beforeEach(() => {
   // Each invocation needs a fresh Response because response bodies are single-use.
-  listSessions.mockReset().mockImplementation(() => Promise.resolve(jsonResponse([SESSION])));
+  listSessions.mockReset().mockImplementation(() => Promise.resolve(jsonResponse({ sessions: [SESSION] })));
   changePassword.mockReset();
   revokeOwnSession.mockReset();
 });
@@ -113,7 +113,7 @@ describe("SecuritySection", () => {
       configurable: true,
       value: { ...realLocation, reload },
     });
-    listSessions.mockResolvedValue(jsonResponse([{ ...SESSION, current: true }]));
+    listSessions.mockResolvedValue(jsonResponse({ sessions: [{ ...SESSION, current: true }] }));
     revokeOwnSession.mockResolvedValue(new Response(null, { status: 204 }));
     try {
       render(<SecuritySection />);
@@ -135,7 +135,7 @@ describe("SecuritySection", () => {
       configurable: true,
       value: { ...realLocation, reload },
     });
-    listSessions.mockResolvedValue(jsonResponse([{ ...SESSION, current: true }]));
+    listSessions.mockResolvedValue(jsonResponse({ sessions: [{ ...SESSION, current: true }] }));
     revokeOwnSession.mockRejectedValueOnce(new TypeError("network failed"));
     try {
       render(<SecuritySection />);
@@ -207,7 +207,7 @@ describe("SecuritySection", () => {
   });
 
   it("rejects an invalid session list without rendering its valid subset", async () => {
-    listSessions.mockResolvedValue(jsonResponse([SESSION, { ...SESSION, id: "short" }]));
+    listSessions.mockResolvedValue(jsonResponse({ sessions: [SESSION, { ...SESSION, id: "short" }] }));
     render(<SecuritySection />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_sessions_invalid());

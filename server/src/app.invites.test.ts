@@ -190,7 +190,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
       createdAt: TS,
     });
 
-    for (const headers of [
+    const headerCases: Array<Record<string, string>> = [
       {
         cookie,
         "idempotency-key": "short",
@@ -201,7 +201,16 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
         "idempotency-key": "valid-idempotency-key-0001",
         "x-account-command-id": "bad id",
       },
-    ]) {
+      {
+        cookie,
+        "idempotency-key": "valid-idempotency-key-0001",
+      },
+      {
+        cookie,
+        "x-account-command-id": "valid-command-id-000001",
+      },
+    ];
+    for (const headers of headerCases) {
       const response = await createInviteReq(app, { accountId: "a1", role: "editor" }, headers);
       expect(response.statusCode).toBe(400);
       expect(response.json()).toMatchObject({

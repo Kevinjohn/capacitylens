@@ -587,7 +587,7 @@ describe("import → one import line (7)", () => {
     await post(app, "accounts", account("a1"));
     const before = lines().length;
     // Every record drops in remap (an allocation with dangling refs) → imported = 0 → the server
-    // refuses the replace and returns 200 {imported: 0}; the audit must not claim an import ran.
+    // refuses the replace explicitly; the audit must not claim an import ran.
     const file = {
       schemaVersion: 3,
       data: {
@@ -615,8 +615,12 @@ describe("import → one import line (7)", () => {
       },
     };
     const res = await call(app, { method: "POST", url: "/api/import", payload: body({ accountId: "a1", data: file }) });
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(400);
     expect((res.json() as { imported: number }).imported).toBe(0);
+    expect(res.json()).toMatchObject({
+      error: "The import contained no usable records, so the company data was left unchanged.",
+      skipped: 1,
+    });
     expect(lines().slice(before)).toHaveLength(0);
   });
 });

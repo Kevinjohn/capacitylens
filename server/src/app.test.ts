@@ -291,9 +291,9 @@ describe("CRUD round-trip", () => {
     const { app } = freshApp();
     await scaffold(app); // c1 in a1
     await post(app, "accounts", account("a2"));
-    // PATCH and PUT that try to move c1 into a2 are both rejected with 409…
-    expect((await patch(app, "clients", "c1", { accountId: "a2" })).statusCode).toBe(409);
-    expect((await put(app, "clients", "c1", { ...client("c1", "a2") })).statusCode).toBe(409);
+    // PATCH and PUT that try to move c1 into a2 are indistinguishable from an absent row.
+    expect((await patch(app, "clients", "c1", { accountId: "a2" })).statusCode).toBe(404);
+    expect((await put(app, "clients", "c1", { ...client("c1", "a2") })).statusCode).toBe(404);
     // …and c1 stays in a1.
     expect((await state(app)).clients[0].accountId).toBe("a1");
   });
@@ -1596,7 +1596,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     expect((await patch(app, "accounts", "a1", { schedulingMode: "blocks" })).statusCode).toBe(200);
   });
 
-  it("a batch PUT op changing a frozen field is rejected (400) and the row is unchanged", async () => {
+  it("a batch PUT changing a frozen field returns the same reloadable 409 as direct writes", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
     // Documented asymmetry: the batch maps a ValidationError to 400 (vs the per-route 409).
@@ -1608,7 +1608,7 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
         row: { ...account("a1"), ...FROZEN, timezone: "Europe/London" },
       },
     ]);
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(409);
     expect((await state(app)).accounts[0].timezone).toBe("Etc/GMT"); // tx rolled back
   });
 });
@@ -2271,6 +2271,18 @@ describe("optimistic concurrency (default-on)", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().name).toBe("Renamed");
     expect(Date.parse(res.json().updatedAt)).not.toBeNaN();
+  });
+
+  it("rejects null for a required PATCH field without rewriting the stored value", async () => {
+    const app = buildApp(openDb(":memory:"));
+    await post(app, "accounts", account("a1"));
+    await put(app, "clients", "c1", client("c1", "a1"));
+
+    const res = await patch(app, "clients", "c1", { name: null });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/required field.*cannot be null/i);
+    expect((await state(app)).clients[0].name).toBe("Acme");
   });
 
   it("keeps writing to a row whose STORED updatedAt is unparseable (never write-bricked)", async () => {

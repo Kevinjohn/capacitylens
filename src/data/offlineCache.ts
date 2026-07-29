@@ -619,11 +619,14 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
   }
 }
 
+export type OfflineCacheWriteResult = { status: "written" } | { status: "skipped"; reason: "disabled" | "unscoped" };
+
 /** Persist the last verified identity and make it the cache scope for this page. */
-export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<void> {
+export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<OfflineCacheWriteResult> {
   scope = { origin: originKey(), userId: snapshot.user.id };
-  if (!offlineReadEnabled()) return;
+  if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
   await put({ key: authKey(), savedAt: Date.now(), value: snapshot });
+  return { status: "written" };
 }
 
 /** Restore the last verified identity for an offline boot. Never fabricates a session. */
@@ -641,13 +644,15 @@ export async function readCachedAuthSnapshot(
   return record;
 }
 
-export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]): Promise<void> {
-  if (!offlineReadEnabled() || !scope) return;
+export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]): Promise<OfflineCacheWriteResult> {
+  if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
+  if (!scope) return { status: "skipped", reason: "unscoped" };
   await put({
     key: scopedKey("accounts"),
     savedAt: Date.now(),
     value: summaries,
   });
+  return { status: "written" };
 }
 
 export async function readCachedAccountSummaries(): Promise<CachedRecord<OfflineAccountSummary[]> | null> {
@@ -655,13 +660,15 @@ export async function readCachedAccountSummaries(): Promise<CachedRecord<Offline
   return getValidated(scopedKey("accounts"), validateAccountSummaries);
 }
 
-export async function cacheAccountSlice(accountId: string, data: AppData): Promise<void> {
-  if (!offlineReadEnabled() || !scope) return;
+export async function cacheAccountSlice(accountId: string, data: AppData): Promise<OfflineCacheWriteResult> {
+  if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
+  if (!scope) return { status: "skipped", reason: "unscoped" };
   await put({
     key: scopedKey("slice", `:${accountId}`),
     savedAt: Date.now(),
     value: data,
   });
+  return { status: "written" };
 }
 
 export async function readCachedAccountSlice(accountId: string): Promise<CachedRecord<AppData> | null> {

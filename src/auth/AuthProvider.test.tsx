@@ -535,6 +535,21 @@ describe("AuthProvider — server mode", () => {
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
 
+  it("surfaces the authentication service's temporary-unavailability message", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => me(503, { error: "Sign-in is temporarily unavailable." })),
+    );
+    const { AuthProvider } = await freshProvider();
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("Sign-in is temporarily unavailable.")).toBeInTheDocument();
+  });
+
   it("password invite routes render before sign-in so the token can onboard a new identity", async () => {
     window.history.pushState({}, "", "/invite/invite-token");
     try {

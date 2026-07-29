@@ -4,6 +4,7 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient, accountCommandOutcomeUnknown } from "./accountClient";
 import { hasDuplicateIdentity } from "../lib/arrayIdentity";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
+import { apiErrorFromBody, readApiError } from "../lib/readApiError";
 
 export interface TeamMember {
   userId: string;
@@ -121,19 +122,15 @@ function parseToken(value: unknown): OneTimeToken | null {
   };
 }
 
-function failureMessage(body: unknown): string | null {
-  if (!isRecord(body)) return null;
-  return typeof body.error === "string" && body.error.length > 0 ? body.error : null;
-}
-
 async function commandResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
   expectedStatus?: number,
 ): Promise<TeamAccessResult<T>> {
   if (!response.ok) {
+    const clonedMessage = typeof response.clone === "function" ? await readApiError(response) : undefined;
     const body: unknown = await response.json().catch(() => null);
-    const message = failureMessage(body);
+    const message = clonedMessage ?? apiErrorFromBody(body) ?? null;
     return (await accountCommandOutcomeUnknown(response, body))
       ? { kind: "unknown", status: response.status, message }
       : { kind: "rejected", status: response.status, message };
@@ -159,7 +156,7 @@ async function readResult<T>(response: Response, decode: (body: unknown) => T | 
     return {
       kind: "rejected",
       status: response.status,
-      message: failureMessage(await response.json().catch(() => null)),
+      message: (await readApiError(response)) ?? null,
     };
   }
   const body: unknown = await response.json().catch(() => null);

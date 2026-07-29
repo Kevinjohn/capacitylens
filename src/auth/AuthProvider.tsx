@@ -25,6 +25,7 @@ import { isTransportFailure } from "../data/requestTimeout";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
+import { readApiError } from "../lib/readApiError";
 
 // Auth boundary (production plan P3.3). In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
 // pure pass-through that performs NO fetch at all. In server mode (the default) it asks
@@ -245,6 +246,12 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
         }).catch((error) => console.warn("AuthProvider: the offline identity snapshot could not be updated", error));
       }
       return next;
+    }
+    if (res.status === 503) {
+      return {
+        kind: "error",
+        message: (await readApiError(res)) ?? m.auth_check_failed({ status: res.status }),
+      };
     }
     return {
       kind: "error",

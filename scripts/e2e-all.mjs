@@ -18,10 +18,12 @@
 import { spawnSync } from "node:child_process";
 import { nonColourEnvironment } from "./pnpm-spawn.mjs";
 
+const forwardedArgs = process.argv.slice(2);
+
 /** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:all — ${label} ===`);
-  const res = spawnSync("pnpm", ["exec", "playwright", "test", ...extraArgs], {
+  const res = spawnSync("pnpm", ["exec", "playwright", "test", ...extraArgs, ...forwardedArgs], {
     stdio: "inherit",
     env: nonColourEnvironment(env),
     // shell: true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors dev-fullstack.mjs.

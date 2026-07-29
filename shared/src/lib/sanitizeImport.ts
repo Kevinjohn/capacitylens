@@ -282,7 +282,8 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       break;
     case "disciplines":
       rec.sortOrder = safeInt(rec.sortOrder, 0);
-      if (rec.color !== undefined) rec.color = snapToPresetColor(rec.color);
+      if (rec.color === null) delete rec.color;
+      else if (rec.color !== undefined) rec.color = snapToPresetColor(rec.color);
       cleanRequiredField(rec, "name", "Untitled"); // name is NOT NULL
       break;
     case "clients":

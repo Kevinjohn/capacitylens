@@ -339,6 +339,9 @@ writes retain their configured optimistic-concurrency policy. Ordering rows expi
 For an existing-row PUT or batch PUT, `updatedAt` is an exact server-revision precondition: omission,
 malformation, an older value or a caller-authored future value returns 409. A partial PATCH may omit
 the precondition for compatibility, but any supplied value must match exactly.
+PATCH is a merge: omitting a field preserves its stored value, explicit `null` clears an optional
+column, and explicit `null` for a required column is rejected with 400. Optional values repaired by
+the shared import sanitizer normalize to absence consistently before SQLite encoding.
 Row provenance carries its owning account explicitly and is removed as part of workspace erasure.
 Current servers return one server-owned revision for each PUT table/id and no others; a superseded
 ordered batch returns an empty revision list. During a rolling-version window the client also

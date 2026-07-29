@@ -65,6 +65,10 @@ the coordinator, never the identity adapter or control tables.
 
 The browser uses `src/account/accountClient.ts` for every account endpoint. That client owns request
 idempotency headers, reauthentication behavior and the longer timeout used for bulk erasure.
+Member and invitation directories contain identity and admission data, so listing either is an
+administrative operation and deliberately requires the same fresh-session assurance as its related
+mutations. The shared `membershipRevision` is identity-global: a membership change in one workspace
+invalidates every cached workspace authority summary for that principal.
 
 ## Trusted application and identity model
 
@@ -94,7 +98,8 @@ secrets: integrations must generate each one independently with a cryptographica
 generator, retain it only for that retry ceremony and never derive it from a user, account,
 timestamp, sequence or business payload. CapacityLens uses independent RFC 4122 version-4 UUIDs;
 other 16–128 character base64url-style values are supported only when they provide equivalent
-unguessability. Deterministic or otherwise predictable command ids are unsupported.
+unguessability. Deterministic or otherwise predictable command ids are unsupported. A caller must
+supply both headers or neither; a partial command identity is rejected with `VALIDATION_FAILED`.
 
 This entropy requirement is load-bearing because `commandId` is a globally unique reconciliation
 coordinate retained for up to 30 days. Global correlation lets the public status ceremony and the

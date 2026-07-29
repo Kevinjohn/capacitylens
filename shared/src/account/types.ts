@@ -10,6 +10,8 @@ export type ApplicationId = string;
 export type WorkspaceId = string;
 export type PrincipalId = string;
 export type SessionId = string;
+/** Identity-global security revision. It intentionally changes for every workspace summary when
+ * any membership of the principal changes, invalidating all cached authority conservatively. */
 export type MembershipRevision = string;
 export type PolicyVersion = string;
 export type CommandId = string;
@@ -40,6 +42,8 @@ export type Role = (typeof ACCOUNT_ROLES)[number];
 export function isAccountRole(value: unknown): value is Role {
   return typeof value === "string" && (ACCOUNT_ROLES as readonly string[]).includes(value);
 }
+/** Public administration ports return active memberships only; inactive storage rows are internal
+ * retention state and deliberately do not flow through this contract. */
 export type MembershipStatus = "active";
 
 export interface BoundApplication {

@@ -9,9 +9,9 @@ import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 const offlineMocks = vi.hoisted(() => ({
   enabled: false,
   setEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
-  cacheAuth: vi.fn(async () => {}),
-  cacheSummaries: vi.fn(async () => {}),
-  cacheSlice: vi.fn(async () => {}),
+  cacheAuth: vi.fn(async () => ({ status: "written" as const })),
+  cacheSummaries: vi.fn(async () => ({ status: "written" as const })),
+  cacheSlice: vi.fn(async () => ({ status: "written" as const })),
   preferenceListeners: new Set<() => void>(),
 }));
 

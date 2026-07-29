@@ -71,6 +71,8 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     fail: accountFail,
   } = dependencies;
   const isKnownRole = isAccountRole;
+  const validationFailed = (message: string) =>
+    new AccountContractError({ code: "VALIDATION_FAILED", message, retryable: false });
   const memberNotFound = (command: CommandIdentity) =>
     new AccountContractError({
       code: "NOT_FOUND",
@@ -156,7 +158,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   app.get("/api/account/sessions", async (req, reply) => {
     try {
-      return reply.code(200).send(await identityPort.listSessions({ actor: req.accountActor! }));
+      return reply.code(200).send({ sessions: await identityPort.listSessions({ actor: req.accountActor! }) });
     } catch (error) {
       return accountFail(reply, error);
     }
@@ -168,13 +170,12 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       return reply.code(400).send({ error: "Invalid session id." });
     }
     try {
-      return reply.code(200).send(
-        await identityPort.revokeOwnSession({
-          actor: req.accountActor!,
-          sessionId,
-          command: accountCommand(req),
-        }),
-      );
+      await identityPort.revokeOwnSession({
+        actor: req.accountActor!,
+        sessionId,
+        command: accountCommand(req),
+      });
+      return reply.code(204).send();
     } catch (error) {
       return accountFail(reply, error);
     }
@@ -201,10 +202,10 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       preauthEmail?: unknown;
     };
     if (typeof body.accountId !== "string" || body.accountId.length === 0) {
-      return reply.code(400).send({ error: "accountId must be a non-empty string." });
+      return accountFail(reply, validationFailed("accountId must be a non-empty string."));
     }
     if (!isKnownRole(body.role)) {
-      return reply.code(400).send({ error: "role must be one of owner, admin, editor, viewer." });
+      return accountFail(reply, validationFailed("role must be one of owner, admin, editor, viewer."));
     }
     // Shape-check preauthEmail here, BEFORE the authorize() gate below, so a malformed email is
     // rejected with 400 and never reaches the write. An absent value or a string that is empty
@@ -212,7 +213,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     // it as absent would widen redemption beyond the admin's apparent intent.
     let preauthEmail: string | null = null;
     if (body.preauthEmail !== undefined && typeof body.preauthEmail !== "string") {
-      return reply.code(400).send({ error: "preauthEmail must be a valid email address." });
+      return accountFail(reply, validationFailed("preauthEmail must be a valid email address."));
     }
     if (typeof body.preauthEmail === "string") {
       const trimmed = body.preauthEmail.trim();
@@ -231,7 +232,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     } else {
       const parsed = typeof requestedExpiry === "string" ? parseStrictIsoInstant(requestedExpiry) : null;
       if (parsed === null) {
-        return reply.code(400).send({ error: "expiresAt must be a valid ISO-8601 timestamp." });
+        return accountFail(reply, validationFailed("expiresAt must be a valid ISO-8601 timestamp."));
       }
       expiresAt = new Date(parsed).toISOString();
     }

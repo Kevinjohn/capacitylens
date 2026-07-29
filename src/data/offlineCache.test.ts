@@ -275,6 +275,14 @@ describe("offline tenant cache", () => {
     vi.unstubAllGlobals();
   });
 
+  it("reports why writes are skipped instead of resolving ambiguously", async () => {
+    localStorage.removeItem("capacitylens/offlineRead");
+    await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "disabled" });
+
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "unscoped" });
+  });
+
   it("observes offline preference and cleanup boundaries from another tab", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
     await cacheAuthSnapshot(authSnapshot("user-a")); // establishes the live page's identity scope
@@ -640,7 +648,7 @@ describe("offline tenant cache", () => {
     expect(offlineStateSnapshot().cacheWriteFailed).toBe(true);
     await clearAllOfflineData();
 
-    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toBeUndefined();
+    await expect(cacheAuthSnapshot(authSnapshot("user-a"))).resolves.toEqual({ status: "written" });
     expect(offlineStateSnapshot().cacheWriteFailed).toBe(false);
     await expect(readCachedAuthSnapshot()).resolves.toMatchObject({
       value: { user: { id: "user-a" } },

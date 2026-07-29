@@ -10,6 +10,23 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.3-alpha.6] — 2026-07-29
+
+This patch closes the P3 API and compatibility review row. It makes refusal, retry, session,
+cross-tenant and offline-cache outcomes explicit while preserving the portable export and SQLite
+database schema versions.
+
+### Fixed
+
+- Normalized zero-record imports, cross-tenant writes, frozen-field batches, authentication 503s,
+  session listing/revocation and invitation validation to explicit, consistent HTTP contracts.
+- Required account command headers as a pair and narrowed retry-delay typing so contradictory
+  retry metadata cannot be constructed.
+- Made offline cache skips and superseded queued saves observable instead of resolving like durable
+  writes, and made shared API error reads non-consuming for standard responses.
+- Forwarded Playwright wrapper arguments and localized complete-export failures.
+- Rejected `null` for required direct-write columns while retaining documented optional clears.
+
 ## [0.27.3-alpha.5] — 2026-07-29
 
 This patch closes the P3 reliability review row. It tightens offline fallback, page-teardown
@@ -2117,7 +2134,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.5...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.6...HEAD
+[0.27.3-alpha.6]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.5...v0.27.3-alpha.6
 [0.27.3-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.4...v0.27.3-alpha.5
 [0.27.3-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.3...v0.27.3-alpha.4
 [0.27.3-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.2...v0.27.3-alpha.3

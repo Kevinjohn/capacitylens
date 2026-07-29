@@ -475,6 +475,13 @@ function accountCommand(req: FastifyRequest): CommandIdentity {
       retryable: false,
     });
   }
+  if ((rawIdempotency === undefined) !== (rawCommand === undefined)) {
+    throw new AccountContractError({
+      code: "VALIDATION_FAILED",
+      message: "Idempotency-Key and X-Account-Command-Id must be supplied together.",
+      retryable: false,
+    });
+  }
   const idempotencyKey = validAccountCommandHeader(rawIdempotency) ? rawIdempotency : newId();
   // They serve different purposes and remain independent even for compatibility callers that do
   // not yet send either header: the command id is the reconciliation handle, while the
@@ -1991,7 +1998,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // (see ownsRow). The web store enforces this via findOwned; without the same guard a
         // crafted request could re-home a row and orphan its children across the tenant boundary.
         if (!ownsRow(existing, body.accountId)) {
-          return reply.code(409).send({ error: "That record belongs to a different company." });
+          return reply.code(404).send({ error: "Not found" });
         }
         // Compare the sanitised account candidate so malformed frozen values are ignored and an
         // absent legacy value may be set once. A different valid value remains a 409.
@@ -2143,7 +2150,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         );
         // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
         if (!ownsRow(existing, merged.accountId)) {
-          return reply.code(409).send({ error: "That record belongs to a different company." });
+          return reply.code(404).send({ error: "Not found" });
         }
         // `merged` is already sanitised and pins stored frozen values when malformed input is
         // dropped. Missing legacy values may be set once; different valid stored values stay frozen.
@@ -2592,7 +2599,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     );
                     if (builtinRejection) throw new ValidationError(builtinRejection.error);
                     if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
-                      throw new ValidationError("That record belongs to a different company.");
+                      throw new AccountContractError({
+                        code: "NOT_FOUND",
+                        message: "Not found",
+                        retryable: false,
+                      });
                     }
                     const sanitizedRow = sanitizeWrite(
                       table,
@@ -2600,15 +2611,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       existing,
                       fieldVisFor(table, (row as { accountId?: unknown }).accountId),
                     );
-                    // language/weekStartsOn/timezone are FROZEN after creation (P1.14). DOCUMENTED
-                    // ASYMMETRY: the per-route PUT/PATCH return 409 (what the acceptance asserts), but a
-                    // ValidationError in the batch maps to 400 — the batch is the INTERNAL sync path, and
-                    // the disabled Settings UI never sends a changed frozen field, so a violation here is
-                    // a malformed client, not a user action. accounts-only.
+                    // language/weekStartsOn/timezone are FROZEN after creation (P1.14). Match the
+                    // direct routes' 409 so the sync client takes its authoritative-reload path
+                    // instead of retrying the same state-dependent conflict indefinitely.
                     if (table === "accounts" && accountFieldsFrozen(existing, sanitizedRow)) {
-                      throw new ValidationError(
-                        "Language, week start and time zone are set when the company is created and cannot be changed.",
-                      );
+                      throw new AccountContractError({
+                        code: "CONFLICT",
+                        message:
+                          "Language, week start and time zone are set when the company is created and cannot be changed.",
+                        retryable: false,
+                      });
                     }
                     // Optimistic concurrency is default-on for generic writes and mandatory for an
                     // ordered browser batch. The stale-write refusal is isStaleWrite, the SAME predicate
@@ -2686,7 +2698,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                         throw new ValidationError("accountId is required to delete a scoped record.");
                       }
                       if (!ownsRow(existing, op.accountId)) {
-                        throw new ValidationError("That record belongs to a different company.");
+                        throw new AccountContractError({
+                          code: "NOT_FOUND",
+                          message: "Not found",
+                          retryable: false,
+                        });
                       }
                     }
                     if (
@@ -2821,21 +2837,26 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const result = remapAndValidateImport(currentSlice, body.accountId, incoming, new Date().toISOString());
         // Refuse a zero-record import rather than wiping the account's slice (mirrors the
         // client store guard — replacing a company's data with nothing is never intended).
-        let auditOk = true;
-        if (result.imported > 0) {
-          const auditRecord: AuditRecord = {
-            ts: new Date().toISOString(),
-            userId: req.user!.id,
-            accountId: body.accountId,
-            action: "import",
-            entity: "account",
-            id: body.accountId,
-            changedFields: [],
-          };
-          auditOk = commitProductAudit(reply, auditRecord, () => {
-            replaceAccountSlice(db, body.accountId!, validatedCompleteAccountSlice(result.data));
+        if (result.imported === 0) {
+          return reply.code(400).send({
+            error: "The import contained no usable records, so the company data was left unchanged.",
+            imported: 0,
+            skipped: result.skipped,
+            maxRecords: MAX_IMPORT_RECORDS,
           });
         }
+        const auditRecord: AuditRecord = {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: body.accountId,
+          action: "import",
+          entity: "account",
+          id: body.accountId,
+          changedFields: [],
+        };
+        const auditOk = commitProductAudit(reply, auditRecord, () => {
+          replaceAccountSlice(db, body.accountId!, validatedCompleteAccountSlice(result.data));
+        });
         return {
           imported: result.imported,
           skipped: result.skipped,

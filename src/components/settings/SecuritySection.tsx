@@ -39,11 +39,18 @@ export function SecuritySection() {
     try {
       const response = await accountClient.listSessions();
       const body: unknown = await response.json().catch(() => null);
-      if (!response.ok || !Array.isArray(body)) {
+      const rows =
+        body &&
+        typeof body === "object" &&
+        !Array.isArray(body) &&
+        Array.isArray((body as { sessions?: unknown }).sessions)
+          ? (body as { sessions: unknown[] }).sessions
+          : null;
+      if (!response.ok || rows === null) {
         setError(m.settings_security_err_sessions_load());
         return response.status === 401 ? "unauthorized" : "failed";
       }
-      const valid = body.filter((value): value is SessionView => {
+      const valid = rows.filter((value): value is SessionView => {
         if (!value || typeof value !== "object") return false;
         const row = value as Partial<SessionView>;
         return (
@@ -56,7 +63,7 @@ export function SecuritySection() {
           typeof row.current === "boolean"
         );
       });
-      if (valid.length !== body.length) {
+      if (valid.length !== rows.length) {
         setError(m.settings_security_err_sessions_invalid());
         return "failed";
       }

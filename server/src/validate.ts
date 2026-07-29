@@ -143,6 +143,13 @@ export function sanitizeWrite(
 ): Record<string, unknown> {
   assertIdPresent(row);
   const copy = acceptedWriteFields(table, row);
+  const nullRequiredFields =
+    TABLES[table]?.columns.filter((column) => column.optional !== true && copy[column.name] === null) ?? [];
+  if (nullRequiredFields.length > 0) {
+    throw new ValidationError(
+      `Required field(s) cannot be null: ${nullRequiredFields.map((column) => column.name).join(", ")}.`,
+    );
+  }
   if (table === "accounts") {
     // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
     // snapToPresetColor — the SAME mapper the client uses and the one-time

@@ -23,13 +23,19 @@ export type AccountErrorCode =
   | "RATE_LIMITED"
   | "UNSUPPORTED_CAPABILITY";
 
-export interface AccountFailure {
+interface AccountFailureBase {
   code: AccountErrorCode;
   message: string;
-  retryable: boolean;
   commandId?: CommandId;
-  retryAfterSeconds?: number;
 }
+
+/** A normalized boundary failure. A retry delay is meaningful only when retrying is permitted;
+ * the union makes the contradictory `retryable: false` plus delay shape unrepresentable. Codes do
+ * not imply retryability by themselves: dependency and reconciliation failures can be terminal or
+ * transient according to how far their underlying operation progressed. */
+export type AccountFailure =
+  | (AccountFailureBase & { retryable: false; retryAfterSeconds?: never })
+  | (AccountFailureBase & { retryable: true; retryAfterSeconds?: number });
 
 /** Normalized boundary error. Vendor/SQL errors remain internal causes, never public shapes. */
 export class AccountContractError extends Error {

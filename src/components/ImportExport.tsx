@@ -7,7 +7,7 @@ import { errorMessage } from "../lib/errorMessage";
 import { readApiError } from "../lib/readApiError";
 import { API_BASE, isServerConfigured } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
-import { fetchInactiveSlice } from "../data/fetchInactiveSlice";
+import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../data/fetchInactiveSlice";
 import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "../data/persist";
 import { useRole } from "../auth/permissionContext";
 import { can, canSeePrivateNames } from "@capacitylens/shared/domain/access";
@@ -110,7 +110,13 @@ export function ImportExport() {
       }
       downloadTextFile("capacitylens-data.json", serializeData(exported));
     } catch (e) {
-      setNotice(errorMessage(e), "error");
+      if (e instanceof InactiveSliceHttpError) {
+        setNotice(e.serverMessage ?? m.data_export_failed({ status: e.status }), "error");
+      } else if (e instanceof InactiveSliceShapeError) {
+        setNotice(m.data_export_incomplete(), "error");
+      } else {
+        setNotice(m.data_export_error({ error: errorMessage(e) }), "error");
+      }
     }
   };
 

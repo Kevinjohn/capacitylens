@@ -672,9 +672,11 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       this.queued = null;
       // A reload SEEDED the snapshot after this save was queued: the state it was diffed-to-be
       // against no longer exists, and diffing it against the fresh seed could cross tenants
-      // (see the seedGen doc). Drop it — persist.ts's reload paths have already surfaced or
-      // re-pushed whatever edit it carried.
-      if (targetSeedGen !== this.seedGen) continue;
+      // (see the seedGen doc). Reject rather than resolving the public save contract: persist can
+      // surface/rebase the edit instead of treating an undispatched target as acknowledged.
+      if (targetSeedGen !== this.seedGen) {
+        throw new Error("The pending changes were superseded by a refreshed company snapshot.");
+      }
       let canonicalTarget = this.canonicalizeAcknowledged(target);
       this.dispatchedTarget = canonicalTarget;
       let ops = diffOps(this.lastSynced, canonicalTarget);

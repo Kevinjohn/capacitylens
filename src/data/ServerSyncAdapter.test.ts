@@ -1864,11 +1864,11 @@ describe("snapshot generation guard (superseded loads / in-flight batches)", () 
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
   });
 
-  it("a QUEUED save parked before a reload seeded is DROPPED — its diff basis is gone (cross-tenant guard)", async () => {
+  it("a queued save parked before a reload seed rejects without dispatching against the new basis", async () => {
     // Coalesce-to-latest parks a second save while the first is in flight. If a reload seeds the
     // snapshot before drain picks the parked save up, diffing it against the FRESH seed could
     // emit cross-state ops (DELETEs of rows the parked save's tenant never had). It must be
-    // dropped — persist.ts's reload paths surface/re-push whatever edit it carried.
+    // rejected — persist.ts can surface/re-push whatever edit it carried.
     const slice = scopedData("a1", { clients: [client("c1")] });
     let releaseBatch: (() => void) | null = null;
     const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
@@ -1887,7 +1887,9 @@ describe("snapshot generation guard (superseded loads / in-flight batches)", () 
     const save2 = a.saveAll(withData({ clients: [client("cX"), client("cY")] })); // parked
     await a.loadAll("a1"); // reload completes while batch 1 is in flight: seed = slice
     releaseBatch!();
-    await Promise.all([save1, save2]);
+    await expect(Promise.all([save1, save2])).rejects.toThrow(
+      "The pending changes were superseded by a refreshed company snapshot.",
+    );
 
     // Exactly ONE batch went out (the parked save was dropped, never diffed against the seed)…
     const batchCalls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.filter((c) =>
