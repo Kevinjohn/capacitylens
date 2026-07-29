@@ -10,6 +10,44 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.28.0-alpha.1] — 2026-07-29
+
+This minor prerelease consolidates the completed security-assurance, correctness, durability,
+concurrency, reliability, and API-compatibility programme. It strengthens how CapacityLens protects
+tenant data, acknowledges writes, recovers from interruption, coordinates concurrent work, and
+reports failures across the browser and SQLite server. The portable export and SQLite database
+schema versions are unchanged.
+
+### Security
+
+- Verified server-side purge authorization across every lifecycle route and retained fail-closed
+  migration-rehearsal checks for newly introduced or renamed secret-bearing columns.
+- Kept account membership, identity erasure, invitation, session, reauthentication, and
+  cross-tenant behavior aligned with server-enforced authorization boundaries.
+
+### Changed
+
+- Made write acknowledgement and recovery explicit: ambiguous commits trigger authoritative
+  reconciliation, stale seed generations cannot apply completed revisions, and superseded saves no
+  longer resolve as though they were durable.
+- Strengthened concurrency boundaries for cross-tab offline state, exact-revision writes,
+  reauthentication prompts, and persistence suspension during sign-out and refresh.
+- Standardized API outcomes for imports, sessions, invitations, command headers, retry delays,
+  frozen fields, cross-tenant requests, authentication outages, optional clears, and export errors.
+- Restricted offline fallback to genuine network loss and made skipped snapshot writes observable
+  to the settings experience.
+
+### Fixed
+
+- Repaired client/server reconciliation, lifecycle recovery, imported and migrated data repair,
+  account-state projection, scheduler boundaries, and account-management error states.
+- Preserved complete offline snapshots, reported discarded suspended edits, preflighted aggregate
+  teardown payload limits, and made rollback-journal and internal-TLS replacement operations safer.
+- Hardened database startup and migration rehearsal, password-processing backpressure, and
+  browser/server error classification.
+- Forwarded Playwright wrapper arguments and expanded regression coverage across the affected
+  frontend, shared-domain, server, migration, and browser paths.
+
 ## [0.27.3-alpha.6] — 2026-07-29
 
 This patch closes the P3 API and compatibility review row. It makes refusal, retry, session,
@@ -2134,7 +2172,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.6...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.0-alpha.1...HEAD
+[0.28.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.6...v0.28.0-alpha.1
 [0.27.3-alpha.6]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.5...v0.27.3-alpha.6
 [0.27.3-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.4...v0.27.3-alpha.5
 [0.27.3-alpha.4]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.3...v0.27.3-alpha.4
