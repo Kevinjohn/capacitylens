@@ -102,6 +102,38 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
     ]);
   });
 
+  it("hides an expired unused invitation without mutating durable state on the read path", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    createInvite(db, {
+      token: "expired-token",
+      id: "expired-invite",
+      accountId: "workspace-1",
+      role: "viewer",
+      preauthEmail: null,
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      usedAt: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    const port = sqliteAccountAdminPort({
+      applicationId: "test-application",
+      db,
+      lock: new KeyedOperationLock(),
+      trustedLocal: true,
+    });
+
+    await expect(port.listInvitations({ actor, workspaceId: "workspace-1" })).resolves.toEqual([]);
+    expect(db.prepare("SELECT id FROM invites WHERE id = ?").get("expired-invite")).toEqual({
+      id: "expired-invite",
+    });
+  });
+
   it("never persists a raw invitation token in the durable command ledger", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -730,6 +762,119 @@ describe("sqliteAccountAdminPort authority integrity", () => {
     }
   });
 
+  it("replays a committed invitation acceptance after the invite row is removed", async () => {
+    const db = openDb(":memory:");
+    try {
+      insertRow(db, "accounts", {
+        id: "workspace-1",
+        name: "Workspace",
+        color: "#6366f1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
+      upsertMember(db, {
+        accountId: "workspace-1",
+        userId: actor.principalId,
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      const port = sqliteAccountAdminPort({
+        applicationId: "test-application",
+        db,
+        lock: new KeyedOperationLock(),
+        trustedLocal: true,
+      });
+      const invitation = await port.createInvitation({
+        actor,
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: null,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        command: { commandId: "accept-create-command", idempotencyKey: "accept-create-key" },
+      });
+      const invitee = { ...actor, principalId: "invitee-1", sessionId: "invitee-session" };
+      const acceptCommand = { commandId: "accept-command", idempotencyKey: "accept-key" };
+      const accepted = await port.acceptInvitation({
+        actor: invitee,
+        token: invitation.token,
+        principalEmail: "invitee@example.com",
+        emailVerified: true,
+        command: acceptCommand,
+      });
+      db.prepare("DELETE FROM invites WHERE id = ?").run(invitation.id);
+
+      await expect(
+        port.acceptInvitation({
+          actor: invitee,
+          token: invitation.token,
+          principalEmail: "invitee@example.com",
+          emailVerified: true,
+          command: acceptCommand,
+        }),
+      ).resolves.toEqual(accepted);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("replays a committed principal invitation claim after the invite row is removed", async () => {
+    const db = openDb(":memory:");
+    try {
+      insertRow(db, "accounts", {
+        id: "workspace-1",
+        name: "Workspace",
+        color: "#6366f1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
+      upsertMember(db, {
+        accountId: "workspace-1",
+        userId: actor.principalId,
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      const port = sqliteAccountAdminPort({
+        applicationId: "test-application",
+        db,
+        lock: new KeyedOperationLock(),
+        trustedLocal: true,
+      });
+      const invitation = await port.createInvitation({
+        actor,
+        workspaceId: "workspace-1",
+        role: "viewer",
+        preauthorizedEmail: null,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        command: { commandId: "claim-create-command", idempotencyKey: "claim-create-key" },
+      });
+      const claimCommand = { commandId: "claim-command", idempotencyKey: "claim-key" };
+      const claimed = await port.claimInvitationForPrincipal({
+        token: invitation.token,
+        principalId: "principal-1",
+        principalEmail: "principal@example.com",
+        emailVerified: true,
+        passwordMode: true,
+        command: claimCommand,
+      });
+      db.prepare("DELETE FROM invites WHERE id = ?").run(invitation.id);
+
+      await expect(
+        port.claimInvitationForPrincipal({
+          token: invitation.token,
+          principalId: "principal-1",
+          principalEmail: "principal@example.com",
+          emailVerified: true,
+          passwordMode: true,
+          command: claimCommand,
+        }),
+      ).resolves.toEqual(claimed);
+    } finally {
+      db.close();
+    }
+  });
+
   it("ignores dangling membership rows when evaluating identity-global authority", async () => {
     const db = openDb(":memory:");
     try {
@@ -760,6 +905,48 @@ describe("sqliteAccountAdminPort authority integrity", () => {
           action: "issue-password-reset",
         }),
       ).resolves.toEqual({ allowed: false, reason: "target-not-member" });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("does not report a principal as unaffiliated while any surviving membership row remains", () => {
+    const db = openDb(":memory:");
+    try {
+      for (const id of ["erased-workspace", "surviving-workspace"]) {
+        insertRow(db, "accounts", {
+          id,
+          name: id,
+          color: "#6366f1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+      }
+      upsertMember(db, {
+        accountId: "erased-workspace",
+        userId: "principal-1",
+        role: "editor",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      upsertMember(db, {
+        accountId: "surviving-workspace",
+        userId: "principal-1",
+        role: "viewer",
+        status: "suspended" as never,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      const port = sqliteAccountAdminPort({
+        applicationId: "test-application",
+        db,
+        lock: new KeyedOperationLock(),
+        trustedLocal: true,
+      });
+
+      expect(port.eraseWorkspaceAdministrationInTx("erased-workspace")).toEqual([]);
+      expect(db.prepare("SELECT status FROM account_members WHERE userId = ?").get("principal-1")).toEqual({
+        status: "suspended",
+      });
     } finally {
       db.close();
     }

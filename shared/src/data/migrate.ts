@@ -124,17 +124,24 @@ function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
 // Backfill it from the only signal a pre-v4 row carried: a project-bound one is 'project';
 // a project-less ("general") one becomes 'repeatable' — the rename of "general". 'internal'
 // is a genuinely new bucket, set explicitly via the UI afterwards, never inferred here.
-// NB: this runs BEFORE the v4→v5 rename, so the table is still named `tasks` at this point.
+// Versionless/partially migrated blobs may already use `activities`, or even carry both keys, so
+// backfill every present table before the v4→v5 merge.
 function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
-  const table = Array.isArray(data.tasks) ? "tasks" : Array.isArray(data.activities) ? "activities" : null;
-  if (table === null) return data;
-  const activities = (data[table] as unknown[]).map((t) => {
-    if (!t || typeof t !== "object") return t;
-    const rec = t as Record<string, unknown>;
-    if (rec.kind !== undefined) return rec; // already v4 (or hand-set) — leave it
-    return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? "project" : "repeatable" };
-  });
-  return { ...data, [table]: activities };
+  const backfill = (rows: unknown[]): unknown[] =>
+    rows.map((t) => {
+      if (!t || typeof t !== "object") return t;
+      const rec = t as Record<string, unknown>;
+      if (rec.kind !== undefined) return rec; // already v4 (or hand-set) — leave it
+      return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? "project" : "repeatable" };
+    });
+  const tasks = Array.isArray(data.tasks) ? backfill(data.tasks) : undefined;
+  const activities = Array.isArray(data.activities) ? backfill(data.activities) : undefined;
+  if (!tasks && !activities) return data;
+  return {
+    ...data,
+    ...(tasks ? { tasks } : {}),
+    ...(activities ? { activities } : {}),
+  };
 }
 
 // v4 → v5: the domain concept "Task" was renamed "Activity". Rename the `tasks` table to

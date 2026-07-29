@@ -43,7 +43,8 @@ export function accessLabelFor(input: AccessCopyInput): string {
   if (input.experience === "demo") return m.access_demo_label();
   if (input.experience === "open") return m.access_open_label();
   if (input.permissionStatus === "pending") return m.access_checking_label();
-  if (input.permissionStatus !== "resolved" || input.role === null) return m.access_unavailable_label();
+  if (input.permissionStatus === "not-applicable") return m.access_not_applicable_label();
+  if (input.permissionStatus === "unavailable" || input.role === null) return m.access_unavailable_label();
   return roleLabel(input.role);
 }
 
@@ -53,6 +54,7 @@ export function accessSummaryFor(input: AccessCopyInput): string {
   if (input.experience === "demo") return m.access_demo_summary();
   if (input.experience === "open") return m.access_open_summary();
   if (input.permissionStatus === "pending") return m.access_checking_summary();
-  if (input.permissionStatus !== "resolved" || input.role === null) return m.access_unavailable_summary();
+  if (input.permissionStatus === "not-applicable") return m.access_not_applicable_summary();
+  if (input.permissionStatus === "unavailable" || input.role === null) return m.access_unavailable_summary();
   return roleSummary(input.role);
 }

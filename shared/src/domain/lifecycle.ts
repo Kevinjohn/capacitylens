@@ -115,7 +115,7 @@ export type LifecycleAncestryRow = LifecycleFields & {
 export type LifecycleAncestryLookup = (table: AppDataKey, id: string) => LifecycleAncestryRow | undefined;
 
 export interface LifecycleAncestryResult {
-  /** False when an ancestor is absent, cross-account or inactive, matching normal-read closure. */
+  /** False only when a resolved ancestor is inactive; unresolved references remain visible. */
   visible: boolean;
   /** Present only for a proven archived/deleted ancestor; missing refs remain the FK guard's job. */
   inactiveAncestor?: {
@@ -158,9 +158,13 @@ export function inspectLifecycleAncestry(
     if (relation.child !== table) continue;
     const parentId = row[relation.field];
     if (relation.optional && parentId === undefined) continue;
-    if (typeof parentId !== "string") return { visible: false };
+    // This projection hides lifecycle state, not integrity damage. A missing, malformed or
+    // cross-account reference is not evidence that an ancestor is archived/deleted; retain the row
+    // so normal views can surface their existing "Unknown …" fallbacks and integrity tooling can
+    // diagnose it. Generic writes independently reject the broken reference.
+    if (typeof parentId !== "string") continue;
     const parent = lookup(relation.parent, parentId);
-    if (!parent || (typeof row.accountId === "string" && parent.accountId !== row.accountId)) return { visible: false };
+    if (!parent || (typeof row.accountId === "string" && parent.accountId !== row.accountId)) continue;
     if (isLifecycleEntityKey(relation.parent)) {
       const state = lifecycleStatus(parent);
       if (state !== "active") {
@@ -187,10 +191,12 @@ export function inspectLifecycleAncestry(
  * what "shown in the normal app" means. "Active" is exactly `lifecycleStatus(e) === 'active'`, so the
  * lifecycle state machine stays the single authority (a future state never silently leaks into views).
  *
- * Lifecycle state is inherited by the read projection: projects under hidden clients, phases and
+ * Proven lifecycle state is inherited by the read projection: projects under hidden clients, phases and
  * project activities under hidden projects, and allocations/time off whose visible endpoint was
  * hidden are also removed. Storage and exports retain those rows; normal views do not leak
- * orphan-labelled descendants or allocation bars after a parent is archived/deleted.
+ * orphan-labelled descendants or allocation bars after a parent is archived/deleted. Unresolvable
+ * references are retained rather than treated as invented lifecycle evidence, so integrity damage
+ * stays visible through the app's safe fallback labels and can be diagnosed.
  *
  * INVARIANT — VIEW/READ PROJECTION ONLY. Use this ONLY where the goal is "what the normal app shows":
  * the scheduler/list/picker/palette views and the per-account read. NEVER on an integrity, mutation,
@@ -281,9 +287,23 @@ const ARCHIVE_IMPACT_SENTINEL = "2000-01-01T00:00:00.000Z" as ISOTimestamp;
  * @param data   account-scoped AppData to measure against — pass the ACTIVE projection, since the
  *               counts are of currently-VISIBLE descendants that would disappear.
  * @param entity which lifecycle table the archived row lives in.
- * @param id     the row being archived (assumed currently active).
+ * @param id     the row being archived; throws when it is missing or not active.
  */
 export function archiveImpact(data: AppData, entity: LifecycleEntityKey, id: string): ArchiveImpact {
+  const target = data[entity].find((row) => row.id === id);
+  if (!target) {
+    throw new LifecycleTransitionError(
+      "invalid_transition",
+      `Cannot measure archive impact: ${entity}.${id} is missing.`,
+    );
+  }
+  const targetState = lifecycleStatus(target);
+  if (targetState !== "active") {
+    throw new LifecycleTransitionError(
+      "already_inactive",
+      `Cannot measure archive impact: ${entity}.${id} is ${targetState}, not active.`,
+    );
+  }
   const flip = <T extends LifecycleFields & { id: string }>(rows: readonly T[]): T[] =>
     rows.map((row) => (row.id === id ? { ...row, archivedAt: ARCHIVE_IMPACT_SENTINEL } : row));
   const archived: AppData = {
@@ -542,7 +562,8 @@ function shortResourceTag(id: string): string {
  * erasure remains a separate server concern because those fields do not exist on a Resource.
  *
  * @param resource - the Resource being soft-deleted (any kind: person / placeholder / external).
- * @returns a NEW Resource identical to the input except `name` is the anonymised token.
+ * @returns a NEW Resource identical to the input except `name` is the anonymised token and `role`
+ *          is the generic non-identifying removed-resource label.
  */
 export function obfuscateResource(resource: Resource): Resource {
   return { ...resource, name: `Removed person #${shortResourceTag(resource.id)}`, role: "Removed resource" };

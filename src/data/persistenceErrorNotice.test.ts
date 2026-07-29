@@ -21,6 +21,13 @@ describe("persistenceErrorNotice", () => {
     );
   });
 
+  it("does not claim a conflict reload has completed before the authoritative read settles", () => {
+    const notice = persistenceErrorNotice(new BatchConflictError("conflict"));
+
+    expect(notice).toMatch(/is reloading the latest copy/i);
+    expect(notice).not.toMatch(/has been reloaded/i);
+  });
+
   it("does not invent a notice for an untyped transport failure", () => {
     expect(persistenceErrorNotice(new Error("offline"))).toBeNull();
   });

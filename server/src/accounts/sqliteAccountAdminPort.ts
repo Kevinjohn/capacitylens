@@ -35,7 +35,6 @@ import {
   newInviteId,
   normalizeEmail,
   preauthInviteAllows,
-  pruneInvites,
   removeAllInvitesForAccount,
   removeAllMembersForAccount,
   removeMember as removeMemberRow,
@@ -47,7 +46,13 @@ import {
 import type { Db } from "../db";
 import { getRow } from "../db";
 import { tx, type SynchronousCallback } from "../txn";
-import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from "./commands";
+import {
+  beginCommand,
+  completeCommand,
+  markAccountCommandReplay,
+  resumeExistingCommand,
+  terminateCommand,
+} from "./commands";
 import { KeyedOperationLock } from "./operationLock";
 import { getSecurityRevision } from "./state";
 import { WriteOnceSecretReplay } from "./writeOnceSecretReplay";
@@ -91,6 +96,9 @@ export interface LocalAccountAdminPort extends AccountAdminPort {
       };
   provisionOwnerMembershipInTx(input: { workspaceId: string; principalId: string; joinedAt: string }): Membership;
   assertWorkspaceErasureAuthorityInTx(actor: ActorContext, workspaceId: string): void;
+  /** Remove the erased workspace's control rows and return principals with no membership row in
+   * any surviving workspace. All statuses count here so identity deprovisioning cannot leave a
+   * surviving control row pointing at an erased principal. */
   eraseWorkspaceAdministrationInTx(workspaceId: string): readonly string[];
 }
 
@@ -531,9 +539,7 @@ export function sqliteAccountAdminPort(input: {
       removeAllInvitesForAccount(db, workspaceId);
       return principalIds.filter(
         (principalId) =>
-          !listMembershipsForUser(db, principalId).some(
-            (row) => row.status === "active" && getRow(db, "accounts", row.accountId) !== undefined,
-          ),
+          !listMembershipsForUser(db, principalId).some((row) => getRow(db, "accounts", row.accountId) !== undefined),
       );
     },
 
@@ -579,8 +585,10 @@ export function sqliteAccountAdminPort(input: {
     async listInvitations({ actor, workspaceId }) {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
       assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
-      pruneInvites(db);
       return listInvitesForAccount(db, workspaceId).flatMap((invite) => {
+        // Reads remain pure. Hide an expired unused bearer from the live management view without
+        // deleting it outside the command ledger / mutation transaction.
+        if (invite.usedAt === null && inviteIsExpired(invite.expiresAt)) return [];
         // Migration v10 deliberately retained already-used Owner invites as inert historical rows.
         // They cannot satisfy the InvitationSummary contract (which excludes Owner), and rejecting
         // one would hide every live invitation in the workspace, so omit only this legacy shape.
@@ -741,16 +749,25 @@ export function sqliteAccountAdminPort(input: {
     },
 
     async acceptInvitation({ actor, token, principalEmail, emailVerified, command }) {
+      const passwordMode = actor.assurance === "password" || actor.assurance === "mfa";
+      const operation = `accept-invitation:actor:${actor.principalId}`;
+      const payload = { tokenHash: createHashForToken(token), passwordMode };
+      const resumed = resumeExistingCommand<Membership>(
+        db,
+        { applicationId, operation, actorPrincipalId: actor.principalId },
+        command,
+        payload,
+      );
+      if (resumed) return markAccountCommandReplay(resumed.result);
       const invite = getInvite(db, token);
       if (!invite) throw failure("NOT_FOUND", "Invite not found.", command.commandId);
-      const passwordMode = actor.assurance === "password" || actor.assurance === "mfa";
       const accepted = await runMutation({
         operation: "accept-invitation",
         actorPrincipalId: actor.principalId,
         targetPrincipalId: actor.principalId,
         workspaceId: invite.accountId,
         command,
-        payload: { tokenHash: createHashForToken(token), passwordMode },
+        payload,
         lockKeys: [actor.principalId, `workspace:${invite.accountId}`],
         audit: { action: "invitation.accepted", changedFields: ["membership"] },
         afterCommit: () => {
@@ -770,6 +787,20 @@ export function sqliteAccountAdminPort(input: {
     },
 
     async claimInvitationForPrincipal({ token, principalId, principalEmail, emailVerified, passwordMode, command }) {
+      const payload = {
+        tokenHash: createHashForToken(token),
+        principalId,
+        principalEmail,
+        emailVerified,
+        passwordMode,
+      };
+      const resumed = resumeExistingCommand<Membership>(
+        db,
+        { applicationId, operation: "claim-invitation", actorPrincipalId: null },
+        command,
+        payload,
+      );
+      if (resumed) return markAccountCommandReplay(resumed.result);
       const invite = getInvite(db, token);
       if (!invite) throw failure("NOT_FOUND", "Invite not found.", command.commandId);
       const claimed = await runMutation({
@@ -778,13 +809,7 @@ export function sqliteAccountAdminPort(input: {
         targetPrincipalId: principalId,
         workspaceId: invite.accountId,
         command,
-        payload: {
-          tokenHash: createHashForToken(token),
-          principalId,
-          principalEmail,
-          emailVerified,
-          passwordMode,
-        },
+        payload,
         lockKeys: [principalId, `workspace:${invite.accountId}`],
         audit: { action: "invitation.accepted", changedFields: ["membership"] },
         afterCommit: () => {

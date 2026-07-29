@@ -8,6 +8,18 @@ import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../../te
 beforeEach(() => resetStoreWithAccount());
 
 describe("ActivityList", () => {
+  it("focuses the activity selected by a command-palette deep link", () => {
+    const selected = useStore.getState().addActivity({ name: "Selected kickoff", kind: "internal" });
+    useStore.getState().addActivity({ name: "Other work", kind: "internal" });
+
+    render(<ActivityList selectedActivityId={selected.id} />);
+
+    const row = screen.getByText("Selected kickoff").closest('[data-testid="activity-row"]');
+    expect(row).toHaveAttribute("aria-current", "location");
+    expect(row).toHaveFocus();
+    expect(screen.getByText("Other work").closest('[data-testid="activity-row"]')).not.toHaveAttribute("aria-current");
+  });
+
   it("saves an internal activity under the Internal activities section", async () => {
     const user = userEvent.setup();
     render(<ActivityList />);
@@ -160,23 +172,23 @@ describe("ActivityList", () => {
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   };
 
-  it("server mode hides an activity whose project resolves nowhere", () => {
+  it("server mode retains an activity whose project resolves nowhere", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", ""); // server mode is any value other than '1'
     seedOrphanActivity();
 
     render(<ActivityList />);
 
-    expect(screen.queryByText("Orphan Activity")).not.toBeInTheDocument();
+    expect(screen.getByText("Orphan Activity")).toBeInTheDocument();
     vi.unstubAllEnvs();
   });
 
-  it("demo mode also hides an activity whose project resolves nowhere", () => {
+  it("demo mode also retains an activity whose project resolves nowhere", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     seedOrphanActivity();
 
     render(<ActivityList />);
 
-    expect(screen.queryByText("Orphan Activity")).not.toBeInTheDocument();
+    expect(screen.getByText("Orphan Activity")).toBeInTheDocument();
     vi.unstubAllEnvs();
   });
 

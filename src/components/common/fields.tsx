@@ -303,11 +303,12 @@ export function SelectField({
   const id = useId();
   const markDirty = useMarkFormDirty();
   const selectedOption = options.find((option) => option.value === value);
+  const unresolvedValue = value !== "" && selectedOption === undefined;
   return (
     <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Select
-        value={selectedOption ? encodeSelectValue(value) : ""}
+        value={selectedOption || unresolvedValue ? encodeSelectValue(value) : ""}
         disabled={disabled}
         onValueChange={(next) => {
           const resolved = decodeSelectValue(next);
@@ -325,7 +326,7 @@ export function SelectField({
           aria-label={ariaLabel}
           data-testid={testId}
         >
-          <SelectValue placeholder={placeholder}>{selectedOption?.label ?? placeholder}</SelectValue>
+          <SelectValue placeholder={placeholder}>{selectedOption?.label ?? placeholder ?? value}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>

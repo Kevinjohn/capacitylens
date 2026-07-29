@@ -61,6 +61,26 @@ describe("store CRUD covers every entity", () => {
     expectRevisionAdvanced(p, s().data.projects[0]);
   });
 
+  it("rejects private clients and projects without a usable code name", () => {
+    expect(() => s().addClient({ name: "Secret", color: "#1", isPrivate: true })).toThrow(
+      /private client requires a code name/i,
+    );
+
+    const client = s().addClient({ name: "Acme", color: "#1" });
+    expect(() =>
+      s().addProject({
+        name: "Secret project",
+        clientId: client.id,
+        color: "#2",
+        isPrivate: true,
+        codeName: '""',
+      }),
+    ).toThrow(/private project requires a code name/i);
+
+    expect(s().data.clients).toHaveLength(1);
+    expect(s().data.projects).toHaveLength(0);
+  });
+
   it("phases: add / update / delete (activities survive)", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });

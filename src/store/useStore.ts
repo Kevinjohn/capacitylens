@@ -35,6 +35,7 @@ import { type BarLabelPrefs, type UtilizationPrefs } from "../lib/displayPrefs";
 import type { ThemePref } from "../lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/internalClient";
+import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from "@capacitylens/shared/types/entities";
 import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
 import { timeZoneFor, weekStartsOnFor } from "./selectors";
@@ -291,6 +292,9 @@ export interface StoreState {
    *  state. The server 403 (P1.5) is the TRUE security backstop — this is UX/defense-in-depth, NOT
    *  the access boundary, which is why ANY non-'viewer' value (incl. null = OFF/local) stays editable. */
   activeRole: Role | null;
+  /** Why a fail-closed Viewer projection is active. Keeps mutation notices factual while role
+   * resolution is pending/unavailable; transient and never persisted. */
+  activeRoleStatus: "not-applicable" | "pending" | "resolved" | "unavailable";
   /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
    *  the current directory-request owner re-reads the caller's effective role/list without an
    *  account switch or page reload. Transient: never persisted or included in undo history. */
@@ -346,7 +350,7 @@ export interface StoreState {
   /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it
    *  resolves/changes the role (incl. back to null on OFF/local/account-switch). Plain transient
    *  state: never persisted, never on the undo stack. Drives ONLY the defense-in-depth write guard. */
-  setActiveRole: (role: Role | null) => void;
+  setActiveRole: (role: Role | null, status?: "not-applicable" | "pending" | "resolved" | "unavailable") => void;
   /** Invalidate all client projections derived from account membership. */
   invalidateMemberships: () => void;
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
@@ -572,8 +576,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // NOT the security boundary — the server 403 (P1.5) is the true backstop; we never throw here (a
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
-    if (get().activeRole !== "viewer") return false;
-    get().setNotice(m.notice_viewer_read_only(), "error");
+    const state = get();
+    if (state.activeRole !== "viewer") return false;
+    const message =
+      state.activeRoleStatus === "pending"
+        ? m.access_checking_summary()
+        : state.activeRoleStatus === "unavailable"
+          ? m.access_unavailable_summary()
+          : m.notice_viewer_read_only();
+    state.setNotice(message, "error");
     return true;
   };
 
@@ -768,6 +779,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
           // observe it under the prior tenant's authority; PermissionProvider replaces it only
           // after resolving this account. null is the deliberate OFF/demo mode and stays editable.
           activeRole: id !== s.activeAccountId && s.activeRole !== null ? "viewer" : s.activeRole,
+          activeRoleStatus: id !== s.activeAccountId && s.activeRole !== null ? "pending" : s.activeRoleStatus,
           // Remember where we came from when dropping to the picker (id === null) so it
           // can offer a "back" escape; clear it once a tenant is actually chosen.
           previousAccountId: id === null ? s.activeAccountId : null,
@@ -845,6 +857,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
             activeAccountId: null,
             previousAccountId: null,
             activeRole: null,
+            activeRoleStatus: "not-applicable",
             notice: {
               message: m.notice_company_not_found(),
               tone: "error" as const,
@@ -1050,6 +1063,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // persist AND the colour snap — a rejected write must not silently substitute a colour onto
       // an entity that was never saved.
       if (blockedByViewer()) return e;
+      if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
+        throw new Error("A private client requires a code name.");
+      }
       const safe = withSnappedColor(e);
       mutate((d) => ({ ...d, clients: [...d.clients, safe] }));
       return safe;
@@ -1067,6 +1083,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // store-strip enforcement point (1); canonical doc in shared/src/data/internalClient.ts).
       const stripped: Record<string, unknown> = { ...patch };
       delete stripped.builtin;
+      if (!hasUsablePrivateCodeName({ ...existing, ...stripped })) {
+        throw new Error("A private client requires a code name.");
+      }
       mutate((d) => ({
         ...d,
         clients: updateById(d.clients, id, withSnappedColor(stripped as Patch<Client>)),
@@ -1080,6 +1099,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // the entity, skip the persist — a rejected write must not silently substitute a colour onto
       // an entity that was never saved.
       if (blockedByViewer()) return e;
+      if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
+        throw new Error("A private project requires a code name.");
+      }
       assertScopedRefs(get().data, accountId, "projects", input);
       const safe = withSnappedColor(e);
       mutate((d) => ({ ...d, projects: [...d.projects, safe] }));
@@ -1089,6 +1111,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       if (blockedByViewer()) return;
       const existing = findOwned(get().data, "projects", id);
       if (!existing) return;
+      if (!hasUsablePrivateCodeName({ ...existing, ...patch })) {
+        throw new Error("A private project requires a code name.");
+      }
       // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
       // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
       // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
@@ -1306,7 +1331,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
         ...(entity === "resources"
           ? {
               allocations: d.allocations.map((a) =>
-                a.resourceId === id
+                a.resourceId === id && a.note != null
                   ? {
                       ...a,
                       note: undefined,
@@ -1315,7 +1340,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
                   : a,
               ),
               timeOff: d.timeOff.map((t) =>
-                t.resourceId === id
+                t.resourceId === id && t.note != null
                   ? {
                       ...t,
                       note: undefined,

@@ -729,7 +729,7 @@ describe("AllocationModal blocks mode", () => {
       resourceId: resource.id,
       activityId: "t1",
       startDate: "2026-06-01",
-      endDate: "2026-06-05",
+      endDate: "2026-06-07",
       hoursPerDay: 8,
       status: "confirmed",
     });
@@ -741,6 +741,7 @@ describe("AllocationModal blocks mode", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toMatchObject({
+      endDate: "2026-06-07",
       hoursPerDay: 8,
       note: "Still scheduled",
     });

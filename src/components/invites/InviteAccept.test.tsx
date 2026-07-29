@@ -91,6 +91,42 @@ function renderInvite(auth?: AuthContextValue, strict = false) {
 }
 
 describe("InviteAccept preview and acceptance", () => {
+  it("identifies the signed-in account and offers to switch without losing the invite route", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const signOut = vi.fn(async () => {});
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, signOut });
+
+    expect(await screen.findByText("Signed in as alex@example.com.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Use a different account" }));
+    expect(signOut).toHaveBeenCalledOnce();
+  });
+
+  it("turns an invitation identity mismatch into a recoverable account switch", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return Response.json(
+          { code: "INVITATION_EMAIL_MISMATCH", error: "This invite is reserved for a different identity." },
+          { status: 403 },
+        );
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const signOut = vi.fn(async () => {});
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, signOut });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("reserved for a different identity");
+    await user.click(screen.getByRole("button", { name: "Use a different account" }));
+    expect(signOut).toHaveBeenCalledOnce();
+  });
+
   it("explains that invites require a server in the in-memory demo without fetching", () => {
     apiConfigMock.isServerConfigured.mockReturnValue(false);
     const fetchMock = vi.fn();

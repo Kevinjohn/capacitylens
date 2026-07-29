@@ -1,16 +1,20 @@
-import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
+import type { Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import type { LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
-import { deleteRow, getRow, type Db, readSlice, replaceAccountSlice, upsertRow } from "./db";
+import {
+  deleteRow,
+  getRow,
+  type CompleteAccountSlice,
+  type Db,
+  type ProjectedAccountSlice,
+  readFullSlice,
+  readSlice,
+  replaceAccountSlice,
+  upsertRow,
+} from "./db";
 import { tx } from "./txn";
 import { nextServerRevision } from "./revision";
 
 type SynchronousResult<Result> = [Extract<Result, PromiseLike<unknown>>] extends [never] ? Result : never;
-
-interface TenantSliceReadOptions {
-  includeTimeOffNote: boolean;
-  includeInactive: boolean;
-  includePrivateNames: boolean;
-}
 
 export type LifecycleRow = Resource | Client | Project;
 
@@ -90,9 +94,9 @@ function purgeLifecycleRow(db: Db, accountId: string, entity: LifecycleEntityKey
 function transactSlice<Result>(
   db: Db,
   accountId: string,
-  opts: TenantSliceReadOptions,
-  operation: (slice: AppData) => {
-    next: AppData;
+  opts: Readonly<{ includeTimeOffNote: true; includeInactive: true; includePrivateNames: true }>,
+  operation: (slice: CompleteAccountSlice) => {
+    next: CompleteAccountSlice;
     result: SynchronousResult<Result>;
   },
 ): Result {
@@ -100,7 +104,8 @@ function transactSlice<Result>(
   tx(
     db,
     () => {
-      const { next, result } = operation(readSlice(db, accountId, opts));
+      void opts;
+      const { next, result } = operation(readFullSlice(db, accountId));
       replaceAccountSlice(db, accountId, next);
       output = result as Result;
     },
@@ -142,8 +147,9 @@ function transactSlice<Result>(
  */
 export interface TenantStore {
   /**
-   * Read ONLY `accountId`'s slice of AppData (every AppData key present; arrays may be empty). An
-   * unknown id yields an empty slice (`accounts: []` + empty scoped arrays), never a throw.
+   * Read ONLY `accountId`'s serialization projection (every AppData key present; arrays may be
+   * empty). The projected brand cannot be passed to {@link write}. An unknown id yields an empty
+   * slice (`accounts: []` + empty scoped arrays), never a throw.
    *
    * `opts.includeTimeOffNote` is REQUIRED (P1.6) — the caller must decide whether the owner/admin-only
    * time-off `note` is included. When `false`, `note` is redacted from every time-off row server-side
@@ -163,7 +169,9 @@ export interface TenantStore {
       includeInactive: boolean;
       includePrivateNames: boolean;
     },
-  ): AppData;
+  ): ProjectedAccountSlice;
+  /** Read every field and lifecycle row for an atomic read-modify-write operation. */
+  readFullSlice(accountId: string): CompleteAccountSlice;
   /**
    * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
    * account's scoped tables; the global `accounts` row and every other account are left untouched.
@@ -171,17 +179,18 @@ export interface TenantStore {
    * from a prior slice read, use {@link transact}; separating that read from this destructive
    * replacement is unsafe.
    */
-  write(accountId: string, next: AppData): void;
+  write(accountId: string, next: CompleteAccountSlice): void;
   /**
-   * Atomically read, transform and replace one complete tenant slice. `operation` must be
+   * Atomically read, transform and replace one complete tenant slice. Only full-read options are
+   * accepted at the type boundary. `operation` must be
    * synchronous and returns both the replacement and a caller result. Throwing rolls the whole
    * unit back. Any read that will feed {@link write} must use this boundary.
    */
   transact<Result>(
     accountId: string,
-    opts: TenantSliceReadOptions,
-    operation: (slice: AppData) => {
-      next: AppData;
+    opts: Readonly<{ includeTimeOffNote: true; includeInactive: true; includePrivateNames: true }>,
+    operation: (slice: CompleteAccountSlice) => {
+      next: CompleteAccountSlice;
       result: SynchronousResult<Result>;
     },
   ): Result;
@@ -210,6 +219,7 @@ export interface TenantStore {
 export function sqliteTenantStore(db: Db): TenantStore {
   return {
     readSlice: (accountId, opts) => readSlice(db, accountId, opts),
+    readFullSlice: (accountId) => readFullSlice(db, accountId),
     write: (accountId, next) => replaceAccountSlice(db, accountId, next),
     transact: (accountId, opts, operation) => transactSlice(db, accountId, opts, operation),
     readLifecycleRow: (accountId, entity, id) => ownedLifecycleRow(db, accountId, entity, id),

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { openDb, type Db } from "../db";
 import { accountPayloadHash, beginCommand, resumeExistingCommand, terminatePendingCommand } from "./commands";
 import {
@@ -82,6 +82,56 @@ describe("account boundary durable state", () => {
         failureCode: "DEPENDENCY_UNAVAILABLE",
       },
     });
+  });
+
+  it("does not age or prune durable state when the host wall clock jumps forward in-process", () => {
+    db = openDb(":memory:");
+    reserveAccountCommand(db, {
+      applicationId: "app",
+      operation: "completed-operation",
+      idempotencyKey: "completed-key",
+      commandId: "completed-command",
+      actorPrincipalId: "actor",
+      payloadHash: hash,
+    });
+    finishAccountCommand(db, {
+      applicationId: "app",
+      operation: "completed-operation",
+      idempotencyKey: "completed-key",
+      status: "completed",
+      resultJson: JSON.stringify({ ok: true }),
+    });
+    reserveAccountCommand(db, {
+      applicationId: "app",
+      operation: "pending-operation",
+      idempotencyKey: "pending-key",
+      commandId: "pending-command",
+      actorPrincipalId: "actor",
+      payloadHash: hash,
+    });
+    recordSessionAssurance(db, "first-session", "actor", "password");
+
+    const jumpedNow = Date.now() + 45 * 24 * 60 * 60 * 1000;
+    const wallClock = vi.spyOn(Date, "now").mockReturnValue(jumpedNow);
+    try {
+      reserveAccountCommand(db, {
+        applicationId: "app",
+        operation: "trigger-sweep",
+        idempotencyKey: "trigger-key",
+        commandId: "trigger-command",
+        actorPrincipalId: "actor",
+        payloadHash: hash,
+      });
+      recordSessionAssurance(db, "second-session", "actor", "password");
+
+      expect(getAccountCommand(db, "app", "completed-operation", "completed-key")).not.toBeNull();
+      expect(getAccountCommandByIdForReconciliation(db, "app", "pending-command")).toMatchObject({
+        status: "pending",
+      });
+      expect(getSessionAuthentication(db, "first-session")).toEqual({ assurance: "password", providerId: null });
+    } finally {
+      wallClock.mockRestore();
+    }
   });
 
   it("ages an abandoned pending command during a reconciliation read without a mutation retry", () => {

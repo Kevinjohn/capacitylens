@@ -146,7 +146,7 @@ export function prepareScopedWrite(params: {
   // Finding 9: scope the referential read to the write's OWN account (accounts key on id; scoped
   // tables on accountId) instead of loadState(db)'s SELECT * over every tenant.
   const scopeId = entity === "accounts" ? String(row.id) : String(row.accountId);
-  const scopedState = store.readSlice(scopeId, FULL_SLICE_READ);
+  const scopedState = store.readFullSlice(scopeId);
   // Builtin-client replacement is a PUT affordance only. POST cannot hand-craft builtin rows, and
   // PATCH never rewrites the generated Internal client.
   const generatedReplacement = verb === "replace" ? generatedBuiltinReplacement(scopedState, entity, row) : null;

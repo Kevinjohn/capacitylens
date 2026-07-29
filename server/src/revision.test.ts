@@ -8,6 +8,13 @@ describe("nextServerRevision", () => {
     expect(nextServerRevision("2027-01-01T00:00:00.000Z", now)).toBe("2027-01-01T00:00:00.001Z");
   });
 
+  it.each([
+    ["2027-01-01T01:00:00+01:00", "2027-01-01T00:00:00.001Z"],
+    ["2027-01-01T00:00:00Z", "2027-01-01T00:00:00.001Z"],
+  ])("chronologically advances a supported non-canonical ISO revision: %s", (stored, expected) => {
+    expect(nextServerRevision(stored, now)).toBe(expected);
+  });
+
   it.each(["9999-12-31T23:59:59.999Z", "+010000-01-01T00:00:00.000Z", "+275760-09-13T00:00:00.000Z"])(
     "repairs an unincrementable or out-of-domain revision: %s",
     (stored) => {

@@ -104,7 +104,17 @@ describe("cleanText", () => {
 
   it("strips keycap-emoji parts but keeps the base char, and preserves decomposed accents", () => {
     expect(cleanText(`1${VS16}${KEYCAP}`)).toBe("1"); // emoji presentation stripped, digit kept
-    expect(cleanText(`e${ACUTE}`)).toBe(`e${ACUTE}`); // legitimate accent untouched
+    expect(cleanText(`e${ACUTE}`)).toBe("é"); // legitimate accent retained in canonical NFC form
+  });
+
+  it("normalizes equivalent text and never truncates through a grapheme", () => {
+    expect(cleanText(`Cafe${ACUTE}`)).toBe(cleanText("Café"));
+    expect(cleanText(`${"a".repeat(MAX_NAME_LENGTH - 1)}e${ACUTE}tail`)).toBe(`${"a".repeat(MAX_NAME_LENGTH - 1)}é`);
+
+    const twoCodePointGrapheme = `क${String.fromCodePoint(0x093f)}`;
+    expect(cleanText(`${"a".repeat(MAX_NAME_LENGTH - 1)}${twoCodePointGrapheme}`)).toBe(
+      "a".repeat(MAX_NAME_LENGTH - 1),
+    );
   });
 
   it("keeps a tab as-is (exempt from stripping) rather than dropping it", () => {

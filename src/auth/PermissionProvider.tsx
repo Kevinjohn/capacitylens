@@ -61,14 +61,14 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (offline.readOnly) {
-      setActiveRole("viewer");
+      setActiveRole("viewer", "unavailable");
       return;
     }
     // OFF / demo / no active account: there is no membership role to enforce. Make NO request — the
     // shipped default path stays byte-identical to today. The provided role is null either way (the
     // value computation below short-circuits to null when not enabled), so no local reset is needed.
     if (!enabled || !activeAccountId) {
-      setActiveRole(null); // keep the STORE guard in sync (a plain store write, not a React setState)
+      setActiveRole(null, "not-applicable"); // keep the STORE guard in sync (a plain store write, not a React setState)
       return;
     }
     let cancelled = false;
@@ -76,7 +76,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       // Reset the store role BEFORE the await so a prior tenant's role can't leak across an account
       // switch while the new fetch is in flight. The provider's own value is already pending with a
       // Viewer projection for the new account until the keyed fetch resolves.
-      setActiveRole("viewer");
+      setActiveRole("viewer", "pending");
       try {
         // The shell's directory hook deliberately yields active-account reads to this provider in
         // auth-on mode. One validated request therefore drives both the picker list and the
@@ -87,6 +87,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         });
         if (summaries === null) {
           if (!cancelled) {
+            setActiveRole("viewer", "unavailable");
             setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: "unavailable" });
           }
           return;
@@ -96,6 +97,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         const entry = summaries.find((account) => account.id === activeAccountId);
         if (!entry || entry.roleStatus === "unavailable") {
           if (!cancelled) {
+            setActiveRole("viewer", "unavailable");
             setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: "unavailable" });
           }
           return;
@@ -108,12 +110,13 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
           status: "resolved",
           role: entry.role,
         });
-        setActiveRole(entry.role);
+        setActiveRole(entry.role, "resolved");
       } catch (error) {
         // Fail-closed: the store and context keep the viewer projection until a later successful
         // role lookup. No optimistic local mutation can diverge from the server during an outage.
         console.warn("PermissionProvider: the active account role could not be resolved", error);
         if (!cancelled) {
+          setActiveRole("viewer", "unavailable");
           setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: "unavailable" });
         }
       }

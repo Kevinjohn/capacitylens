@@ -119,6 +119,55 @@ describe("softDeleteEntity", () => {
     expect(row.name).not.toContain("Ada"); // the original name is gone
   });
 
+  it("scrubs and re-stamps only dependent rows that actually carry a note", () => {
+    const client = s().addClient({ name: "Acme", color: "#1" });
+    const project = s().addProject({ name: "Project", clientId: client.id, color: "#2" });
+    const activity = s().addActivity({ name: "Activity", kind: "project", projectId: project.id });
+    const resource = s().addResource(personDraft);
+    const notedAllocation = s().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+      note: "private allocation note",
+    });
+    const plainAllocation = s().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-03",
+      endDate: "2026-06-04",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const notedTimeOff = s().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-06-05",
+      endDate: "2026-06-05",
+      type: "holiday",
+      note: "private time-off note",
+    });
+    const plainTimeOff = s().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-06-06",
+      endDate: "2026-06-06",
+      type: "holiday",
+    });
+
+    s().archiveEntity("resources", resource.id);
+    s().softDeleteEntity("resources", resource.id);
+
+    const allocation = (id: string) => s().data.allocations.find((row) => row.id === id)!;
+    const timeOff = (id: string) => s().data.timeOff.find((row) => row.id === id)!;
+    expect(allocation(notedAllocation.id)).toMatchObject({ note: undefined });
+    expect(allocation(notedAllocation.id).updatedAt).not.toBe(notedAllocation.updatedAt);
+    expect(allocation(plainAllocation.id).updatedAt).toBe(plainAllocation.updatedAt);
+    expect(timeOff(notedTimeOff.id)).toMatchObject({ note: undefined });
+    expect(timeOff(notedTimeOff.id).updatedAt).not.toBe(notedTimeOff.updatedAt);
+    expect(timeOff(plainTimeOff.id).updatedAt).toBe(plainTimeOff.updatedAt);
+  });
+
   it("on a non-resource (client/project), the name is unchanged", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     s().archiveEntity("clients", c.id);

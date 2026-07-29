@@ -42,7 +42,7 @@ function snapToWorkingDay(date: ISODate, workingDays: Weekday[], direction: 1 | 
 export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number, opts?: GestureOpts): DateRange {
   switch (mode) {
     case "move": {
-      const newStart = addDaysISO(range.startDate, deltaDays);
+      let newStart = addDaysISO(range.startDate, deltaDays);
       const workingDays = opts?.workingDays;
       // Weekend-aware only when we have a partial working week and the
       // allocation hasn't opted out. Otherwise: plain calendar shift.
@@ -51,6 +51,12 @@ export function applyGesture(mode: DragMode, range: DateRange, deltaDays: number
         return { startDate: newStart, endDate: addDaysISO(range.endDate, deltaDays) };
       }
       const w = countWorkingDays(range.startDate, range.endDate, workingDays!);
+      // Keep the leading edge on a day where the allocation actually performs work. A zero-delta
+      // gesture remains a strict no-op, and a legacy all-non-working range keeps its calendar shape
+      // because it has no working edge to preserve.
+      if (deltaDays !== 0 && w > 0) {
+        newStart = snapToWorkingDay(newStart, workingDays!, deltaDays > 0 ? 1 : -1);
+      }
       const newEnd =
         w > 0
           ? endDateForWorkingDays(newStart, w, workingDays!)

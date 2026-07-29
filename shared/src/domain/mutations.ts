@@ -200,7 +200,19 @@ export function assertScopedRefs(
       // at its own write time, and in server mode a phase under an archived project may be
       // absent from the active-only slice (same rationale as `unchanged` above). Touching
       // EITHER id re-runs the full coherence check.
-      if (present("phaseId") && !(unchanged("phaseId") && unchanged("projectId"))) {
+      const phasePairUnchanged = unchanged("phaseId") && unchanged("projectId");
+      if (present("phaseId") && phasePairUnchanged) {
+        const phase =
+          typeof rec.phaseId === "string"
+            ? (validationRow(data, "phases", rec.phaseId, lookup) as AppData["phases"][number] | undefined)
+            : undefined;
+        // An archived phase may be absent from an active-only client slice, but a phase that DOES
+        // resolve must still belong to this account. Legacy cross-account state is not trusted merely
+        // because both stored ids are unchanged.
+        if (phase && !belongsToAccount(phase, accountId)) {
+          domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
+        }
+      } else if (present("phaseId")) {
         // Resolve the in-account phase ONCE: its absence is the "belong to this company"
         // failure (same check `need` would do), and its projectId feeds the coherence
         // check below — no second scan of data.phases.
@@ -224,11 +236,28 @@ export function assertScopedRefs(
       }
       break;
     }
-    case "resources":
-      // disciplineId applies to any resource; projectId is the placeholder-only binding FK (see Resource.projectId) — both optional, so need() only fires when present.
+    case "resources": {
+      // A project binding belongs only to placeholders. Check the merged pair whenever this write
+      // touches either side, so converting a bound placeholder or assigning a project to a person /
+      // external resource is rejected, while an unrelated edit can still repair legacy corruption.
+      const mergedKind = supplied("kind") ? rec.kind : prev?.kind;
+      const mergedProjectId = supplied("projectId") ? rec.projectId : prev?.projectId;
+      if (
+        (supplied("kind") || supplied("projectId")) &&
+        mergedProjectId !== undefined &&
+        mergedProjectId !== null &&
+        mergedKind !== undefined &&
+        mergedKind !== null &&
+        mergedKind !== "placeholder"
+      ) {
+        domainError("resource_project_forbidden", "Only a placeholder can be assigned to a project.");
+      }
+      // disciplineId applies to any resource; projectId is the placeholder-only binding FK (see
+      // Resource.projectId) — both optional, so need() only fires when present.
       need("disciplineId", "disciplines", "Resource discipline must belong to this company.");
       need("projectId", "projects", "Placeholder project must belong to this company.");
       break;
+    }
     case "clients":
     case "disciplines":
       break;
@@ -489,7 +518,9 @@ export function deleteAccountCascade(data: AppData, accountId: ID): AppData {
  * and allocations / time-off with a broken range or placeholder-rule violation are
  * dropped. This matters doubly for the server import path — a leftover dangling ref
  * would be rejected by SQLite's foreign keys and fail the whole import. Returns the
- * next AppData plus how many records landed vs. were skipped.
+ * next AppData plus how many records landed vs. were skipped. `incoming` must be a structurally
+ * complete AppData produced by the transfer parser/migrator; a non-array scoped table fails loudly
+ * here as defence in depth instead of disappearing from both counters.
  */
 export function remapAndValidateImport(
   data: AppData,
@@ -497,9 +528,12 @@ export function remapAndValidateImport(
   incoming: AppData,
   now: ISOTimestamp,
 ): { data: AppData; imported: number; skipped: number } {
+  for (const key of SCOPED_KEYS) {
+    if (!Array.isArray(incoming[key])) throw new TypeError(`Imported ${key} table must be a list.`);
+  }
   const incomingRows = Object.fromEntries(
     SCOPED_KEYS.map((key) => {
-      const rows = Array.isArray(incoming[key]) ? (incoming[key] as unknown[]) : [];
+      const rows = incoming[key] as unknown[];
       return [
         key,
         rows.filter((row): row is Record<string, unknown> => !!row && typeof row === "object" && !Array.isArray(row)),
@@ -507,7 +541,7 @@ export function remapAndValidateImport(
     }),
   ) as Record<ScopedEntityKey, Array<Record<string, unknown>>>;
   const malformedIncoming = SCOPED_KEYS.reduce(
-    (count, key) => count + ((Array.isArray(incoming[key]) ? incoming[key].length : 0) - incomingRows[key].length),
+    (count, key) => count + (incoming[key].length - incomingRows[key].length),
     0,
   );
   // FK remap tables, ONE PER ENTITY TYPE. A source id is only meaningful within its own

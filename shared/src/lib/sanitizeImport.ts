@@ -2,7 +2,7 @@ import { NEUTRAL_COLOR, snapToPresetColor } from "./color";
 import { INTERNAL_CLIENT_COLOR } from "../data/internalClient";
 import { cleanText } from "./strings";
 import { parseISOTimestamp } from "./integrity";
-import { normalizeCodeName, PRIVATE_CODE_NAME_FALLBACK } from "../domain/privateNames";
+import { normalizeCodeName, privateCodeNameFallback } from "../domain/privateNames";
 import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
@@ -153,7 +153,7 @@ const normalizePrivateNameFields = (rec: Record<string, unknown>): void => {
     return;
   }
   const cleaned = typeof rec.codeName === "string" ? normalizeCodeName(cleanText(rec.codeName)) : "";
-  rec.codeName = cleaned || PRIVATE_CODE_NAME_FALLBACK;
+  rec.codeName = cleaned || privateCodeNameFallback(rec.id);
 };
 
 /** Normalize lifecycle tombstones through the state machine's stored invariants. Invalid values

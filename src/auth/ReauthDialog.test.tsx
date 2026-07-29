@@ -88,6 +88,31 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
     expect(reauthPending()).toBe(false);
   });
 
+  it("cannot cancel while password verification is in flight", async () => {
+    let release!: (value: { data: object; error: null }) => void;
+    signInEmail.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    render(<Harness user={user} />);
+    const outcome = requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+    fireEvent.change(screen.getByTestId("reauth-password"), { target: { value: "correct horse" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(signInEmail).toHaveBeenCalledOnce());
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(reauthPending()).toBe(true);
+    expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
+
+    release({ data: {}, error: null });
+    await expect(outcome).resolves.toBe(true);
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirm it's you" })).toBeNull());
+  });
+
   it("a wrong password surfaces the error INSIDE the dialog and leaves it open", async () => {
     signInEmail.mockResolvedValue({ data: null, error: { message: "Invalid email or password." } });
     render(<Harness user={user} />);

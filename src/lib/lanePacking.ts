@@ -33,7 +33,7 @@ export function packLanes(items: Interval[]): PackResult {
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 
-  // Origin = the first non-empty start (a bad/empty record sorts first but must
+  // Origin = the first valid calendar start (a bad record sorts first but must
   // not become the origin, or it would NaN-poison every other item's day-index).
   const origin = sorted.find((it) => isValidISODate(it.startDate))?.startDate ?? sorted[0].startDate;
   const laneEnds: number[] = []; // inclusive endDay of the last item placed in each lane

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SchedulerToolbar } from "./SchedulerToolbar";
@@ -28,6 +28,17 @@ describe("SchedulerToolbar zoom control", () => {
 
     await user.click(screen.getByRole("radio", { name: "1w" }));
     expect(useStore.getState().ui.zoom).toBe(1);
+  });
+});
+
+describe("SchedulerToolbar date navigation", () => {
+  it("does not call goToDate for a malformed programmatic date change", () => {
+    const goToDate = vi.fn();
+    useStore.setState({ goToDate });
+    render(<SchedulerToolbar />);
+
+    fireEvent.change(screen.getByLabelText("Jump to date"), { target: { value: "2026-2-30" } });
+    expect(goToDate).not.toHaveBeenCalled();
   });
 });
 

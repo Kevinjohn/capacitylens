@@ -10,6 +10,7 @@ import {
 } from "@capacitylens/shared/domain/mutations";
 import { DomainError, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { sanitizeImportedRecord, sanitizeAccount } from "@capacitylens/shared/lib/sanitizeImport";
+import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import {
   INTERNAL_CLIENT_COLOR,
   INTERNAL_CLIENT_NAME,
@@ -175,6 +176,15 @@ export function sanitizeWrite(
     const missingRequired = (DIRECT_WRITE_REQUIRED_FIELDS[table] ?? []).filter((field) => !Object.hasOwn(copy, field));
     if (missingRequired.length > 0) {
       throw new ValidationError(`Missing required field(s): ${missingRequired.join(", ")}.`);
+    }
+    // Imports repair malformed private rows, but an ordinary owner write must never manufacture a
+    // cover name silently. Check before the import sanitiser applies its fail-closed fallback.
+    if (
+      (table === "clients" || table === "projects") &&
+      opts.canSeePrivateNames !== false &&
+      !hasUsablePrivateCodeName(copy)
+    ) {
+      throw new ValidationError("A private client or project requires a code name.");
     }
     const cleaned = sanitizeImportedRecord(table, copy);
     // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated

@@ -349,6 +349,62 @@ describe("MembersSection — admin affordances", () => {
     expect(error).toHaveTextContent(m.identity_err_email());
   });
 
+  it("keeps an existing write-once invite link when a later submit fails validation", async () => {
+    const user = userEvent.setup();
+    const reads = mockFetch(members);
+    let created = false;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith("/api/invites") && init?.method === "POST") {
+        created = true;
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ id: "invite-1", token: "WRITE_ONCE_TOKEN", role: "editor" }),
+        } as Response;
+      }
+      if (
+        created &&
+        String(url).endsWith("/invites") &&
+        (!init || init.method === undefined || init.method === "GET")
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            invites: [
+              {
+                id: "invite-1",
+                role: "editor",
+                preauthEmail: null,
+                expiresAt: "2026-12-01T00:00:00.000Z",
+                usedAt: null,
+                createdAt: "2026-07-29T00:00:00.000Z",
+              },
+            ],
+          }),
+        } as Response;
+      }
+      return reads(url, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+
+    await user.click(await screen.findByTestId("invite-submit"));
+    const link = await screen.findByTestId("invite-link");
+    expect(link).toHaveTextContent("/invite/WRITE_ONCE_TOKEN");
+
+    await user.type(screen.getByTestId("invite-preauth"), "not-an-email");
+    await user.click(screen.getByTestId("invite-submit"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_email());
+    expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/WRITE_ONCE_TOKEN");
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url, init]) => String(url).endsWith("/api/invites") && (init as RequestInit | undefined)?.method === "POST",
+      ),
+    ).toHaveLength(1);
+  });
+
   it("shows no role control + no Remove on an OWNER row (admin can't touch an owner)", async () => {
     vi.stubGlobal("fetch", mockFetch(members));
     renderSection();

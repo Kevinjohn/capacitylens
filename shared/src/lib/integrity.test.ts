@@ -175,9 +175,11 @@ describe("isValidISODate", () => {
     expect(isValidISODate("nope")).toBe(false); // fails the shape regex
     expect(isValidISODate("x2026-06-01")).toBe(false); // prefix must not be ignored
     expect(isValidISODate("2026-06-01x")).toBe(false); // suffix must not be ignored
-    expect(isValidISODate("2026-13-01")).toBe(false); // month 13 — round-trips to a different string
+    expect(isValidISODate("2026-13-01")).toBe(false); // month 13
     expect(isValidISODate("2026-02-30")).toBe(false); // 30 Feb — never a real date
-    expect(isValidISODate("0000-01-01")).toBe(false); // date-fns formats year zero as year one
+    expect(isValidISODate("0000-01-01")).toBe(false); // product dates use the common era
+    expect(isValidISODate("2011-12-30")).toBe(true); // skipped by Pacific/Apia's local timezone
+    expect(isValidISODate("1994-12-31")).toBe(true); // skipped by Pacific/Kiritimati's local timezone
   });
 
   it("rejects a NON-STRING even when it stringifies to a valid-looking date", () => {

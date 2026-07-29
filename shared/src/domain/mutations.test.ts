@@ -336,6 +336,42 @@ describe("assertScopedRefs", () => {
     );
   });
 
+  it("rejects project bindings on people and externals at the shared write boundary", () => {
+    const data = {
+      ...base(),
+      clients: [client("c1", A1)],
+      projects: [project("p1", A1, "c1")],
+    };
+
+    expect(() => assertScopedRefs(data, A1, "resources", { kind: "person", projectId: "p1" })).toThrow(
+      "Only a placeholder can be assigned to a project.",
+    );
+    expect(() => assertScopedRefs(data, A1, "resources", { kind: "external", projectId: "p1" })).toThrow(
+      "Only a placeholder can be assigned to a project.",
+    );
+  });
+
+  it("rejects converting a bound placeholder without clearing its project", () => {
+    const data = {
+      ...base(),
+      clients: [client("c1", A1)],
+      projects: [project("p1", A1, "c1")],
+    };
+    const existing = placeholder("r1", A1, "p1");
+
+    expect(() => assertScopedRefs(data, A1, "resources", { kind: "person" }, existing)).toThrow(
+      "Only a placeholder can be assigned to a project.",
+    );
+    expect(() =>
+      assertScopedRefs(data, A1, "resources", { kind: "person", projectId: undefined }, existing),
+    ).not.toThrow();
+  });
+
+  it("does not make an unrelated edit fail solely because of a legacy non-placeholder binding", () => {
+    const existing = { ...person("r1", A1), projectId: "legacy-project" };
+    expect(() => assertScopedRefs(base(), A1, "resources", { name: "Renamed" }, existing)).not.toThrow();
+  });
+
   it("rejects absent or null required parents on project and phase creates", () => {
     expect(() => assertScopedRefs(base(), A1, "projects", { name: "No parent" })).toThrow(
       "Project must reference a client in this company.",
@@ -469,6 +505,20 @@ describe("assertScopedRefs", () => {
       const existing = activity("t1", A1, "p-archived", "ph-archived");
       const merged = { ...existing, name: "Renamed" };
       expect(() => assertScopedRefs(base(), A1, "activities", merged, existing)).not.toThrow();
+    });
+
+    it("rejects an unchanged phaseId when the resolved legacy phase belongs to another account", () => {
+      const existing = activity("t1", A1, "p1", "cross-account-phase");
+      const data: AppData = {
+        ...base(),
+        projects: [project("p1", A1, "c1")],
+        phases: [phase("cross-account-phase", A2, "p2")],
+        activities: [existing],
+      };
+
+      expect(() =>
+        assertScopedRefs(data, A1, "activities", { ...existing, name: "Unrelated rename" }, existing),
+      ).toThrow("Activity phase must belong to this company.");
     });
 
     it("re-runs the full phase coherence check when the phaseId CHANGES", () => {
@@ -1045,17 +1095,13 @@ describe("remapAndValidateImport", () => {
     expect(data.clients.some((candidate) => !candidate.builtin && candidate.name === "Acme")).toBe(true);
   });
 
-  it("treats a non-array incoming table as empty", () => {
+  it("fails loudly when a direct caller bypasses parsing with a non-array table", () => {
     const malformed = {
       ...emptyAppData(),
       clients: { id: "not-a-row-list" },
     } as unknown as AppData;
 
-    const { data, imported, skipped } = remapAndValidateImport(base(), A1, malformed, TS);
-
-    expect(imported).toBe(0);
-    expect(skipped).toBe(0);
-    expect(data.clients.filter((candidate) => !candidate.builtin)).toHaveLength(0);
+    expect(() => remapAndValidateImport(base(), A1, malformed, TS)).toThrow("Imported clients table must be a list.");
   });
 
   it("coerces an external resource’s allocation load to 0 and drops external time-off", () => {

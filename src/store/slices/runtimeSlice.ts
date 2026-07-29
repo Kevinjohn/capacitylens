@@ -41,6 +41,7 @@ type RuntimeSliceKeys =
   | "introSeen"
   | "gettingStartedDismissed"
   | "activeRole"
+  | "activeRoleStatus"
   | "membershipRevision"
   | "setHydrated"
   | "setPersistError"
@@ -96,6 +97,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
   introSeen: readStoredIntroSeen(),
   gettingStartedDismissed: readStoredGettingStartedDismissed(),
   activeRole: null,
+  activeRoleStatus: "not-applicable",
   membershipRevision: 0,
 
   setHydrated: (value) => set({ hydrated: value }),
@@ -153,7 +155,8 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     writeStoredGettingStartedDismissed(value);
     set({ gettingStartedDismissed: value });
   },
-  setActiveRole: (role) => set({ activeRole: role }),
+  setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
+    set({ activeRole: role, activeRoleStatus: status }),
   invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
   signOutDemo: () => {
     get().setActiveAccount(null);

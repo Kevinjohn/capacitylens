@@ -75,5 +75,8 @@ describe("account administration policy", () => {
   it("fails closed on unknown runtime values", () => {
     expect(canAdministerAccount("superuser" as Role, "manage-members")).toBe(false);
     expect(canAdministerAccount("owner", "unknown" as never)).toBe(false);
+    expect(canManageMemberRole("admin", "superuser" as Role, "editor")).toBe(false);
+    expect(canManageMemberRole("admin", "editor", "superuser" as Role)).toBe(false);
+    expect(canRemoveMember("admin", "superuser" as Role)).toBe(false);
   });
 });

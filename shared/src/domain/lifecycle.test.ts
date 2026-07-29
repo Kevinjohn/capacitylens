@@ -360,6 +360,14 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(a.name).not.toBe(b.name);
   });
 
+  it("distinguishes UUIDs that share the first four hexadecimal characters", () => {
+    const a = obfuscateResource(makeResource({ id: "abcd1111-0000-4000-8000-000000000000" }));
+    const b = obfuscateResource(makeResource({ id: "abcd2222-0000-4000-8000-000000000000" }));
+    expect(a.name).toBe("Removed person #abcd11110000");
+    expect(b.name).toBe("Removed person #abcd22220000");
+    expect(a.name).not.toBe(b.name);
+  });
+
   it("handles a NAMELESS placeholder (name undefined) → token set, non-empty", () => {
     const result = obfuscateResource(makeResource({ kind: "placeholder", name: undefined }));
     expect(result.name).toBeDefined();
@@ -550,7 +558,7 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
           startDate: "2026-01-01",
           endDate: "2026-01-05",
           hoursPerDay: 8,
-          status: "confirmed",
+          status: "confirmed" as const,
           createdAt: T_ARCH,
           updatedAt: T_ARCH,
         },
@@ -620,6 +628,71 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.timeOff.map((row) => row.id)).toEqual(["to1"]);
     expect(out.disciplines).toBe(input.disciplines);
     expect(out.accounts).toBe(input.accounts);
+  });
+
+  it("retains active rows with unresolved parents instead of inventing hidden lifecycle state", () => {
+    const input = {
+      ...emptyAppData(),
+      projects: [
+        {
+          id: "p-dangling",
+          accountId: "a1",
+          clientId: "missing-client",
+          name: "Visible integrity damage",
+          color: "#2d75da",
+          createdAt: T_ARCH,
+          updatedAt: T_ARCH,
+        },
+        {
+          id: "p-missing-field",
+          accountId: "a1",
+          name: "Missing parent field",
+          color: "#2d75da",
+          createdAt: T_ARCH,
+          updatedAt: T_ARCH,
+        } as AppData["projects"][number],
+      ],
+    };
+
+    const out = activeOnly(input);
+    expect(out.projects.map(({ id }) => id)).toEqual(["p-dangling", "p-missing-field"]);
+    expect(out.projects.every((project) => lifecycleStatus(project) === "active")).toBe(true);
+  });
+
+  it("treats null optional activity parents as absent and retains their allocations", () => {
+    const input = {
+      ...emptyAppData(),
+      activities: [
+        {
+          id: "activity-with-null-parents",
+          accountId: "a1",
+          name: "Internal activity",
+          kind: "internal",
+          projectId: null,
+          phaseId: null,
+          createdAt: T_ARCH,
+          updatedAt: T_ARCH,
+        } as unknown as AppData["activities"][number],
+      ],
+      allocations: [
+        {
+          id: "allocation-1",
+          accountId: "a1",
+          resourceId: "missing-resource",
+          activityId: "activity-with-null-parents",
+          startDate: "2026-01-01",
+          endDate: "2026-01-05",
+          hoursPerDay: 8,
+          status: "confirmed" as const,
+          createdAt: T_ARCH,
+          updatedAt: T_ARCH,
+        },
+      ],
+    };
+
+    const out = activeOnly(input);
+    expect(out.activities.map(({ id }) => id)).toEqual(["activity-with-null-parents"]);
+    expect(out.allocations.map(({ id }) => id)).toEqual(["allocation-1"]);
   });
 
   it("identifies the exact inactive ancestor inherited through every projection edge", () => {
@@ -793,6 +866,22 @@ describe("archiveImpact", () => {
       allocations: 0,
       timeOff: 0,
     });
+  });
+
+  it.each([
+    ["archived", { archivedAt: T_ARCH }, "already_inactive"],
+    ["deleted", { archivedAt: T_ARCH, deletedAt: T_DEL }, "already_inactive"],
+    ["missing", null, "invalid_transition"],
+  ] as const)("fails loudly when the impact target is %s", (_state, tombstones, code) => {
+    const input = base();
+    if (tombstones) {
+      input.clients = input.clients.map((client) => (client.id === "c1" ? { ...client, ...tombstones } : client));
+    }
+    const id = tombstones ? "c1" : "not-there";
+
+    expect(() => archiveImpact(input, "clients", id)).toThrow(
+      expect.objectContaining({ name: "LifecycleTransitionError", code }),
+    );
   });
 
   it("for a project: activities + allocations, and NEVER a self project count", () => {

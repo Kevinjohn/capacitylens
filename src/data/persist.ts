@@ -632,17 +632,23 @@ export function attachPersistence(
         // snapshot, and the superseding token bump may install nothing over it (the null-switch /
         // A newer refresh owns any parked edit. A sign-out, however, starts no replacement load:
         // preserve only the operations made during this window by rebasing them onto the slice
-        // that just seeded the adapter, then persist that account without reinstalling it in the
-        // signed-out UI. This avoids both loss and a stale whole-tree overwrite of remote rows.
+        // that just seeded the adapter, then install that same tree behind the signed-out picker.
+        // activeAccountId stays null, so no tenant UI is exposed; the hidden store and adapter seed
+        // nevertheless remain paired unconditionally instead of diverging in the no-edit case.
         if (store.getState().activeAccountId === null) {
           const currentData = store.getState().data;
+          let installed = slice;
           if (currentData !== dataAtLoad || pending !== null) {
-            const rebased = applyOps(slice, diffOps(dataAtSequenceStart, currentData));
+            installed = applyOps(slice, diffOps(dataAtSequenceStart, currentData));
             pending = null;
-            unacknowledged = rebased;
-            save(rebased);
+            unacknowledged = installed;
+            save(installed);
             if (inFlightSave) await inFlightSave;
           }
+          loadingSlice = true;
+          store.getState().replaceAll(installed);
+          lastData = store.getState().data;
+          loadingSlice = false;
         }
         return "skipped"; // superseded mid-load — discard this stale slice
       }

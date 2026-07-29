@@ -1534,7 +1534,8 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     // The null-switch arm bumps the token but loads nothing, so the superseded load's reseed of
     // the adapter snapshot stands. Re-scheduling the whole parked tree would emit DELETEs for rows
     // the reload just fetched, so only the operations made during the network window are rebased
-    // onto that seed and saved without reinstalling the signed-out account in the UI.
+    // onto that seed and saved. The same rebased tree is installed behind the picker while the
+    // active account stays null, keeping the adapter snapshot and hidden store paired.
     let release: (() => void) | null = null;
     let hold = false;
     const slice = a2Slice();
@@ -1576,7 +1577,39 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.id)).toEqual(["c2", "internal:a2", "stale-c"]);
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2", "stale-c"]);
     expect(onError).not.toHaveBeenCalled();
+    detach();
+  });
+
+  it("pairs the hidden store with a fresh seed when sign-out supersedes a reload without an edit", async () => {
+    let release: (() => void) | null = null;
+    let hold = false;
+    const fresh = a2Slice();
+    fresh.clients = fresh.clients.map((client) =>
+      client.id === "c2" ? { ...client, name: "Fresh remote name" } : client,
+    );
+    const loadAll = vi.fn((): Promise<AppData> => {
+      if (!hold) return Promise.resolve(a2Slice());
+      return new Promise((resolve) => {
+        release = () => resolve(fresh);
+      });
+    });
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const detach = await attachActiveA2({ loadAll, saveAll }, 0);
+    saveAll.mockClear();
+
+    hold = true;
+    const refresh = refreshActiveAccountSlice("a2");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    useStore.getState().setActiveAccount(null);
+    release!();
+
+    expect(await refresh).toBe("skipped");
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.name).toBe("Fresh remote name");
+    expect(saveAll).not.toHaveBeenCalled();
     detach();
   });
 
@@ -1883,7 +1916,10 @@ describe("batch reconciliation (authoritative reload)", () => {
     }
   });
 
-  it("keeps an uncertain diff write-gated when its reload fails, then retries the reload on recovery", async () => {
+  it.each([
+    ["conflict", () => new BatchConflictError("stale write")],
+    ["uncertain receipt", () => new BatchCommitUncertainError("incomplete revisions")],
+  ])("keeps a %s write-gated when its reload fails, then retries the reload on recovery", async (_label, error) => {
     vi.useFakeTimers();
     try {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
@@ -1894,14 +1930,15 @@ describe("batch reconciliation (authoritative reload)", () => {
       const loadsAfterPick = loadAll.mock.calls.length;
       saveAll.mockClear();
       loadAll.mockRejectedValueOnce(new Error("reload unavailable"));
-      saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("incomplete revisions"));
+      const reconciliationError = error();
+      saveAll.mockRejectedValueOnce(reconciliationError);
 
       useStore.getState().addClient({ name: "Uncertain", color: "#222222" });
       await vi.advanceTimersByTimeAsync(5);
 
       expect(saveAll).toHaveBeenCalledTimes(1); // the original, commit-uncertain attempt only
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1); // resolution was attempted
-      expect(onError.mock.calls.some(([error]) => error instanceof BatchCommitUncertainError)).toBe(true);
+      expect(onError.mock.calls.some(([reported]) => reported === reconciliationError)).toBe(true);
 
       // Neither teardown keepalive nor the ordinary retry horizon may replay a batch that could
       // already have committed while the required authoritative load is unavailable.

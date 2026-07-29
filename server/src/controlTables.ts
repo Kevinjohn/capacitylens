@@ -1162,9 +1162,10 @@ export function revokeInvite(db: Db, accountId: string, id: string): number {
 }
 
 /** Remove EXPIRED, UNUSED bearer rows — dead links that can never be accepted (accept 410s past
- *  expiry); called on invite create/list traffic. USED invites are deliberately KEPT so the members
- *  list can still show who consumed an invite (the `usedAt` "used" badge); a used row is only removed
- *  by an explicit revoke or when its account is erased. */
+ *  expiry). This is a write-oriented maintenance primitive: callers must provide their own mutation
+ *  transaction/coordination and must not invoke it from a declared read. USED invites are deliberately
+ *  KEPT so history can show who consumed an invite; a used row is removed only by explicit revoke or
+ *  account erasure. */
 export function pruneInvites(db: Db, now = Date.now()): number {
   const candidates = db.prepare(`SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL`).all() as Array<{
     tokenHash: string;

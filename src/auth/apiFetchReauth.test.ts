@@ -79,6 +79,21 @@ describe("apiFetchReauth", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["POST", "PATCH", "DELETE"])(
+    "does not prompt or retry a non-idempotent %s without an idempotency key",
+    async (method) => {
+      const fetchMock = vi.fn(async () => json(403, { error: "Sign in again first.", code: "SESSION_NOT_FRESH" }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const res = await apiFetchReauth("http://api.test/api/unsafe-command", { method });
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
+      expect(reauthPending()).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("replays a Request body after successful re-authentication", async () => {
     const bodies: string[] = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {

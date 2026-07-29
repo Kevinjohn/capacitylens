@@ -43,6 +43,8 @@ export function utf8ByteLength(value: string): number {
 const DISALLOWED =
   /[\p{Extended_Pictographic}\p{So}\p{Me}\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}]/u;
 
+const GRAPHEME_SEGMENTER = new Intl.Segmenter("en", { granularity: "grapheme" });
+
 /** True if `s` contains any disallowed character. In multiline mode, newlines and tabs
  *  (both Cc) are exempt so a note can wrap. */
 export function hasDisallowedChars(s: string, opts: { multiline?: boolean } = {}): boolean {
@@ -56,7 +58,7 @@ export function hasDisallowedChars(s: string, opts: { multiline?: boolean } = {}
 export function cleanText(value: string, opts: { multiline?: boolean; maxLength?: number } = {}): string {
   const multiline = opts.multiline ?? false;
   let out = "";
-  for (const ch of value) {
+  for (const ch of value.normalize("NFC")) {
     // Newlines and tabs are whitespace, not junk — keep them through the strip pass and
     // let the normalisation step below decide (→ a space in single-line, preserved in
     // multiline). Everything else in a disallowed category is dropped.
@@ -72,12 +74,15 @@ export function cleanText(value: string, opts: { multiline?: boolean; maxLength?
   out = out.trim();
   const max = opts.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH);
   if (unicodeCharacterCount(out) <= max) return out;
+  // Keep the existing code-point budget, but never spend only part of a grapheme cluster. This
+  // avoids changing a visible character by dropping its combining tail at the boundary.
   let truncated = "";
   let count = 0;
-  for (const ch of out) {
-    if (count === max) break;
-    truncated += ch;
-    count += 1;
+  for (const { segment } of GRAPHEME_SEGMENTER.segment(out)) {
+    const segmentLength = unicodeCharacterCount(segment);
+    if (count + segmentLength > max) break;
+    truncated += segment;
+    count += segmentLength;
   }
   return truncated.trim();
 }

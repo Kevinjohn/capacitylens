@@ -88,12 +88,9 @@ describe("ClientList archive flow", () => {
 
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
-    useStore.getState().addClient({
-      name: '"Northstar"',
-      color: "#111111",
-      isPrivate: true,
-      codeName: undefined,
-    });
+    const created = useStore.getState().addClient({ name: "Real client", color: "#111111" });
+    const client = { ...created, name: '"Northstar"', isPrivate: true, codeName: undefined };
+    useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(<ClientList />);
 
     await user.click(screen.getByRole("button", { name: 'Archive "Northstar"' }));

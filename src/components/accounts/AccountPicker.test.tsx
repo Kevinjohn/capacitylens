@@ -171,6 +171,23 @@ describe("AccountPicker create + open + delete", () => {
     expect(useStore.getState().data.accounts).toHaveLength(0);
   });
 
+  it("reopens the create form without the previous attempt's validation error", async () => {
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    const firstInput = screen.getByLabelText("Company name");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    expect(firstInput).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Name is required.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "New company" }));
+
+    expect(screen.getByLabelText("Company name")).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByText("Name is required.")).not.toBeInTheDocument();
+  });
+
   it("opens an existing company by clicking it", async () => {
     const user = userEvent.setup();
     seedAccounts(makeAccount({ name: "Studio North" }));

@@ -278,6 +278,20 @@ describe("migrate", () => {
     expect(out.activities[1]).toMatchObject({ id: "t2", kind: "repeatable" });
   });
 
+  it("backfills kind in a versionless blob that already uses the activities key", () => {
+    const out = migrate({
+      activities: [
+        { id: "a1", name: "Project work", projectId: "p1" },
+        { id: "a2", name: "General work" },
+      ],
+    });
+
+    expect(out.activities).toEqual([
+      expect.objectContaining({ id: "a1", kind: "project" }),
+      expect.objectContaining({ id: "a2", kind: "repeatable" }),
+    ]);
+  });
+
   it("preserves an already-set activity kind when backfilling (the v3→v4 guard is idempotent)", () => {
     const out = migrate({
       schemaVersion: 3,

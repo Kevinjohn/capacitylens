@@ -146,4 +146,22 @@ describe("useDragResize", () => {
     expect(onCommit).not.toHaveBeenCalled();
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("ignores a secondary-button release while the primary drag remains armed", () => {
+    const onCommit = vi.fn();
+    const onCancel = vi.fn();
+    render(<Harness onCommit={onCommit} onCancel={onCancel} />);
+
+    const body = screen.getByTestId("body");
+    fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, button: 2, pointerId: 1, bubbles: true }));
+
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, button: 0, pointerId: 1, bubbles: true }));
+    expect(onCommit).toHaveBeenCalledWith("move", 2, expect.objectContaining({ clientX: 96 }));
+  });
 });

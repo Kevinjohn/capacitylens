@@ -84,6 +84,7 @@ import {
   isInitialized,
   loadState,
   replaceAccountSlice,
+  validatedCompleteAccountSlice,
   upsertRow,
   wipe,
 } from "./db";
@@ -1800,7 +1801,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           provisionProductData: () => {
             // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
             // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
-            validateWrite(store.readSlice(id, FULL_SLICE_READ), "accounts", accountRow);
+            validateWrite(store.readFullSlice(id), "accounts", accountRow);
             insertRow(db, "accounts", accountRow);
             insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
             enqueueAudit(db, {
@@ -2170,7 +2171,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // immutable above, so it uses the shared scoped read directly rather than prepareScopedWrite
         // (which owns the PUT/POST read-and-validate funnel).
         const scopeId = entity === "accounts" ? id : String(merged.accountId);
-        validateWrite(store.readSlice(scopeId, FULL_SLICE_READ), entity, stamped, existing);
+        validateWrite(store.readFullSlice(scopeId), entity, stamped, existing);
         // Record only requested keys whose sanitized, pinned result actually differs from storage.
         commitProductAudit(
           reply,
@@ -2819,7 +2820,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // constraint failure becomes a 400 (via fail's classification) rather than an
       // uncaught 500.
       try {
-        const currentSlice = store.readSlice(body.accountId, FULL_SLICE_READ);
+        const currentSlice = store.readFullSlice(body.accountId);
         const result = remapAndValidateImport(currentSlice, body.accountId, incoming, new Date().toISOString());
         // Refuse a zero-record import rather than wiping the account's slice (mirrors the
         // client store guard — replacing a company's data with nothing is never intended).
@@ -2835,7 +2836,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             changedFields: [],
           };
           auditOk = commitProductAudit(reply, auditRecord, () => {
-            replaceAccountSlice(db, body.accountId!, result.data);
+            replaceAccountSlice(db, body.accountId!, validatedCompleteAccountSlice(result.data));
           });
         }
         return {

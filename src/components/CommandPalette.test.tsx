@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
 import { useStore, emptyFilters } from "../store/useStore";
 import {
@@ -17,8 +17,14 @@ function renderPalette(onClose = () => {}) {
   return render(
     <MemoryRouter>
       <CommandPalette onClose={onClose} />
+      <LocationProbe />
     </MemoryRouter>,
   );
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location-probe">{`${location.pathname}${location.hash}`}</output>;
 }
 
 function addInternalSearchItems({
@@ -388,6 +394,18 @@ describe("CommandPalette", () => {
     // The filters should be updated
     const filters = useStore.getState().ui.filters;
     expect(filters.projectId).not.toBeNull();
+  });
+
+  it("carries the selected activity identity to the complete activity list", () => {
+    const activity = useStore.getState().addActivity({ name: "Kickoff", kind: "internal" });
+    renderPalette();
+
+    fireEvent.change(screen.getByTestId("command-palette-input"), { target: { value: "Kickoff" } });
+    fireEvent.click(screen.getByText("Kickoff"));
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent(
+      `/activities#activity=${encodeURIComponent(activity.id)}`,
+    );
   });
 
   it('does NOT show "Go to date" for an impossible date (2026-02-31)', () => {

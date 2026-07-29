@@ -23,7 +23,13 @@ describe("loadInternalTls", () => {
         CAPACITYLENS_INTERNAL_TLS_KEY: "/tls/api.key",
       },
     ],
-  ])("fails closed when only one non-empty path is configured", (env) => {
+    [
+      {
+        CAPACITYLENS_INTERNAL_TLS_CERT: "  ",
+        CAPACITYLENS_INTERNAL_TLS_KEY: "\t",
+      },
+    ],
+  ])("fails closed when the configured path pair is incomplete or blank", (env) => {
     expect(() => loadInternalTls(env)).toThrow(InternalTlsConfigError);
   });
 

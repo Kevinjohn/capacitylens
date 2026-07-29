@@ -74,6 +74,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
 
     expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
     await waitFor(() => expect(useStore.getState().activeRole).toBe("viewer"));
+    expect(useStore.getState().activeRoleStatus).toBe("pending");
   });
 
   it("stays read-only when role lookup fails or returns malformed data", async () => {
@@ -81,6 +82,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
     renderProvider();
 
     await waitFor(() => expect(useStore.getState().activeRole).toBe("viewer"));
+    expect(useStore.getState().activeRoleStatus).toBe("unavailable");
     expect(screen.getByText("unavailable:viewer:read")).toBeInTheDocument();
   });
 
@@ -92,6 +94,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
 
     expect(screen.getByText("unavailable:viewer:read")).toBeInTheDocument();
     await waitFor(() => expect(useStore.getState().activeRole).toBe("viewer"));
+    expect(useStore.getState().activeRoleStatus).toBe("unavailable");
     expect(fetchMock).not.toHaveBeenCalled();
     view.unmount(); // reset the global offline marker only after this provider stops observing it
   });

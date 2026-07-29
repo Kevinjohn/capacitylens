@@ -378,11 +378,11 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
   });
 
   it.each([
-    ["inactive", "a2"],
-    ["active", "missing-account"],
+    ["inactive", "a2", true],
+    ["active", "missing-account", false],
   ] as const)(
-    "does not retain identity PII for a remaining %s membership row without live access",
-    async (status, otherAccountId) => {
+    "handles identity retention for a remaining %s membership row in %s",
+    async (status, otherAccountId, shouldRetainIdentity) => {
       const { app, db } = await appWithAuth();
       insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
       const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`);
@@ -405,11 +405,18 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
 
       expect((await deleteAccountRoute(app, "a1", member.cookie)).statusCode).toBe(204);
 
-      // Inactive and dangling control rows grant no product access, so neither is a lawful reason to
-      // retain the installation-local identity after its final live membership has been erased.
-      expect(userRow(db, member.userId)).toBeUndefined();
-      expect(authAccountCount(db, member.userId)).toBe(0);
-      expect(sessionCount(db, member.userId)).toBe(0);
+      // Any control row in a surviving workspace retains its principal so the row cannot dangle,
+      // even when its status grants no live access. A row targeting a missing workspace has no
+      // retention authority and is cleaned up with the identity.
+      if (shouldRetainIdentity) {
+        expect(userRow(db, member.userId)).toMatchObject({ email: "inactive-a2@capacitylens.dev" });
+        expect(authAccountCount(db, member.userId)).toBeGreaterThanOrEqual(1);
+        expect(sessionCount(db, member.userId)).toBeGreaterThanOrEqual(1);
+      } else {
+        expect(userRow(db, member.userId)).toBeUndefined();
+        expect(authAccountCount(db, member.userId)).toBe(0);
+        expect(sessionCount(db, member.userId)).toBe(0);
+      }
     },
   );
 });

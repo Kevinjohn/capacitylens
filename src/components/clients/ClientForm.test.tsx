@@ -189,12 +189,9 @@ describe("ClientForm – Enter key submission", () => {
 
 describe("ClientForm – edit mode", () => {
   it("hides owner-only privacy controls and locks the redacted name for a non-owner", () => {
-    const client = useStore.getState().addClient({
-      name: '"Northstar"',
-      color: "#ff0000",
-      isPrivate: true,
-      codeName: undefined,
-    });
+    const created = useStore.getState().addClient({ name: "Real client", color: "#ff0000" });
+    const client = { ...created, name: '"Northstar"', isPrivate: true, codeName: undefined };
+    useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(
       <PermissionContext.Provider value={{ role: "editor" }}>
         <ClientForm client={client} onClose={vi.fn()} />

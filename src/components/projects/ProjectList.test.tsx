@@ -87,13 +87,9 @@ describe("ProjectList", () => {
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
     const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111111" });
-    useStore.getState().addProject({
-      name: '"Aurora"',
-      clientId: client.id,
-      color: "#ec4899",
-      isPrivate: true,
-      codeName: undefined,
-    });
+    const created = useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" });
+    const project = { ...created, name: '"Aurora"', isPrivate: true, codeName: undefined };
+    useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
     render(<ProjectList />);
 
     await user.click(screen.getByRole("button", { name: 'Archive "Aurora"' }));
@@ -176,21 +172,21 @@ describe("ProjectList", () => {
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   };
 
-  it("server mode hides a project whose client resolves nowhere", () => {
+  it("server mode retains a project whose client resolves nowhere", () => {
     // Override the file-wide demo stub: server mode is any value other than '1'.
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
     seedOrphanProject();
 
     render(<ProjectList />);
 
-    expect(screen.queryByText("Orphan Project")).not.toBeInTheDocument();
+    expect(screen.getByText("Orphan Project")).toBeInTheDocument();
   });
 
-  it("demo mode also hides a project whose client resolves nowhere", () => {
+  it("demo mode also retains a project whose client resolves nowhere", () => {
     seedOrphanProject(); // file-wide demo stub applies
 
     render(<ProjectList />);
 
-    expect(screen.queryByText("Orphan Project")).not.toBeInTheDocument();
+    expect(screen.getByText("Orphan Project")).toBeInTheDocument();
   });
 });

@@ -11,8 +11,7 @@ import type { AppData, EmploymentType, ID, ISODate, Resource } from "../types/en
  * Is `s` a well-formed, real calendar date in date-only ISO form ("YYYY-MM-DD")?
  * The shape regex alone would accept `2026-13-40` or `2026-02-30` (lexicographic
  * order is fine, but the date is nonsense and breaks later formatting/geometry),
- * so we also round-trip through parse → format: a real date survives unchanged, an
- * out-of-range one rolls over (parse("2026-02-30") → "2026-03-02") and mismatches.
+ * so Gregorian month-length arithmetic validates it without consulting the host timezone.
  */
 export function isValidISODate(s: unknown): s is ISODate {
   if (typeof s !== "string") return false;
@@ -170,6 +169,15 @@ export function validateAllocationAssignment(resource: Resource, activityProject
 // surviving FK edits while these transforms express the referential consequences of a delete (which
 // children are removed vs. unbound), mirroring the server's ON DELETE CASCADE / SET NULL rules so
 // the local and server paths can't diverge. Safe to compose/test in isolation.
+//
+// These ENTITY cascades are deliberately ID-scoped, not account-scoped. Entity ids are table-global
+// identities: SQLite enforces each table's primary key globally, generated ids are UUIDs (the one
+// deterministic Internal id incorporates accountId), and import remapping produces fresh global ids.
+// Callers still authorize/locate the target in its account before invoking a cascade, but repeating
+// the account predicate on every descendant would imply that duplicate same-table ids are supported
+// when the persistence and import contracts explicitly forbid them. `deleteAccountCascade` is the
+// distinct account-scoped transform: its target is an account id and it intentionally removes every
+// scoped row carrying that accountId rather than following one entity identity through foreign keys.
 
 /** Delete a resource and its allocations + time off. PURE — returns a new AppData. */
 export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {

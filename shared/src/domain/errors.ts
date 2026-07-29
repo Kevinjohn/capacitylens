@@ -7,6 +7,7 @@ export const DOMAIN_ERROR_CODES = [
   "activity_phase_wrong_account",
   "activity_phase_project_required",
   "activity_phase_project_mismatch",
+  "resource_project_forbidden",
   "allocation_references_invalid",
   "allocation_resource_inactive",
   "allocation_project_inactive",

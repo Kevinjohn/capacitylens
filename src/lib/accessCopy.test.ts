@@ -69,6 +69,16 @@ describe("access copy", () => {
         {
           offlineReadOnly: false,
           experience: "authenticated",
+          permissionStatus: "not-applicable",
+          role: null,
+        },
+        m.access_not_applicable_label(),
+        m.access_not_applicable_summary(),
+      ],
+      [
+        {
+          offlineReadOnly: false,
+          experience: "authenticated",
           permissionStatus: "unavailable",
           role: "owner",
         },

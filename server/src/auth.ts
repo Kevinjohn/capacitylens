@@ -32,10 +32,31 @@ import {
   assertNoContextSpecificPassword,
   assertPasswordNotBreached,
   scryptPasswordHasher,
+  type PasswordHasher,
 } from "./passwordSecurity";
+import { WorkQueueFullError } from "./workQueue";
 import { bindFederatedProvider, recordSessionAssurance, removeSessionAssurance } from "./accounts/state";
 import { applicationSessionHandle } from "./accounts/sessionHandle";
 import { tx } from "./txn";
+
+/** Translate password-work backpressure before Better Auth can mistake it for a credential verdict
+ * or an undifferentiated internal error. Malformed hashes still resolve false inside the hasher. */
+export async function verifyPasswordWithBackpressure(
+  hasher: PasswordHasher,
+  input: Parameters<PasswordHasher["verify"]>[0],
+): Promise<boolean> {
+  try {
+    return await hasher.verify(input);
+  } catch (error) {
+    if (error instanceof WorkQueueFullError) {
+      throw APIError.from("SERVICE_UNAVAILABLE", {
+        message: error.message,
+        code: "PASSWORD_PROCESSING_UNAVAILABLE",
+      });
+    }
+    throw error;
+  }
+}
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
 // OSS library owns the session/credential/OIDC machinery — accepted precisely so we
@@ -635,8 +656,9 @@ export function authFromEnv(
     externalIdentityAdmission?: (candidate: { email?: string; emailVerified?: boolean }) => boolean | Promise<boolean>;
   } = {},
 ): { mode: AuthMode; auth: Auth | null } {
+  const runtimeEnvironment = env.NODE_ENV ?? process.env.NODE_ENV;
   env = resolveAccountEnvironment(env, {
-    ...(process.env.NODE_ENV === "test" ? { warn: () => {} } : {}),
+    ...(runtimeEnvironment === "test" ? { warn: () => {} } : {}),
   }).env;
   const mode = parseAuthMode(env.CAPACITYLENS_AUTH);
   if (mode === "off") return { mode, auth: null };
@@ -676,7 +698,7 @@ export function authFromEnv(
     publicUrl.hostname.endsWith(".localhost") ||
     publicUrl.hostname === "127.0.0.1" ||
     publicUrl.hostname === "[::1]";
-  if (env.NODE_ENV === "production" && publicUrl.protocol !== "https:" && !loopbackHost) {
+  if (runtimeEnvironment === "production" && publicUrl.protocol !== "https:" && !loopbackHost) {
     throw new AuthConfigError(
       "SMALLSASS_ACCOUNT_PUBLIC_URL must use https:// for a non-loopback production origin; credentials and session cookies must not cross plaintext HTTP.",
     );
@@ -718,8 +740,11 @@ export function authFromEnv(
       );
     }
     const scopes = (env.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/).filter(Boolean);
-    if (!scopes.includes("openid")) {
-      throw new AuthConfigError("Generic OIDC requires the openid scope.");
+    const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
+    if (missingScopes.length > 0) {
+      throw new AuthConfigError(
+        `Generic OIDC requires the ${missingScopes.join(", ")} scope${missingScopes.length === 1 ? "" : "s"}.`,
+      );
     }
     if (!discoveryUrl) {
       throw new AuthConfigError(
@@ -856,7 +881,7 @@ export function authFromEnv(
   // The password floor remains unconditional, including when the optional bootstrap-owner flag
   // is active. createBootstrapAdmin generates a high-entropy password that comfortably exceeds it.
 
-  const testRuntime = env.NODE_ENV === "test" || process.env.NODE_ENV === "test";
+  const testRuntime = runtimeEnvironment === "test";
   if (testRuntime && !process.env.VITEST) {
     console.warn(
       "capacitylens-server: TEST credential profile active — scrypt cost is reduced and breached-password screening is disabled; never retain these credentials or expose this process.",
@@ -1034,7 +1059,7 @@ export function authFromEnv(
       maxPasswordLength: MAX_PASSWORD_INPUT_CODE_UNITS,
       password: {
         hash: passwordHash,
-        verify: (input) => baseHasher.verify(input),
+        verify: (input) => verifyPasswordWithBackpressure(baseHasher, input),
       },
       // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
       // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public

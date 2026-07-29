@@ -20,6 +20,8 @@ export const domainErrorMessage = (code: DomainErrorCode): string => {
       return m.domain_error_activity_phase_project_required();
     case "activity_phase_project_mismatch":
       return m.domain_error_activity_phase_project_mismatch();
+    case "resource_project_forbidden":
+      return m.domain_error_resource_project_forbidden();
     case "allocation_references_invalid":
       return m.domain_error_allocation_references_invalid();
     case "allocation_resource_inactive":

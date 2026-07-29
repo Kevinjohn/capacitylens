@@ -152,7 +152,8 @@ describe("Modal", () => {
         <p>Content</p>
       </Modal>,
     );
-    expect(screen.getByRole("dialog", { name: "My Modal" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "My Modal" })).toHaveClass("bg-popover");
+    expect(screen.getByRole("dialog", { name: "My Modal" })).not.toHaveClass("bg-background");
     expect(screen.getByText("Content")).toBeInTheDocument();
   });
 
@@ -187,6 +188,23 @@ describe("Modal", () => {
     const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
     await user.click(backdrop);
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["right-click", { button: 2 }],
+    ["macOS ctrl-click", { button: 0, ctrlKey: true }],
+  ])("does not treat a %s on the backdrop as a dismissal", async (_gesture, pointer) => {
+    const onClose = vi.fn();
+    render(
+      <Modal title="Context menu Modal" onClose={onClose}>
+        <p>Inner</p>
+      </Modal>,
+    );
+
+    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!;
+    fireEvent.pointerDown(backdrop, { pointerType: "mouse", ...pointer });
+
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("does not close when its content is clicked", async () => {
@@ -315,6 +333,26 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("applies the connected outline shadow selector to the numeric default spacing", () => {
+    render(
+      <SegmentedControl
+        value="week"
+        onChange={vi.fn()}
+        options={[
+          { value: "week", label: "Week" },
+          { value: "month", label: "Month" },
+        ]}
+        ariaLabel="Zoom"
+      />,
+    );
+
+    const group = screen.getByRole("radiogroup", { name: "Zoom" });
+    expect(group).toHaveAttribute("data-spacing", "0");
+    expect(group).toHaveAttribute("data-variant", "outline");
+    expect(group).toHaveClass("data-[spacing=0]:data-[variant=outline]:shadow-xs");
+    expect(group).not.toHaveClass("data-[spacing=default]:data-[variant=outline]:shadow-xs");
+  });
+
   it("does not mark an explicitly-managed colour picker dirty when the selected swatch is re-picked", () => {
     const onClose = vi.fn();
     const blue = "#2d75da";
@@ -382,7 +420,8 @@ describe("ConfirmDialog", () => {
     render(
       <ConfirmDialog title="Really delete?" message="This cannot be undone." onConfirm={vi.fn()} onCancel={vi.fn()} />,
     );
-    expect(screen.getByRole("alertdialog", { name: "Really delete?" })).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog", { name: "Really delete?" })).toHaveClass("bg-popover");
+    expect(screen.getByRole("alertdialog", { name: "Really delete?" })).not.toHaveClass("bg-background");
     expect(screen.getByText("This cannot be undone.")).toBeInTheDocument();
   });
 
@@ -656,6 +695,27 @@ describe("SelectField", () => {
     expect(screen.getByText("-- Select --")).toBeInTheDocument();
   });
 
+  it("surfaces a non-empty value that is absent from the supplied options", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <SelectField label="Unresolved" value="missing-id" onChange={onChange} options={options} />,
+    );
+    expect(screen.getByLabelText("Unresolved")).toHaveTextContent("missing-id");
+    expect(onChange).not.toHaveBeenCalled();
+
+    rerender(
+      <SelectField
+        label="Unresolved"
+        value="missing-id"
+        onChange={onChange}
+        options={options}
+        placeholder="Unknown selection"
+      />,
+    );
+    expect(screen.getByLabelText("Unresolved")).toHaveTextContent("Unknown selection");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("is disabled when disabled prop is true", () => {
     render(<SelectField label="Locked" value="a" onChange={vi.fn()} options={options} disabled />);
     expect(screen.getByLabelText("Locked")).toBeDisabled();
@@ -687,6 +747,19 @@ describe("ColorField", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     // 52 swatch buttons (13×4) + the trigger itself.
     expect(screen.getAllByRole("button")).toHaveLength(53);
+  });
+
+  it("toggles the swatch grid closed when its expanded trigger is clicked again", async () => {
+    const user = userEvent.setup();
+    render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />);
+    const trigger = screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` });
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await user.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: colorName(RED) })).not.toBeInTheDocument();
   });
 
   it("calls onChange with the chosen hex and closes the popup", async () => {

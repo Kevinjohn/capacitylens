@@ -145,6 +145,26 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     expect(onReloaded).toHaveBeenCalledOnce();
   });
 
+  it("does not reconcile or misreport a callback failure after a confirmed mutation and reload", async () => {
+    refreshControl.outcome = "reloaded";
+    const onReloaded = vi.fn(() => {
+      throw new Error("inactive-list refresh failed");
+    });
+    stubFetch({ ok: true, status: 200, json: async () => ({}) });
+    const { result } = renderHook(() => useLifecycleActions(onReloaded));
+
+    await expect(result.current.archive("clients", "c-1")).resolves.toBeUndefined();
+
+    expect(refreshControl.call).toHaveBeenCalledOnce();
+    expect(loadAll).not.toHaveBeenCalled();
+    expect(onReloaded).toHaveBeenCalledOnce();
+    expect(useStore.getState().notice).toMatchObject({
+      tone: "error",
+      message: "inactive-list refresh failed",
+    });
+    expect(useStore.getState().notice?.message).not.toContain("unknown outcome");
+  });
+
   it("a 409 (purge <30d) surfaces body.error via an error notice and does NOT throw or reload", async () => {
     const fetchMock = stubFetch({
       ok: false,

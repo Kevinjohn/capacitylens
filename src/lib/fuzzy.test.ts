@@ -29,6 +29,12 @@ describe("fuzzyScore", () => {
     it("scores 1 for word after underscore", () => {
       expect(fuzzyScore("bar", "foo_bar")).toBe(1);
     });
+    it.each(["foo--bar", "foo  bar", "foo- _bar"])(
+      "treats a consecutive delimiter run in %s as one word boundary",
+      (text) => {
+        expect(fuzzyScore("bar", text)).toBe(1);
+      },
+    );
   });
 
   describe("Tier 2 — contiguous substring", () => {

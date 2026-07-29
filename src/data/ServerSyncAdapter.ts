@@ -36,6 +36,35 @@ function warnCompatibilityOnce(key: string, message: string): void {
   console.warn(message);
 }
 
+const rowsReference = (record: Record<string, unknown>, table: string, field: string): boolean =>
+  Array.isArray(record[table]) &&
+  record[table].some(
+    (row) =>
+      typeof row === "object" &&
+      row !== null &&
+      typeof (row as Record<string, unknown>)[field] === "string" &&
+      (row as Record<string, unknown>)[field] !== "",
+  );
+
+/** Missing-table compatibility is safe only when no returned child points into that table. */
+function referencedMissingTables(record: Record<string, unknown>, missingKeys: readonly string[]): string[] {
+  const referenced: Record<string, boolean> = {
+    accounts: SCOPED_KEYS.some((table) => rowsReference(record, table, "accountId")),
+    disciplines: rowsReference(record, "resources", "disciplineId"),
+    resources: rowsReference(record, "allocations", "resourceId") || rowsReference(record, "timeOff", "resourceId"),
+    clients: rowsReference(record, "projects", "clientId"),
+    projects:
+      rowsReference(record, "phases", "projectId") ||
+      rowsReference(record, "activities", "projectId") ||
+      rowsReference(record, "resources", "projectId"),
+    phases: rowsReference(record, "activities", "phaseId"),
+    activities: rowsReference(record, "allocations", "activityId"),
+    allocations: false,
+    timeOff: false,
+  };
+  return missingKeys.filter((key) => referenced[key] === true);
+}
+
 function safeResponseError(action: string, status: number, rawBody: string): Error {
   const message = `${action} failed (${status}).`;
   if (!rawBody) return new Error(message);
@@ -407,6 +436,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // cause; the SAME warning against a same-version server is the signal that a proxy or server bug
       // silently dropped a table — without this it would load as "empty" invisibly and be undiagnosable.
       const missingKeys = KNOWN_KEYS.filter((key) => !(key in record));
+      const referencedMissing = referencedMissingTables(record, missingKeys);
+      if (referencedMissing.length > 0) {
+        throw new Error(
+          `The server returned an incomplete state payload: omitted referenced table(s) [${referencedMissing.join(
+            ", ",
+          )}].`,
+        );
+      }
       if (missingKeys.length > 0) {
         console.warn(
           `ServerSyncAdapter: the server state payload omitted known table(s) [${missingKeys.join(", ")}]; ` +

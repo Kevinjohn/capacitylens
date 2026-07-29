@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO, xForDate, widthForRange } from "@capacitylens/shared/lib/dateMath";
+import { resolveDayWidth } from "../../lib/schedulerConfig";
 
 // A full week: 2026-06-01 (Mon) … 2026-06-07 (Sun). 06-06 = Sat, 06-07 = Sun.
 const WEEK = eachDayISO("2026-06-01", "2026-06-07");
@@ -154,5 +155,15 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
     const geom = buildColumnGeometry(WEEK, 18, { minimiseWeekends: true, weekendWidth: 10 });
     expect(geom.minimiseActive).toBe(true);
     expect(geom.widths).toEqual([18, 18, 18, 18, 18, 10, 10]);
+  });
+
+  it("keeps the complete fit monotonic when weekend-aware width crosses the narrowing threshold", () => {
+    const totalWidths = [110, 112, 114, 116, 118, 120].map((availableWidth) => {
+      const dayWidth = resolveDayWidth(availableWidth, 1, 13);
+      return buildColumnGeometry(WEEK, dayWidth, { minimiseWeekends: true, weekendWidth: 13 }).totalWidth;
+    });
+
+    expect(totalWidths).toEqual([105, 112, 112, 116, 116, 116]);
+    expect(totalWidths.every((width, index) => index === 0 || width >= totalWidths[index - 1])).toBe(true);
   });
 });

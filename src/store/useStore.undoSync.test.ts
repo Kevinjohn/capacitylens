@@ -16,6 +16,24 @@ function undoOps(afterDelete: AppData) {
 }
 
 describe("undo emits synchronization revisions for cascade-restored bindings", () => {
+  it("re-stamps an undo whose content is identical but stored revision changed", () => {
+    useStore.getState().replaceAll(
+      makeAppData({
+        clients: [{ ...meta, id: "c1", name: "Client", color: "#111111" }],
+      }),
+    );
+    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+
+    useStore.getState().updateClient("c1", { name: "Client" });
+    const afterNoOpSave = useStore.getState().data;
+    const savedRevision = afterNoOpSave.clients[0].updatedAt;
+    const ops = undoOps(afterNoOpSave);
+
+    expect(useStore.getState().data.clients[0]).toMatchObject({ name: "Client", color: "#111111" });
+    expect(Date.parse(useStore.getState().data.clients[0].updatedAt)).toBeGreaterThan(Date.parse(savedRevision));
+    expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "clients", id: "c1" }));
+  });
+
   it("re-timestamps a tenant larger than the engine argument limit without throwing", () => {
     const clients = Array.from({ length: 75_000 }, (_, index) => ({
       ...meta,

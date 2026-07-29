@@ -20,6 +20,21 @@ describe("data transfer", () => {
     expect(() => parseData('{"resources":"oops"}')).toThrow(/data table is not a list/i);
   });
 
+  it.each([
+    ["null", null],
+    ["string", "not a wrapper"],
+    ["array", []],
+  ])("rejects outer records when a present data wrapper is %s", (_label, data) => {
+    expect(() =>
+      parseData(
+        JSON.stringify({
+          clients: [{ id: "outer-client" }],
+          data,
+        }),
+      ),
+    ).toThrow(/not CapacityLens data/i);
+  });
+
   it("reports a known non-list table as damaged CapacityLens data", () => {
     expect(() => parseData(JSON.stringify({ schemaVersion: EXPORT_SCHEMA_VERSION, data: { clients: {} } }))).toThrow(
       /damaged: a data table is not a list/i,

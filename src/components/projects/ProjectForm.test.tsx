@@ -58,13 +58,9 @@ describe("ProjectForm", () => {
 
   it("does not expose privacy settings or an editable redacted name to a non-owner", () => {
     const client = useStore.getState().addClient({ name: "Acme", color: "#111111" });
-    const project = useStore.getState().addProject({
-      name: '"Aurora"',
-      clientId: client.id,
-      color: "#ec4899",
-      isPrivate: true,
-      codeName: undefined,
-    });
+    const created = useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" });
+    const project = { ...created, name: '"Aurora"', isPrivate: true, codeName: undefined };
+    useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
     render(
       <PermissionContext.Provider value={{ role: "admin" }}>
         <ProjectForm project={project} onClose={vi.fn()} />

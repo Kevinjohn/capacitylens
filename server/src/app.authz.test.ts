@@ -1184,6 +1184,20 @@ describe("private client/project names — owner-only server projection", () => 
       status: "active",
       createdAt: TS,
     });
+    const rejected = await call(ownerSetup.app, {
+      method: "POST",
+      url: "/api/projects",
+      payload: {
+        ...project("owner-private-missing-code", "a1", "c1"),
+        name: "Owner secret project",
+        isPrivate: true,
+      },
+      headers: { cookie: owner.cookie },
+    });
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json()).toEqual({ error: "A private client or project requires a code name." });
+    expect(getRow(ownerSetup.db, "projects", "owner-private-missing-code")).toBeUndefined();
+
     const updated = await call(ownerSetup.app, {
       method: "PATCH",
       url: "/api/projects/p1",

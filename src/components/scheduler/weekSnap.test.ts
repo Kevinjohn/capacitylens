@@ -47,6 +47,11 @@ describe("weekStartSnapTarget — floor to the current week start (uniform grid)
 describe("weekStartSnapTarget — Sunday week start (weekStartsOn=0)", () => {
   const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
 
+  it("clamps the first partial week's preceding Sunday to the window origin", () => {
+    const tueX = geom.xForDateInGeom("2026-06-02");
+    expect(weekStartSnapTarget(geom, DAYS, tueX, 0)).toBe(0);
+  });
+
   it("floors to the SUNDAY, not the Monday", () => {
     const tueX = geom.xForDateInGeom("2026-06-09"); // Tue of the 2nd week, idx 8
     const sunday = geom.xForDateInGeom("2026-06-07"); // the Sunday that starts that week, idx 6

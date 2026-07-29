@@ -11,7 +11,8 @@ import type { ISODate, Weekday } from "../types/entities";
 // re-validate — `validateDateRange` (lib/integrity.ts, via `isValidISODate`) enforces
 // it at every write boundary (store add/update, import remap, server validate), and
 // import normalises dates on the way in. Pass an invalid/unpadded string and `parseISO`
-// returns an Invalid Date whose downstream `format()` throws a RangeError. Do NOT
+// returns an Invalid Date whose downstream `format()` throws a RangeError. Extended-year input
+// can parse, but `toISODate` rejects any output outside the four-digit product domain. Do NOT
 // "harden" that by wrapping these in try/catch: it would swallow a real upstream bug in
 // the hottest path. The guarantee lives at the boundary, by design.
 
@@ -26,9 +27,13 @@ export function parseDate(date: ISODate): Date {
   return parseISO(date);
 }
 
-/** Format a Date back to a date-only ISO string. */
+/** Format a Date back to a date-only ISO string within the four-digit product year domain. */
 export function toISODate(date: Date): ISODate {
-  return format(date, "yyyy-MM-dd");
+  const result = format(date, "yyyy-MM-dd");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(result)) {
+    throw new RangeError("Date falls outside the supported four-digit ISO year range.");
+  }
+  return result;
 }
 
 /** Whole-calendar-day offset of `date` from `origin` (may be negative).
@@ -192,9 +197,9 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
  *
  *  `count` must be a safe integer; fractional and non-finite counts are rejected.
  *  Guards against the remaining degenerate cases that would otherwise make no sense: if
- *  `count <= 0`, `workingDays` is empty, or `workingDays.length >= 7` (treated as a
- *  full/every-calendar-day week, matching isWeekendAware — which is false at length
- *  >= 7), it falls back to a raw inclusive calendar span.
+ *  `count <= 0`, the distinct working-day set is empty, or it contains all seven weekdays
+ *  (treated as a full/every-calendar-day week, matching isWeekendAware), it falls back to a raw
+ *  inclusive calendar span.
  *
  *  Closed-form (O(1)), not a day-by-day scan — the drag-resize gesture math calls this
  *  per pointer move, and an absurd input (1-working-day week × ~100-year span) would
@@ -206,6 +211,9 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
  *  weekdays keeps a degenerate array like [1,1,1] (length 3, but only Mondays) correct. */
 export function endDateForWorkingDays(start: ISODate, count: number, workingDays: Weekday[]): ISODate {
   if (!Number.isSafeInteger(count)) throw new RangeError("count must be a safe integer.");
+  if (workingDays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
+    throw new RangeError("workingDays must contain only integer weekdays from 0 through 6.");
+  }
   const working = new Set(workingDays);
   if (count <= 0 || working.size === 0 || working.size >= 7) {
     return addDaysISO(start, Math.max(0, count - 1));

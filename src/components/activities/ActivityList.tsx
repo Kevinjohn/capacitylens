@@ -5,12 +5,12 @@ import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from ".
 import { ActivityForm } from "./ActivityForm";
 import type { Activity } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { Fragment, useMemo } from "react";
+import { Fragment, useEffect, useMemo, useRef } from "react";
 import { ClipboardCheck, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { errorMessage } from "../../lib/errorMessage";
 
-export function ActivityList() {
+export function ActivityList({ selectedActivityId = null }: { selectedActivityId?: string | null }) {
   const data = useActiveScopedData();
   const activities = data.activities;
   const projects = data.projects;
@@ -20,6 +20,11 @@ export function ActivityList() {
   const del = useStore((s) => s.deleteActivity);
   const setNotice = useStore((s) => s.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>();
+  const selectedRowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    selectedRowRef.current?.focus();
+  }, [selectedActivityId, activities]);
 
   // A project-less activity (internal/cross-project) is bucketed under the account's built-in
   // Internal client for display — so its label reads "Internal", not "(no project)".
@@ -37,21 +42,32 @@ export function ActivityList() {
   const repeatableActivities = activities.filter((a) => a.kind === "repeatable");
   const projectActivities = activities.filter((a) => a.kind === "project");
 
-  const renderRow = (activity: Activity, showLabel: boolean) => (
-    <Item size="sm" role="listitem" data-testid="activity-row" className="rounded-none">
-      <ItemContent>
-        <span className="font-medium">{activity.name}</span>
-        {showLabel && <span className="text-sm text-muted-foreground"> · {projectLabel(activity.projectId)}</span>}
-      </ItemContent>
-      <ItemActions>
-        <EditButton onClick={() => setEditing(activity)} />
-        <DeleteButton
-          label={m.list_activities_delete_aria({ name: activity.name })}
-          onClick={() => setConfirming(activity)}
-        />
-      </ItemActions>
-    </Item>
-  );
+  const renderRow = (activity: Activity, showLabel: boolean) => {
+    const selected = activity.id === selectedActivityId;
+    return (
+      <Item
+        ref={selected ? selectedRowRef : undefined}
+        size="sm"
+        role="listitem"
+        data-testid="activity-row"
+        aria-current={selected ? "location" : undefined}
+        tabIndex={selected ? -1 : undefined}
+        className="rounded-none"
+      >
+        <ItemContent>
+          <span className="font-medium">{activity.name}</span>
+          {showLabel && <span className="text-sm text-muted-foreground"> · {projectLabel(activity.projectId)}</span>}
+        </ItemContent>
+        <ItemActions>
+          <EditButton onClick={() => setEditing(activity)} />
+          <DeleteButton
+            label={m.list_activities_delete_aria({ name: activity.name })}
+            onClick={() => setConfirming(activity)}
+          />
+        </ItemActions>
+      </Item>
+    );
+  };
 
   // Three kind-sections share this box, each always rendered. To avoid three identical CTAs
   // (and the duplicate accessible-name that creates) when the account is wholly empty, the

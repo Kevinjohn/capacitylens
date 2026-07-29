@@ -363,6 +363,14 @@ describe("can / isAtLeast — fail-closed on an unknown role/action (never falls
       expect(can(role, "reboot" as Action)).toBe(false);
     }
   });
+
+  it("an unknown target or next role is denied by every member-management guard", () => {
+    const unknownRole = "superuser" as Role;
+    expect(canManageMemberRole("admin", unknownRole, "editor")).toBe(false);
+    expect(canManageMemberRole("admin", "editor", unknownRole)).toBe(false);
+    expect(canRemoveMember("admin", unknownRole)).toBe(false);
+    expect(canResetMemberPassword("admin", unknownRole)).toBe(false);
+  });
   it("isAtLeast denies when either the role or the min tier is unknown", () => {
     expect(isAtLeast("superuser" as Role, "viewer")).toBe(false);
     expect(isAtLeast("viewer", "superuser" as Role)).toBe(false);

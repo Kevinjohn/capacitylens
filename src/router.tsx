@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- route config, not a component module */
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation } from "react-router-dom";
 import { PUBLIC_AUTH_ENTRY_PATHS } from "./auth/authEntryRoute";
 import { AppShell } from "./components/AppShell";
 import { SchedulerView } from "./components/scheduler/SchedulerView";
@@ -49,6 +49,18 @@ function DisciplineRoute() {
   return enabled ? <DisciplineList /> : <Navigate to="/" replace />;
 }
 
+function ActivityRoute() {
+  const { hash } = useLocation();
+  const encodedId = hash.startsWith("#activity=") ? hash.slice("#activity=".length) : "";
+  let selectedActivityId: string | null = null;
+  try {
+    selectedActivityId = encodedId ? decodeURIComponent(encodedId) : null;
+  } catch {
+    // A malformed bookmark still opens the complete list without selecting an arbitrary row.
+  }
+  return <ActivityList selectedActivityId={selectedActivityId} />;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -66,7 +78,7 @@ export const router = createBrowserRouter([
       { path: "disciplines", element: <DisciplineRoute /> },
       { path: "clients", element: <ClientList /> },
       { path: "projects", element: <ProjectList /> },
-      { path: "activities", element: <ActivityList /> },
+      { path: "activities", element: <ActivityRoute /> },
       { path: "timeoff", element: <TimeOffList /> },
       { path: "team", element: <TeamAccessView /> },
       { path: "settings", element: <SettingsView /> },

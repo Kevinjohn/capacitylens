@@ -62,6 +62,7 @@ type State =
       message: string;
       retryAccept?: boolean;
       retryPreview?: boolean;
+      switchIdentity?: boolean;
     }
   | { kind: "auth"; message?: string; errorField?: string | null }
   | { kind: "local" }; // the demo build (no server) — invites are a server-mode feature
@@ -122,7 +123,7 @@ export function InviteAccept() {
 }
 
 function InviteAcceptForToken({ token }: { token: string | undefined }) {
-  const { authMode, user, providers: configuredProviders, refreshAuth } = useAuth();
+  const { authMode, user, providers: configuredProviders, refreshAuth, signOut } = useAuth();
   const providers = configuredProviders ?? [];
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
   const setActiveAccount = useStore((s) => s.setActiveAccount);
@@ -266,10 +267,14 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           }
           setState({
             kind: "error",
-            message: outcomeUnknown
-              ? `${failure.message ?? m.invite_unknown_pending()} ${reconciliation}`
-              : messageForStatus(res.status, failure.message ?? undefined),
+            message:
+              failure.code === "INVITATION_EMAIL_MISMATCH"
+                ? m.invite_err_identity_mismatch()
+                : outcomeUnknown
+                  ? `${failure.message ?? m.invite_unknown_pending()} ${reconciliation}`
+                  : messageForStatus(res.status, failure.message ?? undefined),
             retryAccept: outcomeUnknown,
+            switchIdentity: failure.code === "INVITATION_EMAIL_MISMATCH",
           });
         }
         return;
@@ -587,7 +592,13 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             </p>
             {state.kind === "ready" && (
               <>
+                <p className="text-sm text-muted-foreground">
+                  {m.invite_signed_in_as({ identity: user?.email ?? user?.name ?? m.invite_current_account() })}
+                </p>
                 <div className="flex flex-wrap justify-end gap-2">
+                  <Button size="sm" type="button" variant="outline" disabled={busy} onClick={() => void signOut()}>
+                    {m.invite_use_different_account()}
+                  </Button>
                   <Button asChild size="sm">
                     <Link to="/">{m.invite_go_to_app()}</Link>
                   </Button>
@@ -714,6 +725,11 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                   {state.retryAccept && preview && user && (
                     <Button size="sm" type="button" disabled={busy} onClick={() => void acceptInvite()}>
                       {m.invite_retry_accept()}
+                    </Button>
+                  )}
+                  {state.switchIdentity && (
+                    <Button size="sm" type="button" variant="outline" disabled={busy} onClick={() => void signOut()}>
+                      {m.invite_use_different_account()}
                     </Button>
                   )}
                   {state.retryPreview && (

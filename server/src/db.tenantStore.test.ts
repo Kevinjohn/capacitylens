@@ -1,10 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { openDb, insertAll, insertRow, loadState, readSlice, type Db } from "./db";
+import {
+  openDb,
+  insertAll,
+  insertRow,
+  loadState,
+  readSlice,
+  type CompleteAccountSlice,
+  type Db,
+  validatedCompleteAccountSlice,
+} from "./db";
 import { sqliteTenantStore } from "./tenantStore";
 import { tx } from "./txn";
 
@@ -237,6 +246,16 @@ describe("readSlice — tenant isolation", () => {
 });
 
 describe("sqliteTenantStore", () => {
+  it("keeps projected reads type-incompatible with complete replacement input", () => {
+    const db = openDb(":memory:");
+    insertAll(db, seedTwoAccounts());
+    const store = sqliteTenantStore(db);
+
+    expectTypeOf(store.readSlice("a1", FULL)).not.toMatchTypeOf<CompleteAccountSlice>();
+    expectTypeOf(store.readFullSlice("a1")).toMatchTypeOf<CompleteAccountSlice>();
+    db.close();
+  });
+
   it("readSlice(id) equals the standalone readSlice(db, id)", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
@@ -290,7 +309,7 @@ describe("sqliteTenantStore", () => {
     next.resources = [person("r1", "a1", "d1")];
     next.activities = [activity("act1", "a1", "p1")];
     next.allocations = [allocation("al1b", "a1", "r1", "act1")]; // a NEW allocation id; old al1 must be gone
-    store.write("a1", next as unknown as AppData);
+    store.write("a1", validatedCompleteAccountSlice(next as unknown as AppData));
 
     const a1 = store.readSlice("a1", FULL);
     expect(a1.allocations.map((r) => r.id)).toEqual(["al1b"]); // a1's scoped rows were REPLACED

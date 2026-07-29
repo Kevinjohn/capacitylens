@@ -14,6 +14,25 @@ describe("applyGesture: move", () => {
     expect(applyGesture("move", range, 2)).toEqual({ startDate: "2026-05-12", endDate: "2026-05-14" });
     expect(applyGesture("move", range, -3)).toEqual({ startDate: "2026-05-07", endDate: "2026-05-09" });
   });
+
+  it("snaps a weekend-aware moved start in the drag direction", () => {
+    const weekdays = { workingDays: [1, 2, 3, 4, 5] as Weekday[] };
+    const workingWeek: DateRange = { startDate: "2026-06-01", endDate: "2026-06-05" };
+
+    expect(applyGesture("move", workingWeek, 5, weekdays)).toEqual({
+      startDate: "2026-06-08",
+      endDate: "2026-06-12",
+    });
+    expect(applyGesture("move", workingWeek, -1, weekdays)).toEqual({
+      startDate: "2026-05-29",
+      endDate: "2026-06-04",
+    });
+  });
+
+  it("keeps a zero-delta move unchanged even when a legacy range starts on a weekend", () => {
+    const weekendRange: DateRange = { startDate: "2026-06-06", endDate: "2026-06-07" };
+    expect(applyGesture("move", weekendRange, 0, { workingDays: [1, 2, 3, 4, 5] as Weekday[] })).toEqual(weekendRange);
+  });
 });
 
 describe("applyGesture: resize-start", () => {
@@ -86,6 +105,12 @@ describe("applyGesture: weekend-aware resize", () => {
 
     expect(applyGesture("resize-start", range, 99, wd)).toEqual(range);
     expect(applyGesture("resize-end", range, -99, wd)).toEqual(range);
+  });
+
+  it("does not invert a one-day resize when the opposite edge is non-working", () => {
+    const weekendRange: DateRange = { startDate: "2026-06-06", endDate: "2026-06-07" };
+    expect(applyGesture("resize-start", weekendRange, 1, wd)).toEqual(weekendRange);
+    expect(applyGesture("resize-end", weekendRange, -1, wd)).toEqual(weekendRange);
   });
 
   it("a move whose range has NO working days at all preserves its calendar span (does not collapse it)", () => {

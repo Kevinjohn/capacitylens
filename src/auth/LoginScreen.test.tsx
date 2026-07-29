@@ -107,6 +107,25 @@ describe("LoginScreen — multi-factor challenge", () => {
     expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
   });
 
+  it("hides external providers while a password second-factor challenge is pending", async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+    render(
+      <LoginScreen
+        authMode="password"
+        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: false }]}
+        onSignedIn={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue with Company SSO" })).not.toBeInTheDocument();
+  });
+
   it("supports a recovery code without marking the browser as trusted", async () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
     verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null });
@@ -127,6 +146,22 @@ describe("LoginScreen — multi-factor challenge", () => {
 });
 
 describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
+  it("normalizes a pasted sign-in email before authenticating", async () => {
+    signInEmail.mockResolvedValue({ data: {}, error: null });
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "  Person@Example.COM  " } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() =>
+      expect(signInEmail).toHaveBeenCalledWith({
+        email: "person@example.com",
+        password: "correct-password",
+      }),
+    );
+  });
+
   it("gives the email/password inputs ids and no aria-describedby before any error", () => {
     render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
     const email = screen.getByLabelText("Email");

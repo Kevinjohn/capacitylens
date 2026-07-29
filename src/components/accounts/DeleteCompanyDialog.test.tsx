@@ -27,6 +27,17 @@ describe("DeleteCompanyDialog", () => {
     expect(screen.getByRole("button", { name: "Export first" })).toBeDisabled();
   });
 
+  it("keeps the owning dialog mounted while deletion is in flight", () => {
+    const onCancel = vi.fn();
+    render(<DeleteCompanyDialog account={makeAccount()} busy onConfirm={() => {}} onCancel={onCancel} />);
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("keeps Delete disabled until the typed name matches, then confirms", () => {
     const account = makeAccount({ name: "Acme Co" });
     const onConfirm = vi.fn();
@@ -44,6 +55,16 @@ describe("DeleteCompanyDialog", () => {
 
     fireEvent.click(deleteBtn);
     expect(onConfirm).toHaveBeenCalledOnce();
+  });
+
+  it("matches the displayed name across stored whitespace and Unicode composition", () => {
+    const account = makeAccount({ name: "  Cafe\u0301 Co  " });
+    render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={() => {}} />);
+
+    const deleteBtn = screen.getByRole("button", { name: "Delete" });
+    fireEvent.change(screen.getByLabelText(/Type/i), { target: { value: "Caf\u00e9 Co" } });
+
+    expect(deleteBtn).toBeEnabled();
   });
 
   it("lets Escape abort even after typing in the confirm field (no unsaved-changes refusal)", () => {

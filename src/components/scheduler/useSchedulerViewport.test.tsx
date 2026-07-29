@@ -14,13 +14,19 @@ import { useStore } from "../../store/useStore";
 // must be driven through a real scrollable node (renderHook alone never attaches one). Mirrors
 // SchedulerGrid.test.tsx's "Feature 2" wiring tests — same clientWidth stub + synchronous rAF —
 // but stripped to just the viewport hook, no grid chrome.
-function Harness({ minimiseWeekends = false }: { minimiseWeekends?: boolean }) {
+function Harness({
+  minimiseWeekends = false,
+  calendarWeekStartsOn = 1,
+}: {
+  minimiseWeekends?: boolean;
+  calendarWeekStartsOn?: 0 | 1;
+}) {
   const ui = useStore((s) => s.ui);
   const { scrollRef, leftEdgeIdx, onScroll, visibleStartDate, geom } = useSchedulerViewport({
     ui,
     minimiseWeekends,
     snapToWeekStart: false,
-    calendarWeekStartsOn: 1,
+    calendarWeekStartsOn,
   });
   return (
     <div ref={scrollRef} data-testid="scroll" onScroll={onScroll} style={{ overflow: "auto" }}>
@@ -126,5 +132,27 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
     const currentFocusX = Number(screen.getByTestId("focus-x").textContent);
     expect(currentFocusX).toBeGreaterThan(0);
     expect(grid.scrollLeft).toBe(currentFocusX);
+  });
+
+  it("clamps a zoom anchor whose week start falls before the timeline origin", () => {
+    useStore.setState((state) => ({
+      ui: {
+        ...state.ui,
+        originDate: "2026-06-03", // Wednesday; Monday week-start lies before column zero
+        focusDate: "2026-06-03",
+      },
+    }));
+    render(<Harness calendarWeekStartsOn={1} />);
+    const grid = screen.getByTestId("scroll");
+
+    act(() => {
+      grid.scrollLeft = 0;
+      grid.dispatchEvent(new Event("scroll"));
+    });
+    act(() => {
+      useStore.setState((state) => ({ ui: { ...state.ui, zoom: 2 } }));
+    });
+
+    expect(grid.scrollLeft).toBe(0);
   });
 });

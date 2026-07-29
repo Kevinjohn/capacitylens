@@ -7,6 +7,7 @@ import {
   type DayCapacity,
 } from "../../lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
 import { timeOffTypeLabels, resourceDisplayName } from "../../lib/metadata";
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from "../../store/selectors";
@@ -46,6 +47,18 @@ export interface BarLayout {
   client?: string;
   /** True when the assignee is an external / 3rd-party resource — the bar hides its hours. */
   external: boolean;
+}
+
+const reportedInvalidScheduleRows = new WeakSet<object>();
+
+/** Fail visibly but once for a stable row object, then keep corrupt dates out of every scheduler path. */
+function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: ISODate }): boolean {
+  const valid = isValidISODate(row.startDate) && isValidISODate(row.endDate) && row.startDate <= row.endDate;
+  if (!valid && !reportedInvalidScheduleRows.has(row)) {
+    reportedInvalidScheduleRows.add(row);
+    console.error(`Scheduler omitted ${row.id}: invalid date range.`);
+  }
+  return valid;
 }
 
 /** Per-day capacity state for a lane background cell. */
@@ -268,8 +281,8 @@ export function buildSchedulerModel({
     if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false;
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
     // user sees — matching the command palette — as well as by its underlying role/name.
-    const resourceSearchText = [resourceDisplayName(r), r.name, r.role].map(searchable).join(" ");
-    if (search && !resourceSearchText.includes(search)) return false;
+    const resourceSearchFields = [resourceDisplayName(r), r.name, r.role].map(searchable);
+    if (search && !resourceSearchFields.some((field) => field.includes(search))) return false;
     return true;
   };
 
@@ -325,8 +338,8 @@ export function buildSchedulerModel({
         .map((resource) => {
           // This resource's data, pre-grouped above; capacity then scans only its own
           // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
-          const allAllocs = allocsByResource.get(resource.id) ?? [];
-          const resTimeOff = timeOffByResource.get(resource.id) ?? [];
+          const allAllocs = (allocsByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
+          const resTimeOff = (timeOffByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
           // External / 3rd-party rows have NO capacity: no over-markers, no utilisation, no time-off
           // — an awareness band, not a bookable lane. We starve the capacity path rather than
           // special-case the (dumb) lane; their activity bars still render.

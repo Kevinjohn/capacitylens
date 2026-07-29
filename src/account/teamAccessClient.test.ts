@@ -11,6 +11,25 @@ const json = (body: unknown) =>
 afterEach(() => vi.restoreAllMocks());
 
 describe("teamAccessClient identity validation", () => {
+  it("classifies a clone-less in-progress command from one body read", async () => {
+    const readBody = vi
+      .fn()
+      .mockResolvedValueOnce({ code: "COMMAND_IN_PROGRESS", error: "Still running." })
+      .mockRejectedValue(new Error("body already consumed"));
+    vi.spyOn(accountClient, "issuePasswordReset").mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: readBody,
+    } as unknown as Response);
+
+    await expect(teamAccessClient.issuePasswordReset("account-1", "user-1")).resolves.toEqual({
+      kind: "unknown",
+      status: 409,
+      message: "Still running.",
+    });
+    expect(readBody).toHaveBeenCalledOnce();
+  });
+
   it("decodes an equivalent successful status instead of reporting a rejected command", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(accountClient, "issuePasswordReset").mockResolvedValue(

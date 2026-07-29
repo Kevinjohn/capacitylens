@@ -7,7 +7,10 @@ import {
   planAuthSchemaMigrations,
   providerIdFromExternalContext,
   runAuthMigrations,
+  verifyPasswordWithBackpressure,
 } from "./auth";
+import type { PasswordHasher } from "./passwordSecurity";
+import { WorkQueueFullError } from "./workQueue";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { localExternalIdentityAdmission } from "./accounts/externalIdentityAdmission";
 import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
@@ -26,6 +29,22 @@ const PASSWORD_ENV = {
 
 const fixtures = registerServerFixtureCleanup();
 const openDb = (...args: Parameters<typeof openDbRaw>) => fixtures.trackDb(openDbRaw(...args));
+
+describe("password verification backpressure", () => {
+  it("maps scrypt saturation to a retryable service-unavailable API error", async () => {
+    const hasher: PasswordHasher = {
+      hash: vi.fn(),
+      verify: vi.fn().mockRejectedValue(new WorkQueueFullError("Password processing is at capacity.", "full")),
+    };
+
+    await expect(
+      verifyPasswordWithBackpressure(hasher, { hash: "stored", password: "correct password" }),
+    ).rejects.toMatchObject({
+      status: "SERVICE_UNAVAILABLE",
+      body: expect.objectContaining({ code: "PASSWORD_PROCESSING_UNAVAILABLE" }),
+    });
+  });
+});
 
 describe("startup configuration before database migration", () => {
   afterEach(() => {
@@ -80,6 +99,24 @@ describe("startup configuration before database migration", () => {
         CAPACITYLENS_SSO_ISSUER: "https://idp.example/tenant?version=2",
       }),
     ).toThrow(/query string or fragment/i);
+  });
+
+  it.each([
+    ["openid profile", "email"],
+    ["openid email", "profile"],
+    ["profile email", "openid"],
+    ["openid", "profile, email"],
+  ])("refuses strict OIDC scopes %j because %s is required", (scopes, missing) => {
+    expect(() =>
+      authFromEnv(openDb(":memory:"), {
+        ...PASSWORD_ENV,
+        CAPACITYLENS_SSO_CLIENT_ID: "client",
+        CAPACITYLENS_SSO_CLIENT_SECRET: "secret",
+        CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+        CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+        CAPACITYLENS_SSO_SCOPES: scopes,
+      }),
+    ).toThrow(new RegExp(`requires the ${missing} scope`));
   });
 
   it("refuses public URLs that are not a bare origin", () => {
@@ -229,6 +266,22 @@ describe("cookie/session hardening (P1.16)", () => {
         BETTER_AUTH_URL: "http://capacity.example",
       }),
     ).toThrow(/must use https:\/\//);
+  });
+
+  it("inherits the production HTTPS posture when an explicit environment omits NODE_ENV", () => {
+    const previousNodeEnvironment = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      expect(() =>
+        authFromEnv(openDb(":memory:"), {
+          ...PASSWORD_ENV,
+          BETTER_AUTH_URL: "http://capacity.example",
+        }),
+      ).toThrow(/must use https:\/\//);
+    } finally {
+      if (previousNodeEnvironment === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnvironment;
+    }
   });
 
   it("still permits loopback HTTP for a local production-container check", () => {

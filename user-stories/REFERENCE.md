@@ -184,6 +184,10 @@ immediately. The server orders both requests per browser session, so the newest 
 the ordinary request or the teardown request arrives first. An undo performed before the first
 save acknowledges is also preserved, including removal of a newly created non-lifecycle row; an
 unrelated writer's intervening edit still produces the normal conflict-and-reload path.
+On a conflict, the sticky notice says the edit was not saved and that CapacityLens is reloading the
+latest copy; it does not claim reload completion before the authoritative read succeeds. If that
+read fails, every write remains gated and connectivity recovery retries the read before any clean or
+rebased follow-up save.
 Every successful non-superseded batch receipt must identify the server-owned revision for each
 written row exactly once. If that receipt is absent, partial, duplicated or names another row,
 CapacityLens treats the commit state as uncertain, reloads the authoritative company slice before
@@ -524,7 +528,10 @@ metadata; the preview returns no company data, membership list or unrelated iden
 opening or previewing the URL never changes membership. In a server deploy with auth on, an
 unauthenticated invitee gets the page's OWN inline onboarding form (NOT the app login wall): an
 existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
-under that identity, then chooses **Accept invite**. A brand-new invitee chooses **Create account and
+under that identity, sees the signed-in email/name, then chooses **Accept invite**. **Use a different
+account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
+identity, the page explains the mismatch and retains that same recovery action instead of suggesting
+a retry as the wrong identity. A brand-new invitee chooses **Create account and
 accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
 then refreshes the authenticated company list, activates that company and enters it directly.
 A fresh authenticated boot is required because the pre-session invite page deliberately starts
@@ -748,7 +755,8 @@ unpadded dates like `2026-6-3`, and out-of-range months/days are rejected.
 - Project item → navigate to `/` + **replace** schedule filters with `{ projectId }` (all other
   filters — search, discipline, client, hideTentative, showUnmatched — are reset to defaults).
 - Client item → navigate to `/` + **replace** schedule filters with `{ clientId }` (same reset).
-- Activity item → navigate to `/activities`.
+- Activity item → navigate to `/activities#activity=<id>` and focus the selected activity row in
+  the complete Activities list, including Internal activities whose schedule bars are hidden.
 
 **Keyboard navigation:** `ArrowUp`/`ArrowDown` move the highlight; `Enter` selects; `Escape` closes.
 The focused combobox input exposes the highlighted option through `aria-activedescendant` from the
@@ -829,8 +837,9 @@ multiple).
   compound labels, scheduler bars and popovers, forms, confirmation dialogs and the command palette.
   Quotation marks are display chrome: straight or curly outer quotes are removed before storage, and
   the non-owner projection adds exactly one pair of straight double quotes. A private code name that
-  becomes empty after normalisation is invalid in forms; a malformed imported private row is repaired
-  fail-closed to `Confidential` instead of exposing its real name.
+  becomes empty after normalisation is rejected by every ordinary write path; a malformed imported
+  private row is repaired fail-closed to a distinct, stable `Confidential #<record tag>` label instead
+  of exposing its real name or collapsing several private rows onto one indistinguishable label.
 
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write

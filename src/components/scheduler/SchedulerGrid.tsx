@@ -32,6 +32,7 @@ import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 import { Button } from "../ui/button";
 import { TooltipProvider } from "../ui/tooltip";
 import { useCalendarToday } from "./useCalendarToday";
+import { realizedVisibleSpan } from "./visibleSpan";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -168,10 +169,19 @@ export function SchedulerGrid() {
   }, [days, leftEdgeIdx, ui.zoom, ui.focusDate]);
 
   // Human label for the visible span, used in the utilisation titles ("over the visible N week(s)").
+  const visibleSpan = realizedVisibleSpan(visStart, visEnd);
   const visibleWeeksLabel =
-    ui.zoom === 1
-      ? m.scheduler_visible_weeks_label_one({ count: ui.zoom })
-      : m.scheduler_visible_weeks_label_other({ count: ui.zoom });
+    visibleSpan.weeks !== undefined
+      ? visibleSpan.weeks === 1
+        ? m.scheduler_visible_weeks_label_one({ count: visibleSpan.weeks })
+        : m.scheduler_visible_weeks_label_other({ count: visibleSpan.weeks })
+      : visibleSpan.days === 1
+        ? m.scheduler_visible_days_label_one({ count: visibleSpan.days })
+        : m.scheduler_visible_days_label_other({ count: visibleSpan.days });
+  const visibleSpanCompact =
+    visibleSpan.weeks !== undefined
+      ? m.scheduler_visible_weeks_compact({ count: visibleSpan.weeks })
+      : m.scheduler_visible_days_compact({ count: visibleSpan.days });
 
   const blocksMode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === "blocks");
 
@@ -611,7 +621,7 @@ export function SchedulerGrid() {
                   >
                     {/* The headline % follows the VISIBLE range, so the label tracks the selected zoom
                       span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
-                    {m.scheduler_total_util_label({ count: ui.zoom })}
+                    {m.scheduler_total_util_label({ span: visibleSpanCompact })}
                   </span>
                   <span data-testid="overall-utilization" className="text-sm font-semibold">
                     {overallUtil}%

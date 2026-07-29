@@ -89,11 +89,9 @@ export function useDragResize(args: UseDragResizeArgs) {
     };
     const onUp = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return;
-      if (ev.button !== 0) {
-        detach();
-        argsRef.current.onCancel?.();
-        return;
-      }
+      // A mouse shares one pointerId across all buttons. Releasing a secondary button while the
+      // primary drag remains held must neither commit nor cancel the armed primary gesture.
+      if (ev.button !== 0) return;
       detach();
       if (!dragging) {
         argsRef.current.onClick?.();

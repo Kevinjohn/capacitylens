@@ -123,6 +123,11 @@ describe("dateMath", () => {
   it("toISODate/parseDate round-trip", () => {
     expect(toISODate(parseDate("2026-05-29"))).toBe("2026-05-29");
   });
+
+  it("rejects extended and derived five-digit years before they can masquerade as ISODate", () => {
+    expect(() => toISODate(parseDate("+012026-06-01"))).toThrow(/four-digit ISO year range/i);
+    expect(() => addDaysISO("9999-12-31", 1)).toThrow(/four-digit ISO year range/i);
+  });
 });
 
 describe("todayISO", () => {
@@ -250,6 +255,15 @@ describe("endDateForWorkingDays", () => {
     expect(() => endDateForWorkingDays("2026-06-01", count, [1, 2, 3, 4, 5])).toThrow("count must be a safe integer.");
   });
 
+  it.each([{ days: [7] }, { days: [1, 7] }])(
+    "fails loudly when the weekday set contains an out-of-range value ($days)",
+    ({ days }) => {
+      expect(() => endDateForWorkingDays("2026-06-01", 5, days as Weekday[])).toThrow(
+        "workingDays must contain only integer weekdays from 0 through 6.",
+      );
+    },
+  );
+
   it("falls back to the raw calendar span (start itself) when count <= 0", () => {
     expect(endDateForWorkingDays("2026-06-01", 0, [1, 2, 3, 4, 5])).toBe("2026-06-01");
     expect(endDateForWorkingDays("2026-06-01", -3, [1, 2, 3, 4, 5])).toBe("2026-06-01");
@@ -288,14 +302,15 @@ describe("endDateForWorkingDays", () => {
     // scan it replaced — so cross-check it against that scan as an independent oracle
     // over every start weekday, several working-week shapes, and a wide count range.
     const reference = (start: string, count: number, workingDays: Weekday[]): string => {
-      if (count <= 0 || workingDays.length === 0 || workingDays.length >= 7) {
+      const distinctWorkingDays = new Set(workingDays);
+      if (count <= 0 || distinctWorkingDays.size === 0 || distinctWorkingDays.size >= 7) {
         return addDaysISO(start, Math.max(0, count - 1));
       }
       const maxScan = count * 7 + 7;
       let found = 0;
       for (let i = 0; i < maxScan; i++) {
         const day = addDaysISO(start, i);
-        if (workingDays.includes(weekdayOf(day))) {
+        if (distinctWorkingDays.has(weekdayOf(day))) {
           found++;
           if (found === count) return day;
         }

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import Fastify, { type FastifyInstance } from "fastify";
 import { buildApp } from "./app";
-import { openDb, insertAll, type Db } from "./db";
+import { openDb, insertAll, type CompleteAccountSlice, type Db, type ProjectedAccountSlice } from "./db";
 import { upsertMember } from "./controlTables";
 import { authFromEnv, runAuthMigrations } from "./auth";
 import { fileAuditSink, type AuditRecord } from "./audit";
@@ -120,7 +120,8 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
     resources: [person("r1", "a1")],
   } as AppData;
   const store: TenantStore = {
-    readSlice: () => data,
+    readSlice: () => data as ProjectedAccountSlice,
+    readFullSlice: () => data as CompleteAccountSlice,
     write: (_accountId, next) => {
       data = next;
     },
@@ -575,7 +576,8 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
     // A purge-eligible (aged tombstone) project, a placeholder BOUND to it, and an UNRELATED resource.
     d.clients = [client("c1", "a1")];
     d.projects = [project("pBound", "a1", "c1", archivedTombstone)];
-    d.resources = [placeholder("phBound", "a1", "pBound"), person("rFree", "a1")];
+    const futureOffsetRevision = "2099-01-01T01:00:00+01:00";
+    d.resources = [placeholder("phBound", "a1", "pBound", { updatedAt: futureOffsetRevision }), person("rFree", "a1")];
     insertAll(db, d as unknown as AppData);
 
     const { cookie, userId } = await signUp(app, "survivor@capacitylens.dev");
@@ -592,10 +594,10 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
     const body = (await readInactive(app, "a1", cookie)).json();
     expect(body.projects.map((p: { id: string }) => p.id)).not.toContain("pBound");
     const phBound = body.resources.find((r: { id: string }) => r.id === "phBound");
-    // Survivor: unbound from the purged project AND re-stamped to a fresh revision (newer than TS).
+    // Survivor: unbound from the purged project AND re-stamped after its future, non-canonical
+    // offset revision. This proves purge ordering is chronological rather than lexical.
     expect(phBound.projectId ?? null).toBeNull();
-    expect(phBound.updatedAt).not.toBe(TS);
-    expect(Date.parse(phBound.updatedAt)).toBeGreaterThan(Date.parse(TS));
+    expect(Date.parse(phBound.updatedAt)).toBeGreaterThan(Date.parse(futureOffsetRevision));
     // Untouched by the cascade → its revision must NOT be gratuitously bumped.
     const rFree = body.resources.find((r: { id: string }) => r.id === "rFree");
     expect(rFree.updatedAt).toBe(TS);
@@ -637,6 +639,64 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
     expect(row.deletedAt).toBeTruthy(); // the tombstone is set…
     expect(row.archivedAt).toBeTruthy(); // …and archivedAt (set by the prior archive) is preserved.
     expect(after.body).not.toContain(SENTINEL_NAME);
+  });
+
+  it("re-stamps only dependent rows whose notes are scrubbed, without moving future revisions backwards", async () => {
+    const futureRevision = "2099-01-01T00:00:00.000Z";
+    const db = openDb(":memory:");
+    const app = buildApp(db, { optimisticConcurrency: false });
+    const d = emptyAppData() as unknown as Record<string, unknown[]>;
+    d.accounts = [account("a1")];
+    d.resources = [person("rNotes", "a1", justArchived)];
+    d.clients = [client("c1", "a1")];
+    d.projects = [project("p1", "a1", "c1")];
+    d.phases = [phase("ph1", "a1", "p1")];
+    d.activities = [activity("act1", "a1", "p1", "ph1")];
+    d.allocations = [
+      { ...allocation("alNoted", "a1", "rNotes", "act1"), note: "private", updatedAt: futureRevision },
+      allocation("alPlain", "a1", "rNotes", "act1"),
+    ];
+    d.timeOff = [
+      {
+        id: "toNoted",
+        accountId: "a1",
+        resourceId: "rNotes",
+        startDate: "2026-02-01",
+        endDate: "2026-02-02",
+        type: "holiday",
+        note: "private",
+        ...meta(),
+        updatedAt: futureRevision,
+      },
+      {
+        id: "toPlain",
+        accountId: "a1",
+        resourceId: "rNotes",
+        startDate: "2026-02-03",
+        endDate: "2026-02-04",
+        type: "holiday",
+        ...meta(),
+      },
+    ];
+    insertAll(db, d as unknown as AppData);
+
+    expect((await lifecycleAction(app, "resources", "rNotes", "delete", "a1")).statusCode).toBe(200);
+
+    const dependent = (table: "allocations" | "timeOff", id: string) =>
+      db.prepare(`SELECT note, updatedAt FROM ${table} WHERE id = ?`).get(id) as {
+        note: string | null;
+        updatedAt: string;
+      };
+    expect(dependent("allocations", "alNoted")).toEqual({
+      note: null,
+      updatedAt: "2099-01-01T00:00:00.001Z",
+    });
+    expect(dependent("allocations", "alPlain")).toEqual({ note: null, updatedAt: TS });
+    expect(dependent("timeOff", "toNoted")).toEqual({
+      note: null,
+      updatedAt: "2099-01-01T00:00:00.001Z",
+    });
+    expect(dependent("timeOff", "toPlain")).toEqual({ note: null, updatedAt: TS });
   });
 });
 
@@ -1070,12 +1130,18 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   it("rejects direct descendant writes beneath archived or transitively deleted ancestors", async () => {
     const { app, db } = offAppWith({
       accounts: [account("a1")],
-      clients: [client("c-archived", "a1", justArchived), client("c-deleted", "a1", archivedTombstone)],
+      clients: [
+        client("c-active", "a1"),
+        client("c-archived", "a1", justArchived),
+        client("c-deleted", "a1", archivedTombstone),
+      ],
       projects: [
+        project("p-deleted", "a1", "c-active", archivedTombstone),
         project("p-archived", "a1", "c-archived", justArchived),
         project("p-under-deleted-client", "a1", "c-deleted"),
       ],
       phases: [phase("ph-under-archived", "a1", "p-archived"), phase("ph-existing", "a1", "p-under-deleted-client")],
+      resources: [person("placeholder-under-deleted-project", "a1", { kind: "placeholder", projectId: "p-deleted" })],
     });
 
     const beneathArchivedProject = await call(app, {
@@ -1098,15 +1164,27 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       url: "/api/phases/ph-under-archived",
       payload: { name: "Invisible immediate-parent update" },
     });
+    const updatePlaceholderBeneathDeletedProject = await call(app, {
+      method: "PATCH",
+      url: "/api/resources/placeholder-under-deleted-project",
+      payload: { role: "Invisible placeholder update" },
+    });
 
     expect(beneathArchivedProject.statusCode).toBe(400);
     expect(beneathDeletedClient.statusCode).toBe(400);
     expect(updateBeneathDeletedClient.statusCode).toBe(400);
     expect(updateBeneathArchivedProject.statusCode).toBe(400);
+    expect(updatePlaceholderBeneathDeletedProject.statusCode).toBe(400);
+    expect(updatePlaceholderBeneathDeletedProject.json().error).toBe(
+      "Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.",
+    );
     expect(db.prepare(`SELECT id FROM phases WHERE id = 'ph-new'`).get()).toBeUndefined();
     expect(db.prepare(`SELECT id FROM activities WHERE id = 'act-new'`).get()).toBeUndefined();
     expect(db.prepare(`SELECT name FROM phases WHERE id = 'ph-existing'`).get()).toEqual({ name: "Phase 1" });
     expect(db.prepare(`SELECT name FROM phases WHERE id = 'ph-under-archived'`).get()).toEqual({ name: "Phase 1" });
+    expect(db.prepare(`SELECT role FROM resources WHERE id = 'placeholder-under-deleted-project'`).get()).toEqual({
+      role: "Designer",
+    });
   });
 
   it("atomically rejects batch updates beneath an archived ancestor", async () => {

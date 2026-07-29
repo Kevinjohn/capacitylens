@@ -307,8 +307,7 @@ describe("ImportExport – Import", () => {
     Object.defineProperty(input, "files", { value: [file], writable: false });
 
     fireEvent.change(input);
-    await new Promise((r) => setTimeout(r, 0));
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" })); // confirm the import
+    fireEvent.click(await screen.findByRole("button", { name: "Replace data" })); // confirm the import
 
     const notice = useStore.getState().notice;
     expect(notice?.message).toMatch(/no records imported/i);

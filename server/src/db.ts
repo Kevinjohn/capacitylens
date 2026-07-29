@@ -1060,8 +1060,25 @@ export function loadState(db: Db): AppData {
  *                                 quoted code names and strips the raw codeName field.
  * @param opts.includeInactive  REQUIRED. `false` drops archived/soft-deleted resources/clients/projects
  *                              (the normal app read); `true` returns every row (the P2.5 admin read).
- * @returns An AppData containing ONLY `accountId`'s data (every key present; arrays may be empty).
+ * @returns A serialization-only projected slice containing ONLY `accountId`'s data. Its brand is
+ *          intentionally incompatible with {@link replaceAccountSlice}.
  */
+declare const projectedAccountSliceBrand: unique symbol;
+declare const completeAccountSliceBrand: unique symbol;
+
+/** Serialization-only account projection. It may omit confidential fields or inactive rows and
+ * therefore cannot be passed to a destructive whole-slice replacement. */
+export type ProjectedAccountSlice = AppData & { readonly [projectedAccountSliceBrand]: true };
+
+/** Complete, unredacted account slice suitable for an atomic read-modify-write replacement. */
+export type CompleteAccountSlice = AppData & { readonly [completeAccountSliceBrand]: true };
+
+/** Mark an independently validated import/remap result as complete replacement input. This is the
+ * only escape hatch for data that did not originate from {@link readFullSlice}. */
+export function validatedCompleteAccountSlice(data: AppData): CompleteAccountSlice {
+  return data as CompleteAccountSlice;
+}
+
 export function readSlice(
   db: Db,
   accountId: string,
@@ -1070,10 +1087,21 @@ export function readSlice(
     includeInactive: boolean;
     includePrivateNames: boolean;
   },
-): AppData {
+): ProjectedAccountSlice {
   // A slice is one logical read. Under WAL another handle may commit between table SELECTs; BEGIN
   // pins all of them to one snapshot. tx() uses a savepoint when the caller already owns a write.
-  return tx(db, () => readSliceFromSnapshot(db, accountId, opts));
+  return tx(db, () => readSliceFromSnapshot(db, accountId, opts)) as ProjectedAccountSlice;
+}
+
+/** Read an unredacted, tombstone-retaining slice for atomic transformation and replacement. */
+export function readFullSlice(db: Db, accountId: string): CompleteAccountSlice {
+  return tx(db, () =>
+    readSliceFromSnapshot(db, accountId, {
+      includeTimeOffNote: true,
+      includeInactive: true,
+      includePrivateNames: true,
+    }),
+  ) as CompleteAccountSlice;
 }
 
 function readSliceFromSnapshot(
@@ -1180,13 +1208,13 @@ export function wipe(db: Db): void {
   });
 }
 
-/** Replace one account's scoped slice with the rows for that account in `next`.
+/** Replace one account's scoped slice with the rows for that account in a branded complete `next`.
  *  Used by /api/import, the P2.5 lifecycle routes (archive/unarchive/delete/purge), and
  *  TenantStore.write — every path that rewrites one account's scoped tables wholesale.
  *  The rewrite erases any sibling row not re-supplied. Read-modify-write callers must bracket the
  *  full slice read and this replacement with TenantStore.transact; an independently validated
- *  complete import may replace directly inside its existing transaction. */
-export function replaceAccountSlice(db: Db, accountId: string, next: AppData): void {
+ *  complete import must cross the explicit {@link validatedCompleteAccountSlice} boundary. */
+export function replaceAccountSlice(db: Db, accountId: string, next: CompleteAccountSlice): void {
   const d = next as unknown as Record<string, Row[]>;
   tx(db, () => {
     for (let i = SCOPED_ORDER.length - 1; i >= 0; i--) {

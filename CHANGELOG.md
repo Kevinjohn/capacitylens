@@ -10,6 +10,25 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.3-alpha.2] — 2026-07-29
+
+This patch closes the remaining P3 correctness review records. It strengthens existing behavior
+without changing the portable export schema or SQLite database schema versions.
+
+### Fixed
+
+- Reconciled client state authoritatively after incomplete or ambiguous persistence responses, and
+  tightened revision, retry and lifecycle handling so committed writes are not silently lost or
+  misreported.
+- Kept account membership, identity erasure, authorization and private-name projection coherent
+  across inactive, malformed and server-authored states.
+- Rejected or repaired invalid imported and migrated domain data, including malformed dates,
+  references, scheduling spans and entity-kind relationships, while preserving recoverable rows.
+- Corrected scheduler viewport, gesture, lane-packing and visible-span boundary behavior, with
+  focused regressions for invalid dates, clipping and interaction termination.
+- Aligned UI error, invitation, permission and account-management states with the server contracts,
+  and expanded regression coverage across the affected frontend, shared-domain and server paths.
+
 ## [0.27.3-alpha.1] — 2026-07-29
 
 This patch closes the remaining P3 security-assurance review records. Current-source verification
@@ -2047,7 +2066,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.2...HEAD
+[0.27.3-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.1...v0.27.3-alpha.2
 [0.27.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.2-alpha.1...v0.27.3-alpha.1
 [0.27.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.1-alpha.1...v0.27.2-alpha.1
 [0.27.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.0-alpha.1...v0.27.1-alpha.1

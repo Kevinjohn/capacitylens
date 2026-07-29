@@ -277,6 +277,22 @@ describe("AllocationBar interactions", () => {
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]); // end extended, start fixed
   });
 
+  it("does not write, add undo history or announce when a keyboard resize is pinned", () => {
+    const allocation = seedAllocation({ startDate: "2026-06-06", endDate: "2026-06-07" });
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    const before = useStore.getState();
+    const storedBefore = before.data.allocations.find((candidate) => candidate.id === allocation.id);
+
+    // Alt resizes the start edge. Advancing within this weekend-only span must pin to the original
+    // Saturday rather than snapping backward to Friday and widening the allocation.
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", altKey: true });
+
+    const after = useStore.getState();
+    expect(after.data.allocations.find((candidate) => candidate.id === allocation.id)).toBe(storedBefore);
+    expect(after.past).toBe(before.past);
+    expect(after.srAnnouncement).toBeNull();
+  });
+
   it("commits a move drag to the store (shifts both dates by a day)", () => {
     const a = seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
@@ -1131,9 +1147,9 @@ describe("AllocationBar interactions", () => {
 
     const moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
     expect(moved.resourceId).toBe(dst.id);
-    // Start shifts +1 → Sat 06-06. Under the TARGET's Mon–Fri week the 1 working day extends
-    // the end to Mon 06-08 (was 06-06 if computed against the source's 7-day week).
-    expect([moved.startDate, moved.endDate]).toEqual(["2026-06-06", "2026-06-08"]);
+    // The raw +1 shift lands on Sat 06-06. Under the TARGET's Mon–Fri week both the leading edge
+    // and this one-working-day span snap to Mon 06-08 (the source's seven-day week would keep Sat).
+    expect([moved.startDate, moved.endDate]).toEqual(["2026-06-08", "2026-06-08"]);
   });
 
   it("previews the SAME weekend-snapped geometry the commit applies (no jump on release)", () => {

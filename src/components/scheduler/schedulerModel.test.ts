@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO, addDaysISO } from "@capacitylens/shared/lib/dateMath";
@@ -668,19 +668,65 @@ describe("buildSchedulerModel", () => {
     expect(model.map((g) => g.title)).toEqual(["Development"]);
   });
 
-  it("matches a search phrase spanning the displayed name and role", () => {
+  it("reports and omits corrupt schedule ranges instead of rendering focusable slivers", () => {
     const d = dataset();
-    d.resources[0] = { ...d.resources[0], name: "Dana", role: "Senior Designer" };
-    const model = buildSchedulerModel({
-      data: d,
-      geom,
-      days,
-      visibleWindow: { start, end },
-      overSoonWindow: { start, end },
-      filters: { ...emptyFilters(), search: "dana senior" },
-      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
-    });
-    expect(model.flatMap((group) => group.rows).map((row) => row.resource.id)).toContain("r1");
+    const corrupt = { ...d.allocations[0], startDate: "2026-6-1" };
+    d.allocations[0] = corrupt;
+    const corruptTimeOff = {
+      id: "corrupt-time-off",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: d.resources[0].id,
+      startDate: "2026-06-03",
+      endDate: "not-a-date",
+      type: "holiday" as const,
+    };
+    d.timeOff.push(corruptTimeOff);
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const buildCorrupt = () =>
+      buildSchedulerModel({
+        data: d,
+        geom,
+        days,
+        visibleWindow: { start, end },
+        overSoonWindow: { start, end },
+        filters: emptyFilters(),
+        preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+      });
+
+    const first = buildCorrupt();
+    buildCorrupt();
+
+    expect(
+      first.flatMap((group) => group.rows).flatMap((row) => row.bars.map((bar) => bar.allocation.id)),
+    ).not.toContain(corrupt.id);
+    expect(first.flatMap((group) => group.rows).flatMap((row) => row.timeOff.map((block) => block.id))).not.toContain(
+      corruptTimeOff.id,
+    );
+    expect(error).toHaveBeenCalledTimes(2);
+    expect(error).toHaveBeenCalledWith(`Scheduler omitted ${corrupt.id}: invalid date range.`);
+    expect(error).toHaveBeenCalledWith(`Scheduler omitted ${corruptTimeOff.id}: invalid date range.`);
+  });
+
+  it("folds resource-name diacritics but does not match a phrase across field boundaries", () => {
+    const d = dataset();
+    d.resources[0] = { ...d.resources[0], name: "Jose\u0301 Alvarez", role: "Research Lead" };
+    const search = (query: string) =>
+      buildSchedulerModel({
+        data: d,
+        geom,
+        days,
+        visibleWindow: { start, end },
+        overSoonWindow: { start, end },
+        filters: { ...emptyFilters(), search: query },
+        preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+      })
+        .flatMap((group) => group.rows)
+        .map((row) => row.resource.id);
+
+    expect(search("jose alvarez")).toContain("r1");
+    expect(search("alvarez research")).not.toContain("r1");
   });
 
   it("disciplines off → one flat group holding every resource (no discipline bands)", () => {
@@ -1234,6 +1280,26 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
     expect(ids).not.toContain("aIntNoProj");
     expect(ids).toContain("aRep"); // cross-project is the third group — visible with BOTH toggles off
     expect(ids).toContain("a1");
+  });
+
+  it("does not retain full-opacity ghost rows when the active lens targets preference-hidden internal work", () => {
+    const model = buildSchedulerModel({
+      data: withInternalAndRepeatable(),
+      geom: geom,
+      days: days,
+      visibleWindow: { start: start, end: end },
+      overSoonWindow: { start: start, end: end },
+      filters: { ...emptyFilters(), activityKind: "internal", showUnmatched: false },
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        showInternalProjects: true,
+        showInternalActivities: false,
+      },
+    });
+
+    expect(model.flatMap((group) => group.rows)).toHaveLength(0);
   });
 
   it("(c) utilisation is IDENTICAL with the toggles on and off — hidden internal work still counts", () => {

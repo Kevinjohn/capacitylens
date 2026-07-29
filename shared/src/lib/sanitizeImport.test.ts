@@ -236,12 +236,12 @@ describe("sanitizeImportedRecord", () => {
   });
 
   it.each(["clients", "projects"] as const)("%s repairs a private row with no usable code name", (key) => {
-    expect(sanitizeImportedRecord(key, { name: "Real name", isPrivate: true, codeName: '""' }).codeName).toBe(
-      "Confidential",
-    );
-    expect(sanitizeImportedRecord(key, { name: "Real name", isPrivate: true, codeName: 42 }).codeName).toBe(
-      "Confidential",
-    );
+    expect(
+      sanitizeImportedRecord(key, { id: "private-one", name: "Real name", isPrivate: true, codeName: '""' }).codeName,
+    ).toBe("Confidential #privateone");
+    expect(
+      sanitizeImportedRecord(key, { id: "private-two", name: "Real name", isPrivate: true, codeName: 42 }).codeName,
+    ).toBe("Confidential #privatetwo");
   });
 
   it("never allows the built-in Internal client to become private", () => {
@@ -287,6 +287,15 @@ describe("sanitizeImportedRecord", () => {
       const out = sanitizeImportedRecord(key, {
         archivedAt: "2026-01-01T00:00:00.000Z",
         deletedAt: "2026-06-01T12:00:00.000Z",
+      });
+      expect(out.archivedAt).toBe("2026-01-01T00:00:00.000Z");
+      expect(out.deletedAt).toBe("2026-06-01T12:00:00.000Z");
+    });
+
+    it("trims valid padded tombstones without reversing a soft-delete", () => {
+      const out = sanitizeImportedRecord(key, {
+        archivedAt: "  2026-01-01T00:00:00.000Z  ",
+        deletedAt: "\t2026-06-01T12:00:00.000Z\n",
       });
       expect(out.archivedAt).toBe("2026-01-01T00:00:00.000Z");
       expect(out.deletedAt).toBe("2026-06-01T12:00:00.000Z");

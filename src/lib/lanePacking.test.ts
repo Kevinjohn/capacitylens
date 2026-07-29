@@ -61,6 +61,19 @@ describe("packLanes", () => {
     expect(r.laneCount).toBe(1);
   });
 
+  it("a truthy invalid startDate does not become the origin or poison valid items", () => {
+    const result = packLanes([
+      iv("bad", "0001-13-45", "0001-13-46"),
+      iv("a", "2026-05-01", "2026-05-03"),
+      iv("b", "2026-05-05", "2026-05-08"),
+    ]);
+
+    expect(laneOf(result, "bad")).toBe(0);
+    expect(laneOf(result, "a")).toBe(0);
+    expect(laneOf(result, "b")).toBe(0);
+    expect(result.laneCount).toBe(1);
+  });
+
   it("does not crash when every record has an empty startDate (origin fallback)", () => {
     const r = packLanes([iv("a", "", ""), iv("b", "", "")]);
     expect(r.lanes).toHaveLength(2);

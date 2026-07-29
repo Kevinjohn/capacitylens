@@ -397,7 +397,7 @@ function buildItems({
             : m.palette_activity_repeatable(),
       section: m.palette_section_activities(),
       onSelect: () => {
-        void navigate("/activities");
+        void navigate(`/activities#activity=${encodeURIComponent(a.id)}`);
         onClose();
       },
     };

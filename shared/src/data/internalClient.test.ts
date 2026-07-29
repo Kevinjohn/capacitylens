@@ -43,6 +43,19 @@ describe("built-in Internal client", () => {
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
   });
 
+  it("adds only one Internal when corrupt input repeats an account id, then converges", () => {
+    const account = { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" };
+    const base = {
+      ...emptyAppData(),
+      accounts: [account, { ...account, name: "Duplicate A1" }],
+    };
+
+    const once = ensureInternalClients(base, TS);
+    expect(once.clients.filter((client) => client.builtin && client.accountId === "a1")).toHaveLength(1);
+    expect(once.clients[0]?.id).toBe("internal:a1");
+    expect(ensureInternalClients(once, TS)).toBe(once);
+  });
+
   it("uses a collision-free id when an ordinary client already owns the generated id", () => {
     const ordinary = {
       id: "internal:a1",

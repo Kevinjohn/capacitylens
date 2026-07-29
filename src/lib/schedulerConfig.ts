@@ -71,11 +71,16 @@ export function resolveDayWidth(availableWidth: number, weeks: WeeksZoom, weeken
   // (NaN <= 0 is false) and Math.floor(NaN/…) → NaN → Math.min/max(NaN) → NaN, propagating a
   // NaN width into layout. Fall back to the minimum legible width instead.
   if (!Number.isFinite(availableWidth) || availableWidth <= 0) return MIN_DAY_WIDTH;
-  const raw =
+  const uniformRaw = Math.floor(availableWidth / (weeks * 7));
+  const weekendAwareRaw =
     Number.isFinite(weekendWidth) && (weekendWidth as number) > 0
       ? // 5 weekday columns + 2 weekend columns per week fill `availableWidth`:
         // weeks·(5·dayWidth + 2·weekendWidth) = availableWidth.
         Math.floor((availableWidth - weeks * 2 * (weekendWidth as number)) / (weeks * 5))
-      : Math.floor(availableWidth / (weeks * 7));
+      : null;
+  // Geometry narrows weekends only at the per-day-column threshold. Below it, use the same
+  // uniform fit geometry will render; otherwise the fit assumes narrow weekends that are later
+  // refused, which can overflow and even make the timeline shrink as the viewport widens.
+  const raw = weekendAwareRaw !== null && weekendAwareRaw >= DAY_COLUMN_MIN_WIDTH ? weekendAwareRaw : uniformRaw;
   return Math.min(MAX_DAY_WIDTH, Math.max(MIN_DAY_WIDTH, raw));
 }

@@ -275,7 +275,7 @@ describe("identity input validation", () => {
     expect(isAccountEmail(email)).toBe(false);
   });
 
-  it.each(["Person\0Name", "Person\u202eName", "Person\u200bName"])(
+  it.each(["Person\0Name", "Person\nName", "Person\u202eName", "Person\u200bName"])(
     "rejects a disallowed credential display name in %j",
     (displayName) => {
       expect(

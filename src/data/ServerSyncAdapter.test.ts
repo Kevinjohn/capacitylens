@@ -359,8 +359,14 @@ describe("ServerSyncAdapter.loadAll", () => {
     const fetchImpl = vi.fn(async () => new Response("not json", { status: 400 })) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
 
-    await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    setOfflineReadState(true);
+    try {
+      await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
+    } finally {
+      setOfflineReadState(false);
+    }
   });
 
   it("persists a synthesized Internal before acknowledging a repaired hydration snapshot", async () => {
@@ -568,6 +574,56 @@ describe("ServerSyncAdapter.loadAll", () => {
     const loaded = await a.loadAll("a1");
     expect(loaded.disciplines).toEqual([]); // missing table hydrated empty — no throw
     expect(loaded.clients.map((r) => r.id).sort()).toEqual(["c1", "internal:a1"]); // present rows intact
+  });
+
+  it.each([
+    [
+      "resources",
+      {
+        allocations: [
+          {
+            id: "al1",
+            accountId: "a1",
+            resourceId: "r1",
+            activityId: "act1",
+            startDate: "2026-01-01",
+            endDate: "2026-01-01",
+            hoursPerDay: 8,
+            status: "confirmed" as const,
+            createdAt: TS1,
+            updatedAt: TS1,
+          },
+        ],
+      },
+    ],
+    [
+      "projects",
+      {
+        resources: [
+          {
+            id: "r1",
+            accountId: "a1",
+            kind: "placeholder" as const,
+            role: "Designer",
+            employmentType: "permanent" as const,
+            workingHoursPerDay: 8,
+            workingDays: [1, 2, 3, 4, 5] as const,
+            projectId: "p1",
+            color: "#3b82f6",
+            createdAt: TS1,
+            updatedAt: TS1,
+          },
+        ],
+      },
+    ],
+  ] as const)("rejects a missing %s table when returned rows reference it", async (missingKey, extra) => {
+    const slice = omitKeys(scopedData("a1", extra as unknown as Partial<AppData>), missingKey);
+    const adapter = new ServerSyncAdapter(
+      "http://x",
+      vi.fn(async () => new Response(JSON.stringify(slice), { status: 200 })) as unknown as typeof fetch,
+    );
+
+    await expect(adapter.loadAll("a1")).rejects.toThrow(`omitted referenced table(s) [${missingKey}]`);
   });
 
   it("scoped loadAll STILL rejects a PRESENT non-array known table", async () => {

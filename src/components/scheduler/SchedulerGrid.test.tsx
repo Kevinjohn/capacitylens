@@ -585,6 +585,27 @@ describe("SchedulerGrid — snap to week start (Feature 2 wiring)", () => {
     view.unmount();
   });
 
+  it("does not arm a horizontal snap for a purely vertical scroll", () => {
+    useStore.getState().setSnapToWeekStart(false);
+    const view = renderGrid();
+    const grid = screen.getByTestId("scheduler-grid");
+
+    // Establish a mid-week horizontal position while snapping is disabled, then enable the pref.
+    // The next event changes scrollTop only and must not reinterpret that existing scrollLeft as a
+    // fresh horizontal gesture.
+    scrollTo(NUDGE);
+    act(() => useStore.getState().setSnapToWeekStart(true));
+    act(() => {
+      grid.scrollTop = 400;
+      grid.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(grid.scrollTop).toBe(400);
+    expect(grid.scrollLeft).toBe(NUDGE);
+    view.unmount();
+  });
+
   it("drag-freeze: a snap armed before a drag bails when it fires mid-drag", () => {
     useStore.getState().setSnapToWeekStart(true);
     const view = renderGrid();

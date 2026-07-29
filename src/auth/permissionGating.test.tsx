@@ -166,6 +166,19 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);
   });
 
+  it.each([
+    ["pending", /membership is being verified/i],
+    ["unavailable", /role could not be verified/i],
+  ] as const)("attributes a %s fail-closed mutation to role resolution, not Viewer membership", (status, message) => {
+    useStore.getState().setActiveRole("viewer", status);
+
+    useStore.getState().addResource(makeResourceDraft());
+
+    expect(useStore.getState().data.resources).toHaveLength(0);
+    expect(useStore.getState().notice?.message).toMatch(message);
+    expect(useStore.getState().notice?.message).not.toMatch(/you don't have edit access/i);
+  });
+
   it("importData no-ops for a viewer (zero-effect summary, slice untouched)", () => {
     useStore.getState().setActiveRole(null);
     useStore.getState().addResource(makeResourceDraft({ name: "Existing" }));

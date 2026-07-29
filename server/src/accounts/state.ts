@@ -66,6 +66,16 @@ const CURRENT_ACCOUNT_BOUNDARY_STATE_SQL = ACCOUNT_BOUNDARY_STATE_V15_SQL;
 const COMMAND_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PENDING_RECONCILIATION_MS = 15 * 60 * 1000;
 
+// Durable rows need wall-shaped ISO timestamps, but lifetime decisions must not follow a host clock
+// step while this process is alive. Anchor wall time once and advance it with the monotonic process
+// clock: NTP/VM corrections after startup can neither terminalize every pending command nor prune a
+// month of replay history instantly. A restart deliberately adopts the then-current host clock so
+// durable retention can advance across downtime; operators must still keep startup time sane.
+const PROCESS_WALL_ORIGIN_MS = Date.now();
+const PROCESS_MONOTONIC_ORIGIN_MS = performance.now();
+const stableNowMs = (): number => PROCESS_WALL_ORIGIN_MS + (performance.now() - PROCESS_MONOTONIC_ORIGIN_MS);
+const stableNowIso = (): string => new Date(stableNowMs()).toISOString();
+
 export function ensureAccountBoundaryState(db: Db): void {
   db.exec(CURRENT_ACCOUNT_BOUNDARY_STATE_SQL);
 }
@@ -217,7 +227,7 @@ export function recordSessionAssurance(
   principalId: PrincipalId,
   assurance: RecordedSessionAssurance,
   providerId: string | null = null,
-  now = new Date().toISOString(),
+  now = stableNowIso(),
 ): void {
   if ((assurance === "federated" && !providerId) || (assurance !== "federated" && providerId !== null)) {
     throw new Error("Federated session assurance requires exactly one provider id.");
@@ -400,6 +410,8 @@ export function getAccountCommandById(
 
 function transitionStalePending(db: Db, record: AccountCommandRecord, nowMs: number): AccountCommandRecord {
   const updatedAtMs = Date.parse(record.updatedAt);
+  // A corrupt/unparseable timestamp fails forward into reconciliation: leaving an unknowably old
+  // pending command live forever would preserve neither idempotency nor an operator repair path.
   if (record.status !== "pending" || (Number.isFinite(updatedAtMs) && updatedAtMs > nowMs - PENDING_RECONCILIATION_MS))
     return record;
   finishAccountCommand(db, {
@@ -419,7 +431,7 @@ export function getAccountCommandByIdForReconciliation(
   db: Db,
   applicationId: string,
   commandId: CommandId,
-  now = Date.now(),
+  now = stableNowMs(),
 ): AccountCommandRecord | null {
   const record = getAccountCommandById(db, applicationId, commandId);
   return record ? transitionStalePending(db, record, now) : null;
@@ -462,7 +474,7 @@ export function reserveAccountCommand(
   if (!/^[a-f0-9]{64}$/.test(input.payloadHash)) {
     throw new Error("Account command payloadHash must be a lowercase SHA-256 digest.");
   }
-  const nowMs = input.now === undefined ? Date.now() : Date.parse(input.now);
+  const nowMs = input.now === undefined ? stableNowMs() : Date.parse(input.now);
   db.prepare(
     `
     DELETE FROM account_commands
@@ -491,7 +503,7 @@ export function reserveAccountCommand(
   // failure as an unexpected 500.
   const commandIdOwner = getAccountCommandByGlobalId(db, input.commandId);
   if (commandIdOwner) return { kind: "conflict", record: commandIdOwner };
-  const now = input.now ?? new Date().toISOString();
+  const now = input.now ?? new Date(nowMs).toISOString();
   db.prepare(
     `
     INSERT INTO account_commands (
@@ -557,7 +569,7 @@ export function correlatePendingAccountCommand(
     .run(
       input.workspaceId ?? null,
       input.targetPrincipalId ?? null,
-      input.now ?? new Date().toISOString(),
+      input.now ?? stableNowIso(),
       input.applicationId,
       input.operation,
       input.idempotencyKey,
@@ -647,7 +659,7 @@ export function closeAccountCommandReconciliation(
      WHERE applicationId = ? AND commandId = ? AND status = 'reconciliation_required'
   `,
     )
-    .run(referenceHash, new Date().toISOString(), applicationId, commandId);
+    .run(referenceHash, stableNowIso(), applicationId, commandId);
   return result.changes === 1;
 }
 
@@ -675,7 +687,7 @@ export function finishAccountCommand(
       input.status,
       input.resultJson ?? null,
       input.failureCode ?? null,
-      input.now ?? new Date().toISOString(),
+      input.now ?? stableNowIso(),
       input.applicationId,
       input.operation,
       input.idempotencyKey,
