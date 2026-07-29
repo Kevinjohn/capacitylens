@@ -247,7 +247,8 @@ committed auth fixture and again with `--source /path/to/representative.db`. The
 with SQLite's online backup API and is never migrated. The temporary copy is anonymised and vacuumed
 before use, then deleted unless `--keep` is explicit. A passing rehearsal proves the happy path,
 verified rollback snapshot, migration-ledger checksum, injected disk-exhaustion rollback, forced
-process-termination recovery and idempotent reopen for that source shape. Record the source schema
+process-termination recovery at the final pending migration, completion of the remaining chain after
+reopen, and idempotent reopen for that source shape. Record the source schema
 version, row/table counts printed by the command and the result in the release evidence; the command
 never prints tenant content.
 

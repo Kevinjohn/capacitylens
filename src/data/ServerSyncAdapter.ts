@@ -175,8 +175,8 @@ export class BatchValidationError extends BatchReconciliationError {
 /** A 2xx response that does not prove which rows committed. The server may already have written
  * the batch, so retrying against the prior snapshot is unsafe; persistence must reload first. */
 export class BatchCommitUncertainError extends BatchReconciliationError {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "BatchCommitUncertainError";
   }
 }
@@ -493,7 +493,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         // batch whose own race coordinator may be waiting for the reload to finish.
         if (diffOps(repairBase, data).length > 0) await this.saveAll(data);
         setOfflineReadState(false);
-        if (accountId !== undefined) {
+        if (accountId !== undefined && missingKeys.length === 0) {
           void cacheAccountSlice(accountId, data).catch((error) =>
             console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
           );
@@ -715,8 +715,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           this.dispatchedTarget = null;
           continue;
         }
-        this.rememberRevisions(batchOps, receipt.revisions);
-        committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
+        if (targetSeedGen === this.seedGen) {
+          this.rememberRevisions(batchOps, receipt.revisions);
+          committedTarget = applyCommittedRevisions(canonicalTarget, receipt.revisions);
+        }
       }
       // Drive the lifecycle deletes one row at a time by ARCHIVING (the batch above has already
       // committed all ordinary ops, so a stuck archive can never block them). A row whose archive does
@@ -975,26 +977,36 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     sequence: number,
     opts?: { keepalive?: boolean },
   ): Promise<BatchCommitReceipt> {
-    const res = await this.request(
-      `${this.baseUrl}/api/batch`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CapacityLens-Sync-Session": this.syncSessionId,
-          "X-CapacityLens-Sync-Sequence": String(sequence),
+    let res: Response;
+    try {
+      res = await this.request(
+        `${this.baseUrl}/api/batch`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CapacityLens-Sync-Session": this.syncSessionId,
+            "X-CapacityLens-Sync-Sequence": String(sequence),
+          },
+          body,
+          keepalive: opts?.keepalive,
+          credentials: "include",
         },
-        body,
-        keepalive: opts?.keepalive,
-        credentials: "include",
-      },
-      // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't
-      // aborted into the retry-the-same-diff wedge (drain never advances lastSynced on abort).
-      // The keepalive unload flush gets NO deadline — a timeout on a request meant to outlive the
-      // page is self-contradictory; when the page survives, its receipt or failure still flows back
-      // through flushUnload to the persistence coordinator.
-      opts?.keepalive ? null : API_BULK_TIMEOUT_MS,
-    );
+        // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't
+        // aborted into the retry-the-same-diff wedge (drain never advances lastSynced on abort).
+        // The keepalive unload flush gets NO deadline — a timeout on a request meant to outlive the
+        // page is self-contradictory; when the page survives, its receipt or failure still flows back
+        // through flushUnload to the persistence coordinator.
+        opts?.keepalive ? null : API_BULK_TIMEOUT_MS,
+      );
+    } catch (error) {
+      if (isTransportFailure(error)) {
+        throw new BatchCommitUncertainError("Batch sync ended before its commit receipt was received.", {
+          cause: error,
+        });
+      }
+      throw error;
+    }
     if (!res.ok) {
       // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
       // `{ error, current }`). Throw the TYPED BatchConflictError so persist.ts can resolve it

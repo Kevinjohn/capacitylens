@@ -2,13 +2,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render } from "@testing-library/react";
 import { fetchAccountSummaries, refreshAccountSummaries, useAccountSummaries } from "./useAccountSummaries";
 import { useStore } from "../store/useStore";
-import { offlineStateSnapshot, readCachedAccountSummaries, setOfflineReadState } from "../data/offlineCache";
+import {
+  cacheAccountSummaries,
+  offlineStateSnapshot,
+  readCachedAccountSummaries,
+  setOfflineReadState,
+} from "../data/offlineCache";
 import { m } from "@/i18n";
 
 vi.mock("../data/offlineCache", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../data/offlineCache")>();
   return {
     ...actual,
+    cacheAccountSummaries: vi.fn(actual.cacheAccountSummaries),
     readCachedAccountSummaries: vi.fn(actual.readCachedAccountSummaries),
   };
 });
@@ -161,6 +167,7 @@ describe("fetchAccountSummaries — response classification", () => {
   });
 
   it("keeps a valid account selectable but marks an unrecognized role unavailable", async () => {
+    vi.mocked(cacheAccountSummaries).mockClear();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const row = { id: "a1", name: "Studio A", role: "future-role" };
     vi.stubGlobal(
@@ -172,6 +179,7 @@ describe("fetchAccountSummaries — response classification", () => {
       { id: "a1", name: "Studio A", role: "viewer", roleStatus: "unavailable" },
     ]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unrecognized role"), row);
+    expect(cacheAccountSummaries).not.toHaveBeenCalled();
   });
 
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {

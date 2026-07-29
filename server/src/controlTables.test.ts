@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import {
   ensureControlTables,
+  assertControlTablesCurrent,
   upsertMember,
   getMemberRole,
   listMembershipsForUser,
@@ -55,6 +56,13 @@ describe("ensureControlTables", () => {
     const db = new DatabaseSync(":memory:");
     ensureControlTables(db);
     expect(() => ensureControlTables(db)).not.toThrow();
+  });
+
+  it("rejects unexpected control-table columns instead of accepting an unknown durable shape", () => {
+    const db = freshDb();
+    expect(() => assertControlTablesCurrent(db)).not.toThrow();
+    db.exec("ALTER TABLE account_members ADD COLUMN unexpected TEXT");
+    expect(() => assertControlTablesCurrent(db)).toThrow(/unexpected account_members\.unexpected/i);
   });
 
   it("rolls back the entire plaintext-token rebuild when a legacy row cannot migrate", () => {

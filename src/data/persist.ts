@@ -365,7 +365,17 @@ export function attachPersistence(
     // still the pre-reload one (and the post-resolve stretch to replaceAll is synchronous — no
     // unload event can interleave), so the keepalive diff is self-vs-self and SAFE — declining
     // would silently lose an edit made during a reload window on every tab close.
-    if (externalSuspendDepth > 0 || authoritativeReloadRequiredFor !== null) return;
+    if (externalSuspendDepth > 0) {
+      if (unacknowledged) {
+        onError?.(
+          new ReloadDiscardedEditError(
+            "An edit was still parked while this company’s data was being replaced during page teardown.",
+          ),
+        );
+      }
+      return;
+    }
+    if (authoritativeReloadRequiredFor !== null) return;
     cancelDebounce();
     const data = unacknowledged;
     if (!data) return;

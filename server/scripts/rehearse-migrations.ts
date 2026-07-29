@@ -626,9 +626,9 @@ async function onlineCopy(sourcePath: string, destinationPath: string): Promise<
   }
 }
 
-async function expectKilledMigrationRollsBack(path: string, expectedDigest: string): Promise<void> {
+async function expectKilledMigrationRollsBack(path: string, targetVersion: number): Promise<void> {
   const script = fileURLToPath(import.meta.url);
-  const child = spawn(process.execPath, [...process.execArgv, script, "--worker-kill", path], {
+  const child = spawn(process.execPath, [...process.execArgv, script, "--worker-kill", path, String(targetVersion)], {
     stdio: ["ignore", "pipe", "pipe"],
   });
   let stdout = "";
@@ -665,19 +665,30 @@ async function expectKilledMigrationRollsBack(path: string, expectedDigest: stri
   });
   try {
     checkIntegrity(recovered, "process-termination recovery");
-    if (databaseDigest(recovered) !== expectedDigest) {
-      throw new Error("process termination left a partially applied migration");
+    const recoveredVersion = Number(
+      (recovered.prepare("PRAGMA user_version").get() as { user_version: number }).user_version,
+    );
+    if (recoveredVersion !== targetVersion - 1) {
+      throw new Error(
+        `process termination reached database v${recoveredVersion}; expected the target v${targetVersion} transaction to roll back to v${targetVersion - 1}`,
+      );
+    }
+    initializeOpenDb(recovered as Db, path);
+    checkIntegrity(recovered, "process-termination resumed upgrade");
+    if (planDatabaseMigrations(recovered as Db).migrations.length !== 0) {
+      throw new Error("process-termination recovery did not complete the remaining migration chain");
     }
   } finally {
     recovered.close();
   }
 }
 
-async function workerKill(path: string): Promise<never> {
+async function workerKill(path: string, targetVersion: number): Promise<never> {
   const db = openDbConnection(path);
   try {
     initializeOpenDb(db, path, {
-      beforeCommit: () => {
+      beforeCommit: ({ version }) => {
+        if (version !== targetVersion) return;
         writeSync(1, "CAPACITYLENS_MIGRATION_READY\n");
         // Parent sends SIGKILL while the real migration transaction is still open.
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
@@ -829,7 +840,10 @@ async function main(): Promise<void> {
 
     const killedPath = join(directory, "killed.db");
     copyFileSync(base, killedPath);
-    await expectKilledMigrationRollsBack(killedPath, beforeDigest);
+    // Kill the LAST pending migration, after every earlier step has committed. This exercises a
+    // real mid-chain restart rather than repeatedly killing only the first pending version, then
+    // reopens the database and proves the remaining upgrade resumes to completion.
+    await expectKilledMigrationRollsBack(killedPath, plan.migrations.at(-1)!.version);
 
     const totalRows = Object.values(beforeCounts).reduce((sum, count) => sum + count, 0);
     console.log(
@@ -844,7 +858,11 @@ async function main(): Promise<void> {
 }
 
 if (process.argv[2] === "--worker-kill") {
-  await workerKill(resolve(process.argv[3]));
+  const targetVersion = Number(process.argv[4]);
+  if (!Number.isSafeInteger(targetVersion) || targetVersion <= 0) {
+    throw new Error("--worker-kill requires a positive target migration version");
+  }
+  await workerKill(resolve(process.argv[3]), targetVersion);
 } else {
   await main();
 }

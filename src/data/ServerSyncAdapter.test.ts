@@ -20,6 +20,7 @@ import {
   cacheAuthSnapshot,
   clearAllOfflineData,
   offlineStateSnapshot,
+  readCachedAccountSlice,
   setOfflineReadState,
 } from "./offlineCache";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
@@ -574,6 +575,45 @@ describe("ServerSyncAdapter.loadAll", () => {
     const loaded = await a.loadAll("a1");
     expect(loaded.disciplines).toEqual([]); // missing table hydrated empty — no throw
     expect(loaded.clients.map((r) => r.id).sort()).toEqual(["c1", "internal:a1"]); // present rows intact
+  });
+
+  it("does not replace a complete offline snapshot with a rolling-version partial slice", async () => {
+    vi.stubGlobal("indexedDB", new IDBFactory());
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    const complete = scopedData("a1", { clients: [client("cached")] });
+    try {
+      await cacheAuthSnapshot({
+        authMode: "password",
+        user: { id: "offline-user", email: "offline@example.test", name: "Offline user" },
+        canCreateAccount: false,
+        multiAccount: false,
+      });
+      await cacheAccountSlice("a1", complete);
+      const partial = omitKeys(scopedData("a1", { clients: [client("live")] }), "disciplines");
+      const adapter = new ServerSyncAdapter(
+        "http://x",
+        vi.fn(async () => new Response(JSON.stringify(partial), { status: 200 })) as unknown as typeof fetch,
+      );
+
+      await adapter.loadAll("a1");
+
+      expect((await readCachedAccountSlice("a1"))?.value.clients.map((row) => row.id)).toContain("cached");
+      expect((await readCachedAccountSlice("a1"))?.value.clients.map((row) => row.id)).not.toContain("live");
+    } finally {
+      await clearAllOfflineData();
+      localStorage.clear();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("classifies a transport failure after batch dispatch as an uncertain commit", async () => {
+    const timeout = new DOMException("signal timed out", "TimeoutError");
+    const adapter = new ServerSyncAdapter("http://x", vi.fn().mockRejectedValue(timeout) as unknown as typeof fetch);
+
+    await expect(adapter.saveAll(withData({ clients: [client("c1")] }))).rejects.toMatchObject({
+      name: "BatchCommitUncertainError",
+      cause: timeout,
+    });
   });
 
   it.each([

@@ -126,7 +126,11 @@ export async function fetchAccountSummaries(init?: {
       // it masquerade as live data. The authoritative slice loader owns that transition; at the
       // picker (no active slice), a live directory read may clear an identity/list-only fallback.
       if (useStore.getState().activeAccountId === null) setOfflineReadState(false);
-      if (droppedCount === 0) {
+      // An unavailable role is a fail-closed UI projection, not durable membership evidence.
+      // Cache only a wholly authoritative directory so an offline boot never presents the coerced
+      // Viewer role as the last verified access state. Same-key cache writes are serialized by
+      // offlineCache.put(), preserving the acceptance order of overlapping live reads.
+      if (droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable")) {
         void cacheAccountSummaries(valid).catch((error) =>
           console.warn("fetchAccountSummaries: the offline account list could not be updated", error),
         );

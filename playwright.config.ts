@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { coreSpecPattern, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
+import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
 
 // Playwright drives the real app via Vite. Three project flavours:
 //   chromium    — the in-memory DEMO build on :5173 (VITE_CAPACITYLENS_DEMO=1; the existing specs).
@@ -45,7 +45,7 @@ const oidcOnly = envFlag("CAPACITYLENS_OIDC_E2E");
 const rehearsalEnabled = Boolean(process.env.CAPACITYLENS_REHEARSAL_URL);
 const coreEnabled = !oidcOnly && !rehearsalEnabled;
 const standardServerProjectsEnabled = !viteOnly && !oidcOnly && !rehearsalEnabled;
-const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE || "default").replace(/[^a-zA-Z0-9_-]+/g, "-");
+const reportPhase = reportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the

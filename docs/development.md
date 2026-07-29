@@ -398,3 +398,6 @@ Development/test environment controls are intentionally separate from production
 `CAPACITYLENS_OIDC_E2E`. `CAPACITYLENS_REHEARSAL_URL` is the one operator-supplied test control: it
 points the rehearsal browser project at the staged upgraded deployment. CI pins
 `ACTIONLINT_VERSION`; update that pin alongside its download/checksum workflow review.
+`CAPACITYLENS_E2E_PHASE` must contain only letters, numbers, underscores and hyphens; unset or empty
+selects `default`. Invalid values fail configuration rather than aliasing two runs into one report
+directory.

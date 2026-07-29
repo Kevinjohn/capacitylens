@@ -10,6 +10,24 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.3-alpha.3] — 2026-07-29
+
+This patch closes the P3 durability review row. It strengthens acknowledged-write, offline-cache,
+database-startup, migration-rehearsal and internal-TLS behavior without changing the portable
+export schema or SQLite database schema versions.
+
+### Fixed
+
+- Reported dispatched batch transport failures as uncertain commits and prevented stale seed
+  generations from applying completed revisions locally.
+- Preserved the last complete offline snapshot when scoped reads or account-role summaries are
+  incomplete, and surfaced edits discarded during page suspension.
+- Repaired rollback-journal permissions and made control-table startup checks reject unexpected
+  schema drift.
+- Made internal-TLS replacement atomic on the destination filesystem while preserving reusable
+  certificate authorities.
+- Strengthened interrupted-migration rehearsal and rejected invalid Playwright report-phase aliases.
+
 ## [0.27.3-alpha.2] — 2026-07-29
 
 This patch closes the remaining P3 correctness review records. It strengthens existing behavior
@@ -2066,7 +2084,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.2...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.3...HEAD
+[0.27.3-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.2...v0.27.3-alpha.3
 [0.27.3-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.1...v0.27.3-alpha.2
 [0.27.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.2-alpha.1...v0.27.3-alpha.1
 [0.27.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.1-alpha.1...v0.27.2-alpha.1

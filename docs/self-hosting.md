@@ -44,7 +44,9 @@ Compose also creates a private, per-install P-256 CA and API leaf certificate on
 `api` service name and CA over TLS 1.2/1.3; the API listener has no plaintext fallback. The CA key
 is root-only, the API can read only its own leaf key, and nginx can read only public certificates.
 The initializer reuses a valid set and renews the leaf within 30 days of expiry on a coordinated
-Compose recreation. Deep `/api/health` reports the cached leaf expiry and changes its
+Compose recreation. Renewal stages files privately on the certificate volume and publishes them by
+same-filesystem rename; a still-valid CA is not rewritten during leaf-only renewal. Deep
+`/api/health` reports the cached leaf expiry and changes its
 `internalTls.status` from `ok` to `expiring` during that same 30-day window; alert on that field and
 perform the coordinated recreation before expiry.
 

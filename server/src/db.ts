@@ -767,7 +767,7 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
       // Schema setup normally creates the WAL/SHM sidecars after the first chmod above. Pin every
       // file in the SQLite set before returning the live handle; process.umask(0077) protects any
       // sidecar SQLite later recreates in the server process.
-      for (const file of [path, `${path}-wal`, `${path}-shm`]) {
+      for (const file of [path, `${path}-wal`, `${path}-shm`, `${path}-journal`]) {
         if (existsSync(file)) chmodSync(file, 0o600);
       }
     } catch (cause) {

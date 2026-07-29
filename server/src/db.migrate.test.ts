@@ -287,13 +287,13 @@ describe("schema migration of an existing on-disk DB", () => {
       chmodSync(path, 0o666);
       db.close();
       const reopened = openDb(path);
-      const liveFiles = [path, `${path}-wal`, `${path}-shm`].filter(existsSync);
+      const liveFiles = [path, `${path}-wal`, `${path}-shm`, `${path}-journal`].filter(existsSync);
       expect(liveFiles).toContain(`${path}-wal`);
       expect(liveFiles).toContain(`${path}-shm`);
       for (const file of liveFiles) expect(statSync(file).mode & 0o777).toBe(0o600);
       reopened.close();
     } finally {
-      for (const suffix of ["", "-wal", "-shm"]) {
+      for (const suffix of ["", "-wal", "-shm", "-journal"]) {
         try {
           unlinkSync(path + suffix);
         } catch {

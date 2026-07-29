@@ -5,6 +5,9 @@ Offline access is designed for reading a schedule during unreliable travel, not 
 It is off by default and must be enabled in Settings on each device. When enabled, CapacityLens
 registers a service worker for the application shell and stores the last verified identity,
 accessible account list and account snapshots in IndexedDB. Records expire after seven days.
+Only complete account slices and directories whose roles were validated are cached: a rolling-version
+response that omits a newly known table, or a directory row carrying an unavailable future role,
+remains usable online but cannot replace the last complete offline record.
 Offline shell installation requires a production build; Vite development and demo servers reject
 enablement because their on-demand module graph cannot be promoted as one complete immutable shell.
 

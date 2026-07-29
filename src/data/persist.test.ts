@@ -1327,6 +1327,22 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     }
   });
 
+  it("surfaces a parked external-suspension edit when page teardown cannot flush it safely", async () => {
+    const onError = vi.fn();
+    const { adapter, saveAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter, 300, onError);
+    saveAll.mockClear();
+    const resume = suspendServerWrites();
+    useStore.getState().addClient({ name: "Parked at teardown", color: "#222222" });
+
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(saveAll).not.toHaveBeenCalled();
+    expect(onError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(true);
+    resume();
+    detach();
+  });
+
   it("parks an edit made while suspended (nothing sent) and re-schedules it on resume when no reload ran", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
     const detach = await attachActiveA2(adapter); // immediate saves

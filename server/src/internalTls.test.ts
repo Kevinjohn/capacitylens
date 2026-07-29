@@ -148,4 +148,11 @@ describe("loadInternalTls", () => {
     expect(script).toContain('chown "$API_UID:$API_UID" "$API_KEY" "$API_CERT"');
     expect(script).toMatch(/mv -f "\$WORK_DIR\/api\.crt" "\$API_CERT"\s+[^]*repair_certificate_permissions/);
   });
+
+  it("stages renewal on the certificate filesystem and preserves a still-usable CA", () => {
+    const script = readFileSync(new URL("../../scripts/internal-tls.sh", import.meta.url), "utf8");
+    expect(script).toContain('WORK_DIR=$(mktemp -d "$TLS_DIR/.capacitylens-tls-stage.XXXXXX")');
+    expect(script).toMatch(/if ca_is_usable; then\s+REUSE_CA=1/);
+    expect(script).toMatch(/if test "\$REUSE_CA" -eq 0; then\s+mv -f "\$WORK_DIR\/ca\.key" "\$CA_KEY"/);
+  });
 });

@@ -233,6 +233,9 @@ export function assertControlTablesCurrent(db: Db): void {
       type: string;
     }>;
     const live = new Map(columns.map((column) => [column.name, column]));
+    for (const column of columns) {
+      if (!Object.hasOwn(expected, column.name)) problems.push(`unexpected ${table}.${column.name}`);
+    }
     for (const [name, definition] of Object.entries(expected)) {
       if (!live.has(name)) problems.push(`missing ${table}.${name}`);
       else {

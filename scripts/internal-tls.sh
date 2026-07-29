@@ -65,10 +65,14 @@ if certificate_set_is_usable; then
   exit 0
 fi
 
-WORK_DIR=$(mktemp -d)
+# Stage on the certificate volume itself. Publication is then a same-filesystem rename even when
+# /tmp is a separate tmpfs, so no valid filename can expose a partially copied key or certificate.
+WORK_DIR=$(mktemp -d "$TLS_DIR/.capacitylens-tls-stage.XXXXXX")
 trap 'rm -rf "$WORK_DIR"' EXIT HUP INT TERM
 
+REUSE_CA=0
 if ca_is_usable; then
+  REUSE_CA=1
   cp "$CA_KEY" "$WORK_DIR/ca.key"
   cp "$CA_CERT" "$WORK_DIR/ca.crt"
 else
@@ -102,15 +106,16 @@ openssl x509 -req -sha256 -days 397 \
 openssl verify -CAfile "$WORK_DIR/ca.crt" "$WORK_DIR/api.crt" >/dev/null
 openssl x509 -checkhost api -noout -in "$WORK_DIR/api.crt" >/dev/null
 
-mv -f "$WORK_DIR/ca.key" "$CA_KEY"
-mv -f "$WORK_DIR/ca.crt" "$CA_CERT"
+if test "$REUSE_CA" -eq 0; then
+  mv -f "$WORK_DIR/ca.key" "$CA_KEY"
+  mv -f "$WORK_DIR/ca.crt" "$CA_CERT"
+fi
 mv -f "$WORK_DIR/api.key" "$API_KEY"
 mv -f "$WORK_DIR/api.crt" "$API_CERT"
 
 # Only the non-root API uid may read its leaf private key. Nginx mounts the same volume but runs
 # as uid 101, so it can read the public CA certificate and cannot read either private key. Apply
-# ownership after moving from tmpfs: with every other capability dropped, the initializer cannot
-# reopen a uid-1000 mode-0400 file to copy it across filesystems.
+# ownership after publishing from a private staging directory on the same certificate volume.
 repair_certificate_permissions
 
 echo "capacitylens-internal-tls: generated a new certificate set"

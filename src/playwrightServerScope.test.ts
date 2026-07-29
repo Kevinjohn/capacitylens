@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { coreSpecPattern, selectsOnlyExplicitCoreSpecs } from "../scripts/playwright-server-scope";
+import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "../scripts/playwright-server-scope";
 
 describe("Playwright server scope", () => {
+  it("uses a non-empty report phase and rejects lossy or traversal-shaped aliases", () => {
+    expect(reportPhaseName(undefined)).toBe("default");
+    expect(reportPhaseName("")).toBe("default");
+    expect(reportPhaseName("chromium-server")).toBe("chromium-server");
+    expect(() => reportPhaseName("///")).toThrow(/letters, numbers, underscores and hyphens/);
+    expect(() => reportPhaseName("webkit/1")).toThrow(/letters, numbers, underscores and hyphens/);
+  });
+
   it.each(["ts", "tsx", "mts", "cts"])("matches core .spec.%s files without matching server flavours", (extension) => {
     expect(coreSpecPattern.test(`toolbar.spec.${extension}`)).toBe(true);
     expect(coreSpecPattern.test(`toolbar.db.spec.${extension}`)).toBe(false);
