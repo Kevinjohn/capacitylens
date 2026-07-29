@@ -22,3 +22,7 @@ f698a3963a19a4ad73f4dbde942774f49755e684:server/src/app.auth.test.ts:generic-api
 f698a3963a19a4ad73f4dbde942774f49755e684:server/src/fixtures/credentialOnboardingCrashFixture.ts:generic-api-key:14
 f698a3963a19a4ad73f4dbde942774f49755e684:server/src/accounts/sqliteAccountAdminPort.test.ts:generic-api-key:212
 f698a3963a19a4ad73f4dbde942774f49755e684:server/src/app.invites.test.ts:generic-api-key:253
+
+# Deliberately fake idempotency key used to verify paired command-header validation. The value is
+# deterministic test data and has never been a credential.
+a999abc9dab570bd7b7e0808eb7e13cb360776b6:server/src/app.invites.test.ts:generic-api-key:206
