@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.27.2-alpha.1] — 2026-07-29
+
+This patch release resolves the remaining correctness, durability, compatibility, operational,
+accessibility, performance, test-assurance and documentation findings from the repository review.
+It does not change the portable export schema or SQLite database schema versions.
+
 ### Fixed
 
 - **Offline read mode now precaches lazy-loaded screens.** Enabling offline access stages the full
@@ -2028,7 +2034,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.2-alpha.1...HEAD
+[0.27.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.1-alpha.1...v0.27.2-alpha.1
 [0.27.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.0-alpha.1...v0.27.1-alpha.1
 [0.27.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.26.0-alpha.1...v0.27.0-alpha.1
 [0.26.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.25.0-alpha.9...v0.26.0-alpha.1
