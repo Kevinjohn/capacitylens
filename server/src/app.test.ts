@@ -24,6 +24,7 @@ import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
 import { runImportWorker } from "./runImportWorker";
 import type { AuditEntry } from "./audit";
+import { WorkQueueFullError } from "./workQueue";
 
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
@@ -961,6 +962,29 @@ describe("built-in Internal client is a per-account singleton on direct writes",
 });
 
 describe("import", () => {
+  it("reports bounded import saturation as retryable service pressure", async () => {
+    const { app } = freshApp(true, {
+      importWorker: async () => {
+        throw new WorkQueueFullError("Import preparation is temporarily at capacity. Retry shortly.");
+      },
+    });
+    await post(app, "accounts", account("a1"));
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/import",
+      payload: { accountId: "a1", data: exportFile("source") },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.headers["retry-after"]).toBe("1");
+    expect(response.json()).toEqual({
+      error: "Import preparation is temporarily at capacity. Retry shortly.",
+      code: "IMPORT_BUSY",
+      retryable: true,
+    });
+  });
+
   const exportFile = (accountId: string) => ({
     schemaVersion: 3,
     data: {

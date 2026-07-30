@@ -22,6 +22,8 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 6. The dialog closes; a success toast appears.
 7. If another request changes this company while the server prepares the replacement, observe the
    conflict notice, confirm the newer change remains, and retry from the latest company data.
+8. If server import capacity is temporarily exhausted, observe the busy notice and retry later;
+   abandoning the request must cancel its queued or active preparation work.
 
 ## Acceptance criteria
 
@@ -32,3 +34,5 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 - ✅ After replacing, the lists/schedule reflect the imported data, not the prior live data.
 - ✅ A company change committed during server-side import preparation makes the import fail with a
   retryable conflict notice; the committed change remains stored and ordinary writes resume.
+- ✅ Server import preparation is concurrency- and queue-bounded; abandoned work is cancelled, and
+  saturation returns a retryable busy response without starting another worker.

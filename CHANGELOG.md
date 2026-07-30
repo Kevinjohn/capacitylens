@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Bounded concurrent and queued server import preparation, cancelled abandoned worker jobs, and
+  exposed temporary saturation as a retryable response instead of spawning unbounded workers.
 - Refused a destructive server import when the company changes during background import
   preparation, preserving the newer committed work and prompting the owner to retry from current
   data instead of silently overwriting it.

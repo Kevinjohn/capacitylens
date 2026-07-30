@@ -25,7 +25,7 @@ import { registerAccountRoutes } from "./accounts/accountRoutes";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 import { eraseWorkspaceProductDataInTx } from "./erasure";
 import { internalTlsHealth } from "./internalTls";
-import { runWithRequestAbortSignal } from "./requestAbort";
+import { currentRequestAbortSignal, runWithRequestAbortSignal } from "./requestAbort";
 
 // The identity requireUser attaches to every gated request. Session/identity
 // plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
@@ -100,6 +100,7 @@ import { drainAuditOutbox, enqueueAudit } from "./auditOutbox";
 import { isSameSessionSuccessor, isSupersededSyncBatch, recordAppliedSyncBatch, type SyncOrder } from "./syncOrdering";
 import { BatchStateProjection } from "./batchProjection";
 import { runImportWorker } from "./runImportWorker";
+import { WorkQueueFullError } from "./workQueue";
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
@@ -2890,12 +2891,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       try {
         const currentSlice = store.readFullSlice(body.accountId);
         const expectedSnapshot = importSnapshotFingerprint(currentSlice);
-        const result = await executeImportWorker({
-          current: currentSlice,
-          accountId: body.accountId,
-          incoming,
-          now: new Date().toISOString(),
-        });
+        const result = await executeImportWorker(
+          {
+            current: currentSlice,
+            accountId: body.accountId,
+            incoming,
+            now: new Date().toISOString(),
+          },
+          currentRequestAbortSignal(),
+        );
         // Refuse a zero-record import rather than wiping the account's slice (mirrors the
         // client store guard — replacing a company's data with nothing is never intended).
         if (result.imported === 0) {
@@ -2931,6 +2935,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           auditWarning: !auditOk,
         };
       } catch (err) {
+        if (err instanceof WorkQueueFullError) {
+          reply.header("retry-after", "1");
+          return reply.code(503).send({ error: err.message, code: "IMPORT_BUSY", retryable: true });
+        }
         if (err instanceof ImportSnapshotConflictError) {
           return reply.code(409).send({
             error: err.message,

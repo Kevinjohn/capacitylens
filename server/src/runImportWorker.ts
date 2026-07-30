@@ -1,5 +1,12 @@
 import { Worker } from "node:worker_threads";
 import type { ImportWorkerRequest, ImportWorkerResult } from "./importWorker";
+import { currentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
+import { BoundedWorkQueue } from "./workQueue";
+
+export const MAX_CONCURRENT_IMPORT_WORKERS = 2;
+export const MAX_QUEUED_IMPORT_WORKERS = 8;
+export const MAX_IMPORT_QUEUE_WAIT_MS = 5_000;
+const IMPORT_CAPACITY_MESSAGE = "Import preparation is temporarily at capacity. Retry shortly.";
 
 interface WorkerReply {
   ok: boolean;
@@ -7,21 +14,61 @@ interface WorkerReply {
   error?: { name?: string; message: string; stack?: string };
 }
 
-/** Run CPU-heavy import remapping away from Fastify's event loop. */
-export function runImportWorker(request: ImportWorkerRequest): Promise<ImportWorkerResult> {
+interface ImportWorkerThread {
+  once(event: "message", listener: (reply: WorkerReply) => void): this;
+  once(event: "error", listener: (error: Error) => void): this;
+  once(event: "exit", listener: (code: number) => void): this;
+  postMessage(request: ImportWorkerRequest): void;
+  terminate(): Promise<number>;
+}
+
+export interface ImportWorkerRunnerOptions {
+  maxActive?: number;
+  maxQueued?: number;
+  maxWaitMs?: number;
+  createWorker?: () => ImportWorkerThread;
+}
+
+function defaultWorker(): Worker {
+  const sourceRuntime = import.meta.url.endsWith(".ts");
+  return new Worker(new URL(sourceRuntime ? "./importWorker.ts" : "./importWorker.mjs", import.meta.url), {
+    execArgv: sourceRuntime ? ["--import", "tsx"] : [],
+  });
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException("Import preparation was cancelled.", "AbortError");
+}
+
+function executeImportWorker(
+  request: ImportWorkerRequest,
+  signal: AbortSignal | undefined,
+  createWorker: () => ImportWorkerThread,
+): Promise<ImportWorkerResult> {
   return new Promise((resolve, reject) => {
-    const sourceRuntime = import.meta.url.endsWith(".ts");
-    const worker = new Worker(new URL(sourceRuntime ? "./importWorker.ts" : "./importWorker.mjs", import.meta.url), {
-      execArgv: sourceRuntime ? ["--import", "tsx"] : [],
-    });
+    if (signal?.aborted) return reject(abortReason(signal));
+    const worker = createWorker();
     let settled = false;
     const finish = (error?: Error, result?: ImportWorkerResult) => {
       if (settled) return;
       settled = true;
+      if (signal) signal.removeEventListener("abort", abort);
       void worker.terminate();
       if (error) reject(error);
       else resolve(result!);
     };
+    const abort = () => {
+      if (settled) return;
+      settled = true;
+      signal!.removeEventListener("abort", abort);
+      // Do not release the bounded queue slot until the thread has actually stopped. Otherwise a
+      // burst of disconnected requests could exceed the configured active-worker ceiling.
+      void worker.terminate().then(
+        () => reject(abortReason(signal!)),
+        (error: unknown) => reject(error),
+      );
+    };
+    if (signal) signal.addEventListener("abort", abort, { once: true });
     worker.once("message", (reply: WorkerReply) => {
       if (reply.ok && reply.result) return finish(undefined, reply.result);
       const error = new Error(reply.error?.message ?? "Import worker failed.");
@@ -36,3 +83,23 @@ export function runImportWorker(request: ImportWorkerRequest): Promise<ImportWor
     worker.postMessage(request);
   });
 }
+
+/** Build a bounded runner; exported so cancellation and admission behavior can be tested without
+ * starting real threads. Production uses the singleton below, keeping one process-wide cap. */
+export function createImportWorkerRunner(options: ImportWorkerRunnerOptions = {}) {
+  const queue = new BoundedWorkQueue(
+    options.maxActive ?? MAX_CONCURRENT_IMPORT_WORKERS,
+    options.maxQueued ?? MAX_QUEUED_IMPORT_WORKERS,
+    IMPORT_CAPACITY_MESSAGE,
+    {
+      maxWaitMs: options.maxWaitMs ?? MAX_IMPORT_QUEUE_WAIT_MS,
+      onSaturated: (reason) => reportCurrentRequestQueueSaturation("import", reason),
+    },
+  );
+  const createWorker = options.createWorker ?? defaultWorker;
+  return (request: ImportWorkerRequest, signal: AbortSignal | undefined = currentRequestAbortSignal()) =>
+    queue.run(() => executeImportWorker(request, signal, createWorker), signal);
+}
+
+/** Run CPU-heavy import remapping away from Fastify's event loop. */
+export const runImportWorker = createImportWorkerRunner();
