@@ -64,6 +64,8 @@ export async function fetchAccountSummaries(init?: {
    * snapshot that cannot prove whether the operation committed. Ordinary picker reads may fall
    * back to the encrypted, user-bound read-only cache. */
   allowCachedFallback?: boolean;
+  /** Reports whether the returned live list is complete enough to prove membership absence. */
+  onCompleteness?: (complete: boolean) => void;
 }): Promise<AccountSummary[] | null> {
   const acceptEffects = init?.acceptEffects ?? (() => true);
   const allowCachedFallback = init?.allowCachedFallback ?? true;
@@ -136,6 +138,7 @@ export async function fetchAccountSummaries(init?: {
         );
       }
     }
+    init?.onCompleteness?.(droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable"));
     return valid;
   } catch (e) {
     // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
@@ -165,11 +168,20 @@ export async function refreshAccountSummaries(init?: {
   const callerAcceptsEffects = init?.acceptEffects ?? (() => true);
   const requestId = useStore.getState().beginAccountSummariesRequest();
   const requestIsCurrent = () => callerAcceptsEffects() && useStore.getState().accountSummariesRequestId === requestId;
-  const list = await fetchAccountSummaries({ ...init, acceptEffects: requestIsCurrent });
+  let complete = false;
+  const list = await fetchAccountSummaries({
+    ...init,
+    acceptEffects: requestIsCurrent,
+    onCompleteness: (value) => {
+      complete = value;
+    },
+  });
   if (list !== null && callerAcceptsEffects()) {
-    useStore.getState().setAccountSummaries(list, requestId);
+    const published = useStore.getState().setAccountSummaries(list, requestId);
     const activeAccountId = useStore.getState().activeAccountId;
     if (
+      published &&
+      complete &&
       init?.preserveActiveAccountIfMissing !== true &&
       activeAccountId !== null &&
       !list.some((account) => account.id === activeAccountId)

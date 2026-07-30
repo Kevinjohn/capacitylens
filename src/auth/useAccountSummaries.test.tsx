@@ -289,6 +289,29 @@ describe("refreshAccountSummaries — shared request ordering", () => {
     expect(useStore.getState().accountSummaries).toEqual([{ id: "new", name: "Newest", role: "owner" }]);
   });
 
+  it("does not let a superseded response clear the active company or publish a removal notice", async () => {
+    const earlier = deferred<Response>();
+    const later = deferred<Response>();
+    useStore.setState({ activeAccountId: "new" });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementationOnce(() => earlier.promise)
+        .mockImplementationOnce(() => later.promise),
+    );
+
+    const earlierRefresh = refreshAccountSummaries();
+    const laterRefresh = refreshAccountSummaries();
+    later.resolve(json(200, [{ id: "new", name: "Newest", role: "owner" }]));
+    await laterRefresh;
+    earlier.resolve(json(200, [{ id: "old", name: "Older", role: "owner" }]));
+    await earlierRefresh;
+
+    expect(useStore.getState().activeAccountId).toBe("new");
+    expect(useStore.getState().notice).toBeNull();
+  });
+
   it("does not let an in-flight response overwrite a later direct list mutation", async () => {
     const response = deferred<Response>();
     vi.stubGlobal(
@@ -302,6 +325,44 @@ describe("refreshAccountSummaries — shared request ordering", () => {
     await refresh;
 
     expect(useStore.getState().accountSummaries).toEqual([{ id: "created", name: "Just created", role: "owner" }]);
+  });
+
+  it("does not let a response superseded by a direct mutation clear that newly active company", async () => {
+    const response = deferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => response.promise),
+    );
+    const refresh = refreshAccountSummaries();
+
+    useStore.getState().setAccountSummaries([{ id: "created", name: "Just created", role: "owner" }]);
+    useStore.setState({ activeAccountId: "created" });
+    response.resolve(json(200, [{ id: "old", name: "Before create", role: "owner" }]));
+    await refresh;
+
+    expect(useStore.getState().activeAccountId).toBe("created");
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it("publishes valid rows from an incomplete directory without treating the dropped active row as revoked", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    useStore.setState({ activeAccountId: "active" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json(200, [
+          { id: "active", role: "owner" },
+          { id: "other", name: "Other", role: "viewer" },
+        ]),
+      ),
+    );
+
+    await refreshAccountSummaries();
+
+    expect(useStore.getState().accountSummaries).toEqual([{ id: "other", name: "Other", role: "viewer" }]);
+    expect(useStore.getState().activeAccountId).toBe("active");
+    expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), expect.any(Array));
   });
 });
 

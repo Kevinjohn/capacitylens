@@ -23,6 +23,7 @@ vi.mock("../auth/apiFetchReauth", () => ({
 import {
   accountClient,
   accountCommandOutcomeUnknown,
+  accountCommandOutcomeWasUnknown,
   bindStoredAccountCommandsToIdentity,
   clearStoredAccountCommands,
   newBrowserAccountCommand,
@@ -216,7 +217,8 @@ describe("browser account client", () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await accountClient.eraseWorkspace("workspace-1");
+    const ambiguous = await accountClient.eraseWorkspace("workspace-1");
+    expect(accountCommandOutcomeWasUnknown(ambiguous)).toBe(true);
     await accountClient.eraseWorkspace("workspace-1");
     await accountClient.eraseWorkspace("workspace-1");
 

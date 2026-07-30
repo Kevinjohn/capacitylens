@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Prevented stale or partially malformed company-directory responses from falsely closing the
+  active company, and reconciled ambiguous post-erasure `403` responses against the authoritative
+  directory using the command client's original outcome classification.
 - Made page-teardown lifecycle archives part of the browser session's ordered atomic sync batch,
   preventing an older in-flight creation from resurrecting a removed row and ensuring a surviving
   page's undo durably unarchives the row before persistence reports clean.

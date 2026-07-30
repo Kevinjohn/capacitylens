@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
-import { accountClient, accountCommandOutcomeUnknown } from "../../account/accountClient";
+import { accountClient, accountCommandOutcomeWasUnknown } from "../../account/accountClient";
 import { useStore } from "../../store/useStore";
 import { useAuth } from "../../auth/authContext";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
@@ -132,7 +132,7 @@ export function AccountPicker() {
         internalColourMode: "grey",
       });
       if (!res.ok) {
-        if (await accountCommandOutcomeUnknown(res)) {
+        if (accountCommandOutcomeWasUnknown(res)) {
           // A response can fail after the command commits (proxy timeout, worker restart, or a
           // still-running ledger entry). Close the form and reconcile before allowing a retry.
           const list = await refreshAccountSummaries({ allowCachedFallback: false });
@@ -247,7 +247,7 @@ export function AccountPicker() {
       // outlive the interactive request bound while its transaction completes.
       const res = await accountClient.eraseWorkspace(id);
       if (!res.ok) {
-        if (await accountCommandOutcomeUnknown(res)) {
+        if (accountCommandOutcomeWasUnknown(res)) {
           const fresh = await refreshAccountSummaries({ allowCachedFallback: false });
           await refreshAuth();
           setNotice(fresh !== null ? m.picker_delete_unknown_refreshed() : m.picker_delete_unknown_stale(), "warning");

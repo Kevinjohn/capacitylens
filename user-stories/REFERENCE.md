@@ -44,6 +44,10 @@ If the app changes, update this file first, then the affected stories.
    If a refresh or account switch returns a slice that no longer contains the selected company,
    CapacityLens installs no active workspace: it returns atomically to this picker, shows the
    company-not-found notification, and rejects scoped edits until a real company is selected.
+   Only the newest complete company-directory response may treat a missing company as revoked
+   access. A superseded response cannot close the current company, and a partially malformed
+   directory may publish its valid rows with a warning but cannot claim that a dropped membership
+   was removed.
    **Single-company-per-instance policy + caller standing:** a server-backed deploy defaults to
    ONE company (`CAPACITYLENS_MULTI_ACCOUNT` unset) — once an account already exists,
    `GET /api/auth/me` reports `canCreateAccount: false` and the **`New company`** button is
@@ -78,7 +82,9 @@ If the app changes, update this file first, then the affected stories.
    command receipt briefly: if the response is lost, retrying the same command returns success even
    though that company's membership is already gone. A post-delete `403` from an older/mixed server
    is treated as an unknown outcome, so the browser retains the command and refreshes the company
-   list instead of converting uncertainty into a new destructive ceremony.
+   list without an offline-cache fallback instead of converting uncertainty into a new destructive
+   ceremony. The picker consumes that same erasure outcome classification rather than independently
+   reclassifying the response status.
    After a confirmed deletion completes, the picker announces that the named company was
    permanently deleted.
 5. Then a one-time **"What CapacityLens is" intro page** (heading `Welcome to CapacityLens`) — a minimal

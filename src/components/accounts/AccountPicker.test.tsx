@@ -535,10 +535,15 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     });
   });
 
-  it("keeps the company listed and surfaces a notice when the server refuses the delete", async () => {
+  it("reconciles an ambiguous post-erasure 403 against the authoritative company directory", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
-    stubFetch({ ok: false, status: 403, body: { error: "Forbidden." } });
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
+      url === "/api/accounts/a9" && init?.method === "DELETE"
+        ? { ok: false, status: 403, json: async () => ({ error: "Forbidden." }) }
+        : { ok: true, status: 200, json: async () => [] },
+    );
+    vi.stubGlobal("fetch", fetchMock);
     useStore.getState().setAccountSummaries([{ id: "a9", name: "Ghost Co", role: "owner" }]);
     render(<AccountPicker />);
 
@@ -547,8 +552,12 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     await user.type(within(dialog).getByLabelText(/Type/i), "Ghost Co");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
-    await waitFor(() => expect(useStore.getState().notice?.message).toBe("Forbidden."));
-    expect(useStore.getState().accountSummaries).toHaveLength(1); // nothing removed optimistically
+    await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0));
+    expect(fetchMock).toHaveBeenCalledWith("/api/accounts", expect.objectContaining({ credentials: "include" }));
+    expect(useStore.getState().notice).toMatchObject({
+      message: "The delete request had an unknown outcome. The company list was refreshed — verify it before retrying.",
+      tone: "warning",
+    });
   });
 
   it("uses the localised refreshed-list guidance for an unknown delete response", async () => {
