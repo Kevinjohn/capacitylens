@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Required rediscovered audit deliveries to complete a fresh file and directory durability flush
+  before their retained SQLite outbox rows can be removed after an earlier flush failure.
+
 ### Tests and documentation
 
 - Restored the released database-v23 compatibility matrix for both auth-off and password

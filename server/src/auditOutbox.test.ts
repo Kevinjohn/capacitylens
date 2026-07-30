@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, fsyncSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
@@ -115,6 +115,38 @@ describe("durable audit outbox", () => {
     expect(drainAuditOutbox(db, fileAuditSink(file, vi.fn()))).toBe(true);
     expect(pendingAuditCount(db)).toBe(0);
     expect(lines(file)).toHaveLength(1);
+    db.close();
+  });
+
+  it("retains a rediscovered row until a retry re-establishes file durability", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-fsync-retry-"));
+    const file = join(dir, "audit.jsonl");
+    const db = openDb(":memory:");
+    enqueueAudit(db, record(), "audit-fsync-retry-1");
+    let syncAttempts = 0;
+    const syncFile = vi.fn((fd: number) => {
+      syncAttempts += 1;
+      if (syncAttempts <= 2) throw new Error("injected fsync failure");
+      fsyncSync(fd);
+    });
+    const sink = () => fileAuditSink(file, vi.fn(), { syncFile });
+
+    // The first write completes, but its explicit durability flush fails.
+    expect(drainAuditOutbox(db, sink())).toBe(false);
+    expect(pendingAuditCount(db)).toBe(1);
+    expect(lines(file)).toHaveLength(1);
+
+    // A fresh sink rediscovers the complete line. Its retry flush still fails, so the durable
+    // SQLite copy remains and the JSONL line is not duplicated.
+    expect(drainAuditOutbox(db, sink())).toBe(false);
+    expect(pendingAuditCount(db)).toBe(1);
+    expect(lines(file)).toHaveLength(1);
+
+    // Only a successful file flush plus parent-directory flush permits outbox deletion.
+    expect(drainAuditOutbox(db, sink())).toBe(true);
+    expect(pendingAuditCount(db)).toBe(0);
+    expect(lines(file)).toHaveLength(1);
+    expect(syncFile).toHaveBeenCalledTimes(4);
     db.close();
   });
 

@@ -111,6 +111,8 @@ export interface FileAuditSinkOptions {
   maxBytes?: number;
   /** Test seam for the one-time existing-file permission pin. */
   pinPermissions?: (file: string, mode: number) => void;
+  /** Test seam for file and directory durability flushes. */
+  syncFile?: (fd: number) => void;
 }
 
 const DEFAULT_MAX_BYTES = 64 * 1024 * 1024; // 64 MiB
@@ -137,6 +139,7 @@ export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024; // 1 TiB operator-safe
 export function fileAuditSink(file: string, log: (msg: string) => void, opts: FileAuditSinkOptions = {}): AuditSink {
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
   const pinPermissions = opts.pinPermissions ?? chmodSync;
+  const syncFile = opts.syncFile ?? fsyncSync;
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_AUDIT_BYTES) {
     throw new RangeError(`maxBytes must be a safe integer from 1 to ${MAX_AUDIT_BYTES}.`);
   }
@@ -166,7 +169,7 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
   const syncParentDirectory = () => {
     const fd = openSync(dirname(file), "r");
     try {
-      fsyncSync(fd);
+      syncFile(fd);
     } finally {
       closeSync(fd);
     }
@@ -193,7 +196,7 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
         const fd = openSync(file, "r+");
         try {
           ftruncateSync(fd, newline + 1);
-          fsyncSync(fd);
+          syncFile(fd);
         } finally {
           closeSync(fd);
         }
@@ -209,6 +212,23 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
     deliveryStateLoaded = true;
   };
 
+  const syncRediscoveredDeliveries = () => {
+    // A complete line can be readable even when its prior fsync failed. A retry satisfied from
+    // rediscovered audit ids must re-establish the durability boundary before the SQLite outbox
+    // copy may be deleted. Flush both retained generations because delivery ids are collected from
+    // both, then the directory so a newly-created file or rotation rename is durable too.
+    for (const path of [`${file}.1`, file]) {
+      if (!existsSync(path)) continue;
+      const fd = openSync(path, "r");
+      try {
+        syncFile(fd);
+      } finally {
+        closeSync(fd);
+      }
+    }
+    syncParentDirectory();
+  };
+
   const appendMany = (records: readonly AuditEntry[]): boolean => {
     try {
       if (!deliveryStateLoaded) loadDeliveryState();
@@ -219,7 +239,10 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
         );
       }
       const pending = records.filter((record) => !record.auditId || !deliveredAuditIds.has(record.auditId));
-      if (pending.length === 0) return true;
+      if (pending.length === 0) {
+        if (records.length > 0) syncRediscoveredDeliveries();
+        return true;
+      }
       const lines = pending.map((record) => JSON.stringify(record) + "\n");
       const lineBytes = lines.map((line) => Buffer.byteLength(line, "utf8"));
       const oversized = lineBytes.find((bytes) => bytes > maxBytes);
@@ -245,7 +268,7 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
       const fd = openSync(file, "a", 0o600);
       try {
         writeFileSync(fd, lines.join(""), { encoding: "utf8" });
-        fsyncSync(fd);
+        syncFile(fd);
       } finally {
         closeSync(fd);
       }
