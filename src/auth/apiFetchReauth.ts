@@ -1,5 +1,6 @@
 import { apiFetch, API_REQUEST_TIMEOUT_MS } from "../data/requestTimeout";
 import { reauthResolution, requestReauth } from "./reauthCoordinator";
+import { m } from "@/i18n";
 
 // The step-up interception seam (DEFECT B). A drop-in replacement for `apiFetch` used only at
 // security-sensitive call sites: membership/invitation administration (including reads of those
@@ -32,6 +33,20 @@ async function isSessionNotFresh(res: Response): Promise<boolean> {
     .json()
     .catch(() => null);
   return !!body && typeof body === "object" && (body as { code?: unknown }).code === "SESSION_NOT_FRESH";
+}
+
+async function distinguishFailedStepUp(res: Response): Promise<Response> {
+  if (!(await isSessionNotFresh(res))) return res;
+  const headers = new Headers(res.headers);
+  headers.set("content-type", "application/json");
+  return new Response(
+    JSON.stringify({
+      error: m.reauth_still_not_fresh(),
+      code: "SESSION_NOT_FRESH",
+      reauthenticationAttempted: true,
+    }),
+    { status: res.status, statusText: res.statusText, headers },
+  );
 }
 
 /**
@@ -69,9 +84,9 @@ export async function apiFetchReauth(
   if (method !== "GET" && method !== "HEAD" && !headers.has("Idempotency-Key")) return res;
   const resolutionAfterResponse = reauthResolution();
   if (resolutionAfterResponse.epoch !== resolutionAtDispatch.epoch) {
-    return resolutionAfterResponse.outcome ? apiFetch(retryInput, init, timeoutMs) : res;
+    return resolutionAfterResponse.outcome ? distinguishFailedStepUp(await apiFetch(retryInput, init, timeoutMs)) : res;
   }
   const reauthenticated = await requestReauth();
   if (!reauthenticated) return res;
-  return apiFetch(retryInput, init, timeoutMs);
+  return distinguishFailedStepUp(await apiFetch(retryInput, init, timeoutMs));
 }

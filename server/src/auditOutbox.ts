@@ -3,6 +3,7 @@ import type { AccountAuditAction, AccountAuditEvent } from "@capacitylens/shared
 import type { AuditEntry, AuditRecord, AuditSink } from "./audit";
 import type { Db } from "./db";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
+import { isScopedEntityKey } from "@capacitylens/shared/types/entities";
 
 /** Immutable v17 schema component. Keep changes to this SQL behind a new explicit migration once
  * v17 ships: its exact text is folded into the migration ledger checksum. */
@@ -116,19 +117,28 @@ function isNullableNonEmptyString(value: unknown): value is string | null {
   return value === null || isNonEmptyString(value);
 }
 
+function isCascadeCounts(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  return Object.entries(value).every(
+    ([table, count]) => isScopedEntityKey(table) && Number.isInteger(count) && (count as number) > 0,
+  );
+}
+
 function isAuditEntry(value: unknown): value is AuditEntry {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
   if (!isStringArray(row.changedFields)) return false;
   if ("ts" in row) {
+    const productAction = isNonEmptyString(row.action) && PRODUCT_ACTIONS.has(row.action);
     return (
       isIsoInstant(row.ts) &&
       isNonEmptyString(row.userId) &&
       isNonEmptyString(row.accountId) &&
       isNonEmptyString(row.entity) &&
       isNonEmptyString(row.id) &&
-      isNonEmptyString(row.action) &&
-      PRODUCT_ACTIONS.has(row.action)
+      productAction &&
+      (row.action === "purge" ? isCascadeCounts(row.cascadeCounts) : row.cascadeCounts === undefined)
     );
   }
   return (

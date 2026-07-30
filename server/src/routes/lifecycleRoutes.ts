@@ -54,9 +54,10 @@ function lifecycleFailure(reply: FastifyReply, error: unknown, fail: LifecycleRo
 }
 
 interface TransitionResult {
-  next: LifecycleRow;
+  next: LifecycleRow | null;
   changedFields: string[];
   scrubResourceNotes?: boolean;
+  cascadeCounts?: AuditRecord["cascadeCounts"];
 }
 
 interface TransitionSpec {
@@ -114,16 +115,19 @@ function registerTransition(
 
         result = spec.apply(row, rawEntity, accountId, id);
         if (result === null) return;
-        dependencies.store.writeLifecycleRow(accountId, rawEntity, result.next);
+        if (result.next) dependencies.store.writeLifecycleRow(accountId, rawEntity, result.next);
         const scrubbed = result.scrubResourceNotes ? dependencies.store.scrubResourceNotes(accountId, id) : null;
         auditRecord.changedFields = [
           ...result.changedFields,
           ...(scrubbed?.allocationNotes ? ["allocations.note"] : []),
           ...(scrubbed?.timeOffNotes ? ["timeOff.note"] : []),
         ];
+        if (result.cascadeCounts) auditRecord.cascadeCounts = result.cascadeCounts;
         // Redaction may consult the membership store. Keep that fallible read inside the outer
         // product/audit transaction so a failure cannot turn a committed transition into a 5xx.
-        response = dependencies.redact(req, rawEntity, result.next as unknown as Record<string, unknown>, accountId);
+        if (result.next) {
+          response = dependencies.redact(req, rawEntity, result.next as unknown as Record<string, unknown>, accountId);
+        }
       });
       if (spec.successStatus === 204) return reply.code(204).send();
       return reply.code(200).send(response);
@@ -186,10 +190,11 @@ export function registerLifecycleRoutes(app: FastifyInstance, dependencies: Life
       if (!canPurge(row, new Date().toISOString())) {
         throw new LifecycleResponseError(409, "Cannot purge: must be a soft-deleted tombstone at least 30 days old.");
       }
-      if (!dependencies.store.purgeLifecycleRow(accountId, entity, id)) {
+      const purged = dependencies.store.purgeLifecycleRow(accountId, entity, id);
+      if (!purged) {
         throw new LifecycleResponseError(404, "Not found");
       }
-      return null;
+      return { next: null, changedFields: [], cascadeCounts: purged.removedCounts };
     },
   });
 }

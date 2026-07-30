@@ -613,7 +613,7 @@ describe("AccountFlows conformance", () => {
     const deprovisionMany = vi.fn<LocalIdentityPort["deprovisionLocalPrincipalsInTx"]>();
     const deprovisionOne = vi.fn<LocalIdentityPort["deprovisionLocalPrincipalInTx"]>();
     const principalIds = ["principal-1", "principal-2", "principal-3"];
-    const { flows } = harness({
+    const { flows, events } = harness({
       identity: identityPort({
         deprovisionLocalPrincipalInTx: deprovisionOne,
         deprovisionLocalPrincipalsInTx: deprovisionMany,
@@ -639,6 +639,16 @@ describe("AccountFlows conformance", () => {
     expect(deprovisionMany).toHaveBeenCalledOnce();
     expect(deprovisionMany).toHaveBeenCalledWith(principalIds, erasureCommand.commandId);
     expect(deprovisionOne).not.toHaveBeenCalled();
+    expect(events.filter((event) => event.action === "identity.local_deprovisioned")).toEqual(
+      principalIds.map((principalId) =>
+        expect.objectContaining({
+          id: `${erasureCommand.commandId}:identity.local_deprovisioned:success:${principalId}`,
+          targetPrincipalId: principalId,
+          changedFields: ["localPrincipal"],
+        }),
+      ),
+    );
+    expect(events.at(-1)).toMatchObject({ action: "workspace.erased", outcome: "success" });
   });
 
   it("bounds workspace-erasure membership re-snapshot attempts before reserving the command", async () => {

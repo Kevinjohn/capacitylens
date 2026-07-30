@@ -267,5 +267,19 @@ describe("authentication security events", () => {
       outcome: "success",
       userId,
     });
+
+    const authenticationEventsBeforePreflight = events.filter((event) => event.event === "authentication").length;
+    const preflight = await call(app, {
+      method: "OPTIONS",
+      url: "/api/auth/sign-in/email",
+      headers: {
+        origin: "http://localhost:5173",
+        "access-control-request-method": "POST",
+      },
+    });
+    expect(preflight.statusCode).toBe(204);
+    expect(events.filter((event) => event.event === "authentication")).toHaveLength(
+      authenticationEventsBeforePreflight,
+    );
   });
 });

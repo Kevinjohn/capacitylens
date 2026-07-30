@@ -139,7 +139,7 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
       };
     },
     scrubResourceNotes: () => ({ allocationNotes: false, timeOffNotes: false }),
-    purgeLifecycleRow: () => false,
+    purgeLifecycleRow: () => null,
   };
   registerLifecycleRoutes(app, {
     store,
@@ -919,6 +919,42 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     // No value leak: the original (PII) name never reaches the audit line.
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
     expect(readFileSync(file, "utf8")).not.toContain(NOTE_SENTINEL);
+  });
+
+  it("records privacy-safe per-table counts for an irreversible purge cascade", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-purge-"));
+    const file = join(dir, "audit.jsonl");
+    const db = openDb(":memory:");
+    const app = buildApp(db, { audit: fileAuditSink(file, () => {}) });
+    const SENTINEL = "PURGED_CUSTOMER_VALUE_MUST_NOT_APPEAR";
+    const data = emptyAppData() as unknown as Record<string, unknown[]>;
+    data.accounts = [account("a1")];
+    data.clients = [client("cPurge", "a1", { ...archivedTombstone, name: SENTINEL })];
+    data.projects = [project("pPurge", "a1", "cPurge")];
+    data.phases = [phase("phPurge", "a1", "pPurge")];
+    data.activities = [activity("actPurge", "a1", "pPurge", "phPurge")];
+    data.resources = [person("rSurvives", "a1")];
+    data.allocations = [allocation("alPurge", "a1", "rSurvives", "actPurge")];
+    insertAll(db, data as unknown as AppData);
+
+    expect((await lifecycleAction(app, "clients", "cPurge", "purge", "a1")).statusCode).toBe(204);
+
+    const record = JSON.parse(readFileSync(file, "utf8").trim()) as AuditRecord;
+    expect(record).toMatchObject({
+      action: "purge",
+      entity: "clients",
+      id: "cPurge",
+      changedFields: [],
+      cascadeCounts: {
+        clients: 1,
+        projects: 1,
+        phases: 1,
+        activities: 1,
+        allocations: 1,
+      },
+    });
+    expect(record.cascadeCounts).not.toHaveProperty("resources");
+    expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
   });
 });
 

@@ -495,7 +495,7 @@ export function localAccountFlows(input: {
               };
             }
             try {
-              const value = tx(
+              const erased = tx(
                 db,
                 () => {
                   administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
@@ -509,10 +509,21 @@ export function localAccountFlows(input: {
                   };
                   eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
                   completeCommand(db, scope, command, receipt);
-                  return receipt;
+                  return { receipt, orphaned };
                 },
                 "immediate",
               );
+              for (const principalId of erased.orphaned) {
+                audit({
+                  action: "identity.local_deprovisioned",
+                  outcome: "success",
+                  workspaceId,
+                  actorPrincipalId: actor.principalId,
+                  targetPrincipalId: principalId,
+                  command,
+                  changedFields: ["localPrincipal"],
+                });
+              }
               audit({
                 action: "workspace.erased",
                 outcome: "success",
@@ -521,7 +532,7 @@ export function localAccountFlows(input: {
                 command,
                 changedFields: ["workspace", "memberships", "localPrincipals"],
               });
-              return { kind: "done", value };
+              return { kind: "done", value: erased.receipt };
             } catch (error) {
               recordTerminalOutcome(error, () =>
                 terminateCommand(

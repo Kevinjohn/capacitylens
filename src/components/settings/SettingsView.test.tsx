@@ -172,6 +172,7 @@ describe("SettingsView — build stamp", () => {
   it("renders nothing when VITE_CAPACITYLENS_BUILD_SHA is unset (today's Settings)", () => {
     render(<SettingsView />);
     expect(screen.queryByTestId("build-stamp")).not.toBeInTheDocument();
+    expect(screen.getByTestId("persistence-diagnostics")).toHaveTextContent("Failed saves: 0");
   });
 
   it("renders the muted footer when the build is stamped", () => {

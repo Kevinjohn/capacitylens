@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { nonColourEnvironment, spawnPnpm } from "../scripts/pnpm-spawn.mjs";
+import { nonColourEnvironment, spawnPnpm, synchronousSpawnStatus } from "../scripts/pnpm-spawn.mjs";
 
 describe("spawnPnpm", () => {
   it("preserves spaces and shell metacharacters as literal argument boundaries", async () => {
@@ -56,4 +56,20 @@ describe("nonColourEnvironment", () => {
       expect(env).toMatchObject({ FORCE_COLOR: "0", RUN: "yes" });
     },
   );
+});
+
+describe("synchronousSpawnStatus", () => {
+  it("preserves ordinary test statuses", () => {
+    expect(synchronousSpawnStatus("phase", { status: 1 }, () => undefined)).toBe(1);
+  });
+
+  it.each([
+    [{ status: null, error: new Error("not found") }, /could not start.*not found/i],
+    [{ status: null, signal: "SIGTERM" }, /terminated by SIGTERM/i],
+    [{ status: null }, /without an exit status/i],
+  ])("distinguishes runner failures from red tests", (result, expectedMessage) => {
+    const messages: string[] = [];
+    expect(synchronousSpawnStatus("browser phase", result, (message) => messages.push(message))).toBe(2);
+    expect(messages).toEqual([expect.stringMatching(expectedMessage)]);
+  });
 });

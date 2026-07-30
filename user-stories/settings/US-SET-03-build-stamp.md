@@ -28,10 +28,13 @@ company; click **Settings** in the sidebar.
 1. Scroll to the bottom of Settings, below **Appearance**.
 2. Read the muted footer line: `build <sha> · server` (`data-testid="build-stamp"`).
 3. Include that exact line in any feedback or bug report.
+4. If the problem concerns saving or reloading, open **Persistence diagnostics** and include its
+   counts and suspended state. These are device-session counters and contain no scheduling values.
 
 **Precondition (default local build):** run `pnpm run dev`, open Settings.
 
-4. Confirm there is **no** build stamp — the page ends with the Appearance section.
+5. Confirm there is **no** build stamp. In server mode the collapsed persistence diagnostics remain
+   available independently of build stamping.
 
 ## Acceptance criteria
 
@@ -42,3 +45,5 @@ company; click **Settings** in the sidebar.
 - On a build without the variable (dev server, plain `pnpm run build`), the footer is
   absent — today's Settings, unchanged.
 - The stamp is plain text (no control, no link) and does not affect the axe audit.
+- Server mode exposes a collapsed, keyboard-operable persistence diagnostics disclosure whose
+  process-local counters reset with a fresh persistence attachment and contain no tenant values.

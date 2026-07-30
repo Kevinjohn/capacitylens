@@ -6,6 +6,34 @@ const activeTransactionModes = new WeakMap<Db, "deferred" | "immediate">();
 export type SynchronousCallback<Fn extends () => unknown> = Fn &
   ([Extract<ReturnType<Fn>, PromiseLike<unknown>>] extends [never] ? unknown : never);
 
+export interface RollbackFailure {
+  scope: "transaction" | "savepoint";
+  error: unknown;
+}
+
+export type RollbackFailureReporter = (failure: RollbackFailure) => void;
+
+const defaultRollbackFailureReporter: RollbackFailureReporter = ({ scope }) => {
+  // This helper is also used before a request logger exists. Emit one parseable, privacy-safe line;
+  // callers with correlation context can inject their structured reporter through tx().
+  console.error(JSON.stringify({ level: "error", event: "transaction_rollback_failed", scope }));
+};
+
+function reportRollbackFailureSafely(reporter: RollbackFailureReporter, failure: RollbackFailure): void {
+  try {
+    reporter(failure);
+  } catch (reportingError) {
+    // A diagnostic transport cannot replace the transaction error. Fall back to the same
+    // privacy-safe line; if stderr itself is unavailable, preserve the original throw regardless.
+    try {
+      defaultRollbackFailureReporter(failure);
+    } catch (fallbackError) {
+      void reportingError;
+      void fallbackError;
+    }
+  }
+}
+
 function assertSynchronousResult(result: unknown): void {
   const resultType = typeof result;
   if ((resultType === "object" && result !== null) || resultType === "function") {
@@ -28,6 +56,7 @@ export function tx<Fn extends () => unknown>(
   db: Db,
   fn: SynchronousCallback<Fn>,
   mode: "deferred" | "immediate" = "deferred",
+  reportRollbackFailure: RollbackFailureReporter = defaultRollbackFailureReporter,
 ): ReturnType<Fn> {
   if (db.isTransaction) {
     if (mode === "immediate" && activeTransactionModes.get(db) !== "immediate") {
@@ -45,7 +74,7 @@ export function tx<Fn extends () => unknown>(
         db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
         db.exec(`RELEASE SAVEPOINT ${savepoint}`);
       } catch (rollbackError) {
-        console.error("tx: SAVEPOINT rollback failed after an error; preserving the original cause", rollbackError);
+        reportRollbackFailureSafely(reportRollbackFailure, { scope: "savepoint", error: rollbackError });
       }
       throw e;
     }
@@ -66,7 +95,7 @@ export function tx<Fn extends () => unknown>(
     try {
       db.exec("ROLLBACK");
     } catch (rollbackError) {
-      console.error("tx: ROLLBACK failed after an error; preserving the original cause", rollbackError);
+      reportRollbackFailureSafely(reportRollbackFailure, { scope: "transaction", error: rollbackError });
     }
     throw e;
   } finally {

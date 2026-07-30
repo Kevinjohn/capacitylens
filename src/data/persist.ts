@@ -5,6 +5,11 @@ import type { StoreState } from "../store/useStore";
 import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
 import { BatchReconciliationError, BatchTooLargeError } from "./ServerSyncAdapter";
 import { applyOps, diffOps } from "./syncOps";
+import {
+  incrementPersistenceDiagnostic,
+  resetPersistenceDiagnostics,
+  setPersistenceSuspended,
+} from "./persistenceDiagnostics";
 
 // Persistence is wired OUTSIDE the store so the store stays a pure state
 // container (and is trivially testable). attachPersistence debounce-saves on
@@ -273,6 +278,7 @@ export function attachPersistence(
       (e: unknown) => {
         if (disposed) return;
         failedSinceSuccess = true;
+        incrementPersistenceDiagnostic("savesFailed");
         // The banner must surface EVERY failed write — including a conflict, where the user's
         // edit is about to be discarded (server wins below); they must learn it did not save.
         onError?.(e);
@@ -346,6 +352,7 @@ export function attachPersistence(
     if (suspendDepth > 0) return; // suspended: don't re-arm a replay under a slice replacement
     const delay = Math.min(1000 * 2 ** retryAttempts, 30000);
     retryAttempts += 1;
+    incrementPersistenceDiagnostic("retriesArmed");
     retryTimer = setTimeout(() => {
       retryTimer = null;
       if (disposed) return;
@@ -372,6 +379,8 @@ export function attachPersistence(
     // would silently lose an edit made during a reload window on every tab close.
     if (externalSuspendDepth > 0) {
       if (unacknowledged) {
+        incrementPersistenceDiagnostic("editsDiscarded");
+        console.warn("capacitylens: a parked edit could not be sent during page teardown");
         onError?.(
           new ReloadDiscardedEditError(
             "An edit was still parked while this company’s data was being replaced during page teardown.",
@@ -394,6 +403,7 @@ export function attachPersistence(
       (error: unknown) => {
         if (disposed) return;
         failedSinceSuccess = true;
+        incrementPersistenceDiagnostic("savesFailed");
         onError?.(error);
         if (serverMode && error instanceof BatchReconciliationError) {
           cancelRetry();
@@ -527,6 +537,7 @@ export function attachPersistence(
   const beginSuspension = (external: boolean): ((opts?: { dropParkedEdits?: boolean }) => void) => {
     if (disposed) return () => {};
     suspendDepth += 1;
+    setPersistenceSuspended(true);
     if (external) {
       if (externalSuspendDepth === 0) {
         externalBaseData = store.getState().data;
@@ -549,6 +560,7 @@ export function attachPersistence(
       // its operation-level rebase. Once the LAST suspension releases, however, no path may retain
       // the pre-import tree — including the parked-edit drop arm below.
       if (suspendDepth > 0) return;
+      setPersistenceSuspended(false);
       if (!pending) {
         externalBaseData = null;
         externalAuthoritativeData = null;
@@ -566,6 +578,8 @@ export function attachPersistence(
           loadingSlice = false;
         }
         externalAuthoritativeData = null;
+        incrementPersistenceDiagnostic("editsDiscarded");
+        console.warn("capacitylens: an edit made during a company-data replacement was discarded");
         onError?.(
           new ReloadDiscardedEditError(
             "An edit arrived while this company’s data was being replaced and could not be saved.",
@@ -617,7 +631,10 @@ export function attachPersistence(
     try {
       // (a) Let a prior account's save settle before we re-seed the snapshot.
       if (inFlightSave) await inFlightSave;
-      if (disposed || myToken !== switchToken) return "skipped"; // detached/newer owner owns effects
+      if (disposed || myToken !== switchToken) {
+        if (!disposed) incrementPersistenceDiagnostic("reloadsSuperseded");
+        return "skipped";
+      } // detached/newer owner owns effects
       // (a′) FLUSH (don't drop) the current account's PENDING debounced edits before we re-seed.
       // Merely dropping them would LOSE edits made within the debounce window of a switch/refresh.
       // Flush NOW — while data AND the adapter's lastSynced snapshot are both this account — so
@@ -632,7 +649,10 @@ export function attachPersistence(
       if (pending && externalSuspendDepth === 0) {
         save(pending); // sets inFlightSave synchronously; pending is consumed inside save()
         if (inFlightSave) await inFlightSave;
-        if (disposed || myToken !== switchToken) return "skipped"; // detached/newer owner owns effects
+        if (disposed || myToken !== switchToken) {
+          if (!disposed) incrementPersistenceDiagnostic("reloadsSuperseded");
+          return "skipped";
+        } // detached/newer owner owns effects
       }
       // See the abortIfSaveFailed doc above: a refresh must not reload over a failed save's edits.
       // Checked AFTER the flush/await so a flush that just SUCCEEDED (clearing the flag) still refreshes.
@@ -655,6 +675,7 @@ export function attachPersistence(
       const slice = await adapter.loadAll(id);
       if (disposed) return "skipped";
       if (myToken !== switchToken) {
+        incrementPersistenceDiagnostic("reloadsSuperseded");
         // Superseded AFTER loadAll resolved: the load has already RESEEDED the adapter's diff
         // snapshot, and the superseding token bump may install nothing over it (the null-switch /
         // A newer refresh owns any parked edit. A sign-out, however, starts no replacement load:
@@ -667,6 +688,7 @@ export function attachPersistence(
           let installed = slice;
           if (currentData !== dataAtLoad || pending !== null) {
             installed = applyOps(slice, diffOps(dataAtSequenceStart, currentData));
+            incrementPersistenceDiagnostic("editsRebased");
             pending = null;
             unacknowledged = installed;
             save(installed);
@@ -700,6 +722,7 @@ export function attachPersistence(
         // restore `slice`.
         const editBase = externalSuspendDepth > 0 && externalBaseData ? externalBaseData : dataAtSequenceStart;
         installed = applyOps(slice, diffOps(editBase, currentData));
+        incrementPersistenceDiagnostic("editsRebased");
         pending = installed;
         unacknowledged = installed;
       } else if (lostFailedEdits) {
@@ -710,6 +733,8 @@ export function attachPersistence(
       // outcomes. Preserve the former above, but always surface the latter before clearing the
       // transient transport-failure state below.
       if (lostFailedEdits) {
+        incrementPersistenceDiagnostic("editsDiscarded");
+        console.warn("capacitylens: an unsaved edit was discarded during an authoritative reload");
         onError?.(new ReloadDiscardedEditError("An edit could not be saved before this company’s data reloaded."));
       }
       // Swap `data` to the loaded slice WITHOUT it reading as a user edit, then advance lastData.
@@ -755,6 +780,7 @@ export function attachPersistence(
     void refreshActive(activeId)
       .then((outcome) => {
         if (disposed || outcome !== "reloaded") return;
+        incrementPersistenceDiagnostic("reconciliationsResolved");
         // One follow-up save makes an empty diff acknowledge recovery, or lands only edits made
         // during the reload after refreshActive rebased them onto the authoritative slice.
         if (store.getState().activeAccountId !== activeId) return;
@@ -890,6 +916,7 @@ export function attachPersistence(
     ...(myRegisteredSuspend ? { suspendWrites: myRegisteredSuspend } : {}),
     hasUnsavedWrites: myRegisteredHasUnsaved,
   });
+  resetPersistenceDiagnostics();
 
   const onPageHide = () => flushOnUnload();
   const onVisibility = () => {
@@ -928,6 +955,7 @@ export function attachPersistence(
   return () => {
     if (disposed) return;
     disposed = true;
+    setPersistenceSuspended(false);
     unsubscribe();
     unsubscribeExternal?.();
     unsubscribeSwitch?.();

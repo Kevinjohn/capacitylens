@@ -237,11 +237,13 @@ async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
       tx.onabort = () => reject(tx.error ?? new Error("The offline encryption key write was aborted."));
     });
     return generated;
-  } catch {
-    // Another tab may have won the create race. Use the persisted winner, never an unrecorded key.
+  } catch (cause) {
+    // Another tab may have won the create race, or this browser may be unable to persist a
+    // CryptoKey. Use the persisted winner, never an unrecorded key; otherwise preserve the cause.
     const winner = await readDeviceKey(db);
     if (winner) return winner;
-    throw new Error("The offline encryption key could not be established.");
+    console.warn("capacitylens: offline encryption key persistence failed", cause);
+    throw new Error("The offline encryption key could not be established.", { cause });
   }
 }
 

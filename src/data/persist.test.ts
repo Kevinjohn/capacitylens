@@ -22,6 +22,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
+import { persistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 
 const internalClient = (accountId: string) => ({
   id: `internal:${accountId}`,
@@ -337,6 +338,7 @@ describe("attachPersistence", () => {
       await vi.advanceTimersByTimeAsync(0); // first attempt → fails, schedules retry
       expect(calls).toBe(1);
       expect(onSuccess).not.toHaveBeenCalled();
+      expect(persistenceDiagnosticsSnapshot()).toMatchObject({ savesFailed: 1, retriesArmed: 1 });
 
       await vi.advanceTimersByTimeAsync(1000); // backoff #1 (2^0 * 1000ms) → succeeds
       expect(calls).toBe(2);
@@ -1308,10 +1310,12 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       expect(saveAll).toHaveBeenCalledOnce();
 
       const resume = suspendServerWrites();
+      expect(persistenceDiagnosticsSnapshot().suspended).toBe(true);
       await vi.advanceTimersByTimeAsync(35_000);
       expect(saveAll).toHaveBeenCalledOnce();
 
       resume();
+      expect(persistenceDiagnosticsSnapshot().suspended).toBe(false);
       await vi.advanceTimersByTimeAsync(35_000);
       expect(saveAll).toHaveBeenCalledTimes(2);
       detach();
@@ -1879,6 +1883,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2", "internal:a2"]);
       // The follow-up clean save fired onSuccess so the banner comes back down.
       expect(onSuccess).toHaveBeenCalled();
+      expect(persistenceDiagnosticsSnapshot()).toMatchObject({ savesFailed: 1, reconciliationsResolved: 1 });
 
       // The backoff retry was NOT armed with the stale diff: 35s covers every backoff step.
       const savesAfterResolution = saveAll.mock.calls.length; // the conflict save + the follow-up

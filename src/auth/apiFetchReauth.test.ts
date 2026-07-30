@@ -88,6 +88,25 @@ describe("apiFetchReauth", () => {
     expect(reauthPending()).toBe(false);
   });
 
+  it("distinguishes a retry that is still not fresh without opening a second prompt", async () => {
+    const fetchMock = vi.fn(async () => json(403, { error: "Sign in again first.", code: "SESSION_NOT_FRESH" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = apiFetchReauth("http://api.test/api/accounts/a1/members");
+    await vi.waitFor(() => expect(reauthPending()).toBe(true));
+    resolveReauth(true);
+
+    const res = await pending;
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toMatchObject({
+      code: "SESSION_NOT_FRESH",
+      reauthenticationAttempted: true,
+      error: expect.stringMatching(/did not refresh your session/i),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(reauthPending()).toBe(false);
+  });
+
   it("also retries a freshness-gated privileged directory GET", async () => {
     const fetchMock = vi
       .fn()

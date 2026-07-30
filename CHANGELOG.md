@@ -10,6 +10,45 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.28.3-alpha.1] — 2026-07-30
+
+This patch closes the 18-record P3 Observability review row. Twelve residual issues were repaired
+and six were verified already fixed on current source. The portable export and SQLite database
+schema versions are unchanged.
+
+### Observability
+
+- Added privacy-safe persistence diagnostics for failed saves, retries, reconciliations,
+  superseded reloads, rebased edits, discarded edits and write suspension, exposed through a
+  collapsed Settings disclosure alongside build provenance.
+- Made accepted-connection drops produce a rate-limited operator event, excluded CORS preflights
+  from authentication success events, and retained verified principal attribution for real sign-in
+  and sign-out events.
+- Recorded one local-identity deprovision event per erased principal and added per-table row counts
+  to irreversible purge audit records without placing tenant values in the audit trail.
+- Routed transaction rollback failures through an injectable structured reporting seam while
+  guaranteeing that a failing reporter cannot mask the original transaction error.
+
+### Fixed
+
+- Distinguished a still-stale session after successful reauthentication, preserved offline-key and
+  lifecycle-reconciliation causes, and surfaced a rejected conditional terminal-ledger write.
+- Kept displayed utilisation values on the correct side of the strict 100% capacity boundary,
+  including screen-reader, person, discipline and overall summaries.
+- Distinguished E2E test failures from runners that could not start, were killed by a signal or
+  ended without a status, with a shared status classifier used by both multi-browser runners.
+- Reconfirmed current-source coverage for role-gated member reads, audit-warning propagation,
+  web/SPA health probing, atomic rejected reassignment, SQLite integrity classification and
+  rate-limited invalid-timezone warnings.
+
+### Tests
+
+- Added focused regressions for persistence counters, step-up retry failures, overload events,
+  authentication preflights, utilisation boundaries, runner termination, rollback diagnostics,
+  offline-key causes, terminal-ledger rejection, identity erasure and purge audit counts.
+- Passed the complete server gate, 152 frontend/shared files and 2,644 tests with coverage and
+  production budgets, plus all 196 default Chromium, database-backed and password-auth E2E cases.
+
 ## [0.28.2-alpha.1] — 2026-07-30
 
 This patch closes the 18-record P3 Accessibility review row. Six residual issues were repaired and

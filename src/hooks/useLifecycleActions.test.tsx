@@ -367,6 +367,7 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
       expect(useStore.getState().notice?.tone).toBe("error");
       expect(useStore.getState().notice?.message).toContain("could not be reconciled");
       expect(useStore.getState().notice?.message).toContain(`(${outcome})`);
+      expect(useStore.getState().notice?.message).toContain("connection lost");
 
       first.unmount();
       const second = renderHook(() => useLifecycleActions(onReloaded));

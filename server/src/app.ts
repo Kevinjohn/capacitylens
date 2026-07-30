@@ -1031,6 +1031,21 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     }
   };
 
+  // Node emits `drop` when maxConnections refuses a newly accepted socket. Keep the signal
+  // privacy-safe and rate-limited: an overload must be visible without turning a connection storm
+  // into a logging storm.
+  let lastConnectionLimitEventAt = Number.NEGATIVE_INFINITY;
+  app.server.on("drop", () => {
+    const now = Date.now();
+    if (now - lastConnectionLimitEventAt < 60_000) return;
+    lastConnectionLimitEventAt = now;
+    securityEvent({
+      event: "connection_limit",
+      outcome: "blocked",
+      limit: MAX_SERVER_CONNECTIONS,
+    });
+  });
+
   // Single redaction funnel for any UNCAUGHT throw (a route that forgot a try/catch, a
   // SQLITE_BUSY thrown mid-statement). Positively identified parsing errors carry safe messages.
   // A duck-typed statusCode alone proves nothing about message safety; unknown errors route through
@@ -1155,6 +1170,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.addHook("onResponse", async (req: FastifyRequest, reply: FastifyReply) => {
     const path = req.url.split("?", 1)[0];
     const authOperation =
+      req.method !== "OPTIONS" &&
       /^\/api\/auth\/(sign-in|sign-out|callback|oauth2\/callback|two-factor|change-password|reset-password)/.test(path);
     if (authOperation) {
       securityEvent({

@@ -474,6 +474,12 @@ address; invalid build configuration is rejected, and the address is safely enco
 The default dev/local build leaves both variables unset and renders **nothing** — the seeded state
 these stories run against has no footer at all.
 
+**Persistence diagnostics (Settings, server mode).** A collapsed **Persistence diagnostics**
+disclosure (`data-testid="persistence-diagnostics"`) reports process-local, privacy-safe counts for
+failed saves, armed retries, completed reconciliations, superseded reloads, rebased edits and
+discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
+company, person, project or note values—and resets when a fresh persistence lifecycle attaches.
+
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
 server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACITYLENS_AUTH=password` or
 `sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
@@ -815,7 +821,7 @@ server, self-hidden on a 403), `archived-row` (one per archived resource/client/
 30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy; absent in the default OFF/local deploy and for any non-viewer role),
-`build-stamp` (Settings footer; only rendered when the build sets
+`persistence-diagnostics` (Settings diagnostics disclosure; server mode), `build-stamp` (Settings footer; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,

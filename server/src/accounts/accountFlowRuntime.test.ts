@@ -43,4 +43,14 @@ describe("account flow runtime helpers", () => {
       }),
     );
   });
+
+  it("treats a rejected conditional terminal write as a recording failure", () => {
+    const original = new Error("operation failed");
+
+    expect(() => recordTerminalOutcome(original, () => false)).toThrow(
+      expect.objectContaining({
+        errors: [original, expect.objectContaining({ message: expect.stringMatching(/no longer accepted/i) })],
+      }),
+    );
+  });
 });

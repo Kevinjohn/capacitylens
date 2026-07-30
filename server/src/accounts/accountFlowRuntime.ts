@@ -18,8 +18,10 @@ export function accountAuditWriter(
 ): (event: AccountAuditInput) => void {
   const audit = port ?? { append: () => true };
   return (event) => {
+    const targetSuffix =
+      event.action === "identity.local_deprovisioned" && event.targetPrincipalId ? `:${event.targetPrincipalId}` : "";
     audit.append({
-      id: `${event.command.commandId}:${event.action}:${event.outcome}`,
+      id: `${event.command.commandId}:${event.action}:${event.outcome}${targetSuffix}`,
       occurredAt: new Date().toISOString(),
       applicationId,
       workspaceId: event.workspaceId ?? null,
@@ -36,11 +38,13 @@ export function accountAuditWriter(
 /** Preserve the primary failure if recording its terminal command state fails too. */
 export function recordTerminalOutcome(
   originalError: unknown,
-  record: () => void,
+  record: () => boolean | void,
   message = "Account flow failed and its terminal command outcome could not be recorded.",
 ): void {
   try {
-    record();
+    if (record() === false) {
+      throw new Error("The pending account command no longer accepted its terminal outcome.");
+    }
   } catch (recordingError) {
     throw new AggregateError([originalError, recordingError], message, {
       cause: recordingError,

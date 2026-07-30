@@ -2,6 +2,7 @@ import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useS
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight, Plus, SlidersHorizontal, Users } from "lucide-react";
 import { m } from "@/i18n";
+import { formatUtilizationPercent } from "../../lib/utilizationPercent";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { useActiveScopedData } from "../../store/useScopedData";
@@ -267,7 +268,7 @@ export function SchedulerGrid() {
     // Exclude external / 3rd-party rows: they carry no capacity (utilisation 0) and would
     // otherwise drag the headline average down.
     const rows = model.flatMap((g) => g.rows).filter((r) => isCapacityTracked(r.resource));
-    return rows.length ? Math.round((rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100) : 0;
+    return rows.length ? formatUtilizationPercent(rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) : "0";
   }, [model]);
 
   // Flatten the visible model into one ordered list of renderable items (group
@@ -374,8 +375,10 @@ export function SchedulerGrid() {
             : utilizationPrefs.showDiscipline
               ? m.scheduler_group_avg_utilisation({
                   percent: group.rows.length
-                    ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100)
-                    : 0,
+                    ? formatUtilizationPercent(
+                        group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length,
+                      )
+                    : "0",
                 })
               : ""}
       </div>
@@ -432,7 +435,7 @@ export function SchedulerGrid() {
                 visible figure's gate (showPersonal + capacity-tracked). */}
             {utilizationPrefs.showPersonal && isCapacityTracked(resource)
               ? m.scheduler_sr_utilisation({
-                  percent: Math.round(util * 100),
+                  percent: formatUtilizationPercent(util),
                   span: visibleWeeksLabel,
                 })
               : ""}
@@ -519,7 +522,7 @@ export function SchedulerGrid() {
                   overSoon ? "font-semibold text-danger" : "text-faint"
                 }`}
               >
-                {Math.round(util * 100)}%
+                {formatUtilizationPercent(util)}%
               </span>
             )}
           </div>

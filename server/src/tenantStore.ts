@@ -1,4 +1,10 @@
-import type { Client, Project, Resource } from "@capacitylens/shared/types/entities";
+import {
+  SCOPED_KEYS,
+  type Client,
+  type Project,
+  type Resource,
+  type ScopedEntityKey,
+} from "@capacitylens/shared/types/entities";
 import type { LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import {
   deleteRow,
@@ -43,8 +49,30 @@ function restampRows(
   for (const row of rows) update.run(nextServerRevision(row.updatedAt), row.id);
 }
 
-function purgeLifecycleRow(db: Db, accountId: string, entity: LifecycleEntityKey, id: string): boolean {
-  if (!ownedLifecycleRow(db, accountId, entity, id)) return false;
+export interface PurgeLifecycleResult {
+  removedCounts: Partial<Record<ScopedEntityKey, number>>;
+}
+
+function scopedRowCounts(db: Db, accountId: string): Record<ScopedEntityKey, number> {
+  return Object.fromEntries(
+    SCOPED_KEYS.map((table) => [
+      table,
+      Number(
+        (db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE accountId = ?`).get(accountId) as { count: number })
+          .count,
+      ),
+    ]),
+  ) as Record<ScopedEntityKey, number>;
+}
+
+function purgeLifecycleRow(
+  db: Db,
+  accountId: string,
+  entity: LifecycleEntityKey,
+  id: string,
+): PurgeLifecycleResult | null {
+  if (!ownedLifecycleRow(db, accountId, entity, id)) return null;
+  const before = scopedRowCounts(db, accountId);
 
   if (entity === "projects") {
     const resources = db
@@ -88,7 +116,13 @@ function purgeLifecycleRow(db: Db, accountId: string, entity: LifecycleEntityKey
   }
 
   deleteRow(db, entity, id);
-  return true;
+  const after = scopedRowCounts(db, accountId);
+  const removedCounts: Partial<Record<ScopedEntityKey, number>> = {};
+  for (const table of SCOPED_KEYS) {
+    const removed = before[table] - after[table];
+    if (removed > 0) removedCounts[table] = removed;
+  }
+  return { removedCounts };
 }
 
 function transactSlice<Result>(
@@ -201,7 +235,7 @@ export interface TenantStore {
   /** Remove sensitive notes attached to one soft-deleted resource. */
   scrubResourceNotes(accountId: string, resourceId: string): ResourceNoteScrubResult;
   /** Purge one owned lifecycle root through SQLite cascades, restamping nullable survivors. */
-  purgeLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): boolean;
+  purgeLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): PurgeLifecycleResult | null;
 }
 
 /**

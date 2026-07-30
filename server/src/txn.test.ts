@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
+import type { Db } from "./db";
 import { tx } from "./txn";
 
 const databases: DatabaseSync[] = [];
@@ -86,6 +87,55 @@ describe("synchronous transaction boundary", () => {
     );
 
     expect(db.prepare("SELECT name FROM events").all()).toEqual([{ name: "nested" }]);
+  });
+
+  it("reports a rollback failure through the injected structured seam and preserves the original error", () => {
+    const original = new Error("operation failed");
+    const rollback = new Error("rollback failed");
+    const db = {
+      isTransaction: false,
+      exec: vi.fn((sql: string) => {
+        if (sql === "ROLLBACK") throw rollback;
+      }),
+    } as unknown as Db;
+    const report = vi.fn();
+
+    expect(() =>
+      tx(
+        db,
+        () => {
+          throw original;
+        },
+        "deferred",
+        report,
+      ),
+    ).toThrow(original);
+    expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });
+  });
+
+  it("does not let a failing rollback reporter mask the original transaction error", () => {
+    const original = new Error("operation failed");
+    const rollback = new Error("rollback failed");
+    const db = {
+      isTransaction: false,
+      exec: vi.fn((sql: string) => {
+        if (sql === "ROLLBACK") throw rollback;
+      }),
+    } as unknown as Db;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect(() =>
+      tx(
+        db,
+        () => {
+          throw original;
+        },
+        "deferred",
+        () => {
+          throw new Error("reporter failed");
+        },
+      ),
+    ).toThrow(original);
   });
 });
 

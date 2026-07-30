@@ -283,6 +283,25 @@ describe("offline tenant cache", () => {
     await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "unscoped" });
   });
 
+  it("preserves and reports the cause when a generated device key cannot be persisted", async () => {
+    const cause = new Error("CryptoKey storage unavailable");
+    const originalAdd = FakeIDBObjectStore.prototype.add;
+    vi.spyOn(FakeIDBObjectStore.prototype, "add").mockImplementation(function (this: IDBObjectStore, value, key) {
+      if ((value as { id?: unknown }).id === "device-aes-gcm-v1") throw cause;
+      return originalAdd.call(this, value, key);
+    });
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const failure = await cacheAuthSnapshot(authSnapshot("user-a")).catch((error: unknown) => error);
+
+    expect(failure).toMatchObject({
+      message: "The offline encryption key could not be established.",
+      cause,
+    });
+    expect(warning).toHaveBeenCalledWith("capacitylens: offline encryption key persistence failed", cause);
+    expect(offlineStateSnapshot().cacheWriteFailed).toBe(true);
+  });
+
   it("observes offline preference and cleanup boundaries from another tab", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
     await cacheAuthSnapshot(authSnapshot("user-a")); // establishes the live page's identity scope

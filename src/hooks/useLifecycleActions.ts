@@ -211,7 +211,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           );
         } catch (reloadError) {
           if (useStore.getState().activeAccountId !== activeAccountId) return;
-          const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${errorMessage(reloadError)}`;
+          const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${errorMessage(reloadError)} Original request: ${errorMessage(e)}`;
           reloadRequiredByAccount.set(activeAccountId, message);
           setNotice(message, "error");
         }

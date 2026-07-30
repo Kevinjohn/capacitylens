@@ -383,6 +383,14 @@ Rollback uses the old image and its matching pre-migration snapshot while the AP
 mixed-version/zero-downtime deployment is introduced later, schema changes must switch to an
 expand → backfill/dual-read-write → contract sequence across releases.
 
+## Persistence diagnostics
+
+Server-mode Settings exposes process-local persistence counters for failed saves, retries,
+reconciliations, superseded reloads, rebases and discarded edits, plus the current write-suspension
+state. The counters intentionally contain no tenant values and reset whenever a fresh persistence
+lifecycle attaches. Use them with the build stamp when reproducing save or reload failures; they are
+diagnostic breadcrumbs, not durable telemetry or an operator health endpoint.
+
 ## Test data and generated files
 
 Sample organisations and people must be fictional. Never copy production names, notes, domains or

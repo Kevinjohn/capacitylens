@@ -34,6 +34,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Field, FieldLabel } from "../ui/field";
 import { timeZoneFor, weekStartsOnFor } from "../../store/selectors";
 import { useOfflineState } from "../../data/useOfflineState";
+import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "../../data/persistenceDiagnostics";
 
 // Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
 // the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
@@ -140,6 +141,11 @@ export function SettingsView() {
   const setBarLabelPref = useStore((s) => s.setBarLabelPref);
   const minimiseWeekends = useStore((s) => s.minimiseWeekends);
   const setMinimiseWeekends = useStore((s) => s.setMinimiseWeekends);
+  const persistenceDiagnostics = useSyncExternalStore(
+    subscribePersistenceDiagnostics,
+    persistenceDiagnosticsSnapshot,
+    persistenceDiagnosticsSnapshot,
+  );
   const snapToWeekStart = useStore((s) => s.snapToWeekStart);
   const setSnapToWeekStart = useStore((s) => s.setSnapToWeekStart);
 
@@ -607,6 +613,24 @@ export function SettingsView() {
               </a>
             )}
           </p>
+        )}
+        {serverMode && (
+          <details className="text-xs text-muted-foreground" data-testid="persistence-diagnostics">
+            <summary className="cursor-pointer">{m.settings_persistence_diagnostics()}</summary>
+            <p className="mt-1 font-mono">
+              {m.settings_persistence_diagnostics_summary({
+                failed: persistenceDiagnostics.savesFailed,
+                retries: persistenceDiagnostics.retriesArmed,
+                reconciliations: persistenceDiagnostics.reconciliationsResolved,
+                superseded: persistenceDiagnostics.reloadsSuperseded,
+                rebased: persistenceDiagnostics.editsRebased,
+                discarded: persistenceDiagnostics.editsDiscarded,
+                suspended: persistenceDiagnostics.suspended
+                  ? m.settings_persistence_suspended_yes()
+                  : m.settings_persistence_suspended_no(),
+              })}
+            </p>
+          </details>
         )}
       </div>
     </ListPage>

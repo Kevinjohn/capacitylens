@@ -12,7 +12,7 @@
 //   node scripts/e2e-browsers.mjs   # = pnpm run e2e:browsers
 
 import { spawnSync } from "node:child_process";
-import { nonColourEnvironment } from "./pnpm-spawn.mjs";
+import { nonColourEnvironment, synchronousSpawnStatus } from "./pnpm-spawn.mjs";
 
 const forwardedArgs = process.argv.slice(2);
 
@@ -25,7 +25,7 @@ function run(label, env, extraArgs = []) {
     // shell: true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors dev-fullstack.mjs.
     shell: true,
   });
-  return res.status ?? 1;
+  return synchronousSpawnStatus(`e2e:browsers ${label}`, res);
 }
 
 // 1) Chromium + WebKit/Safari core specs in one Vite-only run. CAPACITYLENS_WEBKIT makes the webkit

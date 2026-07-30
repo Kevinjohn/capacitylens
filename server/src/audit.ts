@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
 
 // Append-only JSONL audit sink (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
 // It records one legacy product AuditRecord per AppData mutation plus normalized AccountAuditEvent
@@ -73,6 +74,8 @@ export interface AuditRecord {
   id: string;
   /** Field NAMES that changed — Object.keys of the wire body/row. NEVER values. */
   changedFields: string[];
+  /** Counts only, never values: rows removed from each scoped table by an irreversible purge. */
+  cascadeCounts?: Partial<Record<ScopedEntityKey, number>>;
 }
 
 /** Stable delivery id added by the SQLite audit outbox. A recovered delivery may be replayed after

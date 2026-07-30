@@ -147,6 +147,9 @@ describe("durable audit outbox", () => {
     { ...record(), ts: "not-a-time" },
     { ...record(), action: "invented-action" },
     { ...record(), id: "" },
+    { ...record(), cascadeCounts: { projects: 1 } },
+    { ...record(), action: "purge", cascadeCounts: { unknownTable: 1 } },
+    { ...record(), action: "purge", cascadeCounts: { projects: 0 } },
     {
       id: "account-event-1",
       occurredAt: "2026-07-26T12:00:00.000Z",
