@@ -44,7 +44,7 @@ import {
 
 const TS = "2026-01-01T00:00:00.000Z";
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
-const RELEASED_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16] as const;
+const RELEASED_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23] as const;
 const RELEASED_FIXTURE_NAMES = RELEASED_FIXTURE_VERSIONS.flatMap((version) => [
   `v${version}-off.db`,
   `v${version}-password.db`,

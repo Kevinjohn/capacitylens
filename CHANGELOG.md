@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Tests and documentation
+
+- Restored the released database-v23 compatibility matrix for both auth-off and password
+  deployments, retaining sanitised historical fixtures and their exact generation provenance.
+
 ## [0.28.6-alpha.1] — 2026-07-30
 
 This patch strengthens destructive imports, browser lifecycle synchronization and company-directory
