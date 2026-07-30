@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.28.6-alpha.1] — 2026-07-30
+
+This patch strengthens destructive imports, browser lifecycle synchronization and company-directory
+reconciliation. It closes the remaining P1 review finding and six related P2 concurrency and
+reliability findings without changing the portable export or SQLite database schema versions.
+
 ### Fixed
 
 - Prevented stale or partially malformed company-directory responses from falsely closing the
@@ -2393,7 +2399,13 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.6-alpha.1...HEAD
+[0.28.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.5-alpha.1...v0.28.6-alpha.1
+[0.28.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.4-alpha.1...v0.28.5-alpha.1
+[0.28.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.3-alpha.1...v0.28.4-alpha.1
+[0.28.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.2-alpha.1...v0.28.3-alpha.1
+[0.28.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.1-alpha.1...v0.28.2-alpha.1
+[0.28.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.0-alpha.1...v0.28.1-alpha.1
 [0.28.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.6...v0.28.0-alpha.1
 [0.27.3-alpha.6]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.5...v0.27.3-alpha.6
 [0.27.3-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.27.3-alpha.4...v0.27.3-alpha.5
