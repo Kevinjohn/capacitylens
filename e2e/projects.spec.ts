@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { openApp, selectShadOption } from "./helpers";
 
-// Covers US-PRJ-01..04.
+// Covers US-PRJ-01..03. US-PRJ-04 remains manual while phase management is hidden.
 test.describe("Projects", () => {
   test("rejects a project without a client and adds one with a client", async ({ page }) => {
     await openApp(page, "Studio North", "/projects");

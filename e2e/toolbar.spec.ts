@@ -7,7 +7,8 @@ async function box(locator: Locator) {
   return b;
 }
 
-// Covers US-TBR-01..07.
+// Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
+// covers the remaining US-TBR-08 navigation paths.
 test.describe("Toolbar", () => {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);

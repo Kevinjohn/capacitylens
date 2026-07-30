@@ -10,6 +10,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Tests and documentation
+
+- Aligned the allocation-deletion user story with its confirmation flow and strengthened browser
+  coverage for cancellation, confirmed removal and exact undo restoration.
+- Corrected user-story counts and browser-spec coverage mappings, and brought six abbreviated
+  stories into the documented goal, rationale, workflow and acceptance-criteria structure.
+- Registered the source-owned UI primitive integrity checker in the cryptographic inventory so the
+  repository gate recognizes its non-secret SHA-256 file digests.
+
 ## [0.28.5-alpha.1] — 2026-07-30
 
 This patch closes the 37-record P3 Architecture and maintainability review row. Fourteen residual

@@ -1,7 +1,8 @@
 import { test, expect } from "./fixtures";
 import { openApp, selectShadOption } from "./helpers";
 
-// Covers US-TSK-01..04.
+// Covers the runnable US-ACT-01, US-ACT-03 and US-ACT-04 flows. US-ACT-02 remains manual while
+// phase management is hidden.
 test.describe("Activities", () => {
   test("adds an internal, a cross-project, and a project-specific activity into their three sections", async ({
     page,

@@ -46,12 +46,44 @@ test.describe("Allocation editor", () => {
   test("deletes an allocation from the edit dialog and ⌘Z restores it", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
-    await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
-    await page.getByRole("dialog", { name: "Edit allocation" }).getByRole("button", { name: "Delete" }).click();
+    const original = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
+    const allocationId = await original.getAttribute("data-alloc-id");
+    const originalStatus = await original.getAttribute("data-status");
+    const originalLabel = await original.getAttribute("aria-label");
+    const originalResourceId = await original
+      .locator("xpath=ancestor::*[@data-resource-id][1]")
+      .getAttribute("data-resource-id");
+    expect(allocationId).toBeTruthy();
+    expect(originalResourceId).toBeTruthy();
+
+    await original.click();
+    const editor = page.getByRole("dialog", { name: "Edit allocation" });
+    await editor.getByRole("button", { name: "Delete" }).click();
+
+    const confirmation = page.getByRole("alertdialog", { name: "Delete allocation?" });
+    await expect(confirmation.getByRole("button", { name: "Delete" })).toBeVisible();
+    await expect(confirmation.getByRole("button", { name: "Cancel" })).toBeVisible();
+    await confirmation.getByRole("button", { name: "Cancel" }).click();
+
+    // Cancel returns to the editor and preserves the exact allocation.
+    await expect(editor).toBeVisible();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(before);
+    await expect(page.locator(`[data-alloc-id="${allocationId}"]`)).toHaveAttribute("aria-label", originalLabel!);
+
+    await editor.getByRole("button", { name: "Delete" }).click();
     await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1);
-    await page.keyboard.press("Meta+z");
+    await expect(page.locator(`[data-alloc-id="${allocationId}"]`)).toHaveCount(0);
+
+    await page.keyboard.press("ControlOrMeta+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before);
+    const restored = page.locator(`[data-alloc-id="${allocationId}"]`);
+    await expect(restored).toHaveAttribute("data-status", originalStatus!);
+    await expect(restored).toHaveAttribute("aria-label", originalLabel!);
+    await expect(restored.locator("xpath=ancestor::*[@data-resource-id][1]")).toHaveAttribute(
+      "data-resource-id",
+      originalResourceId!,
+    );
   });
 
   test("adds a new activity inline and uses it for the allocation", async ({ page }) => {
