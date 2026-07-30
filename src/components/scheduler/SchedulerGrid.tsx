@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight, Plus, SlidersHorizontal, Users } from "lucide-react";
 import { m } from "@/i18n";
@@ -114,8 +114,17 @@ export function SchedulerGrid() {
   // only on a keyboard edit (not a scroll/zoom/modal/render), so subscribing here adds no hot-path
   // re-render; pointer drags never set it, so they stay silent for screen readers (sighted feedback).
   const srAnnouncement = useStore((s) => s.srAnnouncement);
+  const announceStatus = useStore((s) => s.announceCapacity);
   const draggingAllocationId = useStore((s) => s.draggingAllocationId);
   const [modal, setModal] = useState<ModalState | null>(null);
+  const previousDrawMode = useRef(ui.drawMode);
+  useEffect(() => {
+    if (previousDrawMode.current === ui.drawMode) return;
+    previousDrawMode.current = ui.drawMode;
+    announceStatus(
+      ui.drawMode === "timeoff" ? m.scheduler_sr_timeoff_mode_enabled() : m.scheduler_sr_work_mode_enabled(),
+    );
+  }, [announceStatus, ui.drawMode]);
 
   const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
   const calendarWeekStartsOn = useStore((s) => weekStartsOnFor(s.data, s.activeAccountId));
@@ -427,9 +436,10 @@ export function SchedulerGrid() {
                   span: visibleWeeksLabel,
                 })
               : ""}
-            {bars.length === 1
-              ? m.scheduler_sr_allocations_one({ count: bars.length })
-              : m.scheduler_sr_allocations_other({ count: bars.length })}
+            {ui.drawMode !== "timeoff" &&
+              (bars.length === 1
+                ? m.scheduler_sr_allocations_one({ count: bars.length })
+                : m.scheduler_sr_allocations_other({ count: bars.length }))}
           </span>
           {/* Avatar + identity, vertically centred within the FIRST lane band
               (rowPadding + barHeight + rowPadding = a single-lane row height) and pinned to
@@ -468,23 +478,25 @@ export function SchedulerGrid() {
           <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
             {/* Viewer (P1.12): no per-row create affordance. Hidden, not disabled — a viewer schedule
                 is display-only. The utilisation % below still renders (a read, not an edit). */}
-            {canEdit && (
+            {canEdit && (ui.drawMode !== "timeoff" || !isExternalResource(resource)) && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => {
                   const d = visibleStartDate();
                   setModal({
-                    kind: "create",
+                    kind: ui.drawMode === "timeoff" ? "timeoff" : "create",
                     resourceId: resource.id,
                     startDate: d,
                     endDate: d,
                   });
                 }}
-                aria-label={m.scheduler_add_allocation_for({
-                  name: resourceDisplayName(resource),
-                })}
-                title={m.scheduler_add_allocation()}
+                aria-label={
+                  ui.drawMode === "timeoff"
+                    ? m.scheduler_add_timeoff_for({ name: resourceDisplayName(resource) })
+                    : m.scheduler_add_allocation_for({ name: resourceDisplayName(resource) })
+                }
+                title={ui.drawMode === "timeoff" ? m.scheduler_add_timeoff() : m.scheduler_add_allocation()}
                 className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
               >
                 <Plus />

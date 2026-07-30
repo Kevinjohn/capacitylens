@@ -148,9 +148,13 @@ export function DeleteCompanyDialog({
           <Button
             size="sm"
             variant="danger-soft"
-            disabled={!matches || busy || exporting}
-            onClick={onConfirm}
+            disabled={busy || exporting}
+            aria-disabled={!matches || undefined}
+            onClick={() => {
+              if (matches && !busy && !exporting) onConfirm();
+            }}
             aria-describedby={hintId}
+            className="aria-disabled:opacity-50"
           >
             {m.form_delete()}
           </Button>

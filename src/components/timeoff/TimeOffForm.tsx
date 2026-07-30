@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { placeholdersEnabledFor, timeZoneFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useFieldError } from "../../hooks/useFieldError";
+import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { validateText } from "../../lib/validation";
 import { errorMessage } from "../../lib/errorMessage";
@@ -40,13 +40,9 @@ export function TimeOffForm({
   const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone));
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? "holiday");
   const [note, setNote] = useState(canEditNote ? (timeOff?.note ?? "") : "");
-  const { error, errorField, errorId, fail, clear } = useFieldError();
-  const change =
-    <T,>(setter: (value: T) => void) =>
-    (value: T) => {
-      clear();
-      setter(value);
-    };
+  const fieldError = useFieldError();
+  const { error, errorField, errorId, fail, clear } = fieldError;
+  useFieldErrorFocus(fieldError);
 
   // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
   // Placeholders are gated behind a per-account pref (default OFF); when off, drop them too —
@@ -107,6 +103,7 @@ export function TimeOffForm({
       title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
       onClose={onClose}
       onSubmit={submit}
+      onEdit={clear}
       footer={
         <>
           <Button size="sm" type="button" variant="outline" onClick={onClose}>
@@ -121,7 +118,7 @@ export function TimeOffForm({
       <SelectField
         label={m.form_timeoff_resource_label()}
         value={resourceId}
-        onChange={change(setResourceId)}
+        onChange={setResourceId}
         options={resourceOptions}
         placeholder={m.form_timeoff_select_resource_placeholder()}
         required
@@ -131,7 +128,7 @@ export function TimeOffForm({
       <DateField
         label={m.form_timeoff_start_label()}
         value={startDate}
-        onChange={change(setStartDate)}
+        onChange={setStartDate}
         required
         invalid={errorField === "dates"}
         describedById={errorId}
@@ -139,7 +136,7 @@ export function TimeOffForm({
       <DateField
         label={m.form_timeoff_end_label()}
         value={endDate}
-        onChange={change(setEndDate)}
+        onChange={setEndDate}
         required
         invalid={errorField === "dates"}
         describedById={errorId}
@@ -147,19 +144,21 @@ export function TimeOffForm({
       <SelectField
         label={m.form_timeoff_type_label()}
         value={type}
-        onChange={(v) => change(setType)(v as TimeOffType)}
+        onChange={(v) => setType(v as TimeOffType)}
         options={timeOffTypeOptions()}
       />
       {canEditNote && (
         <TextAreaField
           label={m.form_timeoff_note_label()}
           value={note}
-          onChange={change(setNote)}
+          onChange={setNote}
           invalid={errorField === "note"}
           describedById={errorId}
         />
       )}
-      <FieldError id={errorId}>{error}</FieldError>
+      <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
+        {error}
+      </FieldError>
       <RequiredLegend />
     </Modal>
   );

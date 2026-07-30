@@ -21,14 +21,14 @@ const PICK_RGB = "rgb(27, 79, 152)";
 
 /** Open a form's ColorField popover and click a swatch by its accessible label. The trigger's
  *  accessible name is `Colour (<current colour>)`, so match it by its "Colour" prefix; the
- *  swatch buttons are labelled by swatchLabel(i) (e.g. "Blue dark"). */
+ *  swatch radios are labelled by swatchLabel(i) (e.g. "Blue dark"). */
 async function pickSwatch(scope: Locator, swatchLabel: string): Promise<void> {
   await scope.getByRole("button", { name: /^Colour/ }).click();
   // Popover content is portalled, so select the open swatch group from the page.
   await scope
     .page()
-    .getByRole("group", { name: /Colour swatches/ })
-    .getByRole("button", { name: swatchLabel, exact: true })
+    .getByRole("radiogroup", { name: /Colour swatches/ })
+    .getByRole("radio", { name: swatchLabel, exact: true })
     .click();
 }
 

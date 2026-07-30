@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { SchedulerGrid } from "./SchedulerGrid";
 import { useStore } from "../../store/useStore";
@@ -86,6 +86,7 @@ beforeEach(() => {
   useStore.getState().setActiveAccount(ACC);
   useStore.getState().setOriginDate("2026-06-01");
   useStore.getState().setZoom(1); // widest columns
+  useStore.getState().setDrawMode("work");
   useStore.getState().setUtilizationPref("showTotal", true);
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
@@ -167,6 +168,18 @@ describe("SchedulerGrid", () => {
     expect(screen.getAllByRole("row").length).toBeGreaterThan(0);
     expect(screen.getByRole("rowheader", { name: /Tyler/ })).toBeInTheDocument();
     expect(screen.getByText(/1 allocation\./)).toBeInTheDocument(); // sr-only row summary
+  });
+
+  it("announces time-off mode, hides work counts and offers keyboard time-off creation", async () => {
+    renderGrid();
+
+    act(() => useStore.getState().setDrawMode("timeoff"));
+
+    expect(screen.getByTestId("scheduler-live-region")).toHaveTextContent(/Time-off mode/);
+    expect(screen.queryByText(/1 allocation\./)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add time off for Northstar Partners/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add time off for Tyler" }));
+    expect(await screen.findByRole("heading", { name: "Add time off" })).toBeInTheDocument();
   });
 
   it("folds the per-row utilisation % into the sr-only summary (WCAG 1.3.1)", () => {

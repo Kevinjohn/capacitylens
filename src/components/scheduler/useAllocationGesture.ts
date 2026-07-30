@@ -329,6 +329,13 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     };
     const next = applyGesture(mode, current, delta, options);
     if (next.endDate < next.startDate) return;
+    const visible = visibleRange(useStore.getState().ui);
+    const currentIntersectsTimeline = current.endDate >= visible.start && current.startDate <= visible.end;
+    const nextIntersectsTimeline = next.endDate >= visible.start && next.startDate <= visible.end;
+    if (currentIntersectsTimeline && !nextIntersectsTimeline) {
+      setNotice(m.scheduler_keyboard_outside_timeline(), "error");
+      return;
+    }
     const rescale =
       isDays && mode !== "move"
         ? volumePreservingHoursClamped(current, next, options, bar.allocation.hoursPerDay)
@@ -349,6 +356,13 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
         setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY }), "warning");
       }
       announceCapacity(capacityAnnouncement(resourceId));
+      requestAnimationFrame(() => {
+        const element = Array.from(document.querySelectorAll<HTMLElement>("[data-alloc-id]")).find(
+          (candidate) => candidate.dataset.allocId === bar.allocation.id,
+        );
+        element?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+        element?.focus({ preventScroll: true });
+      });
     } catch (error) {
       setNotice(error instanceof Error ? errorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
     }

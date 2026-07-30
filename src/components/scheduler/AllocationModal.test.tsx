@@ -175,17 +175,21 @@ describe("AllocationModal create", () => {
     });
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("alert")).toHaveTextContent(/start and end dates are required/i);
+    expect(screen.getByLabelText("Start Date")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Start Date")).toHaveFocus();
     expect(useStore.getState().data.allocations).toHaveLength(0);
 
     // Zero hours is rejected too (would silently occupy a lane with no load).
     fireEvent.change(screen.getByLabelText("Start Date"), {
       target: { value: "2026-06-01" },
     });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Hours / day"), {
       target: { value: "0" },
     });
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("alert")).toHaveTextContent(/greater than 0/i);
+    expect(screen.getByLabelText("Hours / day")).toHaveFocus();
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 

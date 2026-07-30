@@ -37,7 +37,7 @@ import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capac
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
-import { useFieldError } from "../../hooks/useFieldError";
+import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
 
@@ -173,7 +173,9 @@ export function AllocationModal(props: AllocationModalProps) {
   );
   const [newActivityName, setNewActivityName] = useState("");
   const [inlineActivityOption, setInlineActivityOption] = useState<(Option & { projectId?: string }) | null>(null);
-  const { error, errorField, errorId, fail } = useFieldError();
+  const fieldError = useFieldError();
+  const { error, errorField, errorId, fail, clear } = fieldError;
+  useFieldErrorFocus(fieldError);
   const includeWeekendsId = useId();
 
   // If the edited allocation is removed out from under us (e.g. undo), close
@@ -349,6 +351,7 @@ export function AllocationModal(props: AllocationModalProps) {
     activityOptions.push(inlineActivityOption);
   }
   const onAssigneeChange = (v: string) => {
+    clear();
     setResourceId(v);
     const r = data.resources.find((x) => x.id === v);
     if (r?.kind === "placeholder" && r.projectId) {
@@ -358,6 +361,7 @@ export function AllocationModal(props: AllocationModalProps) {
     }
   };
   const onProjectChange = (v: string) => {
+    clear();
     setProjectId(v);
     setActivityId("");
   };
@@ -582,6 +586,7 @@ export function AllocationModal(props: AllocationModalProps) {
       }
       onClose={onClose}
       onSubmit={submit}
+      onEdit={clear}
       footer={
         <>
           {editing && canEdit && (
@@ -841,7 +846,9 @@ export function AllocationModal(props: AllocationModalProps) {
           <AlertDescription>{m.form_allocation_advisory({ advisory })}</AlertDescription>
         </Alert>
       )}
-      <FieldError id={errorId}>{error}</FieldError>
+      <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
+        {error}
+      </FieldError>
       <RequiredLegend />
     </Modal>
   );

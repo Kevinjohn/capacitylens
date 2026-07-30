@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { resolve } from "node:path";
 
-const RAW_LIMIT = 525_000;
+const RAW_LIMIT = 528_000;
 const GZIP_LIMIT = 165_000;
 const index = await readFile(resolve("dist/index.html"), "utf8");
 

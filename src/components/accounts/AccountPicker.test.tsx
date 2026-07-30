@@ -221,9 +221,11 @@ describe("AccountPicker create + open + delete", () => {
     // Friction on the one irreversible action: Delete is armed only once the exact
     // name is typed.
     const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
-    expect(deleteBtn).toBeDisabled();
+    expect(deleteBtn).toBeEnabled();
+    expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
     await user.type(within(dialog).getByLabelText(/Type/i), "Studio North");
     expect(deleteBtn).toBeEnabled();
+    expect(deleteBtn).not.toHaveAttribute("aria-disabled");
     await user.click(deleteBtn);
 
     expect(useStore.getState().data.accounts).toHaveLength(0);

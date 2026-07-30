@@ -602,7 +602,9 @@ describe("MembersSection — admin affordances", () => {
     await user.click(screen.getByRole("button", { name: "Change role" }));
 
     await waitFor(() => expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "true"));
-    expect(screen.getByRole("status")).toHaveTextContent(m.settings_members_updating());
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent(m.settings_members_updating());
+    expect(status).toHaveFocus();
 
     releasePatch();
     await waitFor(() => expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "false"));

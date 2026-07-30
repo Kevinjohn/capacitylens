@@ -9,8 +9,8 @@ import { downloadTextFile } from "../../lib/download";
 // The export must be observable (not actually save files in jsdom) — mock the one download seam.
 vi.mock("../../lib/download", () => ({ downloadTextFile: vi.fn() }));
 
-// Friction on the one irreversible action: Delete stays disabled until the exact
-// company name is typed.
+// Friction on the one irreversible action: Delete stays aria-disabled but focusable until the exact
+// company name is typed, so its type-to-confirm explanation remains reachable to assistive tech.
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
   vi.mocked(downloadTextFile).mockClear();
@@ -38,20 +38,25 @@ describe("DeleteCompanyDialog", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("keeps Delete disabled until the typed name matches, then confirms", () => {
+  it("keeps Delete focusable but aria-disabled until the typed name matches, then confirms", () => {
     const account = makeAccount({ name: "Acme Co" });
     const onConfirm = vi.fn();
     render(<DeleteCompanyDialog account={account} onConfirm={onConfirm} onCancel={() => {}} />);
 
     const deleteBtn = screen.getByRole("button", { name: "Delete" }) as HTMLButtonElement;
-    expect(deleteBtn.disabled).toBe(true);
+    expect(deleteBtn).toBeEnabled();
+    expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
+    deleteBtn.focus();
+    expect(deleteBtn).toHaveFocus();
+    fireEvent.click(deleteBtn);
+    expect(onConfirm).not.toHaveBeenCalled();
 
     const input = screen.getByLabelText(/Type/i);
     fireEvent.change(input, { target: { value: "wrong" } });
-    expect(deleteBtn.disabled).toBe(true);
+    expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
 
     fireEvent.change(input, { target: { value: "Acme Co" } });
-    expect(deleteBtn.disabled).toBe(false);
+    expect(deleteBtn).not.toHaveAttribute("aria-disabled");
 
     fireEvent.click(deleteBtn);
     expect(onConfirm).toHaveBeenCalledOnce();

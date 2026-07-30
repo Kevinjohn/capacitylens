@@ -125,6 +125,7 @@ export function Modal({
   guardDirty = true,
   dirty: controlledDirty,
   onDirtyChange,
+  onEdit,
 }: {
   title: ReactNode;
   onClose: () => void;
@@ -142,6 +143,8 @@ export function Modal({
    * through FormDirtyProvider/native form events. */
   dirty?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  /** Called for every form edit, including edits after the form is already dirty. */
+  onEdit?: () => void;
 }) {
   const setNotice = useStore((s) => s.setNotice);
   const setDirtyFormSource = useStore((s) => s.setDirtyFormSource);
@@ -155,6 +158,7 @@ export function Modal({
     dirtyRef.current = dirty;
   }, [dirty]);
   const markDirty = useCallback(() => {
+    onEdit?.();
     if (!guardDirty || dirtyRef.current) return;
     // React can surface one native edit through both input and change capture before the controlled
     // value re-renders. Flip the live guard immediately so one edit publishes one dirty transition.
@@ -162,7 +166,7 @@ export function Modal({
     setDirtyFormSource(dirtySource, true);
     if (controlledDirty === undefined) setLocalDirty(true);
     onDirtyChange?.(true);
-  }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, setDirtyFormSource]);
+  }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, onEdit, setDirtyFormSource]);
   // Publish this Modal's contribution so global beforeunload/shortcut guards aggregate every open
   // owner. Cleanup releases only this token; a clean overlapping Modal cannot clear another form.
   useEffect(() => {

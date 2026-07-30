@@ -150,7 +150,7 @@ export function ReauthDialog({
         }
       >
         <p className="text-sm text-muted-foreground">{m.reauth_body_sso()}</p>
-        <FieldError>{error}</FieldError>
+        <FieldError>{error ?? (providers.length === 0 ? m.login_sso_unavailable() : null)}</FieldError>
         {providers.length > 0 ? (
           <div className="flex flex-col gap-2">
             {providers.map((provider) => (
@@ -165,9 +165,7 @@ export function ReauthDialog({
               </Button>
             ))}
           </div>
-        ) : (
-          <FieldError>{m.login_sso_unavailable()}</FieldError>
-        )}
+        ) : null}
       </Modal>
     );
   }

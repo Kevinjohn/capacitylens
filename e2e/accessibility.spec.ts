@@ -1,11 +1,5 @@
-import { test, expect, type Locator } from "./fixtures";
+import { test, expect } from "./fixtures";
 import { openApp } from "./helpers";
-
-async function box(locator: Locator) {
-  const b = await locator.boundingBox();
-  if (!b) throw new Error("no bounding box");
-  return b;
-}
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
 test.describe("Keyboard & accessibility", () => {
@@ -29,15 +23,9 @@ test.describe("Keyboard & accessibility", () => {
     });
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
     await bar.focus();
-    const dayWidth = await page
-      .getByRole("columnheader", { name: "Dates" })
-      .locator(".flex.flex-auto > div")
-      .first()
-      .evaluate((cell) => cell.getBoundingClientRect().width);
-    const b0 = await box(bar);
     await page.keyboard.press("ArrowRight");
-    const b1 = await box(bar);
-    expect(b1.x - b0.x).toBeCloseTo(dayWidth, 0);
+    await expect(bar).toHaveAccessibleName(/2 Jun to 5 Jun/);
+    await expect(bar).toBeFocused();
   });
 
   test("a modal traps focus, closes on Escape, and restores its trigger", async ({ page }) => {

@@ -10,6 +10,41 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.28.2-alpha.1] — 2026-07-30
+
+This patch closes the 18-record P3 Accessibility review row. Six residual issues were repaired and
+the other twelve were verified already fixed on current source. The portable export and SQLite
+database schema versions are unchanged.
+
+### Accessibility
+
+- Made preset colour selection a true single-tab-stop radio group with arrow-key selection, while
+  preserving outside-click focus and updating browser coverage to assert the exposed semantics.
+- Focused invalid allocation and time-off fields or their form-level alert, scrolled the target into
+  view, and cleared stale errors on the next edit. Reauthentication now exposes only one error alert.
+- Kept type-to-confirm company deletion keyboard-focusable while blocked, linked it to its hint, and
+  retained a hard activation guard until the exact company name is entered.
+- Preserved focus during member-management actions by moving it to the live busy status before a
+  dialog trigger becomes disabled.
+- Kept keyboard-moved allocation bars within the rendered timeline, followed successful nudges and
+  restored bar focus after the scheduler re-rendered.
+- Announced scheduler draw-mode changes, omitted misleading work counts in Time-off mode, and added
+  keyboard row actions for time-off creation while excluding ineligible external resources.
+
+### Changed
+
+- Added a modal edit hook so validation errors can clear consistently for native and composed form
+  controls without duplicating per-field handlers.
+- Rebased the raw entry-bundle ceiling from 525 KB to 528 KB for the localized screen-reader copy;
+  the stricter 165 KB compressed-transfer ceiling is unchanged.
+
+### Tests
+
+- Added and updated focused regressions for colour radios, field-error focus, destructive-action
+  semantics, member-action focus, keyboard bar movement and Time-off mode behavior.
+- Passed the complete server gate, 151 frontend/shared files and 2,632 tests with coverage and
+  production budgets, plus all 196 default Chromium, database-backed and password-auth E2E cases.
+
 ## [0.28.1-alpha.1] — 2026-07-30
 
 This patch closes the 15-record P3 Operations review row and incorporates the repairs found while

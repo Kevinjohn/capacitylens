@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useAuth } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
@@ -200,6 +200,10 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     fail,
     onInvitesLoaded: reconcileMintedInvite,
   });
+  const actionStatusRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (busyAction !== null) actionStatusRef.current?.focus();
+  }, [busyAction]);
   useEffect(() => {
     const nextExpiry = invites
       .filter((invite) => invite.usedAt === null)
@@ -693,7 +697,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           <CardDescription>{m.settings_members_intro()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <p role="status" aria-live="polite" className="sr-only">
+          <p ref={actionStatusRef} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
             {busyAction ? m.settings_members_updating() : ""}
           </p>
           <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>

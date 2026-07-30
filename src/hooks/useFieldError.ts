@@ -1,4 +1,4 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 export interface FieldError {
   /** The current error message, or null. */
@@ -29,4 +29,17 @@ export function useFieldError(): FieldError {
     setErrorField(null);
   }, []);
   return { error, errorField, errorId, fail, clear };
+}
+
+/** Moves focus to an invalid control, or to the form-level alert when no field owns the error. */
+export function useFieldErrorFocus({ error, errorField, errorId }: FieldError): void {
+  useEffect(() => {
+    if (!error) return;
+    const target =
+      errorField === null
+        ? document.getElementById(errorId)
+        : document.querySelector<HTMLElement>(`[aria-describedby~="${errorId}"]`);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [error, errorField, errorId]);
 }

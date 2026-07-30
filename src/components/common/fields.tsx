@@ -388,7 +388,7 @@ export function ColorField({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          role="group"
+          role="radiogroup"
           aria-label={m.swatch_group_label({ label })}
           side="top"
           align="start"
@@ -403,9 +403,10 @@ export function ColorField({
               <button
                 key={hex}
                 type="button"
+                role="radio"
                 aria-label={swatchLabel(i)}
                 data-form-dirty-managed
-                aria-pressed={selected}
+                aria-checked={selected}
                 tabIndex={i === selectedIndex ? 0 : -1}
                 onKeyDown={(event) => {
                   const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
@@ -420,7 +421,13 @@ export function ColorField({
                       ? SWATCH_COLUMNS
                       : -SWATCH_COLUMNS;
                   const next = (i + delta + SWATCHES.length) % SWATCHES.length;
+                  const nextHex = SWATCHES[next];
                   const target = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")[next];
+                  if (!nextHex) return;
+                  if (next !== selectedIndex) {
+                    markDirty();
+                    onChange(nextHex);
+                  }
                   target?.focus();
                 }}
                 onClick={() => {

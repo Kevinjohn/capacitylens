@@ -16,6 +16,7 @@ import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { useStore } from "../../store/useStore";
 import { type Allocation } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { visibleRange } from "../../store/selectors";
 
 // Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01. Standalone bars are
 // rendered without a lane, so the clientX→index resolver assumes the lane sits at clientX 0:
@@ -275,6 +276,50 @@ describe("AllocationBar interactions", () => {
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
     moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!;
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]); // end extended, start fixed
+  });
+
+  it("refuses a keyboard nudge that would unmount the bar beyond the visible timeline", () => {
+    useStore.getState().setOriginDate("2026-06-01");
+    useStore.getState().setZoom(1);
+    const lastVisibleDay = visibleRange(useStore.getState().ui).end;
+    const allocation = seedAllocation({
+      startDate: lastVisibleDay,
+      endDate: lastVisibleDay,
+      ignoreWeekends: true,
+    });
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toMatchObject({
+      startDate: lastVisibleDay,
+      endDate: lastVisibleDay,
+    });
+    expect(useStore.getState().notice?.message).toMatch(/outside the visible timeline/i);
+  });
+
+  it("keeps a keyboard-moved bar focused and scrolls it to the nearest visible position", () => {
+    useStore.getState().setOriginDate("2026-06-01");
+    useStore.getState().setZoom(1);
+    const allocation = seedAllocation();
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const scrollIntoView = vi.fn();
+    try {
+      render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+      const bar = screen.getByTestId("allocation-bar");
+      bar.scrollIntoView = scrollIntoView;
+      bar.focus();
+
+      fireEvent.keyDown(bar, { key: "ArrowRight" });
+
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+      expect(bar).toHaveFocus();
+    } finally {
+      raf.mockRestore();
+    }
   });
 
   it("does not write, add undo history or announce when a keyboard resize is pinned", () => {

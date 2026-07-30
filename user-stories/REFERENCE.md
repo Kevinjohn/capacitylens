@@ -69,7 +69,9 @@ If the app changes, update this file first, then the affected stories.
    until the role resolved for that exact company replaces the prior company's authority. Each
    listed company also shows a **Delete** button (`Delete <name>`,
    type-the-name-to-confirm dialog) only to its Owner; Admin/Editor/Viewer get no company-delete
-   affordance.
+   affordance. In that dialog the destructive button remains keyboard-focusable while the typed
+   name does not match, exposes `aria-disabled="true"`, and is described by the confirmation hint;
+   activation is ignored until the exact company name is entered.
    Company deletion is atomic and fail-closed: if a corrupt stored relationship would cascade a
    delete or unbind into another company, both companies remain intact and the picker surfaces the
    server refusal for operator repair. A completed authenticated deletion retains its anonymized
@@ -264,7 +266,9 @@ project), the allocation keeps its original assignee, dates and hours; the rejec
 accompanies a hidden source-row move. Adjacent assignee lanes use top-inclusive, bottom-exclusive
 hit regions, so a pointer exactly on their shared edge belongs to the following visible lane rather
 than the preceding one. While a large schedule scrolls vertically during a drag, newly visible rows
-become drop targets and the original allocation remains pinned until the gesture completes.
+become drop targets and the original allocation remains pinned until the gesture completes. A
+keyboard move or resize cannot move a currently visible bar wholly beyond the rendered timeline;
+after a successful nudge the grid follows the bar and restores focus to it.
 
 **Weekend columns.** By default the **Minimise weekends** display pref (Settings → Schedule,
 on by default) shrinks the Saturday and Sunday columns to a sliver — just wide enough for the
@@ -278,11 +282,13 @@ columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` la
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
 `Employment`, `Bound project`, `Working hours / day`, `Working days` (Mon…Sun toggle
 buttons), `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
-`Colour (Blue dark)` for a known swatch, else the raw hex — that opens a grid of preset
-colour swatches, each button labelled by a human-readable name like `Blue dark` /
-`Red bright`, not a hex). The selected swatch is the grid's single Tab stop; arrow keys move
-between presets. Fields with rejected input expose the inline error as their accessible
-description, and editing a rejected time-off field clears the stale error. Other labels are `Start`, `End`, `Hours / day`, `Status`,
+`Colour (Blue dark)` for a known swatch, else the raw hex — that opens a `radiogroup` of preset
+colour swatches, each `radio` labelled by a human-readable name like `Blue dark` /
+`Red bright`, not a hex). The selected swatch is the group's single Tab stop; arrow keys move and
+select between presets. Fields with rejected input expose the inline error as their accessible
+description. Allocation and time-off validation focus the associated invalid field (or the
+form-level alert), scroll it into view, and clear the stale error on the next edit. Other labels are
+`Start`, `End`, `Hours / day`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Northstar`) and the hint
@@ -340,7 +346,12 @@ work allocation bars recede to a flat neutral (the theme-aware `var(--color-mute
 clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks glow
 amber — so a lane draw books time off without the bars intercepting the gesture (a draw started
 over an existing allocation falls through to the lane). The grid carries
-`data-draw-mode="work"|"timeoff"`; nothing about the underlying data changes.** Undo/redo run
+`data-draw-mode="work"|"timeoff"`; nothing about the underlying data changes.**
+Switching modes is announced in the scheduler's polite live region. In Time-off mode row summaries
+omit work-allocation counts, and each eligible non-external resource row exposes a keyboard
+**Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
+External rows expose no time-off creation action.
+Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global `⌘Z` / `⌘⇧Z` shortcut. Filter row:
 `Search people…` matches accent-insensitively across the displayed name, stored name and role as
 one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`,
