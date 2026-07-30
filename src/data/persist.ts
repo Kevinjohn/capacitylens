@@ -67,10 +67,10 @@ export function hasUnsavedPersistenceWrites(): boolean {
  *    POST failed), so the parked edit is an ordinary unsaved edit and dropping it would be a
  *    silent loss;
  *  - `dropParkedEdits: true`: drop it and surface a {@link ReloadDiscardedEditError} — the
- *    caller's operation REPLACED the slice server-side but no reload reseeded the diff snapshot
- *    (the post-import re-hydrate failed or was skipped), so saving the parked edit would diff its
- *    stale pre-replacement tree against the stale snapshot and upsert ghost pre-import rows into
- *    the new slice (remapped ids insert cleanly — no 409 stops them).
+ *    caller's operation REPLACED the slice server-side, so an edit made against the old basis must
+ *    not survive. A successful reload may temporarily rebase that edit for the caller to decide;
+ *    dropping restores the retained authoritative slice. Without a successful reload, saving the
+ *    stale tree could instead upsert ghost pre-import rows into the replacement.
  * No-op (returns a no-op resume) when no orchestrator is attached — the demo build's import is a
  * local, undoable store operation with no write pipeline to race.
  */
@@ -201,6 +201,11 @@ export function attachPersistence(
   // flush would upsert stale pre-import rows.
   let externalSuspendDepth = 0;
   let externalBaseData: AppData | null = null;
+  // A successful reload during an external replacement may temporarily install a rebased parked
+  // edit so the normal refresh machinery can preserve it. If the replacement owner then declares
+  // that edit stale (`dropParkedEdits`), restore this authoritative server slice as well as clearing
+  // the pending-write bookkeeping; otherwise the next unrelated edit would save the stale row again.
+  let externalAuthoritativeData: AppData | null = null;
 
   // The debounce/retry cancel idioms, used from many seams — one helper each so a future change
   // to their bookkeeping can't miss a copy (an uncancelled timer firing post-reseed with
@@ -515,15 +520,18 @@ export function attachPersistence(
   // The returned resume decrements exactly once; when the LAST suspension lifts with an edit
   // still parked, it decides its fate (see suspendServerWrites' doc):
   //  - default: re-schedule it — nothing replaced the slice, so it is an ordinary unsaved edit;
-  //  - dropParkedEdits: drop + surface — the slice WAS replaced server-side but no reload
-  //    reseeded the snapshot, so saving it would upsert its stale tree into the new slice.
+  //  - dropParkedEdits: drop + surface — the slice WAS replaced server-side, so restore a retained
+  //    authoritative reload when available and never save the edit made against the old basis.
   // When another suspension still holds the depth, the parked edit is left for THAT holder: a
   // newer refresh either flushes it at its own (a′) or rebases it at its own (c).
   const beginSuspension = (external: boolean): ((opts?: { dropParkedEdits?: boolean }) => void) => {
     if (disposed) return () => {};
     suspendDepth += 1;
     if (external) {
-      if (externalSuspendDepth === 0) externalBaseData = store.getState().data;
+      if (externalSuspendDepth === 0) {
+        externalBaseData = store.getState().data;
+        externalAuthoritativeData = null;
+      }
       externalSuspendDepth += 1;
     }
     cancelDebounce();
@@ -543,6 +551,7 @@ export function attachPersistence(
       if (suspendDepth > 0) return;
       if (!pending) {
         externalBaseData = null;
+        externalAuthoritativeData = null;
         if (failedSinceSuccess && authoritativeReloadRequiredFor === null) scheduleRetry();
         return;
       }
@@ -550,6 +559,13 @@ export function attachPersistence(
         pending = null;
         unacknowledged = null;
         externalBaseData = null;
+        if (externalAuthoritativeData) {
+          loadingSlice = true;
+          store.getState().replaceAll(externalAuthoritativeData);
+          lastData = store.getState().data;
+          loadingSlice = false;
+        }
+        externalAuthoritativeData = null;
         onError?.(
           new ReloadDiscardedEditError(
             "An edit arrived while this company’s data was being replaced and could not be saved.",
@@ -558,6 +574,7 @@ export function attachPersistence(
       } else {
         const parked = pending;
         externalBaseData = null;
+        externalAuthoritativeData = null;
         save(parked);
       }
     };
@@ -674,11 +691,13 @@ export function attachPersistence(
       const editedMidLoad = currentData !== dataAtLoad || pending !== null;
       const lostFailedEdits = failedBeforeLoad && !resolvingAuthoritativeReload;
       let installed = slice;
+      if (externalSuspendDepth > 0) externalAuthoritativeData = slice;
       if (editedMidLoad) {
         // Rebase only the operations the user performed during this network window onto the fresh
         // server slice. This preserves remote additions and lifecycle/import changes while keeping
-        // the user's concurrent edit. The adapter was seeded to `slice`; parking `installed` makes
-        // the resumed save diff and commit this rebased state normally (and durably).
+        // the user's concurrent edit. The adapter was seeded to `slice`; parking `installed` lets
+        // the suspension owner either save that rebased state normally or deliberately drop it and
+        // restore `slice`.
         const editBase = externalSuspendDepth > 0 && externalBaseData ? externalBaseData : dataAtSequenceStart;
         installed = applyOps(slice, diffOps(editBase, currentData));
         pending = installed;

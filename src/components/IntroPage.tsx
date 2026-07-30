@@ -5,8 +5,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 // Post-login "What CapacityLens is" intermediary page. A minimal full-screen gate shown once per device
 // (the `capacitylens/introSeen` flag) after the viewer lands on a company, before the app proper —
 // explaining CapacityLens is a resourcing tool, not a project-management tool. Mirrors the FakeSignIn /
-// LoginScreen card styling (centred card on the canvas). The wording is PLACEHOLDER COPY single-
-// sourced in `lib/introCopy.ts` (pending human edit); the two bold phrases are wrapped in <strong>
+// LoginScreen card styling (centred card on the canvas). The wording is single-sourced in
+// `lib/introCopy.ts`; the two bold phrases are wrapped in <strong>
 // here in JSX, never via dangerouslySetInnerHTML and with no markdown library.
 
 /**

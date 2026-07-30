@@ -15,7 +15,13 @@
  * operation — the caller has already branched on `res.ok`/status and always surfaces SOME message.
  */
 export async function readApiError(res: Response): Promise<string | undefined> {
-  const readable = typeof res.clone === "function" ? res.clone() : res;
+  let readable: Response;
+  try {
+    if (res.bodyUsed) return undefined;
+    readable = typeof res.clone === "function" ? res.clone() : res;
+  } catch {
+    return undefined;
+  }
   const body: unknown = await readable.json().catch(() => null);
   return apiErrorFromBody(body);
 }
@@ -24,5 +30,7 @@ export async function readApiError(res: Response): Promise<string | undefined> {
 export function apiErrorFromBody(body: unknown): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const error = (body as { error?: unknown }).error;
-  return typeof error === "string" && error.length > 0 ? error : undefined;
+  if (typeof error !== "string") return undefined;
+  const trimmed = error.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }

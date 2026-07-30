@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRole } from "../auth/permissionContext";
 import { useStore } from "../store/useStore";
@@ -73,13 +74,21 @@ function GettingStartedCard() {
   const activeRole = useRole();
   const data = useActiveScopedData();
   const steps = deriveGettingStartedSteps(data);
+  const tourInFlight = useRef(false);
+  const [tourBusy, setTourBusy] = useState(false);
 
   const showTour = async (): Promise<void> => {
+    if (tourInFlight.current) return;
+    tourInFlight.current = true;
+    setTourBusy(true);
     try {
       await startTour();
     } catch (error) {
       console.error("GettingStarted: tour failed to start", error);
       setNotice(m.gs_tour_failed(), "error");
+    } finally {
+      tourInFlight.current = false;
+      setTourBusy(false);
     }
   };
 
@@ -108,7 +117,13 @@ function GettingStartedCard() {
         )}
       </CardContent>
       <CardFooter className="gap-2 px-4">
-        <Button size="sm" onClick={() => void showTour()} data-testid="getting-started-tour">
+        <Button
+          size="sm"
+          onClick={() => void showTour()}
+          data-testid="getting-started-tour"
+          disabled={tourBusy}
+          aria-busy={tourBusy || undefined}
+        >
           {m.gs_show_me_around()}
         </Button>
         <Button size="sm" variant="outline" onClick={() => setDismissed(true)} data-testid="getting-started-dismiss">

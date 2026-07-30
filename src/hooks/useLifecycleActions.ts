@@ -76,7 +76,9 @@ export interface LifecycleActions {
  * unattached. With no orchestrator there is no debounce/retry state to clobber. The demo build
  * never calls this (its store actions already mutate `data`).
  */
-async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutcome, "unattached">> {
+type LifecycleReloadOutcome = Exclude<RefreshOutcome, "unattached"> | "stale-account";
+
+async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutcome> {
   // STALE-TENANT GUARD: the lifecycle POST may resolve AFTER the user switched company, so re-read
   // the CURRENT active account and skip the reload when it no longer matches the account the
   // mutation ran in. The mutation already committed server-side (it shows on that account's next
@@ -84,16 +86,36 @@ async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutco
   // stale reload must not fight it — the bare fallback below would install the OLD tenant's slice
   // under the NEW active id (cross-tenant display → cross-tenant writes). persist.ts's
   // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
-  if (useStore.getState().activeAccountId !== accountId) return "skipped";
+  if (useStore.getState().activeAccountId !== accountId) return "stale-account";
   // Anything but 'unattached' means the orchestrator OWNED the call — including 'skipped' (a
   // failed save's edits win; the committed change appears on the next successful refresh) and
   // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
   const outcome = await refreshActiveAccountSlice(accountId);
+  // `skipped` also covers an orchestrator superseded by a tenant switch. Re-check ownership so the
+  // caller can keep that deliberate stale-tenant outcome silent while treating a same-tenant skip
+  // (normally a failed save that must not be overwritten) as committed-but-stale.
+  if (useStore.getState().activeAccountId !== accountId) return "stale-account";
   if (outcome !== "unattached") return outcome;
   const slice = await persistenceAdapter.loadAll(accountId);
+  // The bare load is asynchronous too. A switch can happen after the pre-load guard but before the
+  // old slice arrives, so check ownership again at the exact store-install boundary.
+  if (useStore.getState().activeAccountId !== accountId) return "stale-account";
   useStore.getState().replaceAll(slice);
   return "reloaded";
 }
+
+function committedButStaleMessage(outcome: "skipped" | "failed", cause?: unknown): string {
+  const guidance =
+    outcome === "skipped"
+      ? m.settings_archived_committed_refresh_skipped()
+      : m.settings_archived_committed_refresh_failed();
+  return cause === undefined ? guidance : `${guidance} ${errorMessage(cause)}`;
+}
+
+// A confirmed mutation without its mandatory refresh must stay gated across route/component
+// remounts: the same stale store slice is shared across those surfaces. Module lifetime matches the
+// required recovery boundary — a full page reload boots, hydrates, and creates a fresh gate map.
+const reloadRequiredByAccount = new Map<string, string>();
 
 /**
  * The lifecycle dispatch hook (P2.5b). Returns {@link LifecycleActions} whose methods branch
@@ -120,7 +142,13 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return;
+      const reloadRequiredMessage = reloadRequiredByAccount.get(activeAccountId);
+      if (reloadRequiredMessage) {
+        setNotice(reloadRequiredMessage, "error");
+        return;
+      }
       let notifyReloaded = false;
+      let mutationConfirmed = false;
       try {
         // apiFetchReauth (not raw fetch) so: (1) the server's `x-capacitylens-audit-warning` header
         // on these destructive lifecycle writes is surfaced (announceAuditWarning) exactly like
@@ -147,16 +175,32 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           setNotice((await readApiError(res)) ?? m.settings_archived_err_action({ status: res.status }), "error");
           return;
         }
+        mutationConfirmed = true;
         // The dedicated routes write the DB out-of-band from the snapshot-diff sync, so a reload is
         // REQUIRED to refresh the active views + re-seed the adapter snapshot (see reloadFromServer).
-        notifyReloaded = (await reloadFromServer(activeAccountId)) === "reloaded";
+        const outcome = await reloadFromServer(activeAccountId);
+        if (outcome === "stale-account") return;
+        if (outcome !== "reloaded") {
+          const message = committedButStaleMessage(outcome);
+          reloadRequiredByAccount.set(activeAccountId, message);
+          setNotice(message, "error");
+          return;
+        }
+        notifyReloaded = true;
       } catch (e) {
         // A route change during the request makes this reconciliation intentionally stale. The
         // original company will hydrate its committed state when selected again; do not attach an
         // alarming old-company notice to the picker or the newly active company.
         if (useStore.getState().activeAccountId !== activeAccountId) return;
+        if (mutationConfirmed) {
+          const message = committedButStaleMessage("failed", e);
+          reloadRequiredByAccount.set(activeAccountId, message);
+          setNotice(message, "error");
+          return;
+        }
         try {
           const outcome = await reloadFromServer(activeAccountId);
+          if (outcome === "stale-account") return;
           if (outcome !== "reloaded") {
             throw new Error(`Authoritative reload did not complete (${outcome}).`, { cause: e });
           }
@@ -166,10 +210,10 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
             "warning",
           );
         } catch (reloadError) {
-          setNotice(
-            `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${errorMessage(reloadError)}`,
-            "error",
-          );
+          if (useStore.getState().activeAccountId !== activeAccountId) return;
+          const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${errorMessage(reloadError)}`;
+          reloadRequiredByAccount.set(activeAccountId, message);
+          setNotice(message, "error");
         }
       }
       if (notifyReloaded) onReloaded?.();

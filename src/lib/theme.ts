@@ -26,8 +26,17 @@ export function readStoredTheme(): ThemePref {
     if (v === null) {
       const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
       if (isThemePref(legacy)) {
-        localStorage.setItem(STORAGE_KEY, legacy);
-        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        try {
+          localStorage.setItem(STORAGE_KEY, legacy);
+          try {
+            localStorage.removeItem(LEGACY_STORAGE_KEY);
+          } catch {
+            // The current key is already authoritative; stale-key cleanup is best-effort.
+          }
+        } catch {
+          // Migration persistence is best-effort. The readable legacy preference still governs
+          // this session even when the browser refuses the write.
+        }
         return legacy;
       }
     }

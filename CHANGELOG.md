@@ -10,6 +10,52 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.28.1-alpha.1] — 2026-07-30
+
+This patch closes the 15-record P3 Operations review row and incorporates the repairs found while
+reviewing its changed-code checkpoint. It improves startup diagnostics, browser recovery and
+committed-write reconciliation without changing the portable export or SQLite database schema.
+
+### Operations
+
+- Clamped out-of-range backup retention and interval settings to their documented bounds, rounded
+  fractional values down consistently, and emitted startup warnings that name both the requested
+  and applied values.
+- Reconfirmed the remaining operational controls on current source, including credential-profile
+  warnings, domain-separated reconciliation references, abandoned backup cleanup, audit-rotation
+  signals, container Node preflight, backup permissions and restore guidance, production-startup
+  framing, dependency auditing and the documented localisation build dependency.
+
+### Changed
+
+- Split the first-run introduction and damaged-storage recovery screens from the returning-user
+  entry bundle while retaining visible loading and first-action focus behavior.
+- Made the onboarding tour single-flight, gave lazy invitation and password-reset routes a visible
+  loading state, removed the misleading demo “Use another account” action, and removed unused
+  starter assets.
+- Moved server import coordination and invitation presentation into focused modules, and made the
+  repository's pnpm subprocess helper portable across operating systems.
+
+### Fixed
+
+- Added a dedicated damaged-browser-storage recovery path that can preserve raw bytes, clears local
+  and offline stores together, reports partial reset failures, and never routes local corruption to
+  the server connection retry screen.
+- Prevented pre-import edits from being replayed over a committed server replacement; uncertain
+  import and lifecycle outcomes now keep writes blocked until an authoritative refresh or explicit
+  reload proves the current state.
+- Hardened external invitation hand-off, page-lifecycle navigation, API error extraction, legacy
+  theme migration and browser-download failure wording against aborts, hostile values and outcomes
+  that the browser cannot observe.
+- Restored command-palette dirty-form protection without breaking its own Ctrl/Command+K toggle,
+  and retained modal ownership when another dialog is open.
+
+### Tests
+
+- Added coordinator-level import persistence coverage, storage-recovery and page-reload seams,
+  lifecycle outcome tests, invitation hand-off regressions, backup-boundary tests and browser-level
+  tour and command-palette checks.
+
 ## [0.28.0-alpha.1] — 2026-07-29
 
 This minor prerelease consolidates the completed security-assurance, correctness, durability,

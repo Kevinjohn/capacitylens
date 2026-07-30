@@ -278,7 +278,7 @@ describe("CommandPalette", () => {
     expect(updatedOptions[1]).toHaveAttribute("aria-selected", "true");
   });
 
-  it("ArrowUp wraps to first when already at first option", () => {
+  it("ArrowUp stays clamped when already at the first option", () => {
     renderPalette();
 
     const input = screen.getByTestId("command-palette-input");

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { matchPath, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m, syncLocaleFromAccount } from "@/i18n";
 import { useAccountSummaries } from "../auth/useAccountSummaries";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
-import { readJoinedAccountHandoff } from "../lib/joinedAccountHandoff";
+import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "../lib/joinedAccountHandoff";
 import { LINKS } from "../lib/navLinks";
 import { hasOpenModal, textEntryOwnsShortcut } from "../lib/shortcutGuards";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
@@ -35,13 +35,16 @@ export function useAppShellController() {
   const [joinedAccountHandoff] = useState(() => readJoinedAccountHandoff(search));
   const joinedAccountUrlCleaned = useRef(false);
   const joinedAccountHandoffConsumed = useRef(false);
-  const activeLanguage = accounts.find((account) => account.id === activeAccountId)?.language;
+  const initialActiveAccountId = useRef(activeAccountId);
+  const hydratedActiveAccount = accounts.find((account) => account.id === activeAccountId);
+  const activeLanguage = hydratedActiveAccount?.language;
+  const activeLanguagePending = activeAccountId !== null && hydratedActiveAccount === undefined;
 
   useEffect(() => {
     if (!joinedAccountHandoff || joinedAccountUrlCleaned.current) return;
     joinedAccountUrlCleaned.current = true;
-    void navigate({ pathname, search: "", hash }, { replace: true });
-  }, [hash, joinedAccountHandoff, navigate, pathname]);
+    void navigate({ pathname, search: clearJoinedAccountHandoff(search), hash }, { replace: true });
+  }, [hash, joinedAccountHandoff, navigate, pathname, search]);
 
   useEffect(() => {
     // Initial persistence hydration may still publish an empty slice. Activating before that
@@ -49,6 +52,17 @@ export function useAppShellController() {
     // caller back onto the picker. Consume the handoff only after hydration has settled; the switch
     // orchestrator can then load the selected account slice without an older bootstrap replacing it.
     if (!hydrated || !joinedAccountHandoff || joinedAccountHandoffConsumed.current) return;
+    // activeAccountId is deliberately never persisted. A different non-null value here therefore
+    // means the user explicitly chose a company while the requested destination was unavailable;
+    // consume the stale handoff so a later directory refresh cannot pull them away from that choice.
+    if (
+      activeAccountId !== null &&
+      activeAccountId !== joinedAccountHandoff &&
+      activeAccountId !== initialActiveAccountId.current
+    ) {
+      joinedAccountHandoffConsumed.current = true;
+      return;
+    }
     if (accountSummaries.some((account) => account.id === joinedAccountHandoff)) {
       // Account-summary refreshes are expected throughout the shell lifetime. Consume this
       // bootstrap destination before switching so a later refresh cannot pull the user back after
@@ -56,16 +70,20 @@ export function useAppShellController() {
       joinedAccountHandoffConsumed.current = true;
       setActiveAccount(joinedAccountHandoff);
     }
-  }, [accountSummaries, hydrated, joinedAccountHandoff, setActiveAccount]);
+  }, [accountSummaries, activeAccountId, hydrated, joinedAccountHandoff, setActiveAccount]);
 
   useEffect(() => {
+    // In server mode an account summary becomes active one render before its full slice arrives.
+    // Preserve the last authoritative locale through that gap; `undefined` means base locale only
+    // once the destination account itself is hydrated (or the picker has no active account).
+    if (activeLanguagePending) return;
     syncLocaleFromAccount(activeLanguage);
-  }, [activeLanguage]);
+  }, [activeLanguage, activeLanguagePending]);
 
   useEffect(() => {
-    const match = LINKS.find(([to]) => to === pathname);
+    const match = LINKS.find(([to]) => matchPath({ path: to, end: true }, pathname) !== null);
     document.title = match ? `${match[1]()} · ${APP_NAME}` : APP_NAME;
-  }, [pathname, activeLanguage]);
+  }, [pathname, activeLanguage, activeLanguagePending]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -101,11 +119,16 @@ export function useAppShellController() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
+        if (event.isComposing) return;
         if (useStore.getState().dirtyForm) {
-          useStore.getState().setNotice(m.dialog_unsaved_changes());
+          event.preventDefault();
+          if (!event.repeat) useStore.getState().setNotice(m.dialog_unsaved_changes());
           return;
         }
+        const paletteModal = paletteOpen ? document.querySelector('[data-testid="command-palette"]') : null;
+        if (hasOpenModal(paletteModal)) return;
+        event.preventDefault();
+        if (event.repeat) return;
         setPaletteOpen((open) => !open);
         return;
       }
@@ -119,7 +142,7 @@ export function useAppShellController() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, paletteOpen]);
 
   useEffect(() => {
     const warn = () => setNotice(m.app_audit_log_warning(), "warning");

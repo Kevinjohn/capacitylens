@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 
-describe("smoke", () => {
-  it("arithmetic works (toolchain is wired up)", () => {
-    expect(1 + 1).toBe(2);
+describe("shared-domain smoke", () => {
+  it("resolves and executes the shared date core through the application alias", () => {
+    expect(addDaysISO("2026-07-29", 1)).toBe("2026-07-30");
   });
 });

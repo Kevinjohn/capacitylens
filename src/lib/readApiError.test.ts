@@ -10,6 +10,8 @@ describe("readApiError", () => {
     await expect(readApiError(denied)).resolves.toBe("Denied.");
     await expect(denied.json()).resolves.toEqual({ error: "Denied." });
     await expect(readApiError(responseWith({ error: "" }))).resolves.toBeUndefined();
+    await expect(readApiError(responseWith({ error: " \n\t " }))).resolves.toBeUndefined();
+    await expect(readApiError(responseWith({ error: "  Denied.  " }))).resolves.toBe("Denied.");
     await expect(readApiError(responseWith({ error: 403 }))).resolves.toBeUndefined();
     await expect(readApiError(responseWith({}))).resolves.toBeUndefined();
   });
@@ -20,6 +22,12 @@ describe("readApiError", () => {
 
   it("falls back cleanly when JSON parsing fails", async () => {
     const response = new Response("invalid JSON", { headers: { "content-type": "application/json" } });
+    await expect(readApiError(response)).resolves.toBeUndefined();
+  });
+
+  it("falls back cleanly when the response body was already consumed", async () => {
+    const response = responseWith({ error: "Denied." });
+    await response.json();
     await expect(readApiError(response)).resolves.toBeUndefined();
   });
 });

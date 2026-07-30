@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { clearCapacitylensLocalStorage, CAPACITYLENS_KEY_PREFIX } from "./clearLocalStorage";
+import {
+  clearCapacitylensLocalStorage,
+  CAPACITYLENS_KEY_PREFIX,
+  readCapacitylensLocalStorage,
+} from "./clearLocalStorage";
 
 describe("clearCapacitylensLocalStorage", () => {
   beforeEach(() => localStorage.clear());
@@ -29,6 +33,17 @@ describe("clearCapacitylensLocalStorage", () => {
     localStorage.setItem("unrelated", "x");
     expect(clearCapacitylensLocalStorage()).toBe(0);
     expect(localStorage.getItem("unrelated")).toBe("x");
+  });
+
+  it("reads owned raw values without including sibling-origin data", () => {
+    localStorage.setItem("capacitylens/data", "{not-json");
+    localStorage.setItem("floaty/data", "legacy-bytes");
+    localStorage.setItem("unrelated", "keep-private");
+
+    expect(readCapacitylensLocalStorage()).toEqual([
+      { key: "capacitylens/data", value: "{not-json" },
+      { key: "floaty/data", value: "legacy-bytes" },
+    ]);
   });
 
   it("removes ALL matching keys even though removal mutates the key list mid-clear", () => {

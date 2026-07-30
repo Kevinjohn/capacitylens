@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe("downloadTextFile", () => {
-  it("appends a link with the right attrs, clicks it, then DEFERS revoking the object URL", async () => {
+  it("reports only that a request was dispatched and defers object-URL cleanup", async () => {
     const createObjectURL = vi.fn().mockReturnValue("blob:abc");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
@@ -19,17 +19,63 @@ describe("downloadTextFile", () => {
       expect(this.getAttribute("download")).toBe("out.json");
       expect(this.getAttribute("href")).toBe("blob:abc");
       expect(document.body.contains(this)).toBe(true);
+      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
-    downloadTextFile("out.json", '{"a":1}');
+    const result = downloadTextFile("out.json", '{"a":1}');
 
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(clickSpy).toHaveBeenCalledOnce();
-    expect(revokeObjectURL).not.toHaveBeenCalled(); // not synchronous — the download is still starting
+    expect(result).toBeUndefined();
+    expect(revokeObjectURL).not.toHaveBeenCalled(); // not synchronous — the browser is handling the request
 
     await new Promise((r) => setTimeout(r, 0));
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");
     expect(document.querySelector('a[download="out.json"]')).toBeNull(); // cleaned up afterward
+  });
+
+  it("does not claim it can observe a cancelled anchor activation", async () => {
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn().mockReturnValue("blob:abc"),
+      revokeObjectURL,
+    });
+    const cancel = (event: MouseEvent) => event.preventDefault();
+    document.addEventListener("click", cancel, true);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    try {
+      expect(downloadTextFile("out.json", "{}")).toBeUndefined();
+    } finally {
+      document.removeEventListener("click", cancel, true);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector('a[download="out.json"]')).toBeNull();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");
+  });
+
+  it("does not mistake stopped propagation for cancellation when the default remains allowed", async () => {
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn().mockReturnValue("blob:abc"),
+      revokeObjectURL: vi.fn(),
+    });
+    const stop = (event: MouseEvent) => event.stopPropagation();
+    document.addEventListener("click", stop, true);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    try {
+      expect(downloadTextFile("out.json", "{}")).toBeUndefined();
+    } finally {
+      document.removeEventListener("click", stop, true);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   it("defaults the MIME type to application/json when none is given", async () => {
@@ -39,7 +85,9 @@ describe("downloadTextFile", () => {
       createObjectURL: vi.fn().mockReturnValue("blob:abc"),
       revokeObjectURL: vi.fn(),
     });
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
 
     downloadTextFile("out.json", '{"a":1}');
     await new Promise((r) => setTimeout(r, 0)); // let the deferred cleanup remove the anchor
@@ -59,6 +107,7 @@ describe("downloadTextFile", () => {
       this: HTMLAnchorElement,
     ) {
       expect(this.style.display).toBe("none");
+      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
     downloadTextFile("out.json", "{}");
@@ -77,7 +126,9 @@ describe("downloadTextFile", () => {
       throw new Error("click blocked");
     });
 
-    expect(() => downloadTextFile("out.json", "{}")).toThrow("Could not start the download — your file was NOT saved.");
+    expect(() => downloadTextFile("out.json", "{}")).toThrow(
+      "Could not request the download. Check your browser’s download settings and try again.",
+    );
     // The half-built anchor/object-URL must be cleaned up, not leaked.
     expect(document.querySelector('a[download="out.json"]')).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:abc");
@@ -95,7 +146,9 @@ describe("downloadTextFile", () => {
       revokeObjectURL,
     });
 
-    expect(() => downloadTextFile("out.json", "{}")).toThrow("Could not start the download — your file was NOT saved.");
+    expect(() => downloadTextFile("out.json", "{}")).toThrow(
+      "Could not request the download. Check your browser’s download settings and try again.",
+    );
     expect(revokeObjectURL).not.toHaveBeenCalled();
   });
 
@@ -138,7 +191,7 @@ describe("downloadTextFile", () => {
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toMatchObject({
-        message: "Could not start the download — your file was NOT saved.",
+        message: "Could not request the download. Check your browser’s download settings and try again.",
         cause: original,
       });
     }
@@ -152,7 +205,9 @@ describe("downloadTextFile", () => {
       createObjectURL: vi.fn().mockReturnValue("blob:abc"),
       revokeObjectURL: vi.fn(),
     });
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
     // Force the deferred cleanup's own remove() to throw, simulating a failure during teardown.
     vi.spyOn(HTMLAnchorElement.prototype, "remove").mockImplementation(() => {
       throw new Error("remove failed");

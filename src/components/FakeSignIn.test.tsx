@@ -20,11 +20,9 @@ describe("FakeSignIn (cosmetic demo gate)", () => {
     expect(onSignIn).toHaveBeenCalledOnce();
   });
 
-  it('"Use another account" also proceeds (not a dead control)', async () => {
-    const user = userEvent.setup();
-    const onSignIn = vi.fn();
-    render(<FakeSignIn onSignIn={onSignIn} />);
-    await user.click(screen.getByRole("button", { name: "Use another account" }));
-    expect(onSignIn).toHaveBeenCalledOnce();
+  it("offers only the fixed demo persona", () => {
+    render(<FakeSignIn onSignIn={() => {}} />);
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Use another account" })).not.toBeInTheDocument();
   });
 });

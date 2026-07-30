@@ -58,6 +58,28 @@ describe("GettingStarted access step", () => {
     expect(tourMock.startTour).toHaveBeenCalledOnce();
   });
 
+  it("prevents overlapping tours until the active tour is destroyed", async () => {
+    let finishTour!: () => void;
+    tourMock.startTour.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishTour = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    renderChecklist("editor");
+    const action = screen.getByRole("button", { name: "Show me around" });
+
+    await user.dblClick(action);
+
+    expect(tourMock.startTour).toHaveBeenCalledOnce();
+    expect(action).toBeDisabled();
+    expect(action).toHaveAttribute("aria-busy", "true");
+
+    finishTour();
+    await vi.waitFor(() => expect(action).toBeEnabled());
+  });
+
   it("dismisses the card and persists the device preference", async () => {
     const user = userEvent.setup();
     renderChecklist("editor");
@@ -88,7 +110,9 @@ describe("GettingStarted access step", () => {
   });
 
   it("keeps the bounded card pointer-interactive so overflow can wheel or touch scroll", () => {
-    expect(indexCss).toMatch(/\.getting-started-popover\s*\{[^}]*overflow-y:\s*auto;[^}]*pointer-events:\s*auto;/);
+    expect(indexCss).toMatch(
+      /\.getting-started-popover\s*\{[^}]*z-index:\s*var\(--z-index-popover\);[^}]*overflow-y:\s*auto;[^}]*pointer-events:\s*auto;/,
+    );
     expect(indexCss).not.toMatch(/\.getting-started-popover\s*\{[^}]*pointer-events:\s*none;/);
   });
 

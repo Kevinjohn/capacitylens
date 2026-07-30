@@ -214,7 +214,7 @@ const proxyTrustWarning = legacyProxyTrustWarning(process.env);
 if (proxyTrustWarning) console.warn(`capacitylens-server: configuration warning — ${proxyTrustWarning}`);
 let backupConfig: ReturnType<typeof parseBackupConfig>;
 try {
-  backupConfig = parseBackupConfig(process.env);
+  backupConfig = parseBackupConfig(process.env, (message) => console.warn(message));
 } catch (error) {
   refuseToStart(error instanceof Error ? error.message : String(error));
 }

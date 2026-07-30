@@ -23,7 +23,7 @@ If the app changes, update this file first, then the affected stories.
 2. **First run** seeds a demo dataset (see _Seed data_ below).
 3. CapacityLens opens on a **demo sign-in** — a cosmetic, Google-style _"Choose an account"_ screen
    (the **Jordan Avery** account; heading `Choose an account`). It is **not** real auth and
-   has **no** popup: click the account (or "Use another account") to continue. It is shown only
+   has **no** popup: click the single preview account to continue. It is shown only
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
    device-globally; "Sign out" on the picker/sidebar returns to it).
 4. Then the **company picker** (you choose a tenant on every load — `activeAccountId` is never
@@ -95,7 +95,8 @@ If the app changes, update this file first, then the affected stories.
    self-hides once ALL steps are done, so the seeded companies never show it.
    **Show me around** (`data-testid="getting-started-tour"`) runs a loose five-stop driver.js
    spotlight tour (schedule grid → toolbar → People → Clients & projects → Settings; Next/Back/
-   Done buttons, Escape bails, never navigates). If the lazy tour code cannot load or start, the
+   Done buttons, Escape bails, never navigates). The button is busy and cannot start a duplicate
+   tour while the lazy tour code is loading. If that code cannot load or start, the
    card remains usable and a persistent error says **The tour could not start. Check your connection
    and try again.** **Dismiss**
    (`data-testid="getting-started-dismiss"`) hides the card for good on this device
@@ -148,6 +149,12 @@ scoped planning records but deliberately omits the company row itself. Import re
 records into the destination company and does not replace its identity, calendar, language,
 scheduling mode or visibility settings. Export → import is a planning-data transfer, not a
 byte-for-byte company clone.
+Before a server import starts, CapacityLens flushes every pending edit. It then suspends persistence
+for the atomic replacement and reloads the authoritative company slice before allowing edits again.
+If the import may have committed but the reload cannot prove the resulting state, the UI stays
+blocked behind an explicit reload action; parked pre-import edits are never replayed over the
+replacement. File reads and confirmations remain bound to the company that was active when the file
+was selected, and export/import actions suppress duplicate in-flight requests.
 The company block —
 the active company name plus a **Switch company** control (which returns to the company picker) —
 is pinned to the **bottom** of the sidebar, below a divider beneath the Data section. (It used to
@@ -705,9 +712,9 @@ to **viewer**, the whole app goes **read-only**:
 
 **Demo sign-in (cosmetic; not real auth).** In the default (auth-off) deploy, a Google-style
 _"Choose an account"_ screen (heading `Choose an account`; the **Jordan Avery** account row,
-`data-testid="fake-sign-in"`; a "Use another account" row) is shown **before** the company
+`data-testid="fake-sign-in"`) is shown **before** the company
 picker, to preview a "log in first, then pick a company" flow. There is no password and no
-popup — any choice just advances. The signed-in state is a **device-global** flag
+popup — the preview account advances. The signed-in state is a **device-global** flag
 (`capacitylens/fakeSignedIn`, default off; never in `AppData`/export), so it persists across reloads
 and is cleared by **Sign out** (on the picker and the sidebar footer). It is mounted only when
 `authMode === 'off'`, so it never collides with the real login wall above. The persona lives in
@@ -1033,7 +1040,12 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 ### Reliability and recovery expectations
 
 - The application shows a loading state until the local store is hydrated; it never renders an
-  empty company as though loading had completed.
+  empty company as though loading had completed. Lazy public-auth, first-run introduction and
+  storage-recovery screens also retain a visible `Loading…` status while their code loads.
+- Unreadable browser data opens a dedicated recovery screen rather than the server connection retry.
+  It can request a raw-copy download before a confirmed reset; reset attempts clear both local
+  CapacityLens keys and offline snapshots, report partial failures precisely, and only reload once
+  the unreadable local data is gone.
 - Failed SSO hand-off, MFA enrollment, reauthentication and invitation acceptance remain visible
   and actionable. A successful invitation keeps the newly selected company active while its account
   list refreshes.

@@ -4,11 +4,8 @@ import { useScopedData } from "../store/useScopedData";
 import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
 import { downloadTextFile } from "../lib/download";
 import { errorMessage } from "../lib/errorMessage";
-import { readApiError } from "../lib/readApiError";
-import { API_BASE, isServerConfigured } from "../data/apiConfig";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
+import { isServerConfigured } from "../data/apiConfig";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../data/fetchInactiveSlice";
-import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "../data/persist";
 import { useRole } from "../auth/permissionContext";
 import { can, canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { ConfirmDialog, Modal } from "./common/ui";
@@ -17,6 +14,8 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Button } from "./ui/button";
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from "./ui/sidebar";
+import { reloadPage } from "../lib/reloadPage";
+import { useServerImport } from "./import-export/useServerImport";
 
 // Refuse files past this size before reading them into memory (self-DoS guard).
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -74,29 +73,30 @@ export function ImportExport() {
   // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
   // is a full replace, so we never apply it silently — confirm first, and the
   // apply goes through the undoable history path so ⌘Z restores the old data.
-  const [pendingImport, setPendingImport] = useState<{ data: AppData; name: string } | null>(null);
-  // True while a server-mode import is in flight (POST + re-hydrate). Drives the blocking
-  // "Importing…" dialog below — the UI LOCK that makes the import window mutation-free: no edit
-  // can be made (so none can be parked, lost to a tab close, or misattributed to another
-  // company), no lifecycle action can fire an out-of-band POST the import would silently
-  // overwrite, and no company switch can interleave. The write-suspension seam inside
-  // confirmServerImport stays as defence-in-depth for anything that slips past the lock.
-  const [importBusy, setImportBusy] = useState(false);
-  const setDirtyFormSource = useStore((s) => s.setDirtyFormSource);
-  const [importDirtySource] = useState(() => Symbol("import-busy"));
-  // While the lock is up, borrow the dirty-form semantics: AppShell's beforeunload guard prompts
-  // before a tab close mid-import (a parked edit has no durable fallback in server mode, and the
-  // import outcome itself deserves the warning), and the palette / undo / scheduler keyboard
-  // paths — which bypass the pointer-blocking dialog — are suppressed by their existing dirtyForm
-  // checks. This is an independently owned contribution, so mounting or unmounting the clean
-  // blocking Modal cannot erase it (and it cannot erase a dirty editor elsewhere).
+  const [pendingImport, setPendingImport] = useState<{
+    accountId: string | null;
+    data: AppData;
+    name: string;
+  } | null>(null);
+  const importAccountRef = useRef(activeAccountId);
+  const { confirm: confirmServerImport, busy: importBusy, requiresReload: importRequiresReload } = useServerImport();
+  const [exportBusy, setExportBusy] = useState(false);
+  const exportInFlight = useRef(false);
+
+  // A file selection belongs to the company that was active when reading began. Account switching
+  // stays available while the browser reads or while the confirmation is open, so invalidate both
+  // states at the boundary rather than allowing a whole-slice replacement to follow the new account.
   useEffect(() => {
-    if (!importBusy) return;
-    setDirtyFormSource(importDirtySource, true);
-    return () => setDirtyFormSource(importDirtySource, false);
-  }, [importBusy, importDirtySource, setDirtyFormSource]);
+    if (importAccountRef.current === activeAccountId) return;
+    importAccountRef.current = activeAccountId;
+    importSelectionRef.current += 1;
+    setPendingImport(null);
+  }, [activeAccountId]);
 
   const onExport = async () => {
+    if (exportInFlight.current) return;
+    exportInFlight.current = true;
+    setExportBusy(true);
     // downloadTextFile throws if the download couldn't start — surface it rather than letting it
     // escape as an uncaught handler error, so the user knows the export did NOT save.
     try {
@@ -117,11 +117,15 @@ export function ImportExport() {
       } else {
         setNotice(m.data_export_error({ error: errorMessage(e) }), "error");
       }
+    } finally {
+      exportInFlight.current = false;
+      setExportBusy(false);
     }
   };
 
   const onImport = async (file: File) => {
     const selection = ++importSelectionRef.current;
+    const selectedAccountId = activeAccountId;
     // Reject an oversized file before reading it into memory (self-DoS guard).
     if (file.size > MAX_IMPORT_BYTES) {
       setNotice(m.data_err_too_large({ max: MAX_IMPORT_BYTES / (1024 * 1024) }), "error");
@@ -129,8 +133,8 @@ export function ImportExport() {
     }
     try {
       const parsed = parseData(await file.text());
-      if (selection !== importSelectionRef.current) return;
-      setPendingImport({ data: parsed, name: file.name });
+      if (selection !== importSelectionRef.current || useStore.getState().activeAccountId !== selectedAccountId) return;
+      setPendingImport({ accountId: selectedAccountId, data: parsed, name: file.name });
     } catch (e) {
       if (selection !== importSelectionRef.current) return;
       // parseData throws PRECISE, user-ready messages ("This file isn't valid JSON.", "This file is
@@ -141,171 +145,13 @@ export function ImportExport() {
     }
   };
 
-  // SERVER-mode import goes through the ATOMIC, owner-gated POST /api/import — one server-side
-  // transaction that replaces the slice via the same remap+validate the store runs — NOT through
-  // the local store + batch sync. Replaying a slice replacement as /api/batch diff ops would
-  // (a) run at editor tier, bypassing the server's owner-only import policy, and (b) chunk a
-  // large import into multiple transactions, where a mid-sequence 409 commits a silent PARTIAL
-  // import. The store is then re-hydrated from the server (refreshActiveAccountSlice), so what
-  // the user sees is exactly what the server committed. The trade, stated in the dialog copy:
-  // a server import is NOT undoable with ⌘Z (the store history never sees it).
-  const confirmServerImport = async (incoming: AppData) => {
-    // Same cross-file invariant as the demo arm below: ImportExport renders behind AppShell's
-    // tenant gate, so an account is always active here.
-    const accountId = useStore.getState().activeAccountId;
-    if (accountId === null) throw new Error("Import requires an active company.");
-    setImportBusy(true);
-    let keepBlockedUntilReload = false;
-    try {
-      // Land any still-debounced pre-import edit against the PRE-import state FIRST — otherwise
-      // the post-import reload's own entry flush would diff that edit against the pre-import
-      // snapshot and upsert stale pre-import rows into the freshly imported slice. Refuse to
-      // import while a write is still FAILED: this flow's precondition is "local edits are
-      // persisted or knowingly abandoned", and a failed save's retry would later replay a stale
-      // diff over the imported slice.
-      if (!(await flushPendingWrites())) {
-        setNotice(m.data_import_blocked_unsynced(), "error");
-        return;
-      }
-      // SUSPEND store writes across the POST + re-hydrate: the flush above only proves
-      // cleanliness at one INSTANT — an edit made while the POST is pending would otherwise
-      // either land just before the import (and be silently wiped by it) or sit debounced until
-      // the post-import reload pushed its stale pre-import rows into the freshly imported slice
-      // (the import remaps ids, so they'd insert cleanly — no 409 stops them). A successful reload
-      // rebases only the operations made during this window onto the imported slice; resume (the
-      // finally below) handles the edge cases via `committed`: an import that FAILED never
-      // replaced the slice, so the parked edit re-schedules; an import that COMMITTED but whose
-      // re-hydrate failed/was skipped left the diff snapshot stale, so the parked edit is dropped
-      // + surfaced instead — saving it would upsert ghost pre-import rows into the new slice.
-      const resumeWrites = suspendServerWrites();
-      let committed = false;
-      let safeToResume = true;
-      try {
-        const res = await apiFetch(
-          `${API_BASE}/api/import`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ accountId, data: incoming }),
-          },
-          // The atomic slice replacement is a BULK op like /api/state and /api/batch — give it the
-          // 120s bound so a large-but-valid import isn't aborted at the 15s interactive deadline
-          // into the "timed out, result unverified" branch even though it committed server-side.
-          API_BULK_TIMEOUT_MS,
-        );
-        if (!res.ok) {
-          // Prefer the server's user-facing sentence (e.g. the purge-gate 403 or a parseData 400).
-          setNotice((await readApiError(res)) ?? m.data_import_failed({ status: res.status }), "error");
-          return;
-        }
-        // A 200 means the server committed the atomic slice replacement — everything after this
-        // point must treat the LOCAL state (including any parked edit) as pre-import and stale.
-        committed = true;
-        // UNTRUSTED body: validate the two counts rather than trusting an `as` cast — and demand
-        // NONNEGATIVE SAFE INTEGERS, not merely `number`, so {imported:-1}, {imported:1.5} or NaN
-        // can't produce a nonsensical success notice. A 200 whose body doesn't parse or whose
-        // `imported` is off-spec is a SHAPE error on a COMMITTED import — it must not be reported
-        // as "no records imported" (that would skip the re-hydrate and leave the UI showing
-        // pre-import data the server no longer holds). Distinguish it: null count → still
-        // re-hydrate, report success without numbers, leave a breadcrumb.
-        const count = (v: unknown): number | null =>
-          typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : null;
-        const body: unknown = await res.json().catch(() => null);
-        const rec = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-        const imported = count(rec.imported);
-        const skipped = count(rec.skipped) ?? 0;
-        // The success notice claims the view shows the imported data, so it must be GATED on the
-        // reload actually happening: 'failed' AND 'skipped' both mean the store still renders the
-        // PRE-import slice (the import itself committed — say both halves honestly; 'skipped'
-        // covers a supersession or a mid-import tenant switch, where the conservative stale-view
-        // notice still tells the truth). 'unattached' is unreachable behind AppShell's gate in
-        // server mode (bootstrap attached the orchestrator before any tenant rendered) — it is
-        // what orchestrator-less unit tests exercise.
-        const viewIsStale = (outcome: Awaited<ReturnType<typeof refreshActiveAccountSlice>>) =>
-          outcome === "failed" || outcome === "skipped";
-        // NOTICE PRECEDENCE: the app holds ONE notice and a new one dismisses the old. If the
-        // re-hydrate itself raised an error notice — the sticky parked-edit loss warning
-        // (unreachable behind the UI lock; the suspension seam is defence-in-depth) — our
-        // follow-up import notice must NOT overwrite it: a data-loss warning outranks an import
-        // outcome the user can verify from the data on screen.
-        const refreshRespectingNotices = async () => {
-          const noticeBefore = useStore.getState().notice;
-          const outcome = await refreshActiveAccountSlice(accountId);
-          const noticeAfter = useStore.getState().notice;
-          return { outcome, errorRaised: noticeAfter !== noticeBefore && noticeAfter?.tone === "error" };
-        };
-        if (imported === null) {
-          console.warn("import: 200 response with an off-spec body; the slice was replaced server-side", body);
-          const { outcome, errorRaised } = await refreshRespectingNotices();
-          if (errorRaised) return; // keep the loss warning — see refreshRespectingNotices
-          if (viewIsStale(outcome)) setNotice(m.data_import_refresh_failed(), "error");
-          else setNotice(m.data_import_done());
-          return;
-        }
-        // The server refuses a zero-record import (never wipes a slice with nothing) — mirror the
-        // demo arm's honest failure report. Only a VALIDLY-reported zero takes this branch.
-        // The refusal also UN-commits: this 200 replaced NOTHING (the server's replace is gated on
-        // imported > 0), so a parked edit must take resume's re-schedule arm — dropping it here
-        // would destroy a perfectly saveable edit over a replacement that never happened.
-        if (imported === 0) {
-          committed = false;
-          const why =
-            skipped > 0
-              ? skipped === 1
-                ? m.data_why_skipped_one({ count: skipped })
-                : m.data_why_skipped_other({ count: skipped })
-              : "";
-          setNotice(m.data_no_records({ why }), "error");
-          return;
-        }
-        // Re-hydrate the store from the server through the persistence orchestrator (token-guarded,
-        // re-seeds the diff snapshot) so the UI shows exactly the committed slice. refreshActive
-        // surfaces its own load failure via the persist banner; the honest stale-view notice here
-        // replaces the success message when that happens.
-        const { outcome, errorRaised } = await refreshRespectingNotices();
-        if (errorRaised) return; // keep the loss warning — see refreshRespectingNotices
-        if (viewIsStale(outcome)) {
-          setNotice(m.data_import_refresh_failed(), "error");
-          return;
-        }
-        const skippedNote =
-          skipped > 0
-            ? skipped === 1
-              ? m.data_skipped_note_one({ count: skipped })
-              : m.data_skipped_note_other({ count: skipped })
-            : "";
-        setNotice(
-          imported === 1
-            ? m.data_imported_server_one({ count: imported, skipped: skippedNote })
-            : m.data_imported_server_other({ count: imported, skipped: skippedNote }),
-        );
-      } catch {
-        // Any post-dispatch transport rejection says only that the browser stopped waiting; the atomic import may
-        // already have committed. Treat the outcome as unknown, never resume against the stale
-        // pre-import snapshot, and reconcile from the authoritative slice first.
-        committed = true;
-        const outcome = await refreshActiveAccountSlice(accountId);
-        if (outcome === "failed" || outcome === "skipped" || outcome === "unattached") {
-          safeToResume = false; // leave persistence suspended until a reload performs a clean boot read
-          keepBlockedUntilReload = true;
-          setNotice(m.data_import_unknown_reload_required(), "error");
-        } else {
-          setNotice(m.data_import_unknown_reloaded(), "warning");
-        }
-      } finally {
-        if (safeToResume) resumeWrites({ dropParkedEdits: committed });
-      }
-    } catch (e) {
-      // A rejected fetch (server down / network error) — the import did NOT happen; say so.
-      setNotice(errorMessage(e) || m.data_import_failed({ status: 0 }), "error");
-    } finally {
-      if (!keepBlockedUntilReload) setImportBusy(false);
-    }
-  };
-
   const confirmImport = () => {
     if (!pendingImport) return;
+    if (pendingImport.accountId !== useStore.getState().activeAccountId) {
+      importSelectionRef.current += 1;
+      setPendingImport(null);
+      return;
+    }
     if (serverMode) {
       const incoming = pendingImport.data;
       setPendingImport(null);
@@ -362,7 +208,7 @@ export function ImportExport() {
               variant="ghost"
               data-testid="export-data"
               onClick={() => void onExport()}
-              disabled={importBusy}
+              disabled={importBusy || exportBusy}
               className="h-8 w-full justify-start px-2"
             >
               {m.data_export()}
@@ -404,9 +250,20 @@ export function ImportExport() {
           focus lands on the status text for screen readers. */}
         {importBusy && (
           <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
-            <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted-foreground">
-              {m.data_importing_body()}
-            </p>
+            {importRequiresReload ? (
+              <div className="flex flex-col gap-3">
+                <p role="alert" data-testid="import-reload-required" className="text-sm text-muted-foreground">
+                  {m.data_import_unknown_reload_required()}
+                </p>
+                <Button type="button" size="sm" onClick={reloadPage}>
+                  {m.boundary_reload()}
+                </Button>
+              </div>
+            ) : (
+              <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted-foreground">
+                {m.data_importing_body()}
+              </p>
+            )}
           </Modal>
         )}
 

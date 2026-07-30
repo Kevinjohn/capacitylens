@@ -8,6 +8,7 @@ import { RouteError } from "./components/common/ErrorBoundary";
 import { NotFound } from "./components/common/NotFound";
 import { useStore } from "./store/useStore";
 import { disciplinesEnabledFor } from "./store/selectors";
+import { m } from "@/i18n";
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
 // pages are split out — not needed until navigated to, which trims the initial
@@ -41,6 +42,16 @@ const InviteAccept = lazy(() => import("./components/invites/InviteAccept").then
 // AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
 // Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
 const ResetPassword = lazy(() => import("./auth/ResetPassword").then((m) => ({ default: m.ResetPassword })));
+
+export function RouteLoading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
+      <p role="status" className="text-sm text-muted-foreground">
+        {m.app_loading()}
+      </p>
+    </main>
+  );
+}
 
 // Disciplines is an optional feature (account.disciplinesEnabled). When off, the nav
 // entry is hidden — guard the route too so a direct URL / bookmark can't reach the page.
@@ -93,7 +104,7 @@ export const router = createBrowserRouter([
     path: PUBLIC_AUTH_ENTRY_PATHS.invitation,
     errorElement: <RouteError />,
     element: (
-      <Suspense fallback={null}>
+      <Suspense fallback={<RouteLoading />}>
         <InviteAccept />
       </Suspense>
     ),
@@ -105,7 +116,7 @@ export const router = createBrowserRouter([
     path: PUBLIC_AUTH_ENTRY_PATHS.passwordReset,
     errorElement: <RouteError />,
     element: (
-      <Suspense fallback={null}>
+      <Suspense fallback={<RouteLoading />}>
         <ResetPassword />
       </Suspense>
     ),

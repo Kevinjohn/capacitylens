@@ -43,6 +43,7 @@ describe("RotateHint", () => {
 
   it('shows the dialog on a portrait phone and dismisses for the session via "Got it"', () => {
     stubMatchMedia(true);
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
     const { unmount } = render(<RotateHint />);
     expect(screen.getByRole("dialog", { name: "Best in landscape" })).toBeInTheDocument();
 
@@ -51,6 +52,7 @@ describe("RotateHint", () => {
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(sessionStorage.getItem("capacitylens/rotateHintDismissed")).toBe("1");
+    expect(setItem).toHaveBeenCalledTimes(1);
 
     // A remount in the same session (e.g. navigating back to the picker) stays quiet.
     unmount();

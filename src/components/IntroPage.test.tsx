@@ -15,7 +15,7 @@ function paragraphWithText(text: string) {
 // pin the EXACT strings here so
 // an accidental paraphrase fails the gate. The two emphasised phrases must render inside <strong>
 // without altering the surrounding text (assembled in JSX, no markdown library). The em-dash "—" and
-// the STRAIGHT ASCII apostrophes "'" (byte-verbatim from floaty-copy.md, whose historical filename
+// the STRAIGHT ASCII apostrophes "'" (byte-verbatim from the approved source copy, whose historical filename
 // is deliberately retained, NOT curly) are part of the copy and are asserted as-is.
 
 describe('IntroPage (post-login "What CapacityLens is")', () => {

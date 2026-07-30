@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { useLifecycleActions } from "./useLifecycleActions";
 import { useStore } from "../store/useStore";
-import { makeAppData, resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
+import { makeAccount, makeAppData, resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 // SERVER-mode coverage for the lifecycle dispatch hook (the LOCAL/store path is covered by
@@ -145,6 +145,53 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     expect(onReloaded).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    {
+      outcome: "skipped" as const,
+      expectedGuidance: "other changes are still failing to save",
+    },
+    {
+      outcome: "failed" as const,
+      expectedGuidance: "the latest company data could not be loaded",
+    },
+  ])(
+    "a confirmed mutation with a $outcome mandatory refresh surfaces committed-but-stale guidance and gates retries",
+    async ({ outcome, expectedGuidance }) => {
+      const accountId = `acct-confirmed-${outcome}`;
+      resetStoreWithAccount(accountId);
+      refreshControl.outcome = outcome;
+      const onReloaded = vi.fn();
+      const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
+      const firstSurface = renderHook(() => useLifecycleActions(onReloaded));
+
+      await firstSurface.result.current.archive("clients", "c-1");
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(refreshControl.call).toHaveBeenCalledOnce();
+      expect(refreshControl.call).toHaveBeenCalledWith(accountId);
+      expect(loadAll).not.toHaveBeenCalled();
+      expect(onReloaded).not.toHaveBeenCalled();
+      expect(useStore.getState().notice).toMatchObject({
+        tone: "error",
+        message: expect.stringContaining("saved on the server"),
+      });
+      expect(useStore.getState().notice?.message).toContain(expectedGuidance);
+      expect(useStore.getState().notice?.message).toContain(
+        "Reload this page before archiving, restoring, or deleting another item",
+      );
+
+      // The first POST is confirmed but the shared store still shows its pre-mutation slice. Even a
+      // different route/component instance must not POST again until a full reload rehydrates it.
+      firstSurface.unmount();
+      const secondSurface = renderHook(() => useLifecycleActions());
+      await secondSurface.result.current.purge("clients", "c-1");
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(refreshControl.call).toHaveBeenCalledOnce();
+      expect(useStore.getState().notice?.message).toContain(expectedGuidance);
+    },
+  );
+
   it("does not reconcile or misreport a callback failure after a confirmed mutation and reload", async () => {
     refreshControl.outcome = "reloaded";
     const onReloaded = vi.fn(() => {
@@ -244,10 +291,13 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     // next hydration); the NEW tenant's slice is owned by the switch orchestrator, and this stale
     // reload must not fight it — reloading here would install the OLD tenant's slice under the new
     // active id. Simulated by switching the active account inside the stubbed fetch (mid-flight).
-    const fetchMock = vi.fn(async () => {
-      useStore.getState().setActiveAccount(null); // the user dropped to the picker mid-POST
-      return { ok: true, status: 200, json: async () => ({}) } as unknown as Response;
-    });
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        useStore.getState().setActiveAccount(null); // the user dropped to the picker mid-POST
+        return { ok: true, status: 200, json: async () => ({}) } as unknown as Response;
+      })
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ({}) } as unknown as Response);
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useLifecycleActions());
 
@@ -258,28 +308,71 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     // The store was left for the switch orchestrator — no stale slice installed.
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(false);
     expect(useStore.getState().notice).toBeNull(); // and no spurious error surfaced
+
+    // Tenant staleness is not a degraded same-company refresh and must not arm the reload gate.
+    // Returning to the original company performs its normal hydrate, so another action can dispatch.
+    act(() => useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID));
+    await result.current.unarchive("clients", "c-1");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it("discards a bare fallback slice when the active account changes while loadAll is in flight", async () => {
+    const otherAccount = makeAccount({ id: "acct-other", name: "Other Co" });
+    const original = useStore.getState().data;
+    useStore.getState().replaceAll({ ...original, accounts: [...original.accounts, otherAccount] });
+    let resolveLoad!: (data: AppData) => void;
+    loadAll.mockImplementationOnce(
+      () =>
+        new Promise<AppData>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    stubFetch({ ok: true, status: 200, json: async () => ({}) });
+    const { result } = renderHook(() => useLifecycleActions());
+
+    const mutation = result.current.archive("clients", "c-1");
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID));
+    act(() => useStore.getState().setActiveAccount(otherAccount.id));
+    await act(async () => resolveLoad(reloadedSlice));
+    await mutation;
+
+    expect(useStore.getState().activeAccountId).toBe(otherAccount.id);
+    expect(useStore.getState().data.accounts).toContainEqual(otherAccount);
+    expect(useStore.getState().data.clients.some((client) => client.id === "c-reloaded")).toBe(false);
+    expect(useStore.getState().notice).toBeNull();
   });
 
   it.each(["skipped", "failed"] as const)(
     "does not report transport-failure reconciliation as successful when refresh returns %s",
     async (outcome) => {
+      const account = makeAccount({ id: `acct-${outcome}`, name: `${outcome} Co` });
+      const current = useStore.getState().data;
+      useStore.getState().replaceAll({ ...current, accounts: [...current.accounts, account] });
+      useStore.getState().setActiveAccount(account.id);
       refreshControl.outcome = outcome;
       const onReloaded = vi.fn();
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => {
-          throw new TypeError("connection lost");
-        }),
-      );
-      const { result } = renderHook(() => useLifecycleActions(onReloaded));
+      const fetchMock = vi.fn(async () => {
+        throw new TypeError("connection lost");
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const first = renderHook(() => useLifecycleActions(onReloaded));
 
-      await result.current.archive("clients", "c-1");
+      await first.result.current.archive("clients", "c-1");
 
       expect(onReloaded).not.toHaveBeenCalled();
       expect(loadAll).not.toHaveBeenCalled();
       expect(useStore.getState().notice?.tone).toBe("error");
       expect(useStore.getState().notice?.message).toContain("could not be reconciled");
       expect(useStore.getState().notice?.message).toContain(`(${outcome})`);
+
+      first.unmount();
+      const second = renderHook(() => useLifecycleActions(onReloaded));
+      await second.result.current.purge("clients", "c-1");
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(useStore.getState().notice?.message).toContain("Reload before retrying");
     },
   );
 

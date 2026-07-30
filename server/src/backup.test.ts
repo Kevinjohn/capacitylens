@@ -142,6 +142,42 @@ describe("parseBackupConfig (fail-closed)", () => {
       })?.intervalMin,
     ).toBe(60);
   });
+
+  it("reports every configured value that is replaced, clamped or floored", () => {
+    const log = vi.fn();
+
+    expect(
+      parseBackupConfig(
+        {
+          CAPACITYLENS_BACKUP_DIR: "/tmp/x",
+          CAPACITYLENS_BACKUP_INTERVAL_MIN: "999999",
+          CAPACITYLENS_BACKUP_KEEP: "100.5",
+        },
+        log,
+      ),
+    ).toEqual({ dir: "/tmp/x", intervalMin: 35_000, keep: 100 });
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('CAPACITYLENS_BACKUP_INTERVAL_MIN requested "999999"; applied 35000 (maximum 35000)'),
+    );
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('CAPACITYLENS_BACKUP_KEEP requested "100.5"; applied 100 (fractional value floored)'),
+    );
+
+    log.mockClear();
+    expect(
+      parseBackupConfig(
+        {
+          CAPACITYLENS_BACKUP_DIR: "/tmp/x",
+          CAPACITYLENS_BACKUP_INTERVAL_MIN: "lots",
+          CAPACITYLENS_BACKUP_KEEP: "-2",
+        },
+        log,
+      ),
+    ).toEqual({ dir: "/tmp/x", intervalMin: 60, keep: 48 });
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('requested "lots"; applied 60'));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('requested "-2"; applied 48'));
+  });
 });
 
 describe("pre-migration rollback snapshot", () => {

@@ -80,29 +80,6 @@ export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {
                   </span>
                 </Button>
               </li>
-              <li className="border-t border-line-faint">
-                <Button
-                  variant="ghost"
-                  onClick={onSignIn}
-                  className="h-auto w-full justify-start rounded-none px-6 py-3 text-left text-muted-foreground"
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-line text-muted-foreground">
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="8" r="3.2" />
-                      <path d="M5.5 19a6.5 6.5 0 0 1 13 0" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                  <span className="text-sm">{m.fake_use_another()}</span>
-                </Button>
-              </li>
             </ul>
           </CardContent>
         </Card>

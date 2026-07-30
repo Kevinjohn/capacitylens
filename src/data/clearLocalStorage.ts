@@ -10,6 +10,28 @@ export const CAPACITYLENS_KEY_PREFIX = STORAGE_KEY_PREFIX;
 // Historical Floaty preferences are included so “Clear device data” is complete for upgraded users.
 const OWNED_KEY_PREFIXES = [CAPACITYLENS_KEY_PREFIX, "floaty/"] as const;
 
+export interface OwnedLocalStorageEntry {
+  key: string;
+  value: string;
+}
+
+function ownedLocalStorageKeys(store: Storage): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < store.length; i++) {
+    const key = store.key(i);
+    if (key !== null && OWNED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) keys.push(key);
+  }
+  return keys;
+}
+
+/** Read app-owned values without parsing them, so corrupt bytes can still be downloaded intact. */
+export function readCapacitylensLocalStorage(store: Storage = localStorage): OwnedLocalStorageEntry[] {
+  return ownedLocalStorageKeys(store).map((key) => ({
+    key,
+    value: store.getItem(key) ?? "",
+  }));
+}
+
 /**
  * Remove EVERY current `capacitylens/` and legacy `floaty/` key from this browser's localStorage —
  * device-global preferences only. Scheduling data is server-owned (or memory-only in the demo).
@@ -26,11 +48,7 @@ const OWNED_KEY_PREFIXES = [CAPACITYLENS_KEY_PREFIX, "floaty/"] as const;
  *   surfaces it; clearing is all-or-nothing only up to the failing key.
  */
 export function clearCapacitylensLocalStorage(store: Storage = localStorage): number {
-  const keys: string[] = [];
-  for (let i = 0; i < store.length; i++) {
-    const key = store.key(i);
-    if (key !== null && OWNED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) keys.push(key);
-  }
+  const keys = ownedLocalStorageKeys(store);
   for (const key of keys) store.removeItem(key);
   return keys.length;
 }

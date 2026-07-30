@@ -72,17 +72,19 @@ export const domainErrorMessage = (code: DomainErrorCode): string => {
  *    to guard, and a wrapper would only add noise). The generic fallback resolves through Paraglide
  *    at call time so it follows the active locale. */
 export function errorMessage(error: unknown): string {
-  if (error instanceof DomainError) return domainErrorMessage(error.code);
-  if (error instanceof Error && error.message.trim()) return error.message;
-  if (typeof error === "string" && error.trim()) return error;
-  if (
-    error &&
-    typeof error === "object" &&
-    "statusText" in error &&
-    typeof (error as { statusText?: unknown }).statusText === "string" &&
-    (error as { statusText: string }).statusText.trim()
-  ) {
-    return (error as { statusText: string }).statusText;
+  try {
+    if (error instanceof DomainError) return domainErrorMessage(error.code);
+    if (error instanceof Error && error.message.trim()) return error.message;
+    if (typeof error === "string" && error.trim()) return error;
+    if (error && typeof error === "object") {
+      // Snapshot once: Proxy getters may be stateful, so a guard followed by another read can
+      // change type between validation and return and violate this function's string contract.
+      const statusText: unknown = (error as { statusText?: unknown }).statusText;
+      if (typeof statusText === "string" && statusText.trim()) return statusText;
+    }
+  } catch {
+    // Hostile proxies can throw from instanceof, `in`, or property reads. This is the catch sink,
+    // so even those values must reduce to the generic message rather than escaping.
   }
   return m.error_unexpected();
 }

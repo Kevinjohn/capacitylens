@@ -6,18 +6,24 @@ import { PermissionContext } from "../auth/permissionContext";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
 import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
-import { makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+
+function dispatchAnchorClick(this: HTMLAnchorElement): void {
+  this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+}
 
 // ImportExport now branches on the persistence mode (demo = the undoable store import;
 // server = the atomic, owner-gated POST /api/import). Mock apiConfig with a mutable flag
 // (the AccountPicker.test pattern) so each block pins the mode it exercises; the legacy
 // import tests below are the DEMO-build behaviour.
 const serverFlag = { on: false };
+const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
 vi.mock("../data/apiConfig", () => ({
   API_BASE: "",
   isServerConfigured: () => serverFlag.on,
   isDemoMode: () => !serverFlag.on,
 }));
+vi.mock("../lib/reloadPage", () => reloadMock);
 
 // Partial persist mock: everything real EXCEPT refreshActiveAccountSlice, which one test forces
 // to 'failed' (a committed import whose re-hydrate breaks), and suspendServerWrites, whose resume
@@ -52,6 +58,7 @@ beforeEach(() => {
   refreshOverride.value = null;
   refreshNotice.error = null;
   resumeSpy.calls.length = 0;
+  reloadMock.reloadPage.mockReset();
   resetStoreWithAccount();
   useStore.getState().clearFilters();
 });
@@ -64,7 +71,7 @@ describe("ImportExport – Export", () => {
   it("downloads a JSON blob and revokes the object URL AFTER the click (deferred, not synchronous)", async () => {
     const createObjectURL = vi.fn().mockReturnValue("blob:x");
     const revokeObjectURL = vi.fn();
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
 
     vi.stubGlobal("URL", {
       ...URL,
@@ -180,21 +187,50 @@ describe("ImportExport – Import", () => {
     expect(useStore.getState().data.resources).toHaveLength(seedData.resources.length);
   });
 
-  it("surfaces a local import failure instead of throwing from the confirmation handler", async () => {
-    render(<ImportExport />);
-    const file = new File([serializeData(seed())], "data.json", {
-      type: "application/json",
+  it.each([false, true])("cancels a %s-mode file read when the active company changes", async (serverMode) => {
+    serverFlag.on = serverMode;
+    const original = useStore.getState().data;
+    useStore.getState().replaceAll({
+      ...original,
+      accounts: [...original.accounts, makeAccount({ id: "acct-other", name: "Other Co" })],
     });
+    let resolveRead!: (value: string) => void;
+    const read = new Promise<string>((resolve) => {
+      resolveRead = resolve;
+    });
+    const file = { name: "data.json", size: 1, text: () => read } as File;
+
+    render(<ImportExport />);
+    const input = screen.getByTestId("import-input");
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+    act(() => useStore.getState().setActiveAccount("acct-other"));
+    await act(async () => resolveRead(serializeData(seed())));
+
+    expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
+  });
+
+  it.each([false, true])("dismisses a parsed %s-mode import when the active company changes", async (serverMode) => {
+    serverFlag.on = serverMode;
+    const original = useStore.getState().data;
+    useStore.getState().replaceAll({
+      ...original,
+      accounts: [...original.accounts, makeAccount({ id: "acct-other", name: "Other Co" })],
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ImportExport />);
+    const file = new File([serializeData(seed())], "data.json", { type: "application/json" });
     const input = screen.getByTestId("import-input");
     Object.defineProperty(input, "files", { value: [file], writable: false });
     fireEvent.change(input);
     await screen.findByRole("button", { name: "Replace data" });
 
-    act(() => useStore.getState().setActiveAccount(null));
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    act(() => useStore.getState().setActiveAccount("acct-other"));
 
-    expect(useStore.getState().notice?.tone).toBe("error");
-    expect(useStore.getState().notice?.message).toMatch(/active account/i);
+    expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("shows a confirmation summary and does NOT replace data until confirmed", async () => {
@@ -382,11 +418,12 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
   beforeEach(() => {
     serverFlag.on = true;
+    refreshOverride.value = "reloaded";
   });
 
   it("keeps active-slice export available to editors without calling the admin endpoint", async () => {
     const fetchMock = vi.fn();
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("URL", {
       ...URL,
@@ -405,7 +442,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   });
 
   it("rejects an incomplete complete-export response instead of downloading it", async () => {
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -429,7 +466,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
   it("downloads the validated complete server slice for a purge-capable role", async () => {
     const completeSlice = useStore.getState().data;
     let downloaded: Blob | undefined;
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(completeSlice), {
         status: 200,
@@ -461,6 +498,46 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     click.mockRestore();
   });
 
+  it("allows only one complete-slice export while its request is pending", async () => {
+    const completeSlice = useStore.getState().data;
+    let resolveFetch!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn(() => "blob:complete-export"),
+      revokeObjectURL: vi.fn(),
+    });
+    render(
+      <PermissionContext.Provider value={{ role: "owner" }}>
+        <ImportExport />
+      </PermissionContext.Provider>,
+    );
+
+    const exportButton = screen.getByTestId("export-data");
+    fireEvent.click(exportButton);
+    fireEvent.click(exportButton);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(exportButton).toBeDisabled();
+
+    resolveFetch(
+      new Response(JSON.stringify(completeSlice), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    await waitFor(() => expect(click).toHaveBeenCalledOnce());
+    expect(exportButton).not.toBeDisabled();
+    click.mockRestore();
+  });
+
   it("POSTs the parsed file to /api/import and reports the server counts WITHOUT an undo prompt", async () => {
     const before = useStore.getState().data;
     const fetchMock = vi.fn().mockResolvedValue(
@@ -485,8 +562,8 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(body.accountId).toBe(useStore.getState().activeAccountId);
     expect(body.data.resources).toHaveLength(1);
 
-    // The LOCAL store is never mutated by a server import (the server slice is the truth; the
-    // re-hydrate is a no-op here — no persistence orchestrator is attached in tests).
+    // The LOCAL store is never mutated directly by a server import; the mocked re-hydrate reports
+    // that the authoritative slice was reloaded.
     expect(useStore.getState().data).toBe(before);
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/imported 3 records/i));
     expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i); // a server import is NOT undoable
@@ -573,6 +650,68 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     );
     expect(useStore.getState().notice?.tone).toBe("error");
     expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
+    expect(resumeSpy.calls).toEqual([]);
+    expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i);
+    expect(screen.getByTestId("import-data")).toBeDisabled();
+    expect(screen.getByTestId("export-data")).toBeDisabled();
+    expect(useStore.getState().dirtyForm).toBe(true);
+  });
+
+  it("does not report success when no persistence orchestrator can rehydrate the committed slice", async () => {
+    refreshOverride.value = "unattached";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ imported: 3, skipped: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    render(<ImportExport />);
+    await importAndConfirm(incoming());
+
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/couldn't be refreshed/i));
+    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
+    expect(resumeSpy.calls).toEqual([]);
+    expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i);
+    expect(screen.getByTestId("import-data")).toBeDisabled();
+    expect(screen.getByTestId("export-data")).toBeDisabled();
+  });
+
+  it("keeps writes blocked when a committed import refresh is skipped", async () => {
+    refreshOverride.value = "skipped";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ imported: 3, skipped: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    render(<ImportExport />);
+    await importAndConfirm(incoming());
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i));
+    expect(resumeSpy.calls).toEqual([]);
+    expect(screen.getByTestId("import-data")).toBeDisabled();
+  });
+
+  it("keeps writes blocked when an off-spec committed response cannot be rehydrated", async () => {
+    refreshOverride.value = "failed";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>proxy mangled</html>", { status: 200 })));
+
+    render(<ImportExport />);
+    await importAndConfirm(incoming());
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i));
+    expect(resumeSpy.calls).toEqual([]);
+    expect(warn).toHaveBeenCalled();
   });
 
   it("locks the UI while the import is in flight: blocking dialog + dirtyForm + disabled affordances", async () => {
@@ -692,13 +831,28 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]));
   });
 
-  it("reports a failed transport honestly (the import did not happen)", async () => {
+  it.each([408, 500, 503, 504])(
+    "reconciles an HTTP %i import as an unknown atomic outcome before resuming writes",
+    async (status) => {
+      refreshOverride.value = "reloaded";
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
+
+      render(<ImportExport />);
+      await importAndConfirm(incoming());
+
+      await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
+      expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
+    },
+  );
+
+  it("reconciles a failed transport as an unknown atomic outcome", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     render(<ImportExport />);
     await importAndConfirm(incoming());
 
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
+    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("warning"));
+    expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
   });
 
   it("reconciles an unknown timed-out import before resuming writes", async () => {
@@ -717,8 +871,12 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await importAndConfirm(incoming());
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/reload this page/i));
     expect(resumeSpy.calls).toEqual([]);
-    expect(screen.getByTestId("import-busy")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i);
     expect(screen.getByTestId("import-data")).toBeDisabled();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+    expect(reloadMock.reloadPage).toHaveBeenCalledOnce();
   });
 
   it.each(["admin", "editor"] as const)("hides Import from a server-backed %s but keeps Export", (role) => {

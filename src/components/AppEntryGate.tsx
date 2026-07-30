@@ -1,10 +1,37 @@
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { AccountPicker } from "./accounts/AccountPicker";
 import { ConnectionError } from "./ConnectionError";
 import { FakeSignIn } from "./FakeSignIn";
-import { IntroPage } from "./IntroPage";
 import { RotateHint } from "./RotateHint";
 import { m } from "@/i18n";
+
+const IntroPage = lazy(async () => ({
+  default: (await import("./IntroPage")).IntroPage,
+}));
+
+const StorageRecovery = lazy(async () => ({
+  default: (await import("./StorageRecovery")).StorageRecovery,
+}));
+
+function LoadingBoundary() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
+      <p role="status" className="text-sm text-muted-foreground">
+        {m.app_loading()}
+      </p>
+    </main>
+  );
+}
+
+function FocusableStage({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>("main input, main button, main a[href]")?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return children;
+}
 
 interface AppEntryGateProps {
   hydrated: boolean;
@@ -32,60 +59,48 @@ export function AppEntryGate({
   onIntroContinue,
   children,
 }: AppEntryGateProps) {
-  const stage =
-    connectionError || loadError
-      ? "error"
-      : !hydrated
-        ? "loading"
-        : demoAuthActive && !fakeSignedIn
-          ? "signin"
-          : !hasActiveAccount
-            ? "account"
-            : !introSeen
-              ? "intro"
-              : "app";
-  useEffect(() => {
-    if (stage === "loading" || stage === "app") return;
-    requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>("main input, main button, main a[href]")?.focus();
-    });
-  }, [stage]);
-
-  if (connectionError || loadError) return <ConnectionError />;
-  if (!hydrated) {
+  if (connectionError)
     return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
-        <p role="status" className="text-sm text-muted-foreground">
-          {m.app_loading()}
-        </p>
-      </main>
+      <FocusableStage>
+        <ConnectionError />
+      </FocusableStage>
     );
-  }
+  if (loadError)
+    return (
+      <Suspense fallback={<LoadingBoundary />}>
+        <FocusableStage>
+          <StorageRecovery />
+        </FocusableStage>
+      </Suspense>
+    );
+  if (!hydrated) return <LoadingBoundary />;
 
   if (demoAuthActive && !fakeSignedIn) {
     return (
-      <>
+      <FocusableStage>
         <FakeSignIn onSignIn={onFakeSignIn} />
         <RotateHint />
-      </>
+      </FocusableStage>
     );
   }
 
   if (!hasActiveAccount) {
     return (
-      <>
+      <FocusableStage>
         <AccountPicker />
         <RotateHint />
-      </>
+      </FocusableStage>
     );
   }
 
   if (hasActiveAccount && !introSeen) {
     return (
-      <>
-        <IntroPage onContinue={onIntroContinue} />
-        <RotateHint />
-      </>
+      <Suspense fallback={<LoadingBoundary />}>
+        <FocusableStage>
+          <IntroPage onContinue={onIntroContinue} />
+          <RotateHint />
+        </FocusableStage>
+      </Suspense>
     );
   }
 

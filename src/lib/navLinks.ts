@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { m } from "@/i18n";
+import { ROUTE_CLIENTS, ROUTE_RESOURCES, ROUTE_SETTINGS, ROUTE_TEAM } from "./tourAnchors";
 
 /**
  * A nav destination: `[route, labelFn, icon]`. The label is a **getter** (`() => m.nav_x()`), not a
@@ -22,15 +23,11 @@ import { m } from "@/i18n";
  */
 export type NavLinkDef = [to: string, label: () => string, icon: LucideIcon];
 
-// Route path constants for the three sidebar destinations the "Show me around" tour (lib/tour.ts)
-// spotlights via `[data-nav="<route>"]`. Single-sourced here (and used to build `LINKS` below) so a
+// Route path constants for the sidebar destinations the "Show me around" tour spotlights via
+// `[data-nav="<route>"]` are single-sourced in tourAnchors.ts and used to build `LINKS` below, so a
 // route rename is ONE edit — otherwise it would silently un-anchor the tour's spotlight steps
-// (driver.js degrades a missing-element step to a centred popover, and no test catches it).
-export const ROUTE_RESOURCES = "/resources";
-export const ROUTE_TEAM = "/team";
-export const ROUTE_CLIENTS = "/clients";
-export const ROUTE_SETTINGS = "/settings";
-
+// (driver.js degrades a missing-element step to a centred popover; getting-started.spec.ts pins
+// every exported tour anchor to a real element in the rendered schedule).
 export const LINKS: NavLinkDef[] = [
   ["/", () => m.nav_schedule(), CalendarIcon],
   [ROUTE_RESOURCES, () => m.nav_resources(), UsersIcon],

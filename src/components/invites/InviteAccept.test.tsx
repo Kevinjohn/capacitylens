@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StrictMode } from "react";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { InviteAccept } from "./InviteAccept";
@@ -9,11 +9,15 @@ import { useStore } from "../../store/useStore";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
+import { EXTERNAL_NAVIGATION_TIMEOUT_MS } from "./externalSignIn";
 
 const authClientMock = vi.hoisted(() => ({
   signInEmail: vi.fn(async () => ({ error: null })),
   signInOauth2: vi.fn(async () => ({ error: null })),
-  signInSocial: vi.fn(async () => ({ error: null })),
+  signInSocial: vi.fn(async (input?: { fetchOptions?: { signal?: AbortSignal } }) => {
+    void input;
+    return { error: null };
+  }),
 }));
 const handoffMock = vi.hoisted(() => ({
   replaceWithJoinedAccount: vi.fn(),
@@ -52,6 +56,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -218,6 +223,7 @@ describe("InviteAccept preview and acceptance", () => {
 
   it("starts strict OIDC from the invite URL so the callback returns to the bearer route", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    authClientMock.signInOauth2.mockImplementationOnce(() => new Promise(() => {}));
     const user = userEvent.setup();
     renderInvite({
       ...signedInAuth,
@@ -239,17 +245,20 @@ describe("InviteAccept preview and acceptance", () => {
         name: m.invite_continue_provider({ provider: "Single sign-on" }),
       }),
     );
+    window.dispatchEvent(new Event("pagehide"));
     expect(authClientMock.signInOauth2).toHaveBeenCalledWith({
       providerId: "sso",
       callbackURL: window.location.href,
       errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
+      disableRedirect: true,
+      fetchOptions: { signal: expect.any(AbortSignal) },
     });
     expect(authClientMock.signInEmail).not.toHaveBeenCalled();
   });
 
   it("preserves the invite route for social failures and recovers when success does not navigate", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
-    const user = userEvent.setup();
+    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
     renderInvite({
       ...signedInAuth,
       user: null,
@@ -257,19 +266,30 @@ describe("InviteAccept preview and acceptance", () => {
     });
 
     await screen.findByTestId("invite-preview");
+    vi.useFakeTimers();
     const button = screen.getByRole("button", { name: m.invite_continue_provider({ provider: "Google" }) });
-    await user.click(button);
+    fireEvent.click(button);
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(EXTERNAL_NAVIGATION_TIMEOUT_MS);
+    });
     expect(authClientMock.signInSocial).toHaveBeenCalledWith({
       provider: "google",
       callbackURL: window.location.href,
       errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
+      disableRedirect: true,
+      fetchOptions: { signal: expect.any(AbortSignal) },
     });
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
+    const socialSignal = authClientMock.signInSocial.mock.calls[0]?.[0]?.fetchOptions?.signal;
+    expect(socialSignal).toBeInstanceOf(AbortSignal);
+    expect(socialSignal?.aborted).toBe(true);
+    expect(screen.getByRole("alert")).toHaveTextContent(m.login_failed());
     expect(button).toBeEnabled();
   });
 
   it("recovers provider controls when a redirect returns from the back-forward cache", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
     const user = userEvent.setup();
     renderInvite({
       ...signedInAuth,
@@ -399,6 +419,33 @@ describe("InviteAccept preview and acceptance", () => {
     expect(
       fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "POST"),
     ).toHaveLength(1);
+  });
+
+  it("keeps a confirmed join when the follow-up company activation refresh rejects", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(useStore.getState(), "setAccountSummaries").mockImplementationOnce(() => {
+      throw new Error("directory publication failed");
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" });
+      }
+      if (url.endsWith("/api/accounts")) {
+        return Response.json([{ id: "joined-account", name: "Studio North", role: "editor" }]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite(signedInAuth);
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByText("You’ve joined Studio North as Editor.")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: m.invite_continue() })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: m.invite_retry_accept() })).not.toBeInTheDocument();
   });
 
   it("explains an accept-time 401 when returning to the sign-in form", async () => {

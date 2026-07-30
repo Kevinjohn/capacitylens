@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { RouterProvider } from "react-router-dom";
-import { router } from "./router";
+import { RouteLoading, router } from "./router";
+
+describe("router loading boundary", () => {
+  it("keeps top-level lazy routes inside a visible main landmark", () => {
+    render(<RouteLoading />);
+
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+  });
+});
 
 describe("router not-found recovery", () => {
   it("renders the branded recovery screen for an unmatched URL", async () => {

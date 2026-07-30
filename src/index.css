@@ -345,7 +345,7 @@ input[type="radio"] {
    wheel- or touch-scroll its bounded content. */
 .getting-started-popover {
   position: absolute;
-  z-index: var(--z-index-sticky);
+  z-index: var(--z-index-popover);
   top: 0.75rem;
   right: 0.75rem;
   width: min(28rem, calc(100% - 1.5rem));

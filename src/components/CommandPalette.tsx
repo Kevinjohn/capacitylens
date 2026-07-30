@@ -382,8 +382,9 @@ function buildItems({
 
   // Activities open the management list, not a schedule bar. Keep internal activities searchable
   // even when their schedule-only visibility preference is off.
+  const projectsById = new Map(data.projects.map((project) => [project.id, project]));
   const activityItems: PaletteItem[] = data.activities.map((a) => {
-    const project = data.projects.find((p) => p.id === a.projectId);
+    const project = a.projectId ? projectsById.get(a.projectId) : undefined;
     return {
       id: `activity-${a.id}`,
       label: a.name,

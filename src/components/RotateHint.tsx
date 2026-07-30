@@ -63,7 +63,7 @@ export function RotateHint() {
       onSubmit={dismiss}
       guardDirty={false}
       footer={
-        <Button size="sm" type="submit" onClick={dismiss}>
+        <Button size="sm" type="submit">
           {m.rotate_dismiss()}
         </Button>
       }

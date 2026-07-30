@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import { openApp, openNewCompany } from "./helpers";
+import { TOUR_ANCHORS } from "../src/lib/tourAnchors";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -75,12 +76,17 @@ test.describe("getting started checklist", () => {
 
   test('"Show me around" runs the loose orientation tour', async ({ page }) => {
     await openNewCompany(page, "Fresh Co");
+    for (const selector of TOUR_ANCHORS) {
+      await expect(page.locator(selector), `tour anchor ${selector}`).toHaveCount(1);
+      await expect(page.locator(selector), `visible tour anchor ${selector}`).toBeVisible();
+    }
     await page.getByTestId("getting-started-tour").click();
 
     // Stop 1: the schedule grid. The tour never navigates — URL stays on the schedule throughout.
     const popover = page.locator(".driver-popover");
     await expect(popover).toBeVisible();
     await expect(popover.getByText("The schedule")).toBeVisible();
+    await expect(page.getByTestId("getting-started-tour")).toBeDisabled();
 
     await popover.getByRole("button", { name: "Next" }).click();
     await expect(popover.getByText("Search, filters and zoom")).toBeVisible();
@@ -88,9 +94,16 @@ test.describe("getting started checklist", () => {
     await popover.getByRole("button", { name: "Next" }).click();
     await expect(popover.getByText("People", { exact: true })).toBeVisible();
 
+    await popover.getByRole("button", { name: "Next" }).click();
+    await expect(popover.getByText("Clients & projects", { exact: true })).toBeVisible();
+
+    await popover.getByRole("button", { name: "Next" }).click();
+    await expect(popover.getByText("Settings", { exact: true })).toBeVisible();
+
     // Escape bails out of the tour without side effects; the checklist card is still there.
     await page.keyboard.press("Escape");
     await expect(popover).toHaveCount(0);
+    await expect(page.getByTestId("getting-started-tour")).toBeEnabled();
     await expect(page.getByTestId("getting-started")).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
   });

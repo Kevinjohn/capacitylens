@@ -14,7 +14,7 @@ export function ConnectionError({
   onRetry?: () => void;
 } = {}) {
   return (
-    <div className="flex min-h-full items-center justify-center bg-canvas p-6">
+    <main className="flex min-h-full items-center justify-center bg-canvas p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>
@@ -28,6 +28,6 @@ export function ConnectionError({
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </main>
   );
 }

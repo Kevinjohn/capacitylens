@@ -20,48 +20,69 @@
 // this file is reachable from the eagerly-loaded GettingStarted card, so a static import would land
 // the whole library in the main chunk for a click-only feature nearly nobody triggers per session.
 import { m } from "@/i18n";
-import { ROUTE_RESOURCES, ROUTE_CLIENTS, ROUTE_SETTINGS } from "./navLinks";
+import { TOUR_ANCHORS } from "./tourAnchors";
 
 /** Launch the orientation tour. Builds steps fresh (locale-correct copy) and drives from stop 1.
  *  Async so the driver.js import can be dynamic (see the file header) — callers must `void` or
  *  `await` it. */
 export async function startTour(): Promise<void> {
   const { driver } = await import("driver.js");
-  const tour = driver({
-    showProgress: true,
-    // driver.js interpolates its own `{{current}}`/`{{total}}` tokens; the surrounding words come
-    // from the Paraglide message so the phrase is translatable.
-    progressText: m.tour_progress({ step: "{{current}}", total: "{{total}}" }),
-    nextBtnText: m.tour_next(),
-    prevBtnText: m.tour_prev(),
-    doneBtnText: m.tour_done(),
-    // Spotlighted elements stay inert during the tour: this is a look-around, and a stray click
-    // on a nav link mid-tour would navigate away underneath the overlay.
-    disableActiveInteraction: true,
-    steps: [
-      {
-        element: '[data-testid="scheduler-grid"]',
-        popover: { title: m.tour_grid_title(), description: m.tour_grid_desc() },
-      },
-      {
-        element: '[data-testid="scheduler-toolbar"]',
-        popover: { title: m.tour_toolbar_title(), description: m.tour_toolbar_desc() },
-      },
-      // The three nav stops pin the popover to the RIGHT of the sidebar — auto placement drops
-      // it below the small link, on top of the neighbouring nav rows it's pointing at.
-      {
-        element: `[data-nav="${ROUTE_RESOURCES}"]`,
-        popover: { title: m.tour_people_title(), description: m.tour_people_desc(), side: "right" },
-      },
-      {
-        element: `[data-nav="${ROUTE_CLIENTS}"]`,
-        popover: { title: m.tour_clients_title(), description: m.tour_clients_desc(), side: "right" },
-      },
-      {
-        element: `[data-nav="${ROUTE_SETTINGS}"]`,
-        popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: "right" },
-      },
-    ],
+  await new Promise<void>((resolve, reject) => {
+    let observer: MutationObserver | null = null;
+    const finishIfDestroyed = () => {
+      if (document.body.classList.contains("driver-active")) return;
+      observer?.disconnect();
+      resolve();
+    };
+    try {
+      const tour = driver({
+        showProgress: true,
+        // driver.js interpolates its own `{{current}}`/`{{total}}` tokens; the surrounding words come
+        // from the Paraglide message so the phrase is translatable.
+        progressText: m.tour_progress({ step: "{{current}}", total: "{{total}}" }),
+        nextBtnText: m.tour_next(),
+        prevBtnText: m.tour_prev(),
+        doneBtnText: m.tour_done(),
+        // Spotlighted elements stay inert during the tour: this is a look-around, and a stray click
+        // on a nav link mid-tour would navigate away underneath the overlay.
+        disableActiveInteraction: true,
+        // Defining onDestroyStarted transfers cleanup ownership to the callback in driver.js.
+        onDestroyStarted: (_element, _step, { driver: activeTour }) => activeTour.destroy(),
+        steps: [
+          {
+            element: TOUR_ANCHORS[0],
+            popover: { title: m.tour_grid_title(), description: m.tour_grid_desc() },
+          },
+          {
+            element: TOUR_ANCHORS[1],
+            popover: { title: m.tour_toolbar_title(), description: m.tour_toolbar_desc() },
+          },
+          // The three nav stops pin the popover to the RIGHT of the sidebar — auto placement drops
+          // it below the small link, on top of the neighbouring nav rows it's pointing at.
+          {
+            element: TOUR_ANCHORS[2],
+            popover: { title: m.tour_people_title(), description: m.tour_people_desc(), side: "right" },
+          },
+          {
+            element: TOUR_ANCHORS[3],
+            popover: { title: m.tour_clients_title(), description: m.tour_clients_desc(), side: "right" },
+          },
+          {
+            element: TOUR_ANCHORS[4],
+            popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: "right" },
+          },
+        ],
+      });
+      // driver.js 1.7 does not call onDestroyed when teardown lands during some transition states.
+      // The body class is its authoritative lifecycle marker, so observe that actual state instead
+      // of leaving the caller's busy lock dependent on an optional library callback.
+      observer = new MutationObserver(finishIfDestroyed);
+      observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+      tour.drive();
+      finishIfDestroyed();
+    } catch (error) {
+      observer?.disconnect();
+      reject(error);
+    }
   });
-  tour.drive();
 }

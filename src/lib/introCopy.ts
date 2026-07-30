@@ -1,11 +1,10 @@
-// PLACEHOLDER COPY — pending human edit. From floaty-copy.md (the source doc keeps its filename);
-// do NOT rewrite/invent positioning. A human edits this wording before launch; the post-login
-// IntroPage is the only consumer. The text is single-sourced under `intro_*` in `messages/en.json`;
-// this module only assembles its typed getters and supplies APP_NAME (shared/src/brand.ts).
+// CapacityLens' concise post-login positioning copy. The text is single-sourced under `intro_*` in
+// `messages/en.json`; this module only assembles its typed getters and supplies APP_NAME
+// (shared/src/brand.ts). IntroPage is the only consumer.
 //
 // Each paragraph is split into FRAGMENTS so the two bold phrases can be wrapped in <strong> in JSX
 // WITHOUT altering the surrounding text — we assemble the emphasis in JSX (no markdown library, no
-// dangerouslySetInnerHTML). The catalogue text is byte-sensitive placeholder copy: its straight
+// dangerouslySetInnerHTML). The catalogue text is byte-sensitive product copy: its straight
 // ASCII apostrophes and em dash are pinned by IntroPage.test.tsx. “tasks” in `intro_p2_after` is
 // generic English, not the Activity domain concept.
 //

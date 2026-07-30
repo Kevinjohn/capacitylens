@@ -8,6 +8,12 @@ import { attachPersistence } from "../data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
 
+const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
+vi.mock("@/i18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/i18n")>()),
+  syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
+}));
+
 vi.mock("../data/apiConfig", () => ({
   API_BASE: "",
   isDemoMode: () => true,
@@ -17,6 +23,7 @@ vi.mock("../data/apiConfig", () => ({
 afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(() => {
+  i18nMocks.syncLocaleFromAccount.mockReset();
   // Sign through the cosmetic demo gate, dismiss the post-login intro page, AND seed an active
   // account so the shell (not the demo sign-in, not the account picker, not the intro) renders —
   // these tests exercise the nav/hydration gate, which sits *after* all of those gates.
@@ -62,6 +69,14 @@ it("consumes a joined-account query only once and preserves later route queries"
   await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/settings?tab=security"));
 });
 
+it("removes only the joined-account handoff from the entry query", async () => {
+  renderAppShell([`/?tab=security&joinedAccount=${DEFAULT_ACCOUNT_ID}&view=archived#members`], true);
+
+  await waitFor(() =>
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/?tab=security&view=archived#members"),
+  );
+});
+
 it("waits for initial hydration before consuming a joined-account handoff", async () => {
   useStore.getState().setActiveAccount(null);
   useStore.getState().setHydrated(false);
@@ -96,6 +111,28 @@ it("does not reactivate a consumed joined-account handoff after a later account-
   expect(useStore.getState().activeAccountId).toBe(otherAccountId);
 });
 
+it("does not apply a late joined-account handoff after an explicit company choice", async () => {
+  const lateAccountId = "acct-late";
+  useStore.getState().setActiveAccount(null);
+
+  renderAppShell([`/?joinedAccount=${lateAccountId}`]);
+  await waitFor(() =>
+    expect(useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID)).toBe(true),
+  );
+
+  act(() => useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID));
+  act(() => {
+    useStore
+      .getState()
+      .setAccountSummaries([
+        ...useStore.getState().accountSummaries,
+        { id: lateAccountId, name: "Late Co", role: "owner" },
+      ]);
+  });
+
+  expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
+});
+
 it("guards navigation while a persistence write is still unacknowledged", () => {
   const detachPersistence = attachPersistence(
     useStore,
@@ -121,6 +158,34 @@ describe("AppShell navigation links", () => {
     renderAppShell();
 
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveClass("focus:z-(--z-index-skip-link)");
+  });
+
+  it("keeps a descriptive title on an accepted trailing-slash route", async () => {
+    renderAppShell(["/resources/"]);
+
+    await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
+  });
+
+  it("preserves the last locale while a selected company's slice is still loading", async () => {
+    const currentAccount = makeAccount({ language: "en" });
+    const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co", language: undefined });
+    useStore.getState().replaceAll(makeAppData({ accounts: [currentAccount] }));
+    renderAppShell();
+    await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith("en"));
+    i18nMocks.syncLocaleFromAccount.mockClear();
+
+    // Model the ordinary server switch gap directly: the directory authorizes the destination,
+    // activeAccountId changes, and the old slice remains until the destination load resolves.
+    act(() => {
+      useStore.setState({
+        activeAccountId: destinationAccount.id,
+        accountSummaries: [{ id: destinationAccount.id, name: destinationAccount.name, role: "owner" }],
+      });
+    });
+    expect(i18nMocks.syncLocaleFromAccount).not.toHaveBeenCalled();
+
+    act(() => useStore.setState({ data: makeAppData({ accounts: [destinationAccount] }) }));
+    await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith(undefined));
   });
 
   it("labels a cached snapshot as Offline and view only instead of Demo access", () => {
@@ -276,14 +341,18 @@ describe("AppShell sidebar collapse", () => {
     const target = document.createElement(tagName);
     if (tagName === "div") target.setAttribute("contenteditable", "true");
     document.body.append(target);
-    const event = new KeyboardEvent("keydown", { key: "b", ctrlKey: true, bubbles: true, cancelable: true });
+    try {
+      const event = new KeyboardEvent("keydown", { key: "b", ctrlKey: true, bubbles: true, cancelable: true });
 
-    act(() => {
-      target.dispatchEvent(event);
-    });
+      act(() => {
+        target.dispatchEvent(event);
+      });
 
-    expect(useStore.getState().sidebarOpen).toBe(true);
-    expect(event.defaultPrevented).toBe(false);
+      expect(useStore.getState().sidebarOpen).toBe(true);
+      expect(event.defaultPrevented).toBe(false);
+    } finally {
+      target.remove();
+    }
   });
 
   it("ignores Cmd/Ctrl+B during IME composition", () => {
@@ -497,6 +566,84 @@ describe("AppShell command palette dirty-form guard", () => {
     });
 
     expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+  });
+
+  it("leaves Cmd/Ctrl+K to an existing modal", () => {
+    renderAppShell();
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("data-state", "open");
+    document.body.appendChild(modal);
+    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
+    try {
+      act(() => {
+        window.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    } finally {
+      modal.remove();
+    }
+  });
+
+  it("ignores Cmd/Ctrl+K during IME composition", () => {
+    renderAppShell();
+    const event = new KeyboardEvent("keydown", { key: "k", metaKey: true, isComposing: true, cancelable: true });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+  });
+
+  it("keeps the palette open when the Ctrl+K keydown repeats", () => {
+    renderAppShell();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, repeat: true }));
+    });
+
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+  });
+
+  it("closes the open palette with a second Ctrl+K", () => {
+    renderAppShell();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+  });
+
+  it("leaves Ctrl+K to a later modal even while the palette is open", () => {
+    renderAppShell();
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("data-state", "open");
+    document.body.appendChild(modal);
+    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
+    try {
+      act(() => {
+        window.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+    } finally {
+      modal.remove();
+    }
   });
 });
 

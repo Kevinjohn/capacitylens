@@ -1,7 +1,7 @@
 {
   "name": "capacitylens",
   "private": true,
-  "version": "0.28.0-alpha.1",
+  "version": "0.28.1-alpha.1",
   "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
   "author": "Kevinjohn Gallagher",
@@ -97,6 +97,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.10",
+    "cross-spawn": "7.0.6",
     "eslint": "^10.7.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",

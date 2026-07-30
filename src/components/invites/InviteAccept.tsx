@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { isServerConfigured } from "../../data/apiConfig";
 import {
   accountClient,
@@ -11,24 +11,14 @@ import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { readApiError } from "../../lib/readApiError";
 import { useStore } from "../../store/useStore";
 import { authClient } from "../../auth/authClient";
-import { TextField } from "../common/ui";
-import { Button } from "../ui/button";
-import { FieldError } from "../ui/field";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
+import { runExternalSignIn } from "./externalSignIn";
 import { validateText } from "../../lib/validation";
-import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import {
-  MIN_PASSWORD_LENGTH,
-  MAX_PASSWORD_LENGTH,
-  MAX_PASSWORD_INPUT_CODE_UNITS,
-  passwordLengthFailure,
-} from "@capacitylens/shared/domain/password";
-import type { Role } from "@capacitylens/shared/domain/access";
-import { isAccountRole, isIsoInstant, type InvitationRole } from "@capacitylens/shared/account/types";
+import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
+import { isAccountRole, isIsoInstant } from "@capacitylens/shared/account/types";
 import { isTransportFailure } from "../../data/requestTimeout";
-import { roleLabel, roleSummary } from "../../lib/accessCopy";
-import { Badge } from "../ui/badge";
 import { useAuth } from "../../auth/authContext";
 import {
   clearExternalSignInError,
@@ -36,8 +26,7 @@ import {
   hasExternalSignInError,
 } from "../../auth/externalSignInError";
 import { reloadCurrentPage, replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "../ui/item";
+import { InviteAcceptView, type InviteAcceptState, type InvitePreview } from "./InviteAcceptView";
 
 // Invite accept page for /invite/:token. On mount, in SERVER mode, it previews the invite.
 // A signed-in person must then explicitly accept before the single-use POST is sent. The server is
@@ -48,30 +37,6 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "../u
 // Password mode deliberately carves it out of the login wall so a genuinely new invitee can create
 // a credential through the token-scoped signup endpoint; an existing user can sign in here and the
 // page reloads the same token URL so they can review and explicitly accept as that identity.
-
-type State =
-  | { kind: "previewing" }
-  | { kind: "ready" }
-  | { kind: "accepting" }
-  // `activating` = the best-effort switch-into-the-joined-company step (summaries refetch +
-  // setActiveAccount) hasn't settled yet. The success message renders as soon as we're 'joined';
-  // the Continue link renders only once `activating` is false — see the effect for why.
-  | { kind: "joined"; accountId: string; role: Role; activating: boolean }
-  | {
-      kind: "error";
-      message: string;
-      retryAccept?: boolean;
-      retryPreview?: boolean;
-      switchIdentity?: boolean;
-    }
-  | { kind: "auth"; message?: string; errorField?: string | null }
-  | { kind: "local" }; // the demo build (no server) — invites are a server-mode feature
-
-interface InvitePreview {
-  accountName: string;
-  role: InvitationRole;
-  expiresAt: string;
-}
 
 // Map the accept endpoint's status codes to the surfaced message. 404/409/410 are the documented
 // invite outcomes (unknown / already-used / expired); the server's JSON `{ error }` body carries a
@@ -130,7 +95,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
   // `/invite/:token` route shouldn't even match, but is handled defensively), so the effect never has
   // to setState synchronously: it only ever sets state from an async fetch callback.
-  const [state, setState] = useState<State>(() => {
+  const [state, setState] = useState<InviteAcceptState>(() => {
     if (!isServerConfigured()) return { kind: "local" };
     if (!token) return { kind: "error", message: m.invite_err_missing_token() };
     return { kind: "previewing" };
@@ -299,19 +264,26 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
       // Use the role returned by the mutation, not the proposed role in the preview: the server may
       // have resolved an existing membership with a different effective role.
       setState({ kind: "joined", accountId, role: body.role, activating: true });
-      const list = await refreshAccountSummaries({
-        signal: AbortSignal.timeout(5000),
-        allowCachedFallback: false,
-        preserveActiveAccountIfMissing: true,
-      });
-      // The directory refresh remains useful after navigation, but this route no longer owns the
-      // global company selection once it has unmounted. A company chosen on the destination route
-      // must not be replaced by this late invitation completion.
-      if (routeActive.current && list !== null) {
-        if (list.some((account) => account.id === accountId)) setActiveAccount(accountId);
-      }
-      if (routeActive.current) {
-        setState((current) => (current.kind === "joined" ? { ...current, activating: false } : current));
+      try {
+        const list = await refreshAccountSummaries({
+          signal: AbortSignal.timeout(5000),
+          allowCachedFallback: false,
+          preserveActiveAccountIfMissing: true,
+        });
+        // The directory refresh remains useful after navigation, but this route no longer owns the
+        // global company selection once it has unmounted. A company chosen on the destination route
+        // must not be replaced by this late invitation completion.
+        if (routeActive.current && list !== null) {
+          if (list.some((account) => account.id === accountId)) setActiveAccount(accountId);
+        }
+      } catch (error) {
+        // The 2xx accept response already confirmed durable membership. Activation is a separate,
+        // best-effort read: never relabel a confirmed join as an unknown mutation or invite retry.
+        console.warn("InviteAccept: joined-company activation refresh failed", error);
+      } finally {
+        if (routeActive.current) {
+          setState((current) => (current.kind === "joined" ? { ...current, activating: false } : current));
+        }
       }
     } catch (error) {
       // The POST may have reached the server before the transport failed, so do not invite a blind
@@ -380,55 +352,40 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const signInWithProvider = async (provider: (typeof providers)[number]): Promise<void> => {
     setBusy(true);
     setState({ kind: "auth" });
-    let navigationStarted = false;
-    const markNavigation = () => {
-      navigationStarted = true;
-    };
-    const restoreAfterCachedNavigation = (event: PageTransitionEvent) => {
-      if (!event.persisted) return;
-      navigationStarted = false;
-      setState({ kind: "auth", message: m.login_failed() });
-      setBusy(false);
-    };
-    window.addEventListener("pagehide", markNavigation, { once: true });
-    window.addEventListener("pageshow", restoreAfterCachedNavigation);
-    try {
-      const result =
+    await runExternalSignIn({
+      start: (signal) =>
         provider.kind === "oidc"
-          ? await authClient.signIn.oauth2({
+          ? authClient.signIn.oauth2({
               providerId: provider.id,
               callbackURL: window.location.href,
               errorCallbackURL: externalSignInErrorUrl(window.location.href),
+              // Keep redirect ownership in runExternalSignIn: Better Auth returns the provider URL
+              // without running its internal navigation hook, and a timed-out request is aborted
+              // before retry controls become available.
+              disableRedirect: true,
+              fetchOptions: { signal },
             })
-          : await authClient.signIn.social({
+          : authClient.signIn.social({
               provider: provider.id as "google" | "microsoft" | "github",
               callbackURL: window.location.href,
               errorCallbackURL: externalSignInErrorUrl(window.location.href),
-            });
-      if (result.error) {
-        setState({
-          kind: "auth",
-          message: result.error.message ?? m.login_failed(),
-        });
+              disableRedirect: true,
+              fetchOptions: { signal },
+            }),
+      onFailure: (message) => {
+        setState({ kind: "auth", message: message ?? m.login_failed() });
         setBusy(false);
-      } else {
-        // Redirect adapters normally unload the page. Only pagehide proves that navigation
-        // committed: visibility can change when the user backgrounds the tab, and beforeunload can
-        // be cancelled by another listener.
-        await new Promise((resolve) => window.setTimeout(resolve, 100));
-        if (!navigationStarted) {
-          setState({ kind: "auth", message: m.login_failed() });
-          setBusy(false);
-        }
-      }
-    } catch (error) {
-      console.error("InviteAccept: SSO sign-in request failed", error);
-      setState({ kind: "auth", message: m.login_network_error() });
-      setBusy(false);
-    } finally {
-      window.removeEventListener("pagehide", markNavigation);
-      window.removeEventListener("pageshow", restoreAfterCachedNavigation);
-    }
+      },
+      onRequestError: (error) => {
+        console.error("InviteAccept: SSO sign-in request failed", error);
+        setState({ kind: "auth", message: m.login_network_error() });
+        setBusy(false);
+      },
+      onCachedReturn: () => {
+        setState({ kind: "auth", message: m.login_failed() });
+        setBusy(false);
+      },
+    });
   };
 
   const createAccount = async () => {
@@ -527,239 +484,32 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
     }
   };
 
-  const joinedStatus =
-    state.kind === "joined"
-      ? preview
-        ? m.invite_joined_company({
-            company: preview.accountName,
-            role: roleLabel(state.role),
-          })
-        : `${m.invite_joined_base()}${state.role ? m.invite_joined_role({ role: state.role }) : ""}.`
-      : null;
-  const flowStatus =
-    state.kind === "previewing"
-      ? m.invite_checking()
-      : state.kind === "ready"
-        ? m.invite_review_prompt()
-        : state.kind === "accepting"
-          ? m.invite_joining()
-          : (joinedStatus ?? "");
-  const showsFlowStatus = ["previewing", "ready", "accepting", "joined"].includes(state.kind);
-
   return (
-    <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <main className="w-full max-w-sm">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="text-2xl font-bold text-brand">{APP_NAME}</div>
-            <CardTitle>
-              <h1>{m.invite_title()}</h1>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {preview && (
-              <Item variant="muted" data-testid="invite-preview">
-                <ItemContent>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {m.invite_company_label()}
-                  </p>
-                  <ItemTitle>
-                    <h2>{preview.accountName}</h2>
-                  </ItemTitle>
-                  <ItemDescription>{roleSummary(preview.role)}</ItemDescription>
-                  <ItemDescription>{m.invite_existing_role_note()}</ItemDescription>
-                  <ItemDescription>
-                    {m.invite_expires({
-                      when: new Date(preview.expiresAt).toLocaleString(),
-                    })}
-                  </ItemDescription>
-                </ItemContent>
-                <ItemActions className="self-start text-right">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">{m.invite_proposed_role_label()}</p>
-                    <Badge>{roleLabel(preview.role)}</Badge>
-                  </div>
-                </ItemActions>
-              </Item>
-            )}
-            <p
-              ref={flowStatusRef}
-              role="status"
-              tabIndex={-1}
-              className={showsFlowStatus ? "text-sm text-muted-foreground" : "sr-only"}
-            >
-              {flowStatus}
-            </p>
-            {state.kind === "ready" && (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  {m.invite_signed_in_as({ identity: user?.email ?? user?.name ?? m.invite_current_account() })}
-                </p>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button size="sm" type="button" variant="outline" disabled={busy} onClick={() => void signOut()}>
-                    {m.invite_use_different_account()}
-                  </Button>
-                  <Button asChild size="sm">
-                    <Link to="/">{m.invite_go_to_app()}</Link>
-                  </Button>
-                  <Button size="sm" type="button" disabled={busy} onClick={() => void acceptInvite()}>
-                    {m.invite_accept_action()}
-                  </Button>
-                </div>
-              </>
-            )}
-            {state.kind === "joined" && (
-              <>
-                {/* Continue appears only once the best-effort activation step has settled (see the
-                  effect): rendering it earlier would let a click race the setActiveAccount and land
-                  on the picker even when activation was about to succeed. */}
-                {!state.activating && (
-                  <div className="flex justify-end">
-                    <Button asChild size="sm">
-                      <Link ref={continueRef} to="/">
-                        {m.invite_continue()}
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-            {state.kind === "auth" &&
-              (authMode === "sso" ? (
-                <div className="flex flex-col gap-3">
-                  <p className="text-sm text-muted-foreground">{m.invite_sso_prompt()}</p>
-                  <FieldError id={errorId}>{state.message}</FieldError>
-                  {providers.length === 0 ? (
-                    <FieldError>{m.invite_sso_unavailable()}</FieldError>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {providers.map((provider) => (
-                        <Button
-                          size="sm"
-                          key={provider.id}
-                          type="button"
-                          className="w-full"
-                          disabled={busy}
-                          onClick={() => void signInWithProvider(provider)}
-                        >
-                          {m.invite_continue_provider({
-                            provider: provider.label,
-                          })}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {providers.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      {providers.map((provider) => (
-                        <Button
-                          size="sm"
-                          key={provider.id}
-                          type="button"
-                          className="w-full"
-                          disabled={busy}
-                          onClick={() => void signInWithProvider(provider)}
-                        >
-                          {m.invite_continue_provider({
-                            provider: provider.label,
-                          })}
-                        </Button>
-                      ))}
-                      <p className="text-center text-xs text-muted-foreground">{m.invite_use_email_password()}</p>
-                    </div>
-                  )}
-                  <form onSubmit={(event) => void signIn(event)} className="flex flex-col gap-3" noValidate>
-                    <p className="text-sm text-muted-foreground">{m.invite_onboard_intro()}</p>
-                    <TextField
-                      label={m.invite_name()}
-                      autoComplete="name"
-                      value={name}
-                      maxLength={MAX_NAME_INPUT_CODE_UNITS}
-                      onChange={setName}
-                      invalid={state.errorField === "name"}
-                      describedById={errorId}
-                    />
-                    <TextField
-                      label={m.login_email()}
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      maxLength={MAX_EMAIL_LENGTH}
-                      onChange={setEmail}
-                      invalid={state.errorField === "email"}
-                      describedById={errorId}
-                    />
-                    <TextField
-                      label={m.login_password()}
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      minLength={MIN_PASSWORD_LENGTH}
-                      maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-                      onChange={setPassword}
-                      invalid={state.errorField === "password"}
-                      describedById={errorId}
-                    />
-                    <FieldError id={errorId}>{state.message}</FieldError>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button size="sm" type="submit" variant="outline" disabled={busy}>
-                        {m.invite_sign_in_accept()}
-                      </Button>
-                      <Button size="sm" type="button" disabled={busy} onClick={() => void createAccount()}>
-                        {m.invite_create_account()}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-              ))}
-            {state.kind === "error" && (
-              <>
-                <FieldError>{state.message}</FieldError>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button asChild size="sm">
-                    <Link to="/">{m.invite_go_to_app()}</Link>
-                  </Button>
-                  {state.retryAccept && preview && user && (
-                    <Button size="sm" type="button" disabled={busy} onClick={() => void acceptInvite()}>
-                      {m.invite_retry_accept()}
-                    </Button>
-                  )}
-                  {state.switchIdentity && (
-                    <Button size="sm" type="button" variant="outline" disabled={busy} onClick={() => void signOut()}>
-                      {m.invite_use_different_account()}
-                    </Button>
-                  )}
-                  {state.retryPreview && (
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => {
-                        setState({ kind: "previewing" });
-                        setPreviewAttempt((attempt) => attempt + 1);
-                      }}
-                    >
-                      {m.common_try_again()}
-                    </Button>
-                  )}
-                </div>
-              </>
-            )}
-            {state.kind === "local" && (
-              <>
-                <p className="text-sm text-muted-foreground">{m.invite_local_mode({ app: APP_NAME })}</p>
-                <div className="flex justify-end">
-                  <Button asChild size="sm">
-                    <Link to="/">{m.invite_go_to_app()}</Link>
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+    <InviteAcceptView
+      state={state}
+      preview={preview}
+      user={user}
+      authMode={authMode}
+      providers={providers}
+      busy={busy}
+      errorId={errorId}
+      name={name}
+      email={email}
+      password={password}
+      flowStatusRef={flowStatusRef}
+      continueRef={continueRef}
+      onNameChange={setName}
+      onEmailChange={setEmail}
+      onPasswordChange={setPassword}
+      onAccept={() => void acceptInvite()}
+      onSignOut={() => void signOut()}
+      onSignIn={(event) => void signIn(event)}
+      onProviderSignIn={(provider) => void signInWithProvider(provider)}
+      onCreateAccount={() => void createAccount()}
+      onRetryPreview={() => {
+        setState({ kind: "previewing" });
+        setPreviewAttempt((attempt) => attempt + 1);
+      }}
+    />
   );
 }
