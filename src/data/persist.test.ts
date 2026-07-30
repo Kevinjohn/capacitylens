@@ -268,7 +268,7 @@ describe("attachPersistence", () => {
             revisions: [],
             archives: ops
               .filter((op) => op.method === "ARCHIVE")
-              .map((op) => ({ table: "clients", id: "c2", archived: true })),
+              .map(() => ({ table: "clients", id: "c2", archived: true })),
           }),
           { status: 200 },
         );
