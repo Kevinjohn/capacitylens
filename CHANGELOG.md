@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Made page-teardown lifecycle archives part of the browser session's ordered atomic sync batch,
+  preventing an older in-flight creation from resurrecting a removed row and ensuring a surviving
+  page's undo durably unarchives the row before persistence reports clean.
 - Bounded concurrent and queued server import preparation, cancelled abandoned worker jobs, and
   exposed temporary saturation as a retryable response instead of spawning unbounded workers.
 - Refused a destructive server import when the company changes during background import

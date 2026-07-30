@@ -47,7 +47,7 @@ import {
 } from "@capacitylens/shared/types/entities";
 // Shared lifecycle allow-list also protects the generic entity routes; the dedicated transition
 // pipeline is registered through routes/lifecycleRoutes below.
-import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import { archive, isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import { seed } from "@capacitylens/shared/data/seed";
 import { TABLES } from "./tables";
 import {
@@ -87,20 +87,21 @@ import {
   upsertRow,
   wipe,
 } from "./db";
-import { sqliteTenantStore } from "./tenantStore";
+import { sqliteTenantStore, type LifecycleRow } from "./tenantStore";
 // P2.6b tenant erasure is composed below through AccountFlows: product data, account administration
 // and local identity state retain separate owners while the local coordinator preserves one SQLite
 // transaction for the dedicated deletion endpoint.
 import { can, canSeePrivateNames, type Action } from "@capacitylens/shared/domain/access";
 import { tx } from "./txn";
 import { newId } from "@capacitylens/shared/lib/id";
-import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { type AuditRecord, type AuditSink, noopAuditSink } from "./audit";
 import { drainAuditOutbox, enqueueAudit } from "./auditOutbox";
 import { isSameSessionSuccessor, isSupersededSyncBatch, recordAppliedSyncBatch, type SyncOrder } from "./syncOrdering";
 import { BatchStateProjection } from "./batchProjection";
 import { runImportWorker } from "./runImportWorker";
 import { WorkQueueFullError } from "./workQueue";
+import { nextServerRevision } from "./revision";
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
@@ -553,7 +554,7 @@ const isLifecycleEntity = isLifecycleEntityKey;
 
 // The wire shape of one op in a POST /api/batch body (mirrors the client's syncOps.Op).
 interface BatchOp {
-  method: "PUT" | "DELETE";
+  method: "PUT" | "DELETE" | "ARCHIVE";
   table: string;
   id: string;
   row?: Record<string, unknown>;
@@ -2389,7 +2390,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           return reply.code(400).send({ error: "Each op must be an object." });
         }
         const op = rawOp as Partial<BatchOp>;
-        if (op.method !== "PUT" && op.method !== "DELETE") {
+        if (op.method !== "PUT" && op.method !== "DELETE" && op.method !== "ARCHIVE") {
           return reply.code(400).send({ error: `Unknown op method: ${String(op.method)}` });
         }
         if (typeof op.table !== "string" || !isKnownTable(op.table) || typeof op.id !== "string") {
@@ -2404,7 +2405,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               error: "An ordered PUT op needs a string updatedAt revision.",
             });
           }
-        } else {
+        } else if (op.method === "DELETE") {
           if (isLifecycleEntity(op.table)) {
             return reply.code(400).send({
               error: "Use the dedicated lifecycle endpoints for lifecycle entities.",
@@ -2419,6 +2420,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (syncOrder && typeof op.updatedAt !== "string") {
             return reply.code(400).send({
               error: "An ordered DELETE op needs a string updatedAt revision.",
+            });
+          }
+        } else {
+          if (!isLifecycleEntity(op.table)) {
+            return reply.code(400).send({ error: "ARCHIVE is supported only for lifecycle entities." });
+          }
+          if (typeof op.accountId !== "string") {
+            return reply.code(400).send({ error: "An ARCHIVE op needs a string accountId." });
+          }
+          if (syncOrder && typeof op.updatedAt !== "string") {
+            return reply.code(400).send({
+              error: "An ordered ARCHIVE op needs a string updatedAt revision.",
             });
           }
         }
@@ -2548,6 +2561,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         createdAt: string;
         updatedAt: string;
       }> = [];
+      const lifecycleArchives: Array<{ table: string; id: string; archived: boolean }> = [];
       let supersededSyncBatch = false;
       let changedOperations = 0;
       try {
@@ -2562,12 +2576,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             // the now-current database and project each preceding op so the audit verb describes the
             // same state the immediately following synchronous transaction will observe.
             const projectedRows = new Map<string, boolean>();
-            const auditActions = ops.map((op): "create" | "update" | "delete" | null => {
+            const auditActions = ops.map((op): "create" | "update" | "delete" | "archive" | null => {
               const key = `${op.table}\0${op.id}`;
               const existed = projectedRows.has(key) ? projectedRows.get(key)! : Boolean(getRow(db, op.table, op.id));
               if (op.method === "PUT") {
                 projectedRows.set(key, true);
                 return existed ? "update" : "create";
+              }
+              if (op.method === "ARCHIVE") {
+                projectedRows.set(key, existed);
+                return existed ? "archive" : null;
               }
               projectedRows.set(key, false);
               return existed ? "delete" : null;
@@ -2587,15 +2605,25 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     id: op.id,
                     changedFields: acceptedFieldNames(op.table, op.row),
                   }
-                : {
-                    ts: auditTs,
-                    userId: req.user!.id,
-                    accountId: op.accountId ?? op.id,
-                    action: "delete",
-                    entity: op.table,
-                    id: op.id,
-                    changedFields: [],
-                  };
+                : op.method === "ARCHIVE"
+                  ? {
+                      ts: auditTs,
+                      userId: req.user!.id,
+                      accountId: op.accountId!,
+                      action: "archive",
+                      entity: op.table,
+                      id: op.id,
+                      changedFields: ["archivedAt"],
+                    }
+                  : {
+                      ts: auditTs,
+                      userId: req.user!.id,
+                      accountId: op.accountId ?? op.id,
+                      action: "delete",
+                      entity: op.table,
+                      id: op.id,
+                      changedFields: [],
+                    };
             });
             return tx(
               db,
@@ -2743,6 +2771,50 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       createdAt: clean.createdAt as string,
                       updatedAt: clean.updatedAt as string,
                     });
+                  } else if (method === "ARCHIVE") {
+                    if (!isLifecycleEntity(table)) {
+                      throw new ValidationError("ARCHIVE is supported only for lifecycle entities.");
+                    }
+                    const existing = getRow(db, table, id);
+                    if (!ownsRow(existing, op.accountId)) {
+                      throw new AccountContractError({
+                        code: "NOT_FOUND",
+                        message: "Not found",
+                        retryable: false,
+                      });
+                    }
+                    if (!existing) {
+                      lifecycleArchives.push({ table, id, archived: false });
+                      continue;
+                    }
+                    if (table === "clients" && isBuiltinClient(existing as never)) {
+                      throw new ValidationError("The built-in Internal client cannot be archived.");
+                    }
+                    if (
+                      syncOrder &&
+                      isStaleWrite(existing, { updatedAt: op.updatedAt }) &&
+                      !isSameSessionSuccessor(db, syncOrder, table, id, existing)
+                    ) {
+                      throw new StaleWriteError(
+                        redactWriteEcho(table, existing, fieldVisFor(table, op.accountId ?? id)),
+                      );
+                    }
+                    if (existing.archivedAt != null || existing.deletedAt != null) {
+                      if (auditRecords[opIndex]) {
+                        auditRecords[opIndex] = null;
+                        changedOperations -= 1;
+                      }
+                      lifecycleArchives.push({ table, id, archived: existing.archivedAt != null });
+                      continue;
+                    }
+                    const now = nextServerRevision(existing.updatedAt);
+                    const archived = {
+                      ...archive(existing as unknown as LifecycleRow, now),
+                      updatedAt: now,
+                    };
+                    store.writeLifecycleRow(op.accountId!, table, archived);
+                    projection.upsert(table as AppDataKey, archived as unknown as Record<string, unknown>);
+                    lifecycleArchives.push({ table, id, archived: true });
                   } else if (method === "DELETE") {
                     if (table === "accounts") {
                       throw new ValidationError("Use the dedicated company deletion endpoint.");
@@ -2813,6 +2885,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             applied: ops.length,
             changed: 0,
             revisions: [],
+            archives: [],
             superseded: true,
             auditWarning: false,
           });
@@ -2827,6 +2900,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           applied: ops.length,
           changed: changedOperations,
           revisions,
+          archives: lifecycleArchives,
           auditWarning: auditFailed,
         });
       } catch (err) {

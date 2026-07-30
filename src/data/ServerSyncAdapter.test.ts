@@ -111,6 +111,9 @@ const commitReceipt = (init?: RequestInit): Response => {
       ok: true,
       applied: ops.length,
       revisions: ops.filter((op) => op.method === "PUT").map(revisionFor),
+      archives: ops
+        .filter((op) => op.method === "ARCHIVE")
+        .map((op) => ({ table: op.table, id: op.id, archived: true })),
     }),
     { status: 200 },
   );
@@ -1553,10 +1556,8 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
   });
 
   it("awaits a pending lifecycle-delete keepalive receipt without poisoning the batch", async () => {
-    // FIX 2: dropping the lifecycle delete on unload silently resurrects the row next session (lastSynced
-    // is in-memory and dies with the page). Instead we fire a single archive keepalive per pending
-    // lifecycle delete (archive-only — one round-trip fits keepalive; a lifecycle DELETE would 400 the
-    // keepalive batch, and soft-delete is never emitted by sync).
+    // The final teardown state is one ordered transaction: an ARCHIVE operation cannot be overtaken
+    // by an older creation, and ordinary sibling edits commit atomically with it.
     const { calls, fetchImpl } = recordingFetch();
     const a = new ServerSyncAdapter("http://x", fetchImpl);
     await a.saveAll(
@@ -1572,8 +1573,7 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
       unload: true,
     });
 
-    // the batch still carries ONLY the batch-eligible op, on keepalive — the lifecycle DELETE never
-    // poisons it.
+    // The batch carries both the ordinary edit and its lifecycle archive on one keepalive request.
     const batchCalls = calls.filter((c) => c.url.endsWith("/api/batch"));
     expect(batchCalls).toHaveLength(1);
     expect(batchCalls[0].keepalive).toBe(true);
@@ -1583,11 +1583,15 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
         table: "disciplines",
         id: "d1",
       }),
+      expect.objectContaining({
+        method: "ARCHIVE",
+        table: "clients",
+        id: "c1",
+        accountId: "a1",
+      }),
     ]);
-    // ...and the pending lifecycle delete fired as a SINGLE keepalive archive (no /delete on unload).
-    const archive = calls.find((c) => c.url.endsWith("/clients/c1/archive"));
-    expect(archive?.keepalive).toBe(true);
-    expect(JSON.parse(archive!.body!)).toEqual({ accountId: "a1" });
+    expect(calls).toHaveLength(1);
+    expect(calls.some((c) => c.url.endsWith("/clients/c1/archive"))).toBe(false);
     expect(calls.some((c) => c.url.endsWith("/clients/c1/delete"))).toBe(false); // never soft-deletes on unload
   });
 
@@ -1600,7 +1604,7 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
         body: init?.body as string | undefined,
         keepalive: init?.keepalive,
       });
-      if (url.endsWith("/clients/c1/archive")) {
+      if (url.endsWith("/api/batch") && init?.keepalive) {
         return new Promise((_resolve, reject) => {
           rejectArchive = reject;
         });
@@ -1619,7 +1623,7 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
 
     expect(calls).toEqual([
       expect.objectContaining({
-        url: "http://x/api/clients/c1/archive",
+        url: "http://x/api/batch",
         keepalive: true,
       }),
     ]);
@@ -1627,6 +1631,24 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     rejectArchive!(new Error("keepalive dropped"));
     await expect(teardown).rejects.toThrow("keepalive dropped");
     expect(settled).toBe(true);
+  });
+
+  it("unarchives a lifecycle row restored after a confirmed teardown archive even when the diff is otherwise empty", async () => {
+    const restored = { ...client("c1"), updatedAt: TS2 };
+    const { calls, fetchImpl } = recordingFetch((url) =>
+      url.endsWith("/clients/c1/unarchive") ? new Response(JSON.stringify(restored), { status: 200 }) : null,
+    );
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const created = scopedData("a1", { clients: [client("c1")] });
+
+    await adapter.saveAll(created);
+    calls.length = 0;
+    await adapter.saveAll(scopedData("a1", {}), { unload: true });
+    expect(opsOf(calls[0])).toEqual([expect.objectContaining({ method: "ARCHIVE", table: "clients", id: "c1" })]);
+
+    calls.length = 0;
+    await adapter.saveAll(created);
+    expect(calls.map((call) => call.url)).toEqual(["http://x/api/clients/c1/unarchive"]);
   });
 });
 

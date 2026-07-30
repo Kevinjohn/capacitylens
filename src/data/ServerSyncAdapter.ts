@@ -2,7 +2,7 @@ import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
 import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
-import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import { isLifecycleEntityKey, LIFECYCLE_ENTITY_KEYS } from "@capacitylens/shared/domain/lifecycle";
 import { isDomainErrorCode, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { diffOps, diffOpsFromPossibleBases, type Op } from "./syncOps";
 import { announceAuditWarning } from "../lib/auditWarning";
@@ -24,6 +24,7 @@ interface CommittedRevision {
 
 interface BatchCommitReceipt {
   revisions: CommittedRevision[];
+  archivedLifecycleKeys: Set<string>;
   superseded: boolean;
 }
 
@@ -82,6 +83,19 @@ function restoreRows(data: AppData, rows: Array<{ table: Op["table"]; row: Entit
   for (const { table, row } of rows) {
     const list = next[table] as Entity[];
     if (!list.some((existing) => existing.id === row.id)) next[table] = [...list, row] as never;
+  }
+  return next;
+}
+
+function upsertRows(data: AppData, rows: Array<{ table: Op["table"]; row: Entity }>): AppData {
+  if (rows.length === 0) return data;
+  const next = { ...data };
+  for (const { table, row } of rows) {
+    const list = next[table] as Entity[];
+    const exists = list.some((existing) => existing.id === row.id);
+    next[table] = (
+      exists ? list.map((existing) => (existing.id === row.id ? row : existing)) : [...list, row]
+    ) as never;
   }
   return next;
 }
@@ -602,16 +616,16 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
-  // Final flush on page teardown: dispatch one keepalive batch plus any lifecycle archives before
-  // awaiting their receipts. Errors propagate to the persistence orchestrator so a page that
+  // Final flush on page teardown: dispatch one ordered keepalive batch containing ordinary writes
+  // and lifecycle archives. Errors propagate to the persistence orchestrator so a page that
   // survives (for example via bfcache) remains dirty and can surface/retry them. Deliberately does
-  // NOT advance lastSynced. One ordered, atomic batch request keeps the FK-order race the old
-  // per-op Promise.all had on a new-parent+child pair closed.
+  // NOT advance lastSynced. One atomic final-state request closes both the FK-order race and the
+  // cross-request lifecycle resurrection race.
   private async flushUnload(next: AppData): Promise<void> {
     const canonicalTarget = this.canonicalizeAcknowledged(next);
     const possibleBases = this.dispatchedTarget ? [this.lastSynced, this.dispatchedTarget] : [this.lastSynced];
     const ops = diffOpsFromPossibleBases(possibleBases, canonicalTarget);
-    if (ops.some((op) => this.isRememberedLifecycleReappearance(op))) {
+    if (this.rememberedLifecycleRestoreOps(canonicalTarget).length > 0) {
       // Restoring an archive requires an ordered request/receipt before any dependent batch can be
       // constructed. A page-teardown keepalive cannot safely promise that second dispatch after the
       // page dies, so refuse explicitly; a surviving page retains the dirty state and retries through
@@ -621,46 +635,30 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       );
     }
     const { batchOps, lifecycleDeletes } = this.splitLifecycleDeletes(ops);
-    // Preflight the complete batch before dispatching ANY sibling archive. If the operation limit
-    // or keepalive byte budget makes the upserts impossible to send, archiving their old parent
-    // would invert the load-bearing upserts-before-deletes ordering. Once preflight succeeds,
-    // dispatch the atomic batch first so any reparent/upsert reaches the wire before the archives.
-    const batchBody = batchOps.length > 0 ? this.prepareBatchBody(batchOps, { keepalive: true }) : null;
-    const archiveBodies = lifecycleDeletes.map((op) => JSON.stringify({ accountId: op.accountId }));
-    const keepaliveRequestCount = archiveBodies.length + (batchBody === null ? 0 : 1);
-    const keepaliveBytes = [batchBody, ...archiveBodies].reduce(
-      (total, body) => total + (body === null ? 0 : new TextEncoder().encode(body).byteLength),
-      keepaliveRequestCount * KEEPALIVE_REQUEST_OVERHEAD_BUDGET,
-    );
+    // Teardown must carry one complete successor state. Lifecycle disappearances become ARCHIVE
+    // operations inside the same ordered transaction as ordinary writes, so the successor can
+    // safely fence an older in-flight creation even if the network delivers it first.
+    const orderedOps = [...batchOps, ...lifecycleDeletes];
+    const batchBody =
+      orderedOps.length > 0
+        ? this.prepareBatchBody(orderedOps, { keepalive: true, archiveLifecycleDeletes: true })
+        : null;
+    const keepaliveBytes =
+      batchBody === null ? 0 : new TextEncoder().encode(batchBody).byteLength + KEEPALIVE_REQUEST_OVERHEAD_BUDGET;
     if (keepaliveBytes > KEEPALIVE_BODY_BUDGET) {
       throw new KeepaliveNotDispatchedError(
         "The pending changes and lifecycle archives exceed the page-teardown keepalive budget.",
       );
     }
-    const batchFlush =
-      batchBody !== null
-        ? this.dispatchPreparedBatch(batchBody, batchOps, {
-            keepalive: true,
-          }).then((receipt) => {
-            // A sibling lifecycle archive may still reject the whole teardown flush. Remember a
-            // successful batch receipt anyway so a surviving-page retry uses the server's current
-            // revision instead of immediately conflicting on the already-committed ordinary ops.
-            this.rememberRevisions(batchOps, receipt.revisions);
-            return receipt;
-          })
-        : Promise.resolve(null);
-    // A lifecycle-entity delete cannot ride the keepalive batch (the server 400-rejects a lifecycle
-    // DELETE, which would poison the WHOLE teardown request). Dispatch one archive-only keepalive
-    // POST per pending lifecycle delete. Await every response alongside the batch: a dying page is
-    // still best-effort, while a surviving page must not acknowledge the snapshot before these
-    // requests positively converge. All requests are created before the receipt wait, so no
-    // lifecycle op waits behind another request that page termination could cancel. Wait for every
-    // sibling to settle before surfacing the first failure, preventing a surviving-page retry from
-    // overlapping a keepalive batch that is still committing.
-    const lifecycleFlushes = lifecycleDeletes.map((op) => this.archiveLifecycleRow(op, { keepalive: true }));
-    const receipts = await Promise.allSettled([batchFlush, ...lifecycleFlushes]);
-    const failure = receipts.find((receipt): receipt is PromiseRejectedResult => receipt.status === "rejected");
-    if (failure) throw failure.reason;
+    if (batchBody === null) return;
+    const receipt = await this.dispatchPreparedBatch(batchBody, orderedOps, {
+      keepalive: true,
+      archiveLifecycleDeletes: true,
+    });
+    if (!receipt.superseded) {
+      this.rememberRevisions(batchOps, receipt.revisions);
+      this.rememberLifecycleArchives(lifecycleDeletes, receipt.archivedLifecycleKeys);
+    }
   }
 
   // Drain the queue: diff against lastSynced and apply the whole delta as ONE
@@ -693,7 +691,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         // Keep the ordinary save path synchronous through its first network dispatch. That timing
         // lets an overlapping pagehide observe the in-flight request and immediately put its own
         // compensating keepalive on the wire. Only a real remembered restore needs this await.
-        const restoreOps = ops.filter((op) => this.isRememberedLifecycleReappearance(op));
+        const restoreOps = this.rememberedLifecycleRestoreOps(canonicalTarget);
         const restored =
           restoreOps.length > 0 ? await this.restoreRememberedLifecycleRows(restoreOps, targetSeedGen) : false;
         if (targetSeedGen !== this.seedGen) {
@@ -799,12 +797,27 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   private isRememberedLifecycleReappearance(op: Op): boolean {
-    return (
-      op.method === "PUT" &&
-      isLifecycleEntityKey(op.table) &&
-      this.archivedBySync.has(this.lifecycleKey(op)) &&
-      !this.lastSynced[op.table].some((row) => row.id === op.id)
-    );
+    return op.method === "PUT" && isLifecycleEntityKey(op.table) && this.archivedBySync.has(this.lifecycleKey(op));
+  }
+
+  private rememberedLifecycleRestoreOps(target: AppData): Op[] {
+    const ops: Op[] = [];
+    for (const table of LIFECYCLE_ENTITY_KEYS) {
+      for (const row of target[table]) {
+        if (this.archivedBySync.has(this.lifecycleKey({ table, id: row.id }))) {
+          ops.push({ method: "PUT", table, id: row.id, row, accountId: row.accountId });
+        }
+      }
+    }
+    return ops;
+  }
+
+  private rememberLifecycleArchives(ops: Op[], confirmed: ReadonlySet<string>): void {
+    for (const op of ops) {
+      const key = this.lifecycleKey(op);
+      if (confirmed.has(key)) this.archivedBySync.add(key);
+      else this.archivedBySync.delete(key);
+    }
   }
 
   /** Restore sync-archived rows before reapplying a redone snapshot. `ops` already follows the
@@ -824,7 +837,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       };
-      this.lastSynced = restoreRows(this.lastSynced, [{ table: op.table, row }]);
+      // A normal archive advanced lastSynced past the row, while a teardown archive deliberately
+      // did not. Replace-or-append handles both and makes the unarchive receipt authoritative.
+      this.lastSynced = upsertRows(this.lastSynced, [{ table: op.table, row }]);
       const key = this.lifecycleKey(op);
       this.acknowledgedRevisions.delete(key);
       if (sameEntityContent(op.row, row)) this.rememberRevisions([op], [revision]);
@@ -941,25 +956,37 @@ export class ServerSyncAdapter implements PersistenceAdapter {
 
   // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
   // over-limit diff is never split into separately committed prefixes.
-  private applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<BatchCommitReceipt> {
+  private applyBatch(
+    ops: Op[],
+    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  ): Promise<BatchCommitReceipt> {
     return this.dispatchPreparedBatch(this.prepareBatchBody(ops, opts), ops, opts);
   }
 
   /** Validate and serialize before a teardown dispatches any ordering-dependent sibling request. */
-  private prepareBatchBody(ops: Op[], opts?: { keepalive?: boolean }): string {
+  private prepareBatchBody(ops: Op[], opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean }): string {
     if (ops.length > MAX_OPS_PER_BATCH) {
       throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`);
     }
     // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
     // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
-    const body = JSON.stringify({ ops: this.rebaseForWire(ops) });
+    const wireOps = this.rebaseForWire(ops).map((op) =>
+      opts?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
+        ? { ...op, method: "ARCHIVE" }
+        : op,
+    );
+    const body = JSON.stringify({ ops: wireOps });
     if (opts?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
       throw new KeepaliveNotDispatchedError("The pending change was too large for a page-teardown keepalive request.");
     }
     return body;
   }
 
-  private dispatchPreparedBatch(body: string, ops: Op[], opts?: { keepalive?: boolean }): Promise<BatchCommitReceipt> {
+  private dispatchPreparedBatch(
+    body: string,
+    ops: Op[],
+    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  ): Promise<BatchCommitReceipt> {
     const sequence = this.nextSyncSequence;
     this.nextSyncSequence += 1;
     return this.postBatch(body, ops, sequence, opts);
@@ -996,7 +1023,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     body: string,
     ops: Op[],
     sequence: number,
-    opts?: { keepalive?: boolean },
+    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
   ): Promise<BatchCommitReceipt> {
     let res: Response;
     try {
@@ -1064,6 +1091,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       ok?: unknown;
       applied?: unknown;
       revisions?: unknown;
+      archives?: unknown;
       superseded?: unknown;
       auditWarning?: unknown;
     } | null;
@@ -1128,6 +1156,45 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         "Batch sync committed without complete server revisions; authoritative reload is required.",
       );
     }
-    return { revisions: compatibleRevisions, superseded: receipt.superseded === true };
+    const expectedArchives = new Set(
+      receipt.superseded === true || !opts?.archiveLifecycleDeletes
+        ? []
+        : ops
+            .filter((op) => op.method === "DELETE" && isLifecycleEntityKey(op.table))
+            .map((op) => `${op.table}\0${op.id}`),
+    );
+    const rawArchives = Array.isArray(receipt.archives) ? receipt.archives : [];
+    if (expectedArchives.size > 0 && !Array.isArray(receipt.archives)) {
+      throw new BatchCommitUncertainError("Batch sync committed without lifecycle archive receipts.");
+    }
+    const receivedArchives = new Set<string>();
+    const archivedLifecycleKeys = new Set<string>();
+    for (const archiveReceipt of rawArchives) {
+      if (!archiveReceipt || typeof archiveReceipt !== "object") {
+        throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
+      }
+      const value = archiveReceipt as { table?: unknown; id?: unknown; archived?: unknown };
+      const key = `${String(value.table)}\0${String(value.id)}`;
+      if (
+        typeof value.table !== "string" ||
+        !isLifecycleEntityKey(value.table) ||
+        typeof value.id !== "string" ||
+        typeof value.archived !== "boolean" ||
+        !expectedArchives.has(key) ||
+        receivedArchives.has(key)
+      ) {
+        throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
+      }
+      receivedArchives.add(key);
+      if (value.archived) archivedLifecycleKeys.add(key);
+    }
+    if (receivedArchives.size !== expectedArchives.size) {
+      throw new BatchCommitUncertainError("Batch sync committed without complete lifecycle archive receipts.");
+    }
+    return {
+      revisions: compatibleRevisions,
+      archivedLifecycleKeys,
+      superseded: receipt.superseded === true,
+    };
   }
 }

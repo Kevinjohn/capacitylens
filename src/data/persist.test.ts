@@ -255,6 +255,24 @@ describe("attachPersistence", () => {
     const archiveRequests: Array<{ keepalive?: boolean }> = [];
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/state")) return new Response(JSON.stringify(slice), { status: 200 });
+      if (url.endsWith("/api/batch") && init?.keepalive) {
+        const ops = (JSON.parse(init.body as string) as { ops: Array<{ method: string }> }).ops;
+        if (ops.some((op) => op.method === "ARCHIVE")) {
+          archiveRequests.push({ keepalive: true });
+          if (failKeepalive) throw new Error("lifecycle keepalive dropped");
+        }
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            applied: ops.length,
+            revisions: [],
+            archives: ops
+              .filter((op) => op.method === "ARCHIVE")
+              .map((op) => ({ table: "clients", id: "c2", archived: true })),
+          }),
+          { status: 200 },
+        );
+      }
       if (url.endsWith("/clients/c2/archive")) {
         archiveRequests.push({ keepalive: init?.keepalive });
         if (failKeepalive) throw new Error("lifecycle keepalive dropped");

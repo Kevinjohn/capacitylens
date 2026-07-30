@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import { buildApp, statusFor, MAX_BATCH_OPS, type AppOptions } from "./app";
 import { ValidationError } from "./validate";
-import { insertRow, openDb, upsertRow, type Db } from "./db";
+import { getRow, insertRow, openDb, upsertRow, type Db } from "./db";
 import { tx } from "./txn";
 import {
   FIXTURE_ACCOUNT,
@@ -2537,6 +2537,61 @@ describe("optimistic concurrency (default-on)", () => {
       expect((await state(app)).clients[0].name).toBe("Newest");
     },
   );
+
+  it.each([true, false])(
+    "an ordered teardown archive fences an older in-flight lifecycle creation (optimistic=%s)",
+    async (optimisticConcurrency) => {
+      const app = buildApp(openDb(":memory:"), { optimisticConcurrency });
+      await post(app, "accounts", account("a1"));
+      const pendingClient = client("c1", "a1");
+      const sessionId = "browser-session-lifecycle-0001";
+
+      const teardown = await orderedBatch(app, sessionId, 2, [
+        {
+          method: "ARCHIVE",
+          table: "clients",
+          id: "c1",
+          accountId: "a1",
+          updatedAt: pendingClient.updatedAt,
+        },
+      ]);
+      const olderCreation = await orderedBatch(app, sessionId, 1, [
+        {
+          method: "PUT",
+          table: "clients",
+          id: "c1",
+          row: pendingClient,
+        },
+      ]);
+
+      expect(teardown.statusCode).toBe(200);
+      expect(teardown.json()).toMatchObject({ ok: true, applied: 1, changed: 0 });
+      expect(olderCreation.statusCode).toBe(200);
+      expect(olderCreation.json()).toMatchObject({ ok: true, applied: 1, superseded: true });
+      expect((await state(app)).clients).toEqual([]);
+    },
+  );
+
+  it("applies an ordered lifecycle archive atomically and retains its inactive row", async () => {
+    const db = openDb(":memory:");
+    const app = buildApp(db);
+    await post(app, "accounts", account("a1"));
+    const created = await put(app, "clients", "c1", client("c1", "a1"));
+
+    const response = await orderedBatch(app, "browser-session-lifecycle-0002", 1, [
+      {
+        method: "ARCHIVE",
+        table: "clients",
+        id: "c1",
+        accountId: "a1",
+        updatedAt: created.json().updatedAt,
+      },
+    ]);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ ok: true, applied: 1, changed: 1 });
+    expect(getRow(db, "clients", "c1")).toMatchObject({ accountId: "a1", archivedAt: expect.any(String) });
+  });
 
   it("ordered successor still rejects a stale write after an intervening external edit", async () => {
     const app = buildApp(openDb(":memory:"), { optimisticConcurrency: false });

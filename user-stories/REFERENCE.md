@@ -198,8 +198,12 @@ never appears on desktop viewports or in landscape.
 flight when the page is hidden or closed, the teardown keepalive sends the newest complete intent
 immediately. The server orders both requests per browser session, so the newest edit wins whether
 the ordinary request or the teardown request arrives first. An undo performed before the first
-save acknowledges is also preserved, including removal of a newly created non-lifecycle row; an
-unrelated writer's intervening edit still produces the normal conflict-and-reload path.
+save acknowledges is also preserved, including removal of a newly created row that uses the
+archive lifecycle. Teardown lifecycle archives travel in the same ordered atomic batch as ordinary
+changes, so an older in-flight creation cannot recreate the archived row. If the page survives in
+the back/forward cache and the user undoes a confirmed teardown archive, the foreground retry
+unarchives that remembered row even when its local content already matches the pre-teardown save
+baseline. An unrelated writer's intervening edit still produces the normal conflict-and-reload path.
 On a conflict, the sticky notice says the edit was not saved and that CapacityLens is reloading the
 latest copy; it does not claim reload completion before the authoritative read succeeds. If that
 read fails, every write remains gated and connectivity recovery retries the read before any clean or
