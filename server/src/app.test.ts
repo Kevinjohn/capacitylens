@@ -22,6 +22,8 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
+import { runImportWorker } from "./runImportWorker";
+import type { AuditEntry } from "./audit";
 
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
@@ -37,6 +39,14 @@ const withoutRevision = <T extends object>(row: T) => {
   delete copy.updatedAt;
   return copy;
 };
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
 
 function freshApp(allowReset = true, extra: Partial<AppOptions> = {}) {
   const db = openDb(":memory:");
@@ -987,6 +997,81 @@ describe("import", () => {
     expect(proj.accountId).toBe("a1");
     expect(s.activities[0].projectId).toBe(proj.id); // FK rewired to the new project id
     expect(s.allocations).toHaveLength(1);
+  });
+
+  it("refuses a stale import instead of erasing a same-account write committed during preparation", async () => {
+    const workerStarted = deferred();
+    const releaseWorker = deferred();
+    const auditedActions: string[] = [];
+    const appendAudit = vi.fn((record: AuditEntry) => {
+      auditedActions.push(record.action);
+      return true;
+    });
+    const { app } = freshApp(true, {
+      audit: { append: appendAudit, degraded: false },
+      importWorker: async (request) => {
+        workerStarted.resolve();
+        await releaseWorker.promise;
+        return runImportWorker(request);
+      },
+    });
+    await post(app, "accounts", account("a1"));
+    auditedActions.length = 0;
+
+    const importing = call(app, {
+      method: "POST",
+      url: "/api/import",
+      payload: { accountId: "a1", data: exportFile("source") },
+    });
+    await workerStarted.promise;
+
+    const concurrentWrite = await post(app, "resources", person("concurrent", "a1"));
+    expect(concurrentWrite.statusCode).toBe(201);
+    releaseWorker.resolve();
+
+    const response = await importing;
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: "The company data changed while the import was being prepared. Retry the import from the latest data.",
+      code: "IMPORT_SNAPSHOT_STALE",
+    });
+    const current = await state(app);
+    expect(current.resources).toContainEqual(expect.objectContaining({ id: "concurrent", accountId: "a1" }));
+    expect(current.clients).not.toContainEqual(expect.objectContaining({ name: "Acme", builtin: false }));
+    expect(auditedActions).not.toContain("import");
+  });
+
+  it("does not conflict an import when another account changes during preparation", async () => {
+    const workerStarted = deferred();
+    const releaseWorker = deferred();
+    const { app } = freshApp(true, {
+      multiAccount: true,
+      importWorker: async (request) => {
+        workerStarted.resolve();
+        await releaseWorker.promise;
+        return runImportWorker(request);
+      },
+    });
+    await post(app, "accounts", account("a1"));
+    await post(app, "accounts", account("a2"));
+
+    const importing = call(app, {
+      method: "POST",
+      url: "/api/import",
+      payload: { accountId: "a1", data: exportFile("source") },
+    });
+    await workerStarted.promise;
+
+    const concurrentWrite = await post(app, "resources", person("a2-concurrent", "a2"));
+    expect(concurrentWrite.statusCode).toBe(201);
+    releaseWorker.resolve();
+
+    const response = await importing;
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ imported: 5, skipped: 1 });
+    const current = await state(app);
+    expect(current.resources).toContainEqual(expect.objectContaining({ id: "a2-concurrent", accountId: "a2" }));
+    expect(current.projects).toContainEqual(expect.objectContaining({ accountId: "a1" }));
   });
 
   it("does not persist dependent private notes imported for a deleted resource", async () => {

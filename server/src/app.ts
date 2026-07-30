@@ -284,6 +284,38 @@ export interface AppOptions {
    *  product or normalized account entries whose changedFields are field NAMES (the #1 no-PII
    *  invariant). */
   audit?: AuditSink;
+  /** Test seam for deterministically pausing import preparation around concurrent writes. The
+   * production default always uses the worker-thread implementation. */
+  importWorker?: typeof runImportWorker;
+}
+
+const IMPORT_SNAPSHOT_STALE_MESSAGE =
+  "The company data changed while the import was being prepared. Retry the import from the latest data.";
+
+class ImportSnapshotConflictError extends Error {
+  constructor() {
+    super(IMPORT_SNAPSHOT_STALE_MESSAGE);
+    this.name = "ImportSnapshotConflictError";
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
+  return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(",")}}`;
+}
+
+/** Fingerprint only the scoped rows an import replaces. Row and field ordering are normalized so
+ * equivalent SQLite reads compare equal while any accepted tenant mutation changes the token. */
+function importSnapshotFingerprint(slice: AppData): string {
+  const scoped = Object.fromEntries(
+    APP_DATA_KEYS.filter((table) => table !== "accounts").map((table) => [
+      table,
+      [...slice[table]].sort((left, right) => left.id.localeCompare(right.id)),
+    ]),
+  );
+  return createHash("sha256").update(canonicalJson(scoped)).digest("base64url");
 }
 
 // P0.5.5: NEVER let a secret reach the logs. pino strips these exact paths from every record
@@ -886,6 +918,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION;
   const applicationFailure = boundApplicationFailure(application);
   if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`);
+  const executeImportWorker = opts.importWorker ?? runImportWorker;
   // One fail-never sink receives both legacy product mutation records and normalized account-flow
   // events. Construct it before the account boundary so the coordinator—not its HTTP caller—owns
   // audit correlation for cross-port commands.
@@ -2856,7 +2889,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // uncaught 500.
       try {
         const currentSlice = store.readFullSlice(body.accountId);
-        const result = await runImportWorker({
+        const expectedSnapshot = importSnapshotFingerprint(currentSlice);
+        const result = await executeImportWorker({
           current: currentSlice,
           accountId: body.accountId,
           incoming,
@@ -2882,6 +2916,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           changedFields: [],
         };
         const auditOk = commitProductAudit(reply, auditRecord, () => {
+          // The worker runs outside SQLite so ordinary writes stay responsive. Recheck the exact
+          // tenant slice after BEGIN IMMEDIATE and before replacement: a same-account commit in the
+          // worker window must conflict, never be silently erased by this destructive import.
+          if (importSnapshotFingerprint(store.readFullSlice(body.accountId!)) !== expectedSnapshot) {
+            throw new ImportSnapshotConflictError();
+          }
           replaceAccountSlice(db, body.accountId!, validatedCompleteAccountSlice(result.data));
         });
         return {
@@ -2891,6 +2931,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           auditWarning: !auditOk,
         };
       } catch (err) {
+        if (err instanceof ImportSnapshotConflictError) {
+          return reply.code(409).send({
+            error: err.message,
+            code: "IMPORT_SNAPSHOT_STALE",
+          });
+        }
         return sendFail(reply, err);
       }
     });

@@ -153,6 +153,10 @@ scheduling mode or visibility settings. Export → import is a planning-data tra
 byte-for-byte company clone.
 Before a server import starts, CapacityLens flushes every pending edit. It then suspends persistence
 for the atomic replacement and reloads the authoritative company slice before allowing edits again.
+The server compares the complete company slice captured before import preparation with the slice
+inside the replacement transaction. If another request commits a company change while the import is
+being prepared, the import is refused with a conflict notice asking the owner to retry; the newer
+change remains stored and ordinary writes resume without an authoritative reload.
 If the import may have committed but the reload cannot prove the resulting state, the UI stays
 blocked behind an explicit reload action; parked pre-import edits are never replayed over the
 replacement. File reads and confirmations remain bound to the company that was active when the file

@@ -20,6 +20,8 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 4. Click **Cancel** the first time — the dialog closes and the live data is untouched (proves Cancel is safe).
 5. Click **Import JSON** again, re-choose the file, and this time click **Replace data**.
 6. The dialog closes; a success toast appears.
+7. If another request changes this company while the server prepares the replacement, observe the
+   conflict notice, confirm the newer change remains, and retry from the latest company data.
 
 ## Acceptance criteria
 
@@ -28,3 +30,5 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 - ✅ Clicking **Cancel** leaves the current dataset completely unchanged (nothing is imported).
 - ✅ Clicking **Replace data** swaps the live dataset for the file's contents and shows a success toast reading **"Imported N records. Press ⌘Z to undo."** (the toast reports how many records were imported — adding "(K invalid records skipped)" if any were dropped — and mentions ⌘Z).
 - ✅ After replacing, the lists/schedule reflect the imported data, not the prior live data.
+- ✅ A company change committed during server-side import preparation makes the import fail with a
+  retryable conflict notice; the committed change remains stored and ordinary writes resume.

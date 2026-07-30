@@ -589,6 +589,30 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(useStore.getState().notice?.tone).toBe("error");
   });
 
+  it("surfaces a stale-import conflict and resumes writes without discarding parked edits", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error:
+              "The company data changed while the import was being prepared. Retry the import from the latest data.",
+            code: "IMPORT_SNAPSHOT_STALE",
+          }),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    render(<ImportExport />);
+    await importAndConfirm(incoming());
+
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/changed while the import.*retry/i));
+    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(refreshOverride.value).toBe("reloaded");
+    expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]);
+  });
+
   it("a 200 with an off-spec body still re-hydrates and reports success — the server DID commit", async () => {
     // A shape error on a committed import must not be reported as "no records imported" (that
     // would skip the reload and leave the UI on pre-import data the server no longer holds).

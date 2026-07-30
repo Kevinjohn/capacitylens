@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Refused a destructive server import when the company changes during background import
+  preparation, preserving the newer committed work and prompting the owner to retry from current
+  data instead of silently overwriting it.
+
 ### Tests and documentation
 
 - Aligned the allocation-deletion user story with its confirmation flow and strengthened browser
