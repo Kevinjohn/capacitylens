@@ -441,7 +441,7 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       createdAt: TS,
     });
 
-    // rDel is a soft-delete tombstone (deletedAt set). canUnarchive gates 'archived' ONLY, so clearing
+    // rDel is a soft-delete tombstone (deletedAt set). Unarchive accepts archived rows ONLY, so clearing
     // archivedAt here would leave the tombstone still 'deleted' — the transition refuses outright.
     const res = await lifecycleAction(app, "resources", "rDel", "unarchive", "a1", cookie);
     expect(res.statusCode).toBe(409);

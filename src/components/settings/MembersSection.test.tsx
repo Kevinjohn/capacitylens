@@ -117,11 +117,11 @@ function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
 
 beforeEach(() => {
   resetStoreWithAccount(); // sets activeAccountId = DEFAULT_ACCOUNT_ID
-  setOfflineReadState(false);
+  setOfflineReadState("cleanup", false);
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue("reloaded");
 });
 afterEach(() => {
-  setOfflineReadState(false);
+  setOfflineReadState("cleanup", false);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -202,13 +202,13 @@ describe("MembersSection — self-gate", () => {
   it("defers privileged directory reads while offline and refreshes them on recovery", async () => {
     const fetchMock = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
     vi.stubGlobal("fetch", fetchMock);
-    setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
     renderSection();
 
     await act(async () => {});
     expect(fetchMock).not.toHaveBeenCalled();
 
-    act(() => setOfflineReadState(false));
+    act(() => setOfflineReadState("cleanup", false));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members`,
@@ -638,7 +638,7 @@ describe("MembersSection — admin affordances", () => {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockFetch(members));
     vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
-      setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+      setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
       return "reloaded";
     });
     renderSection();

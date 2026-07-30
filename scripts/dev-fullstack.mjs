@@ -14,22 +14,19 @@
 //   node scripts/dev-fullstack.mjs   # = pnpm run dev
 
 import { spawn } from "node:child_process";
-import net from "node:net";
 import { parsePort } from "./port.mjs";
+import { killProcessTree, portInUse, requireNode24 } from "./dev-processes.mjs";
 
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
 // Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
 // (thrown at module-link time, before any server code runs) and the launcher then tears the
 // whole stack down — accurate, but it never tells the user the actual requirement.
-const nodeMajor = Number(process.versions.node.split(".")[0]);
-if (!Number.isInteger(nodeMajor) || nodeMajor < 24) {
-  console.error(
-    `dev: full-stack dev needs Node 24+ — found ${process.versions.node}. The API uses Node's ` +
-      `built-in node:sqlite (see .nvmrc). Fix: \`nvm use\`, or install Node 24+ from ` +
-      `https://nodejs.org. No Node 24? \`pnpm run dev:demo\` runs the backend-free demo build.`,
-  );
-  process.exit(1);
-}
+requireNode24(
+  (version) =>
+    `dev: full-stack dev needs Node 24+ — found ${version}. The API uses Node's ` +
+    `built-in node:sqlite (see .nvmrc). Fix: \`nvm use\`, or install Node 24+ from ` +
+    `https://nodejs.org. No Node 24? \`pnpm run dev:demo\` runs the backend-free demo build.`,
+);
 
 // Keep the launcher, the API child (server reads PORT), and the Vite proxy on the SAME port.
 // vite.config.ts's proxy target MUST use the same `CAPACITYLENS_DEV_API_PORT ?? 8787` default so the
@@ -45,25 +42,6 @@ const WEB_PORT = 5173;
  * no new dependency. We surface a collision as a hard error rather than letting the API child fail
  * with a confusing EADDRINUSE deep in tsx, or (worse) silently reuse a stale/foreign server.
  */
-function portInUse(port) {
-  return new Promise((resolve) => {
-    const socket = net
-      .connect({ host: "127.0.0.1", port }, () => {
-        socket.destroy();
-        resolve(true);
-      })
-      .on("error", () => {
-        socket.destroy();
-        resolve(false);
-      });
-    // Don't hang the launcher if the probe never resolves (e.g. a host that blackholes the port).
-    socket.setTimeout(1000, () => {
-      socket.destroy();
-      resolve(false);
-    });
-  });
-}
-
 if (await portInUse(API_PORT)) {
   console.error(
     `dev: port ${API_PORT} is already in use — the API can't start. Stop whatever holds it ` +
@@ -96,24 +74,11 @@ let shuttingDown = false;
  * reaches the whole tree. ESRCH (group already gone) is fine; Windows has no POSIX groups, so fall
  * back to `taskkill /T` which walks the tree there.
  */
-function killTree(child) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  try {
-    if (process.platform === "win32") {
-      spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
-    } else {
-      process.kill(-child.pid, "SIGTERM");
-    }
-  } catch (err) {
-    if (err.code !== "ESRCH") throw err;
-  }
-}
-
 /** Tear down every still-running child, then exit. Idempotent (first caller wins). */
 function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
-  for (const child of children) killTree(child);
+  for (const child of children) killProcessTree(child);
   process.exit(code);
 }
 

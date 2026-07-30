@@ -3,7 +3,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
 const serverRoot = resolve(import.meta.dirname, "../..");
-const sharedAccountRoot = resolve(serverRoot, "../../shared/src/account");
+const sharedRoot = resolve(serverRoot, "../../shared/src");
+const sharedAccountRoot = resolve(sharedRoot, "account");
 const browserRoot = resolve(serverRoot, "../../src");
 
 function sourceFiles(directory: string): string[] {
@@ -18,17 +19,22 @@ function sourceFiles(directory: string): string[] {
 
 function runtimeImports(file: string): string[] {
   const source = readFileSync(file, "utf8");
-  const imports = new Set(
-    [
-      ...[...source.matchAll(/import\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((match) => match[1]!),
-      ...[...source.matchAll(/(?:import|export)\s*['"]([^'"]+)['"]/g)].map((match) => match[1]!),
-      ...[...source.matchAll(/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g)].map((match) => match[1]!),
-      ...[...source.matchAll(/export\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((match) => match[1]!),
-    ].filter((specifier) => specifier.startsWith(".")),
-  );
+  const imports = new Set([
+    ...[...source.matchAll(/import\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((match) => match[1]!),
+    ...[...source.matchAll(/(?:import|export)\s*['"]([^'"]+)['"]/g)].map((match) => match[1]!),
+    ...[...source.matchAll(/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g)].map((match) => match[1]!),
+    ...[...source.matchAll(/export\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)].map((match) => match[1]!),
+  ]);
   return [...imports].flatMap((specifier) => {
-    const base = resolve(dirname(file), specifier);
-    const candidates = [base, `${base}.ts`, `${base}.tsx`, resolve(base, "index.ts")];
+    const base = specifier.startsWith(".")
+      ? resolve(dirname(file), specifier)
+      : specifier.startsWith("@capacitylens/shared/")
+        ? resolve(sharedRoot, specifier.slice("@capacitylens/shared/".length))
+        : specifier.startsWith("@/")
+          ? resolve(browserRoot, specifier.slice(2))
+          : null;
+    if (base === null) return [];
+    const candidates = [base, `${base}.ts`, `${base}.tsx`, `${base}.mts`, `${base}.mjs`, resolve(base, "index.ts")];
     const resolved = candidates.find((candidate) => existsSync(candidate));
     return resolved ? [resolved] : [];
   });
@@ -63,11 +69,12 @@ describe("account-boundary architecture", () => {
     }
   });
 
-  it("keeps the coordinator orchestration-only", () => {
+  it("keeps coordinator persistence behind transaction and command-ledger seams", () => {
     const coordinator = resolve(serverRoot, "accounts/localAccountFlows.ts");
     const source = readFileSync(coordinator, "utf8");
     expect(source).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
     expect(source).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
+    expect(source).not.toMatch(/from ['"].*\/state['"]/);
     expect(source).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/);
     expect(source).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/);
 
@@ -89,6 +96,16 @@ describe("account-boundary architecture", () => {
     expect(path?.map((file) => relative(serverRoot, file))).toEqual([
       "accounts/sqliteAccountAdminPort.ts",
       "controlTables.ts",
+    ]);
+  });
+
+  it("follows workspace aliases as well as relative imports", () => {
+    const coordinator = resolve(serverRoot, "accounts/localAccountFlows.ts");
+    const sharedErrors = resolve(sharedAccountRoot, "errors.ts");
+    const path = dependencyPath(coordinator, new Set([sharedErrors]));
+    expect(path?.map((file) => relative(serverRoot, file))).toEqual([
+      "accounts/localAccountFlows.ts",
+      "../../shared/src/account/errors.ts",
     ]);
   });
 

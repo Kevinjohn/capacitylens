@@ -1,38 +1,15 @@
-import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
-import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { buildAccessLabEnv } from "./access-lab-env.mjs";
 import { spawnPnpm } from "./pnpm-spawn.mjs";
+import { killProcessTree, portInUse, requireNode24 } from "./dev-processes.mjs";
 
-const nodeMajor = Number(process.versions.node.split(".")[0]);
-if (!Number.isInteger(nodeMajor) || nodeMajor < 24) {
-  console.error(`dev:access needs Node 24+ — found ${process.versions.node}. Run \`nvm use\` and retry.`);
-  process.exit(1);
-}
+requireNode24((version) => `dev:access needs Node 24+ — found ${version}. Run \`nvm use\` and retry.`);
 
 const API_PORT = 8897;
 const WEB_PORT = 5473;
 const dbUrl = new URL("../server/.access-lab.db", import.meta.url);
 const dbPath = fileURLToPath(dbUrl);
-
-function portInUse(port) {
-  return new Promise((resolve) => {
-    const socket = net
-      .connect({ host: "127.0.0.1", port }, () => {
-        socket.destroy();
-        resolve(true);
-      })
-      .on("error", () => {
-        socket.destroy();
-        resolve(false);
-      });
-    socket.setTimeout(1000, () => {
-      socket.destroy();
-      resolve(false);
-    });
-  });
-}
 
 for (const [label, port] of [
   ["API", API_PORT],
@@ -71,20 +48,10 @@ if (compileCode !== 0) process.exit(compileCode);
 const children = [];
 let shuttingDown = false;
 
-function killTree(child) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  try {
-    if (process.platform === "win32") spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
-    else process.kill(-child.pid, "SIGTERM");
-  } catch (error) {
-    if (error.code !== "ESRCH") throw error;
-  }
-}
-
 function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
-  for (const child of children) killTree(child);
+  for (const child of children) killProcessTree(child);
   process.exit(code);
 }
 

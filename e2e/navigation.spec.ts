@@ -78,16 +78,19 @@ test.describe("Navigation & shell", () => {
   test("uses blue identity, green positive actions and red destructive actions", async ({ page }) => {
     await openApp(page);
 
-    await expect(page.getByText("CapacityLens", { exact: true }).first()).toHaveClass(/text-brand/);
+    await expect(page.getByText("CapacityLens", { exact: true }).first()).toHaveAttribute(
+      "data-visual-intent",
+      "brand",
+    );
 
     await page.getByRole("link", { name: "Clients", exact: true }).click();
     await page.getByRole("button", { name: "Add client" }).click();
     const clientDialog = page.getByRole("dialog", { name: "Add client" });
-    await expect(clientDialog.getByRole("button", { name: "Save" })).toHaveClass(/bg-ok-strong/);
+    await expect(clientDialog.getByRole("button", { name: "Save" })).toHaveAttribute("data-variant", "default");
     await clientDialog.getByRole("button", { name: "Cancel" }).click();
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await expect(page.getByTestId("clear-local-storage")).toHaveClass(/bg-danger-soft/);
+    await expect(page.getByTestId("clear-local-storage")).toHaveAttribute("data-variant", "danger-soft");
   });
 
   test("renders in dark mode", async ({ page }) => {

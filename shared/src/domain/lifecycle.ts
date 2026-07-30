@@ -347,7 +347,7 @@ export function canArchive(entity: LifecycleFields): boolean {
  * @param entity - the entity to test.
  * @returns `true` iff {@link lifecycleStatus} is `'archived'`.
  */
-export function canUnarchive(entity: LifecycleFields): boolean {
+function canUnarchive(entity: LifecycleFields): boolean {
   return lifecycleStatus(entity) === "archived";
 }
 
@@ -364,7 +364,7 @@ export function canUnarchive(entity: LifecycleFields): boolean {
  * @param entity - the entity to test.
  * @returns `true` iff {@link lifecycleStatus} is `'archived'`.
  */
-export function canSoftDelete(entity: LifecycleFields): boolean {
+function canSoftDelete(entity: LifecycleFields): boolean {
   return lifecycleStatus(entity) === "archived";
 }
 

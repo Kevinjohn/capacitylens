@@ -13,6 +13,7 @@
 
 import { spawnSync } from "node:child_process";
 import { nonColourEnvironment, synchronousSpawnStatus } from "./pnpm-spawn.mjs";
+import { E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
 
 const forwardedArgs = process.argv.slice(2);
 
@@ -36,10 +37,9 @@ const chromeWebkit = run(
   "Chromium + WebKit/Safari",
   {
     CAPACITYLENS_E2E_PHASE: "chromium-webkit",
-    CAPACITYLENS_WEBKIT: "1",
-    CAPACITYLENS_VITE_ONLY: "1",
+    ...E2E_RUN_PRESETS.chromiumWebkit.environment,
   },
-  ["--project", "chromium", "--project", "webkit"],
+  E2E_RUN_PRESETS.chromiumWebkit.projects.flatMap((project) => ["--project", project]),
 );
 
 // 2) Firefox/Gecko core specs on its own, AFTER the above — runs even when it failed.
@@ -47,9 +47,9 @@ const firefox = run(
   "Firefox/Gecko",
   {
     CAPACITYLENS_E2E_PHASE: "firefox",
-    CAPACITYLENS_FIREFOX_ONLY: "1",
+    ...E2E_RUN_PRESETS.firefoxOnly.environment,
   },
-  ["--project", "firefox"],
+  E2E_RUN_PRESETS.firefoxOnly.projects.flatMap((project) => ["--project", project]),
 );
 
 // Fail the run if either engine failed; 0 only when BOTH passed.

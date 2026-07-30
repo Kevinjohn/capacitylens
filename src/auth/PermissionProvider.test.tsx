@@ -53,12 +53,12 @@ function renderSharedDirectoryProvider() {
 
 beforeEach(() => {
   resetStoreWithAccount();
-  setOfflineReadState(false);
+  setOfflineReadState("cleanup", false);
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
 });
 
 afterEach(() => {
-  setOfflineReadState(false);
+  setOfflineReadState("cleanup", false);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -89,7 +89,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
   it("reports membership as unavailable for the offline Viewer projection without fetching", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
     const view = renderProvider();
 
     expect(screen.getByText("unavailable:viewer:read")).toBeInTheDocument();
@@ -119,11 +119,11 @@ describe("PermissionProvider authenticated lookup posture", () => {
     expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("owner");
 
-    act(() => setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z")));
+    act(() => setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z")));
     expect(screen.getByText("unavailable:viewer:read")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("viewer");
 
-    act(() => setOfflineReadState(false));
+    act(() => setOfflineReadState("cleanup", false));
     expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("viewer");
     expect(fetchMock).toHaveBeenCalledTimes(2);

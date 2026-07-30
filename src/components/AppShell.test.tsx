@@ -37,7 +37,7 @@ beforeEach(() => {
   useStore.getState().setNotice(null);
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
-  setOfflineReadState(false);
+  setOfflineReadState("cleanup", false);
 });
 
 function renderAppShell(initialEntries: string[] = ["/"], includeLocationProbe = false) {
@@ -189,7 +189,7 @@ describe("AppShell navigation links", () => {
   });
 
   it("labels a cached snapshot as Offline and view only instead of Demo access", () => {
-    setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
     renderAppShell();
 
     expect(screen.getByTestId("active-role")).toHaveTextContent("Offline · View only");

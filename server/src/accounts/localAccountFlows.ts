@@ -13,6 +13,10 @@ import { tx } from "../txn";
 import {
   beginCommand,
   completeCommand,
+  correlatePendingAccountCommand,
+  eraseWorkspaceCommandHistoryInTx,
+  getAccountCommandById,
+  getAccountCommandByIdForReconciliation,
   markAccountCommandReplay,
   readCommand,
   resumeExistingCommand,
@@ -21,12 +25,6 @@ import {
   terminatePendingCommand,
 } from "./commands";
 import { KeyedOperationLock } from "./operationLock";
-import {
-  correlatePendingAccountCommand,
-  eraseWorkspaceCommandHistoryInTx,
-  getAccountCommandById,
-  getAccountCommandByIdForReconciliation,
-} from "./state";
 import type { AccountAdminPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 import type { LocalAccountAdminPort } from "./sqliteAccountAdminPort";
@@ -248,7 +246,8 @@ export function actorContextFromSession(
   };
 }
 
-/** Cross-port orchestration only: policy decisions remain inside AccountAdminPort. */
+/** Cross-port orchestration with explicit transaction and command-ledger ownership. Policy
+ * decisions remain inside AccountAdminPort; durable ledger representation remains in commands.ts. */
 export function localAccountFlows(input: {
   applicationId: string;
   db: Db;

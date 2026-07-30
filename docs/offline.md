@@ -36,6 +36,10 @@ Signing out clears that user's cached identity and snapshots before ending the s
 Offline preference changes and cleanup boundaries propagate across open tabs: disabling or signing
 out clears every tab's read-only marker and page-local cache scope, while enabling lets a tab with
 an already verified live identity participate in subsequent cache writes.
+On application startup, an enabled preference is accepted only when the service worker, promoted
+shell metadata, named cache and cached root document still agree. If browser or operating-system
+cleanup removed any part of that shell, CapacityLens clears the stale preference and requires
+offline access to be enabled again rather than promising an incomplete offline experience.
 “Clear device data” clears the offline cache, its device encryption key and CapacityLens
 preferences. Browser or operating system storage eviction can remove the cache earlier than seven
 days. Cache maintenance physically removes expired records the next time the application opens or

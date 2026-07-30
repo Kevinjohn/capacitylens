@@ -4,7 +4,6 @@
 import type { Role } from "../account/types";
 import {
   canAdministerAccount,
-  canAdministerIdentity,
   canAdministerIdentityAcrossWorkspaces,
   canManageMemberRole as canManageCanonicalMemberRole,
   canRemoveMember as canRemoveCanonicalMember,
@@ -165,45 +164,19 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
 }
 
 /**
- * May `actorRole` issue a password-reset link for a member holding `targetRole`? The PURE policy
- * behind admin-issued reset links — single-sourced here alongside {@link canRemoveMember}
- * for the same no-drift reason (client hides the control, server enforces it).
- *
- * Rules (deny by default — same who-may-touch-whom shape as removal, because a reset link IS an
- * account-takeover capability: whoever holds it can sign in as the target):
- * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
- * - An admin may NOT reset an OWNER's password (`targetRole === 'owner'` requires
- *   `actorRole === 'owner'`) — otherwise an admin could mint an owner-session for themselves,
- *   the exact privilege-escalation path the no-admin→owner-grant rule closes elsewhere.
- *
- * Self-reset is deliberately permitted by this matrix (an owner resetting the owner row passes):
- * it is harmless — the actor already holds that session — and useful when a social-sign-in user
- * wants a password set for them.
- *
- * PURE: no I/O, no session — just the two roles.
- *
- * @param actorRole  - the acting member's role.
- * @param targetRole - the role of the member whose password would be reset.
- * @returns `true` iff issuing the reset link is permitted by the pure matrix; `false` otherwise.
- */
-export function canResetMemberPassword(actorRole: Role, targetRole: Role): boolean {
-  return canAdministerIdentity(actorRole, targetRole);
-}
-
-/**
  * May `actor` issue a password-reset link for `target`, judged across EVERY account the target
  * belongs to?
  *
  * A reset link sets the target's Better Auth credential, which is account-GLOBAL: whoever redeems it
  * can sign in as the target into EVERY account the target is a member of. So the per-account
- * {@link canResetMemberPassword} check on the acting account alone is NOT enough — it would let an
+ * identity-administration check on the acting account alone is NOT enough — it would let an
  * admin of account X mint a link for a user who is a mere editor in X but the OWNER of account Y,
  * handing X's admin a takeover of Y (reachable under CAPACITYLENS_MULTI_ACCOUNT, where one identity
  * holds memberships in several accounts). Even an OWNER of X must not reset a user who owns Y — X's
  * owner has no standing in Y.
  *
  * The invariant: the actor may reset the target ONLY IF, in every account the target is a member of,
- * the actor is ALSO a member there with a role that {@link canResetMemberPassword} permits over the
+ * the actor is ALSO a member there with sufficient authority over the
  * target's role there. In the single-account default (the target belongs to exactly the acting
  * account) this reduces exactly to the per-account check.
  *
@@ -212,10 +185,10 @@ export function canResetMemberPassword(actorRole: Role, targetRole: Role): boole
  * no such target — you cannot escalate against your own identity, because you already hold that
  * session. So for a self-reset the cross-account authority check is skipped entirely and we require
  * only the fail-closed non-empty-map rule (`size > 0` — a self with zero memberships is not a real
- * identity). This is what keeps the self-reset promise in {@link canResetMemberPassword}'s docstring
- * (a social-sign-in user setting themselves a password) working under CAPACITYLENS_MULTI_ACCOUNT:
+ * identity). This keeps a social-sign-in user setting their own password working under
+ * CAPACITYLENS_MULTI_ACCOUNT:
  * without the exemption, an owner of account X who is also a plain editor in account Y could not reset
- * their OWN password, because the loop would hit Y and `canResetMemberPassword('editor','editor')`
+ * their OWN password, because the loop would hit Y and identity administration for editor/editor
  * fails the `manageMembers` tier. Behaviour for the ACTING account is unchanged either way: the
  * route's `authorize(..., 'manageMembers')` gate still restricts who may call at all, and the
  * per-account matrix already passes `(admin,admin)`/`(owner,owner)` for a self-target in that account.

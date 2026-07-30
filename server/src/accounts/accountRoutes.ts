@@ -564,7 +564,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
   // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,
-  // exactly like an invite. Gated 'manageMembers' + the pure canResetMemberPassword guard (an
+  // exactly like an invite. Gated 'manageMembers' + the account policy's identity-administration guard (an
   // admin must never reset an OWNER — a reset link is an account-takeover capability, so this is
   // the same escalation door the no-admin→owner-grant rule closes). Password mode ONLY: 'sso'
   // delegates credentials to the IdP (400, not a crash), and OFF has no credentials at all. The

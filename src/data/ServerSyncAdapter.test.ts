@@ -170,7 +170,7 @@ describe("offline transport fallback", () => {
       expect(offlineStateSnapshot()).toMatchObject({ readOnly: true });
     } finally {
       await clearAllOfflineData();
-      setOfflineReadState(false);
+      setOfflineReadState("cleanup", false);
       localStorage.clear();
       vi.unstubAllGlobals();
     }
@@ -203,7 +203,7 @@ describe("offline transport fallback", () => {
       expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
     } finally {
       await clearAllOfflineData();
-      setOfflineReadState(false);
+      setOfflineReadState("cleanup", false);
       localStorage.clear();
       vi.unstubAllGlobals();
     }
@@ -233,7 +233,7 @@ describe("offline transport fallback", () => {
       expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
     } finally {
       await clearAllOfflineData();
-      setOfflineReadState(false);
+      setOfflineReadState("cleanup", false);
       localStorage.clear();
       vi.unstubAllGlobals();
     }
@@ -356,13 +356,13 @@ describe("ServerSyncAdapter.loadAll", () => {
     const fetchImpl = vi.fn(async () => new Response("not json", { status: 400 })) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
 
-    setOfflineReadState(true);
+    setOfflineReadState("tenant", true);
     try {
       await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
       expect(fetchImpl).toHaveBeenCalledTimes(1);
       expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
     } finally {
-      setOfflineReadState(false);
+      setOfflineReadState("cleanup", false);
     }
   });
 

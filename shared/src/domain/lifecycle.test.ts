@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   lifecycleStatus,
   canArchive,
-  canUnarchive,
-  canSoftDelete,
   canPurge,
   archive,
   unarchive,
@@ -76,12 +74,11 @@ describe("lifecycleStatus — derive state from tombstones (deletedAt wins)", ()
   });
 });
 
-describe("can* predicates — full truth table over active/archived/deleted", () => {
-  // Hand-written oracle: archive←active, unarchive←archived, softDelete←archived.
+describe("canArchive — public archive affordance over active/archived/deleted", () => {
   const EXPECTED = {
-    active: { canArchive: true, canUnarchive: false, canSoftDelete: false },
-    archived: { canArchive: false, canUnarchive: true, canSoftDelete: true },
-    deleted: { canArchive: false, canUnarchive: false, canSoftDelete: false },
+    active: true,
+    archived: false,
+    deleted: false,
   } as const;
   const samples: Record<keyof typeof EXPECTED, Sample> = {
     active: makeActive(),
@@ -89,15 +86,8 @@ describe("can* predicates — full truth table over active/archived/deleted", ()
     deleted: makeDeleted(),
   };
   for (const state of ["active", "archived", "deleted"] as const) {
-    const e = EXPECTED[state];
-    it(`canArchive(${state}) === ${e.canArchive}`, () => {
-      expect(canArchive(samples[state])).toBe(e.canArchive);
-    });
-    it(`canUnarchive(${state}) === ${e.canUnarchive}`, () => {
-      expect(canUnarchive(samples[state])).toBe(e.canUnarchive);
-    });
-    it(`canSoftDelete(${state}) === ${e.canSoftDelete}`, () => {
-      expect(canSoftDelete(samples[state])).toBe(e.canSoftDelete);
+    it(`canArchive(${state}) === ${EXPECTED[state]}`, () => {
+      expect(canArchive(samples[state])).toBe(EXPECTED[state]);
     });
   }
 });

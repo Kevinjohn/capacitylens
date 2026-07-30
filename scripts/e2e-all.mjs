@@ -17,6 +17,7 @@
 
 import { spawnSync } from "node:child_process";
 import { nonColourEnvironment, synchronousSpawnStatus } from "./pnpm-spawn.mjs";
+import { E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
 
 const forwardedArgs = process.argv.slice(2);
 
@@ -34,16 +35,19 @@ function run(label, env, extraArgs = []) {
 
 // 1) Chromium plus the DB/auth projects. No alternative-engine flag means the three server-backed
 //    projects retain their ordinary browser and get the only multi-server invocation.
-const chromium = run("Chromium + DB/auth", { CAPACITYLENS_E2E_PHASE: "chromium-server" });
+const chromium = run("Chromium + DB/auth", {
+  CAPACITYLENS_E2E_PHASE: "chromium-server",
+  ...E2E_RUN_PRESETS.standard.environment,
+});
 
 // 2) WebKit/Safari against one Vite server, even when Chromium failed.
 const webkit = run(
   "WebKit/Safari",
   {
     CAPACITYLENS_E2E_PHASE: "webkit",
-    CAPACITYLENS_WEBKIT_ONLY: "1",
+    ...E2E_RUN_PRESETS.webkitOnly.environment,
   },
-  ["--project", "webkit"],
+  E2E_RUN_PRESETS.webkitOnly.projects.flatMap((project) => ["--project", project]),
 );
 
 // 3) Firefox/Gecko against one Vite server, even when either earlier invocation failed.
@@ -51,9 +55,9 @@ const firefox = run(
   "Firefox/Gecko",
   {
     CAPACITYLENS_E2E_PHASE: "firefox",
-    CAPACITYLENS_FIREFOX_ONLY: "1",
+    ...E2E_RUN_PRESETS.firefoxOnly.environment,
   },
-  ["--project", "firefox"],
+  E2E_RUN_PRESETS.firefoxOnly.projects.flatMap((project) => ["--project", project]),
 );
 
 // Fail the run if any engine failed; 0 only when ALL passed.

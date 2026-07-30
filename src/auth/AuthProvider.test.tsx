@@ -146,6 +146,42 @@ describe("AuthProvider — server mode", () => {
     await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledTimes(1));
   });
 
+  it("hides an active tenant immediately when a sibling tab signs out, then rechecks the session", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        me(200, {
+          authMode: "password",
+          user: { id: "u1", email: "a@b.test" },
+        }),
+      )
+      .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { AuthProvider, useStore } = await freshProvider();
+    render(
+      <AuthProvider>
+        <div>tenant-content</div>
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("tenant-content")).toBeInTheDocument();
+    useStore.setState({ activeAccountId: "a-studio" });
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "capacitylens/offlineWriteBoundary",
+          newValue: "1234:sibling-sign-out",
+        }),
+      );
+    });
+
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Checking your session…");
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it.each([
     ["signed-out", me(401, { authMode: "password", providers: [] }), "Sign in"],
     [
@@ -311,7 +347,7 @@ describe("AuthProvider — server mode", () => {
     );
     const { AuthProvider, useStore, offlineStateSnapshot, setOfflineReadState } = await freshProvider();
     useStore.setState({ activeAccountId: "a1" });
-    setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState("identity", true, Date.parse("2026-07-17T10:00:00.000Z"));
 
     render(
       <AuthProvider>
@@ -662,6 +698,29 @@ describe("AuthProvider — server mode", () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal("indexedDB", new IDBFactory());
     localStorage.setItem("capacitylens/offlineRead", "on");
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        getRegistrations: vi.fn().mockResolvedValue([
+          {
+            active: { scriptURL: "https://capacitylens.test/offline-worker.js" },
+            waiting: null,
+            installing: null,
+          },
+        ]),
+      },
+    });
+    vi.stubGlobal("caches", {
+      open: vi.fn(async (name: string) => ({
+        match: vi
+          .fn()
+          .mockResolvedValue(
+            name === "capacitylens-offline-shell-metadata-v1"
+              ? new Response("capacitylens-shell-release-a")
+              : new Response("<html>shell</html>"),
+          ),
+      })),
+      has: vi.fn().mockResolvedValue(true),
+    });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { AuthProvider, useAuth, cacheAuthSnapshot, offlineStateSnapshot } = await freshProvider();

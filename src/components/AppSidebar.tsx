@@ -59,7 +59,12 @@ export function AppSidebar({
           </TooltipTrigger>
           <TooltipContent>{toggleLabel}</TooltipContent>
         </Tooltip>
-        <div className="truncate text-xl font-bold text-brand group-data-[collapsible=icon]:hidden">{APP_NAME}</div>
+        <div
+          data-visual-intent="brand"
+          className="truncate text-xl font-bold text-brand group-data-[collapsible=icon]:hidden"
+        >
+          {APP_NAME}
+        </div>
       </SidebarHeader>
 
       <SidebarContent>

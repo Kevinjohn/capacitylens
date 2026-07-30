@@ -9,11 +9,18 @@ import {
   runAuthMigrations,
   hashPasswordWithBackpressure,
   verifyPasswordWithBackpressure,
+  countUsers,
 } from "./auth";
 import type { PasswordHasher } from "./passwordSecurity";
 import { WorkQueueFullError } from "./workQueue";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { localExternalIdentityAdmission } from "./accounts/externalIdentityAdmission";
+import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
+
+const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
+  identityHasAnyPrincipal: () => countUsers(db) !== 0,
+  hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
+});
 import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
 import { registerServerFixtureCleanup } from "./testHelpers";
 
@@ -393,28 +400,28 @@ describe("external identity creation gate", () => {
     const env = { CAPACITYLENS_SSO_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
         candidate: { email: "OWNER@example.com", emailVerified: true },
       }),
     ).toBe(true);
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
         candidate: { email: "owner@example.com", emailVerified: false },
       }),
     ).toBe(false);
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
         candidate: { email: "stranger@example.com", emailVerified: true },
       }),
     ).toBe(false);
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: "not-an-email",
         candidate: { email: "not-an-email", emailVerified: true },
       }),
@@ -446,14 +453,14 @@ describe("external identity creation gate", () => {
 
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: undefined,
         candidate: { email: " Person@Example.com ", emailVerified: true },
       }),
     ).toBe(true);
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: undefined,
         candidate: { email: "person@example.com", emailVerified: false },
       }),
@@ -479,14 +486,14 @@ describe("external identity creation gate", () => {
 
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: undefined,
         candidate: { email: "person@example.com", emailVerified: true },
       }),
     ).toBe(false);
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: "person@example.com",
         candidate: { email: "person@example.com", emailVerified: true },
       }),
@@ -523,14 +530,14 @@ describe("external identity creation gate", () => {
     );
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: undefined,
         candidate: { email: "expired@example.com", emailVerified: true },
       }),
     ).toBe(false);
     expect(
       localExternalIdentityAdmission({
-        db,
+        ...admissionDependencies(db),
         bootstrapEmails: undefined,
         candidate: { email: "used@example.com", emailVerified: true },
       }),

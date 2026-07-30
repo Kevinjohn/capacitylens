@@ -205,7 +205,7 @@ export function sanitizeWrite(
     //   • an unrelated field-edit (e.g. PATCH {color}) can't CLEAR an existing tombstone — the PATCH
     //     merges `existing` (carrying its real archivedAt) and THEN this funnel runs, so a blind strip
     //     would let upsertRow NULL the column and silently RESURRECT an archived/soft-deleted row to
-    //     active. There is NO un-delete route anywhere (canUnarchive rejects a 'deleted' tombstone),
+    //     active. There is NO un-delete route anywhere (the unarchive transition rejects a deleted tombstone),
     //     so this would manufacture a capability the product deliberately has none of.
     // On a CREATE (existing === undefined) both fall through to the strip, so new rows start active.
     // The IMPORT path is untouched: it uses sanitizeImportedRecord directly (not sanitizeWrite), so a

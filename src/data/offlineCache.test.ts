@@ -14,6 +14,7 @@ import {
   readCachedAuthSnapshot,
   readCachedAccountSlice,
   offlineShellAvailable,
+  revalidateOfflineShell,
   setOfflineReadEnabled,
   setOfflineReadState,
   subscribeOfflinePreference,
@@ -179,6 +180,18 @@ describe("offline preference", () => {
     expect(offlineReadEnabled()).toBe(false);
   });
 
+  it("keeps a cached tenant read-only until the tenant boundary itself reloads or cleanup runs", () => {
+    setOfflineReadState("tenant", true, 123);
+
+    setOfflineReadState("identity", true, 456);
+    setOfflineReadState("identity", false);
+    setOfflineReadState("accounts", false);
+    expect(offlineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
+
+    setOfflineReadState("tenant", false);
+    expect(offlineStateSnapshot()).toMatchObject({ readOnly: false, lastUpdated: null });
+  });
+
   it("does not leave the preference enabled when worker registration fails", async () => {
     vi.stubGlobal("navigator", {
       serviceWorker: {
@@ -221,6 +234,50 @@ describe("offline preference", () => {
     lifecycle.transition("redundant");
 
     await expect(enabling).rejects.toThrow(/installation failed/i);
+    expect(offlineReadEnabled()).toBe(false);
+  });
+
+  it("keeps an enabled preference only while its worker and active shell cache still exist", async () => {
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        getRegistrations: vi.fn().mockResolvedValue([
+          {
+            active: { scriptURL: "https://capacitylens.test/offline-worker.js" },
+            waiting: null,
+            installing: null,
+          },
+        ]),
+      },
+    });
+    vi.stubGlobal("caches", {
+      open: vi.fn(async (name: string) => ({
+        match: vi
+          .fn()
+          .mockResolvedValue(
+            name === "capacitylens-offline-shell-metadata-v1"
+              ? new Response("capacitylens-shell-release-a")
+              : new Response("<html>shell</html>"),
+          ),
+      })),
+      has: vi.fn().mockResolvedValue(true),
+    });
+
+    await expect(revalidateOfflineShell()).resolves.toBe(true);
+    expect(offlineReadEnabled()).toBe(true);
+  });
+
+  it("disables a stale preference when browser site-data cleanup removed the offline shell", async () => {
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    vi.stubGlobal("navigator", {
+      serviceWorker: { getRegistrations: vi.fn().mockResolvedValue([]) },
+    });
+    vi.stubGlobal("caches", {
+      open: vi.fn().mockResolvedValue({ match: vi.fn().mockResolvedValue(undefined) }),
+      has: vi.fn().mockResolvedValue(false),
+    });
+
+    await expect(revalidateOfflineShell()).resolves.toBe(false);
     expect(offlineReadEnabled()).toBe(false);
   });
 
@@ -333,7 +390,7 @@ describe("offline tenant cache", () => {
     expect(preferenceChanged).toHaveBeenCalledOnce();
     await expect(getRaw(`slice:${currentCacheNamespace()}:user-a:a-studio`)).resolves.toBeDefined();
 
-    setOfflineReadState(true, 123);
+    setOfflineReadState("tenant", true, 123);
     window.dispatchEvent(
       new StorageEvent("storage", {
         key: "capacitylens/offlineWriteBoundary",

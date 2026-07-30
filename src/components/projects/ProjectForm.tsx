@@ -4,14 +4,13 @@ import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { domainErrorMessage, errorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
-import { normalizeCodeName } from "@capacitylens/shared/domain/privateNames";
-import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
-import { useRole } from "../../auth/permissionContext";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { internalColourModeFor } from "../../store/selectors";
 import { m } from "@/i18n";
-import { ColorField, Modal, RequiredLegend, SelectField, SwitchField, TextField, type Option } from "../common/ui";
+import { ColorField, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
+import { PrivateNameFields } from "../common/PrivateNameFields";
+import { usePrivateNameFields } from "../common/usePrivateNameFields";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import type { Project } from "@capacitylens/shared/types/entities";
@@ -21,9 +20,6 @@ import type { Project } from "@capacitylens/shared/types/entities";
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
   const add = useStore((s) => s.addProject);
   const update = useStore((s) => s.updateProject);
-  const role = useRole();
-  const canManagePrivacy = role === null || canSeePrivateNames(role);
-  const protectedName = project?.isPrivate === true && !canManagePrivacy;
   const data = useActiveScopedData();
   const clients = data.clients;
   // The RAW scoped slice, for the archived-parent label only (see clientOptions below): in the demo
@@ -35,9 +31,8 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const [name, setName] = useState(project?.name ?? "");
   const [clientId, setClientId] = useState(project?.clientId ?? "");
   const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project);
-  const [isPrivate, setIsPrivate] = useState(project?.isPrivate ?? false);
-  const [codeName, setCodeName] = useState(project?.codeName ?? "");
   const { error, errorField, errorId, fail } = useFieldError();
+  const privateNameFields = usePrivateNameFields(project, fail);
   const selectedClientIsInternal = clients.find((client) => client.id === clientId)?.builtin === true;
   const showColourPicker = internalColourMode === "palette" || !selectedClientIsInternal;
 
@@ -62,9 +57,8 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const submit = () => {
     const trimmed = validateName(name, fail);
     if (!trimmed) return;
-    const cleanCodeName =
-      isPrivate && canManagePrivacy ? validateName(normalizeCodeName(codeName), fail, "codeName") : null;
-    if (isPrivate && canManagePrivacy && !cleanCodeName) return;
+    const privacy = privateNameFields.validatePrivacy();
+    if (!privacy) return;
     const check = validateProjectClient(clientId);
     if (!check.ok) {
       fail("client", domainErrorMessage(check.codes[0]));
@@ -74,12 +68,6 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
     // Surface a store-side rejection (e.g. a clientId that isn't in this company) as a form error
     // instead of an uncaught React error — see the store CRUD contract.
     try {
-      const privacy = canManagePrivacy
-        ? {
-            isPrivate: isPrivate || undefined,
-            codeName: isPrivate ? (cleanCodeName ?? undefined) : undefined,
-          }
-        : {};
       if (project) {
         const current = useStore.getState().data.projects.find((candidate) => candidate.id === project.id);
         if (!current || current.updatedAt !== project.updatedAt) {
@@ -116,35 +104,13 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         label={m.form_project_name_label()}
         value={name}
         onChange={setName}
-        autoFocus={!protectedName}
+        autoFocus={!privateNameFields.protectedName}
         required
-        disabled={protectedName}
+        disabled={privateNameFields.protectedName}
         invalid={errorField === "name"}
         describedById={errorId}
       />
-      {protectedName && <p className="text-xs text-muted-foreground">{m.form_private_owner_only_hint()}</p>}
-      {canManagePrivacy && (
-        <SwitchField
-          label={m.form_private_toggle_label()}
-          description={m.form_private_toggle_description()}
-          checked={isPrivate}
-          onChange={setIsPrivate}
-        />
-      )}
-      {canManagePrivacy && isPrivate && (
-        <>
-          <TextField
-            label={m.form_private_code_name_label()}
-            value={codeName}
-            onChange={setCodeName}
-            placeholder={m.form_private_code_name_placeholder()}
-            required
-            invalid={errorField === "codeName"}
-            describedById={errorId}
-          />
-          <p className="text-xs text-muted-foreground">{m.form_private_code_name_hint()}</p>
-        </>
-      )}
+      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} />
       <SelectField
         label={m.form_project_client_label()}
         value={clientId}

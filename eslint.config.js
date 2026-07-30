@@ -4,20 +4,22 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
+import { readFileSync } from "node:fs";
+
+const gitIgnoredPaths = readFileSync(new URL(".gitignore", import.meta.url), "utf8")
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
+  .map((line) => line.replace(/^\//, "").replace(/\/$/, "/**"));
 
 export default defineConfig([
   globalIgnores([
+    ...gitIgnoredPaths,
     "**/dist/**",
     "**/coverage/**",
     "playwright-report",
     "test-results",
     "**/node_modules",
-    ".claude/worktrees/**",
-    // Local Claude Code workflow scripts run inside an async wrapper where
-    // top-level `return` is legal — they parse as errors as standalone JS.
-    ".claude/workflows/**",
-    // Internal copy-ready sibling snapshots are documentation, not CapacityLens source inputs.
-    "to-my-siblings/**",
     // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.
     "src/paraglide",
     // Stryker mutation-testing sandbox + report (`pnpm run mutation`) — copies of the whole repo;

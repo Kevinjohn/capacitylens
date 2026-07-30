@@ -6,7 +6,6 @@ import {
   isAtLeast,
   canManageMemberRole,
   canRemoveMember,
-  canResetMemberPassword,
   canResetMemberAcrossAccounts,
 } from "./access";
 import type { Role, Action } from "./access";
@@ -246,34 +245,6 @@ describe("canRemoveMember(actor, target) — removal matrix", () => {
   });
 });
 
-describe("canResetMemberPassword(actor, target) — reset-link matrix (P1.18)", () => {
-  // Same who-may-touch-whom shape as removal: a reset link is an account-takeover capability, so
-  // an admin must never be able to mint one for an owner (privilege escalation).
-  const oracle = (actor: Role, target: Role): boolean => {
-    if (!(actor === "owner" || actor === "admin")) return false;
-    if (target === "owner" && actor !== "owner") return false;
-    return true;
-  };
-  for (const actor of ROLES) {
-    for (const target of ROLES) {
-      const expected = oracle(actor, target);
-      it(`canResetMemberPassword('${actor}','${target}') === ${expected}`, () => {
-        expect(canResetMemberPassword(actor, target)).toBe(expected);
-      });
-    }
-  }
-
-  it("admin may NOT reset an owner (takeover path); owner may reset anyone including an owner", () => {
-    expect(canResetMemberPassword("admin", "owner")).toBe(false);
-    expect(canResetMemberPassword("owner", "owner")).toBe(true);
-  });
-
-  it("editor/viewer may reset no one", () => {
-    expect(canResetMemberPassword("editor", "viewer")).toBe(false);
-    expect(canResetMemberPassword("viewer", "viewer")).toBe(false);
-  });
-});
-
 describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset matrix (P1.18)", () => {
   const roles = (entries: [string, Role][]) => new Map<string, Role>(entries);
 
@@ -334,7 +305,7 @@ describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset 
 
   it("SELF-RESET exemption: a multi-account self passes even where cross-account authority would fail", () => {
     // Owner of X who is a mere editor of Y resets their OWN password. actor === target, so the maps
-    // are identical; the non-self path would hit Y and fail canResetMemberPassword('editor','editor').
+    // are identical; the non-self path would hit Y and fail identity administration for editor/editor.
     // The isSelf exemption skips the cross-account check — you cannot escalate against your own identity.
     const self = roles([
       ["X", "owner"],
@@ -369,7 +340,6 @@ describe("can / isAtLeast — fail-closed on an unknown role/action (never falls
     expect(canManageMemberRole("admin", unknownRole, "editor")).toBe(false);
     expect(canManageMemberRole("admin", "editor", unknownRole)).toBe(false);
     expect(canRemoveMember("admin", unknownRole)).toBe(false);
-    expect(canResetMemberPassword("admin", unknownRole)).toBe(false);
   });
   it("isAtLeast denies when either the role or the min tier is unknown", () => {
     expect(isAtLeast("superuser" as Role, "viewer")).toBe(false);

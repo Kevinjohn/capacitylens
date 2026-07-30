@@ -36,7 +36,7 @@ afterEach(() => {
   useStore.setState({ activeAccountId: null });
   useStore.getState().setAccountSummaries([]);
   useStore.getState().setNotice(null);
-  setOfflineReadState(false);
+  setOfflineReadState("cleanup", false);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -98,7 +98,7 @@ describe("fetchAccountSummaries — response classification", () => {
 
   it("does not mark a cached active slice online merely because the company directory responds", async () => {
     useStore.setState({ activeAccountId: "a1" });
-    setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState("accounts", true, Date.parse("2026-07-17T10:00:00.000Z"));
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),
@@ -111,7 +111,7 @@ describe("fetchAccountSummaries — response classification", () => {
 
   it("does clear an identity/list-only offline marker at the company picker", async () => {
     useStore.setState({ activeAccountId: null });
-    setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState("accounts", true, Date.parse("2026-07-17T10:00:00.000Z"));
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),

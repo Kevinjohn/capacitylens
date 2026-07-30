@@ -20,7 +20,13 @@ import { reauthPending, resolveReauth, subscribeReauth } from "./reauthCoordinat
 import { clearExternalSignInError, hasExternalSignInError } from "./externalSignInError";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
-import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "../data/offlineCache";
+import {
+  cacheAuthSnapshot,
+  OFFLINE_WRITE_BOUNDARY_STORAGE_KEY,
+  readCachedAuthSnapshot,
+  revalidateOfflineShell,
+  setOfflineReadState,
+} from "../data/offlineCache";
 import { isTransportFailure } from "../data/requestTimeout";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { signOutAndReload } from "./signOut";
@@ -180,7 +186,7 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
       // password-only one. An absent authMode (a well-formed but older body) is NOT degraded.
       const degraded =
         loginBody === null || (rawAuthMode !== undefined && rawAuthMode !== "password" && rawAuthMode !== "sso");
-      if (acceptEffects()) setOfflineReadState(false);
+      if (acceptEffects()) setOfflineReadState("identity", false);
       return {
         kind: "login",
         authMode,
@@ -236,7 +242,7 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
       // A live identity check does not prove the currently rendered tenant slice is live. Preserve
       // its offline/read-only marker until ServerSyncAdapter successfully reloads that slice; only
       // a boot/picker with no active slice can be marked online from identity state alone.
-      if (acceptEffects() && useStore.getState().activeAccountId === null) setOfflineReadState(false);
+      if (acceptEffects() && useStore.getState().activeAccountId === null) setOfflineReadState("identity", false);
       if (next.user && acceptEffects()) {
         void cacheAuthSnapshot({
           authMode: next.authMode,
@@ -266,7 +272,7 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
       try {
         const cached = await readCachedAuthSnapshot({ acceptEffects });
         if (cached) {
-          if (acceptEffects()) setOfflineReadState(true, cached.savedAt);
+          if (acceptEffects()) setOfflineReadState("identity", true, cached.savedAt);
           return {
             kind: "pass",
             authMode: cached.value.authMode,
@@ -435,7 +441,7 @@ export function AuthProvider({
   useEffect(() => {
     if (!serverMode) return; // demo build: no auth request, ever
     // Boot failures resolve to an explicit error boundary; only a valid auth-off response opens app.
-    void checkAuth("fail-open");
+    void revalidateOfflineShell().finally(() => checkAuth("fail-open"));
   }, [serverMode, checkAuth]);
 
   // Mid-session re-ask, exposed on the context as `refreshAuth` (see authContext.ts): the server
@@ -486,6 +492,20 @@ export function AuthProvider({
       document.removeEventListener("visibilitychange", revalidateVisibleSession);
     };
   }, [serverMode, refreshAuth]);
+
+  // A sibling tab can end the shared cookie session while this tab is backgrounded. Hide tenant
+  // state immediately on the storage signal, then resolve the new identity through the normal wall.
+  useEffect(() => {
+    if (!serverMode) return;
+    const onAuthInvalidation = (event: StorageEvent) => {
+      if (event.key !== OFFLINE_WRITE_BOUNDARY_STORAGE_KEY) return;
+      useStore.getState().setActiveAccount(null);
+      setStatus({ kind: "checking" });
+      void checkAuth("fail-open");
+    };
+    window.addEventListener("storage", onAuthInvalidation);
+    return () => window.removeEventListener("storage", onAuthInvalidation);
+  }, [serverMode, checkAuth]);
 
   useEffect(() => {
     if (status.kind === "error") {

@@ -12,9 +12,10 @@ const STORE_NAME = "records";
 const KEY_STORE_NAME = "keys";
 const DEVICE_KEY_ID = "device-aes-gcm-v1";
 const WRITE_BOUNDARY_ID = "write-boundary-v1";
-const WRITE_BOUNDARY_STORAGE_KEY = `${STORAGE_KEY_PREFIX}offlineWriteBoundary`;
+export const OFFLINE_WRITE_BOUNDARY_STORAGE_KEY = `${STORAGE_KEY_PREFIX}offlineWriteBoundary`;
 const SHELL_CACHE_PREFIX = "capacitylens-shell-";
 const SHELL_METADATA_CACHE = "capacitylens-offline-shell-metadata-v1";
+const ACTIVE_SHELL_POINTER = "/__capacitylens-offline/active-shell";
 const SHELL_ACTIVATION_TIMEOUT_MS = 30_000;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -51,12 +52,15 @@ interface OfflineState {
   cacheWriteFailed: boolean;
 }
 
+export type OfflineReadOwner = "identity" | "accounts" | "tenant" | "cleanup";
+
 let scope: { origin: string; userId: string } | null = null;
 let state: OfflineState = {
   readOnly: false,
   lastUpdated: null,
   cacheWriteFailed: false,
 };
+let offlineReadOwner: OfflineReadOwner | null = null;
 // Monotonic in-memory tag for role/data projections resolved before an offline episode. It advances
 // only when entering offline read mode; clearing the marker retains the new tag so pre-offline
 // authority cannot become current again while live data and membership are being revalidated.
@@ -88,19 +92,19 @@ if (typeof window !== "undefined") {
       if (event.newValue !== "on") {
         scope = null;
         setOfflineCacheWriteFailed(false);
-        setOfflineReadState(false);
+        setOfflineReadState("cleanup", false);
       }
       publishPreference();
       return;
     }
-    if (event.key === WRITE_BOUNDARY_STORAGE_KEY) {
+    if (event.key === OFFLINE_WRITE_BOUNDARY_STORAGE_KEY) {
       // Sign-out/device cleanup in another tab owns the new boundary. Drop all page-local claims
       // immediately; the durable token independently rejects writes that began before the sweep.
       cacheGeneration += 1;
       if (typeof indexedDB !== "undefined") recentSliceWrites.get(indexedDB)?.clear();
       scope = null;
       setOfflineCacheWriteFailed(false);
-      setOfflineReadState(false);
+      setOfflineReadState("cleanup", false);
     }
   });
 }
@@ -112,6 +116,38 @@ interface WriteBoundary {
 
 export function offlineShellAvailable(environment: { PROD: boolean; MODE: string }): boolean {
   return environment.PROD || environment.MODE === "test";
+}
+
+/** Revalidate the durable shell promised by the device preference. A browser/site-data cleanup can
+ * remove the worker or cache without removing localStorage, so the preference must fail closed. */
+export async function revalidateOfflineShell(): Promise<boolean> {
+  if (!offlineReadEnabled()) return false;
+  try {
+    if (!("serviceWorker" in navigator) || typeof caches === "undefined") throw new Error("unsupported");
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    const workerPresent = registrations.some((registration) =>
+      [registration.active, registration.waiting, registration.installing].some((worker) =>
+        worker?.scriptURL.endsWith("/offline-worker.js"),
+      ),
+    );
+    const metadata = await caches.open(SHELL_METADATA_CACHE);
+    const pointer = await metadata.match(ACTIVE_SHELL_POINTER);
+    const cacheName = pointer ? await pointer.text() : "";
+    const shellPresent =
+      cacheName.startsWith(SHELL_CACHE_PREFIX) &&
+      (await caches.has(cacheName)) &&
+      Boolean(await (await caches.open(cacheName)).match("/"));
+    if (workerPresent && shellPresent) return true;
+  } catch (error) {
+    console.warn("offlineCache: the promised offline shell could not be revalidated", error);
+  }
+  try {
+    localStorage.removeItem(OFFLINE_PREF_KEY);
+  } catch (error) {
+    console.warn("offlineCache: the stale offline preference could not be removed", error);
+  }
+  publishPreference();
+  return false;
 }
 
 function originKey(): string {
@@ -261,7 +297,7 @@ async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
 
 function storedWriteBoundaryToken(): string | null {
   try {
-    return localStorage.getItem(WRITE_BOUNDARY_STORAGE_KEY);
+    return localStorage.getItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY);
   } catch (error) {
     console.warn("offlineCache: the offline write boundary could not be read; rejecting cache writes", error);
     return null;
@@ -286,7 +322,7 @@ function advanceWriteBoundary(): {
   cacheGeneration += 1;
   const token = newWriteBoundaryToken();
   try {
-    localStorage.setItem(WRITE_BOUNDARY_STORAGE_KEY, token);
+    localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
     return { token, storageError: null };
   } catch (error) {
     // The durable IndexedDB token below still rejects every earlier writer. Report the preference
@@ -317,7 +353,7 @@ async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
     tx.onerror = () => reject(tx.error ?? new Error("The offline write boundary could not be established."));
     tx.onabort = () => reject(tx.error ?? new Error("The offline write boundary update was aborted."));
   });
-  localStorage.setItem(WRITE_BOUNDARY_STORAGE_KEY, token);
+  localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
 }
 
 function associatedData(key: string, savedAt: number): Uint8Array<ArrayBuffer> {
@@ -705,10 +741,22 @@ export async function readCachedAccountSlice(accountId: string): Promise<CachedR
   return getValidated(scopedKey("slice", `:${accountId}`), (value) => validateAccountSlice(value, accountId));
 }
 
-/** Publish whether the currently rendered slice came from the offline cache. */
-export function setOfflineReadState(readOnly: boolean, lastUpdated: number | null = null): void {
-  if (state.readOnly === readOnly && state.lastUpdated === lastUpdated) return;
+/**
+ * Publish which boundary established the current offline claim. Identity/account-list refreshes
+ * cannot clear a tenant-slice claim; only a successful tenant reload or cleanup has that authority.
+ */
+export function setOfflineReadState(
+  owner: OfflineReadOwner,
+  readOnly: boolean,
+  lastUpdated: number | null = null,
+): void {
+  if (readOnly && offlineReadOwner === "tenant" && owner !== "tenant") return;
+  if (!readOnly && offlineReadOwner === "tenant" && owner !== "tenant" && owner !== "cleanup") return;
+  if (state.readOnly === readOnly && state.lastUpdated === lastUpdated && (!readOnly || offlineReadOwner === owner)) {
+    return;
+  }
   if (readOnly && !state.readOnly) offlineEpisode += 1;
+  offlineReadOwner = readOnly ? owner : null;
   state = { ...state, readOnly, lastUpdated };
   for (const listener of listeners) listener();
 }
@@ -739,7 +787,7 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
   if (typeof indexedDB === "undefined") {
     scope = null;
     setOfflineCacheWriteFailed(false);
-    setOfflineReadState(false);
+    setOfflineReadState("cleanup", false);
     if (boundary.storageError) throw boundary.storageError;
     // The caller must know that no durable records were removed. Sign-out uses this rejection to
     // remove the offline opt-in, so records left behind while browser storage is unavailable can
@@ -778,7 +826,7 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
     db.close();
     scope = null;
     setOfflineCacheWriteFailed(false);
-    setOfflineReadState(false);
+    setOfflineReadState("cleanup", false);
   }
   const recent = recentSliceWrites.get(indexedDB);
   if (currentScope && recent) {
@@ -796,7 +844,7 @@ export async function clearAllOfflineData(): Promise<void> {
   if (typeof indexedDB === "undefined") {
     scope = null;
     setOfflineCacheWriteFailed(false);
-    setOfflineReadState(false);
+    setOfflineReadState("cleanup", false);
     if (boundary.storageError) throw boundary.storageError;
     return;
   }
@@ -819,7 +867,7 @@ export async function clearAllOfflineData(): Promise<void> {
     db.close();
     scope = null;
     setOfflineCacheWriteFailed(false);
-    setOfflineReadState(false);
+    setOfflineReadState("cleanup", false);
   }
   recentSliceWrites.get(indexedDB)?.clear();
   if (boundary.storageError) throw boundary.storageError;

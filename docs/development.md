@@ -58,6 +58,20 @@ before/after coverage or raw+gzip entry size and explain why the added tested be
 cost is justified; changing a number only to restore green is not acceptable. Tighten a boundary
 only when repeated gate results show stable headroom. The canonical policy is recorded in
 `DECISIONS.md`.
+
+The checked-in `src/components/ui/*` primitives are source-owned. Before refreshing an installed
+primitive, inspect the pinned registry result without overwriting local code:
+
+```bash
+pnpm run ui:registry add <component> --dry-run
+pnpm run ui:registry add <component> --diff
+```
+
+Re-merge every adjacent documented local deviation deliberately, then run `pnpm run ui:check`.
+That check is part of `pnpm run gate` and detects unreviewed changes to the protected primitive
+surface. Update its reviewed digests only after inspecting the complete diff and retaining the
+documented product behavior.
+
 `gate:server` checks the Node/SQLite workspace. GitHub CI divides ordinary server test files into
 four parallel, bounded shards and launches each file in a fresh Vitest process. A file therefore
 cannot leak native SQLite, authentication or AsyncLocalStorage state into the next file; each child

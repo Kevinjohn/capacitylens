@@ -3,12 +3,25 @@ import { AccountContractError, type AccountErrorCode } from "@capacitylens/share
 import type { CommandIdentity, OperationReceipt, PrincipalId } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import {
+  correlatePendingAccountCommand,
+  eraseWorkspaceCommandHistoryInTx,
   finishAccountCommand,
   finishAccountCommandIfPending,
   getAccountCommand,
+  getAccountCommandById,
+  getAccountCommandByIdForReconciliation,
   reserveAccountCommand,
   type AccountCommandRecord,
 } from "./state";
+
+// The coordinator owns durable command lifecycles, but not their SQLite representation. Re-export
+// the complete ledger vocabulary through this seam so orchestration never reaches state.ts directly.
+export {
+  correlatePendingAccountCommand,
+  eraseWorkspaceCommandHistoryInTx,
+  getAccountCommandById,
+  getAccountCommandByIdForReconciliation,
+};
 
 const replayedCommandResults = new WeakSet<object>();
 

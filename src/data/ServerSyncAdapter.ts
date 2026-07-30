@@ -406,7 +406,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         const empty = emptyAppData();
         if (myGen === this.loadGen) {
           this.seedSnapshot(empty);
-          setOfflineReadState(false);
+          setOfflineReadState("tenant", false);
         }
         return empty;
       }
@@ -496,7 +496,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         // being unnecessary, awaiting that request here would make a concurrent reload wait on a
         // batch whose own race coordinator may be waiting for the reload to finish.
         if (diffOps(repairBase, data).length > 0) await this.saveAll(data);
-        setOfflineReadState(false);
+        setOfflineReadState("tenant", false);
         if (accountId !== undefined && missingKeys.length === 0) {
           void cacheAccountSlice(accountId, data).catch((error) =>
             console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
@@ -518,7 +518,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           if (cachedIdentity) {
             const empty = emptyAppData();
             if (myGen === this.loadGen) this.seedSnapshot(empty);
-            if (myGen === this.loadGen) setOfflineReadState(true, cachedIdentity.savedAt);
+            if (myGen === this.loadGen) setOfflineReadState("tenant", true, cachedIdentity.savedAt);
             return empty;
           }
         } catch (cacheError) {
@@ -530,7 +530,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           const cached = await readCachedAccountSlice(accountId);
           if (cached) {
             if (myGen === this.loadGen) this.seedSnapshot(cached.value, accountId);
-            if (myGen === this.loadGen) setOfflineReadState(true, cached.savedAt);
+            if (myGen === this.loadGen) setOfflineReadState("tenant", true, cached.savedAt);
             return cached.value;
           }
         } catch (cacheError) {

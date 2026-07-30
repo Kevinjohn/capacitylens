@@ -74,7 +74,7 @@ export async function fetchAccountSummaries(init?: {
       // This snapshot proves only that the company DIRECTORY is cached. While a company is open,
       // its slice may still be live, so the directory must not replace the slice loader's status
       // with a global read-only marker or a timestamp belonging to a different cache record.
-      setOfflineReadState(true, cached.savedAt);
+      setOfflineReadState("accounts", true, cached.savedAt);
     }
     return cached.value;
   };
@@ -125,7 +125,7 @@ export async function fetchAccountSummaries(init?: {
       // rendering a cached slice, clearing the global marker here would re-enable its edits and let
       // it masquerade as live data. The authoritative slice loader owns that transition; at the
       // picker (no active slice), a live directory read may clear an identity/list-only fallback.
-      if (useStore.getState().activeAccountId === null) setOfflineReadState(false);
+      if (useStore.getState().activeAccountId === null) setOfflineReadState("accounts", false);
       // An unavailable role is a fail-closed UI projection, not durable membership evidence.
       // Cache only a wholly authoritative directory so an offline boot never presents the coerced
       // Viewer role as the last verified access state. Same-key cache writes are serialized by

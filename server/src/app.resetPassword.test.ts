@@ -244,7 +244,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
 
   it("SELF-RESET across accounts: a user who is owner of X but a mere editor of Y may reset their OWN password", async () => {
     // The finding-1 scenario: without the isSelf exemption the cross-account loop hits Y and
-    // canResetMemberPassword('editor','editor') fails the manageMembers tier, wrongly 403-ing a
+    // Identity administration for editor/editor fails the manageMembers tier, wrongly 403-ing a
     // self-reset. The acting account is X (where they are owner, so authorize passes); actor === target.
     const { app, db } = await appWith(PASSWORD_ENV, { multiAccount: true });
     seedAccount(db, "x");

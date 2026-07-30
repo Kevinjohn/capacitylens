@@ -160,7 +160,9 @@ inactivity or the remaining portion of the fixed twelve-hour absolute lifetime. 
 session can therefore remain valid for at most twelve hours from its creation.
 
 Product sign-out terminates the local session only; it does not promise to end the browser's IdP
-session. Operator incident response must revoke local sessions in every affected product in
+session. The browser publishes the local sign-out boundary to sibling tabs before navigation, so
+they immediately hide tenant state and recheck their session rather than retaining stale controls.
+Operator incident response must revoke local sessions in every affected product in
 addition to disabling the IdP identity. Back-channel logout, introspection or another near-immediate
 cross-product revocation mechanism is deferred, but must be revisited before hosted GA.
 

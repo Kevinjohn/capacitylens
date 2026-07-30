@@ -10,6 +10,45 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.28.5-alpha.1] — 2026-07-30
+
+This patch closes the 37-record P3 Architecture and maintainability review row. Fourteen residual
+issues were repaired and twenty-three were verified already fixed on current source. The portable
+export and SQLite database schema versions are unchanged.
+
+### Architecture and maintainability
+
+- Coordinated sign-out and offline write boundaries across sibling tabs so stale tenant state is
+  hidden immediately, while preserving the existing mandatory reload and server-session cleanup.
+- Revalidated enabled offline access against the installed service worker, promoted shell metadata,
+  cache existence and cached root document, falling closed when browser storage was cleared.
+- Preserved authoritative tenant offline-read state against lower-authority identity and account
+  refreshes, and made each offline-state writer's ownership explicit.
+- Extracted shared private-name fields and state handling from client and project forms, and shared
+  process lifecycle helpers between the full-stack and access-lab development runners.
+- Made external-identity admission dependencies explicit at the composition root, removed obsolete
+  lifecycle and access exports, and exposed account mutations through the command-ledger boundary.
+- Centralised Playwright run-mode resolution, rejected contradictory engine modes, and made the
+  configured project set independently testable for standard, browser-only, OIDC and rehearsal runs.
+- Added a pinned shadcn registry command and a source-owned primitive integrity gate so deliberate
+  local primitive behavior cannot be silently replaced by a registry refresh.
+
+### Changed
+
+- Replaced repository-specific private-path exclusions with generic ignored-file handling in lint
+  and cryptographic inventory discovery.
+- Updated UI tests to assert semantic application state rather than styling implementation details.
+- Reconfirmed current-source ownership transfer, account authorization, route composition, domain
+  seams and other architecture records that already satisfied their review outcomes.
+
+### Tests
+
+- Added focused regressions for sibling-tab sign-out, offline shell revalidation and writer
+  authority, external admission composition, account-command architecture, shared form fields,
+  development process cleanup, UI primitive integrity and Playwright mode selection.
+- Passed the complete server gate, 152 frontend/shared files and 2,633 tests with coverage and
+  production budgets, plus all 196 default Chromium, database-backed and password-auth E2E cases.
+
 ## [0.28.4-alpha.1] — 2026-07-30
 
 This patch closes the 22-record P3 Performance review row. Sixteen residual issues were repaired

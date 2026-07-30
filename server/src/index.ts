@@ -21,6 +21,7 @@ import { loadInternalTls } from "./internalTls";
 import { resolveAccountEnvironment } from "./accountConfig";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import { localExternalIdentityAdmission } from "./accounts/externalIdentityAdmission";
+import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
 import { legacyProxyTrustWarning, trustProxyHeadersFrom } from "./proxyTrust";
 
 const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION;
@@ -281,9 +282,10 @@ try {
     application: ACCOUNT_APPLICATION,
     externalIdentityAdmission: (candidate) =>
       localExternalIdentityAdmission({
-        db,
         bootstrapEmails: accountEnv.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
         candidate,
+        identityHasAnyPrincipal: () => countUsers(db) !== 0,
+        hasLivePreauthorizedInvitation: (email) => hasLivePreauthorizedInvitation(db, email),
       }),
   }));
   const authMigrationPlan = auth ? await planAuthSchemaMigrations(auth) : { pending: false, tables: [] };

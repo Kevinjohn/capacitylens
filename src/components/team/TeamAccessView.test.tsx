@@ -46,11 +46,11 @@ function renderView(
 describe("TeamAccessView", () => {
   beforeEach(() => {
     buildMode.demo = false;
-    setOfflineReadState(false);
+    setOfflineReadState("cleanup", false);
   });
 
   afterEach(() => {
-    setOfflineReadState(false);
+    setOfflineReadState("cleanup", false);
   });
 
   it("labels the demo honestly and explains members versus resources", () => {
@@ -124,7 +124,7 @@ describe("TeamAccessView", () => {
     ["authenticated Owner", "owner", "password"],
     ["auth-off installation", null, "off"],
   ] as const)("projects cached data as Viewer-only for an %s", (_label, role, authMode) => {
-    setOfflineReadState(true, Date.parse("2026-07-17T10:00:00.000Z"));
+    setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
     renderView(role, authMode);
 
     const current = screen.getByTestId("current-access");

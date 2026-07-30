@@ -1,6 +1,3 @@
-import type { Db } from "../db";
-import { countUsers } from "../auth";
-import { hasLivePreauthorizedInvitation } from "./sqliteAccountAdminPort";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 
 export interface ExternalIdentityCandidate {
@@ -14,9 +11,10 @@ export interface ExternalIdentityCandidate {
  * invitation fact. Email authorizes admission but is never the durable link key.
  */
 export function localExternalIdentityAdmission(input: {
-  db: Db;
   bootstrapEmails: string | undefined;
   candidate: ExternalIdentityCandidate;
+  identityHasAnyPrincipal: () => boolean;
+  hasLivePreauthorizedInvitation: (normalizedEmail: string) => boolean;
 }): boolean {
   if (input.candidate.emailVerified !== true || !input.candidate.email) return false;
   const normalizedEmail = normalizeAccountEmail(input.candidate.email);
@@ -28,6 +26,6 @@ export function localExternalIdentityAdmission(input: {
   // First-owner admission is a distinct operator ceremony. A pre-existing/dangling invitation
   // must never replace the explicit bootstrap allow-list merely because the local user table is
   // empty (for example after erasure or while restoring control-plane data).
-  if (countUsers(input.db) === 0) return allowList.includes(normalizedEmail);
-  return hasLivePreauthorizedInvitation(input.db, normalizedEmail);
+  if (!input.identityHasAnyPrincipal()) return allowList.includes(normalizedEmail);
+  return input.hasLivePreauthorizedInvitation(normalizedEmail);
 }

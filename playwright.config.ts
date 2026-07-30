@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
+import { resolvePlaywrightRunMode } from "./scripts/playwright-run-mode.mjs";
 
 // Playwright drives the real app via Vite. Three project flavours:
 //   chromium    — the in-memory DEMO build on :5173 (VITE_CAPACITYLENS_DEMO=1; the existing specs).
@@ -30,21 +31,8 @@ const flavourSpec = (flavour: "db" | "auth" | "oidc") =>
 // engines run unconditionally — see those scripts for why.
 // A *_ONLY flag (or its un-suffixed sibling CAPACITYLENS_WEBKIT / CAPACITYLENS_FIREFOX) makes that browser's
 // project exist; CAPACITYLENS_VITE_ONLY (or either *_ONLY) trims the webServer list to Vite-only.
-const envFlag = (name: string) => process.env[name] === "1";
-const webkitOnly = envFlag("CAPACITYLENS_WEBKIT_ONLY");
-const firefoxOnly = envFlag("CAPACITYLENS_FIREFOX_ONLY");
-const webkitEnabled = webkitOnly || envFlag("CAPACITYLENS_WEBKIT");
-const firefoxEnabled = firefoxOnly || envFlag("CAPACITYLENS_FIREFOX");
-// True when the run touches only the core in-memory demo specs, so the SQLite + auth servers
-// aren't needed and the webServer list trims to Vite alone: set directly by CAPACITYLENS_VITE_ONLY
-// (the cross-engine `e2e:browsers` core run), implied by either single-engine *_ONLY flag, or
-// inferred conservatively when every explicitly named spec is a core spec.
-const viteOnly =
-  envFlag("CAPACITYLENS_VITE_ONLY") || webkitOnly || firefoxOnly || selectsOnlyExplicitCoreSpecs(process.argv);
-const oidcOnly = envFlag("CAPACITYLENS_OIDC_E2E");
-const rehearsalEnabled = Boolean(process.env.CAPACITYLENS_REHEARSAL_URL);
-const coreEnabled = !oidcOnly && !rehearsalEnabled;
-const standardServerProjectsEnabled = !viteOnly && !oidcOnly && !rehearsalEnabled;
+const runMode = resolvePlaywrightRunMode(process.env, process.argv, selectsOnlyExplicitCoreSpecs);
+const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
 const reportPhase = reportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
@@ -86,7 +74,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    ...(coreEnabled
+    ...(projectEnabled("chromium")
       ? [
           {
             name: "chromium",
@@ -95,7 +83,7 @@ export default defineConfig({
           },
         ]
       : []),
-    ...(standardServerProjectsEnabled
+    ...(projectEnabled("db-backed")
       ? [
           {
             name: "db-backed",
@@ -120,7 +108,7 @@ export default defineConfig({
           },
         ]
       : []),
-    ...(oidcOnly
+    ...(projectEnabled("oidc-backed")
       ? [
           {
             name: "oidc-backed",
@@ -139,7 +127,7 @@ export default defineConfig({
     // e2e:webkit` / `pnpm run e2e:firefox` (one project each) or `pnpm run e2e:all` (full matrix).
     // The db-backed/auth-backed flavours stay Chrome-only: they exercise server round-trips and
     // the persistence seam, not cross-engine rendering.
-    ...(webkitEnabled
+    ...(projectEnabled("webkit")
       ? [
           {
             name: "webkit",
@@ -151,7 +139,7 @@ export default defineConfig({
           },
         ]
       : []),
-    ...(firefoxEnabled
+    ...(projectEnabled("firefox")
       ? [
           {
             name: "firefox",
@@ -172,7 +160,7 @@ export default defineConfig({
     // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
     // baseURL override is the only difference. Started by hand per the runbook, so the
     // dev webServers below are skipped for these runs (see the webServer conditional).
-    ...(rehearsalEnabled
+    ...(projectEnabled("rehearsal")
       ? [
           {
             name: "rehearsal",
@@ -189,68 +177,69 @@ export default defineConfig({
   // servers under them. A core-specs-only run (`e2e:webkit`/`e2e:firefox`/`e2e:browsers`, i.e.
   // viteOnly) needs only Vite on :5173. Every other run keeps the full list (the SQLite + auth
   // servers the db/auth specs depend on).
-  webServer: rehearsalEnabled
-    ? []
-    : oidcOnly
-      ? [
-          {
-            command: "pnpm run start:oidc-e2e",
-            cwd: "./server",
-            url: `http://localhost:${OIDC_API_PORT}/api/health`,
-            reuseExistingServer: false,
-            timeout: 120_000,
-          },
-          {
-            command: "pnpm run dev:oidc",
-            // Readiness must traverse Vite's /api proxy, not merely prove that Vite can serve HTML.
-            url: `http://localhost:${OIDC_WEB_PORT}/api/health`,
-            reuseExistingServer: false,
-            timeout: 120_000,
-            env: { CAPACITYLENS_DEV_API_PORT: String(OIDC_API_PORT) },
-          },
-        ]
-      : viteOnly
-        ? [devWebServer]
-        : [
-            devWebServer,
+  webServer:
+    runMode.serverProfile === "rehearsal"
+      ? []
+      : runMode.serverProfile === "oidc"
+        ? [
             {
-              command: "pnpm run start:e2e",
+              command: "pnpm run start:oidc-e2e",
               cwd: "./server",
-              url: `http://localhost:${API_PORT}/api/health`,
-              reuseExistingServer: !process.env.CI,
-              timeout: 120_000,
-            },
-            {
-              command: "pnpm run dev:api",
-              // Warm and verify the browser's real Vite → API path before the first page mounts.
-              // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
-              url: `http://localhost:${DB_WEB_PORT}/api/health`,
-              reuseExistingServer: !process.env.CI,
-              timeout: 120_000,
-              // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
-              // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
-              // cross-origin exception that the shipped app never has.
-              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
-            },
-            {
-              // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
-              // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
-              // already-running :8887 — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
-              // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
-              // bootstrap-credential spec with a confusing red (same lesson as the :5173 block above
-              // and the 2026-07-08 orphaned-:8787 war story in the decisions log).
-              command: "pnpm run start:auth-e2e",
-              cwd: "./server",
-              url: `http://localhost:${AUTH_API_PORT}/api/health`,
+              url: `http://localhost:${OIDC_API_PORT}/api/health`,
               reuseExistingServer: false,
               timeout: 120_000,
             },
             {
-              command: "pnpm run dev:auth",
-              url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
-              reuseExistingServer: !process.env.CI,
+              command: "pnpm run dev:oidc",
+              // Readiness must traverse Vite's /api proxy, not merely prove that Vite can serve HTML.
+              url: `http://localhost:${OIDC_WEB_PORT}/api/health`,
+              reuseExistingServer: false,
               timeout: 120_000,
-              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
+              env: { CAPACITYLENS_DEV_API_PORT: String(OIDC_API_PORT) },
             },
-          ],
+          ]
+        : runMode.serverProfile === "vite"
+          ? [devWebServer]
+          : [
+              devWebServer,
+              {
+                command: "pnpm run start:e2e",
+                cwd: "./server",
+                url: `http://localhost:${API_PORT}/api/health`,
+                reuseExistingServer: !process.env.CI,
+                timeout: 120_000,
+              },
+              {
+                command: "pnpm run dev:api",
+                // Warm and verify the browser's real Vite → API path before the first page mounts.
+                // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
+                url: `http://localhost:${DB_WEB_PORT}/api/health`,
+                reuseExistingServer: !process.env.CI,
+                timeout: 120_000,
+                // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
+                // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
+                // cross-origin exception that the shipped app never has.
+                env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
+              },
+              {
+                // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
+                // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
+                // already-running :8887 — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
+                // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
+                // bootstrap-credential spec with a confusing red (same lesson as the :5173 block above
+                // and the 2026-07-08 orphaned-:8787 war story in the decisions log).
+                command: "pnpm run start:auth-e2e",
+                cwd: "./server",
+                url: `http://localhost:${AUTH_API_PORT}/api/health`,
+                reuseExistingServer: false,
+                timeout: 120_000,
+              },
+              {
+                command: "pnpm run dev:auth",
+                url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
+                reuseExistingServer: !process.env.CI,
+                timeout: 120_000,
+                env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
+              },
+            ],
 });
