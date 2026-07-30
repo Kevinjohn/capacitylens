@@ -139,6 +139,7 @@ export function ArchivedSection() {
   useEffect(() => {
     if (!server || !activeAccountId) return;
     const generation = ++requestGeneration.current;
+    const controller = new AbortController();
     let cancelled = false;
     const current = () => !cancelled && requestGeneration.current === generation;
     void (async () => {
@@ -147,7 +148,7 @@ export function ArchivedSection() {
         // DeleteCompanyDialog's "Export first" source) — it structure-checks the untrusted body
         // before migrate(), so a proxy error page / wrong-version partial can no longer render
         // here as a silently EMPTY archived list; it lands in the catch below instead.
-        const body = await fetchInactiveSlice(activeAccountId);
+        const body = await fetchInactiveSlice(activeAccountId, controller.signal);
         if (!current()) return;
         setServerRows({
           accountId: activeAccountId,
@@ -178,6 +179,7 @@ export function ArchivedSection() {
     })();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [server, activeAccountId, reloadKey, setNotice]);
 

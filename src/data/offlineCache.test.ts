@@ -283,6 +283,20 @@ describe("offline tenant cache", () => {
     await expect(cacheAccountSummaries([])).resolves.toEqual({ status: "skipped", reason: "unscoped" });
   });
 
+  it("does not repeatedly encrypt an unchanged tenant slice during live refreshes", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const slice = accountSlice("a-studio");
+
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ status: "written" });
+    await expect(cacheAccountSlice("a-studio", structuredClone(slice))).resolves.toEqual({
+      status: "skipped",
+      reason: "unchanged",
+    });
+
+    slice.accounts[0]!.updatedAt = "2026-07-30T10:00:00.000Z";
+    await expect(cacheAccountSlice("a-studio", slice)).resolves.toEqual({ status: "written" });
+  });
+
   it("preserves and reports the cause when a generated device key cannot be persisted", async () => {
     const cause = new Error("CryptoKey storage unavailable");
     const originalAdd = FakeIDBObjectStore.prototype.add;

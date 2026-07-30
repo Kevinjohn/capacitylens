@@ -1,4 +1,4 @@
-import type { AppData } from "@capacitylens/shared/types/entities";
+import { SCOPED_KEYS, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuthMode, AuthUser } from "../auth/authContext";
 import { validateAuthUser } from "../auth/validateAuthUser";
 import { validateAccountSlice } from "./validateAccountSlice";
@@ -66,6 +66,17 @@ let offlineEpisode = 0;
 let cacheGeneration = 0;
 const listeners = new Set<() => void>();
 const preferenceListeners = new Set<() => void>();
+const SLICE_REWRITE_INTERVAL_MS = 5 * 60 * 1000;
+const recentSliceWrites = new WeakMap<IDBFactory, Map<string, { signature: string; writtenAt: number }>>();
+const CACHED_SLICE_KEYS = ["accounts", ...SCOPED_KEYS] as const;
+
+function sliceSignature(data: AppData): string {
+  // Server revisions are the persistence change marker. This signature is much smaller to build
+  // than serialising the whole tenant and is exact under the server-owned updatedAt contract.
+  return CACHED_SLICE_KEYS.map(
+    (table) => `${table}:${data[table].map((row) => `${row.id}@${row.updatedAt}`).join(",")}`,
+  ).join("|");
+}
 
 function publishPreference(): void {
   for (const listener of preferenceListeners) listener();
@@ -86,6 +97,7 @@ if (typeof window !== "undefined") {
       // Sign-out/device cleanup in another tab owns the new boundary. Drop all page-local claims
       // immediately; the durable token independently rejects writes that began before the sweep.
       cacheGeneration += 1;
+      if (typeof indexedDB !== "undefined") recentSliceWrites.get(indexedDB)?.clear();
       scope = null;
       setOfflineCacheWriteFailed(false);
       setOfflineReadState(false);
@@ -621,7 +633,8 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
   }
 }
 
-export type OfflineCacheWriteResult = { status: "written" } | { status: "skipped"; reason: "disabled" | "unscoped" };
+export type OfflineCacheWriteResult =
+  { status: "written" } | { status: "skipped"; reason: "disabled" | "unscoped" | "unchanged" };
 
 /** Persist the last verified identity and make it the cache scope for this page. */
 export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<OfflineCacheWriteResult> {
@@ -665,11 +678,25 @@ export async function readCachedAccountSummaries(): Promise<CachedRecord<Offline
 export async function cacheAccountSlice(accountId: string, data: AppData): Promise<OfflineCacheWriteResult> {
   if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
   if (!scope) return { status: "skipped", reason: "unscoped" };
+  const key = scopedKey("slice", `:${accountId}`);
+  const now = Date.now();
+  const signature = sliceSignature(data);
+  const factory = typeof indexedDB === "undefined" ? null : indexedDB;
+  let recent = factory ? recentSliceWrites.get(factory) : undefined;
+  if (factory && !recent) {
+    recent = new Map();
+    recentSliceWrites.set(factory, recent);
+  }
+  const prior = recent?.get(key);
+  if (prior?.signature === signature && now - prior.writtenAt < SLICE_REWRITE_INTERVAL_MS) {
+    return { status: "skipped", reason: "unchanged" };
+  }
   await put({
-    key: scopedKey("slice", `:${accountId}`),
-    savedAt: Date.now(),
+    key,
+    savedAt: now,
     value: data,
   });
+  recent?.set(key, { signature, writtenAt: now });
   return { status: "written" };
 }
 
@@ -729,14 +756,17 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
         token: boundary.token,
       });
       const store = tx.objectStore(STORE_NAME);
-      const request = store.openCursor();
+      // Sign-out only inspects and deletes keys. A key cursor avoids deserialising every other
+      // user's encrypted payload while the session-ending path walks this shared object store.
+      const request = store.openKeyCursor();
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) return;
         const key = String(cursor.key);
         const accountsKey = currentScope ? `accounts:${currentScope.origin}:${currentScope.userId}` : null;
         const slicePrefix = currentScope ? `slice:${currentScope.origin}:${currentScope.userId}:` : null;
-        if (key === authKey() || key === accountsKey || (slicePrefix && key.startsWith(slicePrefix))) cursor.delete();
+        if (key === authKey() || key === accountsKey || (slicePrefix && key.startsWith(slicePrefix)))
+          store.delete(cursor.key);
         cursor.continue();
       };
       request.onerror = () => reject(request.error ?? new Error("The offline cache could not be cleared."));
@@ -749,6 +779,12 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
     scope = null;
     setOfflineCacheWriteFailed(false);
     setOfflineReadState(false);
+  }
+  const recent = recentSliceWrites.get(indexedDB);
+  if (currentScope && recent) {
+    const accountsKey = `accounts:${currentScope.origin}:${currentScope.userId}`;
+    const slicePrefix = `slice:${currentScope.origin}:${currentScope.userId}:`;
+    for (const key of recent.keys()) if (key === accountsKey || key.startsWith(slicePrefix)) recent.delete(key);
   }
   if (boundary.storageError) throw boundary.storageError;
 }
@@ -785,5 +821,6 @@ export async function clearAllOfflineData(): Promise<void> {
     setOfflineCacheWriteFailed(false);
     setOfflineReadState(false);
   }
+  recentSliceWrites.get(indexedDB)?.clear();
   if (boundary.storageError) throw boundary.storageError;
 }

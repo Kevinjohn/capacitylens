@@ -1,7 +1,7 @@
 {
   "name": "capacitylens-server",
   "private": true,
-  "version": "0.28.3-alpha.1",
+  "version": "0.28.4-alpha.1",
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "SQLite-backed REST API for CapacityLens. Imports the shared domain core so server and client validation cannot drift.",
@@ -9,6 +9,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "build:runtime": "esbuild src/index.ts src/importWorker.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist --out-extension:.js=.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*' --external:jose",
     "start": "node scripts/check-node.mjs && tsx src/index.ts",
     "dev": "node scripts/check-node.mjs && tsx watch src/index.ts",
     "start:e2e": "node scripts/check-node.mjs && CAPACITYLENS_ALLOW_RESET=1 CAPACITYLENS_DB=.e2e.db tsx src/index.ts",
@@ -30,11 +31,12 @@
     "@fastify/rate-limit": "^11.1.0",
     "better-auth": "1.6.23",
     "fastify": "^5.10.0",
-    "jose": "6.2.3",
-    "tsx": "4.23.1"
+    "jose": "6.2.3"
   },
   "devDependencies": {
     "@types/node": "^24.12.3",
+    "esbuild": "0.28.1",
+    "tsx": "4.23.1",
     "typescript": "~6.0.2"
   }
 }

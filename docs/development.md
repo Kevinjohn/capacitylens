@@ -107,6 +107,13 @@ pnpm run e2e:all
 Keep specs browser-agnostic. Screenshots and axe checks are the visual/accessibility oracles.
 `e2e:all` runs Chromium plus the server-backed projects first, then WebKit and Firefox in isolated
 Vite-only invocations; all three phases run even when an earlier phase fails.
+The pull-request workflow runs those same phases as independent matrix jobs so the browser engines
+execute in parallel and a failure in one engine cannot suppress the others.
+
+The production API image builds `server/dist/index.mjs` and `server/dist/importWorker.mjs` with
+`pnpm --filter capacitylens-server build:runtime`, then runs plain Node without the TypeScript
+transformer. `pnpm run gate:server` includes that build so source-only and bundled-runtime drift is
+caught before container construction.
 
 CapacityLens supports current evergreen Chromium, Firefox and WebKit/Safari behavior represented by
 the pinned Playwright release. The security baseline assumes HTTPS, Secure/HttpOnly/SameSite

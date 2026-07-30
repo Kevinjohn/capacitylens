@@ -10,6 +10,45 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.28.4-alpha.1] — 2026-07-30
+
+This patch closes the 22-record P3 Performance review row. Sixteen residual issues were repaired
+and six were verified already fixed on current source. The portable export and SQLite database
+schema versions are unchanged.
+
+### Performance
+
+- Recomputed only visible-window utilisation while horizontally scrolling the scheduler, shared
+  scoped and active projections across component call sites, and avoided rebuilding unchanged
+  tables after server acknowledgements.
+- Skipped redundant offline-slice encryption, eliminated encrypted-value reads during sign-out,
+  cancelled superseded inactive-data requests, and made focus refreshes recover promptly without
+  duplicating successful company-switch loads.
+- Moved large import remapping to a worker thread, bundled the production API and import worker as
+  JavaScript during image construction, and replaced whole-account validation reads with indexed
+  point and reverse lookups for ordinary single-row writes.
+- Delivered audit-outbox pages through one file durability boundary, amortised command/session
+  housekeeping, bounded date-array materialisation, and removed the remaining whole-database read
+  from authentication-off account listing.
+- Split Chromium, Firefox and WebKit E2E into independent CI matrix jobs and excluded documentation,
+  tests, review state and generated output from Docker build context invalidation.
+
+### Changed
+
+- Added the server runtime bundle to the server gate and moved build-only `tsx` out of production
+  dependencies.
+- Rebased the raw entry-bundle ceiling from 528 KB to 529 KB for the shared projection cache and
+  incremental scheduler projection; the stricter 165 KB compressed-transfer ceiling is unchanged.
+- Reconfirmed current-source database indexes, batch validation projection, structural-sharing
+  undo/redo, streaming migration digests and indexed migration id remapping.
+
+### Tests
+
+- Added focused regressions for scheduler projection equivalence, offline rewrite suppression,
+  focus-refresh cadence, audit batching, date materialisation and production runtime construction.
+- Passed the complete server gate, 152 frontend/shared files and 2,648 tests with coverage and
+  production budgets, plus all 196 default Chromium, database-backed and password-auth E2E cases.
+
 ## [0.28.3-alpha.1] — 2026-07-30
 
 This patch closes the 18-record P3 Observability review row. Twelve residual issues were repaired

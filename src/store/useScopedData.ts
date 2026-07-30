@@ -1,9 +1,36 @@
-import { useMemo } from "react";
 import { useStore } from "./useStore";
 import { scopeData } from "./selectors";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
+
+const emptyScopedData = emptyAppData();
+const scopedCache = new WeakMap<AppData, Map<string, AppData>>();
+const activeCache = new WeakMap<AppData, AppData>();
+
+function sharedScopedData(data: AppData, accountId: string | null): AppData {
+  if (!accountId) return emptyScopedData;
+  let byAccount = scopedCache.get(data);
+  if (!byAccount) {
+    byAccount = new Map();
+    scopedCache.set(data, byAccount);
+  }
+  let scoped = byAccount.get(accountId);
+  if (!scoped) {
+    scoped = scopeData(data, accountId);
+    byAccount.set(accountId, scoped);
+  }
+  return scoped;
+}
+
+function sharedActiveData(data: AppData): AppData {
+  let active = activeCache.get(data);
+  if (!active) {
+    active = activeOnly(data);
+    activeCache.set(data, active);
+  }
+  return active;
+}
 
 /**
  * The read-side seam for multi-tenancy. Components receive only the active account's entities.
@@ -14,9 +41,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
  * @returns The active account's {@link AppData} slice, or an empty `AppData` when no account is active.
  */
 export function useScopedData(): AppData {
-  const data = useStore((s) => s.data);
-  const activeAccountId = useStore((s) => s.activeAccountId);
-  return useMemo(() => (activeAccountId ? scopeData(data, activeAccountId) : emptyAppData()), [data, activeAccountId]);
+  return useStore((state) => sharedScopedData(state.data, state.activeAccountId));
 }
 
 /**
@@ -34,7 +59,7 @@ export function useScopedData(): AppData {
  */
 export function useActiveScopedData(): AppData {
   const base = useScopedData();
-  return useMemo(() => activeOnly(base), [base]);
+  return sharedActiveData(base);
 }
 
 /**

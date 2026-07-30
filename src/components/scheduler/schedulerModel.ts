@@ -155,6 +155,46 @@ export interface SchedulerModelOptions {
   };
 }
 
+/** Recompute only the visible-window percentage while retaining the expensive bar, lane and
+ * timeline-day model. Horizontal scrolling changes this projection, not the static schedule. */
+export function refreshVisibleUtilization(
+  model: GroupModel[],
+  data: AppData,
+  start: ISODate,
+  end: ISODate,
+  blocksMode = false,
+): GroupModel[] {
+  const days = eachDayISO(start, end);
+  const byResource = <T extends { id: ID; resourceId: ID; startDate: ISODate; endDate: ISODate }>(rows: T[]) => {
+    const grouped = new Map<ID, T[]>();
+    for (const row of rows) {
+      if (!hasRenderableDateRange(row)) continue;
+      const list = grouped.get(row.resourceId);
+      if (list) list.push(row);
+      else grouped.set(row.resourceId, [row]);
+    }
+    return grouped;
+  };
+  const allocations = byResource(data.allocations);
+  const timeOff = byResource(data.timeOff);
+  return model.map((group) => {
+    let changed = false;
+    const rows = group.rows.map((row) => {
+      const resourceAllocations = capacityAllocationsForMode(allocations.get(row.resource.id) ?? [], blocksMode);
+      const resourceTimeOff = timeOff.get(row.resource.id) ?? [];
+      const next = isExternalResource(row.resource)
+        ? 0
+        : utilizationFromCapacity(
+            days.map((date) => dayCapacity(row.resource, date, resourceAllocations, resourceTimeOff)),
+          );
+      if (next === row.utilization) return row;
+      changed = true;
+      return { ...row, utilization: next };
+    });
+    return changed ? { ...group, rows } : group;
+  });
+}
+
 export function buildSchedulerModel({
   data,
   geom,

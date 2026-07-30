@@ -6,7 +6,7 @@
 **/node_modules
 
 # Build output (produced by the Dockerfile build stage)
-dist
+**/dist
 **/*.tsbuildinfo
 
 # Version control / CI
@@ -40,7 +40,15 @@ audit-followup-state.json
 # Test / tooling artifacts
 playwright-report
 test-results
-coverage
+**/coverage
+**/capacitylens-audit*.jsonl
+docs
+user-stories
+code-reviews
+.issue-fix-state
+e2e
+**/*.test.*
+**/*.spec.*
 .vscode
 .idea
 .DS_Store

@@ -725,11 +725,15 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
   // attachActiveA2 helpers (shared with the refreshActiveAccountSlice + batch-conflict suites).
 
   it("re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
     const detach = await attachActiveA2(adapter);
     const loadsAfterPick = loadAll.mock.calls.length; // the switch already loaded once
     saveAll.mockClear();
 
+    // The switch itself counts as the latest successful refresh. Move beyond that interval before
+    // exercising the ordinary focus re-hydration path.
+    now.mockReturnValue(131_000);
     window.dispatchEvent(new Event("focus"));
     await new Promise((r) => setTimeout(r, 5));
 
@@ -739,6 +743,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     // NOT a user edit, so it must NOT push a save back.
     expect(saveAll).not.toHaveBeenCalled();
     detach();
+    now.mockRestore();
   });
 
   it("preserves undo history when focus republishes the same authoritative revisions", async () => {
@@ -762,37 +767,47 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     detach();
   });
 
+  it("does not duplicate the successful slice load when focus follows a company switch", async () => {
+    const { adapter, loadAll } = recordingAdapter(a2Slice());
+    const detach = await attachActiveA2(adapter);
+    const loadsAfterPick = loadAll.mock.calls.length;
+
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
+    detach();
+  });
+
   it("THROTTLES through the exact 30-second focus interval boundary", async () => {
-    vi.useFakeTimers();
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     try {
       const { adapter, loadAll } = recordingAdapter(a2Slice());
-      const detachPromise = attachActiveA2(adapter);
-      await vi.advanceTimersByTimeAsync(5);
-      const detach = await detachPromise;
+      const detach = await attachActiveA2(adapter);
       const before = loadAll.mock.calls.length;
 
+      now.mockReturnValue(129_999);
       window.dispatchEvent(new Event("focus"));
-      await vi.advanceTimersByTimeAsync(29_999);
-      window.dispatchEvent(new Event("focus"));
-      await vi.advanceTimersByTimeAsync(0);
-      expect(loadAll.mock.calls.length).toBe(before + 1);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(loadAll.mock.calls.length).toBe(before);
 
-      await vi.advanceTimersByTimeAsync(1);
+      now.mockReturnValue(130_000);
       window.dispatchEvent(new Event("focus"));
-      await vi.advanceTimersByTimeAsync(0);
-      expect(loadAll.mock.calls.length).toBe(before + 1);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(loadAll.mock.calls.length).toBe(before);
 
-      await vi.advanceTimersByTimeAsync(1);
+      now.mockReturnValue(130_001);
       window.dispatchEvent(new Event("focus"));
-      await vi.advanceTimersByTimeAsync(0);
-      expect(loadAll.mock.calls.length).toBe(before + 2);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(loadAll.mock.calls.length).toBe(before + 1);
       detach();
     } finally {
-      vi.useRealTimers();
+      now.mockRestore();
     }
   });
 
   it("detach prevents an in-flight focus refresh from installing its late slice", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const initial = a2Slice();
     const late = { ...a2Slice(), clients: [] };
     let release!: () => void;
@@ -807,6 +822,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const detach = await attachActiveA2({ loadAll, saveAll });
 
     hold = true;
+    now.mockReturnValue(131_000);
     window.dispatchEvent(new Event("focus"));
     await new Promise((resolve) => setTimeout(resolve, 5));
     expect(release).toBeTypeOf("function");
@@ -820,6 +836,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
         .data.clients.map((client) => client.id)
         .sort(),
     ).toEqual(initial.clients.map((client) => client.id).sort());
+    now.mockRestore();
   });
 
   it("periodically re-hydrates a continuously visible server session", async () => {
@@ -1760,6 +1777,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
 
     // Switching to B succeeds: B's writes are clean BY CONSTRUCTION (fresh authoritative slice,
     // snapshot re-seeded) — A's abandoned failure must not follow the user into B.
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     onSuccess.mockClear();
     useStore.getState().setActiveAccount("b1");
     await new Promise((r) => setTimeout(r, 5));
@@ -1768,10 +1786,12 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
 
     // The focus refresh in B is no longer suppressed by A's stale failedSinceSuccess.
     const loadsBefore = loadAll.mock.calls.length;
+    now.mockReturnValue(131_000);
     window.dispatchEvent(new Event("focus"));
     await new Promise((r) => setTimeout(r, 5));
     expect(loadAll.mock.calls.length).toBe(loadsBefore + 1);
     detach();
+    now.mockRestore();
   });
 
   it("a switch past FAILED edits SURFACES the loss (typed sticky error) and cancels the stale backoff retry", async () => {

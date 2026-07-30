@@ -24,7 +24,7 @@ import { resourceDisplayName } from "../../lib/metadata";
 import { LAYOUT } from "./layout";
 import { DateHeader } from "./DateHeader";
 import { ResourceLane } from "./ResourceLane";
-import { buildSchedulerModel } from "./schedulerModel";
+import { buildSchedulerModel, refreshVisibleUtilization } from "./schedulerModel";
 import { buildLayout, windowFromLayout } from "./virtualWindow";
 import { useSchedulerViewport } from "./useSchedulerViewport";
 import type { GroupModel, RowModel } from "./schedulerModel";
@@ -195,13 +195,15 @@ export function SchedulerGrid() {
 
   const blocksMode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === "blocks");
 
-  const model = useMemo(
+  const staticModel = useMemo(
     () =>
       buildSchedulerModel({
         data,
         geom,
         days,
-        visibleWindow: { start: visStart, end: visEnd },
+        // The percentage is overlaid below. Keeping this input fixed prevents horizontal scrolling
+        // from rebuilding lanes, bars and every timeline day-state.
+        visibleWindow: { start: overStart, end: overEnd },
         overSoonWindow: { start: overStart, end: overEnd },
         filters: ui.filters,
         preferences: {
@@ -218,8 +220,6 @@ export function SchedulerGrid() {
       data,
       geom,
       days,
-      visStart,
-      visEnd,
       overStart,
       overEnd,
       ui.filters,
@@ -231,6 +231,10 @@ export function SchedulerGrid() {
       showInternalProjects,
       showInternalActivities,
     ],
+  );
+  const model = useMemo(
+    () => refreshVisibleUtilization(staticModel, data, visStart, visEnd, blocksMode),
+    [staticModel, data, visStart, visEnd, blocksMode],
   );
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null;

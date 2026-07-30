@@ -45,7 +45,6 @@ import {
   type AppData,
   type AppDataKey,
 } from "@capacitylens/shared/types/entities";
-import { remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
 // Shared lifecycle allow-list also protects the generic entity routes; the dedicated transition
 // pipeline is registered through routes/lifecycleRoutes below.
 import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
@@ -100,6 +99,7 @@ import { type AuditRecord, type AuditSink, noopAuditSink } from "./audit";
 import { drainAuditOutbox, enqueueAudit } from "./auditOutbox";
 import { isSameSessionSuccessor, isSupersededSyncBatch, recordAppliedSyncBatch, type SyncOrder } from "./syncOrdering";
 import { BatchStateProjection } from "./batchProjection";
+import { runImportWorker } from "./runImportWorker";
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
@@ -1658,9 +1658,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // the wire. The role is 'owner' — the trusted-local full-access sentinel: OFF is byte-identical
         // to today's no-login deploy, so the client's pure `can('owner', …)` keeps OFF fully editable
         // (and a Viewer read-only mode is reachable ONLY auth-on, where a real membership role exists).
-        return loadState(db).accounts.map((a) => ({
-          id: a.id,
-          name: a.name,
+        const accounts = db.prepare(`SELECT id, name FROM accounts ORDER BY id`).all() as Array<{
+          id: string;
+          name: string;
+        }>;
+        return accounts.map((account) => ({
+          id: account.id,
+          name: account.name,
           role: "owner" as const,
         }));
       }
@@ -1818,7 +1822,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           provisionProductData: () => {
             // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
             // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
-            validateWrite(store.readFullSlice(id), "accounts", accountRow);
+            validateWrite(emptyAppData(), "accounts", accountRow);
             insertRow(db, "accounts", accountRow);
             insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
             enqueueAudit(db, {
@@ -2185,13 +2189,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           });
         }
         const stamped = stampServerRevision(merged, existing);
-        // Finding 9: validate against the write's OWN account slice, not a full-DB loadState. ownsRow
-        // above already proved merged.accountId === existing.accountId, so this is the writing account
-        // (accounts key on id). PATCH already authorized the stored owner and proved accountId
-        // immutable above, so it uses the shared scoped read directly rather than prepareScopedWrite
-        // (which owns the PUT/POST read-and-validate funnel).
+        // PATCH already authorized the stored owner and proved accountId immutable above. SQLite's
+        // validation lookup resolves only the row/FK/dependent coordinates this write needs; custom
+        // stores retain the complete-slice fallback. Client replacement still needs the full client
+        // set for its singleton/reparent rule.
         const scopeId = entity === "accounts" ? id : String(merged.accountId);
-        validateWrite(store.readFullSlice(scopeId), entity, stamped, existing);
+        const lookup = store.validationLookup?.();
+        const validationState =
+          entity === "clients" || lookup === undefined ? store.readFullSlice(scopeId) : emptyAppData();
+        validateWrite(validationState, entity, stamped, existing, lookup);
         // Record only requested keys whose sanitized, pinned result actually differs from storage.
         commitProductAudit(
           reply,
@@ -2811,7 +2817,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // (accountId-carrying), never `accounts` itself — an import can only replace an EXISTING
     // account's data, never insert a new top-level accounts row. So there is no create vector here
     // for accountCreateCapped to gate.
-    app.post("/api/import", (req, reply) => {
+    app.post("/api/import", async (req, reply) => {
       const body = req.body as { accountId?: string; data?: unknown };
       if (!body || typeof body.accountId !== "string") {
         return reply.code(400).send({ error: "accountId is required" });
@@ -2850,7 +2856,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // uncaught 500.
       try {
         const currentSlice = store.readFullSlice(body.accountId);
-        const result = remapAndValidateImport(currentSlice, body.accountId, incoming, new Date().toISOString());
+        const result = await runImportWorker({
+          current: currentSlice,
+          accountId: body.accountId,
+          incoming,
+          now: new Date().toISOString(),
+        });
         // Refuse a zero-record import rather than wiping the account's slice (mirrors the
         // client store guard — replacing a company's data with nothing is never intended).
         if (result.imported === 0) {

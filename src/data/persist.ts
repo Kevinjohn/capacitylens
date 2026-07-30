@@ -242,11 +242,12 @@ export function attachPersistence(
   };
   // Refresh-on-focus throttle (P1.16): coming back to the tab re-hydrates the active account's
   // slice, but a user flipping between tabs would otherwise refetch on every focus. Cap the cadence
-  // to once per 30s; the timestamp is taken at refresh START so two focus events inside the window
-  // collapse to a single loadAll.
+  // to once per 30s. Only a completed reload consumes the interval; an in-flight guard collapses
+  // simultaneous events without making a skipped or failed attempt suppress recovery.
   const REFRESH_MIN_INTERVAL_MS = 30_000;
   const VISIBLE_REFRESH_INTERVAL_MS = 60_000;
   let lastRefreshAt = 0;
+  let focusRefreshInFlight = false;
 
   const save = (data: AppData) => {
     if (disposed) return;
@@ -819,7 +820,11 @@ export function attachPersistence(
           })();
           return;
         }
-        void refreshActive(newId);
+        void refreshActive(newId).then((outcome) => {
+          // A successful company switch just loaded this same slice. Count it as a refresh so a
+          // focus event delivered by the picker transition cannot immediately load it again.
+          if (outcome === "reloaded") lastRefreshAt = Date.now();
+        });
       })
     : null;
 
@@ -846,14 +851,21 @@ export function attachPersistence(
       return;
     }
     const now = Date.now();
-    if (now - lastRefreshAt <= REFRESH_MIN_INTERVAL_MS) return;
-    lastRefreshAt = now; // stamp at refresh START so two focuses inside the window collapse to one
-    void refreshActive(id, { abortIfSaveFailed: true }).then((outcome) => {
-      // A skipped refresh never reached the server. Do not let a failed-write guard or a superseded
-      // owner consume the throttle and suppress the next genuine recovery event. Preserve a newer
-      // refresh's timestamp if one started while this attempt was settling.
-      if (outcome === "skipped" && lastRefreshAt === now) lastRefreshAt = 0;
-    }); // a focus refresh must never clobber failed-save edits
+    // The interval suppresses redundant reads only. A pending/failed write still needs the focus
+    // recovery path immediately so it can flush before reloading or retry without waiting 30s.
+    if (now - lastRefreshAt <= REFRESH_MIN_INTERVAL_MS && pending === null && !inFlightSave && !failedSinceSuccess)
+      return;
+    if (focusRefreshInFlight) return;
+    focusRefreshInFlight = true;
+    void refreshActive(id, { abortIfSaveFailed: true })
+      .then((outcome) => {
+        // Only a real server reload consumes the throttle. Skipped attempts (failed-save guard,
+        // superseded owner) remain immediately recoverable on the next focus/online event.
+        if (outcome === "reloaded") lastRefreshAt = Date.now();
+      })
+      .finally(() => {
+        focusRefreshInFlight = false;
+      }); // a focus refresh must never clobber failed-save edits
   };
 
   // Register the orchestrator-backed refresh for out-of-band server writers (see

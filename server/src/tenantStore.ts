@@ -1,10 +1,13 @@
 import {
   SCOPED_KEYS,
+  type Allocation,
+  type AppDataKey,
   type Client,
   type Project,
   type Resource,
   type ScopedEntityKey,
 } from "@capacitylens/shared/types/entities";
+import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import type { LifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import {
   deleteRow,
@@ -206,6 +209,8 @@ export interface TenantStore {
   ): ProjectedAccountSlice;
   /** Read every field and lifecycle row for an atomic read-modify-write operation. */
   readFullSlice(accountId: string): CompleteAccountSlice;
+  /** Indexed point/reverse lookups for validating one generic write without materialising a slice. */
+  validationLookup?(): ValidationDataLookup;
   /**
    * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
    * account's scoped tables; the global `accounts` row and every other account are left untouched.
@@ -251,9 +256,32 @@ export interface TenantStore {
  * @returns A {@link TenantStore} bound to `db`.
  */
 export function sqliteTenantStore(db: Db): TenantStore {
+  const relatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
+    (
+      db.prepare(`SELECT id FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Array<{
+        id: string;
+      }>
+    ).flatMap(({ id: allocationId }) => {
+      const row = getRow(db, "allocations", allocationId);
+      return row ? [row as unknown as Allocation] : [];
+    });
+  const validationLookup: ValidationDataLookup = {
+    row: (table: AppDataKey, id: string) =>
+      getRow(db, table, id) as (Record<string, unknown> & { id: string }) | undefined,
+    allocationsForResource: (accountId, resourceId) => relatedAllocations("resourceId", accountId, resourceId),
+    allocationsForActivity: (accountId, activityId) => relatedAllocations("activityId", accountId, activityId),
+    resourceHasLoadedAllocation: (accountId, resourceId) =>
+      db
+        .prepare(`SELECT 1 FROM allocations WHERE accountId = ? AND resourceId = ? AND hoursPerDay != 0 LIMIT 1`)
+        .get(accountId, resourceId) !== undefined,
+    resourceHasTimeOff: (accountId, resourceId) =>
+      db.prepare(`SELECT 1 FROM timeOff WHERE accountId = ? AND resourceId = ? LIMIT 1`).get(accountId, resourceId) !==
+      undefined,
+  };
   return {
     readSlice: (accountId, opts) => readSlice(db, accountId, opts),
     readFullSlice: (accountId) => readFullSlice(db, accountId),
+    validationLookup: () => validationLookup,
     write: (accountId, next) => replaceAccountSlice(db, accountId, next),
     transact: (accountId, opts, operation) => transactSlice(db, accountId, opts, operation),
     readLifecycleRow: (accountId, entity, id) => ownedLifecycleRow(db, accountId, entity, id),

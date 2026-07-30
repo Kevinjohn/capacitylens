@@ -2,7 +2,9 @@ import { readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { resolve } from "node:path";
 
-const RAW_LIMIT = 528_000;
+// Rebased after the shared scoped-data cache and incremental scheduler utilisation projection;
+// retain less than 0.1% raw headroom while the compressed ceiling remains unchanged.
+const RAW_LIMIT = 529_000;
 const GZIP_LIMIT = 165_000;
 const index = await readFile(resolve("dist/index.html"), "utf8");
 

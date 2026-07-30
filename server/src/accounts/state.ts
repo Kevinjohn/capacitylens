@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS account_federated_provider_bindings (
 const CURRENT_ACCOUNT_BOUNDARY_STATE_SQL = ACCOUNT_BOUNDARY_STATE_V15_SQL;
 const COMMAND_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PENDING_RECONCILIATION_MS = 15 * 60 * 1000;
+const HOUSEKEEPING_INTERVAL_MS = 5 * 60 * 1000;
+const lastCommandSweep = new WeakMap<Db, number>();
+const lastAssuranceSweep = new WeakMap<Db, number>();
 
 // Durable rows need wall-shaped ISO timestamps, but lifetime decisions must not follow a host clock
 // step while this process is alive. Anchor wall time once and advance it with the monotonic process
@@ -235,9 +238,14 @@ export function recordSessionAssurance(
   // Assurance rows are keyed by a non-reversible handle rather than Better Auth's bearer token,
   // so they cannot be joined to expired sessions for cascade cleanup. Bound their lifetime to the
   // same absolute session window whenever a new session is recorded.
-  db.prepare(`DELETE FROM account_session_assurance WHERE createdAt < ?`).run(
-    new Date(Date.parse(now) - ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS * 1000).toISOString(),
-  );
+  const nowMs = Date.parse(now);
+  const lastSweep = lastAssuranceSweep.get(db);
+  if (lastSweep === undefined || nowMs - lastSweep >= HOUSEKEEPING_INTERVAL_MS) {
+    db.prepare(`DELETE FROM account_session_assurance WHERE createdAt < ?`).run(
+      new Date(nowMs - ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS * 1000).toISOString(),
+    );
+    lastAssuranceSweep.set(db, nowMs);
+  }
   db.prepare(
     `
     INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
@@ -475,12 +483,16 @@ export function reserveAccountCommand(
     throw new Error("Account command payloadHash must be a lowercase SHA-256 digest.");
   }
   const nowMs = input.now === undefined ? stableNowMs() : Date.parse(input.now);
-  db.prepare(
-    `
-    DELETE FROM account_commands
-     WHERE status IN ('completed', 'compensated') AND updatedAt < ?
-  `,
-  ).run(new Date(nowMs - COMMAND_RETENTION_MS).toISOString());
+  const lastSweep = lastCommandSweep.get(db);
+  if (lastSweep === undefined || nowMs - lastSweep >= HOUSEKEEPING_INTERVAL_MS) {
+    db.prepare(
+      `
+      DELETE FROM account_commands
+       WHERE status IN ('completed', 'compensated') AND updatedAt < ?
+    `,
+    ).run(new Date(nowMs - COMMAND_RETENTION_MS).toISOString());
+    lastCommandSweep.set(db, nowMs);
+  }
   const existing = getAccountCommand(db, input.applicationId, input.operation, input.idempotencyKey);
   if (existing) {
     // An idempotency key is authority-neutral, but its result is not. Never let a command retained

@@ -706,6 +706,15 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     changedFields: ["name"],
   });
 
+  it("appends a multi-record batch through one file operation", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-batch-"));
+    const file = join(dir, "audit.jsonl");
+    const sink = fileAuditSink(file, vi.fn());
+
+    expect(sink.appendMany?.([rec("r1"), rec("r2")])).toBe(true);
+    expect(readFileSync(file, "utf8").trim().split("\n")).toHaveLength(2);
+  });
+
   it("rotates the PREVIOUS generation into .1 once the file reaches maxBytes, and keeps appending to a fresh file", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
     const file = join(dir, "audit.jsonl");

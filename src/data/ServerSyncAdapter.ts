@@ -293,9 +293,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   private canonicalizeAcknowledged(data: AppData): AppData {
+    if (this.acknowledgedRevisions.size === 0) return data;
+    const affectedTables = new Set<keyof AppData>();
+    for (const key of this.acknowledgedRevisions.keys()) {
+      affectedTables.add(key.slice(0, key.indexOf("\0")) as keyof AppData);
+    }
     const next = { ...data };
     let changed = false;
-    for (const table of Object.keys(data) as Array<keyof AppData>) {
+    for (const table of affectedTables) {
       next[table] = data[table].map((row) => {
         const key = `${table}\0${row.id}`;
         const acknowledged = this.acknowledgedRevisions.get(key);

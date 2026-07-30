@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildSchedulerModel, type GroupModel } from "./schedulerModel";
+import { buildSchedulerModel, refreshVisibleUtilization, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO, addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { capacityForWindow as capacityForWindowOf, utilization as utilizationOf } from "../../lib/capacity";
@@ -464,6 +464,46 @@ describe("buildSchedulerModel", () => {
 
   it("project filter limits bars to that project (resources still listed)", () => {
     expect(barIds(build({ ...emptyFilters(), projectId: "p2" }))).toEqual(["a2", "a3"]);
+  });
+
+  it("refreshes visible utilisation without rebuilding static schedule rows", () => {
+    const data = dataset();
+    const base = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start: "2026-06-01", end: "2026-06-02" },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+    const refreshed = refreshVisibleUtilization(base, data, "2026-06-03", "2026-06-05");
+    const rebuilt = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start: "2026-06-03", end: "2026-06-05" },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+    const utilisationByResource = (groups: GroupModel[]) =>
+      Object.fromEntries(groups.flatMap((group) => group.rows.map((row) => [row.resource.id, row.utilization])));
+    expect(utilisationByResource(refreshed)).toEqual(utilisationByResource(rebuilt));
+
+    const baseRow = base[0]!.rows[0]!;
+    const refreshedRow = refreshed[0]!.rows[0]!;
+    expect(refreshedRow.bars).toBe(baseRow.bars);
+    expect(refreshedRow.dayStates).toBe(baseRow.dayStates);
+    expect(refreshedRow.timeOff).toBe(baseRow.timeOff);
   });
 
   // dataset() + project-less activities (one internal, one cross-project) with an allocation each, so the

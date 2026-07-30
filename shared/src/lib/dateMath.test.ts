@@ -9,6 +9,7 @@ import {
   endDateForWorkingDays,
   isWithin,
   isWeekendAware,
+  MAX_MATERIALISED_DAYS,
   parseDate,
   startOfWeekISO,
   todayISO,
@@ -54,6 +55,12 @@ describe("dateMath", () => {
 
   it("eachDayISO returns a single-element array for a same-day range", () => {
     expect(eachDayISO("2026-06-15", "2026-06-15")).toEqual(["2026-06-15"]);
+  });
+
+  it("eachDayISO rejects ranges too large to materialise safely", () => {
+    expect(() => eachDayISO("1900-01-01", "2100-01-01")).toThrow(
+      `Date range exceeds the ${MAX_MATERIALISED_DAYS}-day materialisation limit.`,
+    );
   });
 
   it("eachDayISO is empty for ANY end-before-start range, not just adjacent reversals", () => {

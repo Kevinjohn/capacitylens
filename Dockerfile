@@ -32,11 +32,11 @@ FROM web-build AS web-client-build
 # into the CSP rather than weakening connect-src or templating mutable runtime configuration.
 RUN node scripts/render-client-nginx.mjs nginx.client.conf.template /tmp/nginx.client.conf
 
-# The server intentionally executes TypeScript because @capacitylens/shared exports its source.
-# `tsx` is therefore a pinned runtime dependency. This deploy omits Vite, Playwright, Vitest,
-# TypeScript, ESLint and every other development-only package from the API image.
+# Bundle the API and its CPU-isolated import worker once during image construction. The production
+# container executes plain JavaScript and carries neither the TypeScript transformer nor build tools.
 FROM source AS server-deploy
-RUN pnpm --filter capacitylens-server deploy --prod /prod/server
+RUN pnpm --filter capacitylens-server run build:runtime \
+    && pnpm --filter capacitylens-server deploy --prod /prod/server
 # Fail the image build if optional web/test peers leak back into the isolated API graph.
 RUN for package in vite vitest jsdom eslint react react-dom playwright playwright-core typescript; do \
       test -z "$(find /prod/server/node_modules/.pnpm -mindepth 1 -maxdepth 1 -type d -name "$package@*" -print -quit)" \
@@ -60,7 +60,7 @@ USER node
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "const fs=require('node:fs'),https=require('node:https'),port=process.env.PORT||8787,cert=process.env.CAPACITYLENS_INTERNAL_TLS_CERT,key=process.env.CAPACITYLENS_INTERNAL_TLS_KEY,ca=process.env.CAPACITYLENS_INTERNAL_TLS_CA;if(!cert&&!key){fetch('http://127.0.0.1:'+port+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1));}else{https.get({hostname:'127.0.0.1',port,path:'/api/health',...(ca?{ca:fs.readFileSync(ca),servername:'api'}:{rejectUnauthorized:false})},r=>process.exit(r.statusCode>=200&&r.statusCode<300?0:1)).on('error',()=>process.exit(1));}"
-CMD ["sh", "-c", "node scripts/check-node.mjs && exec node_modules/.bin/tsx src/index.ts"]
+CMD ["sh", "-c", "node scripts/check-node.mjs && exec node dist/index.mjs"]
 
 FROM alpine:3.23.5@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS internal-tls
 RUN apk add --no-cache openssl

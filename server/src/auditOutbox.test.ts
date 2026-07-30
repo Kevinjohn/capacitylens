@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileAuditSink, type AuditRecord, type AuditSink } from "./audit";
+import { fileAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
 import { drainAuditOutbox, enqueueAudit, pendingAuditCount } from "./auditOutbox";
 import { openDb } from "./db";
 import { tx } from "./txn";
@@ -125,6 +125,21 @@ describe("durable audit outbox", () => {
 
     expect(drainAuditOutbox(db, sink)).toBe(false);
     expect(pendingAuditCount(db)).toBe(1);
+    db.close();
+  });
+
+  it("delivers a committed outbox page through the sink's batch durability boundary", () => {
+    const db = openDb(":memory:");
+    enqueueAudit(db, record(), "audit-batch-1");
+    enqueueAudit(db, { ...record(), id: "project-2" }, "audit-batch-2");
+    const appendMany = vi.fn<(records: readonly AuditEntry[]) => boolean>(() => true);
+    const sink: AuditSink = { append: vi.fn(() => true), appendMany, degraded: false };
+
+    expect(drainAuditOutbox(db, sink)).toBe(true);
+    expect(appendMany).toHaveBeenCalledOnce();
+    expect(appendMany.mock.calls[0]![0].map((entry) => entry.auditId)).toEqual(["audit-batch-1", "audit-batch-2"]);
+    expect(sink.append).not.toHaveBeenCalled();
+    expect(pendingAuditCount(db)).toBe(0);
     db.close();
   });
 

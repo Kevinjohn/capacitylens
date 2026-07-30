@@ -1,6 +1,9 @@
 import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
 import type { ISODate, Weekday } from "../types/entities";
 
+/** Defensive allocation ceiling for materialised date arrays (~100 calendar years). */
+export const MAX_MATERIALISED_DAYS = 36_500;
+
 // All scheduler geometry is done in INTEGER day-indices derived from date-only
 // ISO strings. We never do millisecond Date math for positioning — that is the
 // classic DST / timezone off-by-one bug. date-fns' calendar-day helpers are
@@ -59,6 +62,9 @@ export function daysInclusive(start: ISODate, end: ISODate): number {
 export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
   const count = daysInclusive(start, end);
   if (count <= 0) return [];
+  if (count > MAX_MATERIALISED_DAYS) {
+    throw new RangeError(`Date range exceeds the ${MAX_MATERIALISED_DAYS}-day materialisation limit.`);
+  }
   const out: ISODate[] = [];
   // Parse `start` ONCE and step the resulting Date with addDays, formatting each day once. The
   // previous `addDaysISO(start, i)` per iteration re-parsed the start STRING every time (~n+1

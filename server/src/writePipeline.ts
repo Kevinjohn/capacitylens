@@ -1,4 +1,4 @@
-import type { AppData, Client } from "@capacitylens/shared/types/entities";
+import { emptyAppData, type AppData, type Client } from "@capacitylens/shared/types/entities";
 import { type Db, deleteRow, getRow, upsertRow } from "./db";
 import { acceptedWriteFields, sanitizeWrite, validateWrite } from "./validate";
 import type { SanitizeWriteOptions } from "./fieldPolicy";
@@ -146,7 +146,12 @@ export function prepareScopedWrite(params: {
   // Finding 9: scope the referential read to the write's OWN account (accounts key on id; scoped
   // tables on accountId) instead of loadState(db)'s SELECT * over every tenant.
   const scopeId = entity === "accounts" ? String(row.id) : String(row.accountId);
-  const scopedState = store.readFullSlice(scopeId);
+  const lookup = store.validationLookup?.();
+  // Client replacement needs the account's complete client set for singleton/reparent handling.
+  // Every other SQLite write validates through indexed point/reverse lookups; fallback stores retain
+  // the complete-slice contract without having to implement the optional optimisation seam.
+  const needsSlice = entity === "clients" || lookup === undefined;
+  const scopedState = needsSlice ? store.readFullSlice(scopeId) : emptyAppData();
   // Builtin-client replacement is a PUT affordance only. POST cannot hand-craft builtin rows, and
   // PATCH never rewrites the generated Internal client.
   const generatedReplacement = verb === "replace" ? generatedBuiltinReplacement(scopedState, entity, row) : null;
@@ -155,7 +160,7 @@ export function prepareScopedWrite(params: {
   // UPDATE, and every scoped write, validates here.
   const deferAccountsCreate = entity === "accounts" && existing === undefined;
   if (!deferAccountsCreate && !generatedReplacement) {
-    validateWrite(scopedState, entity, row, existing);
+    validateWrite(scopedState, entity, row, existing, lookup);
   }
   return { row, generatedReplacement, scopedState };
 }

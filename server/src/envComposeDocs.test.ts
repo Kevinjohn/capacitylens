@@ -43,4 +43,10 @@ describe("Compose exceptions in the environment register", () => {
     expect(healthcheck).toContain("https.get(");
     expect(healthcheck).toContain("ca?{ca:fs.readFileSync(ca),servername:'api'}:{rejectUnauthorized:false}");
   });
+
+  it("builds the API runtime ahead of time instead of transforming TypeScript at startup", () => {
+    expect(dockerfile).toContain("pnpm --filter capacitylens-server run build:runtime");
+    expect(dockerfile).toContain("exec node dist/index.mjs");
+    expect(dockerfile).not.toContain("exec node_modules/.bin/tsx");
+  });
 });
