@@ -1323,6 +1323,26 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     expect(opsOf(put)).toEqual([expect.objectContaining({ method: "PUT", table: "clients", id: "c2" })]);
   });
 
+  it("announces an audit warning returned by the dedicated archive route", async () => {
+    // The archive route goes through `this.request` (raw fetchImpl), NOT apiFetch, so it must check
+    // the audit-degradation header itself rather than relying on apiFetch's own check.
+    const warning = vi.fn();
+    globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
+    try {
+      const { fetchImpl } = recordingFetch((url) =>
+        url.endsWith("/clients/c1/archive")
+          ? new Response("{}", { status: 200, headers: { "x-capacitylens-audit-warning": "true" } })
+          : null,
+      );
+      const a = new ServerSyncAdapter("http://x", fetchImpl);
+      await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
+      await a.saveAll(scopedData("a1", {}));
+      expect(warning).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
+    }
+  });
+
   it("redo reverses the remembered archive before treating the lifecycle row as active again", async () => {
     const restored = { ...client("c1"), updatedAt: TS2 };
     const { calls, fetchImpl } = recordingFetch((url) =>
@@ -1337,6 +1357,31 @@ describe("lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY conver
     await a.saveAll(created);
 
     expect(calls.map((call) => call.url)).toEqual(["http://x/api/clients/c1/unarchive"]);
+  });
+
+  it("announces an audit warning returned by the dedicated unarchive route", async () => {
+    // Same gap as the archive route above: unarchiveLifecycleRow also bypasses apiFetch.
+    const warning = vi.fn();
+    globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
+    try {
+      const restored = { ...client("c1"), updatedAt: TS2 };
+      const { fetchImpl } = recordingFetch((url) =>
+        url.endsWith("/clients/c1/unarchive")
+          ? new Response(JSON.stringify(restored), {
+              status: 200,
+              headers: { "x-capacitylens-audit-warning": "true" },
+            })
+          : null,
+      );
+      const a = new ServerSyncAdapter("http://x", fetchImpl);
+      await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
+      await a.saveAll(scopedData("a1", {}));
+      warning.mockClear();
+      await a.saveAll(scopedData("a1", { clients: [client("c1")] }));
+      expect(warning).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
+    }
   });
 
   it("unarchives before applying edits that accompany a lifecycle-row reappearance", async () => {

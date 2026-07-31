@@ -858,6 +858,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       }),
       credentials: "include",
     });
+    // Unarchive is a destructive-write reversal and goes through `this.request` (raw fetchImpl), not
+    // apiFetch, so it must check the audit-degradation header itself — mirroring the batch path below.
+    if (res.headers.get("x-capacitylens-audit-warning") === "true") announceAuditWarning();
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       throw new LifecycleRestoreError(`Lifecycle restore of ${op.table}/${op.id} failed (${res.status}).`, {
@@ -915,6 +918,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       init,
       opts.keepalive ? null : API_REQUEST_TIMEOUT_MS,
     );
+    // Same gap as unarchiveLifecycleRow above: this dedicated route bypasses apiFetch, so the
+    // audit-degradation header on this destructive write would otherwise be silently dropped.
+    if (res.headers.get("x-capacitylens-audit-warning") === "true") announceAuditWarning();
     if (res.status === 409) {
       const detail = await res.text().catch(() => "");
       let conflict: { code?: unknown; error?: unknown } | null = null;

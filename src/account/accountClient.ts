@@ -1,6 +1,6 @@
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
-import { apiFetch, API_BULK_TIMEOUT_MS, requestSignal } from "../data/requestTimeout";
+import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 
 export interface BrowserAccountCommand {
@@ -209,17 +209,13 @@ function jsonCommandInit(method: "POST" | "PATCH", body: unknown, command?: Brow
 
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
-    return fetch(`${API_BASE}/api/auth/me`, {
-      credentials: "include",
-      signal: requestSignal(signal),
-    });
+    // apiFetch (not raw fetch) so the audit-degradation header gets the same announceAuditWarning
+    // surfacing as every other account/sync request path.
+    return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", signal });
   },
 
   listWorkspaces(signal?: AbortSignal): Promise<Response> {
-    return fetch(`${API_BASE}/api/accounts`, {
-      credentials: "include",
-      signal: requestSignal(signal),
-    });
+    return apiFetch(`${API_BASE}/api/accounts`, { credentials: "include", signal });
   },
 
   signOut(): Promise<Response> {

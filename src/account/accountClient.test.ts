@@ -28,6 +28,7 @@ import {
   clearStoredAccountCommands,
   newBrowserAccountCommand,
 } from "./accountClient";
+import { announceAuditWarning, AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 
 const command = { commandId: "command-1", idempotencyKey: "key-1" };
 
@@ -61,23 +62,43 @@ describe("browser account client", () => {
     });
   });
 
-  it("owns unauthenticated status and workspace-list reads", async () => {
-    const response = new Response("[]");
-    const fetchMock = vi.fn(async () => response);
-    vi.stubGlobal("fetch", fetchMock);
+  it("owns unauthenticated status and workspace-list reads via apiFetch", async () => {
+    // Routed through apiFetch (not raw fetch) so the audit-degradation header check that apiFetch
+    // performs applies uniformly to these reads too.
     const controller = new AbortController();
 
     await accountClient.me(controller.signal);
     await accountClient.listWorkspaces(controller.signal);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://app.example/api/auth/me", {
+    expect(mocks.apiFetch).toHaveBeenNthCalledWith(1, "https://app.example/api/auth/me", {
       credentials: "include",
       signal: controller.signal,
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://app.example/api/accounts", {
+    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, "https://app.example/api/accounts", {
       credentials: "include",
       signal: controller.signal,
     });
+  });
+
+  it("surfaces an audit-degradation warning when apiFetch reports one for /api/auth/me", async () => {
+    // accountClient.me used to call raw `fetch` directly, bypassing apiFetch's audit-degradation
+    // header check entirely (the regression this test pins). Simulate apiFetch's real header-check
+    // behavior (mirrors requestTimeout.ts's apiFetch, covered directly in requestTimeout.test.ts) so
+    // this test proves accountClient.me's OWN wiring reaches apiFetch rather than a bespoke fetch.
+    const warning = vi.fn();
+    globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
+    mocks.apiFetch.mockImplementation(async () => {
+      const res = new Response("{}", { status: 200, headers: { "x-capacitylens-audit-warning": "true" } });
+      if (res.headers.get("x-capacitylens-audit-warning") === "true") announceAuditWarning();
+      return res;
+    });
+
+    try {
+      await accountClient.me();
+      expect(warning).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.removeEventListener(AUDIT_WARNING_EVENT, warning);
+    }
   });
 
   it("adds command headers, JSON encoding, safe path encoding, reauth, and bulk timeout policy", async () => {
