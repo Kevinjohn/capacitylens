@@ -24,13 +24,22 @@ test.describe("Command palette", () => {
     // Shows Actions section
     await expect(page.getByTestId("command-palette").getByText("Go to today")).toBeVisible();
 
-    // Shows Pages section with all 9 routes (scoped to the palette to avoid strict-mode
-    // violations from other elements with the same text on the page below)
+    // Shows Pages section with every first-class route (scoped to the palette to avoid strict-mode
+    // violations from other elements with the same text on the page below).
     const palette = page.getByTestId("command-palette");
-    await expect(palette.getByText("Schedule", { exact: true }).last()).toBeVisible();
-    await expect(palette.getByText("Resources", { exact: true })).toBeVisible();
-    await expect(palette.getByText("Team & access", { exact: true })).toBeVisible();
-    await expect(palette.getByText("Activities", { exact: true })).toBeVisible();
+    for (const label of [
+      "Schedule",
+      "Resources",
+      "Team & access",
+      "Disciplines",
+      "Clients",
+      "Projects",
+      "Activities",
+      "Time off",
+      "Settings",
+    ]) {
+      await expect(palette.getByText(label, { exact: true }).last()).toBeVisible();
+    }
 
     // Close with Escape
     await page.keyboard.press("Escape");
@@ -101,6 +110,9 @@ test.describe("Command palette", () => {
     const options = page.getByTestId("command-palette-option");
     // Find the Nike Spiros option
     await expect(options.filter({ hasText: "Nike Spiros" })).toBeVisible();
+    const activeId = await page.getByTestId("command-palette-input").getAttribute("aria-activedescendant");
+    expect(activeId).toBeTruthy();
+    await expect(page.locator(`#${activeId}`)).toHaveAttribute("aria-selected", "true");
 
     // Press Enter
     await page.keyboard.press("Enter");
@@ -130,15 +142,36 @@ test.describe("Command palette", () => {
   });
 
   test("Go to today action navigates to schedule and recenters", async ({ page }) => {
-    await openApp(page, "Studio North", "/resources");
-    await expect(page.getByRole("button", { name: "Add resource" })).toBeVisible();
+    await openApp(page);
+    const grid = page.getByTestId("scheduler-grid");
+    await grid.evaluate((el) => {
+      (el as HTMLElement).scrollLeft = 5000;
+    });
+    await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeGreaterThan(4000);
+    await page.getByRole("link", { name: "Resources" }).click();
 
     // Open palette and click "Go to today"
     await page.keyboard.press("ControlOrMeta+k");
     await page.getByText("Go to today").click();
 
-    // Should navigate back to schedule
-    await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+    // It returns to the schedule and applies the recenter action, rather than merely navigating.
+    await expect(grid).toBeVisible();
+    await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(4000);
+  });
+
+  test("client and activity results apply their documented destinations", async ({ page }) => {
+    await openApp(page);
+
+    await page.keyboard.press("ControlOrMeta+k");
+    await page.getByTestId("command-palette-input").fill("Acme Inc.");
+    await page.getByTestId("command-palette-option").filter({ hasText: "Acme Inc." }).click();
+    await expect(page.getByRole("combobox", { name: "Filter by client" })).toHaveText("Acme Inc.");
+
+    await page.keyboard.press("ControlOrMeta+k");
+    await page.getByTestId("command-palette-input").fill("Brand System");
+    await page.getByTestId("command-palette-option").filter({ hasText: "Brand System" }).click();
+    await expect(page).toHaveURL(/\/activities#activity=t-brand$/);
+    await expect(page.getByText("Brand System", { exact: true })).toBeVisible();
   });
 
   test("Go to date action appears for valid ISO date query", async ({ page }) => {

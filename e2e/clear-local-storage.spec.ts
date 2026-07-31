@@ -2,12 +2,38 @@ import { test, expect } from "./fixtures";
 import { openApp } from "./helpers";
 
 // Covers US-SET-08 — the Settings "Clear device data" action.
-// This spec deliberately does not confirm because confirmation reloads the page.
-// We assert only that the button + confirm modal render with accurate copy, and that Cancel is a
-// no-op. The actual clear + reload is exercised in the component test (SettingsView.test.tsx).
 test.describe("Settings — Clear device data", () => {
-  test("shows a destructive button + confirm modal; Cancel does not wipe", async ({ page }) => {
+  test("Cancel is a no-op; confirm clears owned device data, preserves unrelated data, and reloads", async ({
+    page,
+  }) => {
     await openApp(page, "Studio North", "/settings");
+
+    await page.evaluate(() => {
+      localStorage.setItem("capacitylens/test-owned", "remove me");
+      localStorage.setItem("unrelated/test-key", "keep me");
+      return new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open("capacitylens-offline-v1", 2);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains("records")) {
+            request.result.createObjectStore("records", { keyPath: "key" });
+          }
+          if (!request.result.objectStoreNames.contains("keys")) {
+            request.result.createObjectStore("keys", { keyPath: "id" });
+          }
+        };
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction("records", "readwrite");
+          tx.objectStore("records").put({ key: "test-snapshot", savedAt: Date.now(), value: "remove me" });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      });
+    });
 
     const button = page.getByTestId("clear-local-storage");
     await expect(button).toBeVisible();
@@ -23,7 +49,39 @@ test.describe("Settings — Clear device data", () => {
     // Cancel closes the modal and leaves the app intact — the seeded data is untouched.
     await dialog.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
-    // The button is still there (no reload happened) — proof Cancel was a no-op.
     await expect(page.getByTestId("clear-local-storage")).toBeVisible();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("capacitylens/test-owned"))).toBe("remove me");
+
+    // Confirm performs the destructive boundary and reloads the app.
+    await button.click();
+    const reloaded = page.waitForEvent("load");
+    await page.getByRole("alertdialog").getByRole("button", { name: "Clear device data" }).click();
+    await reloaded;
+
+    expect(await page.evaluate(() => localStorage.getItem("capacitylens/test-owned"))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem("unrelated/test-key"))).toBe("keep me");
+    expect(
+      await page.evaluate(
+        () =>
+          new Promise<number>((resolve, reject) => {
+            const request = indexedDB.open("capacitylens-offline-v1", 2);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+              const db = request.result;
+              const count = db.transaction("records", "readonly").objectStore("records").count();
+              count.onsuccess = () => {
+                db.close();
+                resolve(count.result);
+              };
+              count.onerror = () => reject(count.error);
+            };
+          }),
+      ),
+    ).toBe(0);
+
+    // The demo reload proves scheduling data is not browser-owned: the canonical company data is
+    // still available after passing back through the cleared device gates.
+    await openApp(page);
+    await expect(page.getByText("Tyler Nix")).toBeVisible();
   });
 });

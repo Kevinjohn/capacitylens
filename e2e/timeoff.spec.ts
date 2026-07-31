@@ -63,15 +63,31 @@ test.describe("Time off", () => {
 
   test("deletes a time-off entry after confirmation and restores it with undo", async ({ page }) => {
     await openApp(page, "Studio North", "/timeoff");
-    await page
-      .getByTestId("timeoff-row")
-      .filter({ hasText: "Tyler Nix" })
-      .getByRole("button", { name: "Delete" })
-      .click();
-    await page.getByRole("alertdialog", { name: "Delete time off?" }).getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByTestId("timeoff-row")).toHaveCount(0);
+    const row = page.getByTestId("timeoff-row").filter({ hasText: "Tyler Nix" });
+
+    // The same record exists on the schedule before deletion.
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await page.getByLabel("Jump to date").fill("2026-06-01");
+    const block = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
+    await expect(block).toContainText("Holiday");
+    await page.getByRole("link", { name: "Time off" }).click();
+
+    // Cancel is a no-op.
+    await row.getByRole("button", { name: "Delete" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Delete time off?" });
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(row).toBeVisible();
+
+    await row.getByRole("button", { name: "Delete" }).click();
+    await dialog.getByRole("button", { name: "Delete" }).click();
+    await expect(row).toHaveCount(0);
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect(block).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
+    await expect(block).toContainText("Holiday");
+    await page.getByRole("link", { name: "Time off" }).click();
     await expect(page.getByTestId("timeoff-row").filter({ hasText: "Tyler Nix" })).toBeVisible();
   });
 });

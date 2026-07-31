@@ -17,17 +17,60 @@ const EMPTY_CAPACITYLENS = JSON.stringify({
   },
 });
 
-// A real (non-empty) import: one resource. Importing nothing is now refused (it would
-// silently wipe the account), so the confirm/replace flow is exercised with actual data.
+// A small but complete linked graph. Importing nothing is refused (it would silently wipe the
+// account), and a resource-only fixture would not prove that replacement and undo preserve
+// relationships across the whole scoped slice.
 const NONEMPTY_CAPACITYLENS = JSON.stringify({
   schemaVersion: 2,
   data: {
     disciplines: [],
-    clients: [],
-    projects: [],
+    clients: [
+      {
+        id: "imp-c",
+        accountId: "X",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Imported Client",
+        color: "#3b82f6",
+      },
+    ],
+    projects: [
+      {
+        id: "imp-p",
+        accountId: "X",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Imported Project",
+        clientId: "imp-c",
+        color: "#3b82f6",
+      },
+    ],
     phases: [],
-    activities: [],
-    allocations: [],
+    activities: [
+      {
+        id: "imp-t",
+        accountId: "X",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Imported Activity",
+        kind: "project",
+        projectId: "imp-p",
+      },
+    ],
+    allocations: [
+      {
+        id: "imp-a",
+        accountId: "X",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "imp-r",
+        activityId: "imp-t",
+        startDate: "2026-06-01",
+        endDate: "2026-06-05",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+    ],
     timeOff: [],
     resources: [
       {
@@ -68,7 +111,14 @@ test.describe("Data import/export", () => {
 
     const dialog = page.getByRole("alertdialog", { name: "Import data?" });
     await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("incoming.json");
     await expect(dialog).toContainText(/replaces this company’s data/i);
+    await expect(dialog).toContainText(/1 resource/i);
+    await expect(dialog).toContainText(/1 client/i);
+    await expect(dialog).toContainText(/1 project/i);
+    await expect(dialog).toContainText(/1 activit(?:y|ies)/i);
+    await expect(dialog).toContainText(/1 allocation/i);
+    await expect(dialog).toContainText(/undo this with/i);
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
     // Data is untouched — the seeded resource is still there.
@@ -81,12 +131,28 @@ test.describe("Data import/export", () => {
     await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
     await page.getByRole("alertdialog", { name: "Import data?" }).getByRole("button", { name: "Replace data" }).click();
 
-    // Replaced → the imported resource shows and the seeded data is gone.
+    // Replaced → the linked imported graph renders and seeded-only data is gone.
     await expect(page.getByText("Imported Person")).toBeVisible();
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Imported Activity" })).toBeVisible();
     await expect(page.getByText("Tyler Nix")).toHaveCount(0);
+    await expect(page.getByText(/Imported 5 records\. Press .* to undo\./)).toBeVisible();
 
-    // Undo brings the seeded data back.
+    await page.getByRole("link", { name: "Clients" }).click();
+    await expect(page.getByText("Imported Client")).toBeVisible();
+    await page.getByRole("link", { name: "Projects" }).click();
+    await expect(page.getByText("Imported Project")).toBeVisible();
+    await page.getByRole("link", { name: "Activities" }).click();
+    await expect(page.getByText("Imported Activity")).toBeVisible();
+
+    // A single undo restores the prior graph, not merely one representative resource.
     await page.keyboard.press("Meta+z");
+    await expect(page.getByText("Brand System")).toBeVisible();
+    await expect(page.getByText("Imported Activity")).toHaveCount(0);
+    await page.getByRole("link", { name: "Clients" }).click();
+    await expect(page.getByRole("button", { name: "Add client" })).toBeVisible();
+    await expect(page.getByText("Acme Inc.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Imported Client")).toHaveCount(0);
+    await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByText("Tyler Nix")).toBeVisible();
   });
 
