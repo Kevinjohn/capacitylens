@@ -178,15 +178,22 @@ export function SettingsView() {
   // A user-triggered wipe of everything CapacityLens keeps in this browser: the opt-in read-only
   // cache plus device preferences. Server data is never touched; demo data is memory-only already.
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const clearActionLock = useRef(false);
+  const [clearBusy, setClearBusy] = useState(false);
   const serverMode = isServerConfigured();
 
   const clearLocalStorage = async () => {
+    if (clearActionLock.current) return;
+    clearActionLock.current = true;
+    setClearBusy(true);
     // Surface, never swallow (DEFENSIVE-CODING.md §1): this is a user-triggered action, so a storage
     // failure (private mode / disabled storage) must show as a visible notice rather than vanish.
     try {
       await clearAllOfflineData();
       clearCapacitylensLocalStorage();
     } catch (e) {
+      clearActionLock.current = false;
+      setClearBusy(false);
       setConfirmingClear(false);
       setNotice(m.settings_err_clear_storage({ error: errorMessage(e) }), "error");
       return;
@@ -564,6 +571,7 @@ export function SettingsView() {
             title={m.settings_clear_storage_confirm_title()}
             confirmLabel={m.settings_clear_storage_button()}
             message={m.settings_clear_confirm_server({ app: APP_NAME })}
+            busy={clearBusy}
             onConfirm={() => void clearLocalStorage()}
             onCancel={() => setConfirmingClear(false)}
           />

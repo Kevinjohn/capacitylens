@@ -12,6 +12,7 @@ const offlineMocks = vi.hoisted(() => ({
   cacheAuth: vi.fn(async () => ({ status: "written" as const })),
   cacheSummaries: vi.fn(async () => ({ status: "written" as const })),
   cacheSlice: vi.fn(async () => ({ status: "written" as const })),
+  clearAll: vi.fn<() => Promise<void>>(),
   preferenceListeners: new Set<() => void>(),
 }));
 
@@ -26,6 +27,7 @@ vi.mock("../../data/offlineCache", async (importOriginal) => ({
   cacheAuthSnapshot: offlineMocks.cacheAuth,
   cacheAccountSummaries: offlineMocks.cacheSummaries,
   cacheAccountSlice: offlineMocks.cacheSlice,
+  clearAllOfflineData: offlineMocks.clearAll,
 }));
 
 beforeEach(() => {
@@ -39,6 +41,8 @@ beforeEach(() => {
   offlineMocks.cacheAuth.mockClear();
   offlineMocks.cacheSummaries.mockClear();
   offlineMocks.cacheSlice.mockClear();
+  offlineMocks.clearAll.mockReset();
+  offlineMocks.clearAll.mockResolvedValue(undefined);
   resetStoreWithAccount();
   useStore.getState().setTheme("light");
 });
@@ -425,6 +429,33 @@ describe("SettingsView — Clear local storage", () => {
     expect(localStorage.getItem("capacitylens/theme")).toBeNull();
     expect(localStorage.getItem("unrelated")).toBe("leave-me");
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("locks both confirmation actions while device cleanup is in flight", async () => {
+    let finishCleanup!: () => void;
+    offlineMocks.clearAll.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishCleanup = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<SettingsView />);
+    await user.click(screen.getByTestId("clear-local-storage"));
+    const dialog = screen.getByRole("alertdialog");
+    const confirm = within(dialog).getByRole("button", { name: "Clear device data" });
+    const cancel = within(dialog).getByRole("button", { name: "Cancel" });
+
+    await user.click(confirm);
+
+    expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
+    expect(confirm).toBeDisabled();
+    expect(cancel).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(offlineMocks.clearAll).toHaveBeenCalledTimes(1);
+
+    finishCleanup();
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
   });
 });
 

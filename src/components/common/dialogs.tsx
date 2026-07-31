@@ -241,6 +241,7 @@ export function ConfirmDialog({
   message,
   confirmLabel = m.form_delete(),
   confirmVariant = "danger-soft",
+  busy = false,
   onConfirm,
   onCancel,
 }: {
@@ -248,6 +249,7 @@ export function ConfirmDialog({
   message: ReactNode;
   confirmLabel?: string;
   confirmVariant?: "default" | "outline" | "danger-soft";
+  busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -256,7 +258,7 @@ export function ConfirmDialog({
     <AlertDialog
       open
       onOpenChange={(open) => {
-        if (!open && !confirmingRef.current) onCancel();
+        if (!open && !confirmingRef.current && !busy) onCancel();
       }}
     >
       <AlertDialogContent>
@@ -267,10 +269,12 @@ export function ConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{m.form_cancel()}</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>{m.form_cancel()}</AlertDialogCancel>
           <AlertDialogAction
             variant={confirmVariant}
+            disabled={busy}
             onClick={() => {
+              if (busy) return;
               confirmingRef.current = true;
               onConfirm();
             }}

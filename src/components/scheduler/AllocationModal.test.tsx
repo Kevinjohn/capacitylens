@@ -5,6 +5,7 @@ import { AllocationModal } from "./AllocationModal";
 import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { DEFAULT_ACCOUNT_ID, makeAppData, setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
+import { PermissionContext } from "../../auth/permissionContext";
 
 const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOffDays: 0 })));
 vi.mock("../../lib/capacity", async (importOriginal) => ({
@@ -1054,6 +1055,27 @@ describe("AllocationModal inline activity creation pref", () => {
     expect(screen.queryByRole("button", { name: "Add activity" })).not.toBeInTheDocument();
     // …but the Activity SelectField is still rendered and usable.
     expect(screen.getByRole("combobox", { name: "Activity" })).toBeInTheDocument();
+  });
+
+  it("removes inline activity creation when an open editor modal is downgraded to viewer", async () => {
+    const resourceId = addPerson();
+    const user = userEvent.setup();
+    const view = render(
+      <PermissionContext.Provider value={{ role: "editor" }}>
+        <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />
+      </PermissionContext.Provider>,
+    );
+    await user.type(screen.getByLabelText("New activity name"), "Unsaved viewer activity");
+
+    view.rerender(
+      <PermissionContext.Provider value={{ role: "viewer" }}>
+        <AllocationModal create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }} onClose={vi.fn()} />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.queryByLabelText("New activity name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add activity" })).not.toBeInTheDocument();
+    expect(useStore.getState().data.activities).toHaveLength(2);
   });
 });
 

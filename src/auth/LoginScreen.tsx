@@ -234,6 +234,11 @@ export function LoginScreen({
       if (failure) {
         setError(failure.message ?? m.login_failed());
         setBusy(false);
+      } else {
+        // Redirect-based success should unload this document. If an adapter resolves without
+        // navigating, restore a retryable login wall instead of leaving every control disabled.
+        setError(m.login_sso_failed());
+        setBusy(false);
       }
     } catch (err) {
       // Same as the password path: a thrown (pre-redirect) network error would otherwise strand the

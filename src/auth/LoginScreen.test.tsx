@@ -85,6 +85,10 @@ describe("LoginScreen — external callback failures", () => {
         errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
       }),
     );
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Single sign-on was not completed. Try again or contact your administrator.",
+    );
   });
 });
 

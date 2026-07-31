@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Restored login controls when an external provider returns without navigating, removed inline
+  activity creation after a live viewer downgrade, and locked duplicate device-clear confirmation.
 - Cleared tenant-owned interaction state during forced company fallback and removed stale project
   filters whenever their selected client is cleared.
 - Made packaged internal-TLS renewal a coordinated, generation-verified operation so nginx and the

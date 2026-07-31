@@ -457,6 +457,12 @@ describe("ConfirmDialog", () => {
     );
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
   });
+
+  it("disables cancellation and confirmation while an async owner is busy", () => {
+    render(<ConfirmDialog title="Confirm" message="Sure?" busy onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+  });
 });
 
 // ─── ListPage ──────────────────────────────────────────────────────────────

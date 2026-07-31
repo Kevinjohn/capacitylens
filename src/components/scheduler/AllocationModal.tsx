@@ -366,6 +366,7 @@ export function AllocationModal(props: AllocationModalProps) {
     setActivityId("");
   };
   const onAddActivity = () => {
+    if (!canEdit) return;
     // No project selected → create a project-less, cross-project activity; otherwise a project-specific activity
     // bound to the chosen project. Was a silent no-op on a blank name — give feedback.
     const cleanActivityName = validateText(newActivityName, fail, {
@@ -649,7 +650,7 @@ export function AllocationModal(props: AllocationModalProps) {
         invalid={errorField === "activity"}
         describedById={errorId}
       />
-      {inlineActivityCreateEnabled && (
+      {inlineActivityCreateEnabled && canEdit && (
         <Field orientation="horizontal">
           <Input
             value={newActivityName}
