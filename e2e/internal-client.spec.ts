@@ -13,7 +13,7 @@ test.describe("Internal client", () => {
     // destructive action archives — Internal has no such row, so it can't be archived from here).
     const acmeRow = page.getByTestId("client-row").filter({ hasText: "Acme" });
     await expect(acmeRow).toBeVisible();
-    await expect(acmeRow.getByRole("button", { name: "Edit" })).toBeVisible();
+    await expect(acmeRow.getByRole("button", { name: /^Edit / })).toBeVisible();
     await expect(acmeRow.getByRole("button", { name: "Archive Acme Inc." })).toBeVisible();
 
     // It is still SELECTABLE as a project's client in ProjectForm's client picker (name chosen

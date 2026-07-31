@@ -20,7 +20,7 @@ test.describe("Projects", () => {
     await page
       .getByTestId("project-row")
       .filter({ hasText: "Brand Themes" })
-      .getByRole("button", { name: "Edit" })
+      .getByRole("button", { name: /^Edit / })
       .click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Brand Refresh");
     await page.getByRole("button", { name: "Save" }).click();

@@ -130,6 +130,36 @@ describe("TimeOffList", () => {
     expect(row).not.toHaveTextContent("Visiting family");
   });
 
+  it("gives same-person time-off actions distinct date-specific names", () => {
+    const resource = useStore.getState().addResource(resourceDraft);
+    useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-08-01",
+      endDate: "2026-08-05",
+      type: "holiday",
+    });
+    useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-09-01",
+      endDate: "2026-09-02",
+      type: "holiday",
+    });
+    render(<TimeOffList />);
+
+    expect(
+      screen.getByRole("button", { name: "Edit Alice time off from Sat 1st Aug to Wed 5th Aug" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Edit Alice time off from Tue 1st Sep to Wed 2nd Sep" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete Alice time off from Sat 1st Aug to Wed 5th Aug" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete Alice time off from Tue 1st Sep to Wed 2nd Sep" }),
+    ).toBeInTheDocument();
+  });
+
   it("confirms before deleting and removes the entry on confirm", async () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource(resourceDraft);
@@ -144,7 +174,7 @@ describe("TimeOffList", () => {
     expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
 
     // Click Delete on the row
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete Alice time off from Sat 1st Aug to Wed 5th Aug" }));
 
     // Confirm dialog appears
     const dialog = screen.getByRole("alertdialog", { name: "Delete time off?" });
@@ -156,7 +186,7 @@ describe("TimeOffList", () => {
     expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
 
     // Delete again and confirm
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete Alice time off from Sat 1st Aug to Wed 5th Aug" }));
     await user.click(
       within(screen.getByRole("alertdialog", { name: "Delete time off?" })).getByRole("button", { name: "Delete" }),
     );

@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceList } from "./ResourceList";
 import { useStore } from "../../store/useStore";
-import { WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from "../../test/fixtures";
+import { WORKDAYS, resetStoreWithAccount, setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 
 beforeEach(() => {
@@ -57,6 +57,26 @@ describe("ResourceList display", () => {
     useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
     expect(screen.getByText("Alice")).toBeInTheDocument();
+  });
+
+  it("gives repeated resource edit controls distinct contextual names", () => {
+    useStore.getState().addResource(personDraft("Alice"));
+    useStore.getState().addResource(personDraft("Bob"));
+    render(<ResourceList />);
+
+    expect(screen.getByRole("button", { name: "Edit Alice" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Bob" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
+  it("gives repeated external-party edit controls distinct contextual names", () => {
+    setExternalEnabled(true);
+    useStore.getState().addResource({ ...personDraft("Northstar"), kind: "external", role: "Partner studio" });
+    useStore.getState().addResource({ ...personDraft("Pixel Forge"), kind: "external", role: "Print partner" });
+    render(<ResourceList />);
+
+    expect(screen.getByRole("button", { name: "Edit Northstar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Pixel Forge" })).toBeInTheDocument();
   });
 
   it('does not show a "placeholder" tag or "Temp" tag for a permanent person', () => {

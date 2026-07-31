@@ -46,7 +46,7 @@ export function DisciplineList() {
                   {d.name}
                 </ItemContent>
                 <ItemActions>
-                  <EditButton onClick={() => setEditing(d)} />
+                  <EditButton label={m.list_edit_aria({ name: d.name })} onClick={() => setEditing(d)} />
                   <DeleteButton
                     label={m.list_disciplines_delete_aria({ name: d.name })}
                     onClick={() => setConfirming(d)}

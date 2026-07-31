@@ -73,7 +73,7 @@ export function ResourceList() {
         </span>
       </ItemContent>
       <ItemActions>
-        <EditButton onClick={() => setEditing(r)} />
+        <EditButton label={m.list_edit_aria({ name: resourceDisplayName(r) })} onClick={() => setEditing(r)} />
         <DeleteButton
           label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })}
           onClick={() => setConfirming(r)}
@@ -184,7 +184,10 @@ export function ResourceList() {
                       {r.name && r.role && <span className="text-sm text-muted-foreground">· {r.role}</span>}
                     </ItemContent>
                     <ItemActions>
-                      <EditButton onClick={() => ext.setEditing(r)} />
+                      <EditButton
+                        label={m.list_edit_aria({ name: r.name ?? r.role })}
+                        onClick={() => ext.setEditing(r)}
+                      />
                       <DeleteButton
                         label={m.list_resources_archive_aria({ name: r.name ?? r.role })}
                         onClick={() => ext.setConfirming(r)}

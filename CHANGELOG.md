@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Gave every repeated list-row edit/delete control a target-specific accessible name, prevented
+  stale overlapping session requests from replacing newer results, and clarified backup clamping.
 - Bounded audit-log replay reconstruction to a fixed tail window instead of loading complete log
   generations, and recovered large SQLite audit backlogs progressively between event-loop turns.
 - Added a preserve-first offline audit-outbox recovery command that inspects malformed head rows,

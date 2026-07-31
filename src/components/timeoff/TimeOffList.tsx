@@ -52,27 +52,35 @@ export function TimeOffList() {
         </EmptyState>
       ) : (
         <ItemGroup className="rounded-md border bg-card">
-          {timeOff.map((t, index) => (
-            <Fragment key={t.id}>
-              {index > 0 && <ItemSeparator />}
-              <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
-                <ItemContent>
-                  <span className="font-medium">{resourceName(t.resourceId)}</span>
-                  {/* Deliberately spare: the start date (terse) and how many days. The end date, type
+          {timeOff.map((t, index) => {
+            const name = resourceName(t.resourceId);
+            const labelContext = {
+              name,
+              start: formatShortDate(t.startDate),
+              end: formatShortDate(t.endDate),
+            };
+            return (
+              <Fragment key={t.id}>
+                {index > 0 && <ItemSeparator />}
+                <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
+                  <ItemContent>
+                    <span className="font-medium">{name}</span>
+                    {/* Deliberately spare: the start date (terse) and how many days. The end date, type
                     and note are stored (and surfaced on the schedule's time-off block) but left off
                     this list — it's a "who's away, from when, for how long" scan, not a detail view. */}
-                  <span className="text-sm text-muted-foreground">
-                    {" "}
-                    · {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
-                  </span>
-                </ItemContent>
-                <ItemActions>
-                  <EditButton onClick={() => setEditing(t)} />
-                  <DeleteButton onClick={() => setConfirming(t)} />
-                </ItemActions>
-              </Item>
-            </Fragment>
-          ))}
+                    <span className="text-sm text-muted-foreground">
+                      {" "}
+                      · {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
+                    </span>
+                  </ItemContent>
+                  <ItemActions>
+                    <EditButton label={m.list_timeoff_edit_aria(labelContext)} onClick={() => setEditing(t)} />
+                    <DeleteButton label={m.list_timeoff_delete_aria(labelContext)} onClick={() => setConfirming(t)} />
+                  </ItemActions>
+                </Item>
+              </Fragment>
+            );
+          })}
         </ItemGroup>
       )}
 

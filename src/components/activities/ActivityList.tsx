@@ -59,7 +59,7 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
           {showLabel && <span className="text-sm text-muted-foreground"> · {projectLabel(activity.projectId)}</span>}
         </ItemContent>
         <ItemActions>
-          <EditButton onClick={() => setEditing(activity)} />
+          <EditButton label={m.list_edit_aria({ name: activity.name })} onClick={() => setEditing(activity)} />
           <DeleteButton
             label={m.list_activities_delete_aria({ name: activity.name })}
             onClick={() => setConfirming(activity)}

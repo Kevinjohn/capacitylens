@@ -32,6 +32,17 @@ describe("ProjectList", () => {
     expect(screen.getByText("· Acme Corp")).toBeInTheDocument();
   });
 
+  it("gives repeated project edit controls distinct contextual names", () => {
+    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
+    useStore.getState().addProject({ name: "Alpha", clientId: client.id, color: "#ec4899" });
+    useStore.getState().addProject({ name: "Beta", clientId: client.id, color: "#3b82f6" });
+    render(<ProjectList />);
+
+    expect(screen.getByRole("button", { name: "Edit Alpha" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Beta" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
   it("adds a project via the form and displays it with the client name", async () => {
     const user = userEvent.setup();
     const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });

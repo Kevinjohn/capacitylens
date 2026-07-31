@@ -65,7 +65,7 @@ export function ClientList() {
                   {c.name}
                 </ItemContent>
                 <ItemActions>
-                  <EditButton onClick={() => setEditing(c)} />
+                  <EditButton label={m.list_edit_aria({ name: c.name })} onClick={() => setEditing(c)} />
                   <DeleteButton
                     label={m.list_clients_archive_aria({ name: c.name })}
                     onClick={() => setConfirming(c)}

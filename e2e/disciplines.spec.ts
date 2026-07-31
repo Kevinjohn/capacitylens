@@ -16,7 +16,7 @@ test.describe("Disciplines", () => {
     await page
       .getByTestId("discipline-row")
       .filter({ hasText: "Design" })
-      .getByRole("button", { name: "Edit" })
+      .getByRole("button", { name: /^Edit / })
       .click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Product Design");
     await page.getByRole("button", { name: "Save" }).click();

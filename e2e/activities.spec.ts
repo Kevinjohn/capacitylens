@@ -46,7 +46,7 @@ test.describe("Activities", () => {
     await page
       .getByTestId("activity-row")
       .filter({ hasText: "CMS Review" })
-      .getByRole("button", { name: "Edit" })
+      .getByRole("button", { name: /^Edit / })
       .click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("CMS Build");
     await page.getByRole("button", { name: "Save" }).click();

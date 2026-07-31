@@ -23,6 +23,8 @@ describe("DisciplineList", () => {
     expect(screen.getByText("Engineering")).toBeInTheDocument();
     expect(screen.getByText("Design")).toBeInTheDocument();
     expect(screen.getAllByTestId("discipline-row")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Edit Engineering" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Design" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Engineering" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Design" })).toBeInTheDocument();
   });
@@ -63,7 +65,7 @@ describe("DisciplineList", () => {
     render(<DisciplineList />);
 
     const row = screen.getByTestId("discipline-row");
-    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    await user.click(within(row).getByRole("button", { name: "Edit OldName" }));
 
     const dialog = screen.getByRole("dialog", { name: "Edit discipline" });
     expect(dialog).toBeInTheDocument();
@@ -122,7 +124,7 @@ describe("DisciplineList", () => {
     const discipline = useStore.getState().addDiscipline({ name: "Design", color: "#00ff00", sortOrder: 0 });
     render(<DisciplineList />);
 
-    await user.click(within(screen.getByTestId("discipline-row")).getByRole("button", { name: "Edit" }));
+    await user.click(within(screen.getByTestId("discipline-row")).getByRole("button", { name: "Edit Design" }));
     const dialog = screen.getByRole("dialog", { name: "Edit discipline" });
     act(() => useStore.getState().deleteDiscipline(discipline.id));
     await user.clear(within(dialog).getByLabelText("Name"));

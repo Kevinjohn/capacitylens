@@ -330,8 +330,10 @@ accessible name stays the label text). List pages have an add button per entity:
 `Add external party` (plus the company picker's `New company`).
 Resolved Viewers do not see resource or section-level create affordances; the company picker's
 separately authorised `New company` action follows its account-creation capability instead.
-Each list row has an **icon-only** `Edit` (pencil) button and, where supported, an icon-only
-destructive action. Resources, clients,
+Each list row has an **icon-only** `Edit <name>` (pencil) button and, where supported, an icon-only
+destructive action. Time-off rows include the resource and complete date range in both action names
+(`Edit <name> time off from <start> to <end>` / `Delete …`) so repeated entries for one person remain
+distinct. Resources, clients,
 and projects use **Archive** (`Archive <name>`); their records and children are retained under the
 lifecycle described below. Other deletable rows use **Delete** and include the row name when several
 controls would otherwise be ambiguous (for example, `Delete Design`). The glyph is decorative and the

@@ -27,4 +27,10 @@ describe("operations runbook", () => {
     expect(runbook).toContain("Never delete or update an outbox row with ad hoc SQL");
     expect(runbook).toContain("refuses to overwrite an existing evidence file");
   });
+
+  it("documents the released over-maximum backup clamping contract", () => {
+    expect(runbook).toContain("over-maximum values clamp to 10,000 with a startup warning");
+    expect(runbook).toContain("clamps over-maximum values to 35,000 with a warning");
+    expect(runbook).not.toContain("over-maximum values use the safe default");
+  });
 });

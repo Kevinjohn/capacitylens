@@ -52,7 +52,7 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
     await page
       .getByTestId("discipline-row")
       .filter({ hasText: "Design" })
-      .getByRole("button", { name: "Edit" })
+      .getByRole("button", { name: /^Edit / })
       .click();
     const dialog = page.getByRole("dialog", { name: "Edit discipline" });
     await pickSwatch(dialog, PICK_LABEL);
@@ -79,7 +79,7 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
     await page
       .getByTestId("project-row")
       .filter({ hasText: "Project Lightning" })
-      .getByRole("button", { name: "Edit" })
+      .getByRole("button", { name: /^Edit / })
       .click();
     const dialog = page.getByRole("dialog", { name: "Edit project" });
     await pickSwatch(dialog, PICK_LABEL);

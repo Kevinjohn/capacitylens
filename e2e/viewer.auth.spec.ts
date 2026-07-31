@@ -182,7 +182,7 @@ test.describe("viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add client" })).toBeVisible();
     const editorClientRow = page.getByTestId("client-row").filter({ hasText: "Viewer-visible client" });
-    await expect(editorClientRow.getByRole("button", { name: "Edit" })).toBeVisible();
+    await expect(editorClientRow.getByRole("button", { name: /^Edit / })).toBeVisible();
     await expect(editorClientRow.getByRole("button", { name: "Archive Viewer-visible client" })).toBeVisible();
 
     await page.getByRole("link", { name: "Schedule" }).click();

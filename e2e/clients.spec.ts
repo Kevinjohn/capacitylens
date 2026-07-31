@@ -32,7 +32,7 @@ test.describe("Clients", () => {
 
     const row = page.getByTestId("client-row").filter({ hasText: "Embargoed Client Ltd" });
     await expect(row).toBeVisible(); // trusted-local/demo is owner-equivalent and sees the real name.
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: /^Edit / }).click();
     await expect(page.getByRole("switch", { name: "Use a code name" })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByRole("textbox", { name: "Code name", exact: true })).toHaveValue("Northstar");
   });
@@ -53,7 +53,11 @@ test.describe("Clients", () => {
 
   test("edits a client and the rename reflects in project labels", async ({ page }) => {
     await openApp(page, "Studio North", "/clients");
-    await page.getByTestId("client-row").filter({ hasText: "Acme Inc." }).getByRole("button", { name: "Edit" }).click();
+    await page
+      .getByTestId("client-row")
+      .filter({ hasText: "Acme Inc." })
+      .getByRole("button", { name: /^Edit / })
+      .click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Acme Worldwide");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Acme Worldwide" })).toBeVisible();

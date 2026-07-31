@@ -44,7 +44,7 @@ test.describe("Time off", () => {
   test("edits a time-off entry and the list reflects the change", async ({ page }) => {
     await openApp(page, "Studio North", "/timeoff");
     const row = page.getByTestId("timeoff-row").filter({ hasText: "Tyler Nix" });
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: /^Edit / }).click();
     const dialog = page.getByRole("dialog", { name: "Edit time off" });
     await selectShadOption(dialog.getByLabel("Type"), { label: "Sick" });
     // exact: the seed entry's Note ("Long weekend") otherwise substring-matches "End".
@@ -57,7 +57,7 @@ test.describe("Time off", () => {
     await expect(row).not.toContainText("3 days");
 
     // The type change persisted too — reopen the editor to confirm (the type isn't in the list).
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: /^Edit / }).click();
     await expect(page.getByRole("dialog", { name: "Edit time off" }).getByLabel("Type")).toHaveText("Sick");
   });
 

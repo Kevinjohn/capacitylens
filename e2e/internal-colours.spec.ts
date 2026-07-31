@@ -27,7 +27,7 @@ test("Internal work defaults grey and palette mode restores the project picker a
 
   // The project kept its original default pink while grey was displayed; palette mode restores it.
   await expect(row.locator("span.inline-block.rounded-sm").first()).toHaveCSS("background-color", "rgb(218, 45, 146)");
-  await row.getByRole("button", { name: "Edit" }).click();
+  await row.getByRole("button", { name: /^Edit / }).click();
   await expect(
     page.getByRole("dialog", { name: "Edit project" }).getByRole("button", { name: /^Colour/ }),
   ).toBeVisible();

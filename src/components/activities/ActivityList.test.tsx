@@ -72,12 +72,14 @@ describe("ActivityList", () => {
     expect(screen.queryByText(/Activities are the work you allocate/)).not.toBeInTheDocument();
   });
 
-  it("gives repeated row delete controls distinct contextual names", () => {
+  it("gives repeated row action controls distinct contextual names", () => {
     useStore.getState().addActivity({ name: "Planning", kind: "internal" });
     useStore.getState().addActivity({ name: "Operations", kind: "internal" });
 
     render(<ActivityList />);
 
+    expect(screen.getByRole("button", { name: "Edit Planning" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Operations" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Planning" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Operations" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
@@ -254,7 +256,7 @@ describe("ActivityList", () => {
     const activity = useStore.getState().addActivity({ name: "A1", kind: "project", projectId: project.id });
     render(<ActivityList />);
 
-    await user.click(within(screen.getByTestId("activity-row")).getByRole("button", { name: "Edit" }));
+    await user.click(within(screen.getByTestId("activity-row")).getByRole("button", { name: "Edit A1" }));
     const dialog = screen.getByRole("dialog", { name: "Edit activity" });
     act(() => useStore.getState().deleteActivity(activity.id));
     await user.clear(within(dialog).getByLabelText("Name"));

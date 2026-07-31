@@ -50,7 +50,7 @@ test.describe("database-backed persistence", () => {
     const row = page.getByTestId("client-row").filter({ hasText: "Rename Me Co" });
     await expect(row).toBeVisible();
 
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: /^Edit / }).click();
     // Scope the field to the Edit dialog: the row's "Archive Rename Me Co" button (P2.5b) also matches
     // a bare getByLabel('Name') — "Re*name* Me Co" contains "Name" — so an unscoped lookup is ambiguous.
     await page.getByRole("dialog").getByRole("textbox", { name: "Name", exact: true }).fill("Renamed Co");

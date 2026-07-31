@@ -54,7 +54,7 @@ test.describe("Resources", () => {
     await page
       .getByTestId("resource-row")
       .filter({ hasText: "Nike Spiros" })
-      .getByRole("button", { name: "Edit" })
+      .getByRole("button", { name: /^Edit / })
       .click();
     const role = page.getByLabel("Role");
     await role.fill("Lead Developer");

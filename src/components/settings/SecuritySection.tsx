@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   MIN_PASSWORD_LENGTH,
@@ -33,9 +33,12 @@ export function SecuritySection() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [passwordErrorField, setPasswordErrorField] = useState<PasswordErrorField | null>(null);
+  const sessionLoadGeneration = useRef(0);
   const errorId = useId();
 
-  const loadSessions = useCallback(async (): Promise<"loaded" | "unauthorized" | "failed"> => {
+  const loadSessions = useCallback(async (): Promise<"loaded" | "unauthorized" | "failed" | "superseded"> => {
+    const generation = ++sessionLoadGeneration.current;
+    const isCurrent = () => generation === sessionLoadGeneration.current;
     try {
       const response = await accountClient.listSessions();
       const body: unknown = await response.json().catch(() => null);
@@ -47,6 +50,7 @@ export function SecuritySection() {
           ? (body as { sessions: unknown[] }).sessions
           : null;
       if (!response.ok || rows === null) {
+        if (!isCurrent()) return "superseded";
         setError(m.settings_security_err_sessions_load());
         return response.status === 401 ? "unauthorized" : "failed";
       }
@@ -64,14 +68,17 @@ export function SecuritySection() {
         );
       });
       if (valid.length !== rows.length) {
+        if (!isCurrent()) return "superseded";
         setError(m.settings_security_err_sessions_invalid());
         return "failed";
       }
+      if (!isCurrent()) return "superseded";
       setSessions(valid);
       setError(null);
       return "loaded";
     } catch (cause) {
       console.error("SecuritySection: session list failed", cause);
+      if (!isCurrent()) return "superseded";
       setError(m.settings_security_err_sessions_load());
       return "failed";
     }
@@ -81,6 +88,9 @@ export function SecuritySection() {
     // The state changes happen only after the external session request settles.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSessions();
+    return () => {
+      sessionLoadGeneration.current += 1;
+    };
   }, [loadSessions]);
 
   const changePassword = async (event: FormEvent) => {

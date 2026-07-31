@@ -156,8 +156,9 @@ The complete variable register and defaults are in `.env.example`.
 
 Numeric operational settings accept bounded whole numbers only: rate limiting is at most 1,000,000
 requests/minute, backup intervals at most 35,000 minutes, retained snapshots at most 10,000, and
-audit rotation at most 1,048,576 MiB. Invalid values fall back to their documented safe defaults in
-development. Production refuses a missing, invalid or zero rate limit.
+audit rotation at most 1,048,576 MiB. Invalid or lower backup values fall back to their documented
+safe defaults; over-maximum backup values clamp to their published maximum with a startup warning.
+Production refuses a missing, invalid or zero rate limit.
 
 ## Strict OIDC and experimental social providers
 

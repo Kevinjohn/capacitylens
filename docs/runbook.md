@@ -142,8 +142,10 @@ Retention identifies and excludes the open main database by resolved path and fi
 even if it shares the snapshot directory and its basename resembles a snapshot. A separate snapshot
 volume remains recommended so database and recovery artifacts have independent failure domains.
 `CAPACITYLENS_BACKUP_KEEP` defaults to 48 and accepts values whose floor is between 1 and 10,000;
-for compatibility, `100.5` retains 100 snapshots. Invalid, lower and over-maximum values use the
-safe default. `CAPACITYLENS_BACKUP_INTERVAL_MIN` remains a whole-minute value.
+for compatibility, `100.5` retains 100 snapshots. Invalid and lower values use the safe default;
+over-maximum values clamp to 10,000 with a startup warning and therefore require capacity for that
+many restore points. `CAPACITYLENS_BACKUP_INTERVAL_MIN` remains a whole-minute value and likewise
+clamps over-maximum values to 35,000 with a warning.
 
 When an existing database needs a schema migration, startup always writes and verifies a separate
 `capacitylens-pre-migration-vN-to-vM.db` snapshot before applying DDL. Repeated attempts for the

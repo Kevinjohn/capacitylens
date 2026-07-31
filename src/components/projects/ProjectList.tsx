@@ -66,7 +66,7 @@ export function ProjectList() {
                   <span className="text-sm text-muted-foreground">· {clientName(p.clientId)}</span>
                 </ItemContent>
                 <ItemActions>
-                  <EditButton onClick={() => setEditing(p)} />
+                  <EditButton label={m.list_edit_aria({ name: p.name })} onClick={() => setEditing(p)} />
                   <DeleteButton
                     label={m.list_projects_archive_aria({ name: p.name })}
                     onClick={() => setConfirming(p)}

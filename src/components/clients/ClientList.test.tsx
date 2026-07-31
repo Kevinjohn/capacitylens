@@ -27,6 +27,16 @@ describe("ClientList empty state", () => {
   });
 });
 
+it("gives repeated client edit controls distinct contextual names", () => {
+  useStore.getState().addClient({ name: "Acme", color: "#111" });
+  useStore.getState().addClient({ name: "Globex", color: "#222" });
+  render(<ClientList />);
+
+  expect(screen.getByRole("button", { name: "Edit Acme" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Edit Globex" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+});
+
 // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
 // Settings → Archived & deleted). DEMO mode here → the store's archiveEntity: the client gets
 // `archivedAt` set (its projects/activities are RETAINED — archiving is reversible, unlike the old

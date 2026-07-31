@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const listSessions = vi.fn();
 const changePassword = vi.fn();
@@ -37,6 +37,14 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
 }
 
 beforeEach(() => {
@@ -104,6 +112,41 @@ describe("SecuritySection", () => {
       }),
     );
     expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed());
+  });
+
+  it("does not let an older session request replace the post-password-change directory", async () => {
+    const initial = deferred<Response>();
+    const refreshed = deferred<Response>();
+    listSessions
+      .mockReset()
+      .mockImplementationOnce(() => initial.promise)
+      .mockImplementationOnce(() => refreshed.promise);
+    changePassword.mockResolvedValue({ data: { status: true }, error: null });
+    render(<SecuritySection />);
+
+    fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+      target: { value: "current-password" },
+    });
+    fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+      target: { value: "a-strong-new-password" },
+    });
+    fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+      target: { value: "a-strong-new-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+    await waitFor(() => expect(listSessions).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      refreshed.resolve(jsonResponse({ sessions: [{ ...SESSION, id: "new-current-session", current: true }] }));
+    });
+    expect(await screen.findByText(m.settings_security_current_session())).toBeInTheDocument();
+
+    await act(async () => {
+      initial.resolve(jsonResponse({ sessions: [SESSION] }));
+    });
+    expect(screen.getByText(m.settings_security_current_session())).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_security_signed_in_session())).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("reloads through the authentication wall when the current session is revoked", async () => {
