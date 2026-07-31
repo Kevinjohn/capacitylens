@@ -187,6 +187,71 @@ describe("todayISO", () => {
     });
   });
 
+  describe("with a mocked Intl.DateTimeFormat", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("throws RangeError (not a silent pseudo-ISODate) when the resolved year is outside the four-digit domain", () => {
+      // Intl gives `year: "numeric"` parts — NOT zero-padded/four-digit — so a system clock
+      // outside years 1000-9999 would otherwise assemble a garbage string like "99-06-15" that
+      // silently poisons the module's load-bearing lexicographic YYYY-MM-DD comparisons instead
+      // of surfacing as the upstream-validation bug it is. Mock the formatter output directly
+      // since we can't actually move the system clock to year 99 in a unit test.
+      vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function FakeDateTimeFormat() {
+        return {
+          formatToParts: () => [
+            { type: "year", value: "99" },
+            { type: "literal", value: "-" },
+            { type: "month", value: "06" },
+            { type: "literal", value: "-" },
+            { type: "day", value: "15" },
+          ],
+        } as unknown as Intl.DateTimeFormat;
+      } as unknown as typeof Intl.DateTimeFormat);
+
+      expect(() => todayISO("Pacific/Kiritimati")).toThrow(/four-digit ISO year range/i);
+    });
+
+    it("does NOT swallow the out-of-range-year error as an 'invalid timeZone' fallback", () => {
+      // The catch block around the Intl constructor call must not also catch (and silently
+      // degrade) a RangeError raised by the post-assembly validation — that would misreport a
+      // real bug as a benign invalid-zone case and return the (wrong) local date instead of
+      // throwing per the module's contract.
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function FakeDateTimeFormat() {
+        return {
+          formatToParts: () => [
+            { type: "year", value: "10000" },
+            { type: "literal", value: "-" },
+            { type: "month", value: "01" },
+            { type: "literal", value: "-" },
+            { type: "day", value: "01" },
+          ],
+        } as unknown as Intl.DateTimeFormat;
+      } as unknown as typeof Intl.DateTimeFormat);
+
+      expect(() => todayISO("America/New_York")).toThrow(RangeError);
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it("still returns a valid zero-padded ISODate on the normal timezone path", () => {
+      vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function FakeDateTimeFormat() {
+        return {
+          formatToParts: () => [
+            { type: "year", value: "2026" },
+            { type: "literal", value: "-" },
+            { type: "month", value: "06" },
+            { type: "literal", value: "-" },
+            { type: "day", value: "05" },
+          ],
+        } as unknown as Intl.DateTimeFormat;
+      } as unknown as typeof Intl.DateTimeFormat);
+
+      expect(todayISO("America/New_York")).toBe("2026-06-05");
+    });
+  });
+
   it("warns (not silently) and still returns a valid local date for a malformed IANA zone", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(() => todayISO("Not/AZone")).not.toThrow();

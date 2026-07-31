@@ -30,13 +30,20 @@ export function parseDate(date: ISODate): Date {
   return parseISO(date);
 }
 
-/** Format a Date back to a date-only ISO string within the four-digit product year domain. */
-export function toISODate(date: Date): ISODate {
-  const result = format(date, "yyyy-MM-dd");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(result)) {
+/** Shared four-digit-year, zero-padded "YYYY-MM-DD" shape check, reused by every
+ *  assembly path (Date-based `toISODate` AND the Intl.DateTimeFormat-parts path in
+ *  `todayISO`'s timezone branch) so an out-of-domain year always throws the same
+ *  RangeError instead of one path silently emitting a pseudo-ISODate. */
+function assertFourDigitISODate(candidate: string): ISODate {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
     throw new RangeError("Date falls outside the supported four-digit ISO year range.");
   }
-  return result;
+  return candidate as ISODate;
+}
+
+/** Format a Date back to a date-only ISO string within the four-digit product year domain. */
+export function toISODate(date: Date): ISODate {
+  return assertFourDigitISODate(format(date, "yyyy-MM-dd"));
 }
 
 /** Whole-calendar-day offset of `date` from `origin` (may be negative).
@@ -121,25 +128,31 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
 /** Today as a date-only ISO string (impure — reads the system clock).
  *  When `timeZone` is given, the calendar date is derived in that zone via
  *  Intl.DateTimeFormat — so midnight UTC on 2026-06-11 is still 2026-06-10 in
- *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR
- *  invalid. Distinct failures are warned individually up to a bounded limit, then one aggregate
- *  warning records that further values are suppressed; resolution still never throws. */
+ *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR invalid (a
+ *  malformed IANA identifier). Distinct invalid-timeZone failures are warned individually up
+ *  to a bounded limit, then one aggregate warning records that further values are suppressed.
+ *  A resolved calendar date outside the four-digit ISO year domain (e.g. an absurd system
+ *  clock) still throws RangeError, same as `toISODate` — that's a real upstream bug, not a
+ *  degrade case. */
 const warnedInvalidTimeZones = new Set<string>();
 const MAX_INVALID_TIMEZONE_WARNINGS = 32;
 let warnedInvalidTimeZoneLimit = false;
 
 export function todayISO(timeZone?: string): ISODate {
   if (!timeZone) return toISODate(new Date());
+  let parts: Intl.DateTimeFormatPart[];
   try {
-    // Use formatToParts for safety (avoids any locale-specific separators).
-    const parts = new Intl.DateTimeFormat("en-CA", {
+    // Use formatToParts for safety (avoids any locale-specific separators). Only the
+    // Intl call itself is guarded here — a malformed IANA timeZone is the ONLY thing
+    // this try/catch is meant to degrade. The assembly+validation below happens OUTSIDE
+    // this try so an out-of-domain year throws RangeError (per module contract) instead
+    // of being misreported as an "invalid timeZone" and silently swapped for local date.
+    parts = new Intl.DateTimeFormat("en-CA", {
       timeZone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     }).formatToParts(new Date());
-    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
-    return `${get("year")}-${get("month")}-${get("day")}` as ISODate;
   } catch (e) {
     // A malformed IANA timeZone makes the Intl.DateTimeFormat constructor throw a RangeError,
     // which would otherwise crash "today" resolution and with it the whole forward-window
@@ -158,6 +171,12 @@ export function todayISO(timeZone?: string): ISODate {
     }
     return toISODate(new Date());
   }
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  // Validate the assembled string the same way `toISODate` validates its Date-based output:
+  // Intl gives `year: "numeric"` (NOT zero-padded/four-digit) parts, so a system clock outside
+  // years 1000-9999 would otherwise silently produce a pseudo-ISODate like "999-06-15" or
+  // "10000-01-01" that breaks the module's load-bearing lexicographic YYYY-MM-DD compares.
+  return assertFourDigitISODate(`${get("year")}-${get("month")}-${get("day")}`);
 }
 
 /** Is `date`'s weekday one of `workingDays`? */
