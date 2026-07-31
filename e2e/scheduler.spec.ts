@@ -136,7 +136,17 @@ test.describe("Scheduler", () => {
 
   test("clicking Today re-centres the timeline after scrolling away", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
-    await openApp(page);
+    await openApp(page, "Studio North", "/settings");
+
+    // Turn F2 ("Snap to week start") OFF first. With the free-scroll snap armed, the 120ms idle
+    // timer (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe
+    // on slow runners, so a mid-week precondition can never be made stable. With it OFF the park
+    // sticks, and the Monday landing after Today is attributable to Today's re-anchor alone.
+    const snap = page.getByRole("switch", { name: "Snap to week start" });
+    await snap.click();
+    await expect(snap).toHaveAttribute("aria-checked", "false");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByRole("radio", { name: "1w", exact: true }).click();
     const grid = page.getByTestId("scheduler-grid");
     await expect(grid).toBeVisible();
@@ -158,6 +168,8 @@ test.describe("Scheduler", () => {
         Math.max(1, Math.round(weekdayWidth / 2)),
       );
     }
+    // Let the idle timer elapse; the snap is OFF, so the mid-week park must STICK.
+    await waitForWeekSnap(page);
     const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft);
     expect(scrolled).toBeGreaterThan(800);
     expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
