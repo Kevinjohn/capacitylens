@@ -108,6 +108,35 @@ describe("softDeleteEntity", () => {
     expect(s().data.resources[0].deletedAt).toBeUndefined();
   });
 
+  it.each(["resources", "clients", "projects"] as const)(
+    "clears undo and redo history when soft-deleting %s",
+    (entity) => {
+      let id: string;
+      if (entity === "resources") {
+        id = s().addResource(personDraft).id;
+      } else if (entity === "clients") {
+        id = s().addClient({ name: "Removed client", color: "#123456" }).id;
+      } else {
+        const client = s().addClient({ name: "Project client", color: "#123456" });
+        id = s().addProject({ name: "Removed project", clientId: client.id, color: "#654321" }).id;
+      }
+      s().archiveEntity(entity, id);
+
+      // Ensure both directions contain recoverable data immediately before the destructive action.
+      // Soft-delete must discard both, rather than leaving a path that resurrects the tombstone.
+      useStore.setState({ past: [s().data], future: [s().data] });
+      s().softDeleteEntity(entity, id);
+
+      expect(s().past).toEqual([]);
+      expect(s().future).toEqual([]);
+      const deletedData = s().data;
+      s().undo();
+      s().redo();
+      expect(s().data).toBe(deletedData);
+      expect(s().data[entity].find((row) => row.id === id)?.deletedAt).toBeTruthy();
+    },
+  );
+
   it('on a RESOURCE, scrubs the name to "Removed person #…" (the load-bearing local PII erasure)', () => {
     const r = s().addResource(personDraft);
     s().archiveEntity("resources", r.id);

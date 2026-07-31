@@ -1021,7 +1021,9 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   deleting a project removes its phases/activities/allocations and _unbinds_ (does not delete)
   placeholders; deleting an activity removes its allocations; deleting a resource removes its
   allocations + time off. Deleting a **discipline** or **phase** is _non-destructive_
-  (ungroups resources / ungroups activities). All deletes are **undoable with ⌘Z**.
+  (ungroups resources / ungroups activities). These ordinary CRUD deletes are undoable. Lifecycle
+  **soft-delete and purge** of an archived person, client or project are irreversible and clear the
+  local undo/redo history so a destructive lifecycle action cannot be restored accidentally.
 - **Disciplines are optional (account-level).** Default **on**. When a company turns them off
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
   renders flat — see the _Disciplines (account-level)_ note above. The seed companies leave it

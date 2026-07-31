@@ -1359,10 +1359,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
             }
           : {}),
       });
-      // Resource deletion scrubs PII and dependent notes and therefore cannot be undone. Client and
-      // project tombstones retain their data, so keep their ordinary undo history intact.
-      if (entity === "resources") mutateIrreversible(applyDelete);
-      else mutate(applyDelete);
+      // Lifecycle deletion is irreversible for every supported entity. Clear both history stacks
+      // even when a client/project tombstone retains its display data: undo must never bypass the
+      // archive → soft-delete lifecycle contract or resurrect a deliberately removed record.
+      mutateIrreversible(applyDelete);
     },
     purgeEntity: (entity, id) => {
       if (blockedByViewer()) return;

@@ -66,15 +66,24 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
   });
 
   it("reports configured backup freshness and latched degradation", async () => {
-    const backupHealth = {
+    const backupHealth: { degraded: boolean; lastSuccessAt: string | null } = {
       degraded: false,
-      lastSuccessAt: "2026-07-27T12:00:00.000Z",
+      lastSuccessAt: null,
     };
     const app = buildApp(openDb(":memory:"), {
       healthDeep: true,
       backupHealth: () => backupHealth,
     });
 
+    expect((await app.inject({ method: "GET", url: "/api/health" })).json()).toEqual({
+      ok: true,
+      db: true,
+      audit: "ok",
+      auditPending: 0,
+      backup: { status: "pending", lastSuccessAt: null },
+    });
+
+    backupHealth.lastSuccessAt = "2026-07-27T12:00:00.000Z";
     expect((await app.inject({ method: "GET", url: "/api/health" })).json()).toEqual({
       ok: true,
       db: true,

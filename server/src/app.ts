@@ -1574,7 +1574,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           ...(backupHealth
             ? {
                 backup: {
-                  status: backupHealth.degraded ? "degraded" : "ok",
+                  status: backupHealth.degraded ? "degraded" : backupHealth.lastSuccessAt ? "ok" : "pending",
                   lastSuccessAt: backupHealth.lastSuccessAt,
                 },
               }

@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Made lifecycle soft-deletion irreversible for people, clients and projects, and reported scheduled
+  backups as pending until the first verified snapshot has actually been published.
 - Rejected unsafe one-time-token payloads and blank created-company identities, refused edits with
   unincrementable revisions, and ordered invitation history by represented instant.
 - Restored login controls when an external provider returns without navigating, removed inline

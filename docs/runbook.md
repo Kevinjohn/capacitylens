@@ -6,7 +6,8 @@
 API traffic cannot starve the public uptime probe. With `CAPACITYLENS_HEALTH_DEEP=1`, it runs a
 constant SQLite readiness query, reports audit recovery/degradation with its pending-row count and
 surfaces the configured internal certificate's cached expiry. When scheduled backups are configured
-it also reports their latched status and the most recent successful snapshot time; startup separately
+it also reports `pending` until the first verified snapshot, then their latched status and the most
+recent successful snapshot time; startup separately
 performs the full foreign-key integrity check before accepting traffic. Monitor health through the
 same public proxy users reach and do not expose the API container directly.
 
@@ -19,7 +20,8 @@ curl -fsS https://capacity.example.com/api/health
 ```
 
 Treat repeated 401/403 as access events, 409 as write conflicts, 429 as rate limiting, and 5xx,
-`audit: degraded`, a non-zero `auditPending`, `backup.status: degraded`,
+`audit: degraded`, a non-zero `auditPending`, `backup.status: degraded`, a backup that remains
+`pending` beyond one configured backup interval,
 `internalTls.status: expiring` or `internalTls.status: expired` as operator alerts. `expiring` begins
 at the same 30-day boundary used by the initializer; renew before it reaches zero. Logs may contain
 identifiers and must follow your retention policy.
@@ -131,8 +133,10 @@ its final name or can trigger retention, the server verifies its `quick_check`, 
 and copied schema version, then normalises it to one standalone DELETE-journal file. A failed check
 is logged as `backup FAILED`, removes the unpublished temp artifact, and leaves every older restore
 point untouched; investigate the live database or backup storage before relying on later attempts.
-Deep health exposes `backup.status` and `backup.lastSuccessAt`; any failed snapshot latches the
-status as `degraded` for the process lifetime while later successes continue advancing the timestamp.
+Deep health exposes `backup.status` and `backup.lastSuccessAt`. Status is `pending` until the first
+verified snapshot is published, `ok` after that success, and `degraded` after any failed attempt for
+the process lifetime while later successes continue advancing the timestamp. Alert when `pending`
+outlives one configured interval and monitor `lastSuccessAt` thereafter for normal snapshot freshness.
 Before retention begins, the server sets the completed snapshot's final permissions, syncs the
 file, atomically renames it and syncs the containing directory. A failure in any publication
 barrier rejects the attempt and skips retention. After removing old snapshots, it syncs the
