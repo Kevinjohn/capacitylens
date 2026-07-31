@@ -24,6 +24,19 @@ import { KeyedOperationLock } from "./accounts/operationLock";
 import { trustedLocalIdentityPort } from "./accounts/trustedLocalIdentityPort";
 import { registerAccountRoutes } from "./accounts/accountRoutes";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
+// Every `accounts`-row write rule lives in ONE module (see its header). The generic /api/:entity
+// routes below refuse `accounts` outright; the batch loop shares these predicates so the sync path
+// and the dedicated routes cannot drift.
+import {
+  ACCOUNT_CREATE_CLOSED_MESSAGE,
+  ACCOUNT_FROZEN_FIELDS_MESSAGE,
+  SINGLE_COMPANY_CAP_MESSAGE,
+  accountCreateCapped,
+  accountFieldsFrozen,
+  canonicalAccountProductPayload,
+  countAccounts,
+  registerAccountEntityRoutes,
+} from "./routes/accountEntityRoutes";
 import { eraseWorkspaceProductDataInTx } from "./erasure";
 import { internalTlsHealth } from "./internalTls";
 import { currentRequestAbortSignal, runWithRequestAbortSignal } from "./requestAbort";
@@ -54,7 +67,6 @@ import { TABLES } from "./tables";
 import {
   acceptedFieldNames,
   appliedRequestedFieldNames,
-  IMMUTABLE_ACCOUNT_FIELDS,
   validateWrite,
   sanitizeWrite,
   ValidationError,
@@ -541,6 +553,20 @@ function generatedWorkspaceId(commandId: string): string {
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
   Object.prototype.hasOwnProperty.call(TABLES, entity);
 
+/**
+ * The tables the GENERIC /api/:entity routes serve: every known table except `accounts`, which has
+ * its own dedicated static routes (routes/accountEntityRoutes.ts).
+ *
+ * Fastify matches those static paths first, so this is unreachable in practice — it is a fail-CLOSED
+ * backstop. `accounts` carries no accountId column, so every guard the generic handlers derive from
+ * `row.accountId` (the isScopedTable authorize gate, ownsRow, the scoped DELETE owner assertion) is
+ * a silent no-op for it; if a dedicated verb is ever removed, an account row must 404 loudly here
+ * rather than fall through to those no-op scoped semantics. /api/batch keeps its own account
+ * handling (a client sync diff genuinely carries accounts ops) and still uses isKnownTable.
+ */
+const isGenericEntity = (entity: string): entity is keyof typeof TABLES =>
+  isKnownTable(entity) && entity !== "accounts";
+
 // Request-validation guard for the invite-create role (P1.9). A bad/missing role is a CALLER fault
 // (400), distinct from createInvite's loud throw (a 500-tier integrity backstop for a role that
 // somehow slipped past here). Mirrors the closed Role vocabulary in shared/domain/access.
@@ -594,29 +620,6 @@ function matchesMintedInternalClient(existing: Record<string, unknown>, incoming
     updatedAt: existing.updatedAt,
   };
   return TABLES.clients.columns.every(({ name }) => normalized[name] === existing[name]);
-}
-
-/**
- * True when a sanitised accounts write would CHANGE an already-set frozen field (P1.14) — the
- * violation signal the PUT/PATCH/batch handlers turn into a 409 (per-route) / 400 (batch).
- *
- * Reports a violation ONLY when `existing` has a stored value AND the sanitised incoming value
- * differs. Four deliberate rules:
- *  - Change, not presence: the sync adapter re-sends the WHOLE row on any edit (e.g. a rename),
- *    so an unchanged frozen value MUST pass — only a real change is a violation.
- *  - A missing stored value may be set once, preserving legacy/minimal API-created accounts.
- *  - sanitizeWrite pins an existing value when malformed input is dropped, making it a no-op.
- *  - No existing row → creation, when these values are legitimately SET → never a violation.
- *
- * @param existing the stored row (undefined on a create — always passes)
- * @param incoming the sanitised candidate row, before it is persisted
- */
-function accountFieldsFrozen(
-  existing: Record<string, unknown> | undefined,
-  incoming: Record<string, unknown>,
-): boolean {
-  if (!existing) return false;
-  return IMMUTABLE_ACCOUNT_FIELDS.some((field) => existing[field] !== undefined && incoming[field] !== existing[field]);
 }
 
 // Resolve the Access-Control-Allow-Origin value for a request. '*' echoes the
@@ -689,25 +692,6 @@ function bootstrapTokenMatches(configured: string | undefined, presented: unknow
   return timingSafeEqual(a, b);
 }
 
-// Single-company-per-instance cap (owner policy — see AppOptions.multiAccount / CLAUDE.md). The
-// deployment defaults to hosting exactly ONE company; every route that could add a SECOND
-// `accounts` row shares this one predicate so the rule can't drift between POST/PUT/batch/orgs.
-const SINGLE_COMPANY_CAP_MESSAGE =
-  "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
-
-// Auth-on closure of the generic account-create paths. Now that POST /api/orgs exists (P1.8 — the
-// ATOMIC account + built-in Internal client + owner-membership create), the old "onboarding
-// exemption" on the generic entity routes was an authz bypass: any authenticated user (even one
-// with NO membership anywhere) could mint bare `accounts` rows that NEVER become usable — no
-// membership is ever backfilled (only the Internal client backfills, at restart), so each row is a
-// permanent orphan its own creator cannot read. With auth on, all THREE generic create vectors
-// (POST /api/accounts, PUT-as-create, batch PUT-as-create) refuse with this message; /api/orgs
-// covers every legitimate case (first-run bootstrap at zero accounts, an Owner/Admin or
-// bootstrap-token caller under multiAccount). authMode 'off' keeps the open generic create —
-// trusted-local parity: the demo/local/e2e client syncs new companies through the entity routes.
-const ACCOUNT_CREATE_CLOSED_MESSAGE =
-  "Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.";
-
 /** Batch-internal stale-write signal (optimistic concurrency, fix parity with the direct PUT
  *  route). Carries the STORED row so the batch handler can send the direct route's exact 409
  *  shape (`{ error, current }`). It is thrown from INSIDE tx(), so by construction the whole
@@ -748,27 +732,12 @@ function isStaleWrite(
   return Date.parse(existing.updatedAt) !== Date.parse(row.updatedAt);
 }
 
-/** Server-owned revision fields are result metadata, not semantic account-command input. */
-function canonicalAccountProductPayload(row: Record<string, unknown>): Record<string, unknown> {
-  const canonical = { ...row };
-  delete canonical.createdAt;
-  delete canonical.updatedAt;
-  return canonical;
-}
-
 /** Fully visible writer context (unaffected tables, auth OFF, or an owner). One frozen module-level
  * instance keeps the hot generic write paths allocation-free. */
 const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
   canSeeTimeOffNote: true,
   canSeePrivateNames: true,
 });
-
-/** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
- *  before the cap existed; kept as one function so every enforcement point reads the identical
- *  number (never re-derived ad hoc at each call site). */
-function countAccounts(db: Db): number {
-  return (db.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number }).n;
-}
 
 /** Project the final top-level account count for an already shape-validated batch. */
 function projectBatchAccounts(db: Db, ops: BatchOp[]): { count: number; createsFinalAccount: boolean } {
@@ -790,16 +759,6 @@ function projectBatchAccounts(db: Db, ops: BatchOp[]): { count: number; createsF
     count,
     createsFinalAccount: [...projectedExistence].some(([id, exists]) => exists && originalExistence.get(id) === false),
   };
-}
-
-/**
- * True when creating a NEW `accounts` row right now would violate the single-company cap: the
- * table already holds ≥1 row AND the instance has not opted into `multiAccount`. Callers MUST call
- * this only for the CREATE case (no existing row) — an UPDATE/DELETE of an already-existing account
- * is never capped; enforcement is create-time only, per AppOptions.multiAccount.
- */
-function accountCreateCapped(db: Db, opts: AppOptions): boolean {
-  return !opts.multiAccount && countAccounts(db) > 0;
 }
 
 /**
@@ -1613,7 +1572,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // anon caller on an auth-on instance is never told it can create.
       const multiAccount = opts.multiAccount === true;
       // The cap arm (WHETHER a new company may exist at all) — POST /api/orgs' GATE 0.
-      const capAllows = !accountCreateCapped(db, opts);
+      const capAllows = !accountCreateCapped(db, multiAccount);
       if (authMode === "off") {
         // OFF mode: userMayCreateAccount is trivially true (its authMode arm), so the cap decides.
         return {
@@ -1937,11 +1896,36 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       redact: (req, entity, row, accountId) => redactWriteEcho(entity, row, fieldVisibilityFor(req, entity, accountId)),
     });
 
-    // Account creation mints its built-in Internal in the same transaction below. The privileged
-    // legacy-id adoption flow is intentionally PUT-only.
-    app.post("/api/:entity", async (req, reply) => {
+    // The `accounts` row write surface. These are STATIC paths, which find-my-way matches ahead of
+    // the parametric /api/:entity routes below — so an account write can never reach the generic
+    // handlers and pick up SCOPED-entity semantics (isScopedTable/ownsRow are both no-ops for a
+    // table with no accountId column). Registering them here also deletes the ~25 hand-replicated
+    // `entity === "accounts"` branches the generic routes carried, one per verb per rule.
+    registerAccountEntityRoutes(app, {
+      db,
+      store,
+      authMode,
+      multiAccount: opts.multiAccount === true,
+      optimisticConcurrency: opts.optimisticConcurrency !== false,
+      flows: accountFlows,
+      authorize,
+      command: accountCommand,
+      replayCommand: replayAccountCommand,
+      fieldVisibility: fieldVisibilityFor,
+      redact: redactWriteEcho,
+      commitProductAudit,
+      drainProductAudit,
+      ownsRow,
+      isStaleWrite,
+      enqueueAudit: (record) => enqueueAudit(db, record),
+      fail: sendFail,
+      accountFail,
+    });
+
+    // Generic scoped-entity creation. `accounts` is served by the dedicated routes above.
+    app.post("/api/:entity", (req, reply) => {
       const { entity } = req.params as { entity: string };
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
+      if (!isGenericEntity(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
       // Shared body-shape + builtin-Internal guard (Finding 7 funnel). A missing/non-object body
       // would otherwise null-deref below (accountId! / sanitizeWrite's assertIdPresent) BEFORE the
       // try block could classify it — a misclassified 500. checkEntityWriteBody rejects it with the
@@ -1952,20 +1936,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const requestRow = req.body as Record<string, unknown>;
       const builtinCheck = builtinInternalWriteGuard("create", entity, undefined, requestRow);
       if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
-      // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is CLOSED when auth is
-      // on: the old "onboarding exemption" (a freshly-signed-up user holds no membership yet, so
-      // this create was left ungated) became an authz bypass once POST /api/orgs landed — see
-      // ACCOUNT_CREATE_CLOSED_MESSAGE. /api/orgs is the sole auth-on create path (it also mints
-      // the Internal client + owner membership atomically, which this bare row write never did).
-      // authMode 'off' keeps the open create (trusted-local parity — the demo/local/e2e client
-      // syncs new companies through the entity routes), still BOUNDED by the single-company cap
-      // inside AccountFlows: unconditional only for the first-run (zero-account) case; once any
-      // account exists it requires opts.multiAccount, same as every other create vector. Account DELETE is
-      // separately gated 'purge' (admin+) on BOTH vectors — the direct DELETE /api/accounts/:id
-      // route AND the batch accounts-DELETE op (see both below).
-      if (entity === "accounts" && authMode !== "off") {
-        return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
-      }
+      // P1.5 write gate (scoped tables only).
       if (scoped) {
         if (!authorize(req, reply, requestRow.accountId as string, "write")) return;
       }
@@ -1975,7 +1946,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const vis = fieldVisibilityFor(req, entity, requestRow.accountId);
         // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
         // inline sanitize/stamp + a full-DB loadState here).
-        const { row, scopedState } = prepareScopedWrite({
+        const { row } = prepareScopedWrite({
           store,
           entity,
           body: requestRow,
@@ -1983,8 +1954,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           vis,
           verb: "create",
         });
-        let responseRow = row;
-        let replayed = false;
         const auditRecord: AuditRecord = {
           ts: new Date().toISOString(),
           userId: req.user!.id,
@@ -1994,50 +1963,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id: row.id as string,
           changedFields: appliedRequestedFieldNames(entity, requestRow, undefined, row),
         };
-        if (entity === "accounts") {
-          const provisioned = await accountFlows.provisionWorkspace({
-            actor: req.accountActor!,
-            workspaceId: row.id as string,
-            joinedAt: row.createdAt as string,
-            command: accountCommand(req),
-            multiWorkspace: opts.multiAccount === true,
-            bootstrapAuthorized: false,
-            canonicalProductPayload: canonicalAccountProductPayload(row),
-            provisionProductData: () => {
-              // Run validation only on first execution, inside the same transaction as the insert.
-              // A committed command replay must not be rejected merely because the account now
-              // exists or the single-company cap became full after its original success. Reuses the
-              // funnel's scoped slice (Finding 9 — accounts validation is name-only, so the second
-              // full-DB loadState the old code ran here was pure waste).
-              validateWrite(scopedState, entity, row);
-              insertRow(db, entity, row);
-              insertRow(
-                db,
-                "clients",
-                buildInternalClient(row.id as string, row.createdAt as string) as unknown as Record<string, unknown>,
-              );
-              enqueueAudit(db, auditRecord);
-              return row;
-            },
-          });
-          responseRow = provisioned.product as Record<string, unknown>;
-          replayed = provisioned.replayed;
-          if (!replayed) drainProductAudit(reply);
-        } else {
-          commitProductAudit(reply, auditRecord, () => insertRow(db, entity, row));
-        }
-        return reply.code(201).send(responseRow);
+        commitProductAudit(reply, auditRecord, () => insertRow(db, entity, row));
+        return reply.code(201).send(row);
       } catch (err) {
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err);
+        return sendFail(reply, err);
       }
     });
 
     // Idempotent upsert by id — the verb the client sync adapter uses for every
     // create AND update, so a replayed batch (after a partial failure) is safe. The
     // body's id must match the URL id.
-    app.put("/api/:entity/:id", async (req, reply) => {
+    app.put("/api/:entity/:id", (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string };
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
+      if (!isGenericEntity(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
       const scoped = isScopedTable(entity);
       const bodyCheck = checkEntityWriteBody("replace", entity, req.body, id, scoped);
       if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
@@ -2047,7 +1985,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // accountId immutable.
       if (scoped && !authorize(req, reply, body.accountId as string, "write")) return;
       try {
-        const workspaceCommand = entity === "accounts" ? accountCommand(req) : null;
         const existing = getRow(db, entity, id);
         const builtinCheck = builtinInternalWriteGuard("replace", entity, existing, body);
         if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
@@ -2061,60 +1998,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           !authorize(req, reply, body.accountId as string, "manageInternalClient")
         )
           return;
-        // Account CREATE via upsert (`entity === 'accounts' && !existing` — no row at this id yet)
-        // is CLOSED when auth is on, same as the generic POST: the old onboarding exemption is an
-        // authz bypass now that POST /api/orgs exists (see ACCOUNT_CREATE_CLOSED_MESSAGE). Checked
-        // FIRST so the auth-on caller always gets the actionable "use /api/orgs" direction.
-        if (entity === "accounts" && !existing && authMode !== "off") {
-          return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE });
-        }
-        // Single-company cap (create-time only, see accountCreateCapped; OFF mode only here — the
-        // auth-on create was already refused just above). Checked BEFORE the account-write gate
-        // below (which only ever fires for the UPDATE case, `existing` truthy) so the two never
-        // overlap. An UPDATE of an existing account is NEVER capped, regardless of multiAccount.
-        if (entity === "accounts" && !existing && accountCreateCapped(db, opts)) {
-          return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
-        }
-        // P1.5 account-write gate. `accounts` is NOT a scoped table (no accountId column), so the
-        // isScopedTable() gate above never runs for it — leaving a bare account UPDATE (rename / colour /
-        // schedulingMode / disciplines·placeholders·external toggles) ungated, i.e. cross-tenant writable
-        // by any signed-in user. An UPDATE (existing row) now requires membership + write tier for the
-        // account's OWN id, mirroring the DELETE route's accounts branch; a CREATE (no existing row) is
-        // OPEN only in OFF mode (auth-on → 403 → /api/orgs, and the single-company cap, both just
-        // above). OFF mode: authorize no-ops to allow by design.
-        if (entity === "accounts" && existing && !authorize(req, reply, id, "write")) return;
         // accountId is immutable: a write must not move an EXISTING row to another account
         // (see ownsRow). The web store enforces this via findOwned; without the same guard a
         // crafted request could re-home a row and orphan its children across the tenant boundary.
         if (!ownsRow(existing, body.accountId)) {
           return reply.code(404).send({ error: "Not found" });
         }
-        // Compare the sanitised account candidate so malformed frozen values are ignored and an
-        // absent legacy value may be set once. A different valid value remains a 409.
-        if (entity === "accounts" && accountFieldsFrozen(existing, sanitizeWrite(entity, body, existing))) {
-          return reply.code(409).send({
-            error: "Language, week start and time zone are set when the company is created and cannot be changed.",
-          });
-        }
         // P1.6: the note-visibility fact for this writer — used to PIN the time-off `note` on the
         // write (their round-tripped row was redacted, so a bare upsert would NULL a note they
         // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
         // the 409 conflict payload included.
         const vis = fieldVisibilityFor(req, entity, body.accountId);
-        // Only trusted-local compatibility creates can arrive here as a completed provisioning
-        // replay. Authenticated account creation is closed on this route, so awaiting the
-        // coordinator during an ordinary authenticated update would introduce a yield between the
-        // role decision above and the write below (allowing a concurrent removal to stale-authorize
-        // the update for no replay benefit).
-        if (authMode === "off" && entity === "accounts" && existing && workspaceCommand) {
-          const replay = await accountFlows.replayWorkspaceProvisioning<Record<string, unknown>>({
-            actor: req.accountActor!,
-            workspaceId: id,
-            command: workspaceCommand,
-            canonicalProductPayload: canonicalAccountProductPayload(sanitizeWrite(entity, body, existing, vis)),
-          });
-          if (replay) return reply.code(200).send(redactWriteEcho(entity, replay.product, vis));
-        }
         // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the
         // predicate is isStaleWrite, SHARED with the batch loop so the two paths can't drift.
         // The 409's `current` payload is a READ of the stored row, so it gets the same note
@@ -2127,8 +2021,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           });
         }
         // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
-        // inline sanitize/stamp + a full-DB loadState here). An accounts CREATE and a generated-builtin
-        // replacement defer their validation (see prepareScopedWrite); every other write validated here.
+        // inline sanitize/stamp + a full-DB loadState here). A generated-builtin replacement defers
+        // its validation (see prepareScopedWrite); every other write is validated there.
         const { row, generatedReplacement, scopedState } = prepareScopedWrite({
           store,
           entity,
@@ -2137,8 +2031,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           vis,
           verb: "replace",
         });
-        let responseRow = row;
-        let replayed = false;
         const auditRecord: AuditRecord = {
           ts: new Date().toISOString(),
           userId: req.user!.id,
@@ -2148,46 +2040,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           changedFields: appliedRequestedFieldNames(entity, body, existing, row),
         };
-        if (entity === "accounts" && !existing) {
-          // A company is not usable without its singleton Internal client. Commit both rows as
-          // one unit so a constraint/storage failure cannot leave a degraded company behind.
-          const provisioned = await accountFlows.provisionWorkspace({
-            actor: req.accountActor!,
-            workspaceId: id,
-            joinedAt: row.createdAt as string,
-            command: workspaceCommand!,
-            multiWorkspace: opts.multiAccount === true,
-            bootstrapAuthorized: false,
-            canonicalProductPayload: canonicalAccountProductPayload(row),
-            provisionProductData: () => {
-              validateWrite(scopedState, entity, row, existing);
-              upsertRow(db, entity, row);
-              upsertRow(
-                db,
-                "clients",
-                buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>,
-              );
-              enqueueAudit(db, auditRecord);
-              return row;
-            },
-          });
-          responseRow = provisioned.product as Record<string, unknown>;
-          replayed = provisioned.replayed;
-          if (!replayed) drainProductAudit(reply);
-        } else {
-          commitProductAudit(reply, auditRecord, () => {
-            if (generatedReplacement) {
-              replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
-            } else {
-              // Validation already ran in the funnel above (accounts UPDATE + every scoped write).
-              upsertRow(db, entity, row);
-            }
-          });
-        }
+        commitProductAudit(reply, auditRecord, () => {
+          if (generatedReplacement) {
+            replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
+          } else {
+            // Validation already ran in the funnel above.
+            upsertRow(db, entity, row);
+          }
+        });
         // A write response is a read: apply the same note/private-name projections as /api/state.
-        return reply.code(200).send(redactWriteEcho(entity, responseRow, vis));
+        return reply.code(200).send(redactWriteEcho(entity, row, vis));
       } catch (err) {
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err);
+        return sendFail(reply, err);
       }
     });
 
@@ -2196,10 +2060,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // field the body omits.) 404 when the row doesn't exist.
     app.patch("/api/:entity/:id", (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string };
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
+      if (!isGenericEntity(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
       // Shared body-shape check (Finding 7 funnel). A missing/non-object body would otherwise
-      // null-deref inside accountFieldsFrozen's `field in incoming` check (accounts), a misclassified
-      // 500. For PATCH accountId is OPTIONAL — only a PRESENT non-string is rejected.
+      // null-deref inside sanitizeWrite's merge, a misclassified 500. For PATCH accountId is
+      // OPTIONAL — only a PRESENT non-string is rejected.
       const scoped = isScopedTable(entity);
       const bodyCheck = checkEntityWriteBody("patch", entity, req.body, id, scoped);
       if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error });
@@ -2218,10 +2082,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           return;
         const builtinCheck = builtinInternalWriteGuard("patch", entity, existing, req.body as Record<string, unknown>);
         if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error });
-        // P1.5 account-write gate (see the PUT route): `accounts` isn't scoped, so the merged-accountId
-        // authorize below never runs for it. A PATCH always targets an EXISTING row (404 above), so this
-        // is always an UPDATE → require membership + write tier for the account's own id. OFF: no-op allow.
-        if (entity === "accounts" && !authorize(req, reply, id, "write")) return;
         // P1.6 note pin (see sanitizeWrite): the merge already carries the STORED note (a note-blind
         // caller's PATCH body can't include one they never received), but the pin also stops a
         // crafted note change/clear riding a patch. accountId for the role lookup = the body's
@@ -2241,13 +2101,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (!ownsRow(existing, merged.accountId)) {
           return reply.code(404).send({ error: "Not found" });
         }
-        // `merged` is already sanitised and pins stored frozen values when malformed input is
-        // dropped. Missing legacy values may be set once; different valid stored values stay frozen.
-        if (entity === "accounts" && accountFieldsFrozen(existing, merged)) {
-          return reply.code(409).send({
-            error: "Language, week start and time zone are set when the company is created and cannot be changed.",
-          });
-        }
         if (
           opts.optimisticConcurrency !== false &&
           isStaleWrite(existing, req.body as Record<string, unknown>, false)
@@ -2262,7 +2115,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // validation lookup resolves only the row/FK/dependent coordinates this write needs; custom
         // stores retain the complete-slice fallback. Client replacement still needs the full client
         // set for its singleton/reparent rule.
-        const scopeId = entity === "accounts" ? id : String(merged.accountId);
+        const scopeId = String(merged.accountId);
         const lookup = store.validationLookup?.();
         const validationState =
           entity === "clients" || lookup === undefined ? store.readFullSlice(scopeId) : emptyAppData();
@@ -2288,9 +2141,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     });
 
-    app.delete("/api/:entity/:id", async (req, reply) => {
+    app.delete("/api/:entity/:id", (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string };
-      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
+      if (!isGenericEntity(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` });
       if (isLifecycleEntity(entity)) {
         return reply.code(400).send({
           error: "Use the dedicated lifecycle endpoints for this entity.",
@@ -2299,83 +2152,46 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // Scope a scoped-table delete to its owning account — the server analog of the
       // client's MANDATORY findOwned guard. A scoped delete MUST assert an owning account:
       // omitting it can't prove ownership, so we refuse with 400 (rather than deleting by id,
-      // which was a tenant-guard bypass). A wrong owner is 404. Accounts are top-level and
-      // carry no accountId, so they delete by id.
+      // which was a tenant-guard bypass). A wrong owner is 404. (A company hard-delete is a TENANT
+      // ERASURE, not a bare row delete — it has its own DELETE /api/accounts/:id route.)
       const { accountId } = req.query as { accountId?: string };
       try {
-        let targetExisted = false;
-        if (isScopedTable(entity)) {
-          if (accountId === undefined) {
-            return reply.code(400).send({
-              error: "accountId is required to delete a scoped record.",
-            });
-          }
-          // Resolve authority from the caller-asserted tenant before reading the candidate row. A
-          // non-member therefore receives the same 403 for absent and foreign ids; an authorized
-          // member receives the same 404 for either. OFF mode retains its historical idempotent 204.
-          if (!authorize(req, reply, accountId, "write")) return;
-          const existing = getRow(db, entity, id);
-          if (!ownsRow(existing, accountId) || (!existing && authMode !== "off")) {
-            return reply.code(404).send({ error: "Not found" });
-          }
-          targetExisted = Boolean(existing);
-        } else if (entity === "accounts") {
-          targetExisted = Boolean(getRow(db, entity, id));
-          // The completed erasure receipt is deliberately retained after membership removal. An
-          // exact authenticated retry may replay that receipt before the ordinary live-membership
-          // gate; absent, malformed, pending or unrelated commands still take the Owner path.
-          const replayCommand = replayAccountCommand(req);
-          if (replayCommand) {
-            const replay = await accountFlows.replayWorkspaceErasure({
-              actor: req.accountActor!,
-              workspaceId: id,
-              command: replayCommand,
-            });
-            if (replay) return reply.code(204).send();
-          }
-          // P1.5 account hard-delete gate. The account-lifecycle CREATE exemption (a new auth-on user
-          // must mint their first account before any membership exists) does NOT extend to DELETE:
-          // dropping an `accounts` row CASCADES (FK ON DELETE CASCADE) and wipes ALL the account's
-          // scoped data — total tenant destruction. This is intentionally stricter than purging one
-          // tombstoned record: only an owner may erase the tenant and orphaned member identities.
-          // OFF mode short-circuits to allow so the default deploy can still delete companies.
-          if (!authorize(req, reply, id, "deleteAccount")) return;
-          // Preserve the auth-off API's established idempotent-delete contract. The coordinated
-          // erasure path deliberately requires a real workspace so authenticated callers cannot
-          // use it as an existence oracle, but trusted-local deletion historically returned 204
-          // for an already absent account.
-          if (!targetExisted && authMode === "off") return reply.code(204).send();
-        } else {
+        if (!isScopedTable(entity)) {
           return reply.code(403).send({
             error: "No deletion policy is defined for this entity.",
           });
         }
-        // P2.6b: an account hard-delete is a TENANT ERASURE, not a bare row delete. AccountFlows
-        // coordinates the product cascade, administration sweep and orphaned local-identity erasure
-        // in one transaction. A scoped delete stays the plain idempotent deleteRow.
-        const auditRecord: AuditRecord = {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: accountId ?? id,
-          action: "delete",
-          entity,
-          id,
-          changedFields: [],
-        };
-        if (entity === "accounts") {
-          await accountFlows.eraseWorkspace({
-            actor: req.accountActor!,
-            workspaceId: id,
-            command: accountCommand(req),
-            auditProductMutationInTx: targetExisted ? () => enqueueAudit(db, auditRecord) : undefined,
+        if (accountId === undefined) {
+          return reply.code(400).send({
+            error: "accountId is required to delete a scoped record.",
           });
-          if (targetExisted) drainProductAudit(reply);
-        } else if (targetExisted) {
-          commitProductAudit(reply, auditRecord, () => deleteRow(db, entity, id));
+        }
+        // Resolve authority from the caller-asserted tenant before reading the candidate row. A
+        // non-member therefore receives the same 403 for absent and foreign ids; an authorized
+        // member receives the same 404 for either. OFF mode retains its historical idempotent 204.
+        if (!authorize(req, reply, accountId, "write")) return;
+        const existing = getRow(db, entity, id);
+        if (!ownsRow(existing, accountId) || (!existing && authMode !== "off")) {
+          return reply.code(404).send({ error: "Not found" });
+        }
+        if (existing) {
+          commitProductAudit(
+            reply,
+            {
+              ts: new Date().toISOString(),
+              userId: req.user!.id,
+              accountId,
+              action: "delete",
+              entity,
+              id,
+              changedFields: [],
+            },
+            () => deleteRow(db, entity, id),
+          );
         }
         return reply.code(204).send();
       } catch (err) {
-        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err);
+        return sendFail(reply, err);
       }
     });
 
@@ -2740,8 +2556,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     if (table === "accounts" && accountFieldsFrozen(existing, sanitizedRow)) {
                       throw new AccountContractError({
                         code: "CONFLICT",
-                        message:
-                          "Language, week start and time zone are set when the company is created and cannot be changed.",
+                        message: ACCOUNT_FROZEN_FIELDS_MESSAGE,
                         retryable: false,
                       });
                     }
