@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CapacityLens — Setup &amp; first-run guide</title>
+<style>
+  :root {
+    --bg: #fafaf8; --surface: #ffffff; --ink: #1f2420; --muted: #5c645e;
+    --line: #e2e5e0; --accent: #2e6e4e; --accent-soft: #e8f1ec;
+    --warn: #8a6d1f; --warn-soft: #f6efdb; --code-bg: #eef0ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151816; --surface: #1d211e; --ink: #e6e9e6; --muted: #9aa39c;
+      --line: #2c322d; --accent: #6fbb93; --accent-soft: #21332a;
+      --warn: #d9b45a; --warn-soft: #2f2a1a; --code-bg: #242a25;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); margin: 0;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 3rem 1.25rem 5rem;
+  }
+  main { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .5rem; letter-spacing: -.01em; text-wrap: balance; }
+  h2 { font-size: 1.4rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  h3 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
+  .subtitle { color: var(--muted); margin: 0 0 2.5rem; max-width: 62ch; }
+  .eyebrow {
+    display: block; font-size: .72rem; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent); margin: 3.5rem 0 .2rem;
+  }
+  p, li { max-width: 70ch; }
+  p.lede { color: var(--muted); }
+  code {
+    background: var(--code-bg); padding: .1em .35em; border-radius: 4px;
+    font: .85em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: .9rem 1.1rem; overflow-x: auto;
+    font: .82rem/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  pre code { background: none; padding: 0; }
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: .75rem 1rem; border-radius: 0 6px 6px 0; margin: 1.25rem 0;
+  }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .callout p { margin: 0; }
+  /* Step flows */
+  .steps { list-style: none; counter-reset: step; padding: 0; margin: 1.5rem 0; }
+  .steps > li {
+    counter-increment: step; position: relative; padding: 0 0 1.75rem 3.25rem;
+    border-left: 2px solid var(--line); margin-left: 1.1rem; max-width: none;
+  }
+  .steps > li:last-child { border-left-color: transparent; padding-bottom: .5rem; }
+  .steps > li::before {
+    content: counter(step); position: absolute; left: -1.15rem; top: -.1rem;
+    width: 2.1rem; height: 2.1rem; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent); border: 2px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .9rem;
+  }
+  .steps h4 { margin: .1rem 0 .3rem; font-size: 1rem; }
+  .steps p { margin: 0 0 .5rem; color: var(--muted); }
+  .shot { margin: .75rem 0 0; }
+  .shot a { display: inline-block; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .shot img { display: block; max-width: 100%; width: 420px; height: auto; }
+  .shot figcaption { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+  .shot.wide img { width: 640px; }
+  /* Mode cards */
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .mode {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1rem 1.15rem;
+  }
+  .mode h3 { margin: 0 0 .35rem; }
+  .mode p { font-size: .9rem; color: var(--muted); margin: 0 0 .5rem; }
+  .mode .tag {
+    display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+    border-radius: 999px; padding: .15rem .6rem; margin-bottom: .5rem;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 1.25rem 0; font-size: .92rem; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  .roles td:not(:first-child) { text-align: center; }
+  .yes { color: var(--accent); font-weight: 700; }
+  .no { color: var(--muted); }
+  footer { margin-top: 4rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<h1>CapacityLens: setup &amp; first-run guide</h1>
+<p class="subtitle">Everything between "I found the repo" and "my team is planning in it" — which mode to run, what the first screens look like, and how to bring people in. Screenshots are small; click any of them for the full-size version.</p>
+
+<span class="eyebrow">Step 0</span>
+<h2>Pick your mode</h2>
+<p class="lede">One environment variable, <code>SMALLSASS_ACCOUNT_MODE</code>, decides which world you're in. Start with the demo; graduate to password auth when you want real logins.</p>
+
+<div class="modes">
+  <div class="mode">
+    <span class="tag">Try it — 1 command</span>
+    <h3>Demo</h3>
+    <p>In-memory sample data, no login, resets on refresh. Perfect for "is this for us?".</p>
+  </div>
+  <div class="mode">
+    <span class="tag">Default</span>
+    <h3>Open access</h3>
+    <p>Real database, no logins. Anyone who can reach the URL can view and edit. Fine on a trusted network.</p>
+  </div>
+  <div class="mode">
+    <span class="tag">Recommended for teams</span>
+    <h3>Password auth</h3>
+    <p>Login wall, one Owner, roles, invite links. ~5 minutes of .env setup.</p>
+  </div>
+  <div class="mode">
+    <span class="tag">Companies with an IdP</span>
+    <h3>SSO / OIDC</h3>
+    <p>Same roles and invites; identity comes from your identity provider. See <a href="authentication.md">authentication.md</a>.</p>
+  </div>
+</div>
+
+<span class="eyebrow">Path A</span>
+<h2>Demo it in one command</h2>
+<pre><code># in-memory demo: sample data, no server persistence, no login
+corepack enable
+pnpm install
+pnpm run dev:demo   # then open http://127.0.0.1:5173</code></pre>
+<p>You get a cosmetic company chooser ("Studio North" / "Loft Digital") and a fully editable schedule. Nothing persists — refresh and it resets. There are no credentials because there are no accounts.</p>
+<div class="callout"><p><strong>No default admin password exists in production.</strong> The frictionless demo is credential-free by design. The dev-only <code>CAPACITYLENS_CREATE_ADMIN_ADMIN=1</code> bootstrap (<code>admin@admin.admin</code> / <code>admin</code>) is refused by production builds.</p></div>
+
+<span class="eyebrow">Path B</span>
+<h2>Self-host with password auth — the five-minute install</h2>
+<p class="lede">Fill in four lines of <code>.env</code>, start the app, click through three screens. That's the whole journey.</p>
+
+<ol class="steps">
+  <li>
+    <h4>Fill in the .env</h4>
+    <p>Copy <code>.env.example</code> to <code>.env</code> and set:</p>
+<pre><code>SMALLSASS_ACCOUNT_MODE=password
+SMALLSASS_ACCOUNT_SECRET=&lt;random 32+ chars&gt;      # session signing
+SMALLSASS_ACCOUNT_PUBLIC_URL=https://plan.example.com
+SMALLSASS_ACCOUNT_SETUP_TOKEN=&lt;random 32+ chars&gt; # claims the Owner seat, used once</code></pre>
+    <p>Then start via Docker Compose or bare metal — see <a href="self-hosting.md">self-hosting.md</a>.</p>
+  </li>
+  <li>
+    <h4>Claim the Owner account</h4>
+    <p>Visit the URL. With an empty database, the login wall becomes a "create the owner account" form: name, email, password, and your setup token. The moment it succeeds, self-registration closes — nobody else can sign themselves up. On every later visit this is the plain sign-in screen:</p>
+    <figure class="shot"><a href="screenshots/flows/sign-in.jpg"><img src="screenshots/flows/sign-in.jpg" alt="CapacityLens sign-in screen with email and password fields" loading="lazy"></a><figcaption>The sign-in wall (shown after the Owner exists).</figcaption></figure>
+  </li>
+  <li>
+    <h4>Create your first company</h4>
+    <p>You land on an empty company picker. Creating a company also creates its built-in "Internal" client and your Owner membership, all in one step.</p>
+    <figure class="shot"><a href="screenshots/flows/choose-company.jpg"><img src="screenshots/flows/choose-company.jpg" alt="Choose a company screen listing Studio North with an Owner badge" loading="lazy"></a><figcaption>The company picker — one click and you're in.</figcaption></figure>
+  </li>
+  <li>
+    <h4>A 20-second orientation</h4>
+    <p>Once per device you get a short welcome that sets expectations: this is a resourcing tool, not project management.</p>
+    <figure class="shot"><a href="screenshots/flows/welcome.jpg"><img src="screenshots/flows/welcome.jpg" alt="Welcome to CapacityLens dialog explaining it is a resourcing tool" loading="lazy"></a><figcaption>The once-per-device welcome.</figcaption></figure>
+  </li>
+  <li>
+    <h4>You're up and running</h4>
+    <p>The Schedule opens with a Getting Started panel offering two tracks: <em>build the schedule</em> (clients → projects → resources → allocations) and <em>give people access</em> (optional). No sample data is seeded in a real install — what you add is yours.</p>
+    <figure class="shot wide"><a href="screenshots/flows/schedule.jpg"><img src="screenshots/flows/schedule.jpg" alt="The Schedule view with people grouped by discipline, allocation bars, utilisation and a holiday block" loading="lazy"></a><figcaption>The Schedule — the helicopter view the whole product is built around.</figcaption></figure>
+  </li>
+</ol>
+
+<span class="eyebrow">Bringing people in</span>
+<h2>Invites: a link you hand over yourself</h2>
+<p class="lede">CapacityLens sends no email. You create a single-use link and deliver it however you already talk to your team — Slack, DM, carrier pigeon. This is a deliberate choice: no SMTP setup, no deliverability headaches.</p>
+
+<ol class="steps">
+  <li>
+    <h4>Open Team &amp; access, pick a role</h4>
+    <p>Owners and Admins see an "Invite someone" panel. Choose the role (its consequences are spelled out underneath) and optionally pre-authorise an email address.</p>
+    <figure class="shot wide"><a href="screenshots/flows/team-access.jpg"><img src="screenshots/flows/team-access.jpg" alt="Team &amp; access page showing your access summary, app members and scheduled resources cards" loading="lazy"></a><figcaption>Team &amp; access — your own access is explained at the top.</figcaption></figure>
+  </li>
+  <li>
+    <h4>Copy the one-time link</h4>
+    <p>The link is shown once — only its hash is stored — so copy it now and send it to the person.</p>
+    <figure class="shot wide"><a href="screenshots/flows/invite-created.jpg"><img src="screenshots/flows/invite-created.jpg" alt="Invite created: single-use link shown with a Copy button" loading="lazy"></a><figcaption>Invite created — the link appears exactly once.</figcaption></figure>
+  </li>
+  <li>
+    <h4>They preview before joining</h4>
+    <p>The invite page shows the company, the proposed role, what that role can and can't do, and the expiry. Previewing changes nothing. Existing users sign in and accept; new people create their account and accept in one atomic step, landing straight in the company.</p>
+    <figure class="shot"><a href="screenshots/flows/invite-accept.jpg"><img src="screenshots/flows/invite-accept.jpg" alt="Accept invite screen showing company, proposed Editor role, expiry and accept buttons" loading="lazy"></a><figcaption>What your invitee sees.</figcaption></figure>
+  </li>
+</ol>
+
+<span class="eyebrow">Who sees what</span>
+<h2>Roles at a glance</h2>
+<p>Four strictly nested roles — <strong>Viewer &lt; Editor &lt; Admin &lt; Owner</strong> — with exactly one Owner per company. Everyone sees the same navigation; roles change what's editable and visible inside each page, enforced server-side.</p>
+
+<div class="table-wrap">
+<table class="roles">
+<tr><th>Capability</th><th>Viewer</th><th>Editor</th><th>Admin</th><th>Owner</th></tr>
+<tr><td>See the schedule</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>Create / edit scheduling data</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>See time-off notes</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>Manage members &amp; invites</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>See private real names</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+<tr><td>Import / delete company / transfer ownership</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+<tr><td>Export</td><td class="no">redacted</td><td class="no">redacted</td><td class="yes">full</td><td class="yes">full</td></tr>
+</table>
+</div>
+
+<p>A note on the model: <strong>app members and scheduled resources are separate</strong>. Joining a company doesn't put you on the schedule, and being on the schedule doesn't give you a login. Most teams have a few members and many resources.</p>
+
+<h3>Want the deeper details?</h3>
+<p>Full reference docs: <a href="self-hosting.md">self-hosting.md</a> (Docker / bare metal), <a href="authentication.md">authentication.md</a> (deployment profiles, SSO), <a href="onboarding-and-access.md">onboarding-and-access.md</a> (the complete role matrix and enforcement layers).</p>
+
+<footer>Screenshots captured from the local access lab (<code>pnpm run dev:access</code>) at v0.31.0-alpha.1. This page is plain HTML with no dependencies — open it straight from the repo or serve it as-is.</footer>
+</main>
+</body>
+</html>

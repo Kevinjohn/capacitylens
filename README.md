@@ -120,6 +120,9 @@ cross-browser checks, mutation scope and GitHub Actions checks.
 
 ### Using and operating CapacityLens
 
+- [Setup &amp; first-run guide](docs/setup-guide.html) — an illustrated walkthrough of the demo,
+  the five-minute password-auth install, invites and roles. Plain HTML with screenshots; open it
+  straight from a checkout or serve it as-is.
 - [Self-hosting](docs/self-hosting.md) — Docker Compose, environment variables, upgrades and deployment.
 - [Authentication](docs/authentication.md) — password, social and OIDC modes.
 - [Offline access](docs/offline.md) — device cache behavior and limitations.
