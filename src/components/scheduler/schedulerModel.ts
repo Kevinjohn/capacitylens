@@ -61,6 +61,49 @@ function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: 
   return valid;
 }
 
+// Reused for a bucket miss so a day with no allocations / no time off doesn't allocate a throwaway
+// array per resource-day (this runs days × resources times on every model rebuild).
+const NO_ALLOCATIONS: Allocation[] = [];
+const NO_TIME_OFF: TimeOff[] = [];
+
+/** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
+ *  (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
+ *  lexicographic order IS chronological order and a plain string compare is a valid ordering. */
+function firstDateAtOrAfter(dates: ISODate[], target: ISODate): number {
+  let lo = 0;
+  let hi = dates.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (dates[mid]! < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Bucket date-ranged rows (allocations, time off) onto the dates the model will actually ask about:
+ *  each row is listed under every queried date its [startDate, endDate] covers. A per-day capacity
+ *  lookup then passes only the handful of rows that touch that day instead of rescanning the
+ *  resource's whole list, making the day loop O(dates + coverage) rather than O(dates × rows) — the
+ *  same trick `capacityAdvisory` documents in capacity.ts. Insertion order inside each bucket follows
+ *  `rows`, so the hours capacity.ts sums are added in the SAME order as a full scan and the result is
+ *  bit-for-bit identical (float addition is not associative). */
+function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>(
+  rows: T[],
+  dates: ISODate[],
+): Map<ISODate, T[]> {
+  const byDate = new Map<ISODate, T[]>();
+  for (const row of rows) {
+    for (let i = firstDateAtOrAfter(dates, row.startDate); i < dates.length; i++) {
+      const date = dates[i]!;
+      if (date > row.endDate) break;
+      const list = byDate.get(date);
+      if (list) list.push(row);
+      else byDate.set(date, [row]);
+    }
+  }
+  return byDate;
+}
+
 /** Per-day capacity state for a lane background cell. */
 export interface DayState {
   over: boolean;
@@ -337,6 +380,13 @@ export function buildSchedulerModel({
   // within `days` in practice, isn't worth a fragile index-based slice to save one extra pair of calls).
   const visDays = eachDayISO(visStart, visEnd);
   const overDays = eachDayISO(overStart, overEnd);
+  // Every per-day capacity lookup below asks for a date drawn from one of those three arrays, so
+  // their sorted, de-duplicated union is the COMPLETE set of dates any row can query. Bucketing a
+  // resource's allocations / time off onto it once (see bucketByCoveredDate) is what turns the
+  // per-row day loop from O(days × allocations) into O(days + coverage). Resource-invariant, so it
+  // is built here once rather than per row. ISO dates sort lexicographically = chronologically.
+  const capacityDates = Array.from(new Set([...days, ...visDays, ...overDays])).sort();
+  const capacityDateSet = new Set(capacityDates);
 
   const timelineStart = days[0];
   const timelineEnd = days[days.length - 1];
@@ -424,11 +474,28 @@ export function buildSchedulerModel({
           // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
           // External rows carry none — flat, unmarked day cells and no time-off blocks.
           const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode);
+          // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
+          // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
+          // of making it rescan every allocation (and every time-off row) per day. External rows
+          // never reach capacityOnDay, so they skip the bucketing entirely.
+          const allocsByDate = isExternal ? undefined : bucketByCoveredDate(capacityAllocs, capacityDates);
+          const timeOffByDate = isExternal ? undefined : bucketByCoveredDate(resTimeOff, capacityDates);
           const capacityByDate = new Map<ISODate, DayCapacity>();
           const capacityOnDay = (date: ISODate): DayCapacity => {
             const cached = capacityByDate.get(date);
             if (cached) return cached;
-            const computed = dayCapacity(resource, date, capacityAllocs, resTimeOff);
+            // A date outside `capacityDates` has no bucket to read (an empty bucket and "not
+            // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
+            // such a date today; this keeps a future caller correct rather than silently empty.
+            const bucketed = allocsByDate !== undefined && capacityDateSet.has(date);
+            const computed = bucketed
+              ? dayCapacity(
+                  resource,
+                  date,
+                  allocsByDate.get(date) ?? NO_ALLOCATIONS,
+                  timeOffByDate?.get(date) ?? NO_TIME_OFF,
+                )
+              : dayCapacity(resource, date, capacityAllocs, resTimeOff);
             capacityByDate.set(date, computed);
             return computed;
           };

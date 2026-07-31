@@ -318,12 +318,18 @@ export function SchedulerGrid() {
   }, [scrollToResource, items, layout, scrollRef, consumeResourceJump]);
 
   const { first, last } = windowFromLayout(layout, heights, scrollTop, timelineHeight);
-  const draggedItemIndex =
-    draggingAllocationId === null
-      ? -1
-      : items.findIndex(
-          (item) => item.kind === "row" && item.row.bars.some((bar) => bar.allocation.id === draggingAllocationId),
-        );
+  // Memoised because this scan is O(rows × bars) and the grid re-renders every frame while a drag
+  // autoscrolls — the dragged row only changes when the item set or the dragged id changes, never
+  // per scroll pixel. Same keying discipline as the neighbouring derived values above.
+  const draggedItemIndex = useMemo(
+    () =>
+      draggingAllocationId === null
+        ? -1
+        : items.findIndex(
+            (item) => item.kind === "row" && item.row.bars.some((bar) => bar.allocation.id === draggingAllocationId),
+          ),
+    [items, draggingAllocationId],
+  );
   const renderedIndices = useMemo(() => {
     const indices = Array.from({ length: Math.max(0, last - first + 1) }, (_, offset) => first + offset);
     if (draggedItemIndex >= 0 && (draggedItemIndex < first || draggedItemIndex > last)) {

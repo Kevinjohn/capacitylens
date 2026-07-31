@@ -6,7 +6,7 @@ import { capacityForWindow as capacityForWindowOf, utilization as utilizationOf 
 import { emptyFilters } from "../../store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { AppData } from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData } from "@capacitylens/shared/types/entities";
 
 const start = "2026-06-01";
 const end = "2026-06-07";
@@ -2273,5 +2273,101 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       expect(row.utilization).toBeCloseTo(expectedUtil);
       expect(row.overSoon).toBe(expectedOver);
     }
+  });
+
+  // Guards the per-day bucketing in buildSchedulerModel: instead of letting capacity.ts rescan the
+  // whole allocation / time-off list per day, each resource's rows are bucketed onto the queried
+  // dates once and only the rows covering a day are handed to dayCapacity. That is a pure
+  // performance change, so every dayState AND the utilisation ratio must be EXACTLY equal (not
+  // merely close — bucketing preserves the summation order, so the floats must match bit for bit)
+  // to calling capacity.ts directly with the full lists. The fixture deliberately mixes the cases
+  // the bucketing has to keep straight: overlapping bars, a weekend-aware bar merely SPANNING the
+  // weekend (no work there), an `ignoreWeekends` bar that DOES work it, fractional hours whose sum
+  // order matters, time off inside the window, and a bar that starts before / ends after it.
+  it("dayStates and utilization are EXACTLY those of capacity.ts scanning the unbucketed lists", () => {
+    const alloc = (
+      id: string,
+      resourceId: string,
+      startDate: string,
+      endDate: string,
+      hoursPerDay: number,
+    ): Allocation => ({
+      id,
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId,
+      activityId: "t1",
+      startDate,
+      endDate,
+      hoursPerDay,
+      status: "confirmed",
+    });
+    const d = dataset();
+    d.allocations = [
+      // Spans the whole timeline (starts before it, ends after it) — bucketing must clip, not drop.
+      alloc("b1", "r1", "2026-05-20", "2026-06-20", 2.1),
+      // Overlaps b1 on working days; three fractional sums land on the same days.
+      alloc("b2", "r1", "2026-06-02", "2026-06-04", 3.3),
+      alloc("b3", "r1", "2026-06-03", "2026-06-03", 2.7),
+      // Weekend-aware (default): merely spans Sat/Sun 06-06/06-07, so it does no work there.
+      alloc("b4", "r1", "2026-06-04", "2026-06-07", 8),
+      // Opts into weekends: 0 capacity there, so it must still read as over on Sat/Sun.
+      { ...alloc("b5", "r2", "2026-06-05", "2026-06-07", 4), ignoreWeekends: true },
+      alloc("b6", "r2", "2026-06-01", "2026-06-03", 8),
+    ];
+    d.timeOff = [
+      {
+        id: "to1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        startDate: "2026-06-03",
+        endDate: "2026-06-04",
+        type: "holiday",
+      },
+      // Starts before the timeline and ends inside it — the other clipping direction.
+      {
+        id: "to2",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r2",
+        startDate: "2026-05-28",
+        endDate: "2026-06-02",
+        type: "sick",
+      },
+    ];
+    const visStart = "2026-06-02";
+    const visEnd = "2026-06-06";
+    const model = buildSchedulerModel({
+      data: d,
+      geom: geom,
+      days: days,
+      visibleWindow: { start: visStart, end: visEnd },
+      overSoonWindow: { start: start, end: end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+      },
+    });
+    const rows = model.flatMap((g) => g.rows);
+    for (const resourceId of ["r1", "r2"]) {
+      const resource = d.resources.find((r) => r.id === resourceId)!;
+      const allocs = d.allocations.filter((a) => a.resourceId === resourceId);
+      const off = d.timeOff.filter((t) => t.resourceId === resourceId);
+      const row = rows.find((r) => r.resource.id === resourceId)!;
+      const naiveTimeline = capacityForWindowOf(resource, allocs, off, days[0]!, days[days.length - 1]!);
+      expect(row.dayStates).toEqual(naiveTimeline.map((c) => ({ over: c.over, unavailable: c.available === 0 })));
+      expect(row.utilization).toBe(utilizationOf(resource, allocs, off, visStart, visEnd));
+      expect(row.overSoon).toBe(capacityForWindowOf(resource, allocs, off, start, end).some((c) => c.over));
+    }
+    // The fixture is only a guard if it actually exercises both states.
+    const r1 = rows.find((r) => r.resource.id === "r1")!;
+    expect(r1.dayStates.some((s) => s.over)).toBe(true);
+    expect(r1.dayStates.some((s) => s.unavailable)).toBe(true);
   });
 });
