@@ -129,7 +129,7 @@ function isCascadeCounts(value: unknown): boolean {
   );
 }
 
-function isAuditEntry(value: unknown): value is AuditEntry {
+export function isAuditEntry(value: unknown): value is AuditEntry {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
   if (!isStringArray(row.changedFields)) return false;

@@ -14,6 +14,8 @@ new features and **patch** versions carry fixes.
 
 - Bounded audit-log replay reconstruction to a fixed tail window instead of loading complete log
   generations, and recovered large SQLite audit backlogs progressively between event-loop turns.
+- Added a preserve-first offline audit-outbox recovery command that inspects malformed head rows,
+  durably exports exact evidence and requires an explicit ID before quarantining one corrupt row.
 - Retained normalized account-administration and reconciliation events in the durable audit outbox,
   committing them with their local command outcome and replaying them after sink recovery.
 - Reported canonical same-batch Internal-client echoes as accepted no-ops instead of overstating the

@@ -26,6 +26,10 @@
       "purpose": "CSPRNG bearer values, constant-time bootstrap comparison, deterministic SHA-256 workspace identifiers and HTTPS server options"
     },
     {
+      "path": "server/src/auditOutboxRecovery.ts",
+      "purpose": "Unkeyed SHA-256 integrity digests for exact preserved malformed audit-outbox evidence"
+    },
+    {
       "path": "server/src/accounts/betterAuthIdentityPort.ts",
       "purpose": "SHA-256 reset/fallback handles, a per-process 256-bit compensation key and constant-time compensation-handle verification"
     },

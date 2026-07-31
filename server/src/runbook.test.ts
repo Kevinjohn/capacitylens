@@ -20,4 +20,11 @@ describe("operations runbook", () => {
     expect(runbook).toContain("Password authentication is identity-global and occurs before company selection");
     expect(runbook).toContain("edge/global quotas or separate CapacityLens instances");
   });
+
+  it("documents preserve-first malformed audit outbox recovery", () => {
+    expect(runbook).toContain("recover:audit-outbox -- inspect");
+    expect(runbook).toContain("recover:audit-outbox -- quarantine");
+    expect(runbook).toContain("Never delete or update an outbox row with ad hoc SQL");
+    expect(runbook).toContain("refuses to overwrite an existing evidence file");
+  });
 });

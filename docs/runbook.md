@@ -86,6 +86,35 @@ before retrying rather than deleting the queued evidence. A generation already o
 cap (from an older build or a lowered setting) is likewise preserved and blocks new delivery until
 the operator archives it safely or restores a sufficient cap.
 
+### Malformed audit outbox recovery
+
+A corrupt or manually altered oldest outbox payload fails closed and can prevent startup from
+reaching the listener. Never delete or update an outbox row with ad hoc SQL. Stop the API, preserve
+the database together with its `-wal` and `-shm` files and both audit JSONL generations, and take
+checksums before diagnosis. Work only on the stopped original after a verified copy or snapshot is
+safe.
+
+Inspect the oldest row without printing its raw payload:
+
+```sh
+pnpm --filter capacitylens-server recover:audit-outbox -- inspect <database>
+```
+
+If it reports `valid`, do not quarantine it; investigate the audit sink instead. An `invalid-json`
+or `invalid-payload` result includes the exact row ID, byte count and SHA-256 digest. Escalate under
+the organisation's incident and audit-retention policy before disposing of that evidence. With
+explicit approval, quarantine only that still-current malformed head:
+
+```sh
+pnpm --filter capacitylens-server recover:audit-outbox -- quarantine <database> <expected-head-id> <evidence-file>
+```
+
+The command refuses a valid or changed head and refuses to overwrite an existing evidence file. It
+creates a mode-0600, fsynced envelope containing the exact raw row and digest before deleting that
+one row transactionally. Store the evidence bundle under the audit retention/access policy. Restart
+the API and monitor `audit`, `auditPending` and the JSONL destination until the retained suffix has
+drained; repeat inspection only if another independently malformed head is exposed.
+
 ## Backups
 
 The server explicitly configures SQLite WAL commits with `synchronous=FULL` and refuses startup if
