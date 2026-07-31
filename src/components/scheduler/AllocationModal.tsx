@@ -30,7 +30,7 @@ import { DateField, Modal, NumberField, RequiredLegend, SelectField, TextAreaFie
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
-import { capacityAdvisory } from "../../lib/capacity";
+import { capacityAdvisory, capacityAllocationsForMode } from "../../lib/capacity";
 import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
 import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
@@ -245,7 +245,15 @@ export function AllocationModal(props: AllocationModalProps) {
     const span = startDate && effectiveValues.endDate ? daysInclusive(startDate, effectiveValues.endDate) : 0;
     if (!effectiveValues.resource || !startDate || !effectiveValues.endDate || span < 1 || span > MAX_SPAN_DAYS)
       return null;
-    const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId);
+    // Project the existing load through the account's scheduling mode BEFORE counting it: in blocks
+    // mode a bar carries placement but no hourly load, so an account that switched to blocks with
+    // legacy hourly allocations must not be advised "over capacity" here while the grid's markers
+    // (schedulerModel) and the drag-commit toast (useAllocationGesture) — both of which project the
+    // same way — show nothing. Every capacity surface reads the same projected load.
+    const others = capacityAllocationsForMode(
+      data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId),
+      isBlocks,
+    );
     const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId);
     const { overDays, timeOffDays } = capacityAdvisory(
       effectiveValues.resource,
@@ -270,7 +278,7 @@ export function AllocationModal(props: AllocationModalProps) {
           : m.form_allocation_advisory_timeoff_other({ count: timeOffDays }),
       );
     return bits.length ? bits.join(m.form_allocation_advisory_join()) : null;
-  }, [data.allocations, data.timeOff, editId, effectiveValues, ignoreWeekends, resourceId, startDate]);
+  }, [data.allocations, data.timeOff, editId, effectiveValues, ignoreWeekends, isBlocks, resourceId, startDate]);
 
   // Guard the formatted end-date hint: effEndDate is derived from a user-typed span, and a
   // value past the date range parses to an Invalid Date, which format() would throw on

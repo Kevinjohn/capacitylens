@@ -167,8 +167,11 @@ export interface CapacityAdvisory {
 
 /** Non-blocking advisory for a PROPOSED allocation of `hoursPerDay` over [start, end] (with the
  *  proposal's own `ignoreWeekends`): how many days it would push the resource over capacity, and how
- *  many fall on time off. `otherAllocations` is the resource's existing load to count against (caller
- *  excludes the allocation being edited). Shared by the modal and the drag-commit path so the rule
+ *  many fall on time off. `otherAllocations` is the existing load to count against (caller excludes
+ *  the allocation being edited); it need NOT be pre-filtered by resource — anything belonging to
+ *  another resource is ignored here, exactly as the per-day mirror `allocatedHoursOnDay` does, so a
+ *  caller passing a whole account's allocations cannot silently inflate this resource's load.
+ *  Shared by the modal and the drag-commit path so the rule
  *  lives in one place. Mirrors the per-day over-marker (`allocatedHoursOnDay`): it counts a day only
  *  when the proposed allocation actually WORKS it (so a weekend-aware bar merely spanning Sat/Sun
  *  isn't "over"), and an `ignoreWeekends` weekend — 0 capacity — reads as over exactly like the red
@@ -193,6 +196,10 @@ export function capacityAdvisory(
   // Zero-padded ISO dates compare lexicographically, so these min/max clamps are correct.
   const allocatedByDay = new Map<ISODate, number>();
   for (const a of otherAllocations) {
+    // Scope to THIS resource, mirroring allocatedHoursOnDay. Correctness must not depend on every
+    // caller remembering to pre-filter: an unfiltered list would otherwise count other people's
+    // hours against this resource and advise "over capacity" for days that are perfectly fine.
+    if (a.resourceId !== resource.id) continue;
     const from = a.startDate > start ? a.startDate : start;
     const to = a.endDate < end ? a.endDate : end;
     for (const d of eachDayISO(from, to)) {

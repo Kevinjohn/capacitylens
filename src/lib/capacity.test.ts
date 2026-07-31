@@ -565,6 +565,29 @@ describe("capacityAdvisory", () => {
     expect(overDays).toBe(1); // only Mon (4 + 5 > 8); Tue/Wed see 0 + 5, not over
   });
 
+  it("ignores allocations belonging to another resource (callers need not pre-filter)", () => {
+    // The advisory's per-day mirror (allocatedHoursOnDay) scopes by resource; this must too, so a
+    // caller handing over an unfiltered list cannot have someone else's 8h read as this person's.
+    const others = [
+      makeAlloc({ id: "someone-else", resourceId: "r2", hoursPerDay: 8 }),
+      makeAlloc({ id: "ours", hoursPerDay: 4 }),
+    ];
+    const { overDays } = capacityAdvisory(r, others, [], "2026-06-01", "2026-06-05", 4, false);
+    expect(overDays).toBe(0); // 4 (ours) + 4 (proposed) fits in 8; r2's 8h must not be counted
+  });
+
+  it("reads a blocks-mode projection of legacy hourly allocations as zero load", () => {
+    // What the modal / grid / drag path all feed in once an account switches to blocks: the stored
+    // hours stay on the row, but capacityAllocationsForMode projects them to 0 before counting.
+    const legacy = [makeAlloc({ hoursPerDay: 8 })];
+    expect(capacityAdvisory(r, legacy, [], "2026-06-01", "2026-06-05", 0, false).overDays).toBe(0);
+    // Blocks propose 0 load too, so nothing is over — whereas the RAW hourly rows would flag
+    // nothing here either; the difference shows when the proposal itself carries hours.
+    expect(capacityAdvisory(r, legacy, [], "2026-06-01", "2026-06-05", 1, false).overDays).toBe(5);
+    const projected = capacityAllocationsForMode(legacy, true);
+    expect(capacityAdvisory(r, projected, [], "2026-06-01", "2026-06-05", 1, false).overDays).toBe(0);
+  });
+
   it("does not count an existing weekend-aware allocation on a weekend day it merely spans", () => {
     // The other allocation spans Fri-Mon but (weekend-aware, no ignoreWeekends) does no work on
     // Sat. The proposal opts INTO the weekend via ignoreWeekends with 0 hours, so a spurious
