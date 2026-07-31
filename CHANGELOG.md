@@ -10,6 +10,61 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.31.0-alpha.1] — 2026-07-31
+
+This minor release resolves all 15 findings from the 31 July whole-repository maintainability
+review. It corrects the last blocks-mode capacity disagreement, stops audit-degradation warnings
+being dropped on destructive writes, and converts several convention-enforced rules — the viewer
+read-only gate, merged-row validation, account write policy and email validation — into
+structurally enforced ones, so new code gets them by default. The SQLite schema remains at v24 and
+the portable export schema remains at v9.
+
+### Fixed
+
+- Projected existing allocations through the scheduling mode in the allocation modal's capacity
+  advisory, so blocks-mode accounts no longer see the modal warn about load the grid and drag
+  surfaces correctly ignore; the advisory also filters by resource itself instead of trusting
+  callers to pre-filter.
+- Surfaced audit-degradation warnings on the dedicated lifecycle archive and unarchive routes and
+  on account bootstrap requests, which previously dropped the warning header that batch mutations
+  already announce.
+- Validated the timezone branch of today's-date resolution against the four-digit ISO year domain,
+  so an out-of-range system clock raises the promised error instead of silently corrupting
+  lexicographic date comparisons.
+- Serialized rehearsal Playwright runs against the shared SQLite fixture, matched the rehearsal
+  spec set to the db-backed project by construction, and restored normal parallelism to the
+  isolated e2e projects on CI.
+
+### Changed
+
+- Moved account writes onto dedicated API routes, replacing about twenty-five per-verb special
+  cases in the generic entity handlers; the generic routes now fail closed for accounts and the
+  batch path shares the same policy predicates so the two cannot drift.
+- Enforced the viewer read-only gate structurally in the store — thirty-one hand-placed guards
+  became two wrappers that gate before validation by construction — and generalized merged-row
+  validation into one shared update helper covering a fourth site the review had not flagged.
+- Replaced three divergent inline email checks (sign-in, invitation acceptance and member
+  pre-authorization) with the shared account email validator, so byte-limit and disallowed-character
+  policy applies identically everywhere.
+
+### Performance
+
+- Bucketed each scheduler row's allocations and time off by covered day once per model build
+  instead of rescanning full lists for every timeline day, and memoized the dragged-row lookup so
+  it runs once per drag rather than once per autoscroll frame.
+
+### Removed
+
+- Deleted the unimplemented cross-tab persistence subscription seam and its unreachable
+  reconciliation consumer, which advertised multi-tab adoption no adapter provides.
+
+### Tests
+
+- Added a differential cascade-parity suite that runs the same fixtures through the shared
+  TypeScript cascades and a real SQLite database, failing on any divergence between domain-core
+  deletes, foreign-key clauses and lifecycle purge restamps; corrected the cascade mapping
+  comment's stale file references.
+
 ## [0.30.0-alpha.1] — 2026-07-31
 
 This minor release closes every policy, contract and security follow-up from the 30 July
