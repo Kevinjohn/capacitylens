@@ -2546,7 +2546,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.30.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.0-alpha.1...HEAD
+[0.31.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.30.0-alpha.1...v0.31.0-alpha.1
 [0.30.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.29.0-alpha.1...v0.30.0-alpha.1
 [0.29.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.6-alpha.1...v0.29.0-alpha.1
 [0.28.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.5-alpha.1...v0.28.6-alpha.1
