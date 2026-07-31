@@ -37,6 +37,8 @@ new features and **patch** versions carry fixes.
 
 ### Tests and documentation
 
+- Preserved literal Playwright arguments in cross-browser wrappers and made demo, WebKit and
+  Firefox package entry points portable across POSIX and Windows shells.
 - Restored the released database-v23 compatibility matrix for both auth-off and password
   deployments, retaining sanitised historical fixtures and their exact generation provenance.
 

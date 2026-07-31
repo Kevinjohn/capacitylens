@@ -1,8 +1,9 @@
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { nonColourEnvironment, spawnPnpm, synchronousSpawnStatus } from "../scripts/pnpm-spawn.mjs";
+import { nonColourEnvironment, spawnPnpm, spawnPnpmSync, synchronousSpawnStatus } from "../scripts/pnpm-spawn.mjs";
 
 describe("spawnPnpm", () => {
   it("preserves spaces and shell metacharacters as literal argument boundaries", async () => {
@@ -41,6 +42,66 @@ describe("spawnPnpm", () => {
 
       expect(exit, stderr).toEqual({ code: 0, signal: null });
       expect(JSON.parse(stdout)).toEqual(args);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves literal argument boundaries synchronously", () => {
+    const fixture = mkdtempSync(join(tmpdir(), "capacitylens-pnpm-sync-"));
+    const launcher = join(fixture, process.platform === "win32" ? "pnpm.cmd" : "pnpm");
+    if (process.platform === "win32") {
+      const capture = join(fixture, "capture.mjs");
+      writeFileSync(capture, "process.stdout.write(JSON.stringify(process.argv.slice(2)));\n");
+      writeFileSync(launcher, `@echo off\r\n"${process.execPath}" "${capture}" %*\r\n`);
+    } else {
+      writeFileSync(launcher, `#!${process.execPath}\nprocess.stdout.write(JSON.stringify(process.argv.slice(2)));\n`);
+      chmodSync(launcher, 0o700);
+    }
+    const args = ["exec", "playwright", "test", "--grep", "foo(bar)", "two words", "glob*value"];
+    try {
+      const result = spawnPnpmSync(args, {
+        env: { ...process.env, PATH: `${fixture}${delimiter}${process.env.PATH ?? ""}` },
+        encoding: "utf8",
+      });
+      expect(result.status, String(result.stderr)).toBe(0);
+      expect(JSON.parse(String(result.stdout))).toEqual(args);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["dev-demo", ["run", "dev:web"], "VITE_CAPACITYLENS_DEMO"],
+    ["webkit", ["exec", "playwright", "test", "--project=webkit"], "CAPACITYLENS_WEBKIT_ONLY"],
+    ["firefox", ["exec", "playwright", "test", "--project=firefox"], "CAPACITYLENS_FIREFOX_ONLY"],
+  ])("launches the %s package preset without a shell assignment", (preset, expectedPrefix, expectedFlag) => {
+    const fixture = mkdtempSync(join(tmpdir(), "capacitylens-preset-"));
+    const launcher = join(fixture, process.platform === "win32" ? "pnpm.cmd" : "pnpm");
+    const capture = join(fixture, "capture.mjs");
+    writeFileSync(
+      capture,
+      `process.stdout.write(JSON.stringify({argv:process.argv.slice(2),flag:process.env[${JSON.stringify(expectedFlag)}]}));\n`,
+    );
+    if (process.platform === "win32") {
+      writeFileSync(launcher, `@echo off\r\n"${process.execPath}" "${capture}" %*\r\n`);
+    } else {
+      writeFileSync(launcher, `#!${process.execPath}\nimport ${JSON.stringify(capture)};\n`);
+      chmodSync(launcher, 0o700);
+    }
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "scripts/run-preset.mjs"), preset, "--grep", "foo(bar)", "two words"],
+        {
+          env: { ...process.env, PATH: `${fixture}${delimiter}${process.env.PATH ?? ""}` },
+          encoding: "utf8",
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      const output = JSON.parse(result.stdout) as { argv: string[]; flag?: string };
+      expect(output.argv).toEqual([...expectedPrefix, "--grep", "foo(bar)", "two words"]);
+      expect(output.flag).toBe("1");
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

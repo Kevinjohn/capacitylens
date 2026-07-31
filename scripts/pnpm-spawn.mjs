@@ -22,6 +22,14 @@ export function spawnPnpm(args, options = {}) {
   });
 }
 
+/** Synchronous counterpart for deliberately sequential orchestration phases. */
+export function spawnPnpmSync(args, options = {}) {
+  return crossSpawn.sync("pnpm", args, {
+    ...options,
+    shell: false,
+  });
+}
+
 /** Distinguish a test failure from a runner that could not start or was terminated. */
 export function synchronousSpawnStatus(label, result, report = console.error) {
   if (result.error) {

@@ -15,8 +15,7 @@
 //
 //   node scripts/e2e-all.mjs   # = pnpm run e2e:all
 
-import { spawnSync } from "node:child_process";
-import { nonColourEnvironment, synchronousSpawnStatus } from "./pnpm-spawn.mjs";
+import { nonColourEnvironment, spawnPnpmSync, synchronousSpawnStatus } from "./pnpm-spawn.mjs";
 import { E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
 
 const forwardedArgs = process.argv.slice(2);
@@ -24,11 +23,9 @@ const forwardedArgs = process.argv.slice(2);
 /** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:all — ${label} ===`);
-  const res = spawnSync("pnpm", ["exec", "playwright", "test", ...extraArgs, ...forwardedArgs], {
+  const res = spawnPnpmSync(["exec", "playwright", "test", ...extraArgs, ...forwardedArgs], {
     stdio: "inherit",
     env: nonColourEnvironment(env),
-    // shell: true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors dev-fullstack.mjs.
-    shell: true,
   });
   return synchronousSpawnStatus(`e2e:all ${label}`, res);
 }
