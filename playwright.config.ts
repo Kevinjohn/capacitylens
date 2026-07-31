@@ -61,7 +61,11 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 5_000 },
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // No global override here on purpose: only db-backed and rehearsal share a mutable SQLite
+  // fixture across tests (see their own `workers: 1`, below) — chromium, auth-backed, and
+  // oidc-backed are per-test-isolated (fresh browser context; auth specs mint unique
+  // emails/orgs per test, e.g. login.auth.spec.ts's `${Date.now()}-${testInfo.workerIndex}`
+  // suffix) and are safe at Playwright's default parallelism, including on CI.
   reporter: process.env.CI
     ? [
         ["github"],
@@ -164,7 +168,12 @@ export default defineConfig({
       ? [
           {
             name: "rehearsal",
-            testMatch: /\.db\.spec\.ts$/,
+            testMatch: flavourSpec("db"),
+            // Reuses the db-backed specs verbatim (see comment above), so it inherits the same
+            // shared-SQLite-fixture hazard: every *.db.spec resets the fixture in beforeEach, and
+            // rehearsal is started by hand (CI unset), so the global CI-only workers guard above
+            // never kicks in here. Serialize explicitly instead of relying on that.
+            workers: 1,
             use: {
               ...devices["Desktop Chrome"],
               baseURL: process.env.CAPACITYLENS_REHEARSAL_URL,
