@@ -10,6 +10,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.29.0-alpha.1] — 2026-07-31
+
+This minor release completes all four remediation stages from the 30 July whole-repository review:
+all 84 validated findings are resolved. It strengthens audit durability and recovery, migration
+compatibility, authentication and lifecycle boundaries, browser-state reconciliation,
+accessibility, operational tooling and regression evidence. The SQLite schema advances from v23 to
+v24 to bound used invitation history; the portable export schema remains at v9.
+
 ### Fixed
 
 - Bounded used-invitation history to 200 rows and 365 days per company, and indexed live
@@ -2462,7 +2470,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.6-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.29.0-alpha.1...HEAD
+[0.29.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.6-alpha.1...v0.29.0-alpha.1
 [0.28.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.5-alpha.1...v0.28.6-alpha.1
 [0.28.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.4-alpha.1...v0.28.5-alpha.1
 [0.28.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.3-alpha.1...v0.28.4-alpha.1
