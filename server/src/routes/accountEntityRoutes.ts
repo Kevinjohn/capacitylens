@@ -10,12 +10,7 @@ import { type Db, getRow, upsertRow, insertRow } from "../db";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
 import type { LocalAccountFlows } from "../accounts/localAccountFlows";
 import type { TenantStore } from "../tenantStore";
-import {
-  appliedRequestedFieldNames,
-  IMMUTABLE_ACCOUNT_FIELDS,
-  sanitizeWrite,
-  validateWrite,
-} from "../validate";
+import { appliedRequestedFieldNames, IMMUTABLE_ACCOUNT_FIELDS, sanitizeWrite, validateWrite } from "../validate";
 import { checkEntityWriteBody, prepareScopedWrite, stampServerRevision } from "../writePipeline";
 
 // THE SINGLE HOME FOR `accounts`-ROW WRITE RULES.
@@ -370,8 +365,17 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
       // P1.5 account-write gate (see the PUT route): always an UPDATE, so always membership + write
       // tier for the account's own id. OFF: no-op allow.
       if (!authorize(req, reply, id, "write")) return;
-      const vis = fieldVisibility(req, "accounts", (req.body as { accountId?: unknown }).accountId ?? existing.accountId);
-      const merged = sanitizeWrite("accounts", { ...existing, ...(req.body as Record<string, unknown>), id }, existing, vis);
+      const vis = fieldVisibility(
+        req,
+        "accounts",
+        (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
+      );
+      const merged = sanitizeWrite(
+        "accounts",
+        { ...existing, ...(req.body as Record<string, unknown>), id },
+        existing,
+        vis,
+      );
       // accountId is immutable (ownsRow). `merged` is sanitised, so an unscoped table drops any
       // asserted accountId; the guard stays as the one shared expression of the rule.
       if (!ownsRow(existing, merged.accountId)) {
