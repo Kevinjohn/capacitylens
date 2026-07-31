@@ -108,7 +108,7 @@ SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS=first.owner@example.com
 
 The exact issuer and discovery document are required. Discovery is the sole authority for
 authorization, token, JWKS and user-info endpoints; explicit endpoint overrides are rejected. HTTP
-is accepted only for loopback test providers. URL credentials, malformed provider ids, missing
+is accepted only for loopback test providers. URL credentials, malformed or reserved provider ids, missing
 `openid`, `profile` or `email` scopes, symmetric-only signing metadata and non-HTTPS remote endpoints
 refuse operation. The three scopes are required because CapacityLens binds the subject and requires
 the provider's verified email and display name during every sign-in.

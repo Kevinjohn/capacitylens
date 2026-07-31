@@ -557,6 +557,19 @@ function socialProvidersFromEnv(env: Env): SocialProviders {
   return providers;
 }
 
+// Provider ids are persisted as part of an external identity's namespace. Generic OIDC must not
+// claim an id owned by a built-in sign-in method or one of CapacityLens' installed auth plugins:
+// enabling that method later would otherwise reinterpret existing accounts or overwrite issuer
+// routing. Keep this list aligned with socialProvidersFromEnv() and the plugins assembled below.
+const RESERVED_GENERIC_PROVIDER_IDS = new Set([
+  "credential",
+  "generic-oauth",
+  "two-factor",
+  "google",
+  "microsoft",
+  "github",
+]);
+
 function externalProviderInfo(
   env: Env,
   genericProviderId: string | null,
@@ -735,6 +748,11 @@ export function authFromEnv(
   const genericProviderId = genericSsoConfigured ? env.CAPACITYLENS_SSO_PROVIDER_ID || "sso" : null;
   if (genericProviderId && !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(genericProviderId)) {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must match ^[a-z0-9][a-z0-9_-]{0,63}$.");
+  }
+  if (genericProviderId && RESERVED_GENERIC_PROVIDER_IDS.has(genericProviderId)) {
+    throw new AuthConfigError(
+      `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must not use reserved provider id "${genericProviderId}".`,
+    );
   }
   const discoveryUrl = secureProviderUrl(env, "CAPACITYLENS_SSO_DISCOVERY_URL");
   const genericIssuer = secureProviderUrl(env, "CAPACITYLENS_SSO_ISSUER");

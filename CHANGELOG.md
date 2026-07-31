@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Rejected generic OIDC aliases that reuse built-in identity or authentication-plugin namespaces,
+  preventing native-provider metadata and issuer bindings from being silently overwritten.
 - Expired sessions at the exact inactivity deadline instead of refreshing them, and pinned the
   application-local session handle across verification, listing and revocation independently of
   Better Auth's database row identifier.

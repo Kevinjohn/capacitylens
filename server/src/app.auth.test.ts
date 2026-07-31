@@ -1550,6 +1550,31 @@ describe("boot refusal (AuthConfigError)", () => {
     }
   });
 
+  it.each(["credential", "generic-oauth", "two-factor", "google", "microsoft", "github"])(
+    "rejects the reserved generic OIDC provider id %s",
+    (providerId) => {
+      expect(() =>
+        authFromEnv(openDb(":memory:"), {
+          ...SSO_ENV,
+          CAPACITYLENS_SSO_PROVIDER_ID: providerId,
+        }),
+      ).toThrow(new RegExp(`reserved provider id.*${providerId}`, "i"));
+    },
+  );
+
+  it("keeps a distinct generic OIDC provider alongside a native provider", () => {
+    const configured = authFromEnv(openDb(":memory:"), {
+      ...SSO_ENV,
+      CAPACITYLENS_SSO_PROVIDER_ID: "company-sso",
+      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+    });
+
+    expect(configured.auth!.providers.map(({ id }) => id)).toEqual(["google", "company-sso"]);
+    expect(configured.auth!.federatedIssuers.get("google")).toBe("https://accounts.google.com");
+    expect(configured.auth!.federatedIssuers.get("company-sso")).toBe(SSO_ENV.CAPACITYLENS_SSO_ISSUER);
+  });
+
   it("buildApp refuses authMode ≠ off without an auth instance", () => {
     expect(() => buildApp(openDb(":memory:"), { authMode: "password" })).toThrow(/requires a Better Auth instance/);
   });
