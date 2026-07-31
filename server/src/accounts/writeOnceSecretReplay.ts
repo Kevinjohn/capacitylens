@@ -39,7 +39,14 @@ export class WriteOnceSecretReplay<T> {
 
   reserve(commandId: string, now = Date.now()): ReplayReservation {
     this.#prune(now);
-    if (this.#entries.size >= this.#maxEntries || this.#entries.has(commandId)) {
+    const duplicate = this.#entries.get(commandId);
+    if (duplicate) {
+      return {
+        accepted: false,
+        retryAfterMs: duplicate.kind === "stored" ? Math.max(1, duplicate.retainedUntil - now) : 1_000,
+      };
+    }
+    if (this.#entries.size >= this.#maxEntries) {
       let earliestRelease = Number.POSITIVE_INFINITY;
       for (const entry of this.#entries.values()) {
         if (entry.kind === "stored") earliestRelease = Math.min(earliestRelease, entry.retainedUntil);

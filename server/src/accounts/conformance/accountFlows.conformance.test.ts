@@ -1438,6 +1438,27 @@ describe("AccountFlows conformance", () => {
     expect(erase).toHaveBeenCalledOnce();
   });
 
+  it("bounds repeated membership snapshot growth around legacy batch erasure", async () => {
+    let snapshot = 0;
+    const workspacePrincipalIds = vi.fn(() =>
+      Array.from({ length: ++snapshot }, (_, index) => `principal-${index + 1}`),
+    );
+    const erase = vi.fn();
+    const { flows } = harness({
+      administration: administrationPort({ workspacePrincipalIds }),
+    });
+
+    await expect(flows.withWorkspaceErasureLocks(["workspace-1"], erase)).rejects.toMatchObject({
+      failure: { code: "CONFLICT", retryable: true },
+    });
+    expect(workspacePrincipalIds).toHaveBeenCalledTimes(4);
+    expect(erase).not.toHaveBeenCalled();
+
+    workspacePrincipalIds.mockReturnValue(["principal-stable"]);
+    await expect(flows.withWorkspaceErasureLocks(["workspace-1"], erase)).resolves.toBeUndefined();
+    expect(erase).toHaveBeenCalledOnce();
+  });
+
   it("keeps a missing principal summary explicit and propagates identity dependency failure", async () => {
     const dependency = contractError("DEPENDENCY_UNAVAILABLE");
     const { flows } = harness({

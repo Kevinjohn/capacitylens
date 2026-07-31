@@ -632,7 +632,7 @@ export function localAccountFlows(input: {
       options: { serializeWorkspaceProvisioning?: boolean } = {},
     ): Promise<T> {
       const uniqueWorkspaceIds = [...new Set(workspaceIds)];
-      const runWithSnapshot = async (principalIds: readonly string[]): Promise<T> => {
+      const runWithSnapshot = async (principalIds: readonly string[], attempt: number): Promise<T> => {
         const locked = new Set(principalIds);
         const result = await lock.withKeys(
           [
@@ -650,10 +650,18 @@ export function localAccountFlows(input: {
             return { kind: "done" as const, value: await operation() };
           },
         );
-        return result.kind === "done" ? result.value : runWithSnapshot(result.principalIds);
+        if (result.kind === "done") return result.value;
+        if (attempt >= WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS) {
+          throw new AccountContractError({
+            code: "CONFLICT",
+            message: "Company membership changed repeatedly during erasure. Retry the request.",
+            retryable: true,
+          });
+        }
+        return runWithSnapshot(result.principalIds, attempt + 1);
       };
       const initial = uniqueWorkspaceIds.flatMap((workspaceId) => administration.workspacePrincipalIds(workspaceId));
-      return runWithSnapshot(initial);
+      return runWithSnapshot(initial, 1);
     },
 
     async resolveRequestAccess({ headers, workspaceId }) {

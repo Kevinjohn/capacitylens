@@ -1097,7 +1097,7 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
       },
     });
     expect(rejected.statusCode).toBe(400);
-    expect(rejected.json()).toMatchObject({ code: "PASSWORD_COMPROMISED" });
+    expect(rejected.json()).toMatchObject({ code: "PASSWORD_CONTEXT_REJECTED" });
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
 
     expect((await signUp(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);

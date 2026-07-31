@@ -122,9 +122,11 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
  *  When `timeZone` is given, the calendar date is derived in that zone via
  *  Intl.DateTimeFormat — so midnight UTC on 2026-06-11 is still 2026-06-10 in
  *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR
- *  invalid (an invalid IANA zone is warned about, then ignored — never throws). */
+ *  invalid. Distinct failures are warned individually up to a bounded limit, then one aggregate
+ *  warning records that further values are suppressed; resolution still never throws. */
 const warnedInvalidTimeZones = new Set<string>();
 const MAX_INVALID_TIMEZONE_WARNINGS = 32;
+let warnedInvalidTimeZoneLimit = false;
 
 export function todayISO(timeZone?: string): ISODate {
   if (!timeZone) return toISODate(new Date());
@@ -147,6 +149,12 @@ export function todayISO(timeZone?: string): ISODate {
     if (!warnedInvalidTimeZones.has(timeZone) && warnedInvalidTimeZones.size < MAX_INVALID_TIMEZONE_WARNINGS) {
       warnedInvalidTimeZones.add(timeZone);
       console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e);
+      if (warnedInvalidTimeZones.size === MAX_INVALID_TIMEZONE_WARNINGS && !warnedInvalidTimeZoneLimit) {
+        warnedInvalidTimeZoneLimit = true;
+        console.warn(
+          `todayISO: ${MAX_INVALID_TIMEZONE_WARNINGS} distinct invalid time zones observed; further distinct values will be suppressed`,
+        );
+      }
     }
     return toISODate(new Date());
   }

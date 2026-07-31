@@ -285,7 +285,7 @@ export function betterAuthIdentityPort(input: {
         compensationHandle: makeCompensationHandle(created.id, command.commandId),
       };
     } catch (error) {
-      if (providerErrorCode(error) === "PASSWORD_COMPROMISED") {
+      if (["PASSWORD_COMPROMISED", "PASSWORD_CONTEXT_REJECTED"].includes(providerErrorCode(error) ?? "")) {
         throw new AccountContractError(
           {
             code: "VALIDATION_FAILED",

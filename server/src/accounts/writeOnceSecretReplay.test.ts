@@ -55,6 +55,23 @@ describe("WriteOnceSecretReplay", () => {
     expect(replay.get("completed")).toBe("secret");
   });
 
+  it("returns the duplicate command's own retention horizon", () => {
+    vi.useFakeTimers();
+    const replay = new WriteOnceSecretReplay<string>(3);
+
+    replay.reserve("earlier", 0);
+    replay.storeReserved("earlier", "secret-1", 0);
+    replay.reserve("later", 100_000);
+    replay.storeReserved("later", "secret-2", 100_000);
+
+    expect(replay.reserve("later", 200_000)).toEqual({
+      accepted: false,
+      retryAfterMs: WRITE_ONCE_SECRET_REPLAY_WINDOW_MS - 100_000,
+    });
+    expect(replay.reserve("active", 200_000)).toEqual({ accepted: true });
+    expect(replay.reserve("active", 200_000)).toEqual({ accepted: false, retryAfterMs: 1_000 });
+  });
+
   it("rejects storing a response that did not reserve capacity", () => {
     const replay = new WriteOnceSecretReplay<string>(1);
     expect(() => replay.storeReserved("missing", "secret")).toThrow("without reserved replay capacity");

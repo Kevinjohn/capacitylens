@@ -199,6 +199,22 @@ describe("todayISO", () => {
     );
     warnSpy.mockRestore();
   });
+
+  it("emits one aggregate warning when invalid-zone deduplication reaches its bound", async () => {
+    vi.resetModules();
+    const isolated = await import("./dateMath");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    for (let index = 0; index < 33; index += 1) {
+      expect(isolated.todayISO(`Invalid/Zone-${index}`)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+
+    expect(warnSpy).toHaveBeenCalledTimes(33);
+    expect(warnSpy.mock.calls.at(-1)?.[0]).toMatch(/32 distinct invalid time zones.*further distinct values/i);
+    isolated.todayISO("Invalid/Zone-34");
+    expect(warnSpy).toHaveBeenCalledTimes(33);
+    warnSpy.mockRestore();
+  });
 });
 
 describe("isWeekendAware", () => {

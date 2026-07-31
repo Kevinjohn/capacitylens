@@ -117,7 +117,12 @@ export const PASSWORD_CONTEXT_WORDS = [
 ] as const;
 
 export class PasswordPolicyError extends Error {
-  readonly code = "PASSWORD_COMPROMISED";
+  constructor(
+    message: string,
+    readonly code: "PASSWORD_CONTEXT_REJECTED" | "PASSWORD_COMPROMISED",
+  ) {
+    super(message);
+  }
 }
 
 /** A fail-closed breach-screening dependency failure is operational, not a user validation error. */
@@ -157,6 +162,7 @@ export function assertNoContextSpecificPassword(
   if (contextWords.some((word) => lowered.includes(word.toLocaleLowerCase("en-GB")))) {
     throw new PasswordPolicyError(
       "Choose a password that does not contain the product name or an administrative role.",
+      "PASSWORD_CONTEXT_REJECTED",
     );
   }
 }
@@ -206,5 +212,9 @@ export async function assertPasswordNotBreached(password: string, fetcher: typeo
     );
   }
   const found = responseText.split(/\r?\n/).some((line) => line.split(":", 1)[0]?.toUpperCase() === suffix);
-  if (found) throw new PasswordPolicyError("This password appears in a known breach. Choose a different password.");
+  if (found)
+    throw new PasswordPolicyError(
+      "This password appears in a known breach. Choose a different password.",
+      "PASSWORD_COMPROMISED",
+    );
 }

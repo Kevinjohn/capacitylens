@@ -58,7 +58,15 @@ describe("OWASP password storage profile", () => {
   });
 
   it("rejects documented context-specific words", () => {
-    expect(() => assertNoContextSpecificPassword("CapacityLens-is-great-2026")).toThrow(/product name/i);
+    try {
+      assertNoContextSpecificPassword("CapacityLens-is-great-2026");
+      expect.unreachable("context-specific password should be rejected");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: "PASSWORD_CONTEXT_REJECTED",
+        message: expect.stringMatching(/product name/i),
+      });
+    }
     expect(() => assertNoContextSpecificPassword("correct horse battery staple")).not.toThrow();
   });
 });

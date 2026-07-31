@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Bounded legacy erasure-lock snapshot retries, retained aggregate invalid-timezone diagnostics,
+  distinguished context-word password failures from breached-password matches, and returned the
+  blocking replay entry's actual retry horizon.
 - Kept partial-workweek allocations within the persisted calendar limit, normalized combined
   activity filters, preserved mixed numeric/string segmented values, and rejected API origins with
   slash-only fragments.
