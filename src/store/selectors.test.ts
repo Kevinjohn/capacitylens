@@ -1,8 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   disciplinesEnabledFor,
+  externalEnabledFor,
+  inlineActivityCreateEnabledFor,
   internalColourModeFor,
+  placeholdersEnabledFor,
   resourcesByDiscipline,
+  schedulingModeFor,
+  showInternalActivitiesFor,
+  showInternalProjectsFor,
   activitiesForProject,
   timeZoneFor,
   visibleRange,
@@ -10,7 +16,7 @@ import {
 } from "./selectors";
 import { emptyFilters } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { AppData } from "@capacitylens/shared/types/entities";
+import type { Account, AppData, ID } from "@capacitylens/shared/types/entities";
 
 function data(): AppData {
   return {
@@ -115,6 +121,71 @@ describe("disciplinesEnabledFor", () => {
   it("returns the explicit account value", () => {
     expect(disciplinesEnabledFor(accounts(false), "a1")).toBe(false);
     expect(disciplinesEnabledFor(accounts(true), "a1")).toBe(true);
+  });
+});
+
+describe("account feature selector defaults", () => {
+  const accountData = (values: Partial<Account> = {}): AppData => ({
+    ...emptyAppData(),
+    accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", ...values }],
+  });
+  const cases: Array<{
+    name: string;
+    selector: (data: AppData, accountId: ID | null) => unknown;
+    fallback: unknown;
+    explicit: unknown[];
+    values: (value: unknown) => Partial<Account>;
+  }> = [
+    {
+      name: "scheduling mode",
+      selector: schedulingModeFor,
+      fallback: "hourly",
+      explicit: ["days", "blocks"],
+      values: (schedulingMode) => ({ schedulingMode: schedulingMode as Account["schedulingMode"] }),
+    },
+    {
+      name: "placeholders",
+      selector: placeholdersEnabledFor,
+      fallback: false,
+      explicit: [true, false],
+      values: (placeholdersEnabled) => ({ placeholdersEnabled: placeholdersEnabled as boolean }),
+    },
+    {
+      name: "external resources",
+      selector: externalEnabledFor,
+      fallback: false,
+      explicit: [true, false],
+      values: (externalEnabled) => ({ externalEnabled: externalEnabled as boolean }),
+    },
+    {
+      name: "internal projects",
+      selector: showInternalProjectsFor,
+      fallback: true,
+      explicit: [true, false],
+      values: (showInternalProjects) => ({ showInternalProjects: showInternalProjects as boolean }),
+    },
+    {
+      name: "internal activities",
+      selector: showInternalActivitiesFor,
+      fallback: true,
+      explicit: [true, false],
+      values: (showInternalActivities) => ({ showInternalActivities: showInternalActivities as boolean }),
+    },
+    {
+      name: "inline activity creation",
+      selector: inlineActivityCreateEnabledFor,
+      fallback: true,
+      explicit: [true, false],
+      values: (inlineActivityCreateEnabled) => ({
+        inlineActivityCreateEnabled: inlineActivityCreateEnabled as boolean,
+      }),
+    },
+  ];
+
+  it.each(cases)("pins absent, unmatched and explicit $name values", ({ selector, fallback, explicit, values }) => {
+    expect(selector(accountData(), "a1")).toBe(fallback);
+    expect(selector(accountData(values(explicit[0])), "missing")).toBe(fallback);
+    for (const value of explicit) expect(selector(accountData(values(value)), "a1")).toBe(value);
   });
 });
 

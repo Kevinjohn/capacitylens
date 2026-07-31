@@ -89,6 +89,35 @@ async function putRawKey(record: unknown): Promise<void> {
   }
 }
 
+async function putEncryptedValue(key: string, value: unknown, savedAt = Date.now()): Promise<void> {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 2);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    const deviceKey = await new Promise<CryptoKey>((resolve, reject) => {
+      const request = db.transaction(KEY_STORE_NAME, "readonly").objectStore(KEY_STORE_NAME).get("device-aes-gcm-v1");
+      request.onsuccess = () => resolve((request.result as { value: CryptoKey }).value);
+      request.onerror = () => reject(request.error);
+    });
+    const iv: Uint8Array<ArrayBuffer> = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+      {
+        name: "AES-GCM",
+        iv,
+        additionalData: new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`),
+        tagLength: 128,
+      },
+      deviceKey,
+      new TextEncoder().encode(JSON.stringify(value)),
+    );
+    await putRaw({ key, savedAt, version: 1, iv: iv.buffer, ciphertext });
+  } finally {
+    db.close();
+  }
+}
+
 async function getRaw(key: string): Promise<unknown> {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 2);
@@ -610,32 +639,30 @@ describe("offline tenant cache", () => {
 
   it("rejects malformed authentication and account-summary payloads", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    await putRaw({
-      key: `auth:${currentCacheNamespace()}`,
-      savedAt: Date.now(),
-      value: { ...authSnapshot("user-a"), authMode: "superuser" },
+    const decrypt = vi.spyOn(crypto.subtle, "decrypt");
+    await putEncryptedValue(`auth:${currentCacheNamespace()}`, {
+      ...authSnapshot("user-a"),
+      authMode: "superuser",
     });
     await expect(readCachedAuthSnapshot()).resolves.toBeNull();
+    expect(decrypt).toHaveBeenCalledTimes(1);
 
     await cacheAuthSnapshot(authSnapshot("user-a"));
     await cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);
-    await putRaw({
-      key: `accounts:${currentCacheNamespace()}:user-a`,
-      savedAt: Date.now(),
-      value: [{ id: "a-studio", name: "Studio", role: "superuser" }],
-    });
+    await putEncryptedValue(`accounts:${currentCacheNamespace()}:user-a`, [
+      { id: "a-studio", name: "Studio", role: "superuser" },
+    ]);
     await expect(readCachedAccountSummaries()).resolves.toBeNull();
+    expect(decrypt).toHaveBeenCalledTimes(2);
   });
 
   it("rejects a cached slice containing rows from another account", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
-    await putRaw({
-      key: `slice:${currentCacheNamespace()}:user-a:a-studio`,
-      savedAt: Date.now(),
-      value: seed(),
-    });
+    const decrypt = vi.spyOn(crypto.subtle, "decrypt");
+    await putEncryptedValue(`slice:${currentCacheNamespace()}:user-a:a-studio`, seed());
 
     await expect(readCachedAccountSlice("a-studio")).resolves.toBeNull();
+    expect(decrypt).toHaveBeenCalledOnce();
   });
 
   it("never exposes one verified user's account slice to another", async () => {

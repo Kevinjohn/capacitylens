@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Pinned all account feature-selector defaults and exercised malformed offline payload validators
+  through valid authenticated-encryption envelopes.
 - Closed every SQLite handle in tenant-store and restore-drill tests, and added real-adapter
   coverage for lifecycle purges, note scrubbing and indexed validation lookups.
 - Enforced unique SQLite column declarations, centralized global overlay layers, narrowed shared
