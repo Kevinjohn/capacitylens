@@ -690,6 +690,30 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect((db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number }).n).toBe(0);
   });
 
+  it.each([
+    ["one millisecond before", SESSION_INACTIVITY_TTL_SECONDS * 1000 - 1, true],
+    ["exactly at", SESSION_INACTIVITY_TTL_SECONDS * 1000, false],
+    ["one millisecond after", SESSION_INACTIVITY_TTL_SECONDS * 1000 + 1, false],
+  ] as const)("treats a session %s the inactivity deadline as active=%s", async (_label, elapsed, active) => {
+    const db = openDb(":memory:");
+    const now = Date.parse("2026-07-31T09:00:00.000Z");
+    const token = `boundary-${elapsed}`;
+    const updatedAt = now - elapsed;
+    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt INTEGER NOT NULL)`);
+    db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, updatedAt);
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const result = await enforceSessionActivity({ session: { token, updatedAt: new Date(updatedAt) } }, db);
+      expect(result !== null).toBe(active);
+      expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual(
+        active ? { updatedAt: now } : undefined,
+      );
+    } finally {
+      nowSpy.mockRestore();
+      db.close();
+    }
+  });
+
   it("touches active sessions without extending their absolute expiry", async () => {
     const db = openDb(":memory:");
     const configured = authFromEnv(db, PASSWORD_ENV);
@@ -820,7 +844,8 @@ describe("CAPACITYLENS_AUTH password", () => {
       },
     });
     const cookie = cookiesOf(signUp);
-    const raw = db.prepare(`SELECT token, userId FROM session`).get() as {
+    const raw = db.prepare(`SELECT id, token, userId FROM session`).get() as {
+      id: string;
       token: string;
       userId: string;
     };
@@ -855,6 +880,8 @@ describe("CAPACITYLENS_AUTH password", () => {
     const { sessions } = listed.json() as { sessions: Array<{ id: string; current: boolean }> };
     expect(sessions).toHaveLength(1);
     expect(sessions[0]).toMatchObject({ current: true });
+    expect(sessions[0]!.id).not.toBe(raw.id);
+    expect(sessions[0]!.id).toBe(applicationSessionHandle("capacitylens", raw.token));
     expect(JSON.stringify(sessions)).not.toContain(raw.token);
     expect(db.prepare(`SELECT 1 FROM session WHERE id = 'stale-session-row'`).get()).toBeUndefined();
     expect(db.prepare(`SELECT 1 FROM account_session_assurance WHERE sessionId = ?`).get(staleHandle)).toBeUndefined();

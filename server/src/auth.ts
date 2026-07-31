@@ -234,7 +234,7 @@ export async function enforceSessionActivity<
   const lastActivity = new Date(session.session.updatedAt).getTime();
   const now = Date.now();
   const elapsed = now - lastActivity;
-  if (!Number.isFinite(lastActivity) || elapsed < 0 || elapsed > SESSION_INACTIVITY_TTL_SECONDS * 1000) {
+  if (!Number.isFinite(lastActivity) || elapsed < 0 || elapsed >= SESSION_INACTIVITY_TTL_SECONDS * 1000) {
     if (!Number.isFinite(lastActivity)) {
       db.prepare(`DELETE FROM session WHERE token = ?`).run(session.session.token);
       return null;

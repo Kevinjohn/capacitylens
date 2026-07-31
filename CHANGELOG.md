@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Expired sessions at the exact inactivity deadline instead of refreshing them, and pinned the
+  application-local session handle across verification, listing and revocation independently of
+  Better Auth's database row identifier.
+
 ## [0.29.0-alpha.1] — 2026-07-31
 
 This minor release completes all four remediation stages from the 30 July whole-repository review:
