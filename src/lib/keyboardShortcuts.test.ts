@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { primaryShortcut } from "./keyboardShortcuts";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { primaryShortcut, redoShortcut, undoShortcut } from "./keyboardShortcuts";
 import { m } from "@/i18n";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("primaryShortcut", () => {
   it.each(["Macintosh", "iPhone", "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)"])(
@@ -14,6 +18,23 @@ describe("primaryShortcut", () => {
   it.each(["Windows NT 10.0", "X11; Linux x86_64", ""])("uses Ctrl labels for %s", (userAgent) => {
     expect(primaryShortcut("z", false, userAgent)).toBe("Ctrl+Z");
     expect(primaryShortcut("z", true, userAgent)).toBe("Ctrl+Shift+Z");
+  });
+
+  it("defaults shift to false when the caller omits it", () => {
+    expect(primaryShortcut("z", undefined, "Windows NT 10.0")).toBe("Ctrl+Z");
+  });
+
+  it("resolves the current browser's user agent when none is supplied", () => {
+    vi.stubGlobal("navigator", { userAgent: "Macintosh; Intel Mac OS X" });
+    expect(primaryShortcut("z")).toBe("⌘Z");
+
+    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0" });
+    expect(primaryShortcut("z")).toBe("Ctrl+Z");
+  });
+
+  it("falls back to Ctrl labels when no navigator is present at all", () => {
+    vi.stubGlobal("navigator", undefined);
+    expect(primaryShortcut("z")).toBe("Ctrl+Z");
   });
 
   it.each([
@@ -37,5 +58,23 @@ describe("primaryShortcut", () => {
 
     expect(messages).toHaveLength(12);
     expect(messages.every((message) => message.includes(shortcut))).toBe(true);
+  });
+});
+
+describe("undoShortcut / redoShortcut", () => {
+  it("undoShortcut resolves the plain primary shortcut for the current platform", () => {
+    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0" });
+    expect(undoShortcut()).toBe("Ctrl+Z");
+
+    vi.stubGlobal("navigator", { userAgent: "Macintosh; Intel Mac OS X" });
+    expect(undoShortcut()).toBe("⌘Z");
+  });
+
+  it("redoShortcut resolves the shifted primary shortcut for the current platform", () => {
+    vi.stubGlobal("navigator", { userAgent: "Windows NT 10.0" });
+    expect(redoShortcut()).toBe("Ctrl+Shift+Z");
+
+    vi.stubGlobal("navigator", { userAgent: "Macintosh; Intel Mac OS X" });
+    expect(redoShortcut()).toBe("⌘⇧Z");
   });
 });
