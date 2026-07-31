@@ -112,7 +112,21 @@ function parseInvitations(value: unknown): TeamInvitation[] | null {
 }
 
 function parseToken(value: unknown): OneTimeToken | null {
-  if (!isRecord(value) || typeof value.token !== "string" || value.token.length === 0) return null;
+  if (!isRecord(value) || typeof value.token !== "string") return null;
+  // Both current issuers return compact opaque strings. Keep the provider-owned alphabet opaque,
+  // but reject values that cannot safely form one write-once URL segment or indicate a skewed body.
+  const containsUnsafeCharacter = Array.from(value.token).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return /\s/u.test(character) || codePoint <= 0x1f || codePoint === 0x7f;
+  });
+  if (
+    value.token.length === 0 ||
+    value.token.length > 4_096 ||
+    value.token !== value.token.trim() ||
+    containsUnsafeCharacter
+  ) {
+    return null;
+  }
   if (value.id !== undefined && (typeof value.id !== "string" || value.id.length === 0)) return null;
   if (value.expiresAt !== undefined && !isTimestamp(value.expiresAt)) return null;
   return {

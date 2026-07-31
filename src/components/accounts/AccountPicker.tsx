@@ -51,8 +51,8 @@ const DEFAULT_LANGUAGE = "en";
 function toCreatedOrg(body: unknown): { id: string; name: string } | null {
   if (typeof body !== "object" || body === null) return null;
   const b = body as { id?: unknown; name?: unknown };
-  if (typeof b.id !== "string" || b.id.length === 0) return null;
-  if (typeof b.name !== "string" || b.name.length === 0) return null;
+  if (typeof b.id !== "string" || b.id.trim().length === 0) return null;
+  if (typeof b.name !== "string" || b.name.trim().length === 0) return null;
   return { id: b.id, name: b.name };
 }
 

@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Rejected unsafe one-time-token payloads and blank created-company identities, refused edits with
+  unincrementable revisions, and ordered invitation history by represented instant.
 - Restored login controls when an external provider returns without navigating, removed inline
   activity creation after a live viewer downgrade, and locked duplicate device-clear confirmation.
 - Cleared tenant-owned interaction state during forced company fallback and removed stale project

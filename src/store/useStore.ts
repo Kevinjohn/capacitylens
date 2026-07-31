@@ -465,9 +465,12 @@ const touchAfterAll = (timestamps: Array<string | undefined>): string => {
   for (const value of timestamps) {
     if (!value) continue;
     const parsed = Date.parse(value);
-    // The maximum representable Date is valid ISO input but has no representable successor.
-    // Treat that boundary as an unsupported revision floor instead of constructing Invalid Date.
-    if (Number.isFinite(parsed) && parsed >= next && parsed < MAX_DATE_MS) next = parsed + 1;
+    // The maximum representable Date is valid ISO input but has no representable successor. Refuse
+    // the write explicitly; publishing Date.now() here would silently move its revision backwards.
+    if (parsed === MAX_DATE_MS) {
+      throw new Error("Cannot update data whose revision has no representable successor.");
+    }
+    if (Number.isFinite(parsed) && parsed >= next) next = parsed + 1;
   }
   return new Date(next).toISOString();
 };

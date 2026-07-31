@@ -44,6 +44,20 @@ describe("teamAccessClient identity validation", () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("equivalent success 200"));
   });
 
+  it.each([" ", "token\nwith-control", "x".repeat(4_097)])(
+    "rejects an unsafe successful one-time token payload",
+    async (token) => {
+      vi.spyOn(accountClient, "issuePasswordReset").mockResolvedValue(
+        new Response(JSON.stringify({ token }), { status: 201 }),
+      );
+
+      await expect(teamAccessClient.issuePasswordReset("account-1", "user-1")).resolves.toMatchObject({
+        kind: "invalid",
+        status: 201,
+      });
+    },
+  );
+
   it("defaults absent additive fields and contains unsupported rows", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(accountClient, "listMembers").mockResolvedValue(

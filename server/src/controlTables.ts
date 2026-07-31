@@ -1121,7 +1121,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       // badge (MembersSection's `usedAt ? …used()` branch) so an admin can confirm an invite was
       // consumed. Dead expired-unused links are removed separately by pruneInvites, not hidden here.
       `SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites
-       WHERE accountId = ? ORDER BY createdAt DESC`,
+       WHERE accountId = ?`,
     )
     .all(accountId) as Array<{
     id: string;
@@ -1132,7 +1132,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
     usedAt: string | null;
     createdAt: string;
   }>;
-  return rows.map((r) => {
+  const invitations = rows.map((r) => {
     if (!isKnownRole(r.role)) {
       throw new Error(
         `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
@@ -1147,6 +1147,12 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       usedAt: r.usedAt ?? null,
       createdAt: r.createdAt,
     };
+  });
+  return invitations.sort((a, b) => {
+    const aInstant = parseISOTimestamp(a.createdAt) ?? Number.NEGATIVE_INFINITY;
+    const bInstant = parseISOTimestamp(b.createdAt) ?? Number.NEGATIVE_INFINITY;
+    if (aInstant !== bInstant) return bInstant - aInstant;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 }
 

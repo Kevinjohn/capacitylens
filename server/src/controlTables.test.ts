@@ -492,6 +492,15 @@ describe("listInvitesForAccount", () => {
     expect(JSON.stringify(list)).not.toContain("tok-");
   });
 
+  it("orders offset timestamps by instant with an id tie-break", () => {
+    const db = freshDb();
+    createInvite(db, invite({ token: "tok-later", id: "inv-b", createdAt: "2026-07-31T21:00:00-04:00" }));
+    createInvite(db, invite({ token: "tok-earlier", id: "inv-c", createdAt: "2026-08-01T00:30:00Z" }));
+    createInvite(db, invite({ token: "tok-tied", id: "inv-a", createdAt: "2026-08-01T01:00:00Z" }));
+
+    expect(listInvitesForAccount(db, "acc-1").map((invitation) => invitation.id)).toEqual(["inv-a", "inv-b", "inv-c"]);
+  });
+
   it("returns an empty array for an account with no invites", () => {
     expect(listInvitesForAccount(freshDb(), "none")).toEqual([]);
   });

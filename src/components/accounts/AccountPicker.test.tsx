@@ -416,6 +416,28 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toEqual(["org-9"]);
   });
 
+  it.each([
+    { id: " ", name: "Loft Digital" },
+    { id: "org-9", name: "\t" },
+  ])("recovers authoritatively from a whitespace-only created-company field", async (createdBody) => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => createdBody };
+      return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Loft Digital", role: "owner" }] };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    await user.type(screen.getByLabelText("Company name"), "Loft Digital");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    expect(await screen.findByText("Loft Digital")).toBeInTheDocument();
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().accountSummaries.map((account) => account.id)).toEqual(["org-9"]);
+  });
+
   it("surfaces the server refusal (cap / org gate) as the form error and does NOT activate", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();

@@ -66,8 +66,11 @@ describe("store CRUD", () => {
       ),
     });
 
-    expect(() => s().updateClient(client.id, { name: "Still editable" })).not.toThrow();
-    expect(s().data.clients.find((row) => row.id === client.id)?.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(() => s().updateClient(client.id, { name: "Must be refused" })).toThrow(/no representable successor/i);
+    expect(s().data.clients.find((row) => row.id === client.id)).toMatchObject({
+      name: "Last successor",
+      updatedAt: "+275760-09-13T00:00:00.000Z",
+    });
   });
 
   it("updates fields, advances updatedAt and emits a sync PUT", () => {
