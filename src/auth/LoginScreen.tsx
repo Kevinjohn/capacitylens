@@ -12,6 +12,7 @@ import { m } from "@/i18n";
 import type { AuthProviderInfo } from "./authContext";
 import { validateText } from "../lib/validation";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import {
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_LENGTH,
@@ -159,8 +160,8 @@ export function LoginScreen({
       requiredMessage: m.identity_err_name(),
     });
     if (cleanName === null) return;
-    const cleanEmail = email.trim().toLowerCase();
-    if (cleanEmail.length === 0 || cleanEmail.length > MAX_EMAIL_LENGTH || !/^[^@\s]+@[^@\s]+$/.test(cleanEmail)) {
+    const cleanEmail = normalizeAccountEmail(email);
+    if (!isAccountEmail(cleanEmail)) {
       setError(m.identity_err_email());
       return;
     }

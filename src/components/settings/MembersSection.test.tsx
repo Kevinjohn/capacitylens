@@ -349,6 +349,23 @@ describe("MembersSection — admin affordances", () => {
     expect(error).toHaveTextContent(m.identity_err_email());
   });
 
+  it("rejects an invitation pre-authorisation email containing disallowed characters", async () => {
+    // Regression: the inline check used to only compare UTF-16 .length against MAX_EMAIL_LENGTH
+    // and never screened for disallowed characters, so an emoji/zero-width address that stayed
+    // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", mockFetch(members));
+    renderSection();
+    const email = await screen.findByTestId("invite-preauth");
+
+    await user.type(email, "a​🙂@example.com");
+    await user.click(screen.getByTestId("invite-submit"));
+
+    const error = await screen.findByRole("alert");
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(error).toHaveTextContent(m.identity_err_email());
+  });
+
   it("keeps an existing write-once invite link when a later submit fails validation", async () => {
     const user = userEvent.setup();
     const reads = mockFetch(members);

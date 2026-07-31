@@ -25,6 +25,7 @@ vi.mock("./authClient", () => ({
 }));
 
 import { LoginScreen } from "./LoginScreen";
+import { m } from "@/i18n";
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
@@ -249,6 +250,22 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
       name: "Owner",
       fetchOptions: { headers: { "x-capacitylens-setup-token": "operator-secret" } },
     });
+  });
+
+  it("rejects an owner-setup email containing disallowed characters", async () => {
+    // Regression: the inline check used to only compare UTF-16 .length against MAX_EMAIL_LENGTH
+    // and never screened for disallowed characters, so an emoji/zero-width address that stayed
+    // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
+    const onSignedIn = vi.fn();
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a​🙂@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(m.identity_err_email());
+    expect(signUpEmail).not.toHaveBeenCalled();
+    expect(onSignedIn).not.toHaveBeenCalled();
   });
 
   it("surfaces a sign-up failure inline and describes every field by it (same WCAG contract as sign-in)", async () => {

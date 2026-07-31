@@ -10,6 +10,7 @@ import { can, canManageMemberRole, canRemoveMember, type Role } from "@capacityl
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { teamAccessClient, type TeamInvitation, type TeamMember } from "../../account/teamAccessClient";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
+import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { roleLabel, roleSummary } from "../../lib/accessCopy";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
 import { refreshActiveAccountSlice } from "../../data/persist";
@@ -571,7 +572,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     clear();
     const accountId = requestAccountId();
     const trimmed = invitePreauth.trim();
-    if (trimmed.length > MAX_EMAIL_LENGTH || (trimmed.length > 0 && !/^[^@\s]+@[^@\s]+$/.test(trimmed))) {
+    if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
       fail("invite", m.identity_err_email());
       return;
     }

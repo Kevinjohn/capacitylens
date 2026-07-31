@@ -221,6 +221,32 @@ describe("InviteAccept preview and acceptance", () => {
     expect(email).not.toHaveAttribute("aria-invalid");
   });
 
+  it("rejects a signup email containing disallowed characters", async () => {
+    // Regression: the inline check used to only compare UTF-16 .length against MAX_EMAIL_LENGTH
+    // and never screened for disallowed characters, so an emoji/zero-width address that stayed
+    // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+    renderInvite();
+
+    await screen.findByTestId("invite-preview");
+    const name = screen.getByLabelText("Name");
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
+    const create = screen.getByRole("button", {
+      name: "Create account and accept",
+    });
+
+    await user.type(name, "New Person");
+    fireEvent.change(email, { target: { value: "a​🙂@example.com" } });
+    await user.type(password, "a-strong-enough-password");
+    await user.click(create);
+
+    const emailError = screen.getByText(m.identity_err_email());
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(email).toHaveAttribute("aria-describedby", emailError.id);
+  });
+
   it("starts strict OIDC from the invite URL so the callback returns to the bearer route", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     authClientMock.signInOauth2.mockImplementationOnce(() => new Promise(() => {}));

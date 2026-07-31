@@ -15,7 +15,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { runExternalSignIn } from "./externalSignIn";
 import { validateText } from "../../lib/validation";
-import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { isAccountRole, isIsoInstant } from "@capacitylens/shared/account/types";
 import { isTransportFailure } from "../../data/requestTimeout";
@@ -398,8 +398,8 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
       requiredMessage: m.identity_err_name(),
     });
     if (cleanName === null) return;
-    const cleanEmail = email.trim().toLowerCase();
-    if (cleanEmail.length === 0 || cleanEmail.length > MAX_EMAIL_LENGTH || !/^[^@\s]+@[^@\s]+$/.test(cleanEmail)) {
+    const cleanEmail = normalizeAccountEmail(email);
+    if (!isAccountEmail(cleanEmail)) {
       report("email", m.identity_err_email());
       return;
     }
