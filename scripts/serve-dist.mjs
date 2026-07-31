@@ -1,22 +1,13 @@
-// Production-shaped local server for the Phase 6 rehearsal (docs/runbook.md): serves the
-// real Vite build from dist/ and proxies /api/* to the CapacityLens daemon — the same shape
-// Nginx gives the droplet (same-origin /api, no CORS in play). Deliberately dependency-
-// free and NOT a dev tool: no watch, no transform, no fallback magic beyond the SPA
-// index.html rewrite.
-//
-//   node scripts/serve-dist.mjs   # dist/ on http://127.0.0.1:4173, /api → 127.0.0.1:8787
-//   PORT=…  API_PORT=…            # overrides
-
+// Production-shaped local rehearsal server: static dist/ plus same-origin /api proxying.
 import { createServer, request as httpRequest } from "node:http";
 import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 import { parsePort } from "./port.mjs";
 
-const DIST = fileURLToPath(new URL("../dist/", import.meta.url));
-const PORT = parsePort(process.env.PORT, 4173, "PORT");
-const API_PORT = parsePort(process.env.API_PORT, 8787, "API_PORT");
+const DEFAULT_DIST = join(process.cwd(), "dist");
+export const REHEARSAL_UPSTREAM_TIMEOUT_MS = 130_000;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -31,80 +22,117 @@ const MIME = {
 };
 const FILE_LIKE_PATH = /\.(?:css|js|mjs|json|map|svg|png|jpe?g|gif|webp|ico|woff2?|ttf|txt|xml|webmanifest)$/i;
 
-if (!existsSync(join(DIST, "index.html"))) {
-  console.error("serve-dist: no dist/index.html — run the production build first (see runbook).");
-  process.exit(1);
-}
+const missing = (error) => error && typeof error === "object" && error.code === "ENOENT";
 
-createServer((req, res) => {
-  if (req.url?.startsWith("/api/")) {
-    // Transparent pass-through to the daemon on loopback, headers and body intact.
-    const upstream = httpRequest(
-      { host: "127.0.0.1", port: API_PORT, path: req.url, method: req.method, headers: req.headers },
-      (up) => {
-        up.on("error", (error) => {
-          console.error("serve-dist: upstream response failed", error);
-          if (res.headersSent) res.destroy(error);
-          else {
-            res.writeHead(502, { "content-type": "application/json" });
-            res.end('{"error":"upstream unavailable"}');
-          }
-        });
-        res.writeHead(up.statusCode ?? 502, up.headers);
-        up.pipe(res);
-      },
-    );
-    upstream.on("error", (error) => {
-      if (res.headersSent) res.destroy(error);
-      else {
-        res.writeHead(502, { "content-type": "application/json" });
-        res.end('{"error":"upstream unavailable"}');
-      }
-    });
-    req.pipe(upstream);
-    return;
-  }
-
-  // Static files + SPA fallback, mirroring the packaged nginx.conf's three static blocks:
-  //  • `location /assets/ { try_files $uri =404; }` and nginx's file-extension matcher keep
-  //    missing asset and file-like paths as 404s instead of masking broken references with HTML.
-  //  • `location / { try_files $uri $uri/ /index.html; }` serves real files and falls back only
-  //    for extensionless client routes such as /projects or /invite/abc.
-  //  • `location ~ ^/(invite|reset-password)/ { try_files /index.html =404; }` — also serves
-  //    index.html for a miss, so the plain fallback above already matches its response shape
-  //    (the access-log redaction it exists for has no analogue here).
-  const path = normalize((req.url ?? "/").split("?")[0]).replace(/^([.][.][/\\])+/, "");
-  // createReadStream can open a directory and emit EISDIR only after its `open` event. Avoid
-  // committing a 200 for the dist directory at GET /; the SPA root is index.html.
-  const requested = path === "/" ? join(DIST, "index.html") : join(DIST, path);
-  const serve = async (target, fallbackAllowed) => {
-    try {
-      if (!(await stat(target)).isFile()) throw new Error("Static path is not a file.");
-    } catch {
-      if (fallbackAllowed) await serve(join(DIST, "index.html"), false);
-      else {
-        res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
-        res.end("404 not found");
-      }
+export function createRehearsalRequestHandler({
+  dist = DEFAULT_DIST,
+  apiPort = 8787,
+  upstreamTimeoutMs = REHEARSAL_UPSTREAM_TIMEOUT_MS,
+  statPath = stat,
+  openFile = createReadStream,
+  report = console.error,
+} = {}) {
+  return (req, res) => {
+    if (req.url?.startsWith("/api/")) {
+      let timedOut = false;
+      let failed = false;
+      const fail = (status, error) => {
+        if (failed) return;
+        failed = true;
+        if (error) report("serve-dist: upstream request failed", error);
+        if (res.destroyed) return;
+        if (res.headersSent) res.destroy(error);
+        else if (!res.writableEnded) {
+          res.writeHead(status, { "content-type": "application/json" });
+          res.end(status === 504 ? '{"error":"upstream timeout"}' : '{"error":"upstream unavailable"}');
+        }
+      };
+      const upstream = httpRequest(
+        { host: "127.0.0.1", port: apiPort, path: req.url, method: req.method, headers: req.headers },
+        (up) => {
+          up.setTimeout(upstreamTimeoutMs, () => {
+            timedOut = true;
+            const error = new Error("upstream response timed out");
+            up.destroy(error);
+            upstream.destroy(error);
+            fail(504, error);
+          });
+          up.on("aborted", () => {
+            const error = new Error("upstream response aborted");
+            upstream.destroy(error);
+            fail(502, error);
+          });
+          up.on("error", (error) => fail(timedOut ? 504 : 502, error));
+          res.writeHead(up.statusCode ?? 502, up.headers);
+          up.pipe(res);
+        },
+      );
+      upstream.setTimeout(upstreamTimeoutMs, () => {
+        timedOut = true;
+        const error = new Error("upstream request timed out");
+        upstream.destroy(error);
+        fail(504, error);
+      });
+      upstream.on("error", (error) => fail(timedOut ? 504 : 502, error));
+      req.on("aborted", () => upstream.destroy(new Error("downstream request aborted")));
+      res.on("close", () => {
+        if (!res.writableEnded) upstream.destroy(new Error("downstream response closed"));
+      });
+      req.pipe(upstream);
       return;
     }
-    const stream = createReadStream(target);
-    stream.once("open", () => {
-      res.writeHead(200, { "content-type": MIME[extname(target)] ?? "application/octet-stream" });
-      stream.pipe(res);
-    });
-    stream.on("error", (error) => {
-      if (res.headersSent) {
-        res.destroy(error);
-      } else if (fallbackAllowed) {
-        void serve(join(DIST, "index.html"), false);
-      } else {
+
+    const path = normalize((req.url ?? "/").split("?")[0]).replace(/^([.][.][/\\])+/, "");
+    const requested = path === "/" ? join(dist, "index.html") : join(dist, path);
+    const respondMissing = (fallbackAllowed) => {
+      if (fallbackAllowed) void serve(join(dist, "index.html"), false);
+      else {
         res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
         res.end("404 not found");
       }
-    });
+    };
+    const respondFault = (error) => {
+      report("serve-dist: static file failed", error);
+      if (res.headersSent) res.destroy(error);
+      else {
+        res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+        res.end("500 static file failure");
+      }
+    };
+    const serve = async (target, fallbackAllowed) => {
+      try {
+        if (!(await statPath(target)).isFile()) {
+          respondMissing(fallbackAllowed);
+          return;
+        }
+      } catch (error) {
+        if (missing(error)) respondMissing(fallbackAllowed);
+        else respondFault(error);
+        return;
+      }
+      const stream = openFile(target);
+      stream.once("open", () => {
+        res.writeHead(200, { "content-type": MIME[extname(target)] ?? "application/octet-stream" });
+        stream.pipe(res);
+      });
+      stream.on("error", (error) => {
+        if (missing(error)) respondMissing(fallbackAllowed);
+        else respondFault(error);
+      });
+    };
+    void serve(requested, !path.startsWith("/assets/") && !FILE_LIKE_PATH.test(path));
   };
-  void serve(requested, !path.startsWith("/assets/") && !FILE_LIKE_PATH.test(path));
-}).listen(PORT, "127.0.0.1", () => {
-  console.log(`serve-dist: http://127.0.0.1:${PORT} (dist/ + /api → 127.0.0.1:${API_PORT})`);
-});
+}
+
+const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+if (isMain) {
+  const port = parsePort(process.env.PORT, 4173, "PORT");
+  const apiPort = parsePort(process.env.API_PORT, 8787, "API_PORT");
+  if (!existsSync(join(DEFAULT_DIST, "index.html"))) {
+    console.error("serve-dist: no dist/index.html — run the production build first (see runbook).");
+    process.exit(1);
+  }
+  createServer(createRehearsalRequestHandler({ apiPort })).listen(port, "127.0.0.1", () => {
+    console.log(`serve-dist: http://127.0.0.1:${port} (dist/ + /api → 127.0.0.1:${apiPort})`);
+  });
+}

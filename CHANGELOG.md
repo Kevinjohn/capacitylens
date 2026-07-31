@@ -37,6 +37,8 @@ new features and **patch** versions carry fixes.
 
 ### Tests and documentation
 
+- Bounded stalled rehearsal proxy requests, released paired sockets on disconnect, and surfaced
+  unexpected static-file faults separately from genuine missing paths.
 - Preserved literal Playwright arguments in cross-browser wrappers and made demo, WebKit and
   Firefox package entry points portable across POSIX and Windows shells.
 - Restored the released database-v23 compatibility matrix for both auth-off and password
