@@ -48,14 +48,14 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "bg-elevated text-ink ring-1 ring-line shadow-pop z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-2 py-1 text-xs font-medium text-balance",
+          "bg-elevated text-ink ring-1 ring-line shadow-pop z-(--z-index-tooltip) w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-2 py-1 text-xs font-medium text-balance",
           className,
         )}
         {...props}
       >
         {children}
         {showArrow && (
-          <TooltipPrimitive.Arrow className="bg-elevated fill-elevated z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+          <TooltipPrimitive.Arrow className="bg-elevated fill-elevated z-(--z-index-tooltip) size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
         )}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>

@@ -71,11 +71,13 @@
   /* Small named z-index scale for the few elements that need to sit above ordinary
      document flow outside a local stacking context (see the getting-started popover
      below). Named for role, not raw layer count, so new call sites pick a tier by intent:
-     sticky chrome < an in-progress drag < a floating popover/overlay < the focused
+     sticky chrome < an in-progress drag < a modal < a floating popover < a tooltip < the focused
      skip link, which must remain discoverable above every application layer. */
   --z-index-sticky: 40;
   --z-index-drag: 50;
+  --z-index-modal: 55;
   --z-index-popover: 60;
+  --z-index-tooltip: 65;
   --z-index-skip-link: 70;
 }
 

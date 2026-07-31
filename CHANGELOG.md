@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Enforced unique SQLite column declarations, centralized global overlay layers, narrowed shared
+  package exports, exposed released database fixtures to normal Git workflows, and aligned the
+  supported shadcn tooling version.
 - Bounded legacy erasure-lock snapshot retries, retained aggregate invalid-timezone diagnostics,
   distinguished context-word password failures from breached-password matches, and returned the
   blocking replay entry's actual retry horizon.

@@ -70,7 +70,9 @@ pnpm run ui:registry add <component> --diff
 Re-merge every adjacent documented local deviation deliberately, then run `pnpm run ui:check`.
 That check is part of `pnpm run gate` and detects unreviewed changes to the protected primitive
 surface. Update its reviewed digests only after inspecting the complete diff and retaining the
-documented product behavior.
+documented product behavior. The committed shadcn MCP is an approved equivalent inspection path;
+`ui:check` requires its CLI version to match `ui:registry` so both compare against the same upstream
+baseline.
 
 `gate:server` checks the Node/SQLite workspace. GitHub CI divides ordinary server test files into
 four parallel, bounded shards and launches each file in a fresh Vitest process. A file therefore

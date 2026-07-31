@@ -227,6 +227,20 @@ const TABLE_DEFINITIONS = {
   },
 } satisfies Record<AppDataKey, TableSpec>;
 
+export function assertUniqueTableColumns(tableKey: string, columns: readonly ColumnSpec[]): void {
+  const seen = new Set<string>();
+  for (const column of columns) {
+    if (seen.has(column.name)) {
+      throw new Error(
+        `Table ${JSON.stringify(tableKey)} declares column ${JSON.stringify(column.name)} more than once.`,
+      );
+    }
+    seen.add(column.name);
+  }
+}
+
+for (const table of Object.values(TABLE_DEFINITIONS)) assertUniqueTableColumns(table.key, table.columns);
+
 // Runtime adapters accept untrusted string table names, so expose the checked closed definition
 // through a string index while retaining the exact-key completeness check above.
 export const TABLES: Record<string, TableSpec> = TABLE_DEFINITIONS;
