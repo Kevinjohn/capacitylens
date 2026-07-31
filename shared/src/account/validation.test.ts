@@ -28,6 +28,50 @@ describe("boundApplicationFailure", () => {
     expect(boundApplicationFailure(validApplication)).toBeNull();
   });
 
+  it("rejects a decorated array as the nested branding object", () => {
+    const branding = Object.assign([], validApplication.branding);
+    expect(boundApplicationFailure({ ...validApplication, branding })).toContain("branding");
+  });
+
+  it.each([
+    [
+      "top-level accessor",
+      Object.defineProperty({}, "applicationId", {
+        get: () => {
+          throw new Error("private top-level failure");
+        },
+      }),
+    ],
+    [
+      "nested branding accessor",
+      {
+        ...validApplication,
+        branding: Object.defineProperty({}, "totpIssuer", {
+          get: () => {
+            throw new Error("private branding failure");
+          },
+        }),
+      },
+    ],
+    [
+      "context-word element accessor",
+      {
+        ...validApplication,
+        branding: {
+          ...validApplication.branding,
+          passwordContextWords: Object.defineProperty(["safe"], 0, {
+            get: () => {
+              throw new Error("private word failure");
+            },
+          }),
+        },
+      },
+    ],
+  ])("contains a throwing %s without leaking its message", (_label, application) => {
+    expect(() => boundApplicationFailure(application)).not.toThrow();
+    expect(boundApplicationFailure(application)).toBe("The account application binding could not be validated.");
+  });
+
   it.each(["\n", "\0", "\u202e", "\u200b", "\ud800", "\ue000"])(
     "rejects disallowed branding character %j in every single-line field",
     (character) => {

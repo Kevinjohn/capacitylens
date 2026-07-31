@@ -235,6 +235,26 @@ describe("built-in Internal client", () => {
     expect(repair("2027-01-01T00:00:00.000Z", TS)).toBe("2027-01-01T00:00:00.001Z");
   });
 
+  it("refuses a repair that cannot advance within the supported timestamp domain", () => {
+    const maximum = "9999-12-31T23:59:59.999Z";
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      clients: [
+        {
+          ...buildInternalClient("a1", TS),
+          name: "Damaged",
+          updatedAt: maximum,
+        },
+      ],
+    };
+
+    expect(() => ensureInternalClients(data, TS)).toThrow(
+      new RangeError("Internal-client repair cannot advance beyond the supported four-digit ISO timestamp range."),
+    );
+    expect(data.clients[0]).toMatchObject({ name: "Damaged", updatedAt: maximum });
+  });
+
   it("leaves an already-canonical retained builtin updatedAt untouched (no phantom-write churn)", () => {
     const NOW = "2026-06-01T00:00:00.000Z";
     const data = {

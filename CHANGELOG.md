@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Contained exceptional application-binding objects at the shared validation boundary, rejected
+  array-shaped branding, and refused Internal-client repair beyond the supported timestamp domain.
 - Built duplicate activity labels once in linear time per source change, and showed conventional
   Command or Control shortcut guidance according to the user's platform.
 - Made lifecycle soft-deletion irreversible for people, clients and projects, and reported scheduled

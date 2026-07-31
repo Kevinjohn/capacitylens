@@ -10,6 +10,7 @@ import type { BoundApplication } from "./types";
 
 /** Maximum number of application-specific terms screened from each password. */
 export const MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS = 32;
+const INVALID_APPLICATION_BINDING = "The account application binding could not be validated.";
 
 /**
  * Validate an untrusted application binding without throwing.
@@ -18,6 +19,16 @@ export const MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS = 32;
  * application id, display branding and password-context vocabulary satisfy their shared bounds.
  */
 export function boundApplicationFailure(application: unknown): string | null {
+  try {
+    return inspectBoundApplication(application);
+  } catch {
+    // This is an exported unknown-input boundary. Proxies and accessor-bearing objects may throw
+    // during any structural read; contain them without exposing their exception text to callers.
+    return INVALID_APPLICATION_BINDING;
+  }
+}
+
+function inspectBoundApplication(application: unknown): string | null {
   if (typeof application !== "object" || application === null || Array.isArray(application)) {
     return "The account application binding must be an object.";
   }
@@ -37,6 +48,7 @@ export function boundApplicationFailure(application: unknown): string | null {
   if (
     typeof branding !== "object" ||
     branding === null ||
+    Array.isArray(branding) ||
     typeof branding.totpIssuer !== "string" ||
     !branding.totpIssuer.trim() ||
     hasDisallowedChars(branding.totpIssuer) ||

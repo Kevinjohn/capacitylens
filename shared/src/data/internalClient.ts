@@ -42,6 +42,9 @@ function repairRevision(current: ISOTimestamp, now: ISOTimestamp): ISOTimestamp 
   const currentMs = Date.parse(current);
   const nowMs = Date.parse(now);
   if (!Number.isFinite(currentMs) || !Number.isFinite(nowMs) || currentMs < nowMs) return now;
+  if (currentMs >= Date.parse("9999-12-31T23:59:59.999Z")) {
+    throw new RangeError("Internal-client repair cannot advance beyond the supported four-digit ISO timestamp range.");
+  }
   return new Date(currentMs + 1).toISOString();
 }
 
