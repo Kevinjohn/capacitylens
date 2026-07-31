@@ -10,6 +10,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.30.0-alpha.1] — 2026-07-31
+
+This minor release closes every policy, contract and security follow-up from the 30 July
+whole-repository review, building on the 84 validated findings completed in 0.29.0-alpha.1. It
+aligns session expiry and revocation coordinates, isolates configured authentication providers,
+enforces attributable contribution sign-offs, and closes the three deferred security boundaries
+around private-name projection, browser retry handles and audit-file permissions. The SQLite schema
+remains at v24 and the portable export schema remains at v9.
+
 ### Fixed
 
 - Failed closed for quoted private names with missing code names, isolated retained account-command
@@ -2482,7 +2491,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.29.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.30.0-alpha.1...HEAD
+[0.30.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.29.0-alpha.1...v0.30.0-alpha.1
 [0.29.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.6-alpha.1...v0.29.0-alpha.1
 [0.28.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.5-alpha.1...v0.28.6-alpha.1
 [0.28.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.4-alpha.1...v0.28.5-alpha.1
