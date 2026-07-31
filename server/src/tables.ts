@@ -251,7 +251,7 @@ export const TABLES: Record<string, TableSpec> = TABLE_DEFINITIONS;
 export const CREATE_ORDER = APP_DATA_WRITE_ORDER;
 export const SCOPED_ORDER = SCOPED_WRITE_ORDER;
 
-// DDL. Foreign keys mirror src/lib/integrity.ts cascade rules exactly:
+// DDL. Foreign keys mirror the shared cascade rules in shared/src/lib/integrity.ts exactly:
 //   resource → allocations/timeOff : CASCADE        (deleteResourceCascade)
 //   activity     → allocations          : CASCADE        (deleteActivityCascade)
 //   phase    → activities.phaseId         : SET NULL       (deletePhaseCascade: unbind)
@@ -259,7 +259,15 @@ export const SCOPED_ORDER = SCOPED_WRITE_ORDER;
 //   project  → resources.projectId   : SET NULL       (placeholder unbind)
 //   client   → projects              : CASCADE        (deleteClientCascade)
 //   discipline → resources.disciplineId : SET NULL    (deleteDisciplineCascade: ungroup)
-//   account  → everything scoped     : CASCADE        (deleteAccountCascade)
+//   account  → everything scoped     : CASCADE        (deleteAccountCascade — the one account-scoped
+//                                                     transform, and it lives in
+//                                                     shared/src/domain/mutations.ts, not integrity.ts)
+//
+// SET NULL alone only unbinds; it does NOT bump the survivor's updatedAt, so an admin PURGE restamps
+// those rows itself (purgeLifecycleRow in tenantStore.ts) and a sync client observes the edit. This
+// mapping is a comment, so cascadeParity.test.ts is what actually holds the two sides together: it
+// runs one fixture through the shared transforms AND through this schema (+ purge) and diffs the
+// survivors. Change a rule here or there and that suite fails.
 //
 // id columns are declared NOT NULL here for fresh databases. Existing databases are
 // NOT rebuilt to add NOT NULL to the PK — a table-rebuild for all 9 tables is
