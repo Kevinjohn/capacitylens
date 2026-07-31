@@ -113,7 +113,7 @@ pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and
 pnpm run e2e          # Chromium demo, database and authentication flows
 ```
 
-See [development](docs/development.md#verification) for the enforced coverage/build numbers,
+See [development](docs/development.md#checks) for the enforced coverage/build numbers,
 cross-browser checks, mutation scope and GitHub Actions checks.
 
 ## Documentation

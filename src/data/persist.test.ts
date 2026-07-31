@@ -2160,8 +2160,9 @@ describe("batch reconciliation (authoritative reload)", () => {
     // Unlike a transient failure (the regression pin above), an over-limit diff would throw on EVERY
     // backoff attempt (the atomic batch refuses to split it), so persist.ts must STOP retrying — no
     // self-sustaining error wedge — while still surfacing the banner. It is NOT a conflict either, so
-    // it must not trigger a server-wins reload. The durable journal keeps the desired state; a later,
-    // smaller diff clears the banner.
+    // it must not trigger a server-wins reload. The current page's in-memory desired state remains
+    // available for a later, smaller diff to clear the banner; closing/reloading discards it because
+    // CapacityLens deliberately has no queued offline-write journal.
     vi.useFakeTimers();
     try {
       const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());

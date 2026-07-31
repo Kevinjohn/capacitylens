@@ -9,15 +9,14 @@
 // (the purge route + admin view, P2.5) and the client (filtering, P2.4) drifting on what "archived"
 // or "purgeable" means; both halves import THIS so the machine is single-sourced.
 //
-// DESIGN DECISION (P2.2): the three transition functions are STRICT — they THROW a plain `Error` on
-// an invalid source state rather than being silently idempotent. Rationale: this is the strict,
-// exhaustively-testable state machine, and it matches the domain's fail-loud invariant-throw idiom
-// (assertScopedRefs / findOwned in mutations.ts `throw new Error('…')`; there are NO custom error
-// classes in shared) and DEFENSIVE-CODING's "never soften an integrity throw". A re-archive or a
-// double-delete is a caller bug worth surfacing, not a no-op to absorb. The wiring layer (P2.5)
-// pre-checks with the exported `can*` predicates (or catches) before calling a transition — which is
-// exactly why those predicates are exported separately, so a caller can gate an affordance without a
-// try/catch (mirrors access.ts's `can*` predicates).
+// DESIGN DECISION (P2.2): the three transition functions are STRICT — they throw the typed
+// LifecycleTransitionError on an invalid source state rather than being silently idempotent. This
+// matches the shared domain's fail-loud convention: general enforcement failures use DomainError
+// where adapters need the stable domain code, while lifecycle precondition failures use this
+// module's narrower error and code. A re-archive or double-delete is a caller bug worth surfacing,
+// not a no-op to absorb. The wiring layer (P2.5) pre-checks with the exported `can*` predicates (or
+// catches and classifies the typed error) before calling a transition — exactly why those
+// predicates are exported separately, so a caller can gate an affordance without try/catch.
 
 import { APP_DATA_KEYS } from "../types/entities";
 import type { AppData, AppDataKey, ISOTimestamp, Resource, ScopedEntityKey } from "../types/entities";
@@ -347,7 +346,7 @@ export function canArchive(entity: LifecycleFields): boolean {
  * @param entity - the entity to test.
  * @returns `true` iff {@link lifecycleStatus} is `'archived'`.
  */
-function canUnarchive(entity: LifecycleFields): boolean {
+export function canUnarchive(entity: LifecycleFields): boolean {
   return lifecycleStatus(entity) === "archived";
 }
 
@@ -364,7 +363,7 @@ function canUnarchive(entity: LifecycleFields): boolean {
  * @param entity - the entity to test.
  * @returns `true` iff {@link lifecycleStatus} is `'archived'`.
  */
-function canSoftDelete(entity: LifecycleFields): boolean {
+export function canSoftDelete(entity: LifecycleFields): boolean {
   return lifecycleStatus(entity) === "archived";
 }
 

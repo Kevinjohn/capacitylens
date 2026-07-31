@@ -106,7 +106,7 @@ export function MfaEnrollmentScreen({
             <h1>{m.mfa_enrollment_title()}</h1>
           </CardTitle>
           <CardDescription>
-            {m.mfa_enrollment_description()}
+            {m.mfa_enrollment_description({ app: APP_NAME })}
             {blockedEntry === "password-reset" && (
               <span className="mt-2 block font-medium text-ink">{m.mfa_enrollment_password_reset_blocked()}</span>
             )}

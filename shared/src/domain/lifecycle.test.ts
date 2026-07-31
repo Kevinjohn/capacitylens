@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   lifecycleStatus,
   canArchive,
+  canUnarchive,
+  canSoftDelete,
   canPurge,
   archive,
   unarchive,
@@ -14,8 +16,13 @@ import {
   PURGE_MIN_AGE_DAYS,
   LifecycleTransitionError,
   LIFECYCLE_ENTITY_KEYS,
-} from "./lifecycle";
-import type { LifecycleAncestryLookup, LifecycleAncestryRow, LifecycleState, LifecycleFields } from "./lifecycle";
+} from "@capacitylens/shared/domain/lifecycle";
+import type {
+  LifecycleAncestryLookup,
+  LifecycleAncestryRow,
+  LifecycleState,
+  LifecycleFields,
+} from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "../types/entities";
 import type { AppData, Resource } from "../types/entities";
 
@@ -90,6 +97,19 @@ describe("canArchive — public archive affordance over active/archived/deleted"
       expect(canArchive(samples[state])).toBe(EXPECTED[state]);
     });
   }
+});
+
+describe.each([
+  ["canUnarchive", canUnarchive],
+  ["canSoftDelete", canSoftDelete],
+] as const)("%s — public archived-state affordance", (_name, predicate) => {
+  it.each([
+    ["active", makeActive(), false],
+    ["archived", makeArchived(), true],
+    ["deleted", makeDeleted(), false],
+  ] as const)("returns the documented result for %s", (_state, sample, expected) => {
+    expect(predicate(sample)).toBe(expected);
+  });
 });
 
 describe("archive — active → archived (immutable, fail-loud)", () => {

@@ -20,6 +20,14 @@ describe("i18n scaffolding (Paraglide)", () => {
     expect(m.form_cancel()).toBe("Cancel");
   });
 
+  it("injects the product name into every branded catalogue message", () => {
+    const app = "Renamed Product";
+    expect(m.settings_revoke_sessions_message({ member: "Avery", app })).toContain(app);
+    expect(m.settings_revoke_self_sessions_message({ app })).toContain(app);
+    expect(m.mfa_enrollment_description({ app })).toContain(app);
+    expect(m.notice_sync_conflict({ app })).toContain(app);
+  });
+
   it("renders a typed message in a component", () => {
     function Wordmark() {
       return <div>{m.form_cancel()}</div>;

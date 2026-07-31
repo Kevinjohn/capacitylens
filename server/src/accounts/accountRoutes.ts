@@ -207,10 +207,10 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     if (!isKnownRole(body.role)) {
       return accountFail(reply, validationFailed("role must be one of owner, admin, editor, viewer."));
     }
-    // Shape-check preauthEmail here, BEFORE the authorize() gate below, so a malformed email is
-    // rejected with 400 and never reaches the write. An absent value or a string that is empty
-    // after trim means a link invite (null). Any present non-string is invalid: silently treating
-    // it as absent would widen redemption beyond the admin's apparent intent.
+    // Shape-check preauthEmail here before authorize(): an absent value or a string that is empty
+    // after trim means a link invite (null), while any present non-string is invalid. Email syntax
+    // remains enforced by the account-administration port after authorization, keeping the
+    // transport-independent integrity boundary authoritative without changing 400/403 precedence.
     let preauthEmail: string | null = null;
     if (body.preauthEmail !== undefined && typeof body.preauthEmail !== "string") {
       return accountFail(reply, validationFailed("preauthEmail must be a valid email address."));

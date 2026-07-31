@@ -7,10 +7,11 @@ import {
 } from "./ServerSyncAdapter";
 import { domainErrorMessage } from "../lib/errorMessage";
 import { m } from "@/i18n";
+import { APP_NAME } from "@capacitylens/shared/brand";
 
 /** Return the sticky, actionable notice for a typed persistence failure, if it needs one. */
 export function persistenceErrorNotice(error: unknown): string | null {
-  if (error instanceof BatchConflictError) return m.notice_sync_conflict();
+  if (error instanceof BatchConflictError) return m.notice_sync_conflict({ app: APP_NAME });
   if (error instanceof BatchCommitUncertainError) return m.notice_sync_receipt_uncertain();
   if (error instanceof BatchValidationError && error.code) return domainErrorMessage(error.code);
   if (error instanceof BatchTooLargeError) return m.notice_sync_too_large();

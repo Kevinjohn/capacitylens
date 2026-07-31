@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Button } from "../ui/button";
 import { FieldError, FieldSet, FieldLegend } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { APP_NAME } from "@capacitylens/shared/brand";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
@@ -81,8 +82,8 @@ function confirmationCopy({ action, member }: MemberConfirmation): {
         title: m.settings_revoke_sessions_title(),
         confirmLabel: m.settings_member_revoke_sessions(),
         message: member.isSelf
-          ? m.settings_revoke_self_sessions_message()
-          : m.settings_revoke_sessions_message({ member: labelFor(member) }),
+          ? m.settings_revoke_self_sessions_message({ app: APP_NAME })
+          : m.settings_revoke_sessions_message({ member: labelFor(member), app: APP_NAME }),
       };
   }
 }

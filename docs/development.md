@@ -45,7 +45,7 @@ SPA. A short exact-file allow-list records existing zero-coverage debt; broad pa
 so unrelated new files cannot inherit an exception.
 The enforced browser/shared coverage floors are 84% statements, 78% branches, 85% functions and
 86% lines. The main-entry raw and gzip byte budgets are defined beside the checker in
-`scripts/check-build-size.mjs`; those checked constants, rather than prose copied here, are the
+`scripts/check-bundle-budget.mjs`; those checked constants, rather than prose copied here, are the
 authoritative size limits.
 The build also enforces a budget on the main JavaScript entry chunk; route-level lazy chunks remain
 separate so authentication and settings code do not inflate first load unnoticed. The checker

@@ -41,10 +41,10 @@ generic one throws away information the user needed. Surface the real reason.
 
 Two tiers, kept separate:
 
-- **Validation returns a value; enforcement throws.** Validators (`shared/lib/integrity.ts`,
+- **Validation returns a value; enforcement throws.** Validators (`shared/src/lib/integrity.ts`,
   `src/lib/validation.ts`) return `ValidationResult { ok, errors }` or call a `fail(field, msg)`
-  callback — they **never throw**. The write boundary (`shared/domain/mutations.ts`, the store,
-  `server/validate.ts`) converts a failed result into a **thrown `Error` whose message is safe to
+  callback — they **never throw**. The write boundary (`shared/src/domain/mutations.ts`, the store,
+  `server/src/validate.ts`) converts a failed result into a **thrown `Error` whose message is safe to
   show the user** ("That record does not belong to the active company.").
 - **The UI catches the throw and surfaces it.** Form submit handlers and gesture-commit handlers
   wrap the store mutation in `try/catch` and relay `errorMessage(e)` to a `FieldError`/`Toast`.

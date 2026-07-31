@@ -56,6 +56,9 @@ new features and **patch** versions carry fixes.
 
 ### Tests and documentation
 
+- Corrected lifecycle, invitation, persistence and contributor guidance; made all lifecycle
+  affordance predicates publicly testable; and added repository checks for release links,
+  documentation targets and single-sourced localized branding.
 - Compared every retained pre-migration row value and relationship against the upgraded database,
   with explicit historical-repair allowances, and documented the immutable v13 malformed-colour
   compatibility behavior using real v12 upgrade cases.
