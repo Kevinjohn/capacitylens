@@ -16,6 +16,7 @@ import {
 } from "../src/db";
 import { writePreMigrationBackup } from "../src/backup";
 import { tx } from "../src/txn";
+import { assertMigrationValuesPreserved, captureMigrationValues } from "../src/migrationPreservation";
 
 const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.fromEntries(
   Object.entries({
@@ -741,6 +742,7 @@ async function main(): Promise<void> {
     let beforeVersion: number;
     let beforeCounts: Record<string, number>;
     let beforeDigest: string;
+    let beforeValues: ReturnType<typeof captureMigrationValues>;
     let plan: ReturnType<typeof planDatabaseMigrations>;
     try {
       const sourceVersion = Number(
@@ -761,6 +763,7 @@ async function main(): Promise<void> {
         ).user_version,
       );
       beforeCounts = rowCounts(sanitising);
+      beforeValues = captureMigrationValues(sanitising);
       beforeDigest = databaseDigest(sanitising);
       plan = planDatabaseMigrations(sanitising as Db);
     } finally {
@@ -790,6 +793,7 @@ async function main(): Promise<void> {
       initializeOpenDb(happy, happyPath);
       checkIntegrity(happy, "happy path");
       assertPreserved(beforeCounts, rowCounts(happy), expectedCounts);
+      assertMigrationValuesPreserved(beforeValues, captureMigrationValues(happy), beforeVersion);
     } finally {
       happy.close();
     }
@@ -848,7 +852,7 @@ async function main(): Promise<void> {
     const totalRows = Object.values(beforeCounts).reduce((sum, count) => sum + count, 0);
     console.log(
       `Migration rehearsal passed: ${basename(options.source)} v${beforeVersion} → v${DB_SCHEMA_VERSION}; ` +
-        `${Object.keys(beforeCounts).length} tables / ${totalRows} rows; happy path, verified rollback snapshot, ` +
+        `${Object.keys(beforeCounts).length} tables / ${totalRows} rows; value-preserving happy path, verified rollback snapshot, ` +
         `simulated ENOSPC rollback, forced-termination recovery, and idempotent reopen all passed.`,
     );
     if (options.keep) console.log(`Anonymised rehearsal artifacts retained at ${directory}`);

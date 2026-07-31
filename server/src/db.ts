@@ -878,12 +878,9 @@ function assertBuiltinInternalClientsActiveV22(db: Db): void {
 }
 
 /**
- * Local, palette-FROZEN transcription of shared `snapToPresetColor`, used ONLY by the v13 migration
- * so the migration's result can never change when the shared palette or mapper is edited. Same rules
- * as the shared mapper: an already-preset value is returned normalized (trimmed + lowercased); any
- * other parseable 6-digit hex maps to its NEAREST frozen preset by squared RGB Euclidean distance
- * (first minimal-distance preset wins on a tie — {@link V13_FROZEN_PRESET_COLORS} order is the
- * deterministic tie-break); an unparseable value returns {@link V13_FALLBACK_PRESET_COLOR}.
+ * Released, palette-frozen v13 mapper. Its historical parser accepts per-chunk hexadecimal prefixes
+ * and one embedded `#`, unlike the exact shared mapper. Preserve that checksummed compatibility
+ * behavior; DECISIONS.md records why already-upgraded values cannot be reconstructed or corrected.
  */
 function snapToFrozenPresetV13(value: string | null): string {
   if (typeof value !== "string") return V13_FALLBACK_PRESET_COLOR;
@@ -913,6 +910,8 @@ function snapToFrozenPresetV13(value: string | null): string {
 function hexToRgbV13(hex: string): [number, number, number] | null {
   const c = hex.replace("#", "");
   if (c.length !== 6) return null; // reject short AND overlong hex (the latter mis-slices)
+  // HISTORICAL/FROZEN: parseInt accepts a valid prefix in each chunk. Do not tighten this shipped
+  // parser in place; future frozen parsers must validate the complete /^#[0-9a-f]{6}$/i shape first.
   const r = parseInt(c.slice(0, 2), 16);
   const g = parseInt(c.slice(2, 4), 16);
   const b = parseInt(c.slice(4, 6), 16);

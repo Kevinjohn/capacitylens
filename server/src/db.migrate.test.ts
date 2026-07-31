@@ -25,10 +25,11 @@ import {
 } from "./db";
 import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
-import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
+import { PRESET_COLORS, snapToPresetColor } from "@capacitylens/shared/lib/color";
 import { upsertMember } from "./controlTables";
 import { authFromEnv, runAuthMigrations } from "./auth";
 import { TABLES } from "./tables";
+import { assertMigrationValuesPreserved, captureMigrationValues } from "./migrationPreservation";
 import {
   FOREIGN_KEY_CHILD_INDEXES_V23,
   TENANT_ENTITY_ACCOUNT_INDEXES_V21,
@@ -318,9 +319,11 @@ describe("schema migration of an existing on-disk DB", () => {
         INSERT INTO projects (id, accountId, clientId, name, color, createdAt, updatedAt)
           VALUES ('p1', 'a1', 'legacy-internal', 'Legacy', '#111111', '${TS}', '${TS}');
       `);
+      const originalValues = captureMigrationValues(legacy);
       legacy.close();
 
       const repaired = openDb(copied.path);
+      assertMigrationValuesPreserved(originalValues, captureMigrationValues(repaired), 7);
       const state = loadState(repaired);
       expect(state.clients.filter((client) => client.accountId === "a1" && client.builtin)).toHaveLength(1);
       expect(state.clients.find((client) => client.accountId === "a1" && client.builtin)?.id).toBe("internal:a1");
@@ -352,9 +355,11 @@ describe("schema migration of an existing on-disk DB", () => {
         INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt)
           VALUES ('internal:a1', 'a1', 'Ordinary', '#111111', '${TS}', '${TS}');
       `);
+      const originalValues = captureMigrationValues(legacy);
       legacy.close();
 
       const repaired = openDb(copied.path);
+      assertMigrationValuesPreserved(originalValues, captureMigrationValues(repaired), 7);
       const clients = loadState(repaired).clients.filter(({ accountId }) => accountId === "a1");
       expect(clients).toHaveLength(2);
       expect(new Set(clients.map(({ id }) => id)).size).toBe(2);
@@ -434,6 +439,34 @@ describe("schema migration of an existing on-disk DB", () => {
       reopened.close();
     } finally {
       cleanup();
+    }
+  });
+
+  it("preserves v13's released malformed-colour outcomes without changing its ledger definition", () => {
+    const copied = copyFixture("v12-off.db");
+    try {
+      const legacy = new DatabaseSync(copied.path);
+      legacy.prepare(`UPDATE accounts SET color = ? WHERE id = ?`).run("#1z2z3z", "a-studio");
+      legacy.prepare(`UPDATE accounts SET color = ? WHERE id = ?`).run("12#3456", "a-loft");
+      legacy.close();
+
+      // The current exact mapper rejects both malformed shapes. Released migration v13 cannot be
+      // edited to match it: that would invalidate its checksum and make identical v12 files upgrade
+      // differently depending on server release.
+      expect(snapToPresetColor("#1z2z3z")).toBe("#5c34d4");
+      expect(snapToPresetColor("12#3456")).toBe("#5c34d4");
+
+      const upgraded = openDb(copied.path);
+      expect(upgraded.prepare(`SELECT id, color FROM accounts ORDER BY id`).all()).toEqual([
+        { id: "a-loft", color: "#1b4f98" },
+        { id: "a-studio", color: "#684327" },
+      ]);
+      expect(upgraded.prepare(`SELECT name FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 13`).get()).toEqual({
+        name: "snap-legacy-account-colors",
+      });
+      upgraded.close();
+    } finally {
+      copied.cleanup();
     }
   });
 
@@ -1925,6 +1958,7 @@ describe("schema migration of an existing on-disk DB", () => {
           ).user_version,
         ).toBe(version);
         const originalAccounts = released.prepare(`SELECT id, name FROM accounts ORDER BY id`).all();
+        const originalValues = captureMigrationValues(released);
         released.close();
 
         const db = openDb(copied.path);
@@ -1932,6 +1966,7 @@ describe("schema migration of an existing on-disk DB", () => {
           DB_SCHEMA_VERSION,
         );
         expect(db.prepare(`SELECT id, name FROM accounts ORDER BY id`).all()).toEqual(originalAccounts);
+        assertMigrationValuesPreserved(originalValues, captureMigrationValues(db), version);
         expect(
           (
             db.prepare(`SELECT COUNT(*) AS n FROM account_members`).get() as {
@@ -1978,11 +2013,13 @@ describe("schema migration of an existing on-disk DB", () => {
         ).toBe(version);
         const originalUsers = released.prepare(`SELECT id, email FROM user ORDER BY id`).all();
         const originalSessions = released.prepare(`SELECT id, userId FROM session ORDER BY id`).all();
+        const originalValues = captureMigrationValues(released);
         released.close();
 
         const db = openDb(copied.path);
         const configured = authFromEnv(db, FIXTURE_PASSWORD_ENV);
         await runAuthMigrations(configured.auth!);
+        assertMigrationValuesPreserved(originalValues, captureMigrationValues(db), version);
         expect(db.prepare(`SELECT id, email FROM user ORDER BY id`).all()).toEqual(originalUsers);
         expect(db.prepare(`SELECT id, userId FROM session ORDER BY id`).all()).toEqual(originalSessions);
         expect((db.prepare(`SELECT email FROM user`).get() as { email: string }).email).toBe("fixture@example.invalid");
@@ -2012,6 +2049,27 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     },
   );
+
+  it("rejects an unapproved same-row-count value change after a released-fixture upgrade", () => {
+    const copied = copyFixture("v12-off.db");
+    try {
+      const released = new DatabaseSync(copied.path, { readOnly: true });
+      const originalValues = captureMigrationValues(released);
+      released.close();
+
+      const upgraded = openDb(copied.path);
+      expect(() => assertMigrationValuesPreserved(originalValues, captureMigrationValues(upgraded), 12)).not.toThrow();
+      expect(
+        upgraded.prepare(`UPDATE projects SET name = ? WHERE id = ?`).run("Unapproved rewrite", "p-acme").changes,
+      ).toBe(1);
+      expect(() => assertMigrationValuesPreserved(originalValues, captureMigrationValues(upgraded), 12)).toThrow(
+        /changed unapproved projects\.name/i,
+      );
+      upgraded.close();
+    } finally {
+      copied.cleanup();
+    }
+  });
 });
 
 describe("migration ledger checksum supersession (v11 alpha-line amendment)", () => {

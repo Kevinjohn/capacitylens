@@ -107,9 +107,13 @@ This is the short, present-tense record of decisions that constrain future work.
 - Account colours are constrained to the preset palette. Legacy out-of-palette colours were
   snapped once to their nearest preset by migration v13, which carries its own frozen palette
   snapshot inside its checksummed definition (a live-palette dependency would let a future
-  palette edit silently change a shipped migration). Write-time snapping on both server and
-  client uses the same shared nearest-preset mapper so the two can never disagree, and the client
-  never silently repairs a colour on a rejected write.
+  palette edit silently change a shipped migration). The released v13 parser historically accepted
+  a valid hexadecimal prefix in each two-character chunk (and one embedded `#`), so malformed values
+  such as `#1z2z3z` do not take the shared mapper's fallback. That outcome is frozen for deterministic
+  compatibility: changing v13 would invalidate its released checksum, and an already-snapped value
+  no longer contains the original bytes needed for a later correction. Real v12 upgrade tests pin
+  both malformed outcomes. Current write-time snapping on server and client uses the exact shared
+  mapper, and any future frozen colour parser must first require `/^#[0-9a-f]{6}$/i` before parsing.
 - Server imports are atomic, not undoable and owner-only; a non-owner's redacted export is not a
   safe source for a whole-slice replacement of owner-confidential client/project identities.
 - Theme and display preferences are device-global and outside account exports.

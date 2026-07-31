@@ -41,6 +41,9 @@ new features and **patch** versions carry fixes.
 
 ### Tests and documentation
 
+- Compared every retained pre-migration row value and relationship against the upgraded database,
+  with explicit historical-repair allowances, and documented the immutable v13 malformed-colour
+  compatibility behavior using real v12 upgrade cases.
 - Bounded stalled rehearsal proxy requests, released paired sockets on disconnect, and surfaced
   unexpected static-file faults separately from genuine missing paths.
 - Preserved literal Playwright arguments in cross-browser wrappers and made demo, WebKit and
