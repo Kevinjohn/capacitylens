@@ -72,6 +72,10 @@ import { createSchedulerSlice } from "./slices/schedulerSlice";
 export type Draft<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
 export type Patch<T extends Entity> = Partial<Draft<T>>;
 
+/** One row of a scoped table, and the patch shape accepted for it (server-owned fields excluded). */
+type ScopedRow<K extends ScopedEntityKey> = AppData[K][number];
+type ScopedPatch<K extends ScopedEntityKey> = Partial<Omit<ScopedRow<K>, keyof Entity>>;
+
 // The three entity tables that carry the lifecycle tombstones (`archivedAt`/`deletedAt`, P2.1) and so
 // can travel the Active → Archived → Soft-deleted → Purged machine (`shared/src/domain/lifecycle.ts`).
 // MIRRORS the server's lifecycle-route entity union so the LOCAL store actions below and the server's
@@ -634,6 +638,52 @@ export const useStore = create<StoreState>()((set, get, store) => {
   const withSnappedColor = <T extends { color?: unknown }>(patch: T, allowNeutral = false): T =>
     patch.color === undefined ? patch : { ...patch, color: snapColor(patch.color, allowNeutral) };
 
+  // --- Write-shape wrappers ---------------------------------------------------------------------
+  // Two rules used to be re-stated by hand in every action, so a NEW action could silently get
+  // either one wrong: (1) the viewer gate must run BEFORE any assert, colour repair or persist, and
+  // (2) an update must validate the MERGED row rather than the raw patch. The wrappers below make
+  // both structural; each action then declares only what is specific to it.
+
+  /** Run `fn` only when the caller may write; a blocked viewer gets `blockedValue` plus a notice and
+   *  nothing runs. `fn` is first so TypeScript infers the return type from it and checks the blocked
+   *  value against it — omit the value entirely for the void actions. */
+  const guarded =
+    <A extends unknown[], R>(fn: (...args: A) => R, blockedValue?: R) =>
+    (...args: A): R =>
+      blockedByViewer() ? (blockedValue as R) : fn(...args);
+
+  /** The add* shape. `build` CONSTRUCTS the entity only — it may resolve the active account, but must
+   *  never validate, repair a colour or persist — then the gate runs, then `persist` asserts/repairs/
+   *  commits. So a blocked viewer gets back exactly the row they submitted, never a value we silently
+   *  changed on their behalf, and nothing lands in state. Server 403 is the real backstop. */
+  const guardedAdd =
+    <A extends unknown[], E>(build: (...args: A) => E, persist: (built: E, ...args: A) => E) =>
+    (...args: A): E => {
+      const built = build(...args);
+      return blockedByViewer() ? built : persist(built, ...args);
+    };
+
+  /** The update* shape: resolve the owned row (a stale id — e.g. a drag committed after an undo
+   *  removed the row — is a benign no-op returning false), hand `prepare` the MERGED row so
+   *  validation sees exactly what will be committed, then commit the patch `prepare` returns.
+   *  Validating the raw patch instead used to let a note-only edit pass locally while the server —
+   *  which always merges before it validates — rejected the full row, diverging local from synced
+   *  state. `prepare` may also throw (surface, don't swallow) and may repair the patch it returns. */
+  const updateOwned = <K extends ScopedEntityKey>(
+    key: K,
+    id: ID,
+    patch: ScopedPatch<K>,
+    prepare?: (merged: ScopedRow<K>, existing: ScopedRow<K>) => ScopedPatch<K>,
+  ): boolean => {
+    const existing = findOwned(get().data, key, id);
+    if (!existing) return false;
+    const effective = prepare ? prepare({ ...existing, ...patch } as ScopedRow<K>, existing) : patch;
+    // The table key is generic here, so TS can't narrow d[key] to a single row type; K pins the row
+    // and patch types at every call site above, which is where correctness is actually checked.
+    mutate((d) => ({ ...d, [key]: updateById(d[key] as Entity[], id, effective as Partial<Entity>) }) as AppData);
+    return true;
+  };
+
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
   // sanitiser apply the IDENTICAL clamp — no per-path drift.
@@ -649,8 +699,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createRuntimeSlice(set, get, store),
     ...createSchedulerSlice(emptyFilters)(set, get, store),
 
-    addAccount: (input) => {
-      if (blockedByViewer()) return null;
+    addAccount: guarded((input: Draft<Account>): Account | null => {
       const ts = stamp();
       // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
       // scheduling with disciplines OFF, placeholder + external features hidden, and Internal work
@@ -691,9 +740,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
           : [...s.accountSummaries, { id: e.id, name: e.name, role: "owner" as const }],
       }));
       return e;
-    },
-    updateAccount: (id, patch) => {
-      if (blockedByViewer()) return;
+    }, null),
+    updateAccount: guarded((id: ID, patch: Patch<Account>) => {
       const state = get();
       const existing = state.data.accounts.find((account) => account.id === id);
       if (!existing) return;
@@ -704,11 +752,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
         ...d,
         accounts: updateById(d.accounts, id, withSnappedColor(patch)),
       }));
-    },
+    }),
     // Cascade-drop every scoped entity belonging to this account; if it was the
     // active one, fall back to the picker.
-    deleteAccount: (id) => {
-      if (blockedByViewer()) return;
+    deleteAccount: guarded((id: ID) => {
       if (!get().data.accounts.some((account) => account.id === id)) return;
       if (get().activeAccountId !== null && get().activeAccountId !== id) {
         throw new Error("Cannot delete a company other than the active company.");
@@ -740,7 +787,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
           },
         };
       });
-    },
+    }),
     // Switching tenant resets per-account view state and history — undo must never
     // cross an account boundary, and the previous account's filters/selection don't apply.
     setActiveAccount: (rawId) => {
@@ -912,6 +959,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
     // let an edit in one account silently rewrite another's row.
     importData: (incoming) => {
       const accountId = requireAccount();
+      // Hand-guarded rather than wrapped in `guarded`: replacing a slice with NO active account is a
+      // programming error for every role, so requireAccount must still throw ahead of the gate.
       // Viewer no-op (P1.12 defense-in-depth): a read-only user can't replace the account slice.
       // Return a zero-effect summary (nothing imported/skipped) so the caller reports honestly.
       if (blockedByViewer()) return { imported: 0, skipped: 0 };
@@ -943,8 +992,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       return { imported: result.imported, skipped: result.skipped };
     },
 
-    undo: () => {
-      if (blockedByViewer()) return;
+    undo: guarded(() => {
       set((s) => {
         if (s.past.length === 0) return {};
         const previous = prepareHistoryTarget(s.data, s.past[s.past.length - 1]);
@@ -954,9 +1002,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
           future: [s.data, ...s.future].slice(0, HISTORY_LIMIT),
         };
       });
-    },
-    redo: () => {
-      if (blockedByViewer()) return;
+    }),
+    redo: guarded(() => {
       set((s) => {
         if (s.future.length === 0) return {};
         const next = prepareHistoryTarget(s.data, s.future[0]);
@@ -966,312 +1013,253 @@ export const useStore = create<StoreState>()((set, get, store) => {
           past: [...s.past, s.data].slice(-HISTORY_LIMIT),
         };
       });
-    },
+    }),
 
-    addDiscipline: (input) => {
-      const e: Discipline = {
+    addDiscipline: guardedAdd(
+      (input: Draft<Discipline>): Discipline => ({
         ...input,
         id: newId(),
         accountId: requireAccount(),
         ...stamp(),
-      };
-      // Viewer no-op (P1.12 defense-in-depth): return the entity so the return type holds, but skip
-      // the persist AND the colour snap — nothing lands in state, so the caller gets back exactly
-      // what they submitted, not a value we silently changed on their behalf. Server 403 is the
-      // real backstop; see blockedByViewer.
-      if (blockedByViewer()) return e;
-      const safe = withSnappedColor(e);
-      mutate((d) => ({ ...d, disciplines: [...d.disciplines, safe] }));
-      return safe;
-    },
-    updateDiscipline: (id, patch) => {
-      if (blockedByViewer()) return;
-      if (!findOwned(get().data, "disciplines", id)) return;
-      mutate((d) => ({
-        ...d,
-        disciplines: updateById(d.disciplines, id, withSnappedColor(patch)),
-      }));
-    },
-    deleteDiscipline: (id) => {
-      if (blockedByViewer()) return;
+      }),
+      (e) => {
+        const safe = withSnappedColor(e);
+        mutate((d) => ({ ...d, disciplines: [...d.disciplines, safe] }));
+        return safe;
+      },
+    ),
+    updateDiscipline: guarded((id: ID, patch: Patch<Discipline>) => {
+      updateOwned("disciplines", id, patch, () => withSnappedColor(patch));
+    }),
+    deleteDiscipline: guarded((id: ID) => {
       if (!findOwned(get().data, "disciplines", id)) return;
       mutate((d) => deleteDisciplineCascade(d, id, nextDataRevision(d)));
-    },
+    }),
 
-    addResource: (input) => {
-      const accountId = requireAccount();
-      // Viewer no-op (P1.12 defense-in-depth): gate BEFORE the integrity asserts so a read-only user's
-      // optimistic write neither validates nor persists. Build the (clamped) entity so the return type
-      // holds; it never lands in state. Server 403 is the real backstop; see blockedByViewer.
-      const e: Resource = {
+    addResource: guardedAdd(
+      (input: Draft<Resource>): Resource => ({
         ...input,
+        // Clamp working hours/day (the store is the last line; the form caps it, but a non-form or
+        // pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a resource
+        // works a positive day) — distinct from an allocation, where 0 is legal.
         workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
-        id: newId(),
-        accountId,
-        ...stamp(),
-      };
-      if (blockedByViewer()) return e;
-      assertScopedRefs(get().data, accountId, "resources", input);
-      assertWorkingDays(input.workingDays);
-      // Clamp working hours/day (the store is the last line; the form caps it, but a non-form
-      // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a
-      // resource works a positive day) — distinct from an allocation, where 0 is legal.
-      //
-      // Colour snap runs LAST, right before persisting — never before the asserts above, so a
-      // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
-      const safe = withSnappedColor(e, e.kind === "external");
-      mutate((d) => ({ ...d, resources: [...d.resources, safe] }));
-      return safe;
-    },
-    updateResource: (id, patch) => {
-      if (blockedByViewer()) return;
-      const existing = findOwned(get().data, "resources", id);
-      if (!existing) return;
-      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
-      // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
-      // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
-      assertScopedRefs(get().data, existing.accountId, "resources", patch, existing);
-      // Flipping a resource to external while it still owns loaded work / time-off would orphan those
-      // dependents (the scheduler hides external capacity + time-off). Reject the flip on the MERGED
-      // kind, throw-before-mutate so the failure is atomic. A no-op when the resource isn't becoming
-      // external. Mirrors the server's validateWrite resources branch — same shared assert, no drift.
-      assertResourceProjectAllowsDependents(get().data, existing.accountId, id, { ...existing, ...patch }, existing);
-      assertResourceKindAllowsDependents(get().data, existing.accountId, id, patch.kind ?? existing.kind);
-      if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
-      const colorPatch = withSnappedColor(patch, (patch.kind ?? existing.kind) === "external");
-      const safePatch =
-        patch.workingHoursPerDay !== undefined
-          ? {
-              ...colorPatch,
-              workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay),
-            }
-          : colorPatch;
-      mutate((d) => ({
-        ...d,
-        resources: updateById(d.resources, id, safePatch),
-      }));
-    },
-
-    addClient: (input) => {
-      // STORE-STRIP enforcement point (1) of the single-Internal invariant — see the canonical doc in
-      // shared/src/data/internalClient.ts (the other two points are import fold + server reject).
-      // `builtin` is excluded from Draft<Client> at the type level (only seed/addAccount/migrate may
-      // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
-      // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
-      // break the "exactly one Internal per account" invariant. See Draft<Client>.
-      const stripped: Record<string, unknown> = { ...input };
-      delete stripped.builtin;
-      const e: Client = {
-        ...(stripped as Draft<Client>),
         id: newId(),
         accountId: requireAccount(),
         ...stamp(),
-      };
-      // Viewer no-op (P1.12 defense-in-depth): return the entity for the return type, skip the
-      // persist AND the colour snap — a rejected write must not silently substitute a colour onto
-      // an entity that was never saved.
-      if (blockedByViewer()) return e;
-      if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
-        throw new Error("A private client requires a code name.");
-      }
-      const safe = withSnappedColor(e);
-      mutate((d) => ({ ...d, clients: [...d.clients, safe] }));
-      return safe;
-    },
-    updateClient: (id, patch) => {
-      if (blockedByViewer()) return;
-      const existing = findOwned(get().data, "clients", id);
-      if (!existing) return;
-      // The built-in Internal client is protected: it can't be renamed (or recoloured) — it's a
-      // fixed bucket. Throw a display-safe message (the form catches + surfaces it; the UI also
-      // hides the affordance). Surface, don't swallow — see DEFENSIVE-CODING.md.
-      if (isBuiltinClient(existing)) throw new Error("The Internal client is built in and cannot be renamed.");
+      }),
+      (e, input) => {
+        assertScopedRefs(get().data, e.accountId, "resources", input);
+        assertWorkingDays(input.workingDays);
+        // Colour snap runs LAST, right before persisting — never before the asserts above, so a
+        // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
+        const safe = withSnappedColor(e, e.kind === "external");
+        mutate((d) => ({ ...d, resources: [...d.resources, safe] }));
+        return safe;
+      },
+    ),
+    updateResource: guarded((id: ID, patch: Patch<Resource>) => {
+      updateOwned("resources", id, patch, (merged, existing) => {
+        // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
+        // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
+        // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
+        assertScopedRefs(get().data, existing.accountId, "resources", patch, existing);
+        // Flipping a resource to external while it still owns loaded work / time-off would orphan
+        // those dependents (the scheduler hides external capacity + time-off). A no-op when the
+        // resource isn't becoming external. Mirrors the server's validateWrite resources branch.
+        assertResourceProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
+        assertResourceKindAllowsDependents(get().data, existing.accountId, id, merged.kind);
+        if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
+        const colorPatch = withSnappedColor(patch, merged.kind === "external");
+        return patch.workingHoursPerDay !== undefined
+          ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
+          : colorPatch;
+      });
+    }),
+
+    addClient: guardedAdd(
+      (input: Draft<Client>): Client => {
+        // STORE-STRIP enforcement point (1) of the single-Internal invariant — see the canonical doc
+        // in shared/src/data/internalClient.ts (the other two points are import fold + server reject).
+        // `builtin` is excluded from Draft<Client> at the type level (only seed/addAccount/migrate may
+        // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
+        // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
+        // break the "exactly one Internal per account" invariant. See Draft<Client>.
+        const stripped: Record<string, unknown> = { ...input };
+        delete stripped.builtin;
+        return {
+          ...(stripped as Draft<Client>),
+          id: newId(),
+          accountId: requireAccount(),
+          ...stamp(),
+        };
+      },
+      (e) => {
+        if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
+          throw new Error("A private client requires a code name.");
+        }
+        const safe = withSnappedColor(e);
+        mutate((d) => ({ ...d, clients: [...d.clients, safe] }));
+        return safe;
+      },
+    ),
+    updateClient: guarded((id: ID, patch: Patch<Client>) => {
       // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
-      // untyped/cast patch can't PROMOTE a normal client to a second builtin (same invariant as above —
-      // store-strip enforcement point (1); canonical doc in shared/src/data/internalClient.ts).
+      // untyped/cast patch can't PROMOTE a normal client to a second builtin (store-strip enforcement
+      // point (1); canonical doc in shared/src/data/internalClient.ts).
       const stripped: Record<string, unknown> = { ...patch };
       delete stripped.builtin;
-      if (!hasUsablePrivateCodeName({ ...existing, ...stripped })) {
-        throw new Error("A private client requires a code name.");
-      }
-      mutate((d) => ({
-        ...d,
-        clients: updateById(d.clients, id, withSnappedColor(stripped as Patch<Client>)),
-      }));
-    },
+      const safe = stripped as Patch<Client>;
+      updateOwned("clients", id, safe, (merged, existing) => {
+        // The built-in Internal client is protected: it can't be renamed (or recoloured) — it's a
+        // fixed bucket. Throw a display-safe message (the form catches + surfaces it; the UI also
+        // hides the affordance). Surface, don't swallow — see DEFENSIVE-CODING.md.
+        if (isBuiltinClient(existing)) throw new Error("The Internal client is built in and cannot be renamed.");
+        if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
+          throw new Error("A private client requires a code name.");
+        }
+        return withSnappedColor(safe);
+      });
+    }),
 
-    addProject: (input) => {
-      const accountId = requireAccount();
-      const e: Project = { ...input, id: newId(), accountId, ...stamp() };
-      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts AND the colour snap; build
-      // the entity, skip the persist — a rejected write must not silently substitute a colour onto
-      // an entity that was never saved.
-      if (blockedByViewer()) return e;
-      if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
-        throw new Error("A private project requires a code name.");
-      }
-      assertScopedRefs(get().data, accountId, "projects", input);
-      const safe = withSnappedColor(e);
-      mutate((d) => ({ ...d, projects: [...d.projects, safe] }));
-      return safe;
-    },
-    updateProject: (id, patch) => {
-      if (blockedByViewer()) return;
-      const existing = findOwned(get().data, "projects", id);
-      if (!existing) return;
-      if (!hasUsablePrivateCodeName({ ...existing, ...patch })) {
-        throw new Error("A private project requires a code name.");
-      }
-      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
-      // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
-      // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
-      assertScopedRefs(get().data, existing.accountId, "projects", patch, existing);
-      mutate((d) => ({
-        ...d,
-        projects: updateById(d.projects, id, withSnappedColor(patch)),
-      }));
-    },
+    addProject: guardedAdd(
+      (input: Draft<Project>): Project => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
+      (e, input) => {
+        if (!hasUsablePrivateCodeName(e as unknown as Record<string, unknown>)) {
+          throw new Error("A private project requires a code name.");
+        }
+        assertScopedRefs(get().data, e.accountId, "projects", input);
+        const safe = withSnappedColor(e);
+        mutate((d) => ({ ...d, projects: [...d.projects, safe] }));
+        return safe;
+      },
+    ),
+    updateProject: guarded((id: ID, patch: Patch<Project>) => {
+      updateOwned("projects", id, patch, (merged, existing) => {
+        if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
+          throw new Error("A private project requires a code name.");
+        }
+        // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
+        // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
+        // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
+        assertScopedRefs(get().data, existing.accountId, "projects", patch, existing);
+        return withSnappedColor(patch);
+      });
+    }),
 
-    addPhase: (input) => {
-      const accountId = requireAccount();
-      const e: Phase = { ...input, id: newId(), accountId, ...stamp() };
-      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e;
-      assertScopedRefs(get().data, accountId, "phases", input);
-      mutate((d) => ({ ...d, phases: [...d.phases, e] }));
-      return e;
-    },
-    updatePhase: (id, patch) => {
-      if (blockedByViewer()) return;
-      const existing = findOwned(get().data, "phases", id);
-      if (!existing) return;
-      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
-      // archived-parent rationale as updateProject above.
-      assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
-      mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) }));
-    },
-    deletePhase: (id) => {
-      if (blockedByViewer()) return;
+    addPhase: guardedAdd(
+      (input: Draft<Phase>): Phase => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
+      (e, input) => {
+        assertScopedRefs(get().data, e.accountId, "phases", input);
+        mutate((d) => ({ ...d, phases: [...d.phases, e] }));
+        return e;
+      },
+    ),
+    updatePhase: guarded((id: ID, patch: Patch<Phase>) => {
+      updateOwned("phases", id, patch, (_merged, existing) => {
+        // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
+        // archived-parent rationale as updateProject above.
+        assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
+        return patch;
+      });
+    }),
+    deletePhase: guarded((id: ID) => {
       if (!findOwned(get().data, "phases", id)) return;
       mutate((d) => deletePhaseCascade(d, id, nextDataRevision(d)));
-    },
+    }),
 
-    addActivity: (input) => {
-      const accountId = requireAccount();
-      const e: Activity = { ...input, id: newId(), accountId, ...stamp() };
-      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e;
-      assertScopedRefs(get().data, accountId, "activities", input);
-      mutate((d) => ({ ...d, activities: [...d.activities, e] }));
-      return e;
-    },
-    updateActivity: (id, patch) => {
-      if (blockedByViewer()) return;
-      const existing = findOwned(get().data, "activities", id);
-      if (!existing) return;
-      // Validate the MERGED row (like updateAllocation), not the raw patch: a partial patch
-      // touching only projectId OR only phaseId must still be checked for activity↔phase coherence
-      // against the row's OTHER field — else a phaseId-only patch is wrongly rejected, or a
-      // projectId-only patch silently leaves a stale cross-project phaseId the server rejects.
-      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
-      // projectId whose project is ARCHIVED (absent from the server-mode active-only slice) must
-      // not block an unrelated edit; a CHANGED projectId is still validated strictly.
-      const merged = { ...existing, ...patch };
-      assertScopedRefs(get().data, existing.accountId, "activities", merged, existing);
-      assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
-      mutate((d) => ({ ...d, activities: updateById(d.activities, id, patch) }));
-    },
-    deleteActivity: (id) => {
-      if (blockedByViewer()) return;
+    addActivity: guardedAdd(
+      (input: Draft<Activity>): Activity => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
+      (e, input) => {
+        assertScopedRefs(get().data, e.accountId, "activities", input);
+        mutate((d) => ({ ...d, activities: [...d.activities, e] }));
+        return e;
+      },
+    ),
+    updateActivity: guarded((id: ID, patch: Patch<Activity>) => {
+      updateOwned("activities", id, patch, (merged, existing) => {
+        // A partial patch touching only projectId OR only phaseId must still be checked for
+        // activity↔phase coherence against the row's OTHER field — hence the merged row (see
+        // updateOwned). `existing` enables the unchanged-parent relaxation (see assertScopedRefs).
+        assertScopedRefs(get().data, existing.accountId, "activities", { ...merged }, existing);
+        assertActivityProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
+        return patch;
+      });
+    }),
+    deleteActivity: guarded((id: ID) => {
       if (!findOwned(get().data, "activities", id)) return;
       mutate((d) => deleteActivityCascade(d, id));
-    },
+    }),
 
-    addAllocation: (input) => {
-      const accountId = requireAccount();
-      const e: Allocation = {
+    addAllocation: guardedAdd(
+      (input: Draft<Allocation>): Allocation => ({
         ...input,
         hoursPerDay: clampHoursPerDay(input.hoursPerDay),
         id: newId(),
-        accountId,
+        accountId: requireAccount(),
         ...stamp(),
-      };
-      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e;
-      assertAllocation(get().data, accountId, input.resourceId, input.activityId, input.hoursPerDay);
-      assertDateRange(input.startDate, input.endDate);
-      mutate((d) => ({ ...d, allocations: [...d.allocations, e] }));
-      return e;
-    },
-    updateAllocation: (id, patch) => {
-      if (blockedByViewer()) return false;
-      const existing = findOwned(get().data, "allocations", id);
-      if (!existing) return false; // stale id (e.g. drag committed after an undo) → no-op
-      // Always re-validate the EFFECTIVE MERGED row (patch ?? existing), not just when one of the
-      // ref/load fields is in the patch. The server re-runs assertAllocationRefs on the full merged
-      // row on EVERY write (PATCH/PUT merge {...existing, ...patch}), so a note/status/date-only edit
-      // of an allocation whose resource is now EXTERNAL with a non-zero load (legacy pre-v0.8.1 data,
-      // or after a resource kind-flip) would 400 on the server while succeeding here — diverging local
-      // and synced state. Matching the merged-row check makes the store reject exactly what the server
-      // rejects. It's a pure read — a note-only patch on a valid (non-external) row still passes.
-      assertAllocation(
-        get().data,
-        existing.accountId,
-        patch.resourceId ?? existing.resourceId,
-        patch.activityId ?? existing.activityId,
-        patch.hoursPerDay ?? existing.hoursPerDay,
-        existing,
-      );
-      // Validate the EFFECTIVE range (merged with the existing row), so a
-      // note/status/reassign-only patch isn't rejected for omitting dates.
-      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate);
-      // Clamp hours/day on the way in (a drag-resize rescale can exceed a real day).
-      const safePatch =
-        patch.hoursPerDay !== undefined ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch;
-      mutate((d) => ({
-        ...d,
-        allocations: updateById(d.allocations, id, safePatch),
-      }));
-      return true;
-    },
-    deleteAllocation: (id) => {
-      if (blockedByViewer()) return;
+      }),
+      (e, input) => {
+        assertAllocation(get().data, e.accountId, input.resourceId, input.activityId, input.hoursPerDay);
+        assertDateRange(input.startDate, input.endDate);
+        mutate((d) => ({ ...d, allocations: [...d.allocations, e] }));
+        return e;
+      },
+    ),
+    updateAllocation: guarded(
+      (id: ID, patch: Patch<Allocation>) =>
+        updateOwned("allocations", id, patch, (merged, existing) => {
+          // The server re-runs assertAllocationRefs on the full merged row on EVERY write, so a
+          // note/status/date-only edit of an allocation whose resource is now EXTERNAL with a
+          // non-zero load (legacy pre-v0.8.1 data, or after a resource kind-flip) would 400 there
+          // while succeeding here. Validating `merged` (see updateOwned) rejects exactly what the
+          // server rejects; a note-only patch on a valid (non-external) row still passes.
+          assertAllocation(
+            get().data,
+            existing.accountId,
+            merged.resourceId,
+            merged.activityId,
+            merged.hoursPerDay,
+            existing,
+          );
+          assertDateRange(merged.startDate, merged.endDate);
+          // Clamp hours/day on the way in (a drag-resize rescale can exceed a real day).
+          return patch.hoursPerDay !== undefined
+            ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
+            : patch;
+        }),
+      false,
+    ),
+    deleteAllocation: guarded((id: ID) => {
       if (!findOwned(get().data, "allocations", id)) return;
       mutate((d) => ({
         ...d,
         allocations: d.allocations.filter((a) => a.id !== id),
       }));
-    },
+    }),
 
-    addTimeOff: (input) => {
-      const accountId = requireAccount();
-      const e: TimeOff = { ...input, id: newId(), accountId, ...stamp() };
-      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
-      if (blockedByViewer()) return e;
-      assertResourceExists(get().data, accountId, input.resourceId);
-      assertDateRange(input.startDate, input.endDate);
-      mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }));
-      return e;
-    },
-    updateTimeOff: (id, patch) => {
-      if (blockedByViewer()) return;
-      const existing = findOwned(get().data, "timeOff", id);
-      if (!existing) return;
-      // Always re-validate the EFFECTIVE MERGED resource (patch ?? existing), not just when the patch
-      // touches resourceId. The server re-runs assertResourceExists on the full merged row on EVERY
-      // write, so a type/date/note-only edit of time-off on a now-EXTERNAL resource (legacy data, or
-      // after a resource kind-flip) would 400 on the server while succeeding here — diverging local and
-      // synced state. Matching the merged-row check makes the store reject exactly what the server does.
-      // It's a pure read — a date-only patch on a valid (non-external) resource still passes.
-      assertResourceExists(get().data, existing.accountId, patch.resourceId ?? existing.resourceId, existing);
-      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate);
-      mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }));
-    },
-    deleteTimeOff: (id) => {
-      if (blockedByViewer()) return;
+    addTimeOff: guardedAdd(
+      (input: Draft<TimeOff>): TimeOff => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
+      (e, input) => {
+        assertResourceExists(get().data, e.accountId, input.resourceId);
+        assertDateRange(input.startDate, input.endDate);
+        mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }));
+        return e;
+      },
+    ),
+    updateTimeOff: guarded((id: ID, patch: Patch<TimeOff>) => {
+      updateOwned("timeOff", id, patch, (merged, existing) => {
+        // Same merged-row rule as updateAllocation: the server re-runs assertResourceExists on the
+        // full merged row, so a type/date/note-only edit of time-off on a now-EXTERNAL resource
+        // would 400 there while succeeding here. See updateOwned.
+        assertResourceExists(get().data, existing.accountId, merged.resourceId, existing);
+        assertDateRange(merged.startDate, merged.endDate);
+        return patch;
+      });
+    }),
+    deleteTimeOff: guarded((id: ID) => {
       if (!findOwned(get().data, "timeOff", id)) return;
       mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }));
-    },
+    }),
 
     // --- Data-lifecycle actions (P2.5b DEMO-build path). See the StoreState block above for the
     // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the three
@@ -1281,8 +1269,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     // resource's allocations/time-off; a client's projects/activities/allocations; a project's
     // phases/activities/allocations). Single-sourced from shared/lib/integrity.ts so the purge cascade
     // can't drift from the cascade the other tables' delete* actions use.
-    archiveEntity: (entity, id) => {
-      if (blockedByViewer()) return;
+    archiveEntity: guarded((entity: LifecycleEntity, id: ID) => {
       if (!findOwned(get().data, entity, id)) return;
       // Reject the built-in Internal client — a fixed bucket that may not be archived (mirrors the
       // builtin guard in updateClient/purgeEntity). Throw a display-safe message; the caller surfaces.
@@ -1301,9 +1288,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
           return { ...archive(e, now), updatedAt: now };
         }),
       }));
-    },
-    unarchiveEntity: (entity, id) => {
-      if (blockedByViewer()) return;
+    }),
+    unarchiveEntity: guarded((entity: LifecycleEntity, id: ID) => {
       if (!findOwned(get().data, entity, id)) return;
       // No builtin guard: the Internal client can never reach 'archived' (archiveEntity rejects it), so
       // unarchive() would throw 'not archived' anyway. unarchive() THROWS if the row isn't archived.
@@ -1311,9 +1297,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
         ...d,
         [entity]: d[entity].map((e) => (e.id === id ? { ...unarchive(e), updatedAt: touchAfter(e.updatedAt) } : e)),
       }));
-    },
-    softDeleteEntity: (entity, id) => {
-      if (blockedByViewer()) return;
+    }),
+    softDeleteEntity: guarded((entity: LifecycleEntity, id: ID) => {
       if (!findOwned(get().data, entity, id)) return;
       // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
       // for a display-safe message and parity with the delete path.
@@ -1363,9 +1348,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // even when a client/project tombstone retains its display data: undo must never bypass the
       // archive → soft-delete lifecycle contract or resurrect a deliberately removed record.
       mutateIrreversible(applyDelete);
-    },
-    purgeEntity: (entity, id) => {
-      if (blockedByViewer()) return;
+    }),
+    purgeEntity: guarded((entity: LifecycleEntity, id: ID) => {
       const existing = findOwned(get().data, entity, id);
       if (!existing) return;
       // The built-in Internal client cannot be purged — every account must keep exactly one. Re-fetch
@@ -1392,6 +1376,6 @@ export const useStore = create<StoreState>()((set, get, store) => {
         const now = nextDataRevision(d);
         return entity === "clients" ? deleteClientCascade(d, id, now) : deleteProjectCascade(d, id, now);
       });
-    },
+    }),
   };
 });

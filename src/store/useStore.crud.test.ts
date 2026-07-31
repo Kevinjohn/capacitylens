@@ -612,6 +612,48 @@ describe("update* re-validates the merged row so the store + server agree", () =
     expect(() => s().updateTimeOff(timeOff.id, { startDate: "2026-06-11" })).toThrow(/external.*3rd-party/i);
     expect(s().data.timeOff[0].startDate).toBe("2026-06-10"); // unchanged — atomic failure
   });
+
+  // The merged-row rule is a property of the SHARED update path (updateOwned), not of the three
+  // actions that happened to need it first — so it must hold for a table whose patch carries no
+  // ref/date field at all. A rename is the most harmless-looking patch there is.
+  it("a name-only updateResource on an external resource that still carries a loaded allocation THROWS", () => {
+    const ext = externalResource("ext-3");
+    const data: AppData = makeAppData({
+      resources: [ext],
+      activities: [
+        {
+          id: "act-3",
+          accountId: DEFAULT_ACCOUNT_ID,
+          createdAt: TS,
+          updatedAt: TS,
+          name: "Repeatable",
+          kind: "repeatable",
+        },
+      ],
+      allocations: [
+        {
+          id: "alloc-3",
+          accountId: DEFAULT_ACCOUNT_ID,
+          createdAt: TS,
+          updatedAt: TS,
+          resourceId: ext.id,
+          activityId: "act-3",
+          startDate: "2026-06-01",
+          endDate: "2026-06-03",
+          hoursPerDay: 8, // legacy: an external carrying capacity
+          status: "confirmed",
+        },
+      ],
+    });
+    s().replaceAll(data);
+    s().setActiveAccount(DEFAULT_ACCOUNT_ID);
+
+    // The patch alone (a name) is unimpeachable; the MERGED row is what the server rejects.
+    expect(() => s().updateResource(ext.id, { name: "Outsource Co Ltd" })).toThrow(
+      /work and time off before making it external/i,
+    );
+    expect(s().data.resources[0].name).toBe("Outsource Co"); // unchanged — atomic failure
+  });
 });
 
 // Flipping a resource's kind to 'external' AFTER it already owns loaded work / time-off would orphan
