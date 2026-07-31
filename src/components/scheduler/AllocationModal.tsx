@@ -40,6 +40,8 @@ import { Input } from "../ui/input";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
+import { buildActivityOptions } from "./activityOptions";
+import { undoShortcut } from "../../lib/keyboardShortcuts";
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
  *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
@@ -305,51 +307,20 @@ export function AllocationModal(props: AllocationModalProps) {
         };
       }),
   ];
-  const eligibleActivities = data.activities.filter((t) => (projectId ? t.projectId === projectId : !t.projectId));
-  const activityNameCounts = new Map<string, number>();
-  for (const activity of eligibleActivities) {
-    activityNameCounts.set(activity.name, (activityNameCounts.get(activity.name) ?? 0) + 1);
-  }
-  const duplicateLabelCounts = new Map<string, number>();
-  const activityOptions: Option[] = eligibleActivities.map((activity) => {
-    if (activityNameCounts.get(activity.name) === 1) {
-      return { value: activity.id, label: activity.name };
+  const baseActivityOptions = useMemo(
+    () => buildActivityOptions(data.activities, data.phases, data.projects, projectId),
+    [data.activities, data.phases, data.projects, projectId],
+  );
+  const activityOptions = useMemo(() => {
+    if (
+      inlineActivityOption &&
+      inlineActivityOption.projectId === (projectId || undefined) &&
+      !baseActivityOptions.some((option) => option.value === inlineActivityOption.value)
+    ) {
+      return [...baseActivityOptions, inlineActivityOption];
     }
-    const phaseName = data.phases.find((phase) => phase.id === activity.phaseId)?.name;
-    const context =
-      phaseName ??
-      (activity.kind === "internal"
-        ? m.form_activity_kind_internal()
-        : activity.kind === "repeatable"
-          ? m.form_activity_kind_repeatable()
-          : (data.projects.find((project) => project.id === activity.projectId)?.name ?? "Project"));
-    const baseLabel = `${activity.name} / ${context}`;
-    const occurrence = (duplicateLabelCounts.get(baseLabel) ?? 0) + 1;
-    duplicateLabelCounts.set(baseLabel, occurrence);
-    const exactCount = eligibleActivities.filter((candidate) => {
-      if (candidate.name !== activity.name) return false;
-      const candidatePhase = data.phases.find((phase) => phase.id === candidate.phaseId)?.name;
-      const candidateContext =
-        candidatePhase ??
-        (candidate.kind === "internal"
-          ? m.form_activity_kind_internal()
-          : candidate.kind === "repeatable"
-            ? m.form_activity_kind_repeatable()
-            : (data.projects.find((project) => project.id === candidate.projectId)?.name ?? "Project"));
-      return candidateContext === context;
-    }).length;
-    return {
-      value: activity.id,
-      label: exactCount > 1 ? `${baseLabel} (${occurrence})` : baseLabel,
-    };
-  });
-  if (
-    inlineActivityOption &&
-    inlineActivityOption.projectId === (projectId || undefined) &&
-    !activityOptions.some((option) => option.value === inlineActivityOption.value)
-  ) {
-    activityOptions.push(inlineActivityOption);
-  }
+    return baseActivityOptions;
+  }, [baseActivityOptions, inlineActivityOption, projectId]);
   const onAssigneeChange = (v: string) => {
     clear();
     setResourceId(v);
@@ -615,7 +586,7 @@ export function AllocationModal(props: AllocationModalProps) {
       {confirmDelete && (
         <ConfirmDialog
           title={m.form_allocation_delete_title()}
-          message={m.form_allocation_delete_message()}
+          message={m.form_allocation_delete_message({ shortcut: undoShortcut() })}
           onConfirm={onDelete}
           onCancel={() => setConfirmDelete(false)}
         />

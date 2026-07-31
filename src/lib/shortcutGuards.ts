@@ -10,7 +10,7 @@ export function textEntryOwnsShortcut(target: EventTarget | null): boolean {
 
 /** Radix dialogs are portalled, so query the document rather than the shortcut event's ancestry. */
 export function hasOpenModal(ignoredModal?: Element | null): boolean {
-  return [...document.querySelectorAll('[aria-modal="true"]:not([data-state="closed"])')].some(
+  return Array.from(document.querySelectorAll('[aria-modal="true"]:not([data-state="closed"])')).some(
     (modal) => modal !== ignoredModal,
   );
 }

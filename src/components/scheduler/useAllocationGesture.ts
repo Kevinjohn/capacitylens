@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { m } from "@/i18n";
+import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { errorMessage } from "../../lib/errorMessage";
 import { applyGesture, type DragMode } from "../../lib/gestureMath";
 import { capacityAdvisory, capacityAllocationsForMode, dayCapacity } from "../../lib/capacity";
@@ -306,7 +307,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       }
       const cap = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : "";
       setNotice(
-        `${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${cap}${m.scheduler_toast_undo_hint()}`,
+        `${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${cap}${m.scheduler_toast_undo_hint({ shortcut: undoShortcut() })}`,
         clamped ? "warning" : "info",
       );
     },
@@ -353,7 +354,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       });
       if (!updated) return;
       if (rescale?.clamped) {
-        setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY }), "warning");
+        setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: undoShortcut() }), "warning");
       }
       announceCapacity(capacityAnnouncement(resourceId));
       requestAnimationFrame(() => {

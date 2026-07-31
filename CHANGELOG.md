@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Built duplicate activity labels once in linear time per source change, and showed conventional
+  Command or Control shortcut guidance according to the user's platform.
 - Made lifecycle soft-deletion irreversible for people, clients and projects, and reported scheduled
   backups as pending until the first verified snapshot has actually been published.
 - Rejected unsafe one-time-token payloads and blank created-company identities, refused edits with

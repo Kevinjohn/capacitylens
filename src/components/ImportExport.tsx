@@ -10,6 +10,7 @@ import { useRole } from "../auth/permissionContext";
 import { can, canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { ConfirmDialog, Modal } from "./common/ui";
 import { m } from "@/i18n";
+import { undoShortcut } from "../lib/keyboardShortcuts";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Button } from "./ui/button";
@@ -191,8 +192,8 @@ export function ImportExport() {
         : "";
     setNotice(
       imported === 1
-        ? m.data_imported_one({ count: imported, skipped: skippedNote })
-        : m.data_imported_other({ count: imported, skipped: skippedNote }),
+        ? m.data_imported_one({ count: imported, skipped: skippedNote, shortcut: undoShortcut() })
+        : m.data_imported_other({ count: imported, skipped: skippedNote, shortcut: undoShortcut() }),
     );
   };
 
@@ -282,7 +283,9 @@ export function ImportExport() {
                 {/* Honest dialog semantics: the demo/local import goes through the undoable store
                   history (⌘Z restores); the server import is an atomic server-side slice replace
                   the store history never sees, so promising ⌘Z there would be a lie. */}
-                {serverMode ? m.data_import_confirm_outro_server() : m.data_import_confirm_outro()}
+                {serverMode
+                  ? m.data_import_confirm_outro_server()
+                  : m.data_import_confirm_outro({ shortcut: undoShortcut() })}
               </>
             }
             onConfirm={confirmImport}

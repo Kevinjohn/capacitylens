@@ -360,7 +360,8 @@ A
 draw-mode radiogroup `Work`/`Time off` (radios using `aria-checked` — note "Time off" here is the _toggle_, distinct
 from the "Time off" _nav link_). Then **Undo**/**Redo** icon buttons (`undo-button` /
 `redo-button`, `aria-label` "Undo"/"Redo", disabled when the history stack is empty) — the
-visible counterpart to the global ⌘Z / ⌘⇧Z shortcut. **In `Time off` mode the grid signals the mode whole-view:
+visible counterpart to the global Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z shortcuts; their title hints use
+the current platform's conventional labels. **In `Time off` mode the grid signals the mode whole-view:
 work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
 clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks glow
 amber — so a lane draw books time off without the bars intercepting the gesture (a draw started
@@ -371,7 +372,7 @@ omit work-allocation counts, and each eligible non-external resource row exposes
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
 Undo/redo run
-from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global `⌘Z` / `⌘⇧Z` shortcut. Filter row:
+from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts. Filter row:
 `Search people…` matches accent-insensitively across the displayed name, stored name and role as
 one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`,
 `Filter by client`, `Filter by project`,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Redo2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
+import { redoShortcut, undoShortcut } from "../../lib/keyboardShortcuts";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { disciplinesEnabledFor } from "../../store/selectors";
@@ -188,7 +189,7 @@ export function SchedulerToolbar() {
                 onClick={() => runHistoryAction(undo)}
                 disabled={!canUndo}
                 aria-label={m.scheduler_undo()}
-                title={m.scheduler_undo_title()}
+                title={m.scheduler_undo_title({ shortcut: undoShortcut() })}
                 data-testid="undo-button"
               >
                 <Undo2 />
@@ -199,7 +200,7 @@ export function SchedulerToolbar() {
                 onClick={() => runHistoryAction(redo)}
                 disabled={!canRedo}
                 aria-label={m.scheduler_redo()}
-                title={m.scheduler_redo_title()}
+                title={m.scheduler_redo_title({ shortcut: redoShortcut() })}
                 data-testid="redo-button"
               >
                 <Redo2 />
