@@ -909,7 +909,16 @@ describe("built-in Internal client is a per-account singleton on direct writes",
   });
 
   it("accepts the canonical same-batch duplicate of a freshly generated Internal client", async () => {
-    const { app } = freshApp();
+    const auditEntries: AuditEntry[] = [];
+    const { app } = freshApp(true, {
+      audit: {
+        append: (entry) => {
+          auditEntries.push(entry);
+          return true;
+        },
+        degraded: false,
+      },
+    });
     const res = await batch(app, [
       { method: "PUT", table: "accounts", id: "a1", row: account("a1") },
       {
@@ -921,7 +930,10 @@ describe("built-in Internal client is a per-account singleton on direct writes",
     ]);
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ ok: true, applied: 2 });
+    expect(res.json()).toMatchObject({ ok: true, applied: 2, changed: 1 });
+    expect(
+      auditEntries.filter((entry) => "entity" in entry).map(({ entity, action, id }) => ({ entity, action, id })),
+    ).toEqual([{ entity: "accounts", action: "create", id: "a1" }]);
     const stored = (await call(app, { method: "GET", url: "/api/state" })).json();
     expect(stored.clients).toMatchObject([
       {

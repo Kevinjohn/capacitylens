@@ -14,6 +14,7 @@ import {
 } from "@capacitylens/shared/account/types";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { AccountContractError, statusForAccountFailure } from "@capacitylens/shared/account/errors";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import { betterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
@@ -930,6 +931,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // request/restart; malformed durable rows throw because silently skipping one would break the
   // completeness contract the outbox exists to provide.
   drainAuditOutbox(db, auditSink);
+  // Account coordinators write stable event ids through the same durable outbox as product
+  // mutations. Their append boundary means "durably accepted", not "already delivered"; the
+  // response hook below performs best-effort delivery after any enclosing transaction commits.
+  const accountAudit = {
+    append: (event: AccountAuditEvent) => {
+      enqueueAudit(db, event, event.id);
+      return true;
+    },
+  };
   const accountLock = new KeyedOperationLock();
   const identityPort =
     auth && authMode !== "off"
@@ -952,7 +962,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     lock: accountLock,
     trustedLocal: authMode === "off",
     requireMfa: authMode === "password" && opts.requireMfa === true,
-    audit: { append: (event) => auditSink.append(event) },
+    audit: accountAudit,
   });
   const accountFlows = localAccountFlows({
     applicationId: application.applicationId,
@@ -961,7 +971,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     administration: accountAdminPort,
     lock: accountLock,
     eraseProductWorkspaceInTx: (workspaceId) => eraseWorkspaceProductDataInTx(db, workspaceId),
-    audit: { append: (event) => auditSink.append(event) },
+    audit: accountAudit,
   });
   const logOn = opts.log === true;
   const app = Fastify({
@@ -1198,6 +1208,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       reply.header("Cache-Control", "no-store");
       reply.header("Pragma", "no-cache");
       reply.header("Reporting-Endpoints", 'csp-endpoint="/api/security/csp-report"');
+      // Account flows enqueue while their coordinator transaction may still be open. Deliver only
+      // after the handler has completed, preserving committed rows whenever the sink is degraded.
+      if (db.isOpen && !drainAuditOutbox(db, auditSink)) {
+        reply.header("x-capacitylens-audit-warning", "true");
+      }
     }
     return payload;
   });
@@ -2671,8 +2686,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                         createdAt: existing.createdAt as string,
                         updatedAt: existing.updatedAt as string,
                       });
-                      const auditRecord = auditRecords[opIndex];
-                      if (auditRecord) auditRecord.changedFields = [];
+                      // This submitted operation is acknowledged for sync/revision purposes, but
+                      // the preceding account create already minted the identical row. Do not
+                      // report or audit a second state change that never happened.
+                      if (auditRecords[opIndex]) {
+                        auditRecords[opIndex] = null;
+                        changedOperations -= 1;
+                      }
                       continue;
                     }
                     const builtinRejection = builtinInternalWriteGuard(

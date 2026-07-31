@@ -12,6 +12,10 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Retained normalized account-administration and reconciliation events in the durable audit outbox,
+  committing them with their local command outcome and replaying them after sink recovery.
+- Reported canonical same-batch Internal-client echoes as accepted no-ops instead of overstating the
+  changed count and recording a phantom client creation.
 - Required rediscovered audit deliveries to complete a fresh file and directory durability flush
   before their retained SQLite outbox rows can be removed after an earlier flush failure.
 

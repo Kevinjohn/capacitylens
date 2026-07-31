@@ -52,7 +52,7 @@ describe("durable audit outbox", () => {
     expect(response.statusCode).toBe(201);
     expect(response.headers["x-capacitylens-audit-warning"]).toBe("true");
     expect(firstDb.prepare(`SELECT name FROM accounts WHERE id = ?`).get("account-1")).toEqual({ name: "Studio" });
-    expect(pendingAuditCount(firstDb)).toBe(1);
+    expect(pendingAuditCount(firstDb)).toBe(2);
     await firstApp.close();
     firstDb.close();
 
@@ -64,6 +64,12 @@ describe("durable audit outbox", () => {
     expect(pendingAuditCount(recoveredDb)).toBe(0);
     expect(lines(auditPath)).toEqual([
       expect.objectContaining({ action: "create", entity: "accounts", id: "account-1" }),
+      expect.objectContaining({
+        action: "workspace.provisioned",
+        outcome: "success",
+        workspaceId: "account-1",
+        auditId: expect.any(String),
+      }),
     ]);
     await recoveredApp.close();
     recoveredDb.close();

@@ -362,6 +362,17 @@ export function sqliteAccountAdminPort(input: {
         const transaction = (() => {
           const result = options.execute() as ReturnType<Execute>;
           completeCommand(db, scope, options.command, options.persistResult ? options.persistResult(result) : result);
+          if (options.audit) {
+            audit({
+              action: options.audit.action,
+              outcome: "success",
+              workspaceId: options.workspaceId,
+              actorPrincipalId: options.actorPrincipalId,
+              targetPrincipalId: options.targetPrincipalId,
+              command: options.command,
+              changedFields: options.audit.changedFields,
+            });
+          }
           return result;
         }) as SynchronousCallback<() => ReturnType<Execute>>;
         result = tx(db, transaction, "immediate");
@@ -372,46 +383,44 @@ export function sqliteAccountAdminPort(input: {
         recordTerminalOutcome(
           error,
           () => {
-            terminateCommand(
+            tx(
               db,
-              scope,
-              options.command,
-              "compensated",
-              error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+              () => {
+                terminateCommand(
+                  db,
+                  scope,
+                  options.command,
+                  "compensated",
+                  error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                );
+                if (options.audit) {
+                  const code = error instanceof AccountContractError ? error.failure.code : null;
+                  const denied =
+                    code === "FORBIDDEN" ||
+                    code === "NOT_MEMBER" ||
+                    code === "SESSION_NOT_FRESH" ||
+                    code === "MFA_REQUIRED";
+                  audit({
+                    action: options.audit.action,
+                    outcome: denied ? "denied" : "failed",
+                    workspaceId: options.workspaceId,
+                    actorPrincipalId: options.actorPrincipalId,
+                    targetPrincipalId: options.targetPrincipalId,
+                    command: options.command,
+                  });
+                }
+              },
+              "immediate",
             );
           },
           "Account command failed and its compensation outcome could not be recorded.",
         );
-        if (options.audit) {
-          const code = error instanceof AccountContractError ? error.failure.code : null;
-          const denied =
-            code === "FORBIDDEN" || code === "NOT_MEMBER" || code === "SESSION_NOT_FRESH" || code === "MFA_REQUIRED";
-          audit({
-            action: options.audit.action,
-            outcome: denied ? "denied" : "failed",
-            workspaceId: options.workspaceId,
-            actorPrincipalId: options.actorPrincipalId,
-            targetPrincipalId: options.targetPrincipalId,
-            command: options.command,
-          });
-        }
         throw error;
       }
       // The command and domain mutation are now committed, while all mutation keys are still held.
       // This closes the replay window in which another request could otherwise recover a consumed
       // or revoked write-once token before the process-local cache was updated.
       options.afterCommit?.(result);
-      if (options.audit) {
-        audit({
-          action: options.audit.action,
-          outcome: "success",
-          workspaceId: options.workspaceId,
-          actorPrincipalId: options.actorPrincipalId,
-          targetPrincipalId: options.targetPrincipalId,
-          command: options.command,
-          changedFields: options.audit.changedFields,
-        });
-      }
       return result;
     });
   }

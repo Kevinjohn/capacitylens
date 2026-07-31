@@ -29,7 +29,7 @@ import type { AccountAdminPort, IdentityPort } from "@capacitylens/shared/accoun
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 import type { LocalAccountAdminPort } from "./sqliteAccountAdminPort";
 import { WriteOnceSecretReplay } from "./writeOnceSecretReplay";
-import { accountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
+import { accountAuditWriter, recordTerminalOutcome, type AccountAuditInput } from "./accountFlowRuntime";
 
 type RepairCoordinate = "workspaceId" | "targetPrincipalId" | "provisionalPrincipalId" | "ceremonyId";
 
@@ -261,6 +261,17 @@ export function localAccountFlows(input: {
 }): LocalAccountFlows {
   const { applicationId, db, identity, administration, lock, eraseProductWorkspaceInTx } = input;
   const audit = accountAuditWriter(applicationId, input.audit);
+  const persistTerminalOutcome = (write: () => boolean | void, event: AccountAuditInput): boolean | void =>
+    tx(
+      db,
+      () => {
+        const result = write();
+        if (result === false) return false;
+        audit(event);
+        return result;
+      },
+      "immediate",
+    );
   const resetReplay = new WriteOnceSecretReplay<PasswordResetCeremony>(input.writeOnceReplayCapacity ?? 128);
   // Every live coordinator execution and its reconciliation read share this key. The NUL prefix
   // sorts before all external principal/workspace keys, so invitation signup may safely discover
@@ -412,38 +423,44 @@ export function localAccountFlows(input: {
                 });
                 const result = { product, membership };
                 completeCommand(db, scope, command, result);
+                audit({
+                  action: "workspace.provisioned",
+                  outcome: "success",
+                  workspaceId,
+                  actorPrincipalId: actor.principalId,
+                  targetPrincipalId: actor.principalId,
+                  command,
+                  changedFields: ["workspace", "membership"],
+                });
                 return result;
               },
               "immediate",
             );
-            audit({
-              action: "workspace.provisioned",
-              outcome: "success",
-              workspaceId,
-              actorPrincipalId: actor.principalId,
-              targetPrincipalId: actor.principalId,
-              command,
-              changedFields: ["workspace", "membership"],
-            });
             return { ...result, replayed: false };
           } catch (error) {
             recordTerminalOutcome(error, () =>
-              terminateCommand(
+              tx(
                 db,
-                scope,
-                command,
-                "compensated",
-                error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                () => {
+                  terminateCommand(
+                    db,
+                    scope,
+                    command,
+                    "compensated",
+                    error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                  );
+                  const deniedOutcome = isAuthorityDenial(error);
+                  audit({
+                    action: deniedOutcome ? "workspace.provisioned" : "flow.compensated",
+                    outcome: deniedOutcome ? "denied" : "compensated",
+                    workspaceId,
+                    actorPrincipalId: actor.principalId,
+                    command,
+                  });
+                },
+                "immediate",
               ),
             );
-            const deniedOutcome = isAuthorityDenial(error);
-            audit({
-              action: deniedOutcome ? "workspace.provisioned" : "flow.compensated",
-              outcome: deniedOutcome ? "denied" : "compensated",
-              workspaceId,
-              actorPrincipalId: actor.principalId,
-              command,
-            });
             throw error;
           }
         },
@@ -508,47 +525,53 @@ export function localAccountFlows(input: {
                   };
                   eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
                   completeCommand(db, scope, command, receipt);
+                  for (const principalId of orphaned) {
+                    audit({
+                      action: "identity.local_deprovisioned",
+                      outcome: "success",
+                      workspaceId,
+                      actorPrincipalId: actor.principalId,
+                      targetPrincipalId: principalId,
+                      command,
+                      changedFields: ["localPrincipal"],
+                    });
+                  }
+                  audit({
+                    action: "workspace.erased",
+                    outcome: "success",
+                    workspaceId,
+                    actorPrincipalId: actor.principalId,
+                    command,
+                    changedFields: ["workspace", "memberships", "localPrincipals"],
+                  });
                   return { receipt, orphaned };
                 },
                 "immediate",
               );
-              for (const principalId of erased.orphaned) {
-                audit({
-                  action: "identity.local_deprovisioned",
-                  outcome: "success",
-                  workspaceId,
-                  actorPrincipalId: actor.principalId,
-                  targetPrincipalId: principalId,
-                  command,
-                  changedFields: ["localPrincipal"],
-                });
-              }
-              audit({
-                action: "workspace.erased",
-                outcome: "success",
-                workspaceId,
-                actorPrincipalId: actor.principalId,
-                command,
-                changedFields: ["workspace", "memberships", "localPrincipals"],
-              });
               return { kind: "done", value: erased.receipt };
             } catch (error) {
               recordTerminalOutcome(error, () =>
-                terminateCommand(
+                tx(
                   db,
-                  scope,
-                  command,
-                  "compensated",
-                  error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                  () => {
+                    terminateCommand(
+                      db,
+                      scope,
+                      command,
+                      "compensated",
+                      error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                    );
+                    audit({
+                      action: "flow.compensated",
+                      outcome: "compensated",
+                      workspaceId,
+                      actorPrincipalId: actor.principalId,
+                      command,
+                    });
+                  },
+                  "immediate",
                 ),
               );
-              audit({
-                action: "flow.compensated",
-                outcome: "compensated",
-                workspaceId,
-                actorPrincipalId: actor.principalId,
-                command,
-              });
               throw error;
             }
           },
@@ -751,22 +774,25 @@ export function localAccountFlows(input: {
         } catch (claimError) {
           if (claimState.committed) {
             recordTerminalOutcome(claimError, () =>
-              terminatePendingCommand(db, scope, command, "reconciliation_required", "DEPENDENCY_UNAVAILABLE", {
-                kind: "invitation-claim-committed",
-                workspaceId: claimState.membership?.workspaceId ?? null,
-                targetPrincipalId: provisional?.principalId ?? null,
-                provisionalPrincipalId: provisional?.principalId ?? null,
-                ceremonyId: null,
-              }),
+              persistTerminalOutcome(
+                () =>
+                  terminatePendingCommand(db, scope, command, "reconciliation_required", "DEPENDENCY_UNAVAILABLE", {
+                    kind: "invitation-claim-committed",
+                    workspaceId: claimState.membership?.workspaceId ?? null,
+                    targetPrincipalId: provisional?.principalId ?? null,
+                    provisionalPrincipalId: provisional?.principalId ?? null,
+                    ceremonyId: null,
+                  }),
+                {
+                  action: "flow.reconciliation_required",
+                  outcome: "failed",
+                  workspaceId: claimState.membership?.workspaceId ?? null,
+                  targetPrincipalId: provisional?.principalId ?? null,
+                  command,
+                  changedFields: ["commandLedger"],
+                },
+              ),
             );
-            audit({
-              action: "flow.reconciliation_required",
-              outcome: "failed",
-              workspaceId: claimState.membership?.workspaceId ?? null,
-              targetPrincipalId: provisional?.principalId ?? null,
-              command,
-              changedFields: ["commandLedger"],
-            });
             throw new AccountContractError(
               {
                 code: "DEPENDENCY_UNAVAILABLE",
@@ -779,19 +805,18 @@ export function localAccountFlows(input: {
           }
           if (!provisional) {
             recordTerminalOutcome(claimError, () =>
-              terminateCommand(
-                db,
-                scope,
-                command,
-                "compensated",
-                claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+              persistTerminalOutcome(
+                () =>
+                  terminateCommand(
+                    db,
+                    scope,
+                    command,
+                    "compensated",
+                    claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+                  ),
+                { action: "flow.compensated", outcome: "compensated", command },
               ),
             );
-            audit({
-              action: "flow.compensated",
-              outcome: "compensated",
-              command,
-            });
             throw claimError;
           }
           const provisionalPrincipalId = provisional.principalId;
@@ -807,40 +832,46 @@ export function localAccountFlows(input: {
           }
           if (compensationError === null) {
             recordTerminalOutcome(claimError, () =>
-              terminateCommand(
-                db,
-                scope,
-                command,
-                "compensated",
-                claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+              persistTerminalOutcome(
+                () =>
+                  terminateCommand(
+                    db,
+                    scope,
+                    command,
+                    "compensated",
+                    claimError instanceof AccountContractError ? claimError.failure.code : "CONFLICT",
+                  ),
+                {
+                  action: "flow.compensated",
+                  outcome: "compensated",
+                  targetPrincipalId: provisionalPrincipalId,
+                  command,
+                  changedFields: ["localPrincipal"],
+                },
               ),
             );
-            audit({
-              action: "flow.compensated",
-              outcome: "compensated",
-              targetPrincipalId: provisionalPrincipalId,
-              command,
-              changedFields: ["localPrincipal"],
-            });
             throw claimError;
           }
           const combinedFailure = new AggregateError([claimError, compensationError]);
           recordTerminalOutcome(combinedFailure, () =>
-            terminateCommand(db, scope, command, "reconciliation_required", "COMPENSATION_FAILED", {
-              kind: "provisional-principal-compensation-failed",
-              workspaceId: null,
-              targetPrincipalId: provisionalPrincipalId,
-              provisionalPrincipalId,
-              ceremonyId: null,
-            }),
+            persistTerminalOutcome(
+              () =>
+                terminateCommand(db, scope, command, "reconciliation_required", "COMPENSATION_FAILED", {
+                  kind: "provisional-principal-compensation-failed",
+                  workspaceId: null,
+                  targetPrincipalId: provisionalPrincipalId,
+                  provisionalPrincipalId,
+                  ceremonyId: null,
+                }),
+              {
+                action: "flow.reconciliation_required",
+                outcome: "failed",
+                targetPrincipalId: provisionalPrincipalId,
+                command,
+                changedFields: ["localPrincipal"],
+              },
+            ),
           );
-          audit({
-            action: "flow.reconciliation_required",
-            outcome: "failed",
-            targetPrincipalId: provisionalPrincipalId,
-            command,
-            changedFields: ["localPrincipal"],
-          });
           throw new AccountContractError(
             {
               code: "COMPENSATION_FAILED",
@@ -896,7 +927,6 @@ export function localAccountFlows(input: {
         let issuanceStarted = false;
         let ceremony: PasswordResetCeremony | null = null;
         let terminalOutcomeRecorded = false;
-        let auditRecorded = false;
         try {
           const decision = await administration.evaluateIdentityAdminAuthority({
             actor,
@@ -904,37 +934,37 @@ export function localAccountFlows(input: {
             action: "issue-password-reset",
           });
           if (!decision.allowed) {
-            terminateCommand(
-              db,
-              scope,
-              command,
-              "compensated",
-              decision.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
+            persistTerminalOutcome(
+              () =>
+                terminateCommand(
+                  db,
+                  scope,
+                  command,
+                  "compensated",
+                  decision.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
+                ),
+              {
+                action: "identity.password_reset_issued",
+                outcome: "denied",
+                actorPrincipalId: actor.principalId,
+                targetPrincipalId,
+                command,
+              },
             );
-            audit({
-              action: "identity.password_reset_issued",
-              outcome: "denied",
-              actorPrincipalId: actor.principalId,
-              targetPrincipalId,
-              command,
-            });
             terminalOutcomeRecorded = true;
-            auditRecorded = true;
             throw denied(decision.reason, "issue-password-reset", command.commandId);
           }
           const reservation = resetReplay.reserve(command.commandId);
           if (!reservation.accepted) {
             const capacityError = replayCapacityExceeded(command.commandId, reservation.retryAfterMs);
-            terminateCommand(db, scope, command, "compensated", "RATE_LIMITED");
-            terminalOutcomeRecorded = true;
-            audit({
+            persistTerminalOutcome(() => terminateCommand(db, scope, command, "compensated", "RATE_LIMITED"), {
               action: "identity.password_reset_issued",
               outcome: "failed",
               actorPrincipalId: actor.principalId,
               targetPrincipalId,
               command,
             });
-            auditRecorded = true;
+            terminalOutcomeRecorded = true;
             throw capacityError;
           }
           issuanceStarted = true;
@@ -959,24 +989,26 @@ export function localAccountFlows(input: {
               });
             } catch (revokeError) {
               recordTerminalOutcome(revokeError, () =>
-                terminateCommand(db, scope, command, "reconciliation_required", "COMPENSATION_FAILED", {
-                  kind: "password-reset-revocation-failed",
-                  workspaceId: null,
-                  targetPrincipalId,
-                  provisionalPrincipalId: null,
-                  ceremonyId,
-                }),
+                persistTerminalOutcome(
+                  () =>
+                    terminateCommand(db, scope, command, "reconciliation_required", "COMPENSATION_FAILED", {
+                      kind: "password-reset-revocation-failed",
+                      workspaceId: null,
+                      targetPrincipalId,
+                      provisionalPrincipalId: null,
+                      ceremonyId,
+                    }),
+                  {
+                    action: "flow.reconciliation_required",
+                    outcome: "failed",
+                    actorPrincipalId: actor.principalId,
+                    targetPrincipalId,
+                    command,
+                    changedFields: ["passwordResetCeremony"],
+                  },
+                ),
               );
               terminalOutcomeRecorded = true;
-              audit({
-                action: "flow.reconciliation_required",
-                outcome: "failed",
-                actorPrincipalId: actor.principalId,
-                targetPrincipalId,
-                command,
-                changedFields: ["passwordResetCeremony"],
-              });
-              auditRecorded = true;
               throw new AccountContractError(
                 {
                   code: "COMPENSATION_FAILED",
@@ -988,34 +1020,34 @@ export function localAccountFlows(input: {
               );
             }
             recordTerminalOutcome(changed, () =>
-              terminateCommand(db, scope, command, "compensated", "AUTHORITY_CHANGED"),
+              persistTerminalOutcome(() => terminateCommand(db, scope, command, "compensated", "AUTHORITY_CHANGED"), {
+                action: "flow.compensated",
+                outcome: "compensated",
+                actorPrincipalId: actor.principalId,
+                targetPrincipalId,
+                command,
+                changedFields: ["passwordResetCeremony"],
+              }),
             );
             terminalOutcomeRecorded = true;
-            audit({
-              action: "flow.compensated",
-              outcome: "compensated",
+            throw changed;
+          }
+          persistTerminalOutcome(
+            () =>
+              completeCommand(db, scope, command, {
+                ceremonyId: ceremony!.ceremonyId,
+                expiresAt: ceremony!.expiresAt,
+              }),
+            {
+              action: "identity.password_reset_issued",
+              outcome: "success",
               actorPrincipalId: actor.principalId,
               targetPrincipalId,
               command,
-              changedFields: ["passwordResetCeremony"],
-            });
-            auditRecorded = true;
-            throw changed;
-          }
-          completeCommand(db, scope, command, {
-            ceremonyId: ceremony.ceremonyId,
-            expiresAt: ceremony.expiresAt,
-          });
+              changedFields: ["credential"],
+            },
+          );
           resetReplay.storeReserved(command.commandId, ceremony);
-          audit({
-            action: "identity.password_reset_issued",
-            outcome: "success",
-            actorPrincipalId: actor.principalId,
-            targetPrincipalId,
-            command,
-            changedFields: ["credential"],
-          });
-          auditRecorded = true;
           return ceremony;
         } catch (error) {
           // A completed response is not a reservation, so this only releases capacity when issuance
@@ -1033,33 +1065,36 @@ export function localAccountFlows(input: {
             !knownWithoutCeremony;
           if (!terminalOutcomeRecorded) {
             recordTerminalOutcome(error, () =>
-              terminatePendingCommand(
-                db,
-                scope,
-                command,
-                requiresReconciliation ? "reconciliation_required" : "compensated",
-                requiresReconciliation ? "DEPENDENCY_UNAVAILABLE" : code,
-                requiresReconciliation
-                  ? {
-                      kind: ceremony ? "password-reset-issued" : "password-reset-outcome-unknown",
-                      workspaceId: null,
-                      targetPrincipalId,
-                      provisionalPrincipalId: null,
-                      ceremonyId: ceremony?.ceremonyId ?? null,
-                    }
-                  : undefined,
+              persistTerminalOutcome(
+                () =>
+                  terminatePendingCommand(
+                    db,
+                    scope,
+                    command,
+                    requiresReconciliation ? "reconciliation_required" : "compensated",
+                    requiresReconciliation ? "DEPENDENCY_UNAVAILABLE" : code,
+                    requiresReconciliation
+                      ? {
+                          kind: ceremony ? "password-reset-issued" : "password-reset-outcome-unknown",
+                          workspaceId: null,
+                          targetPrincipalId,
+                          provisionalPrincipalId: null,
+                          ceremonyId: ceremony?.ceremonyId ?? null,
+                        }
+                      : undefined,
+                  ),
+                {
+                  action: requiresReconciliation ? "flow.reconciliation_required" : "flow.compensated",
+                  outcome: requiresReconciliation ? "failed" : "compensated",
+                  actorPrincipalId: actor.principalId,
+                  targetPrincipalId,
+                  command,
+                  changedFields: requiresReconciliation
+                    ? ["passwordResetCeremony", "commandLedger"]
+                    : ["commandLedger"],
+                },
               ),
             );
-          }
-          if (!auditRecorded) {
-            audit({
-              action: requiresReconciliation ? "flow.reconciliation_required" : "flow.compensated",
-              outcome: requiresReconciliation ? "failed" : "compensated",
-              actorPrincipalId: actor.principalId,
-              targetPrincipalId,
-              command,
-              changedFields: requiresReconciliation ? ["passwordResetCeremony", "commandLedger"] : ["commandLedger"],
-            });
           }
           throw error;
         }
@@ -1081,7 +1116,6 @@ export function localAccountFlows(input: {
         if (begun.kind === "replay") return markAccountCommandReplay(begun.result);
         let revocationStarted = false;
         let terminalOutcomeRecorded = false;
-        let auditRecorded = false;
         try {
           const decision = await administration.evaluateIdentityAdminAuthority({
             actor,
@@ -1089,22 +1123,24 @@ export function localAccountFlows(input: {
             action: "revoke-sessions",
           });
           if (!decision.allowed) {
-            terminateCommand(
-              db,
-              scope,
-              command,
-              "compensated",
-              decision.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
+            persistTerminalOutcome(
+              () =>
+                terminateCommand(
+                  db,
+                  scope,
+                  command,
+                  "compensated",
+                  decision.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
+                ),
+              {
+                action: "identity.sessions_revoked",
+                outcome: "denied",
+                actorPrincipalId: actor.principalId,
+                targetPrincipalId,
+                command,
+              },
             );
-            audit({
-              action: "identity.sessions_revoked",
-              outcome: "denied",
-              actorPrincipalId: actor.principalId,
-              targetPrincipalId,
-              command,
-            });
             terminalOutcomeRecorded = true;
-            auditRecorded = true;
             throw denied(decision.reason, "revoke-sessions", command.commandId);
           }
           revocationStarted = true;
@@ -1112,8 +1148,7 @@ export function localAccountFlows(input: {
             targetPrincipalId,
             command,
           });
-          completeCommand(db, scope, command, result);
-          audit({
+          persistTerminalOutcome(() => completeCommand(db, scope, command, result), {
             action: "identity.sessions_revoked",
             outcome: "success",
             actorPrincipalId: actor.principalId,
@@ -1121,39 +1156,39 @@ export function localAccountFlows(input: {
             command,
             changedFields: ["sessions"],
           });
-          auditRecorded = true;
           return result;
         } catch (error) {
           const code = error instanceof AccountContractError ? error.failure.code : "DEPENDENCY_UNAVAILABLE";
           if (!terminalOutcomeRecorded) {
             recordTerminalOutcome(error, () =>
-              terminatePendingCommand(
-                db,
-                scope,
-                command,
-                revocationStarted ? "reconciliation_required" : "compensated",
-                revocationStarted ? "DEPENDENCY_UNAVAILABLE" : code,
-                revocationStarted
-                  ? {
-                      kind: "session-revocation-outcome-unknown",
-                      workspaceId: null,
-                      targetPrincipalId,
-                      provisionalPrincipalId: null,
-                      ceremonyId: null,
-                    }
-                  : undefined,
+              persistTerminalOutcome(
+                () =>
+                  terminatePendingCommand(
+                    db,
+                    scope,
+                    command,
+                    revocationStarted ? "reconciliation_required" : "compensated",
+                    revocationStarted ? "DEPENDENCY_UNAVAILABLE" : code,
+                    revocationStarted
+                      ? {
+                          kind: "session-revocation-outcome-unknown",
+                          workspaceId: null,
+                          targetPrincipalId,
+                          provisionalPrincipalId: null,
+                          ceremonyId: null,
+                        }
+                      : undefined,
+                  ),
+                {
+                  action: revocationStarted ? "flow.reconciliation_required" : "identity.sessions_revoked",
+                  outcome: "failed",
+                  actorPrincipalId: actor.principalId,
+                  targetPrincipalId,
+                  command,
+                  changedFields: revocationStarted ? ["sessions", "commandLedger"] : ["commandLedger"],
+                },
               ),
             );
-          }
-          if (!auditRecorded) {
-            audit({
-              action: revocationStarted ? "flow.reconciliation_required" : "identity.sessions_revoked",
-              outcome: "failed",
-              actorPrincipalId: actor.principalId,
-              targetPrincipalId,
-              command,
-              changedFields: revocationStarted ? ["sessions", "commandLedger"] : ["commandLedger"],
-            });
           }
           throw error;
         }

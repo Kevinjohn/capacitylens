@@ -82,8 +82,16 @@ describe("POST /api/orgs (P1.8) — auth-on", () => {
     const rows = db.prepare("SELECT id FROM capacitylens_audit_outbox ORDER BY sequence").all() as Array<{
       id: string;
     }>;
-    expect(rows).toHaveLength(2);
-    expect(new Set(rows.map((row) => row.id)).size).toBe(2);
+    // Each creation retains both its normalized account outcome (stable command-derived id) and
+    // its product mutation record (independent delivery id) while the sink is unavailable.
+    expect(rows).toHaveLength(4);
+    expect(new Set(rows.map((row) => row.id)).size).toBe(4);
+    expect(rows.map((row) => row.id)).toEqual(
+      expect.arrayContaining([
+        "org-audit-command-000000:workspace.provisioned:success",
+        "org-audit-command-000001:workspace.provisioned:success",
+      ]),
+    );
   });
 
   it("replays a server-id/default-timestamp create with the same command after the cap is full", async () => {
