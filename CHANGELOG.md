@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Used proper singular and plural nouns in archive-impact confirmations, and rejected invalid
+  retry-delay metadata at the shared account boundary.
 - Pinned all account feature-selector defaults and exercised malformed offline payload validators
   through valid authenticated-encryption envelopes.
 - Closed every SQLite handle in tenant-store and restore-drill tests, and added real-adapter

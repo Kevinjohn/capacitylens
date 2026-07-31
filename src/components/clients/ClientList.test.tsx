@@ -61,7 +61,7 @@ describe("ClientList archive flow", () => {
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toHaveTextContent(/Archive client\?/i);
     expect(dialog).toHaveTextContent(
-      "This also hides 1 project(s), 1 phase(s), and 0 allocation(s) from the schedule; restore the client to bring them back.",
+      "This also hides 1 project, 1 phase, and 0 allocations from the schedule; restore the client to bring them back.",
     );
 
     // Cancel keeps it active.

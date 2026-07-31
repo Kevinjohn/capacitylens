@@ -51,5 +51,6 @@ describe("standing documentation contracts", () => {
     expect(brand).toBeTruthy();
     const messages = Object.values(JSON.parse(read("messages/en.json")) as Record<string, string>);
     expect(messages.filter((message) => message.includes(brand!))).toEqual([]);
+    expect(messages.filter((message) => message.includes("(s)"))).toEqual([]);
   });
 });

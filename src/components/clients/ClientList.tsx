@@ -11,6 +11,7 @@ import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import { Fragment } from "react";
 import { Briefcase, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { clientArchiveImpactCopy } from "../../lib/archiveImpactCopy";
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
  *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
@@ -19,10 +20,9 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/
 function clientArchiveMessage(data: AppData, client: Client): string {
   const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name;
   const base = m.list_clients_archive_message({ name });
-  const { projects, phases, allocations } = archiveImpact(data, "clients", client.id);
-  return projects + phases + allocations > 0
-    ? `${base} ${m.list_clients_archive_cascade({ projects, phases, allocations })}`
-    : base;
+  const impact = archiveImpact(data, "clients", client.id);
+  const { projects, phases, allocations } = impact;
+  return projects + phases + allocations > 0 ? `${base} ${clientArchiveImpactCopy(impact)}` : base;
 }
 
 export function ClientList() {

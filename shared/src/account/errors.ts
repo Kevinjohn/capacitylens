@@ -29,13 +29,26 @@ interface AccountFailureBase {
   commandId?: CommandId;
 }
 
+declare const retryAfterSecondsBrand: unique symbol;
+
+/** A finite, non-negative retry delay. Fractional seconds are retained for sub-second callers;
+ * transport adapters may round them up when emitting whole-second Retry-After headers. */
+export type RetryAfterSeconds = number & { readonly [retryAfterSecondsBrand]: true };
+
+export function retryAfterSeconds(value: number): RetryAfterSeconds {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new RangeError("retryAfterSeconds must be a finite, non-negative number.");
+  }
+  return value as RetryAfterSeconds;
+}
+
 /** A normalized boundary failure. A retry delay is meaningful only when retrying is permitted;
  * the union makes the contradictory `retryable: false` plus delay shape unrepresentable. Codes do
  * not imply retryability by themselves: dependency and reconciliation failures can be terminal or
  * transient according to how far their underlying operation progressed. */
 export type AccountFailure =
   | (AccountFailureBase & { retryable: false; retryAfterSeconds?: never })
-  | (AccountFailureBase & { retryable: true; retryAfterSeconds?: number });
+  | (AccountFailureBase & { retryable: true; retryAfterSeconds?: RetryAfterSeconds });
 
 /** Normalized boundary error. Vendor/SQL errors remain internal causes, never public shapes. */
 export class AccountContractError extends Error {
@@ -44,7 +57,10 @@ export class AccountContractError extends Error {
   constructor(failure: AccountFailure, options: ErrorOptions = {}) {
     super(failure.message, options);
     this.name = "AccountContractError";
-    this.failure = failure;
+    this.failure =
+      failure.retryable && failure.retryAfterSeconds !== undefined
+        ? { ...failure, retryAfterSeconds: retryAfterSeconds(failure.retryAfterSeconds) }
+        : failure;
   }
 }
 

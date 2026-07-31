@@ -91,7 +91,7 @@ describe("ProjectList", () => {
     expect(dialog).toHaveTextContent(/Archive "Doomed Project"/);
     expect(dialog).toHaveTextContent(/Archived & deleted/);
     expect(dialog).toHaveTextContent(
-      "This also hides 1 phase(s) and 0 allocation(s) from the schedule; restore the project to bring them back.",
+      "This also hides 1 phase and 0 allocations from the schedule; restore the project to bring them back.",
     );
   });
 

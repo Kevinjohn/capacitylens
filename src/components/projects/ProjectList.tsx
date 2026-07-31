@@ -13,14 +13,15 @@ import { internalColourModeFor } from "../../store/selectors";
 import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { projectArchiveImpactCopy } from "../../lib/archiveImpactCopy";
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. */
 function projectArchiveMessage(data: AppData, project: Project): string {
   const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name;
   const base = m.list_projects_archive_message({ name });
-  const { phases, allocations } = archiveImpact(data, "projects", project.id);
-  return phases + allocations > 0 ? `${base} ${m.list_projects_archive_cascade({ phases, allocations })}` : base;
+  const impact = archiveImpact(data, "projects", project.id);
+  return impact.phases + impact.allocations > 0 ? `${base} ${projectArchiveImpactCopy(impact)}` : base;
 }
 
 export function ProjectList() {

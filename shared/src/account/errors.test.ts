@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statusForAccountFailure, type AccountErrorCode } from "./errors";
+import { AccountContractError, retryAfterSeconds, statusForAccountFailure, type AccountErrorCode } from "./errors";
 
 describe("account failure status mapping", () => {
   const expected = {
@@ -27,5 +27,27 @@ describe("account failure status mapping", () => {
   } satisfies Record<AccountErrorCode, number>;
   it.each(Object.entries(expected) as Array<[AccountErrorCode, number]>)("%s maps to %s", (code, status) => {
     expect(statusForAccountFailure({ code, message: code, retryable: false })).toBe(status);
+  });
+});
+
+describe("retry delay boundary", () => {
+  it.each([0, 0.25, 12])("accepts %s seconds", (value) => {
+    expect(retryAfterSeconds(value)).toBe(value);
+  });
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])("rejects %s", (value) => {
+    expect(() => retryAfterSeconds(value)).toThrow(RangeError);
+  });
+
+  it("revalidates branded values when constructing a contract error", () => {
+    expect(
+      () =>
+        new AccountContractError({
+          code: "RATE_LIMITED",
+          message: "retry",
+          retryable: true,
+          retryAfterSeconds: Number.NaN as ReturnType<typeof retryAfterSeconds>,
+        }),
+    ).toThrow(RangeError);
   });
 });

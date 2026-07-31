@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { AccountContractError, type AccountErrorCode } from "@capacitylens/shared/account/errors";
+import { AccountContractError, retryAfterSeconds, type AccountErrorCode } from "@capacitylens/shared/account/errors";
 import {
   canAdministerAccount,
   canManageMemberRole,
@@ -116,7 +116,7 @@ function replayCapacityFailure(commandId: string, retryAfterMs: number): Account
     code: "RATE_LIMITED",
     message: "One-time link issuance is temporarily busy. Retry after the indicated interval.",
     retryable: true,
-    retryAfterSeconds: Math.ceil(retryAfterMs / 1_000),
+    retryAfterSeconds: retryAfterSeconds(Math.ceil(retryAfterMs / 1_000)),
     commandId,
   });
 }

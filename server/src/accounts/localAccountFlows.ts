@@ -1,4 +1,4 @@
-import { AccountContractError } from "@capacitylens/shared/account/errors";
+import { AccountContractError, retryAfterSeconds } from "@capacitylens/shared/account/errors";
 import type {
   AccountAuditPort,
   AccountFlows,
@@ -223,7 +223,7 @@ function replayCapacityExceeded(commandId: string, retryAfterMs: number): Accoun
     code: "RATE_LIMITED",
     message: "One-time link issuance is temporarily busy. Retry after the indicated interval.",
     retryable: true,
-    retryAfterSeconds: Math.ceil(retryAfterMs / 1_000),
+    retryAfterSeconds: retryAfterSeconds(Math.ceil(retryAfterMs / 1_000)),
     commandId,
   });
 }

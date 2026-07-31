@@ -123,7 +123,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
     expect(useStore.getState().data.resources[0].disciplineId).toBe("d1");
   });
 
-  it("restores a placeholder projectId after project purge with a resource PUT", () => {
+  it("keeps a placeholder projectId removed after project purge and emits no undo sync", () => {
     useStore.getState().replaceAll(
       makeAppData({
         clients: [{ ...meta, id: "c1", name: "Client", color: "#111111" }],
@@ -163,7 +163,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
     expect(useStore.getState().data.resources[0].projectId).toBeUndefined();
   });
 
-  it("restores a placeholder projectId after client purge with a resource PUT", () => {
+  it("keeps a placeholder projectId removed after client purge and emits no undo sync", () => {
     useStore.getState().replaceAll(
       makeAppData({
         clients: [
