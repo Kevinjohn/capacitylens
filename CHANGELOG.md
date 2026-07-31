@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Made packaged internal-TLS renewal a coordinated, generation-verified operation so nginx and the
+  API cannot continue with different certificate generations after rotation.
 - Required the development bootstrap owner password to be operator-managed before startup, avoiding
   irretrievable post-commit credentials, and cancelled rejected OIDC response bodies explicitly.
 - Gave every repeated list-row edit/delete control a target-specific accessible name, prevented

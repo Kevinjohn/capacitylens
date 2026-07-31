@@ -39,10 +39,12 @@ docker compose run --rm --entrypoint openssl internal-tls x509 \
   -in /tls/api.crt -noout -issuer -subject -checkend 2592000
 ```
 
-Use a coordinated `docker compose up --build --force-recreate -d` for releases and certificate
-renewal. Never expose port 8787, add a plaintext proxy fallback, or copy the CA private key out of
-its root-only volume. A failed initializer or certificate verification is an availability alert;
-do not bypass it to restore traffic.
+Use `./scripts/renew-internal-tls.sh` for certificate renewal. It stops both consumers, publishes a
+new generation, force-recreates both services, waits for health and verifies through nginx that the
+live API certificate fingerprint equals the published marker. The initializer refuses to replace
+existing material outside that coordinated workflow. Never expose port 8787, add a plaintext proxy
+fallback, or copy the CA private key out of its root-only volume. A failed initializer or generation
+verification is an availability alert; do not bypass it to restore traffic.
 
 The process emits typed `capacitylens.security` JSON events for authentication outcomes, CSRF and
 authorization rejection, MFA gates, rate limiting, session revocation and server errors. Alert on

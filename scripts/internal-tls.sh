@@ -3,7 +3,8 @@ set -eu
 
 # Generate a private, per-install CA and an API server certificate for the Docker-internal
 # nginx -> Fastify hop. Nothing is baked into an image: the CA and leaf are created on the
-# deployment's named volume, reused while valid, and rotated before expiry on a later `compose up`.
+# deployment's named volume and reused while valid. Existing material is rotated only by the
+# coordinated host-side renewal command, which reloads and verifies both live consumers.
 TLS_DIR=${CAPACITYLENS_INTERNAL_TLS_DIR:-/tls}
 RENEW_BEFORE_SECONDS=${CAPACITYLENS_INTERNAL_TLS_RENEW_BEFORE_SECONDS:-2592000}
 CA_RENEW_BEFORE_SECONDS=${CAPACITYLENS_INTERNAL_CA_RENEW_BEFORE_SECONDS:-15552000}
@@ -11,7 +12,14 @@ CA_CERT="$TLS_DIR/ca.crt"
 CA_KEY="$TLS_DIR/ca.key"
 API_CERT="$TLS_DIR/api.crt"
 API_KEY="$TLS_DIR/api.key"
+GENERATION="$TLS_DIR/api.crt.sha256"
 API_UID=${CAPACITYLENS_INTERNAL_TLS_API_UID:-1000}
+ROTATE=${CAPACITYLENS_INTERNAL_TLS_ROTATE:-0}
+
+if test "$ROTATE" != 0 && test "$ROTATE" != 1; then
+  echo "capacitylens-internal-tls: CAPACITYLENS_INTERNAL_TLS_ROTATE must be 0 or 1" >&2
+  exit 1
+fi
 
 umask 077
 mkdir -p "$TLS_DIR"
@@ -59,10 +67,30 @@ repair_certificate_permissions() {
   chown "$API_UID:$API_UID" "$API_KEY" "$API_CERT"
 }
 
+publish_generation() {
+  generation_value=$(openssl dgst -sha256 "$API_CERT" | sed 's/^.*= //')
+  generation_tmp=$(mktemp "$TLS_DIR/.capacitylens-generation.XXXXXX")
+  printf '%s\n' "$generation_value" > "$generation_tmp"
+  chmod 0444 "$generation_tmp"
+  chown 0:0 "$generation_tmp"
+  mv -f "$generation_tmp" "$GENERATION"
+}
+
 if certificate_set_is_usable; then
   repair_certificate_permissions
+  publish_generation
   echo "capacitylens-internal-tls: existing certificate set is valid"
   exit 0
+fi
+
+# Never replace an identity behind running consumers. Fresh empty volumes initialize normally;
+# renewal or repair of any existing material requires the host-side coordinated workflow.
+if test "$ROTATE" != 1 && {
+  test -e "$CA_CERT" || test -e "$CA_KEY" || test -e "$API_CERT" || test -e "$API_KEY"
+}; then
+  echo "capacitylens-internal-tls: existing certificate material needs coordinated renewal" >&2
+  echo "capacitylens-internal-tls: run ./scripts/renew-internal-tls.sh from the host" >&2
+  exit 1
 fi
 
 # Stage on the certificate volume itself. Publication is then a same-filesystem rename even when
@@ -117,5 +145,6 @@ mv -f "$WORK_DIR/api.crt" "$API_CERT"
 # as uid 101, so it can read the public CA certificate and cannot read either private key. Apply
 # ownership after publishing from a private staging directory on the same certificate volume.
 repair_certificate_permissions
+publish_generation
 
-echo "capacitylens-internal-tls: generated a new certificate set"
+echo "capacitylens-internal-tls: published a new certificate generation"

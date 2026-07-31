@@ -66,6 +66,7 @@ process.umask(0o077);
 //   CAPACITYLENS_INTERNAL_TLS_KEY         Matching PEM private key. Omit both for HTTP on a trusted
 //                                   same-host loopback hop; a partial/unreadable identity refuses
 //                                   startup. Compose creates a per-install identity automatically.
+//   CAPACITYLENS_INTERNAL_TLS_GENERATION  Optional SHA-256 marker for the exact loaded certificate.
 //   CAPACITYLENS_LOG                      '1' for structured per-request JSON logs (pino) and
 //                                   500-errors through the request logger. Default off =
 //                                   today's logging (startup line + console.error on 500s).
@@ -406,6 +407,7 @@ const { app, backups } = (() => {
           }
         : undefined,
       internalTlsExpiresAt: internalTls?.expiresAt,
+      internalTlsFingerprintSha256: internalTls?.fingerprintSha256,
       allowReset,
       corsOrigin,
       optimisticConcurrency,

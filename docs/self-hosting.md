@@ -43,12 +43,13 @@ Compose also creates a private, per-install P-256 CA and API leaf certificate on
 `capacitylens-internal-tls` volume before either long-running service starts. Nginx verifies the
 `api` service name and CA over TLS 1.2/1.3; the API listener has no plaintext fallback. The CA key
 is root-only, the API can read only its own leaf key, and nginx can read only public certificates.
-The initializer reuses a valid set and renews the leaf within 30 days of expiry on a coordinated
-Compose recreation. Renewal stages files privately on the certificate volume and publishes them by
-same-filesystem rename; a still-valid CA is not rewritten during leaf-only renewal. Deep
-`/api/health` reports the cached leaf expiry and changes its
+The initializer reuses a valid set. Run `./scripts/renew-internal-tls.sh` within 30 days of leaf
+expiry; it stops both TLS consumers before publication, force-recreates them and verifies their live
+generation through nginx before reporting success. Renewal stages files privately on the certificate
+volume and publishes them by same-filesystem rename; a still-valid CA is not rewritten during
+leaf-only renewal. Deep `/api/health` reports the cached leaf expiry and live certificate fingerprint, and changes its
 `internalTls.status` from `ok` to `expiring` during that same 30-day window; alert on that field and
-perform the coordinated recreation before expiry.
+perform the coordinated renewal before expiry.
 
 The Compose project name is pinned to `capacitylens`, so the physical database, backup and
 internal-TLS volume names do not change when the checkout directory is renamed. Do not introduce a

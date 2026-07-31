@@ -87,6 +87,7 @@ services:
       CAPACITYLENS_HTTPS: ${CAPACITYLENS_HTTPS:-}
       CAPACITYLENS_INTERNAL_TLS_CERT: /run/capacitylens-internal-tls/api.crt
       CAPACITYLENS_INTERNAL_TLS_KEY: /run/capacitylens-internal-tls/api.key
+      CAPACITYLENS_INTERNAL_TLS_GENERATION: /run/capacitylens-internal-tls/api.crt.sha256
       # Used only by the container healthcheck's single verified loopback request. It is not added
       # to Node's global outbound trust store.
       CAPACITYLENS_INTERNAL_TLS_CA: /run/capacitylens-internal-tls/ca.crt

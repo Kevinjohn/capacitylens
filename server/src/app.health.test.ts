@@ -95,6 +95,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     const app = buildApp(openDb(":memory:"), {
       healthDeep: true,
       internalTlsExpiresAt: expiresAt,
+      internalTlsFingerprintSha256: "a".repeat(64),
     });
     const res = await app.inject({ method: "GET", url: "/api/health" });
 
@@ -104,7 +105,12 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
       db: true,
       audit: "ok",
       auditPending: 0,
-      internalTls: { status: "expiring", expiresAt, daysRemaining: 29 },
+      internalTls: {
+        status: "expiring",
+        expiresAt,
+        daysRemaining: 29,
+        fingerprintSha256: "a".repeat(64),
+      },
     });
   });
 

@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
-import { X509Certificate } from "node:crypto";
+import { createHash, X509Certificate } from "node:crypto";
 import type { ServerOptions as HttpsServerOptions } from "node:https";
 import { createSecureContext } from "node:tls";
 
 export type InternalTlsOptions = Pick<HttpsServerOptions, "key" | "cert" | "minVersion"> & {
   expiresAt: string;
+  fingerprintSha256: string;
 };
 
 export const INTERNAL_TLS_RENEW_BEFORE_SECONDS = 30 * 24 * 60 * 60;
@@ -13,6 +14,7 @@ export interface InternalTlsHealth {
   status: "ok" | "expiring" | "expired";
   expiresAt: string;
   daysRemaining: number;
+  fingerprintSha256?: string;
 }
 
 export class InternalTlsConfigError extends Error {
@@ -25,6 +27,7 @@ export class InternalTlsConfigError extends Error {
 type InternalTlsEnv = {
   CAPACITYLENS_INTERNAL_TLS_CERT?: string;
   CAPACITYLENS_INTERNAL_TLS_KEY?: string;
+  CAPACITYLENS_INTERNAL_TLS_GENERATION?: string;
 };
 
 const certificateExpiresAt = (certificate: Buffer): string => {
@@ -34,13 +37,14 @@ const certificateExpiresAt = (certificate: Buffer): string => {
 };
 
 /** Constant-work health projection over the certificate metadata parsed once at startup. */
-export function internalTlsHealth(expiresAt: string, now = Date.now()): InternalTlsHealth {
+export function internalTlsHealth(expiresAt: string, now = Date.now(), fingerprintSha256?: string): InternalTlsHealth {
   const parsedExpiry = Date.parse(expiresAt);
   const remainingMs = Number.isFinite(parsedExpiry) ? parsedExpiry - now : 0;
   return {
     status: remainingMs <= 0 ? "expired" : remainingMs <= INTERNAL_TLS_RENEW_BEFORE_SECONDS * 1_000 ? "expiring" : "ok",
     expiresAt,
     daysRemaining: Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1_000))),
+    ...(fingerprintSha256 ? { fingerprintSha256 } : {}),
   };
 }
 
@@ -60,10 +64,12 @@ export function loadInternalTls(
 ): InternalTlsOptions | undefined {
   const rawCertPath = env.CAPACITYLENS_INTERNAL_TLS_CERT;
   const rawKeyPath = env.CAPACITYLENS_INTERNAL_TLS_KEY;
+  const rawGenerationPath = env.CAPACITYLENS_INTERNAL_TLS_GENERATION;
   const certPath = rawCertPath?.trim();
   const keyPath = rawKeyPath?.trim();
+  const generationPath = rawGenerationPath?.trim();
 
-  if (rawCertPath === undefined && rawKeyPath === undefined) return undefined;
+  if (rawCertPath === undefined && rawKeyPath === undefined && rawGenerationPath === undefined) return undefined;
   if (!certPath || !keyPath) {
     throw new InternalTlsConfigError(
       "CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY must be configured together.",
@@ -101,5 +107,30 @@ export function loadInternalTls(
     throw new InternalTlsConfigError("The configured internal TLS certificate expiry is invalid.");
   }
 
-  return { cert, key, minVersion: "TLSv1.2", expiresAt: new Date(expiresAt).toISOString() };
+  const fingerprintSha256 = createHash("sha256").update(cert).digest("hex");
+  if (rawGenerationPath !== undefined) {
+    if (!generationPath) {
+      throw new InternalTlsConfigError("CAPACITYLENS_INTERNAL_TLS_GENERATION must not be blank when configured.");
+    }
+    let publishedGeneration: string;
+    try {
+      publishedGeneration = read(generationPath).toString("utf8").trim();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new InternalTlsConfigError(`Unable to read the configured internal TLS generation: ${detail}`);
+    }
+    if (!/^[a-f0-9]{64}$/.test(publishedGeneration) || publishedGeneration !== fingerprintSha256) {
+      throw new InternalTlsConfigError(
+        "The configured internal TLS certificate does not match its published generation.",
+      );
+    }
+  }
+
+  return {
+    cert,
+    key,
+    minVersion: "TLSv1.2",
+    expiresAt: new Date(expiresAt).toISOString(),
+    fingerprintSha256,
+  };
 }

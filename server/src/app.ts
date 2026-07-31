@@ -194,6 +194,8 @@ export interface AppOptions {
   /** Parsed once from the configured internal certificate; deep health projects its remaining
    * validity without rereading tenant data or certificate files on every public probe. */
   internalTlsExpiresAt?: string;
+  /** SHA-256 of the exact certificate bytes loaded into the live HTTPS context. */
+  internalTlsFingerprintSha256?: string;
   /** Gate POST /api/test/reset — only enabled for auth-off tests / explicit local dev opt-in. */
   allowReset?: boolean;
   /** CAPACITYLENS_LOG=1 — structured per-request logging (Fastify's bundled pino, JSON on
@@ -1577,7 +1579,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                 },
               }
             : {}),
-          ...(opts.internalTlsExpiresAt ? { internalTls: internalTlsHealth(opts.internalTlsExpiresAt) } : {}),
+          ...(opts.internalTlsExpiresAt
+            ? {
+                internalTls: internalTlsHealth(
+                  opts.internalTlsExpiresAt,
+                  Date.now(),
+                  opts.internalTlsFingerprintSha256,
+                ),
+              }
+            : {}),
         };
       } catch {
         // INTENTIONAL empty catch: the 503 IS the surfacing. A broken DB must make the uptime
