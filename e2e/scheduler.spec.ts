@@ -141,17 +141,23 @@ test.describe("Scheduler", () => {
     const grid = page.getByTestId("scheduler-grid");
     await expect(grid).toBeVisible();
 
-    // Scroll far to the right, then add a deterministic 2.5-weekday-column nudge so the left edge
-    // lands MID-WEEK (a fixed 5000px can coincidentally align to a Monday, depending on column
-    // width). The mid-week precondition is what proves Today actively re-anchors to the week start,
-    // rather than the view having merely stayed put on a Monday.
+    // Scroll far to the right, then keep nudging by half a weekday column until the left edge sits
+    // MID-WEEK (a fixed pixel offset can coincidentally align to a Monday — minimised weekend
+    // columns make the week pitch non-uniform, so no single offset is safe on every start date).
+    // The mid-week precondition is what proves Today actively re-anchors to the week start, rather
+    // than the view having merely stayed put on a Monday.
     const { weekdayWidth } = await probe(page);
-    await grid.evaluate(
-      (el, dx) => {
-        (el as HTMLElement).scrollLeft = 5000 + dx;
-      },
-      Math.round(weekdayWidth * 2.5),
-    );
+    await grid.evaluate((el) => {
+      (el as HTMLElement).scrollLeft = 5000;
+    });
+    for (let attempt = 0; attempt < 10 && /Mon$/.test((await probe(page)).leftDate); attempt += 1) {
+      await grid.evaluate(
+        (el, dx) => {
+          (el as HTMLElement).scrollLeft += dx;
+        },
+        Math.max(1, Math.round(weekdayWidth / 2)),
+      );
+    }
     const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft);
     expect(scrolled).toBeGreaterThan(800);
     expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
