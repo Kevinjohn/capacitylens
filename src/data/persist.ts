@@ -460,22 +460,6 @@ export function attachPersistence(
     timer = setTimeout(() => save(state.data), debounceMs);
   });
 
-  // Demo/local mode: adopt another tab's whole-tree write only while this tab is clean. The
-  // adapter's compare-and-swap revision independently rejects a racing save; this listener keeps
-  // an idle tab current instead of letting two full snapshots silently overwrite each other.
-  const unsubscribeExternal = adapter.subscribeExternal?.((data) => {
-    if (disposed) return false;
-    if (pending || inFlightSave || failedSinceSuccess || suspendDepth > 0) {
-      onError?.(new Error("Data changed in another tab while this tab had unsaved changes. Reload to reconcile."));
-      return false;
-    }
-    loadingSlice = true;
-    store.getState().replaceAll(data);
-    lastData = store.getState().data;
-    loadingSlice = false;
-    return true;
-  });
-
   // ── Account-switch orchestrator (P1.13) — the §5 correctness core. ───────────────────────────────
   // In SERVER mode only: when the active account changes to a NON-NULL id, hydrate THAT account's
   // slice and re-seed the adapter's diff snapshot to it ATOMICALLY, so a save can never diff one
@@ -969,7 +953,6 @@ export function attachPersistence(
     disposed = true;
     setPersistenceSuspended(false);
     unsubscribe();
-    unsubscribeExternal?.();
     unsubscribeSwitch?.();
     unregisterCoordinator();
     if (canListen) {

@@ -10,9 +10,6 @@ export interface PersistenceAdapter {
    *  adapter must then DISPATCH every write up-front (a sequential await-loop would only
    *  get the first request out before the event loop dies). Synchronous adapters ignore it. */
   saveAll(data: AppData, opts?: { unload?: boolean }): Promise<void>;
-  /** Subscribe to a whole-dataset change made by another local tab. Return true to accept the
-   *  adapter's new revision, false when local unsaved work makes replacement unsafe. */
-  subscribeExternal?(listener: (data: AppData) => boolean): () => void;
   /** True when a dataset was ever persisted — lets bootstrap distinguish a
    *  genuine first run from a user who deliberately cleared everything.
    *
