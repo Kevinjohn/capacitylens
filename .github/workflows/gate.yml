@@ -73,18 +73,8 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
-          if [ "$PR_AUTHOR" = 'dependabot[bot]' ]; then
-            echo 'Dependabot commits are exempt from DCO sign-off.'
-            exit 0
-          fi
-          failed=0
-          for commit in $(git rev-list "$BASE_SHA..$HEAD_SHA"); do
-            if ! git show -s --format=%B "$commit" | grep -Eiq '^Signed-off-by: .+ <[^>]+>$'; then
-              echo "::error::Commit $commit has no valid Signed-off-by trailer"
-              failed=1
-            fi
-          done
-          exit "$failed"
+          node --test scripts/check-dco.test.mjs
+          node scripts/check-dco.mjs "$BASE_SHA" "$HEAD_SHA" "$PR_AUTHOR"
 
   application:
     name: Application typecheck · lint · unit · build

@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Bound DCO sign-off checks to each commit's author or committer identity instead of accepting an
+  unrelated but syntactically valid trailer.
 - Rejected generic OIDC aliases that reuse built-in identity or authentication-plugin namespaces,
   preventing native-provider metadata and issuer bindings from being silently overwritten.
 - Expired sessions at the exact inactivity deadline instead of refreshing them, and pinned the

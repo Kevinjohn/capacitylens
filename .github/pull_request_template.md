@@ -18,4 +18,4 @@ account-conformance, migration-rehearsal, cross-browser and strict-OIDC jobs on 
 - [ ] No new dependencies without discussion
 - [ ] Added a changelog entry for user-visible behavior
 - [ ] Considered security, privacy, accessibility and migration impact
-- [ ] Every commit has a `Signed-off-by` trailer (`git commit -s`)
+- [ ] Every commit has my author/committer `Signed-off-by` trailer (`git commit -s`)

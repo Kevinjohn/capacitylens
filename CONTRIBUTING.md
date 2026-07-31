@@ -100,11 +100,14 @@ partial or malicious.
 - Add an entry under `CHANGELOG.md` → `Unreleased` for user-visible changes.
 
 Every commit must include a [Developer Certificate of Origin](https://developercertificate.org/)
-sign-off:
+sign-off whose email matches the commit author or committer (after `.mailmap` normalization):
 
 ```bash
 git commit -s -m "Describe the change"
 ```
+
+Delegated or unrelated sign-offs are not accepted. Pull requests opened by Dependabot are exempt;
+other automated contributors must use an attributable author or committer sign-off.
 
 By contributing, you agree that your contribution is licensed under AGPL-3.0-only. The project
 does not currently require a copyright assignment or CLA.
