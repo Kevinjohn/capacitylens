@@ -550,12 +550,14 @@ describe("strictOidcUserInfo", () => {
     await expect(client.metadata()).rejects.toThrow("size limit");
   });
 
-  it("rejects oversized provider JSON before parsing it", async () => {
+  it("cancels declared-oversized provider JSON before rejecting it", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel });
     vi.stubGlobal(
       "fetch",
       vi.fn(
         async () =>
-          new Response("{}", {
+          new Response(body, {
             headers: {
               "content-type": "application/json",
               "content-length": String(1024 * 1024 + 1),
@@ -565,6 +567,23 @@ describe("strictOidcUserInfo", () => {
     );
     const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
     await expect(client.metadata()).rejects.toThrow("size limit");
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("cancels a non-JSON provider body while preserving the media-type error if cancellation fails", async () => {
+    const cancel = vi.fn(() => {
+      throw new Error("cancel failed");
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(new ReadableStream<Uint8Array>({ cancel }), { headers: { "content-type": "text/html" } }),
+      ),
+    );
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
+    await expect(client.metadata()).rejects.toThrow("JSON media type");
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("rejects malformed provider JSON and retries discovery on the next attempt", async () => {

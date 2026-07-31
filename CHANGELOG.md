@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Required the development bootstrap owner password to be operator-managed before startup, avoiding
+  irretrievable post-commit credentials, and cancelled rejected OIDC response bodies explicitly.
 - Gave every repeated list-row edit/delete control a target-specific accessible name, prevented
   stale overlapping session requests from replacing newer results, and clarified backup clamping.
 - Bounded audit-log replay reconstruction to a fixed tail window instead of loading complete log

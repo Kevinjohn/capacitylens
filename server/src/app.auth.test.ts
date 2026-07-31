@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import { buildApp } from "./app";
@@ -1192,11 +1192,15 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
 });
 
 // First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1):
-// createBootstrapAdmin creates admin@admin.admin with a generated password on an EMPTY user
+// createBootstrapAdmin creates admin@admin.admin with an operator-managed password on an EMPTY user
 // table, skips (one line, not an error) when users exist, and refuses outside password mode.
 describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
+  const BOOTSTRAP_PASSWORD = "operator-managed-bootstrap-password";
   const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV };
   delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
+
+  beforeEach(() => vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", BOOTSTRAP_PASSWORD));
+  afterEach(() => vi.unstubAllEnvs());
 
   /** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
   async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
@@ -1206,26 +1210,20 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     return { db, mode, auth };
   }
 
-  it("creates admin@admin.admin on an empty user table and prints the framed credential warning", async () => {
+  it("creates admin@admin.admin and confirms it without copying the operator password into logs", async () => {
     const { db, mode, auth } = await bootstrapFixture();
     const lines: string[] = [];
     expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe("created");
     expect(countUsers(db)).toBe(1);
-    // The warning must name the EXACT credential — an operator who can't see what to change
-    // can't change it.
     const warning = lines.join("\n");
-    expect(warning).toContain("password:");
     expect(warning).toContain(BOOTSTRAP_ADMIN_EMAIL);
-    expect(warning).not.toContain("password: admin");
+    expect(warning).toContain("operator-supplied CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD");
+    expect(warning).not.toContain(BOOTSTRAP_PASSWORD);
   });
 
-  it("signs in with the generated bootstrap password on a later boot without the flag", async () => {
+  it("signs in with the operator-managed bootstrap password on a later boot without the flag", async () => {
     const { db, mode, auth } = await bootstrapFixture();
-    const lines: string[] = [];
-    await createBootstrapAdmin(db, mode, auth, (line) => lines.push(line));
-    const password = /password:\s+([^\s]+)/.exec(lines.join("\n"))?.[1];
-    expect(password).toBeTruthy();
-    expect(password!.length).toBeGreaterThanOrEqual(MIN_PASSWORD_LENGTH);
+    await createBootstrapAdmin(db, mode, auth, () => {});
     // "Restart": a fresh instance on the SAME DB, bootstrap flag absent → floor back at the min.
     const restarted = authFromEnv(db, CLOSED_ENV);
     expect(restarted.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
@@ -1233,10 +1231,40 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     const signIn = await call(app, {
       method: "POST",
       url: "/api/auth/sign-in/email",
-      payload: { email: BOOTSTRAP_ADMIN_EMAIL, password },
+      payload: { email: BOOTSTRAP_ADMIN_EMAIL, password: BOOTSTRAP_PASSWORD },
     });
     expect(signIn.statusCode).toBe(200);
     expect(cookiesOf(signIn)).toContain("capacitylens.session_token");
+  });
+
+  it("keeps a committed bootstrap credential recoverable when confirmation logging fails", async () => {
+    const { db, mode, auth } = await bootstrapFixture();
+    await expect(
+      createBootstrapAdmin(db, mode, auth, () => {
+        throw new Error("simulated logging failure");
+      }),
+    ).rejects.toThrow("simulated logging failure");
+    expect(countUsers(db)).toBe(1);
+    expect(await createBootstrapAdmin(db, mode, auth, () => {})).toBe("skipped");
+
+    const restarted = authFromEnv(db, CLOSED_ENV);
+    const app = buildApp(db, { authMode: restarted.mode, auth: restarted.auth });
+    const signIn = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-in/email",
+      payload: { email: BOOTSTRAP_ADMIN_EMAIL, password: BOOTSTRAP_PASSWORD },
+    });
+    expect(signIn.statusCode).toBe(200);
+  });
+
+  it("refuses to create an irretrievable generated credential when the operator password is absent", async () => {
+    vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", "");
+    const { db, mode, auth } = await bootstrapFixture();
+
+    await expect(createBootstrapAdmin(db, mode, auth, () => {})).rejects.toThrow(
+      /requires CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD/,
+    );
+    expect(countUsers(db)).toBe(0);
   });
 
   it("keeps minPasswordLength at the shared floor ALWAYS — flagged boot or not, empty table or not", async () => {

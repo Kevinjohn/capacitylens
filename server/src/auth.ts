@@ -1068,7 +1068,7 @@ export function authFromEnv(
       // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
       // drift — and a library-default change can't silently move the server's floor. UNCONDITIONAL:
       // no boot, flagged or not, ever lowers this — see the bootstrap comment above for how the
-      // generated bootstrap password comfortably satisfies the same policy.
+      // required operator-supplied bootstrap password must satisfy the same policy.
       minPasswordLength: MIN_PASSWORD_LENGTH,
       // Better Auth counts UTF-16 code units. Give its transport guard enough room for 128 astral
       // code points; the hook and hash boundary enforce CapacityLens's shared code-point ceiling.
@@ -1405,9 +1405,10 @@ export async function planAuthSchemaMigrations(auth: Auth): Promise<AuthSchemaMi
 // The headless escape hatch for a first login: a fresh password-mode instance normally bootstraps
 // through the login screen's "Create the owner account" form (the browser path), but a scripted /
 // container deploy may want a credential ready at boot. The flag creates admin@admin.admin with a
-// fresh high-entropy password ONLY on an EMPTY user table and prints it once at startup.
+// operator-supplied password ONLY on an EMPTY user table. Requiring the caller to retain the
+// credential outside this process avoids an irrecoverable secret if startup output fails.
 
-/** Stable identity for the optional bootstrap owner. Its password is random per creation. */
+/** Stable identity for the optional bootstrap owner. Its password is supplied by the operator. */
 export const BOOTSTRAP_ADMIN_NAME = "admin";
 export const BOOTSTRAP_ADMIN_EMAIL = "admin@admin.admin";
 
@@ -1420,7 +1421,7 @@ export const BOOTSTRAP_ADMIN_EMAIL = "admin@admin.admin";
  * Outcomes, deliberately tiered:
  * - **Empty user table → 'created'.** The account is created through {@link Auth.createCredentialUser},
  *   not the public sign-up route/auth.api.signUpEmail, and a loud framed warning naming the exact
- *   credential is printed once so the operator can sign in.
+ *   identity is printed without repeating the operator-managed password.
  * - **Users already exist → 'skipped'.** One log line, boot continues normally — the flag is
  *   idempotent by design so a deploy script can leave it set across restarts without erroring.
  * - **Auth off / sso → throws {@link AuthConfigError}.** The flag creates an email+password
@@ -1451,15 +1452,19 @@ export async function createBootstrapAdmin(
     log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
     return "skipped";
   }
-  // Bypass the public sign-up route for this bootstrap write. The generated password exceeds the
-  // normal password floor. createCredentialUser commits the user and credential link in one SQLite
-  // transaction, so a partial write cannot leave a credential-less user that strands bootstrap.
-  // Default to a fresh high-entropy secret (the secure norm — no fixed password baked into the
-  // product). An explicit CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD overrides it for a scripted / e2e
-  // deploy that must know the credential up front rather than scrape the one-time banner; an empty
-  // value reads as unset. createCredentialUser still uses the same length, breach, context-word,
-  // and hashing policy as every other credential path.
-  const bootstrapPassword = process.env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD || randomBytes(24).toString("base64url");
+  // Bypass the public sign-up route for this bootstrap write. createCredentialUser commits the user
+  // and credential link in one SQLite transaction, so a partial write cannot leave a
+  // credential-less user that strands bootstrap.
+  // The password must be retained by the invoking operator or secret manager before this process
+  // starts. Generating it here would create an unrecoverable post-commit window if stdout or the
+  // process failed before disclosure. createCredentialUser still applies the ordinary length,
+  // breach, context-word and hashing policy.
+  const bootstrapPassword = process.env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD;
+  if (!bootstrapPassword) {
+    throw new AuthConfigError(
+      "--create-owner-admin-admin requires CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD so the initial credential remains recoverable if startup output fails.",
+    );
+  }
   if (passwordLengthFailure(bootstrapPassword)) {
     throw new AuthConfigError(
       `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must be ${MIN_PASSWORD_LENGTH}..${MAX_PASSWORD_LENGTH} characters.`,
@@ -1494,13 +1499,12 @@ export async function createBootstrapAdmin(
   } finally {
     db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
   }
-  // Print the one-time credential prominently. The frame is measured
-  // from the content (not hand-padded) so a future wording tweak can't skew the box.
+  // Confirm creation without copying the operator-managed password into process logs. The frame is
+  // measured from the content (not hand-padded) so a future wording tweak can't skew the box.
   const content = [
     "A bootstrap owner credential was just created:",
     `    email:    ${BOOTSTRAP_ADMIN_EMAIL}`,
-    `    password: ${bootstrapPassword}`,
-    "Store this generated password securely, sign in, and change it via",
+    "Use the operator-supplied CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD, sign in, and change it via",
     "Team & access → Reset password. Then remove",
     "the --create-owner-admin-admin flag / CAPACITYLENS_CREATE_ADMIN_ADMIN env.",
   ];

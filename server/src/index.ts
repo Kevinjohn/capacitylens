@@ -119,7 +119,8 @@ process.umask(0o077);
 //                                   without it unless open signup/bootstrap-admin was explicit.
 //   CAPACITYLENS_CREATE_ADMIN_ADMIN       development-only first-owner helper (also available as
 //                                   --create-owner-admin-admin). It creates admin@admin.admin with
-//                                   a generated password only when the password user table is empty.
+//                                   the required CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD only when the
+//                                   password user table is empty.
 //                                   Production refuses this path; use the account setup token.
 //   SMALLSASS_ACCOUNT_OIDC_*              strict OIDC: CLIENT_ID + CLIENT_SECRET + exact ISSUER +
 //                                   DISCOVERY_URL (optional PROVIDER_ID, LABEL and SCOPES).

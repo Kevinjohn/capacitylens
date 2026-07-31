@@ -95,14 +95,22 @@ async function json(url: string, init: RequestInit = {}): Promise<unknown> {
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) throw new Error(`OIDC endpoint returned HTTP ${response.status}.`);
+  const rejectBeforeRead = async (message: string): Promise<never> => {
+    try {
+      await response.body?.cancel();
+    } catch {
+      // Cleanup must not replace the bounded, operator-facing protocol error.
+    }
+    throw new Error(message);
+  };
+  if (!response.ok) return rejectBeforeRead(`OIDC endpoint returned HTTP ${response.status}.`);
   const mediaType = response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
   if (mediaType !== "application/json" && !mediaType?.endsWith("+json")) {
-    throw new Error("OIDC endpoint did not return a JSON media type.");
+    return rejectBeforeRead("OIDC endpoint did not return a JSON media type.");
   }
   const declaredLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_OIDC_JSON_BYTES) {
-    throw new Error("OIDC endpoint response exceeds the accepted size limit.");
+    return rejectBeforeRead("OIDC endpoint response exceeds the accepted size limit.");
   }
   if (!response.body) throw new Error("OIDC endpoint returned an empty response.");
   const reader = response.body.getReader();
