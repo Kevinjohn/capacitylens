@@ -353,6 +353,25 @@ describe("Modal", () => {
     expect(group).not.toHaveClass("data-[spacing=default]:data-[variant=outline]:shadow-xs");
   });
 
+  it("round-trips numeric and string values that have the same display text", () => {
+    const onChange = vi.fn();
+    render(
+      <SegmentedControl
+        value={1 as 1 | "1"}
+        onChange={onChange}
+        options={[
+          { value: 1, label: "Number one" },
+          { value: "1", label: "String one" },
+        ]}
+        ariaLabel="Mixed values"
+      />,
+    );
+
+    expect(screen.getByRole("radio", { name: "Number one" })).toHaveAttribute("data-state", "on");
+    fireEvent.click(screen.getByRole("radio", { name: "String one" }));
+    expect(onChange).toHaveBeenCalledWith("1");
+  });
+
   it("does not mark an explicitly-managed colour picker dirty when the selected swatch is re-picked", () => {
     const onClose = vi.fn();
     const blue = "#2d75da";

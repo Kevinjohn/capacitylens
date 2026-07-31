@@ -86,7 +86,9 @@ function effectiveAllocationValues({
   const workingHoursPerDay = resource?.workingHoursPerDay ?? 8;
   const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const spanOpts = { workingDays: resource?.workingDays, ignoreWeekends };
-  const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maxSpanDaysForStart(startDate, spanOpts);
+  const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOpts) : MAX_SPAN_DAYS;
+  const spanLimitedByDateDomain = !!startDate && daysInclusive(startDate, "9999-12-31") < MAX_SPAN_DAYS;
+  const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
   const spanEnd = startDate
     ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOpts)
     : endDate;
@@ -105,6 +107,8 @@ function effectiveAllocationValues({
     external,
     validDaysOver,
     spanFitsDateDomain,
+    maximumDaysOver,
+    spanLimitedByDateDomain,
     ...effective,
   };
 }
@@ -206,6 +210,8 @@ export function AllocationModal(props: AllocationModalProps) {
     external: isExternal,
     validDaysOver,
     spanFitsDateDomain,
+    maximumDaysOver,
+    spanLimitedByDateDomain,
     endDate: effEndDate,
     hoursPerDay: effHoursPerDay,
   } = effectiveValues;
@@ -408,7 +414,12 @@ export function AllocationModal(props: AllocationModalProps) {
         return null;
       }
       if (!spanFitsDateDomain) {
-        fail("daysOver", m.form_allocation_err_days_over_date_domain());
+        fail(
+          "daysOver",
+          spanLimitedByDateDomain
+            ? m.form_allocation_err_days_over_date_domain()
+            : m.form_allocation_err_days_over_range({ max: maximumDaysOver }),
+        );
         return null;
       }
     } else if (isDays) {
@@ -421,7 +432,12 @@ export function AllocationModal(props: AllocationModalProps) {
         return null;
       }
       if (!spanFitsDateDomain) {
-        fail("daysOver", m.form_allocation_err_days_over_date_domain());
+        fail(
+          "daysOver",
+          spanLimitedByDateDomain
+            ? m.form_allocation_err_days_over_date_domain()
+            : m.form_allocation_err_days_over_range({ max: maximumDaysOver }),
+        );
         return null;
       }
       if (!(daysOfWork > 0)) {
@@ -691,7 +707,7 @@ export function AllocationModal(props: AllocationModalProps) {
                 value={daysOver}
                 onChange={setDaysOver}
                 min={1}
-                max={MAX_SPAN_DAYS}
+                max={maximumDaysOver}
                 step={1}
                 invalid={errorField === "daysOver"}
                 describedById={errorId}
@@ -733,7 +749,7 @@ export function AllocationModal(props: AllocationModalProps) {
                 value={daysOver}
                 onChange={setDaysOver}
                 min={1}
-                max={MAX_SPAN_DAYS}
+                max={maximumDaysOver}
                 step={1}
                 invalid={errorField === "daysOver"}
                 describedById={errorId}

@@ -7,7 +7,7 @@
 // validation aren't scattered across the adapter wiring.
 
 export function apiBaseFromEnv(value: string | undefined): string {
-  const raw = (value ?? "").trim().replace(/\/+$/, "");
+  const raw = (value ?? "").trim();
   if (raw === "") return "";
 
   let parsed: URL;
@@ -20,7 +20,7 @@ export function apiBaseFromEnv(value: string | undefined): string {
     (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
     parsed.username !== "" ||
     parsed.password !== "" ||
-    parsed.pathname !== "/" ||
+    !/^\/*$/.test(parsed.pathname) ||
     parsed.search !== "" ||
     parsed.hash !== ""
   ) {

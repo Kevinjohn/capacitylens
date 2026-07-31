@@ -59,6 +59,8 @@ describe("apiConfig", () => {
     "https://user:secret@api.example.com",
     "https://api.example.com/base",
     "https://api.example.com?tenant=one",
+    "https://api.example.com/#/",
+    "https://api.example.com/#///",
     "file:///tmp/capacitylens-api",
   ])("rejects a configured API value that is not an HTTP(S) origin: %s", async (value) => {
     vi.stubEnv("VITE_CAPACITYLENS_API", value);

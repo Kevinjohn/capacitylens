@@ -7,7 +7,9 @@ import {
   blockHoursPerDay,
   BLOCK_LOAD_FRACTION,
   MAX_SPAN_DAYS,
+  maxSpanDaysForStart,
 } from "./schedulingDays";
+import { validateDateRange } from "./integrity";
 import type { Weekday } from "../types/entities";
 
 const MON_FRI: Weekday[] = [1, 2, 3, 4, 5];
@@ -69,6 +71,17 @@ describe("endDateForSpan is the inverse of spanDays", () => {
   it("does not derive a five-digit year near the upper ISO-date boundary", () => {
     expect(endDateForSpan("9999-12-31", MAX_SPAN_DAYS, { ignoreWeekends: true })).toBe("9999-12-31");
     expect(endDateForSpan("9999-12-31", MAX_SPAN_DAYS, { workingDays: [0] })).toBe("9999-12-31");
+  });
+
+  it("keeps a partial working-week span inside the persisted calendar-day ceiling", () => {
+    const start = "2026-06-01";
+    const opts = { workingDays: MON_FRI };
+    const maximumWorkingDays = maxSpanDaysForStart(start, opts);
+    const end = endDateForSpan(start, maximumWorkingDays, opts);
+
+    expect(maximumWorkingDays).toBeLessThan(MAX_SPAN_DAYS);
+    expect(validateDateRange(start, end).ok).toBe(true);
+    expect(endDateForSpan(start, maximumWorkingDays + 1, opts)).toBe(end);
   });
 });
 

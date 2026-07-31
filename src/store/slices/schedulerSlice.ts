@@ -79,10 +79,12 @@ export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<
     selectAllocation: (selectedAllocationId) => set((state) => ({ ui: { ...state.ui, selectedAllocationId } })),
     setFilters: (patch) =>
       set((state) => {
-        const filters: Filters = { ...state.ui.filters, ...patch };
-        if (patch.activityId) filters.activityKind = null;
+        const normalizedPatch = { ...patch };
         // If an invalid patch supplies both lenses, the kind wins consistently with the toolbar.
-        if (patch.activityKind) filters.activityId = null;
+        // Normalize before merging so the two branches cannot clear both requested values.
+        if (patch.activityKind) normalizedPatch.activityId = null;
+        else if (patch.activityId) normalizedPatch.activityKind = null;
+        const filters: Filters = { ...state.ui.filters, ...normalizedPatch };
         // A project is always subordinate to its selected client. Property presence matters here:
         // explicitly clearing the client must clear its stale project even though null is falsy.
         if (patch.clientId !== undefined && patch.projectId === undefined) filters.projectId = null;

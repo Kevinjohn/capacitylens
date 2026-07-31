@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Kept partial-workweek allocations within the persisted calendar limit, normalized combined
+  activity filters, preserved mixed numeric/string segmented values, and rejected API origins with
+  slash-only fragments.
 - Contained exceptional application-binding objects at the shared validation boundary, rejected
   array-shaped branding, and refused Internal-client repair beyond the supported timestamp domain.
 - Built duplicate activity labels once in linear time per source change, and showed conventional

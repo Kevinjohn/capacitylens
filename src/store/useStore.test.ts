@@ -357,6 +357,14 @@ describe("store scheduler UI", () => {
     expect(s().ui.filters.activityKind).toBe("repeatable");
     expect(s().ui.filters.activityId).toBeNull();
   });
+
+  it("gives activity kind precedence when one patch supplies both activity lenses", () => {
+    s().clearFilters();
+    s().setFilters({ activityId: "activity-1", activityKind: "internal" });
+
+    expect(s().ui.filters.activityKind).toBe("internal");
+    expect(s().ui.filters.activityId).toBeNull();
+  });
   it("clears a stale project when the client filter changes", () => {
     s().setFilters({ clientId: "client-1", projectId: "project-1" });
     s().setFilters({ clientId: "client-2" });

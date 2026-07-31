@@ -22,12 +22,14 @@ export interface DaysModeOpts {
 export const MAX_SPAN_DAYS = 36500;
 const MAX_ISO_DATE: ISODate = "9999-12-31";
 
-/** Maximum days-over value that can be derived from this start without leaving YYYY-MM-DD. */
+/** Maximum days-over value that fits both the persisted calendar-span ceiling and YYYY-MM-DD. */
 export function maxSpanDaysForStart(start: ISODate, opts: DaysModeOpts): number {
+  const calendarDaysAvailable = Math.min(MAX_SPAN_DAYS, daysInclusive(start, MAX_ISO_DATE));
   if (isWeekendAware(opts.workingDays, opts.ignoreWeekends)) {
-    return countWorkingDays(start, MAX_ISO_DATE, opts.workingDays!);
+    const lastAllowedDate = addDaysISO(start, calendarDaysAvailable - 1);
+    return countWorkingDays(start, lastAllowedDate, opts.workingDays!);
   }
-  return daysInclusive(start, MAX_ISO_DATE);
+  return calendarDaysAvailable;
 }
 
 /** The "days over" span of [start, end]: working days when weekend-aware, else
@@ -43,9 +45,8 @@ export function spanDays(start: ISODate, end: ISODate, opts: DaysModeOpts): numb
  *  `daysOver` days under the same working-day rule. Interactive callers validate a whole-number
  *  domain value first; the clamp remains a defensive boundary for imported/programmatic input. */
 export function endDateForSpan(start: ISODate, daysOver: number, opts: DaysModeOpts): ISODate {
-  // Clamp first to the product span, then to the days actually available before 9999-12-31. A
-  // partial working week may expand 36,500 work days across far more calendar days, so the second
-  // bound must use the same weekend-awareness as the derivation.
+  // Clamp first to the product span, then to the working days that fit inside the persisted
+  // calendar-span and four-digit-date boundaries.
   const n = Math.min(Math.max(1, Math.round(daysOver) || 1), MAX_SPAN_DAYS);
   const available = maxSpanDaysForStart(start, opts);
   if (available < 1) return MAX_ISO_DATE;

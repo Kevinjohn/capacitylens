@@ -5,6 +5,10 @@ import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 /** One selectable segment: the value it sets and the label shown on its button. */
 export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string };
 
+function encodedValue(value: string | number): string {
+  return `${typeof value === "number" ? "n" : "s"}:${String(value)}`;
+}
+
 /** Single-select option group backed by ShadCN ToggleGroup. */
 export function SegmentedControl<T extends string | number>({
   value,
@@ -40,18 +44,23 @@ export function SegmentedControl<T extends string | number>({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
       className={className}
-      value={String(value)}
+      value={encodedValue(value)}
       disabled={disabled}
       onValueChange={(next) => {
         if (!next) return;
-        const option = options.find((candidate) => String(candidate.value) === next);
+        const option = options.find((candidate) => encodedValue(candidate.value) === next);
         if (!option) return;
         if (value !== option.value) markDirty();
         onChange(option.value);
       }}
     >
       {options.map((opt) => (
-        <ToggleGroupItem key={String(opt.value)} value={String(opt.value)} title={opt.title} data-form-dirty-managed>
+        <ToggleGroupItem
+          key={encodedValue(opt.value)}
+          value={encodedValue(opt.value)}
+          title={opt.title}
+          data-form-dirty-managed
+        >
           {opt.label}
         </ToggleGroupItem>
       ))}
