@@ -83,6 +83,9 @@ export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<
         if (patch.activityId) filters.activityKind = null;
         // If an invalid patch supplies both lenses, the kind wins consistently with the toolbar.
         if (patch.activityKind) filters.activityId = null;
+        // A project is always subordinate to its selected client. Property presence matters here:
+        // explicitly clearing the client must clear its stale project even though null is falsy.
+        if (patch.clientId !== undefined && patch.projectId === undefined) filters.projectId = null;
         const patchesActivityLens = !!(patch.activityId || patch.activityKind);
         const patchesProjectLens = !!(patch.clientId || patch.projectId);
         // A malformed bulk patch spanning both lens families resolves to the activity family. Use
@@ -93,7 +96,6 @@ export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<
         } else if (patchesProjectLens) {
           filters.activityId = null;
           filters.activityKind = null;
-          if (patch.clientId !== undefined && patch.projectId === undefined) filters.projectId = null;
         }
         return { ui: { ...state.ui, filters } };
       }),

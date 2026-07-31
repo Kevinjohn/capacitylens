@@ -862,6 +862,10 @@ export const useStore = create<StoreState>()((set, get, store) => {
               message: m.notice_company_not_found(),
               tone: "error" as const,
             },
+            srAnnouncement: null,
+            dirtyForm: false,
+            dirtyFormSources: new Set<symbol>(),
+            draggingAllocationId: null,
             past: [],
             future: [],
             ui: {
@@ -869,6 +873,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
               filters: emptyFilters(),
               collapsedGroups: [],
               selectedAllocationId: null,
+              scrollToResource: null,
             },
           };
         }

@@ -360,6 +360,12 @@ describe("store scheduler UI", () => {
     expect(s().ui.filters).toMatchObject({ clientId: "client-2", projectId: null });
   });
 
+  it("clears a stale project when the client filter is cleared", () => {
+    s().setFilters({ clientId: "client-1", projectId: "project-1" });
+    s().setFilters({ clientId: null });
+    expect(s().ui.filters).toMatchObject({ clientId: null, projectId: null });
+  });
+
   it("gives the activity lens precedence when one patch spans both lens families", () => {
     s().clearFilters();
     s().setFilters({ activityId: "activity-1", clientId: "client-1" });

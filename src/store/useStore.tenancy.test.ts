@@ -52,13 +52,33 @@ beforeEach(() => {
 describe("active-account replacement invariant", () => {
   it("atomically returns to the picker when a replacement omits the selected account", () => {
     const replacement = makeAppData({ accounts: [makeAccount({ id: B, name: "Company B" })] });
+    s().setDirtyForm(true);
+    s().setDraggingAllocation("allocation-a");
+    s().announceCapacity("Company A capacity changed");
+    useStore.setState((state) => ({
+      ui: {
+        ...state.ui,
+        scrollToResource: { id: "resource-a", token: 1, consumed: false },
+      },
+    }));
+    const fallbackStates: ReturnType<typeof s>[] = [];
+    const unsubscribe = useStore.subscribe((state) => {
+      if (state.activeAccountId === null) fallbackStates.push(state);
+    });
 
     s().replaceAll(replacement);
+    unsubscribe();
 
+    expect(fallbackStates).toHaveLength(1);
     expect(s().data).toBe(replacement);
     expect(s().activeAccountId).toBeNull();
     expect(s().previousAccountId).toBeNull();
     expect(s().notice).toMatchObject({ tone: "error" });
+    expect(s().dirtyForm).toBe(false);
+    expect(s().dirtyFormSources.size).toBe(0);
+    expect(s().draggingAllocationId).toBeNull();
+    expect(s().srAnnouncement).toBeNull();
+    expect(s().ui.scrollToResource).toBeNull();
     expect(() => s().addClient({ name: "Orphan", color: "#111111" })).toThrow(/no active account/i);
     expect(s().data.clients).toEqual([]);
   });
