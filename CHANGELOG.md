@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Failed closed for quoted private names with missing code names, isolated retained account-command
+  retries by authenticated identity, and repaired audit-file permissions before appending.
 - Bound DCO sign-off checks to each commit's author or committer identity instead of accepting an
   unrelated but syntactically valid trailer.
 - Rejected generic OIDC aliases that reuse built-in identity or authentication-plugin namespaces,

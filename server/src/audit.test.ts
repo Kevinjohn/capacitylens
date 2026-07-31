@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "node:fs";
+import { chmodSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
@@ -129,6 +129,31 @@ describe("AuditRecord shape (1)", () => {
     const { app, file } = fileApp();
     expect((await post(app, "accounts", account("a1"))).statusCode).toBe(201);
     expect(statSync(file).mode & 0o777).toBe(0o600);
+  });
+
+  it("repairs an existing audit trail before appending", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-permissions-"));
+    const file = join(dir, "audit.jsonl");
+    const priorFile = `${file}.1`;
+    writeFileSync(file, "", { mode: 0o666 });
+    writeFileSync(priorFile, "", { mode: 0o666 });
+    chmodSync(file, 0o666);
+    chmodSync(priorFile, 0o666);
+    const sink = fileAuditSink(file, vi.fn());
+
+    expect(
+      sink.append({
+        ts: TS,
+        userId: "demo",
+        accountId: "a1",
+        action: "create",
+        entity: "accounts",
+        id: "a1",
+        changedFields: [],
+      }),
+    ).toBe(true);
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    expect(statSync(priorFile).mode & 0o777).toBe(0o600);
   });
 });
 
@@ -389,9 +414,10 @@ describe("failure contract (5)", () => {
     expect(msg).not.toContain("a2");
   });
 
-  it("does not report or retry a durable append when the one-time permission pin fails", () => {
+  it("refuses to append to an existing trail when permission pinning fails", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-chmod-fail-"));
     const file = join(dir, "audit.jsonl");
+    writeFileSync(file, "");
     const log = vi.fn();
     const pinPermissions = vi.fn(() => {
       throw new Error("operation not permitted");
@@ -408,18 +434,13 @@ describe("failure contract (5)", () => {
     };
     const second = { ...first, id: "a2" };
 
-    expect(sink.append(first)).toBe(true);
-    expect(sink.append(second)).toBe(true);
-    expect(sink.degraded).toBe(false);
-    expect(pinPermissions).toHaveBeenCalledOnce();
+    expect(sink.append(first)).toBe(false);
+    expect(sink.append(second)).toBe(false);
+    expect(sink.degraded).toBe(true);
+    expect(pinPermissions).toHaveBeenCalledTimes(2);
     expect(log).toHaveBeenCalledOnce();
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("audit permission pin FAILED"));
-    expect(
-      readFileSync(file, "utf8")
-        .trim()
-        .split("\n")
-        .map((line) => JSON.parse(line).id),
-    ).toEqual(["a1", "a2"]);
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/audit write FAILED.*permission pin failed/i));
+    expect(readFileSync(file, "utf8")).toBe("");
   });
 });
 

@@ -23,6 +23,13 @@ const COMMAND_IDENTITY_STORAGE_KEY = `${COMMAND_STORAGE_PREFIX}identity`;
 const memoryCommands = new Map<string, BrowserAccountCommand>();
 let activeCommandIdentity: string | undefined;
 
+function commandStorageKey(operationKey: string): string {
+  // Cleanup is best-effort because sessionStorage can fail partway through an identity change.
+  // Keep the identity in the lookup coordinate as the backstop: a surviving old handle can only
+  // ever be recovered by the same authenticated principal.
+  return `${COMMAND_STORAGE_PREFIX}${activeCommandIdentity ?? "unbound"}.${operationKey}`;
+}
+
 /** End every implicit account-command ceremony owned by the identity leaving this browser tab.
  * sessionStorage survives a reload, so sign-out must explicitly remove these handles before a
  * different identity can use the same tab. Unrelated per-tab preferences remain intact. */
@@ -125,7 +132,7 @@ export async function accountCommandOutcomeUnknown(response: Response, parsedBod
 }
 
 function storedCommand(operationKey: string): BrowserAccountCommand {
-  const storageKey = `${COMMAND_STORAGE_PREFIX}${operationKey}`;
+  const storageKey = commandStorageKey(operationKey);
   const memoryCommand = memoryCommands.get(storageKey);
   if (memoryCommand) return memoryCommand;
   try {
@@ -158,7 +165,7 @@ function storedCommand(operationKey: string): BrowserAccountCommand {
 }
 
 function clearStoredCommand(operationKey: string): void {
-  const storageKey = `${COMMAND_STORAGE_PREFIX}${operationKey}`;
+  const storageKey = commandStorageKey(operationKey);
   memoryCommands.delete(storageKey);
   try {
     sessionStorage.removeItem(storageKey);

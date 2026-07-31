@@ -78,6 +78,9 @@ with the remaining `auditPending` count until it returns to `audit: ok`. Forward
 should deduplicate the same `auditId` if a
 restart replays a record after local delivery. A complete recovery/incident bundle therefore
 includes both the SQLite database (which may contain pending events) and the JSONL generations.
+Before reading or appending, the sink pins both retained JSONL generations to `0600`. If the
+filesystem refuses that repair, no new line is appended, the outbox row remains queued and deep
+health reports degradation; fix file ownership or mount permissions, then restart as above.
 For product mutations, `changedFields` contains field names only, never values, and includes only
 fields the caller requested whose sanitized, authorization-pinned result changed persisted state.
 Rejected or normalized-away request fields therefore do not appear as completed changes.

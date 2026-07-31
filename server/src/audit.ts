@@ -157,12 +157,24 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
   let degraded = false;
   let loggedOnce = false;
   let permissionsPinned = false;
-  let permissionFailureLogged = false;
   let deliveryStateLoaded = false;
   let activeSize: number | null = null;
   let priorSize: number | null = null;
   let activeFileExists = false;
   const deliveredAuditIds = new Set<string>();
+
+  const ensureOwnerOnlyPermissions = (path: string) => {
+    try {
+      pinPermissions(path, 0o600);
+    } catch (permissionError) {
+      throw new Error(
+        `Audit permission pin failed: ${
+          permissionError instanceof Error ? permissionError.message : String(permissionError)
+        }`,
+        { cause: permissionError },
+      );
+    }
+  };
 
   const readBoundedTail = (path: string): Buffer | null => {
     if (!existsSync(path)) return null;
@@ -281,6 +293,16 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
 
   const appendMany = (records: readonly AuditEntry[]): boolean => {
     try {
+      if (!permissionsPinned) {
+        // open(..., 0600) protects a newly created file, but mode is ignored for an existing path.
+        // Repair both retained generations before reading or appending; if repair is forbidden,
+        // retain the SQLite outbox row and report degraded health instead of extending an exposed
+        // audit trail.
+        for (const path of [`${file}.1`, file]) {
+          if (existsSync(path)) ensureOwnerOnlyPermissions(path);
+        }
+        permissionsPinned = existsSync(file);
+      }
       if (!deliveryStateLoaded) loadDeliveryState();
       const size = activeSize!;
       if (size > maxBytes || priorSize! > maxBytes) {
@@ -322,6 +344,10 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
       const created = !activeFileExists;
       const fd = openSync(file, "a", 0o600);
       try {
+        if (!permissionsPinned) {
+          ensureOwnerOnlyPermissions(file);
+          permissionsPinned = true;
+        }
         writeFileSync(fd, lines.join(""), { encoding: "utf8" });
         syncFile(fd);
       } finally {
@@ -330,21 +356,6 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
       activeFileExists = true;
       activeSize = (activeSize ?? 0) + payloadBytes;
       if (created) syncParentDirectory();
-      if (!permissionsPinned) {
-        permissionsPinned = true;
-        try {
-          pinPermissions(file, 0o600);
-        } catch (permissionError) {
-          if (!permissionFailureLogged) {
-            permissionFailureLogged = true;
-            log(
-              `capacitylens-server: audit permission pin FAILED — ${
-                permissionError instanceof Error ? permissionError.message : String(permissionError)
-              }`,
-            );
-          }
-        }
-      }
       for (const record of pending) if (record.auditId) deliveredAuditIds.add(record.auditId);
       return true;
     } catch (err) {

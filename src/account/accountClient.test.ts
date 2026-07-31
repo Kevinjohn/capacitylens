@@ -345,6 +345,30 @@ describe("browser account client", () => {
     expect(sessionStorage.getItem("capacitylens.account-command.identity")).toBe("user-two");
   });
 
+  it("isolates a surviving stored ceremony when identity-change cleanup cannot enumerate storage", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000091")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000092")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000093")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000094");
+    mocks.apiFetch
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    bindStoredAccountCommandsToIdentity("user-one");
+    await accountClient.createWorkspace({ name: "Shared browser" });
+    vi.spyOn(Storage.prototype, "length", "get").mockImplementationOnce(() => {
+      throw new DOMException("Storage unavailable", "SecurityError");
+    });
+    bindStoredAccountCommandsToIdentity("user-two");
+    await accountClient.createWorkspace({ name: "Shared browser" });
+
+    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+      new Headers(init?.headers).get("x-account-command-id"),
+    );
+    expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000091", "00000000-0000-4000-8000-000000000093"]);
+  });
+
   it("keeps the same command identity after an unreadable 409 response", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000041")

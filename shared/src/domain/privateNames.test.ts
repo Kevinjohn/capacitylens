@@ -64,6 +64,21 @@ describe("private-name projection", () => {
     expect(redacted).not.toHaveProperty("codeName");
   });
 
+  it("does not mistake a quoted private real name for a trusted prior projection", () => {
+    const malformed = { ...privateClient, name: '"Secret Real Name"', codeName: undefined };
+    const redacted = redactPrivateName(malformed);
+    expect(redacted.name).toBe('"Confidential #c1"');
+    expect(redacted.name).not.toContain("Secret Real Name");
+  });
+
+  it("redacts a trusted projection again if it is subsequently mutated", () => {
+    const projected = redactPrivateName(privateClient);
+    projected.name = "Secret replacement";
+    const redacted = redactPrivateName(projected);
+    expect(redacted.name).toBe('"Confidential #c1"');
+    expect(redacted).not.toHaveProperty("codeName");
+  });
+
   it("fails closed instead of throwing when an untrusted private row has a non-string code name", () => {
     const malformed = { ...privateClient, codeName: 42 } as unknown as Client;
     expect(redactPrivateName(malformed).name).toBe('"Confidential #c1"');

@@ -37,6 +37,7 @@ export function nameForQuotedContext(value: string): string {
 }
 
 type PrivateNamedEntity = Client | Project;
+const projectedPrivateNames = new WeakMap<object, string>();
 
 /**
  * Replace one private entity's real name with its quoted code name and remove the redundant raw
@@ -45,10 +46,13 @@ type PrivateNamedEntity = Client | Project;
  */
 export function redactPrivateName<T extends PrivateNamedEntity>(entity: T): T {
   if (!entity.isPrivate) return entity;
-  if (entity.codeName === undefined && /^".*"$/u.test(entity.name)) return entity;
+  // Only this module can establish that a codeName-free object is already projected. Quotation
+  // marks are not provenance: malformed persisted input may itself contain a quoted private name.
+  if (entity.codeName === undefined && projectedPrivateNames.get(entity) === entity.name) return entity;
   const codeName = typeof entity.codeName === "string" ? entity.codeName : "";
   const redacted = { ...entity, name: quoteCodeName(codeName, entity.id) };
   delete redacted.codeName;
+  projectedPrivateNames.set(redacted, redacted.name);
   return redacted;
 }
 
