@@ -84,7 +84,16 @@ describe("P3.3 restore drill", () => {
 
     // 6. Non-vacuous "lost": opening + reading the corrupted live DB must throw. (If this were a
     //    no-op the restore could trivially "succeed" while the data was never actually gone.)
-    expect(() => loadState(openDb(livePath))).toThrow();
+    let corrupt: DatabaseSync | undefined;
+    try {
+      expect(() => {
+        corrupt = new DatabaseSync(livePath);
+        loadState(corrupt);
+      }).toThrow();
+    } finally {
+      if (corrupt?.isOpen) corrupt.close();
+    }
+    expect(corrupt?.isOpen).toBe(false);
 
     // 7. Restore — the runbook sequence EXACTLY: copy the snapshot over the live file, then remove
     //    the WAL/SHM sidecars.

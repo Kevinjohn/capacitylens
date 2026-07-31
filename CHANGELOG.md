@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Closed every SQLite handle in tenant-store and restore-drill tests, and added real-adapter
+  coverage for lifecycle purges, note scrubbing and indexed validation lookups.
 - Enforced unique SQLite column declarations, centralized global overlay layers, narrowed shared
   package exports, exposed released database fixtures to normal Git workflows, and aligned the
   supported shadcn tooling version.

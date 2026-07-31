@@ -1,11 +1,11 @@
-import { describe, it, expect, expectTypeOf } from "vitest";
+import { afterEach, describe, it, expect, expectTypeOf } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import {
-  openDb,
+  openDb as openDbRaw,
   insertAll,
   insertRow,
   loadState,
@@ -16,6 +16,21 @@ import {
 } from "./db";
 import { sqliteTenantStore } from "./tenantStore";
 import { tx } from "./txn";
+
+const openDatabases = new Set<Db>();
+const openDb = (...args: Parameters<typeof openDbRaw>): Db => {
+  const db = openDbRaw(...args);
+  openDatabases.add(db);
+  return db;
+};
+
+afterEach(() => {
+  for (const db of openDatabases) {
+    if (db.isOpen) db.close();
+  }
+  expect([...openDatabases].every((db) => !db.isOpen)).toBe(true);
+  openDatabases.clear();
+});
 
 // P1.4: prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
 // account's slice and NEVER leak another tenant's rows — the no-cross-tenant invariant the whole
@@ -375,6 +390,58 @@ describe("sqliteTenantStore", () => {
     ).toThrow();
 
     expect(store.readSlice("a1", FULL)).toEqual(before);
+  });
+
+  it("serves indexed mutation-validation lookups without crossing tenant boundaries", () => {
+    const db = openDb(":memory:");
+    insertAll(db, seedTwoAccounts());
+    const lookup = sqliteTenantStore(db).validationLookup?.();
+
+    expect(lookup?.row("resources", "r1")).toMatchObject({ id: "r1", accountId: "a1" });
+    expect(lookup?.allocationsForResource("a1", "r1").map((row) => row.id)).toEqual(["al1"]);
+    expect(lookup?.allocationsForActivity("a1", "act1").map((row) => row.id)).toEqual(["al1"]);
+    expect(lookup?.allocationsForResource("a1", "r2")).toEqual([]);
+    expect(lookup?.resourceHasLoadedAllocation("a1", "r1")).toBe(true);
+    expect(lookup?.resourceHasTimeOff("a1", "r1")).toBe(true);
+
+    db.prepare(`UPDATE allocations SET hoursPerDay = 0 WHERE id = ?`).run("al1");
+    expect(lookup?.resourceHasLoadedAllocation("a1", "r1")).toBe(false);
+    expect(lookup?.resourceHasLoadedAllocation("a2", "r2")).toBe(true);
+  });
+
+  it("scrubs resource notes, advances revisions and preserves another tenant", () => {
+    const db = openDb(":memory:");
+    const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
+    data.timeOff = [timeOff("to1", "a1", "r1", "private-a1"), timeOff("to2", "a2", "r2", "private-a2")];
+    insertAll(db, data as unknown as AppData);
+    const store = sqliteTenantStore(db);
+
+    expect(store.scrubResourceNotes("a1", "r1")).toEqual({ allocationNotes: true, timeOffNotes: true });
+    const a1 = store.readSlice("a1", FULL);
+    expect(a1.allocations[0]).not.toHaveProperty("note");
+    expect(a1.timeOff[0]).not.toHaveProperty("note");
+    expect(Date.parse(a1.allocations[0].updatedAt)).toBeGreaterThan(Date.parse(TS));
+    expect(Date.parse(a1.timeOff[0].updatedAt)).toBeGreaterThan(Date.parse(TS));
+    expect(store.readSlice("a2", FULL).allocations[0]?.note).toBe("hi");
+    expect(store.readSlice("a2", FULL).timeOff[0]?.note).toBe("private-a2");
+  });
+
+  it.each([
+    ["projects", "p1", { projects: 1, phases: 1, activities: 1, allocations: 1 }],
+    ["clients", "c1", { clients: 1, projects: 1, phases: 1, activities: 1, allocations: 1 }],
+  ] as const)("purges one owned %s row with exact cascades and restamped nullable survivors", (entity, id, counts) => {
+    const db = openDb(":memory:");
+    const data = seedTwoAccounts() as unknown as Record<string, unknown[]>;
+    data.resources = [{ ...person("r1", "a1", "d1"), projectId: "p1" }, person("r2", "a2", "d2")];
+    insertAll(db, data as unknown as AppData);
+    const store = sqliteTenantStore(db);
+
+    expect(store.purgeLifecycleRow("a1", entity, id)).toEqual({ removedCounts: counts });
+    const survivor = store.readLifecycleRow("a1", "resources", "r1");
+    expect(survivor).not.toHaveProperty("projectId");
+    expect(Date.parse(survivor?.updatedAt ?? "")).toBeGreaterThan(Date.parse(TS));
+    expect(store.readSlice("a2", FULL)).toEqual(readSlice(db, "a2", FULL));
+    expect(store.purgeLifecycleRow("a1", entity, id)).toBeNull();
   });
 });
 
