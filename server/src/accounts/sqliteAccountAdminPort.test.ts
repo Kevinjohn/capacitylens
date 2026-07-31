@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { ActorContext } from "@capacitylens/shared/account/types";
-import { createInvite, upsertMember } from "../controlTables";
+import { createInvite, getInvite, upsertMember } from "../controlTables";
 import { openDb, insertRow, type Db } from "../db";
 import { KeyedOperationLock } from "./operationLock";
 import { hasLivePreauthorizedInvitation, sqliteAccountAdminPort } from "./sqliteAccountAdminPort";
@@ -59,6 +59,22 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
 
     expect(hasLivePreauthorizedInvitation(db, "expired@example.com", now)).toBe(false);
     expect(hasLivePreauthorizedInvitation(db, "live@example.com", now)).toBe(true);
+  });
+
+  it("uses the partial live-email index for pre-authorised admission", () => {
+    db = openDb(":memory:");
+    const plan = db
+      .prepare(
+        `EXPLAIN QUERY PLAN
+        SELECT invitation.expiresAt
+          FROM invites AS invitation
+          JOIN accounts AS workspace ON workspace.id = invitation.accountId
+         WHERE invitation.preauthEmail = ?
+           AND invitation.usedAt IS NULL`,
+      )
+      .all("person@example.com") as Array<{ detail: string }>;
+
+    expect(plan.map(({ detail }) => detail).join("\n")).toContain("idx_invites_live_preauthEmail");
   });
 
   it("lists ordinary invitations when a used legacy Owner invite is retained for history", async () => {
@@ -176,6 +192,60 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
         command,
       }),
     ).resolves.toEqual(created);
+  });
+
+  it("prunes aged used history inside both invitation creation and claim transactions", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2027-01-01T00:00:00.000Z");
+    vi.setSystemTime(now);
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+    const oldInvite = (token: string, id: string) =>
+      createInvite(db!, {
+        token,
+        id,
+        accountId: "workspace-1",
+        role: "viewer",
+        preauthEmail: null,
+        expiresAt: "2025-01-02T00:00:00.000Z",
+        usedAt: "2025-01-01T00:00:00.000Z",
+        createdAt: "2025-01-01T00:00:00.000Z",
+      });
+    oldInvite("old-before-create", "old-before-create");
+    const port = sqliteAccountAdminPort({
+      applicationId: "test-application",
+      db,
+      lock: new KeyedOperationLock(),
+      trustedLocal: true,
+    });
+
+    const invitation = await port.createInvitation({
+      actor,
+      workspaceId: "workspace-1",
+      role: "viewer",
+      preauthorizedEmail: null,
+      expiresAt: new Date(now.getTime() + 60_000).toISOString(),
+      command: { commandId: "retention-create-command", idempotencyKey: "retention-create-key" },
+    });
+    expect(getInvite(db, "old-before-create")).toBeNull();
+
+    oldInvite("old-before-claim", "old-before-claim");
+    await port.claimInvitationForPrincipal({
+      token: invitation.token,
+      principalId: "invitee-1",
+      principalEmail: "invitee@example.com",
+      emailVerified: true,
+      passwordMode: true,
+      command: { commandId: "retention-claim-command", idempotencyKey: "retention-claim-key" },
+    });
+    expect(getInvite(db, "old-before-claim")).toBeNull();
+    expect(getInvite(db, invitation.token)?.usedAt).toBe(now.toISOString());
   });
 
   it("drops the plaintext invitation replay after the short response-loss horizon", async () => {

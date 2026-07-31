@@ -26,7 +26,7 @@ import {
 import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { PRESET_COLORS, snapToPresetColor } from "@capacitylens/shared/lib/color";
-import { upsertMember } from "./controlTables";
+import { createInvite, listInvitesForAccount, upsertMember, USED_INVITATION_RETENTION_LIMIT } from "./controlTables";
 import { authFromEnv, runAuthMigrations } from "./auth";
 import { TABLES } from "./tables";
 import { assertMigrationValuesPreserved, captureMigrationValues } from "./migrationPreservation";
@@ -1181,6 +1181,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "index-foreign-key-children",
         checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
       },
+      {
+        version: 24,
+        name: "bound-used-invitation-history",
+        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
+      },
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1211,7 +1216,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1239,7 +1244,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     const plan = planDatabaseMigrations(db).migrations;
-    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23]);
+    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23, 24]);
     expect(plan[0]).toEqual({
       version: 17,
       name: "add-durable-audit-outbox",
@@ -1387,6 +1392,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "index-foreign-key-children",
         checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
       },
+      {
+        version: 24,
+        name: "bound-used-invitation-history",
+        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
+      },
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1492,7 +1502,7 @@ describe("schema migration of an existing on-disk DB", () => {
       PRAGMA user_version = 19;
     `);
 
-    expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([20, 21, 22, 23]);
+    expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([20, 21, 22, 23, 24]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
     expect(db.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 20`).get()).toBeUndefined();
@@ -1527,6 +1537,11 @@ describe("schema migration of an existing on-disk DB", () => {
         version: 23,
         name: "index-foreign-key-children",
         checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
+      },
+      {
+        version: 24,
+        name: "bound-used-invitation-history",
+        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
     ]);
 
@@ -1586,6 +1601,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "index-foreign-key-children",
         checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
       },
+      {
+        version: 24,
+        name: "bound-used-invitation-history",
+        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
+      },
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1611,7 +1631,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const db = openDb(":memory:");
     for (const { index } of FOREIGN_KEY_CHILD_INDEXES_V23) db.exec(`DROP INDEX ${index}`);
     db.exec(`
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 23;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 23;
       PRAGMA user_version = 22;
     `);
 
@@ -1620,6 +1640,11 @@ describe("schema migration of an existing on-disk DB", () => {
         version: 23,
         name: "index-foreign-key-children",
         checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
+      },
+      {
+        version: 24,
+        name: "bound-used-invitation-history",
+        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
     ]);
 
@@ -1631,6 +1656,59 @@ describe("schema migration of an existing on-disk DB", () => {
       ),
     );
     for (const { index } of FOREIGN_KEY_CHILD_INDEXES_V23) expect(installed.has(index)).toBe(true);
+    db.close();
+  });
+
+  it("v24 bounds pre-existing used invitation history and installs its lookup indexes", () => {
+    const db = openDb(":memory:");
+    db.exec(`
+      DROP INDEX idx_invites_account_usedAt_id;
+      DROP INDEX idx_invites_live_preauthEmail;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 24;
+      PRAGMA user_version = 23;
+    `);
+    const insert = (accountId: string, id: string, usedAt: string | null, expiresAt = "2999-01-01T00:00:00.000Z") =>
+      createInvite(db, {
+        token: `token-${accountId}-${id}`,
+        id,
+        accountId,
+        role: "viewer",
+        preauthEmail: usedAt === null ? "live@example.com" : null,
+        expiresAt,
+        usedAt,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+    for (let index = 0; index < USED_INVITATION_RETENTION_LIMIT + 2; index += 1) {
+      insert("account-1", `recent-${String(index).padStart(3, "0")}`, "2998-01-01T00:00:00.000Z");
+    }
+    insert("account-1", "old", "2000-01-01T00:00:00.000Z");
+    insert("account-1", "live", null);
+    insert("account-1", "expired-unused", null, "2000-01-01T00:00:00.000Z");
+    insert("account-2", "other-account", "2998-01-01T00:00:00.000Z");
+
+    expect(planDatabaseMigrations(db).migrations).toEqual([
+      {
+        version: 24,
+        name: "bound-used-invitation-history",
+        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
+      },
+    ]);
+    initializeOpenDb(db, ":memory:");
+
+    expect(listInvitesForAccount(db, "account-1")).toHaveLength(USED_INVITATION_RETENTION_LIMIT + 2);
+    expect(listInvitesForAccount(db, "account-1").map(({ id }) => id)).toEqual(
+      expect.arrayContaining(["live", "expired-unused"]),
+    );
+    expect(listInvitesForAccount(db, "account-2").map(({ id }) => id)).toEqual(["other-account"]);
+    const indexes = new Set(
+      (db.prepare(`PRAGMA index_list(invites)`).all() as Array<{ name: string }>).map(({ name }) => name),
+    );
+    expect(indexes.has("idx_invites_account_usedAt_id")).toBe(true);
+    expect(indexes.has("idx_invites_live_preauthEmail")).toBe(true);
+
+    const rows = db.prepare(`SELECT id FROM invites ORDER BY id`).all();
+    initializeOpenDb(db, ":memory:");
+    expect(db.prepare(`SELECT id FROM invites ORDER BY id`).all()).toEqual(rows);
     db.close();
   });
 

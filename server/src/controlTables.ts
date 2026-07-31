@@ -50,6 +50,22 @@ export interface AccountMember {
 
 const isKnownRole = isAccountRole;
 
+export const USED_INVITATION_RETENTION_LIMIT = 200;
+export const USED_INVITATION_RETENTION_MS = 365 * 24 * 60 * 60 * 1_000;
+export const INVITATION_RETENTION_INDEXES_V24_SQL = `
+CREATE INDEX IF NOT EXISTS idx_invites_account_usedAt_id
+  ON invites(accountId, usedAt DESC, id) WHERE usedAt IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_invites_live_preauthEmail
+  ON invites(preauthEmail) WHERE usedAt IS NULL AND preauthEmail IS NOT NULL;
+`;
+export const USED_INVITATION_RETENTION_V24_DEFINITION = [
+  `policy:retain-newest-${USED_INVITATION_RETENTION_LIMIT}-used-invitations-per-account:v1`,
+  `policy:retain-used-invitations-for-${USED_INVITATION_RETENTION_MS}-milliseconds:v1`,
+  "ordering:usedAt-instant-descending-then-id-ascending:v1",
+  "malformed-usedAt:remove:v1",
+  INVITATION_RETENTION_INDEXES_V24_SQL,
+].join("\n-- migration component --\n");
+
 /**
  * Create the membership control table (and its lookup indexes) if absent. IDEMPOTENT — every
  * statement is `IF NOT EXISTS`, so this is safe to run on EVERY boot and on every opened DB
@@ -197,7 +213,7 @@ export function ensureControlTables(db: Db): void {
     });
   }
   db.exec(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId); ${INVITATION_RETENTION_INDEXES_V24_SQL}`,
   );
 }
 
@@ -265,7 +281,10 @@ export function assertControlTablesCurrent(db: Db): void {
     }
   }
 
-  const expectedIndexes: Record<string, Record<string, { unique: boolean; columns: string[] }>> = {
+  const expectedIndexes: Record<
+    string,
+    Record<string, { unique: boolean; columns: string[]; descending?: string[]; partial?: boolean }>
+  > = {
     account_members: {
       idx_account_members_userId: { unique: false, columns: ["userId"] },
       idx_account_members_accountId: { unique: false, columns: ["accountId"] },
@@ -273,6 +292,13 @@ export function assertControlTablesCurrent(db: Db): void {
     invites: {
       idx_invites_id: { unique: true, columns: ["id"] },
       idx_invites_accountId: { unique: false, columns: ["accountId"] },
+      idx_invites_account_usedAt_id: {
+        unique: false,
+        columns: ["accountId", "usedAt", "id"],
+        descending: ["usedAt"],
+        partial: true,
+      },
+      idx_invites_live_preauthEmail: { unique: false, columns: ["preauthEmail"], partial: true },
     },
   };
   for (const [table, expected] of Object.entries(expectedIndexes)) {
@@ -290,7 +316,11 @@ export function assertControlTablesCurrent(db: Db): void {
       if (!live.has(name)) problems.push(`missing index ${name}`);
       else {
         const index = live.get(name)!;
-        if ((index.unique === 1) !== definition.unique || index.origin !== "c" || index.partial !== 0) {
+        if (
+          (index.unique === 1) !== definition.unique ||
+          index.origin !== "c" ||
+          (index.partial === 1) !== (definition.partial ?? false)
+        ) {
           problems.push(`index ${name} metadata mismatch`);
         }
         const keys = (
@@ -305,7 +335,9 @@ export function assertControlTablesCurrent(db: Db): void {
           keys.length !== definition.columns.length ||
           keys.some(
             (column, index) =>
-              column.name !== definition.columns[index] || column.desc !== 0 || column.coll !== "BINARY",
+              column.name !== definition.columns[index] ||
+              (column.desc === 1) !== (definition.descending?.includes(column.name ?? "") ?? false) ||
+              column.coll !== "BINARY",
           )
         ) {
           problems.push(`index ${name} does not cover exactly ${table}(${definition.columns.join(", ")})`);
@@ -1170,22 +1202,64 @@ export function revokeInvite(db: Db, accountId: string, id: string): number {
   return Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes);
 }
 
-/** Remove EXPIRED, UNUSED bearer rows — dead links that can never be accepted (accept 410s past
- *  expiry). This is a write-oriented maintenance primitive: callers must provide their own mutation
- *  transaction/coordination and must not invoke it from a declared read. USED invites are deliberately
- *  KEPT so history can show who consumed an invite; a used row is removed only by explicit revoke or
- *  account erasure. */
-export function pruneInvites(db: Db, now = Date.now()): number {
-  const candidates = db.prepare(`SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL`).all() as Array<{
+/** Remove dead unused links and bound used operational history. This is a write-oriented
+ * maintenance primitive: callers must provide their own mutation transaction/coordination and must
+ * not invoke it from a declared read. When accountId is supplied, every write remains scoped to the
+ * workspace whose mutation lock the caller holds. */
+export function pruneInvites(db: Db, now = Date.now(), accountId?: string): number {
+  const accountClause = accountId === undefined ? "" : " AND accountId = ?";
+  const parameters = accountId === undefined ? [] : [accountId];
+  const candidates = db
+    .prepare(`SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL${accountClause}`)
+    .all(...parameters) as Array<{
     tokenHash: string;
     expiresAt: string;
   }>;
-  const remove = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`);
+  const removeUnused = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`);
   let deleted = 0;
   for (const candidate of candidates) {
     if (inviteIsExpired(candidate.expiresAt, now)) {
-      deleted += Number(remove.run(candidate.tokenHash).changes);
+      deleted += Number(removeUnused.run(candidate.tokenHash).changes);
     }
   }
+
+  return deleted + pruneUsedInvitationHistory(db, now, accountId);
+}
+
+/** Apply only the bounded used-history policy. Kept separate so the one-time migration cannot
+ * unexpectedly delete an expired unused bearer row outside its declared data-repair scope. */
+export function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string): number {
+  const accountClause = accountId === undefined ? "" : " AND accountId = ?";
+  const parameters = accountId === undefined ? [] : [accountId];
+  const used = db
+    .prepare(`SELECT tokenHash, id, accountId, usedAt FROM invites WHERE usedAt IS NOT NULL${accountClause}`)
+    .all(...parameters) as Array<{ tokenHash: string; id: string; accountId: string; usedAt: string }>;
+  const cutoff = now - USED_INVITATION_RETENTION_MS;
+  const retainedByAccount = new Map<string, Array<{ tokenHash: string; instant: number; id: string }>>();
+  const removeUsed = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NOT NULL`);
+  let deleted = 0;
+  for (const row of used) {
+    const instant = parseISOTimestamp(row.usedAt);
+    if (instant === null || instant < cutoff) {
+      deleted += Number(removeUsed.run(row.tokenHash).changes);
+      continue;
+    }
+    const retained = retainedByAccount.get(row.accountId) ?? [];
+    retained.push({ tokenHash: row.tokenHash, instant, id: row.id });
+    retainedByAccount.set(row.accountId, retained);
+  }
+  for (const retained of retainedByAccount.values()) {
+    retained.sort((left, right) => right.instant - left.instant || left.id.localeCompare(right.id));
+    for (const row of retained.slice(USED_INVITATION_RETENTION_LIMIT)) {
+      deleted += Number(removeUsed.run(row.tokenHash).changes);
+    }
+  }
+  return deleted;
+}
+
+/** One-time v24 repair for pre-existing used history plus its supporting lookup indexes. */
+export function migrateUsedInvitationHistoryV24(db: Db, now = Date.now()): number {
+  const deleted = pruneUsedInvitationHistory(db, now);
+  db.exec(INVITATION_RETENTION_INDEXES_V24_SQL);
   return deleted;
 }

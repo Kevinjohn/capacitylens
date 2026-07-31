@@ -661,6 +661,9 @@ The management section has three parts:
   or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
   carries the secret token. When an invite expires while this page remains open, its row updates to
   **Expired** and the unusable Revoke action disappears without requiring navigation or reload.
+  Used rows are operational history: each company retains at most the newest 200 and never retains
+  one for more than 365 days. Live unused invitations keep their existing expiry and explicit
+  revocation lifecycle and are not removed by the used-history limit.
 
 The Owner row has no role selector and no Remove action for anyone: each company has exactly one
 Owner, and ownership is changed only by explicit transfer. The Owner sees **Transfer ownership**

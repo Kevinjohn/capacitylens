@@ -139,6 +139,10 @@ The first external local principal must have a verified email listed in
 unexpired, preauthorized invitation. Email is an admission attribute only. Once the provider link is
 stored, equal or changed emails never merge two identities.
 
+Used invitation rows are operational history, bounded to the newest 200 per company and 365 days.
+Live unused invitations retain their ordinary expiry and explicit-revocation lifecycle. External
+identity admission performs an indexed lookup over only unused preauthorized invitation rows.
+
 On a fresh `self-hosted-mixed` deployment, the first-run wall shows both the setup-token password
 form and every configured external provider. The allow-listed first owner can therefore bootstrap
 through OIDC directly; creating an interim password owner is not required.

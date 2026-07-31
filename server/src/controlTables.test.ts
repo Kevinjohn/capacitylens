@@ -20,6 +20,8 @@ import {
   listInvitesForAccount,
   revokeInvite,
   pruneInvites,
+  USED_INVITATION_RETENTION_LIMIT,
+  USED_INVITATION_RETENTION_MS,
   markInviteUsed,
   InviteAlreadyUsedError,
   looksLikeEmail,
@@ -518,7 +520,7 @@ describe("listInvitesForAccount", () => {
 describe("pruneInvites", () => {
   const TS_EXPIRED = "2000-01-01T00:00:00.000Z";
 
-  it("deletes ONLY expired-unused links; keeps used invites and still-live invites", () => {
+  it("deletes expired-unused links while retaining recent used history and live invites", () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-live", id: "inv-live" })); // unused, future expiry
     createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS, expiresAt: TS_EXPIRED })); // used + expired
@@ -526,7 +528,7 @@ describe("pruneInvites", () => {
 
     expect(pruneInvites(db)).toBe(1); // only the dead unused link is removed
     expect(getInvite(db, "tok-dead")).toBeNull();
-    // A USED invite survives pruning even when expired — the members list must still show it.
+    // A recent USED invite survives even when its bearer expiry is past.
     expect(getInvite(db, "tok-used")).not.toBeNull();
     expect(getInvite(db, "tok-live")).not.toBeNull();
   });
@@ -555,6 +557,60 @@ describe("pruneInvites", () => {
     expect(getInvite(db, "tok-offset-expired")).toBeNull();
     expect(getInvite(db, "tok-malformed")).toBeNull();
     expect(getInvite(db, "tok-offset-live")).not.toBeNull();
+  });
+
+  it("enforces age and per-account count bounds with deterministic ties and tenant isolation", () => {
+    const db = freshDb();
+    const now = Date.parse("2027-01-01T00:00:00.000Z");
+    const recent = "2026-12-01T00:00:00.000Z";
+    for (const accountId of ["acc-1", "acc-2"]) {
+      const count = accountId === "acc-1" ? USED_INVITATION_RETENTION_LIMIT + 3 : USED_INVITATION_RETENTION_LIMIT + 1;
+      for (let index = 0; index < count; index += 1) {
+        const suffix = String(index).padStart(3, "0");
+        createInvite(
+          db,
+          invite({
+            token: `${accountId}-token-${suffix}`,
+            id: `${accountId}-invite-${suffix}`,
+            accountId,
+            usedAt: recent,
+          }),
+        );
+      }
+    }
+    createInvite(db, invite({ token: "old-token", id: "old", usedAt: "2025-12-31T23:59:59.999Z" }));
+    createInvite(
+      db,
+      invite({
+        token: "boundary-token",
+        id: "boundary",
+        accountId: "acc-3",
+        usedAt: new Date(now - USED_INVITATION_RETENTION_MS).toISOString(),
+      }),
+    );
+    createInvite(db, invite({ token: "malformed-token", id: "malformed", accountId: "acc-3", usedAt: "invalid" }));
+    createInvite(db, invite({ token: "live-token", id: "live", accountId: "acc-3" }));
+
+    expect(pruneInvites(db, now, "acc-1")).toBe(4);
+    expect(
+      listInvitesForAccount(db, "acc-1")
+        .map(({ id }) => id)
+        .sort(),
+    ).toEqual(
+      Array.from(
+        { length: USED_INVITATION_RETENTION_LIMIT },
+        (_, index) => `acc-1-invite-${String(index).padStart(3, "0")}`,
+      ),
+    );
+    expect(listInvitesForAccount(db, "acc-2")).toHaveLength(USED_INVITATION_RETENTION_LIMIT + 1);
+
+    expect(pruneInvites(db, now)).toBe(2);
+    expect(listInvitesForAccount(db, "acc-2")).toHaveLength(USED_INVITATION_RETENTION_LIMIT);
+    expect(
+      listInvitesForAccount(db, "acc-3")
+        .map(({ id }) => id)
+        .sort(),
+    ).toEqual(["boundary", "live"]);
   });
 });
 

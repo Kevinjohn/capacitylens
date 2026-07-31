@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Bounded used-invitation history to 200 rows and 365 days per company, and indexed live
+  pre-authorized invitation admission lookups.
 - Used proper singular and plural nouns in archive-impact confirmations, and rejected invalid
   retry-delay metadata at the shared account boundary.
 - Pinned all account feature-selector defaults and exercised malformed offline payload validators

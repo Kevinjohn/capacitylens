@@ -32,6 +32,7 @@ import {
   listMembersForAccount,
   listMembershipsForUser,
   markInviteUsed,
+  pruneInvites,
   newInviteId,
   normalizeEmail,
   preauthInviteAllows,
@@ -71,7 +72,7 @@ export function hasLivePreauthorizedInvitation(db: Db, normalizedEmail: string, 
     SELECT invitation.expiresAt
       FROM invites AS invitation
       JOIN accounts AS workspace ON workspace.id = invitation.accountId
-     WHERE lower(trim(invitation.preauthEmail)) = ?
+     WHERE invitation.preauthEmail = ?
        AND invitation.usedAt IS NULL
   `,
     )
@@ -480,6 +481,7 @@ export function sqliteAccountAdminPort(input: {
       }
       throw error;
     }
+    pruneInvites(db, Date.parse(now), live.accountId);
     const row = listMembershipsForUser(db, input.principalId).find(
       (candidate) => candidate.accountId === live.accountId,
     );
@@ -724,6 +726,7 @@ export function sqliteAccountAdminPort(input: {
               command.commandId,
             );
           }
+          pruneInvites(db, nowMs, workspaceId);
           const reservation = invitationSecretReplay.reserve(command.commandId, nowMs);
           if (!reservation.accepted) {
             throw replayCapacityFailure(command.commandId, reservation.retryAfterMs);

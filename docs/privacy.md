@@ -9,6 +9,11 @@ The SQLite database can contain account names, member names/email addresses, res
 projects, activities, allocations, time off and free-text notes. Authentication tables contain
 identities, linked providers, sessions, invitations and password-reset state.
 
+Used invitations are retained as bounded operational history: at most the newest 200 per company
+and for no longer than 365 days. Live unused invitations are instead governed by their configured
+expiry and explicit revocation. Invitation bearer tokens are stored only as digests and are never
+returned by management reads.
+
 The audit log records who changed which entity and field names, but not field values. Pending
 mutation-audit records temporarily retain that same metadata in SQLite until fsynced JSONL delivery;
 they still contain no entity values. Online database snapshots contain the full database and must
