@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Bounded audit-log replay reconstruction to a fixed tail window instead of loading complete log
+  generations, and recovered large SQLite audit backlogs progressively between event-loop turns.
 - Retained normalized account-administration and reconciliation events in the durable audit outbox,
   committing them with their local command outcome and replaying them after sink recovery.
 - Reported canonical same-batch Internal-client echoes as accepted no-ops instead of overstating the

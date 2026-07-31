@@ -43,6 +43,9 @@ interface AuditOutboxRow {
   payload: string;
 }
 
+/** Bound every synchronous delivery turn; later pages are scheduled by the application drainer. */
+export const AUDIT_DRAIN_PAGE_SIZE = 500;
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isNonEmptyString);
 }
@@ -170,41 +173,42 @@ export function enqueueAudit(db: Db, record: AuditEntry, id: string = randomUUID
 /** Deliver pending rows in commit order. A failed sink leaves this row and every later row intact.
  * Deletion happens only after append reports that its fsync/idempotency boundary succeeded. */
 export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
-  const select = db.prepare(`SELECT sequence, id, payload FROM capacitylens_audit_outbox ORDER BY sequence LIMIT 5000`);
+  const select = db.prepare(
+    `SELECT sequence, id, payload FROM capacitylens_audit_outbox ORDER BY sequence LIMIT ${AUDIT_DRAIN_PAGE_SIZE}`,
+  );
   const remove = db.prepare(`DELETE FROM capacitylens_audit_outbox WHERE sequence = ? AND id = ?`);
-  for (;;) {
-    const rows = select.all() as unknown as AuditOutboxRow[];
-    if (rows.length === 0) return true;
-    const validRows: AuditOutboxRow[] = [];
-    const entries: AuditEntry[] = [];
-    for (const row of rows) {
-      const parsed: unknown = JSON.parse(row.payload);
-      if (!isAuditEntry(parsed)) {
-        // Preserve the former row-at-a-time behavior: deliver the valid committed prefix before
-        // the malformed row becomes the oldest item and blocks further progress.
-        if (validRows.length > 0) break;
-        throw new Error(`Audit outbox row ${row.id} does not contain a valid audit payload.`);
-      }
-      validRows.push(row);
-      entries.push({ ...parsed, auditId: row.id });
+  const rows = select.all() as unknown as AuditOutboxRow[];
+  if (rows.length === 0) return true;
+  const validRows: AuditOutboxRow[] = [];
+  const entries: AuditEntry[] = [];
+  for (const row of rows) {
+    const parsed: unknown = JSON.parse(row.payload);
+    if (!isAuditEntry(parsed)) {
+      // Preserve the former row-at-a-time behavior: deliver the valid committed prefix before
+      // the malformed row becomes the oldest item and blocks further progress.
+      if (validRows.length > 0) break;
+      throw new Error(`Audit outbox row ${row.id} does not contain a valid audit payload.`);
     }
-    if (sink.appendMany) {
-      if (!sink.appendMany(entries)) return false;
-      tx(db, () => {
-        for (const row of validRows) {
-          const result = remove.run(row.sequence, row.id);
-          if (result.changes !== 1) throw new Error(`Audit outbox row ${row.id} changed during delivery.`);
-        }
-      });
-      continue;
-    }
-    for (const [index, entry] of entries.entries()) {
-      if (!sink.append(entry)) return false;
-      const row = validRows[index]!;
-      const result = remove.run(row.sequence, row.id);
-      if (result.changes !== 1) throw new Error(`Audit outbox row ${row.id} changed during delivery.`);
-    }
+    validRows.push(row);
+    entries.push({ ...parsed, auditId: row.id });
   }
+  if (sink.appendMany) {
+    if (!sink.appendMany(entries)) return false;
+    tx(db, () => {
+      for (const row of validRows) {
+        const result = remove.run(row.sequence, row.id);
+        if (result.changes !== 1) throw new Error(`Audit outbox row ${row.id} changed during delivery.`);
+      }
+    });
+    return true;
+  }
+  for (const [index, entry] of entries.entries()) {
+    if (!sink.append(entry)) return false;
+    const row = validRows[index]!;
+    const result = remove.run(row.sequence, row.id);
+    if (result.changes !== 1) throw new Error(`Audit outbox row ${row.id} changed during delivery.`);
+  }
+  return true;
 }
 
 export function pendingAuditCount(db: Db): number {

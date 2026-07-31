@@ -350,7 +350,7 @@ describe("failure contract (5)", () => {
 
     const health = await call(app, { method: "GET", url: "/api/health" });
     expect(health.statusCode).toBe(200); // ok:true — audit-degraded is a SOFT signal
-    expect(health.json()).toEqual({ ok: true, db: true, audit: "degraded" });
+    expect(health.json()).toEqual({ ok: true, db: true, audit: "degraded", auditPending: 2 });
   });
 
   it("append never throws and logs EXACTLY ONE redacted (no-PII) error line", async () => {
@@ -755,6 +755,24 @@ describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes
     // idempotency window and suppress a legitimate later delivery that reuses that opaque id.
     expect(sink.append(delivered("audit-a"))).toBe(true);
     expect(readFileSync(file, "utf8")).toBe(JSON.stringify(delivered("audit-a")) + "\n");
+  });
+
+  it("reconstructs replay ids from a bounded tail instead of materializing the generation", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-bounded-recovery-"));
+    const file = join(dir, "audit.jsonl");
+    const old = { ...rec("old"), auditId: "audit-old", changedFields: ["x".repeat(512)] };
+    const recent = { ...rec("recent"), auditId: "audit-recent" };
+    const existing = `${JSON.stringify(old)}\n${JSON.stringify(recent)}\n`;
+    writeFileSync(file, existing);
+    const sink = fileAuditSink(file, vi.fn(), {
+      maxBytes: Buffer.byteLength(existing) + 1024,
+      recoveryScanBytes: 256,
+    });
+
+    expect(sink.append(recent)).toBe(true);
+    expect(readFileSync(file, "utf8")).toBe(existing);
+    expect(sink.append({ ...rec("old"), auditId: "audit-old" })).toBe(true);
+    expect(readFileSync(file, "utf8").trim().split("\n")).toHaveLength(3);
   });
 
   it("rotates before an append would make the active generation exceed maxBytes", () => {

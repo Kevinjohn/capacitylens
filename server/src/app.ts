@@ -97,7 +97,8 @@ import { tx } from "./txn";
 import { newId } from "@capacitylens/shared/lib/id";
 import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { type AuditRecord, type AuditSink, noopAuditSink } from "./audit";
-import { drainAuditOutbox, enqueueAudit } from "./auditOutbox";
+import { enqueueAudit } from "./auditOutbox";
+import { createAuditOutboxDrainer } from "./auditOutboxDrainer";
 import { isSameSessionSuccessor, isSupersededSyncBatch, recordAppliedSyncBatch, type SyncOrder } from "./syncOrdering";
 import { BatchStateProjection } from "./batchProjection";
 import { runImportWorker } from "./runImportWorker";
@@ -930,7 +931,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // A sink failure remains a soft health signal and leaves the oldest row queued for the next
   // request/restart; malformed durable rows throw because silently skipping one would break the
   // completeness contract the outbox exists to provide.
-  drainAuditOutbox(db, auditSink);
+  const auditDrainer = createAuditOutboxDrainer(db, auditSink, () => {
+    console.error(JSON.stringify({ level: "error", event: "audit_outbox_background_drain_failed" }));
+  });
+  const repliesWithAuditDrain = new WeakSet<FastifyReply>();
+  auditDrainer.drainOnce();
   // Account coordinators write stable event ids through the same durable outbox as product
   // mutations. Their append boundary means "durably accepted", not "already delivered"; the
   // response hook below performs best-effort delivery after any enclosing transaction commits.
@@ -986,6 +991,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // serializer so method/hostname/remote address remain available without emitting headers.
     logger: logOn ? requestLoggerOptions(opts.logStream) : false,
   });
+  app.addHook("onClose", () => auditDrainer.stop());
   app.addHook("onRequest", (request, reply, done) => {
     const controller = new AbortController();
     request.raw.once("aborted", () => controller.abort(new Error("The request was aborted.")));
@@ -1210,7 +1216,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       reply.header("Reporting-Endpoints", 'csp-endpoint="/api/security/csp-report"');
       // Account flows enqueue while their coordinator transaction may still be open. Deliver only
       // after the handler has completed, preserving committed rows whenever the sink is degraded.
-      if (db.isOpen && !drainAuditOutbox(db, auditSink)) {
+      if (db.isOpen && !repliesWithAuditDrain.has(reply) && !auditDrainer.drainOnce()) {
         reply.header("x-capacitylens-audit-warning", "true");
       }
     }
@@ -1333,7 +1339,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   };
 
   const drainProductAudit = (reply: FastifyReply): boolean => {
-    const ok = drainAuditOutbox(db, auditSink);
+    repliesWithAuditDrain.add(reply);
+    const ok = auditDrainer.drainOnce();
     if (!ok) reply.header("x-capacitylens-audit-warning", "true");
     return ok;
   };
@@ -1552,6 +1559,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       try {
         healthStmt.get();
         const backupHealth = opts.backupHealth?.();
+        const auditPending = auditDrainer.pendingCount();
         // P1.15: audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
         // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
         // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
@@ -1559,7 +1567,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return {
           ok: true,
           db: true,
-          audit: auditSink.degraded ? "degraded" : "ok",
+          audit: auditSink.degraded ? "degraded" : auditPending > 0 ? "recovering" : "ok",
+          auditPending,
           ...(backupHealth
             ? {
                 backup: {

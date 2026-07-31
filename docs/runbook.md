@@ -4,11 +4,11 @@
 
 `GET /api/health` is unauthenticated, constant-work and deliberately exempt from rate limiting so
 API traffic cannot starve the public uptime probe. With `CAPACITYLENS_HEALTH_DEEP=1`, it runs a
-constant SQLite readiness query, reports audit degradation and surfaces the configured internal
-certificate's cached expiry. When scheduled backups are configured it also reports their latched
-status and the most recent successful snapshot time; startup separately performs the full foreign-key integrity check before
-accepting traffic. Monitor health through the same public proxy users reach and do not expose the API
-container directly.
+constant SQLite readiness query, reports audit recovery/degradation with its pending-row count and
+surfaces the configured internal certificate's cached expiry. When scheduled backups are configured
+it also reports their latched status and the most recent successful snapshot time; startup separately
+performs the full foreign-key integrity check before accepting traffic. Monitor health through the
+same public proxy users reach and do not expose the API container directly.
 
 With Compose:
 
@@ -19,10 +19,10 @@ curl -fsS https://capacity.example.com/api/health
 ```
 
 Treat repeated 401/403 as access events, 409 as write conflicts, 429 as rate limiting, and 5xx,
-`audit: degraded`, `backup.status: degraded`, `internalTls.status: expiring` or
-`internalTls.status: expired` as operator
-alerts. `expiring` begins at the same 30-day boundary used by the initializer; renew before it reaches
-zero. Logs may contain identifiers and must follow your retention policy.
+`audit: degraded`, a non-zero `auditPending`, `backup.status: degraded`,
+`internalTls.status: expiring` or `internalTls.status: expired` as operator alerts. `expiring` begins
+at the same 30-day boundary used by the initializer; renew before it reaches zero. Logs may contain
+identifiers and must follow your retention policy.
 Password hashing and breached-password checks use bounded queues. Entries waiting longer than five
 seconds are shed, disconnected requests withdraw before execution, and both immediate overflow and
 wait expiry emit a `password_security_queue_saturated` security event naming the queue and reason.
@@ -65,11 +65,13 @@ Product-mutation audit events first enter `capacitylens_audit_outbox` in the sam
 as the data change. The server drains them in commit order to JSONL, fsyncs each line, and deletes a
 row only after delivery. On restart it replays pending rows; the stable `auditId` makes local-file
 replay idempotent if a crash happened after fsync but before deletion. A failed sink leaves rows
-queued and reports `audit: degraded`; alert and restore the sink promptly because continued writes
-will grow the SQLite file. The degraded signal is deliberately sticky for the process lifetime: after
+queued and reports `audit: degraded` plus the exact `auditPending` row count; alert and restore the
+sink promptly because continued writes will grow the SQLite file. The degraded signal is
+deliberately sticky for the process lifetime: after
 repairing the path, permissions or free-space problem, restart the server so startup replays the
-queued outbox and deep health can return to `audit: ok`. Forwarded stdout collectors should
-deduplicate the same `auditId` if a
+queued outbox progressively in bounded background pages. Deep health reports `audit: recovering`
+with the remaining `auditPending` count until it returns to `audit: ok`. Forwarded stdout collectors
+should deduplicate the same `auditId` if a
 restart replays a record after local delivery. A complete recovery/incident bundle therefore
 includes both the SQLite database (which may contain pending events) and the JSONL generations.
 For product mutations, `changedFields` contains field names only, never values, and includes only

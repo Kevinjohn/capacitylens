@@ -71,7 +71,7 @@ process.umask(0o077);
 //                                   today's logging (startup line + console.error on 500s).
 //   CAPACITYLENS_HEALTH_DEEP              '1' to make /api/health do a constant SELECT 1 plus
 //                                   surface the audit-sink state: { ok: true, db: true,
-//                                   audit: 'ok' | 'degraded' } (200), internal-certificate
+//                                   audit: 'ok' | 'recovering' | 'degraded', auditPending: n } (200), internal-certificate
 //                                   expiry when configured, or 503 { ok: false }.
 //                                   Default off = unconditional { ok: true }.
 //   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across rate-limited /api/* routes

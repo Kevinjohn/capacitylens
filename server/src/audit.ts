@@ -5,7 +5,7 @@ import {
   fsyncSync,
   ftruncateSync,
   openSync,
-  readFileSync,
+  readSync,
   renameSync,
   statSync,
   writeFileSync,
@@ -113,10 +113,17 @@ export interface FileAuditSinkOptions {
   pinPermissions?: (file: string, mode: number) => void;
   /** Test seam for file and directory durability flushes. */
   syncFile?: (fd: number) => void;
+  /** Test seam for the bounded recovery reader. */
+  recoveryScanBytes?: number;
 }
 
 const DEFAULT_MAX_BYTES = 64 * 1024 * 1024; // 64 MiB
 export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024; // 1 TiB operator-safety ceiling
+// One outbox page contains 500 compact metadata-only records. A 16 MiB tail therefore leaves
+// substantial headroom while bounding restart allocation and parsing independently of the
+// operator's generation-size setting (which may be as high as 1 TiB).
+export const AUDIT_RECOVERY_SCAN_BYTES = 16 * 1024 * 1024;
+const MAX_RECOVERY_DELIVERY_IDS = 10_000;
 
 /**
  * A file-backed sink: one `\n`-terminated write per record and one `fsync` per delivered batch. The
@@ -140,8 +147,12 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
   const pinPermissions = opts.pinPermissions ?? chmodSync;
   const syncFile = opts.syncFile ?? fsyncSync;
+  const recoveryScanBytes = opts.recoveryScanBytes ?? Math.min(AUDIT_RECOVERY_SCAN_BYTES, maxBytes);
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_AUDIT_BYTES) {
     throw new RangeError(`maxBytes must be a safe integer from 1 to ${MAX_AUDIT_BYTES}.`);
+  }
+  if (!Number.isSafeInteger(recoveryScanBytes) || recoveryScanBytes < 1 || recoveryScanBytes > maxBytes) {
+    throw new RangeError("recoveryScanBytes must be a safe integer from 1 to maxBytes.");
   }
   let degraded = false;
   let loggedOnce = false;
@@ -153,13 +164,49 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
   let activeFileExists = false;
   const deliveredAuditIds = new Set<string>();
 
+  const readBoundedTail = (path: string): Buffer | null => {
+    if (!existsSync(path)) return null;
+    const size = existingSize(path);
+    if (size === 0) return Buffer.alloc(0);
+    const length = Math.min(size, recoveryScanBytes);
+    const offset = size - length;
+    const bytes = Buffer.allocUnsafe(length);
+    const fd = openSync(path, "r");
+    try {
+      let read = 0;
+      while (read < length) {
+        const count = readSync(fd, bytes, read, length - read, offset + read);
+        if (count === 0) break;
+        read += count;
+      }
+      return read === length ? bytes : bytes.subarray(0, read);
+    } finally {
+      closeSync(fd);
+    }
+  };
+
   const collectDeliveryIds = (path: string) => {
-    if (!existsSync(path)) return;
-    for (const line of readFileSync(path, "utf8").split("\n")) {
+    const tail = readBoundedTail(path);
+    if (tail === null || tail.length === 0) return;
+    const size = existingSize(path);
+    let start = 0;
+    if (size > tail.length) {
+      const firstNewline = tail.indexOf(0x0a);
+      if (firstNewline < 0) {
+        throw new RangeError(`Audit recovery tail contains no complete line within ${recoveryScanBytes} bytes.`);
+      }
+      start = firstNewline + 1;
+    }
+    for (const line of tail.subarray(start).toString("utf8").split("\n")) {
       if (!line) continue;
       try {
         const parsed = JSON.parse(line) as { auditId?: unknown };
-        if (typeof parsed.auditId === "string") deliveredAuditIds.add(parsed.auditId);
+        if (typeof parsed.auditId === "string") {
+          deliveredAuditIds.add(parsed.auditId);
+          if (deliveredAuditIds.size > MAX_RECOVERY_DELIVERY_IDS) {
+            deliveredAuditIds.delete(deliveredAuditIds.values().next().value!);
+          }
+        }
       } catch {
         // A complete malformed historical line has no trusted delivery id and cannot suppress replay.
       }
@@ -190,12 +237,15 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
     // A process/power loss can interrupt a write before its fsync. Drop only the unterminated tail;
     // the corresponding SQLite outbox row remains and will replay the complete record below.
     if (existsSync(file)) {
-      const bytes = readFileSync(file);
+      const bytes = readBoundedTail(file)!;
       if (bytes.length > 0 && bytes[bytes.length - 1] !== 0x0a) {
         const newline = bytes.lastIndexOf(0x0a);
+        if (newline < 0 && existingSize(file) > bytes.length) {
+          throw new RangeError(`Audit unterminated tail exceeds the ${recoveryScanBytes}-byte recovery window.`);
+        }
         const fd = openSync(file, "r+");
         try {
-          ftruncateSync(fd, newline + 1);
+          ftruncateSync(fd, existingSize(file) - bytes.length + newline + 1);
           syncFile(fd);
         } finally {
           closeSync(fd);
@@ -245,14 +295,19 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
       }
       const lines = pending.map((record) => JSON.stringify(record) + "\n");
       const lineBytes = lines.map((line) => Buffer.byteLength(line, "utf8"));
-      const oversized = lineBytes.find((bytes) => bytes > maxBytes);
+      const oversized = lineBytes.find((bytes) => bytes > recoveryScanBytes);
       if (oversized !== undefined) {
-        throw new RangeError(`Audit entry is ${oversized} bytes, exceeding maxBytes ${maxBytes}.`);
+        throw new RangeError(
+          `Audit entry is ${oversized} bytes, exceeding maxBytes/replay recovery limit ${recoveryScanBytes}.`,
+        );
       }
       const payloadBytes = lineBytes.reduce((total, bytes) => total + bytes, 0);
-      if (payloadBytes > maxBytes) {
-        for (const record of pending) if (!appendMany([record])) return false;
-        return true;
+      // Outbox deletion follows only after this whole call succeeds. Keeping the complete delivered
+      // page inside the bounded tail guarantees a crash before deletion can rediscover every id.
+      if (payloadBytes > recoveryScanBytes) {
+        throw new RangeError(
+          `Audit delivery page is ${payloadBytes} bytes, exceeding the replay recovery window ${recoveryScanBytes}.`,
+        );
       }
       if (size > 0 && size + payloadBytes > maxBytes) {
         renameSync(file, `${file}.1`);

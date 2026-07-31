@@ -3,7 +3,7 @@ import { existsSync, fsyncSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileAuditSink, type AuditEntry, type AuditRecord, type AuditSink } from "./audit";
-import { drainAuditOutbox, enqueueAudit, pendingAuditCount } from "./auditOutbox";
+import { AUDIT_DRAIN_PAGE_SIZE, drainAuditOutbox, enqueueAudit, pendingAuditCount } from "./auditOutbox";
 import { openDb } from "./db";
 import { tx } from "./txn";
 import { buildApp } from "./app";
@@ -27,6 +27,23 @@ const lines = (file: string): Array<Record<string, unknown>> =>
     : [];
 
 describe("durable audit outbox", () => {
+  it("bounds synchronous application startup to one outbox page", async () => {
+    const db = openDb(":memory:");
+    for (let index = 0; index < AUDIT_DRAIN_PAGE_SIZE + 1; index += 1) {
+      enqueueAudit(db, { ...record(), id: `project-${index}` }, `startup-audit-${index}`);
+    }
+    const appendMany = vi.fn((entries: readonly AuditEntry[]) => entries.length > 0);
+    const app = buildApp(db, {
+      audit: { append: () => true, appendMany, degraded: false },
+    });
+
+    expect(appendMany).toHaveBeenCalledOnce();
+    expect(appendMany.mock.calls[0]![0]).toHaveLength(AUDIT_DRAIN_PAGE_SIZE);
+    expect(pendingAuditCount(db)).toBe(1);
+    await app.close();
+    db.close();
+  });
+
   it("recovers an API mutation whose first process could not deliver its audit record", async () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-api-restart-"));
     const dbPath = join(dir, "capacitylens.db");

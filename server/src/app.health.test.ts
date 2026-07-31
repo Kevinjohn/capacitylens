@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildApp } from "./app";
 import { openDb } from "./db";
 import type { AuditSink } from "./audit";
+import { AUDIT_DRAIN_PAGE_SIZE, enqueueAudit } from "./auditOutbox";
 
 // P1.4 (flag CAPACITYLENS_HEALTH_DEEP → opts.healthDeep): ON makes /api/health prove the DB
 // answers a constant SELECT 1; OFF keeps today's unconditional { ok: true } — the exact body
@@ -14,7 +15,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     const app = buildApp(openDb(":memory:"), { healthDeep: true });
     const res = await app.inject({ method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true, db: true, audit: "ok" });
+    expect(res.json()).toEqual({ ok: true, db: true, audit: "ok", auditPending: 0 });
   });
 
   it("reports audit: degraded (still 200, db: true) when the audit sink has latched degraded", async () => {
@@ -29,7 +30,39 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
     });
     const res = await app.inject({ method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true, db: true, audit: "degraded" });
+    expect(res.json()).toEqual({ ok: true, db: true, audit: "degraded", auditPending: 0 });
+  });
+
+  it("reports a healthy backlog as recovering with its pending row count", async () => {
+    const db = openDb(":memory:");
+    const app = buildApp(db, { healthDeep: true });
+    await app.ready();
+    for (let index = 0; index < AUDIT_DRAIN_PAGE_SIZE + 1; index += 1) {
+      enqueueAudit(
+        db,
+        {
+          ts: "2026-07-31T00:00:00.000Z",
+          userId: "user-1",
+          accountId: "account-1",
+          action: "update",
+          entity: "projects",
+          id: `project-${index}`,
+          changedFields: ["name"],
+        },
+        `health-audit-${index}`,
+      );
+    }
+
+    const res = await app.inject({ method: "GET", url: "/api/health" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      ok: true,
+      db: true,
+      audit: "recovering",
+      auditPending: AUDIT_DRAIN_PAGE_SIZE + 1,
+    });
+    await app.close();
+    db.close();
   });
 
   it("reports configured backup freshness and latched degradation", async () => {
@@ -46,6 +79,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
       ok: true,
       db: true,
       audit: "ok",
+      auditPending: 0,
       backup: { status: "ok", lastSuccessAt: "2026-07-27T12:00:00.000Z" },
     });
 
@@ -69,6 +103,7 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
       ok: true,
       db: true,
       audit: "ok",
+      auditPending: 0,
       internalTls: { status: "expiring", expiresAt, daysRemaining: 29 },
     });
   });
