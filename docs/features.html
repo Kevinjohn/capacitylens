@@ -68,7 +68,7 @@
   }
   .callout p { margin: 0; }
 
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
   .card {
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 1rem 1.15rem;
@@ -78,7 +78,8 @@
 
   .shot { margin: 1rem 0 0; }
   .shot a { display: inline-block; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-  .shot img { display: block; max-width: 100%; width: 640px; height: auto; }
+  .shot a { display: block; }
+  .shot img { display: block; width: 100%; height: auto; }
   .shot figcaption { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
 
   table { border-collapse: collapse; width: 100%; margin: 0; font-size: .9rem; background: var(--surface); }
@@ -127,14 +128,10 @@
 <p class="lede">No modules to enable, no setup wizard. Create people and projects, drag out allocations, and the answers appear.</p>
 
 <div class="cards">
-  <div class="card"><h3>The Schedule</h3><p>One screen, zoomable from 1 to 8 weeks. Drag to allocate, mark work tentative, confirmed or completed, and switch the same canvas into time-off drawing mode. Full undo/redo.</p></div>
+  <div class="card"><h3>The Schedule</h3><p>One screen, zoomable from 1 to 8 weeks. Drag to allocate, mark work tentative, confirmed or completed, and draw time off — holiday, sick, unpaid — onto the same canvas so capacity is always honest. Full undo/redo, filter by person, discipline, client, project or activity.</p></div>
   <div class="card"><h3>Utilisation at a glance</h3><p>Live percentages per person, per discipline, and for the whole team. Over-capacity days flag themselves in red — no report to run.</p></div>
-  <div class="card"><h3>People, not logins</h3><p>Schedule permanent staff, freelancers and contractors without creating accounts for them. App access and being-on-the-schedule are deliberately separate.</p></div>
-  <div class="card"><h3>Clients → Projects → Activities</h3><p>A three-level shape that matches how agencies actually book work, with a built-in "Internal" client for the non-billable stuff.</p></div>
-  <div class="card"><h3>Time off</h3><p>Holiday, sick, unpaid and other — drawn straight onto the schedule so capacity is always honest. Notes on time off are private to Admins and Owners.</p></div>
-  <div class="card"><h3>Your data, portable</h3><p>Full JSON export and import from the sidebar. Nightly SQLite backups in the Docker setup. No export ransom, ever.</p></div>
-  <div class="card"><h3>Search &amp; filters</h3><p>Filter the schedule by person, discipline, client, project or activity; hide tentative work for a committed-only view.</p></div>
-  <div class="card"><h3>Light &amp; dark</h3><p>Both themes, or follow the OS. Accessibility is tested in CI (axe), not bolted on.</p></div>
+  <div class="card"><h3>People, not logins</h3><p>Schedule permanent staff, freelancers and contractors without creating accounts for them. Work hangs off a simple Clients → Projects → Activities shape, with a built-in "Internal" client for the non-billable stuff.</p></div>
+  <div class="card"><h3>Your data, portable</h3><p>Full JSON export and import from the sidebar; nightly SQLite backups in the Docker setup. No export ransom, ever. Light and dark themes, accessibility tested in CI.</p></div>
 </div>
 
 <figure class="shot"><a href="screenshots/flows/schedule.jpg"><img src="screenshots/flows/schedule.jpg" alt="The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block" loading="lazy"></a><figcaption>The whole product in one screen: people, work, capacity, time off.</figcaption></figure>
@@ -143,18 +140,26 @@
 <h2>Off by default, on when you need it</h2>
 <p class="lede">Most tools ship everything on and make you prune. CapacityLens ships the minimum and lets you grow into the rest — each toggle lives in Settings with a plain-language explanation of what it changes. Turning something off never deletes data; it comes back when you flip the switch.</p>
 
+<h3>Planning features — flip them in Settings</h3>
 <div class="table-wrap">
 <table>
 <tr><th>Capability</th><th>Default</th><th>What flipping it does</th></tr>
 <tr><td>Placeholders</td><td><span class="state off">Off</span></td><td>Unfilled "slots" you can pencil into the schedule before a person is hired or assigned.</td></tr>
 <tr><td>External resources</td><td><span class="state off">Off</span></td><td>Print shops, overflow studios — companies you hand work to. Visible on the schedule, but they carry no hours and never count toward your team's capacity.</td></tr>
+<tr><td>Offline access</td><td><span class="state off">Off</span></td><td>A seven-day, view-only device snapshot for train-journey schedule checks. Never queues edits.</td></tr>
+<tr><td>Demo data</td><td><span class="state off">Off</span></td><td>A fresh install is empty; <code>CAPACITYLENS_SEED_DEMO=1</code> seeds the two-company sample agency for evaluation.</td></tr>
+<tr><td>Disciplines</td><td><span class="state on">On</span></td><td>Grouping people by craft (Design, Development…). On because most agencies think this way — one toggle hides it everywhere if yours doesn't.</td></tr>
+</table>
+</div>
+
+<h3>Platform &amp; security — flip them in .env, when you get there</h3>
+<div class="table-wrap">
+<table>
+<tr><th>Capability</th><th>Default</th><th>What flipping it does</th></tr>
 <tr><td>Authentication</td><td><span class="state off">Off</span></td><td>The login wall itself. Open access on a trusted network by default; password auth or SSO when you want real accounts. (<a href="setup-guide.html">The five-minute setup.</a>)</td></tr>
 <tr><td>Multiple companies</td><td><span class="state off">Off</span></td><td>One company per instance until you set <code>CAPACITYLENS_MULTI_ACCOUNT=1</code>. No accidental multi-tenancy.</td></tr>
 <tr><td>Open signup</td><td><span class="state off">Off</span></td><td>Closed the moment the Owner exists — joining is invite-only unless you deliberately reopen it.</td></tr>
 <tr><td>MFA (TOTP)</td><td><span class="state off">Off</span></td><td>One env var (<code>SMALLSASS_ACCOUNT_REQUIRE_MFA=1</code>) requires authenticator codes for every password login.</td></tr>
-<tr><td>Offline access</td><td><span class="state off">Off</span></td><td>A seven-day, view-only device snapshot for train-journey schedule checks. Never queues edits.</td></tr>
-<tr><td>Demo data</td><td><span class="state off">Off</span></td><td>A fresh install is empty; <code>CAPACITYLENS_SEED_DEMO=1</code> seeds the two-company sample agency for evaluation.</td></tr>
-<tr><td>Disciplines</td><td><span class="state on">On</span></td><td>Grouping people by craft (Design, Development…). On because most agencies think this way — one toggle hides it everywhere if yours doesn't.</td></tr>
 <tr><td>Audit log</td><td><span class="state on">On</span></td><td>Every change recorded, on by default and refusing to be disabled in production. The one thing you shouldn't be able to forget.</td></tr>
 <tr><td>Stale-write protection</td><td><span class="state on">On</span></td><td>Two people editing the same thing? The second save is challenged instead of silently overwriting. Opt-out, not opt-in.</td></tr>
 </table>
