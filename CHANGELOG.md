@@ -10,6 +10,24 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.31.1-alpha.1] — 2026-08-01
+
+This patch makes the selected segment of a segmented control visible. It changes no behaviour and
+leaves the portable export and SQLite database schema versions unchanged.
+
+### Fixed
+
+- Gave the selected segment of a segmented control a brand tint, paired ink and outline in place of
+  the stock accent fill, which resolved to the base surface token and left the active option at
+  1.09:1 in light and 1.08:1 in dark — effectively invisible. The schedule's zoom and work/time-off
+  groups and the four Settings groups now identify their selection well clear of the 3:1 that WCAG
+  1.4.11 asks of the visual information conveying a control's state.
+
+### Tests and documentation
+
+- Regenerated the light and dark schedule screenshots, which still showed the pre-palette bar
+  colours from before the preset swatches landed and so misrepresented label contrast on the bars.
+
 ## [0.31.0-alpha.1] — 2026-07-31
 
 This minor release resolves all 15 findings from the 31 July whole-repository maintainability
@@ -2547,6 +2565,7 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
 [Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.0-alpha.1...HEAD
+[0.31.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.0-alpha.1...v0.31.1-alpha.1
 [0.31.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.30.0-alpha.1...v0.31.0-alpha.1
 [0.30.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.29.0-alpha.1...v0.30.0-alpha.1
 [0.29.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.28.6-alpha.1...v0.29.0-alpha.1
