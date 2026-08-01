@@ -7,6 +7,7 @@ import {
   readStoredIntroSeen,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
+  readStoredCompactView,
   readStoredSnapToWeekStart,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
@@ -15,6 +16,7 @@ import {
   writeStoredIntroSeen,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
+  writeStoredCompactView,
   writeStoredSnapToWeekStart,
   writeStoredUtilizationPrefs,
 } from "../../lib/displayPrefs";
@@ -37,6 +39,7 @@ type RuntimeSliceKeys =
   | "sidebarOpen"
   | "minimiseWeekends"
   | "snapToWeekStart"
+  | "compactView"
   | "fakeSignedIn"
   | "introSeen"
   | "gettingStartedDismissed"
@@ -58,6 +61,7 @@ type RuntimeSliceKeys =
   | "setSidebarOpen"
   | "setMinimiseWeekends"
   | "setSnapToWeekStart"
+  | "setCompactView"
   | "setFakeSignedIn"
   | "setIntroSeen"
   | "setGettingStartedDismissed"
@@ -93,6 +97,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
   sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
   minimiseWeekends: readStoredMinimiseWeekends(),
   snapToWeekStart: readStoredSnapToWeekStart(),
+  compactView: readStoredCompactView(),
   fakeSignedIn: readStoredFakeSignedIn(),
   introSeen: readStoredIntroSeen(),
   gettingStartedDismissed: readStoredGettingStartedDismissed(),
@@ -142,6 +147,10 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
   setSnapToWeekStart: (value) => {
     writeStoredSnapToWeekStart(value);
     set({ snapToWeekStart: value });
+  },
+  setCompactView: (value) => {
+    writeStoredCompactView(value);
+    set({ compactView: value });
   },
   setFakeSignedIn: (value) => {
     writeStoredFakeSignedIn(value);

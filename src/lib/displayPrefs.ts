@@ -216,6 +216,25 @@ export function writeStoredSnapToWeekStart(on: boolean): void {
   writeBoolPref(SNAP_TO_WEEK_START_STORAGE_KEY, on);
 }
 
+// "Compact view": the schedule's vertical density. Device-global like the prefs above (own key, not
+// account data, NOT in AppData/export) and DEFAULTS OFF, which is the roomier layout — off is the
+// density the product ships with, and turning it ON restores the tighter original spacing for people
+// who would rather fit more people on screen. A plain on/off string — it's a single bool. The
+// geometry it selects lives in components/scheduler/layout.ts (`schedulerDensity`).
+
+const COMPACT_VIEW_STORAGE_KEY = `${STORAGE_KEY_PREFIX}compactView`;
+
+/** The saved "compact view" choice; defaults to FALSE (roomy) when unset, unrecognised, or
+ *  when storage is unavailable. */
+export function readStoredCompactView(): boolean {
+  return readBoolPref(COMPACT_VIEW_STORAGE_KEY, false);
+}
+
+/** Persist the "compact view" choice. Best-effort, like the prefs above. */
+export function writeStoredCompactView(on: boolean): void {
+  writeBoolPref(COMPACT_VIEW_STORAGE_KEY, on);
+}
+
 // "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
 // "log in first, then pick a company" flow. Device-global like the prefs above (own key,
 // on/off string, NOT account data) and DEFAULTS OFF so the demo sign-in shows on first run.

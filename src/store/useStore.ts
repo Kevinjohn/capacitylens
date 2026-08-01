@@ -271,6 +271,11 @@ export interface StoreState {
    *  ON. Governs FREE SCROLL ONLY — the navigation snap (zoom / Prev-Next / date-picker) is always
    *  on, independent of this flag. */
   snapToWeekStart: boolean;
+  /** Schedule vertical density. Device-global like `theme` (own localStorage key, NOT in
+   *  AppData/export) and defaults OFF, which is the ROOMIER layout — off is what the product
+   *  ships, and ON restores the tighter original spacing for people who want more rows on
+   *  screen. Selects the geometry in `components/scheduler/layout.ts` (`schedulerDensity`). */
+  compactView: boolean;
   /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
    *  the account picker so a viewer sees "log in first, then pick a company". Device-global
    *  like `theme` (own localStorage key, NOT in AppData/export), defaults OFF (signed out).
@@ -345,6 +350,7 @@ export interface StoreState {
   setMinimiseWeekends: (value: boolean) => void;
   /** Toggle the snap-to-week-start preference: persist and update state. */
   setSnapToWeekStart: (value: boolean) => void;
+  setCompactView: (value: boolean) => void;
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void;
   /** Mark the post-login intro page as seen on this device: persist and update state. */

@@ -1,4 +1,4 @@
-import { laneTop, packLanes, rowHeightForLanes } from "../../lib/lanePacking";
+import { laneTop, packLanes, rowHeightForLanes, type LaneLayout } from "../../lib/lanePacking";
 import {
   capacityAllocationsForMode,
   dayCapacity,
@@ -14,7 +14,7 @@ import { externalBand, resourcesByDiscipline, type DisciplineGroup } from "../..
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import { NEUTRAL_COLOR } from "../../lib/palette";
-import { laneLayout } from "./layout";
+import { laneLayout as compactLaneLayout } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { Filters } from "../../store/useStore";
 import type {
@@ -196,6 +196,13 @@ export interface SchedulerModelOptions {
     showInternalProjects?: boolean;
     showInternalActivities?: boolean;
   };
+  // Vertical geometry for the current density ("Compact view" device pref — see
+  // components/scheduler/layout.ts). It feeds `laneTop` / `rowHeightForLanes` below, so every bar's
+  // `top` and every row's `rowHeight` derive from it. SchedulerGrid passes `laneLayoutFor(compact)`
+  // and lists it as a memo dependency, or a density change would leave stale row heights behind.
+  // Defaults to the compact geometry so callers that don't care about density (tests, and any
+  // consumer measuring the original layout) keep their existing numbers.
+  laneLayout?: LaneLayout;
 }
 
 /** Recompute only the visible-window percentage while retaining the expensive bar, lane and
@@ -254,6 +261,7 @@ export function buildSchedulerModel({
     showInternalProjects = true,
     showInternalActivities = true,
   },
+  laneLayout = compactLaneLayout,
 }: SchedulerModelOptions): GroupModel[] {
   const searchable = (value: string | undefined): string =>
     (value ?? "")

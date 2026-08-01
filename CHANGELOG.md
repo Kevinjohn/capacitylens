@@ -10,6 +10,30 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.31.2-alpha.1] — 2026-08-01
+
+This patch adds a Compact view density toggle for the schedule. The schedule now ships with roomier
+vertical spacing by default; Compact view restores the previous, tighter layout. It changes no data
+and leaves the portable export and SQLite database schema versions unchanged.
+
+### Added
+
+- Added a "Compact view" toggle to Settings → Schedule, off by default. With it off the schedule
+  and the left-hand navigation get roughly double the vertical spacing, which is now the default
+  layout; turning it on restores the previous tighter spacing for anyone who would rather fit more
+  people on screen. The choice is per-device, like the other schedule display preferences, and does
+  not travel in an export.
+
+  Three things deliberately do not follow the general scale. Allocation bars keep the same height at
+  both densities, so no label loses room. Discipline band headers keep theirs too — a band holds one
+  short label and nothing else, so padding it out would only make a tall empty stripe. And the gap
+  between two overlapping allocations on the same person scales harder than everything else (4px to
+  16px rather than 8px), because at the shared rate the surrounding row padding swamped it and the
+  two projects still read as touching.
+
+  Horizontal geometry is untouched throughout, and the collapsed icon rail is unaffected: only gaps
+  and padding move, never any control's height.
+
 ## [0.31.1-alpha.1] — 2026-08-01
 
 This patch makes the selected segment of a segmented control visible. It changes no behaviour and
@@ -2564,7 +2588,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.2-alpha.1...HEAD
+[0.31.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.1-alpha.1...v0.31.2-alpha.1
 [0.31.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.0-alpha.1...v0.31.1-alpha.1
 [0.31.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.30.0-alpha.1...v0.31.0-alpha.1
 [0.30.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.29.0-alpha.1...v0.30.0-alpha.1

@@ -69,6 +69,7 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
       geom={GEOM}
       origin={ORIGIN}
       rowHeight={52}
+      barTop={10}
       bars={[makeBar()]}
       weekStartsOn={1}
       onEdit={onEdit}

@@ -8,6 +8,7 @@ import { disciplinesEnabledFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { errorMessage } from "../../lib/errorMessage";
 import { ZOOM_LEVELS } from "../../lib/schedulerConfig";
+import { schedulerDensity } from "./layout";
 import { SegmentedControl } from "../common/ui";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -21,6 +22,8 @@ export function SchedulerToolbar() {
   // and Undo/Redo are hidden. Navigation + filters (reads) stay. null/owner/admin/editor (incl.
   // OFF/local) → all affordances shown, byte-identical to today.
   const canEdit = useCanEdit();
+  const compactView = useStore((s) => s.compactView);
+  const density = schedulerDensity(compactView);
   const zoom = useStore((s) => s.ui.zoom);
   const setZoom = useStore((s) => s.setZoom);
   const panDays = useStore((s) => s.panDays);
@@ -124,8 +127,15 @@ export function SchedulerToolbar() {
       {/* flex-wrap (mirrors the filters row below): at ~320 CSS px the title + nav + date + zoom +
           draw + undo/redo would otherwise pack onto one non-wrapping line and force horizontal
           scroll, failing WCAG 1.4.10 Reflow. Wrapping lets the chrome reflow into stacked lines
-          instead. The gap/padding are unchanged, so wider viewports look identical. */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+          instead. Wrapping is the only thing that behaviour changes — it does not alter the
+          gap/padding at any width, so wider viewports look identical. */}
+      {/* Vertical density ("Compact view" device pref, default OFF = roomier). Only the Y axis moves:
+          gap-x stays at 2 in both densities because this row wraps, and widening the horizontal gap
+          would push it to wrap sooner — the opposite of the Reflow behaviour above. */}
+      <div
+        className="flex flex-wrap items-center gap-x-2 px-4"
+        style={{ paddingBlock: density.toolbarPadY, rowGap: density.toolbarGapY }}
+      >
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
         </div>
@@ -210,7 +220,9 @@ export function SchedulerToolbar() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-sm">
+      <div
+        className={`flex flex-wrap items-center gap-x-2 px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
+      >
         <Input
           value={searchInput}
           onChange={(e) => onSearchChange(e.target.value)}

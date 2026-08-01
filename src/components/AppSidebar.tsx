@@ -25,6 +25,9 @@ import {
 } from "./ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { m } from "@/i18n";
+import { schedulerDensity } from "./scheduler/layout";
+import { useStore } from "../store/useStore";
+import type React from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
 
 interface AppSidebarProps {
@@ -48,10 +51,29 @@ export function AppSidebar({
   const { pathname } = useLocation();
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const expanded = isMobile ? openMobile : open;
+  const compactView = useStore((s) => s.compactView);
   const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
 
+  // Vertical density ("Compact view" device pref, default OFF = roomier). Published as CSS custom
+  // properties on the sidebar root rather than threaded as props: the nav is assembled from several
+  // components (this file plus ImportExport's "Data" group), and the rules below key off the shadcn
+  // primitives' own `data-slot` hooks, so every menu inside the sidebar picks the rhythm up without
+  // each one having to read the store. Only GAPS and PADDING move — item height is untouched, so the
+  // collapsed icon rail (which pins each button square) is unaffected. See src/index.css.
+  const density = schedulerDensity(compactView);
+
   return (
-    <Sidebar collapsible="icon" data-testid="app-sidebar">
+    <Sidebar
+      collapsible="icon"
+      data-testid="app-sidebar"
+      style={
+        {
+          "--nav-menu-gap-y": `${density.navMenuGapY}px`,
+          "--nav-section-pad-y": `${density.navSectionPadY}px`,
+          "--nav-section-gap-y": `${density.navSectionGapY}px`,
+        } as React.CSSProperties
+      }
+    >
       <SidebarHeader className="flex-row items-center">
         <Tooltip>
           <TooltipTrigger asChild>

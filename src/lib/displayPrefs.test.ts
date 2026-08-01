@@ -7,6 +7,8 @@ import {
   writeStoredMinimiseWeekends,
   readStoredSnapToWeekStart,
   writeStoredSnapToWeekStart,
+  readStoredCompactView,
+  writeStoredCompactView,
   readStoredFakeSignedIn,
   writeStoredFakeSignedIn,
   readStoredUtilizationPrefs,
@@ -73,6 +75,43 @@ describe("minimise-weekends preference", () => {
   it("persists under the documented storage key", () => {
     writeStoredMinimiseWeekends(false);
     expect(localStorage.getItem("capacitylens/minimiseWeekends")).toBe("off");
+  });
+});
+
+// Compact view is the ONE device pref here that defaults OFF-as-in-roomier: off is the density the
+// product ships, and turning it on restores the older tighter spacing. So "unset" must read false.
+describe("compact-view preference", () => {
+  beforeEach(() => {
+    localStorage.removeItem("capacitylens/compactView");
+  });
+
+  it("defaults to FALSE (roomy) when the user has never chosen", () => {
+    expect(readStoredCompactView()).toBe(false);
+  });
+
+  it("round-trips an explicit on/off choice", () => {
+    writeStoredCompactView(true);
+    expect(readStoredCompactView()).toBe(true);
+    writeStoredCompactView(false);
+    expect(readStoredCompactView()).toBe(false);
+  });
+
+  it("treats an unrecognised stored value as the default (roomy)", () => {
+    localStorage.setItem("capacitylens/compactView", "maybe");
+    expect(readStoredCompactView()).toBe(false);
+  });
+
+  it("persists under the documented storage key", () => {
+    writeStoredCompactView(true);
+    expect(localStorage.getItem("capacitylens/compactView")).toBe("on");
+  });
+
+  it("swallows a blocked read to the default (roomy)", () => {
+    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+    expect(readStoredCompactView()).toBe(false);
+    spy.mockRestore();
   });
 });
 

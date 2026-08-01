@@ -5,7 +5,7 @@ import { SchedulerGrid } from "./SchedulerGrid";
 import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { DEFAULT_ACCOUNT_ID, makeAppData } from "../../test/fixtures";
-import { LAYOUT } from "./layout";
+import { LAYOUT, schedulerDensity } from "./layout";
 
 const ACC = DEFAULT_ACCOUNT_ID;
 
@@ -87,6 +87,10 @@ beforeEach(() => {
   useStore.getState().setOriginDate("2026-06-01");
   useStore.getState().setZoom(1); // widest columns
   useStore.getState().setDrawMode("work");
+  // Density is a persisted device pref, so it survives between tests in this file — pin it to the
+  // shipped default (roomy) or a test that flips it changes the row/header heights every test after
+  // it measures.
+  useStore.getState().setCompactView(false);
   useStore.getState().setUtilizationPref("showTotal", true);
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
@@ -204,12 +208,34 @@ describe("SchedulerGrid", () => {
     expect(screen.getAllByTestId("utilization").length).toBeGreaterThan(0);
   });
 
+  // The density pref has to reach BOTH pipelines: the model (row heights, bar offsets) and the view
+  // (group headers, identity band). Measuring the rendered row proves the model half actually
+  // rebuilt — a stale memo would keep the old height even with the pref flipped.
+  it("renders taller rows with Compact view off, while the discipline band stays put", () => {
+    const measure = () => {
+      const row = screen.getAllByTestId("scheduler-row")[0]!;
+      const group = screen.getAllByTestId("discipline-group")[0]!;
+      return { row: row.style.height, group: group.style.height };
+    };
+
+    const roomy = renderGrid() && measure();
+    act(() => useStore.getState().setCompactView(true));
+    const compact = measure();
+
+    expect(parseInt(roomy.row, 10)).toBeGreaterThan(parseInt(compact.row, 10));
+    // The band is deliberately EXEMPT from the density change — same height either way.
+    expect(compact.group).toBe(`${LAYOUT.groupHeaderHeight}px`);
+    expect(roomy.group).toBe(`${LAYOUT.groupHeaderHeight}px`);
+  });
+
   it("does not replay a handled resource jump after a later model change", () => {
     renderGrid();
     const grid = screen.getByTestId("scheduler-grid");
 
     act(() => useStore.getState().jumpToResource("r1"));
-    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight);
+    // The first row sits directly under one discipline header, whose height follows the active
+    // density — the store default is Compact OFF (roomy), so assert the roomy geometry.
+    expect(grid.scrollTop).toBe(schedulerDensity(false).groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
     act(() => {
@@ -235,7 +261,7 @@ describe("SchedulerGrid", () => {
 
     act(() => useStore.getState().jumpToResource("r1"));
     expect(useStore.getState().ui.collapsedGroups).not.toContain("d1");
-    expect(grid.scrollTop).toBe(LAYOUT.groupHeaderHeight);
+    expect(grid.scrollTop).toBe(schedulerDensity(false).groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
   });
 

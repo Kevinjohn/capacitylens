@@ -2,10 +2,11 @@ import { readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { resolve } from "node:path";
 
-// Rebased after identity-scoped account-command recovery; retain about 0.2% raw headroom while the
-// compressed ceiling remains unchanged.
-const RAW_LIMIT = 532_000;
-const GZIP_LIMIT = 165_000;
+// Rebased after the Compact view density toggle, which added the density geometry, its device
+// preference and the Settings control (532_317 raw / 165_003 gzip — 317 bytes over the previous raw
+// ceiling and 3 over the compressed one). Both keep about 0.2% headroom, as the previous rebase did.
+const RAW_LIMIT = 533_500;
+const GZIP_LIMIT = 165_400;
 const index = await readFile(resolve("dist/index.html"), "utf8");
 
 const moduleEntries = [...index.matchAll(/<script\b([^>]*)>/gi)]

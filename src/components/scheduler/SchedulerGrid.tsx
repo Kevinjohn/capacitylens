@@ -21,7 +21,7 @@ import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
 import { Avatar, EmptyState } from "../common/ui";
 import { resourceDisplayName } from "../../lib/metadata";
-import { LAYOUT } from "./layout";
+import { LAYOUT, laneLayoutFor, schedulerDensity } from "./layout";
 import { DateHeader } from "./DateHeader";
 import { ResourceLane } from "./ResourceLane";
 import { buildSchedulerModel, refreshVisibleUtilization } from "./schedulerModel";
@@ -195,6 +195,14 @@ export function SchedulerGrid() {
 
   const blocksMode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === "blocks");
 
+  // Vertical density ("Compact view" device pref, default OFF = roomier). `density` covers the
+  // geometry the VIEW draws directly; `rowLaneLayout` is the projection the MODEL packs lanes with.
+  // Both must be memo dependencies of everything derived from them (the model, and the heights
+  // prefix-sum below) or a density change would leave stale row heights and bar offsets behind.
+  const compactView = useStore((s) => s.compactView);
+  const density = useMemo(() => schedulerDensity(compactView), [compactView]);
+  const rowLaneLayout = useMemo(() => laneLayoutFor(compactView), [compactView]);
+
   const staticModel = useMemo(
     () =>
       buildSchedulerModel({
@@ -215,6 +223,7 @@ export function SchedulerGrid() {
           showInternalProjects,
           showInternalActivities,
         },
+        laneLayout: rowLaneLayout,
       }),
     [
       data,
@@ -230,6 +239,7 @@ export function SchedulerGrid() {
       internalColourMode,
       showInternalProjects,
       showInternalActivities,
+      rowLaneLayout,
     ],
   );
   const model = useMemo(
@@ -299,8 +309,8 @@ export function SchedulerGrid() {
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
   // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
   const heights = useMemo(
-    () => items.map((it) => (it.kind === "group" ? LAYOUT.groupHeaderHeight : it.row.rowHeight)),
-    [items],
+    () => items.map((it) => (it.kind === "group" ? density.groupHeaderHeight : it.row.rowHeight)),
+    [items, density],
   );
   const layout = useMemo(() => buildLayout(heights), [heights]);
 
@@ -346,7 +356,7 @@ export function SchedulerGrid() {
       aria-rowindex={rowIndex}
       data-testid="discipline-group"
       className="flex border-y border-line-soft bg-surface"
-      style={{ height: LAYOUT.groupHeaderHeight }}
+      style={{ height: density.groupHeaderHeight }}
     >
       <div
         role="rowheader"
@@ -460,10 +470,7 @@ export function SchedulerGrid() {
               (the band IS the whole row), while a taller multi-allocation row keeps the name
               aligned with the first bar instead of drifting to the row's centre as it grows.
               The "+/%" box stays self-stretch (full height); only this block is banded. */}
-          <div
-            className="flex min-w-0 flex-1 items-center gap-2"
-            style={{ height: LAYOUT.rowPadding * 2 + LAYOUT.barHeight }}
-          >
+          <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
             {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
                 discipline reads as one colour; fall back to the resource's own colour for
                 the ungrouped "No discipline" bucket. */}
@@ -554,6 +561,7 @@ export function SchedulerGrid() {
           geom={geom}
           origin={ui.originDate}
           rowHeight={rowHeight}
+          barTop={density.rowPadding}
           bars={bars}
           placeholder={resource.kind === "placeholder"}
           weekStartsOn={calendarWeekStartsOn}

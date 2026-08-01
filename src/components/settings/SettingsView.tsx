@@ -147,7 +147,9 @@ export function SettingsView() {
     persistenceDiagnosticsSnapshot,
   );
   const snapToWeekStart = useStore((s) => s.snapToWeekStart);
+  const compactView = useStore((s) => s.compactView);
   const setSnapToWeekStart = useStore((s) => s.setSnapToWeekStart);
+  const setCompactView = useStore((s) => s.setCompactView);
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? "hourly";
   const weekStartsOn = weekStartsOnFor(data, activeAccountId);
@@ -406,6 +408,11 @@ export function SettingsView() {
               label={m.settings_schedule_snap_week_start()}
               on={snapToWeekStart}
               onToggle={() => setSnapToWeekStart(!snapToWeekStart)}
+            />
+            <ToggleRow
+              label={m.settings_schedule_compact_view()}
+              on={compactView}
+              onToggle={() => setCompactView(!compactView)}
             />
           </div>
         </SettingsCard>

@@ -393,6 +393,27 @@ input[type="radio"] {
    box-shadow is NOT clipped by the bar's own overflow-hidden. On focus this box-shadow overrides the
    resting `ring-1 ring-black/5` + `shadow-sm` (box-shadow is one property, not additive) — intentional:
    the bold focus ring replaces the faint resting ring while focused. */
+/* Left-hand nav vertical density ("Compact view" device pref, default OFF = roomier). AppSidebar
+   publishes the three px values as custom properties on the sidebar root; these rules apply them via
+   the shadcn Sidebar primitives' own `data-slot` hooks, so the main nav, the "Data" group (owned by
+   ImportExport) and the footer all follow one knob without prop-drilling through each component.
+   The fallbacks are the primitives' stock Tailwind values (gap-1 / p-2 / gap-2), so the nav still
+   renders correctly if a sidebar is ever mounted outside AppSidebar. GAPS AND PADDING ONLY — item
+   height is deliberately untouched, so `group-data-[collapsible=icon]:size-8!` keeps the collapsed
+   icon rail square. Geometry lives in components/scheduler/layout.ts (`schedulerDensity`). */
+[data-slot="sidebar-menu"] {
+  row-gap: var(--nav-menu-gap-y, 0.25rem);
+}
+
+[data-slot="sidebar-group"] {
+  padding-block: var(--nav-section-pad-y, 0.5rem);
+}
+
+[data-slot="sidebar-content"],
+[data-slot="sidebar-footer"] {
+  row-gap: var(--nav-section-gap-y, 0.5rem);
+}
+
 .scheduler-bar:focus-visible {
   outline: 2px solid var(--color-brand); /* identity layer (blue) — NOT relied on for contrast */
   outline-offset: 2px;

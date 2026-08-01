@@ -74,6 +74,7 @@ export const ResourceLane = memo(function ResourceLane({
   geom,
   origin,
   rowHeight,
+  barTop,
   bars,
   placeholder = false,
   weekStartsOn,
@@ -95,6 +96,10 @@ export const ResourceLane = memo(function ResourceLane({
   geom: ColumnGeometry;
   origin: ISODate;
   rowHeight: number;
+  /** Top offset of lane 0 — the current density's `rowPadding` (see layout.ts). Passed in rather
+   *  than read from LAYOUT so the draw-to-create ghost lands on the same line as the real bar it
+   *  becomes, whichever density is active. */
+  barTop: number;
   bars: BarLayout[];
   placeholder?: boolean;
   weekStartsOn: 0 | 1;
@@ -328,7 +333,7 @@ export const ResourceLane = memo(function ResourceLane({
           style={{
             left: geom.x(Math.min(draw.a, draw.b)),
             width: geom.spanWidth(Math.min(draw.a, draw.b), Math.max(draw.a, draw.b)),
-            top: LAYOUT.rowPadding,
+            top: barTop,
             height: LAYOUT.barHeight,
           }}
         />
