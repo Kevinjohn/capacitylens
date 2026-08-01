@@ -10,6 +10,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.31.3-alpha.1] — 2026-08-01
+
+This patch loosens the bundle budget. It changes no application behaviour and leaves the portable
+export and SQLite database schema versions unchanged.
+
+### Changed
+
+- Raised the entry-bundle ceiling to 1 MB gzip (with the raw limit derived from the bundle's own
+  ~3.2:1 compression ratio). The previous limits sat about 0.2% above the measured size, so nearly
+  every feature tripped them and cost a rebase commit over a few hundred bytes. The check is meant
+  to catch one careless import adding hundreds of KB, not to police normal growth; at ~165 KB gzip
+  today the app has roughly six times the headroom it needs, and the measured sizes are still logged
+  on every build so real drift stays visible.
+
 ## [0.31.2-alpha.1] — 2026-08-01
 
 This patch adds a Compact view density toggle for the schedule. The schedule now ships with roomier
@@ -2588,7 +2602,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.3-alpha.1...HEAD
+[0.31.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.2-alpha.1...v0.31.3-alpha.1
 [0.31.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.1-alpha.1...v0.31.2-alpha.1
 [0.31.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.0-alpha.1...v0.31.1-alpha.1
 [0.31.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.30.0-alpha.1...v0.31.0-alpha.1
