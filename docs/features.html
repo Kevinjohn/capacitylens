@@ -1,220 +1,590 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CapacityLens — Simple by default, scalable by design</title>
-<style>
-  /* Palette mirrors src/index.css so this page reads as part of the product. */
-  :root {
-    --base: #f4f5f8; --surface: #ffffff; --line: #e6e8ee;
-    --ink: #1c2230; --muted: #5b6472;
-    --brand: #2563eb; --brand-strong: #1d4ed8;
-    --brand-soft: #e2eafc; --brand-soft-ink: #1d4ed8;
-    --ok: #047857; --warn: #d97706;
-    --code-bg: #eceef3; --radius: 0.625rem;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --base: #0e1016; --surface: #161922; --line: #2a2f3c;
-      --ink: #e7eaf0; --muted: #a3acbd;
-      --brand: #60a5fa; --brand-strong: #60a5fa;
-      --brand-soft: #1c2a45; --brand-soft-ink: #bfdbfe;
-      --ok: #34d399; --warn: #fbbf24;
-      --code-bg: #1d212c;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    background: var(--base); color: var(--ink); margin: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 16px; line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    padding: 0 1.25rem 5rem;
-  }
-  main { max-width: 900px; margin: 0 auto; }
-  .wordmark {
-    font-weight: 700; font-size: 1.15rem; color: var(--brand-strong);
-    letter-spacing: -.01em; padding: 1.5rem 0 0; display: inline-block;
-  }
-  h1 { font-size: 2.1rem; line-height: 1.15; margin: 1.5rem 0 .75rem; letter-spacing: -.015em; text-wrap: balance; }
-  h2 { font-size: 1.4rem; margin: 0 0 .35rem; letter-spacing: -.01em; }
-  h3 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
-  .eyebrow {
-    display: block; font-size: .72rem; font-weight: 600; letter-spacing: .12em;
-    text-transform: uppercase; color: var(--brand-strong); margin: 3.5rem 0 .25rem;
-  }
-  p, li { max-width: 70ch; }
-  .lede { color: var(--muted); font-size: 1.05rem; }
-  code {
-    background: var(--code-bg); padding: .1em .35em; border-radius: 5px;
-    font: .85em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  }
-  a { color: var(--brand-strong); }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CapacityLens — Simple by default, scalable by design</title>
+    <style>
+      /* Palette mirrors src/index.css so this page reads as part of the product. */
+      :root {
+        --base: #f4f5f8;
+        --surface: #ffffff;
+        --line: #e6e8ee;
+        --ink: #1c2230;
+        --muted: #5b6472;
+        --brand: #2563eb;
+        --brand-strong: #1d4ed8;
+        --brand-soft: #e2eafc;
+        --brand-soft-ink: #1d4ed8;
+        --ok: #047857;
+        --warn: #d97706;
+        --code-bg: #eceef3;
+        --radius: 0.625rem;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --base: #0e1016;
+          --surface: #161922;
+          --line: #2a2f3c;
+          --ink: #e7eaf0;
+          --muted: #a3acbd;
+          --brand: #60a5fa;
+          --brand-strong: #60a5fa;
+          --brand-soft: #1c2a45;
+          --brand-soft-ink: #bfdbfe;
+          --ok: #34d399;
+          --warn: #fbbf24;
+          --code-bg: #1d212c;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--base);
+        color: var(--ink);
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        padding: 0 1.25rem 5rem;
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .wordmark {
+        font-weight: 700;
+        font-size: 1.15rem;
+        color: var(--brand-strong);
+        letter-spacing: -0.01em;
+        padding: 1.5rem 0 0;
+        display: inline-block;
+      }
+      h1 {
+        font-size: 2.1rem;
+        line-height: 1.15;
+        margin: 1.5rem 0 0.75rem;
+        letter-spacing: -0.015em;
+        text-wrap: balance;
+      }
+      h2 {
+        font-size: 1.4rem;
+        margin: 0 0 0.35rem;
+        letter-spacing: -0.01em;
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 2rem 0 0.5rem;
+      }
+      .eyebrow {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--brand-strong);
+        margin: 3.5rem 0 0.25rem;
+      }
+      p,
+      li {
+        max-width: 70ch;
+      }
+      .lede {
+        color: var(--muted);
+        font-size: 1.05rem;
+      }
+      code {
+        background: var(--code-bg);
+        padding: 0.1em 0.35em;
+        border-radius: 5px;
+        font:
+          0.85em/1.4 ui-monospace,
+          "SF Mono",
+          Menlo,
+          Consolas,
+          monospace;
+      }
+      a {
+        color: var(--brand-strong);
+      }
 
-  .hero {
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 2rem 2rem 1.75rem; margin-top: 1rem;
-  }
-  .hero .lede { margin: 0; }
-  .pill {
-    display: inline-block; font-size: .72rem; font-weight: 600; letter-spacing: .06em;
-    text-transform: uppercase; color: var(--brand-soft-ink); background: var(--brand-soft);
-    border-radius: 999px; padding: .2rem .7rem;
-  }
-  .callout {
-    border-left: 3px solid var(--brand); background: var(--brand-soft);
-    padding: .75rem 1rem; border-radius: 0 var(--radius) var(--radius) 0; margin: 1.25rem 0;
-  }
-  .callout p { margin: 0; }
+      .hero {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 2rem 2rem 1.75rem;
+        margin-top: 1rem;
+      }
+      .hero .lede {
+        margin: 0;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--brand-soft-ink);
+        background: var(--brand-soft);
+        border-radius: 999px;
+        padding: 0.2rem 0.7rem;
+      }
+      .callout {
+        border-left: 3px solid var(--brand);
+        background: var(--brand-soft);
+        padding: 0.75rem 1rem;
+        border-radius: 0 var(--radius) var(--radius) 0;
+        margin: 1.25rem 0;
+      }
+      .callout p {
+        margin: 0;
+      }
 
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
-  .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 1rem 1.15rem;
-  }
-  .card h3 { margin: 0 0 .35rem; }
-  .card p { font-size: .9rem; color: var(--muted); margin: 0; }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 1rem 1.15rem;
+      }
+      .card h3 {
+        margin: 0 0 0.35rem;
+      }
+      .card p {
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin: 0;
+      }
 
-  .shot { margin: 1rem 0 0; }
-  .shot a { display: inline-block; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-  .shot a { display: block; }
-  .shot img { display: block; width: 100%; height: auto; }
-  .shot figcaption { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+      .shot {
+        margin: 1rem 0 0;
+      }
+      .shot a {
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .shot a {
+        display: block;
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .shot figcaption {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 0.3rem;
+      }
 
-  table { border-collapse: collapse; width: 100%; margin: 0; font-size: .9rem; background: var(--surface); }
-  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); margin: 1.25rem 0; }
-  th, td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  th { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-  td:first-child { font-weight: 600; white-space: nowrap; }
-  .state {
-    display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .05em;
-    text-transform: uppercase; border-radius: 999px; padding: .1rem .55rem; white-space: nowrap;
-  }
-  .state.off { background: var(--code-bg); color: var(--muted); }
-  .state.on { background: var(--brand-soft); color: var(--brand-soft-ink); }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0;
+        font-size: 0.9rem;
+        background: var(--surface);
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        margin: 1.25rem 0;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      td:first-child {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .state {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+        white-space: nowrap;
+      }
+      .state.off {
+        background: var(--code-bg);
+        color: var(--muted);
+      }
+      .state.on {
+        background: var(--brand-soft);
+        color: var(--brand-soft-ink);
+      }
 
-  .ladder { list-style: none; counter-reset: rung; padding: 0; margin: 1.5rem 0; }
-  .ladder > li {
-    counter-increment: rung; position: relative; padding: 0 0 1.75rem 3.25rem;
-    border-left: 2px solid var(--line); margin-left: 1.1rem; max-width: none;
-  }
-  .ladder > li:last-child { border-left-color: transparent; padding-bottom: .5rem; }
-  .ladder > li::before {
-    content: counter(rung); position: absolute; left: -1.15rem; top: -.1rem;
-    width: 2.1rem; height: 2.1rem; border-radius: 50%;
-    background: var(--brand-soft); color: var(--brand-soft-ink); border: 2px solid var(--brand);
-    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .9rem;
-  }
-  .ladder h4 { margin: .1rem 0 .3rem; font-size: 1rem; }
-  .ladder p { margin: 0; color: var(--muted); }
+      .ladder {
+        list-style: none;
+        counter-reset: rung;
+        padding: 0;
+        margin: 1.5rem 0;
+      }
+      .ladder > li {
+        counter-increment: rung;
+        position: relative;
+        padding: 0 0 1.75rem 3.25rem;
+        border-left: 2px solid var(--line);
+        margin-left: 1.1rem;
+        max-width: none;
+      }
+      .ladder > li:last-child {
+        border-left-color: transparent;
+        padding-bottom: 0.5rem;
+      }
+      .ladder > li::before {
+        content: counter(rung);
+        position: absolute;
+        left: -1.15rem;
+        top: -0.1rem;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 50%;
+        background: var(--brand-soft);
+        color: var(--brand-soft-ink);
+        border: 2px solid var(--brand);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+      .ladder h4 {
+        margin: 0.1rem 0 0.3rem;
+        font-size: 1rem;
+      }
+      .ladder p {
+        margin: 0;
+        color: var(--muted);
+      }
 
-  footer { margin-top: 4rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 1rem; }
-</style>
-</head>
-<body>
-<main>
-<span class="wordmark">CapacityLens</span>
+      footer {
+        margin-top: 4rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        border-top: 1px solid var(--line);
+        padding-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="wordmark">CapacityLens</span>
 
-<div class="hero">
-  <span class="pill">Free &amp; open source · AGPL</span>
-  <h1>Simple by default.<br>Scalable by design.</h1>
-  <p class="lede">CapacityLens is a helicopter view of your agency's capacity: who's working on what, who's free, and when. Out of the box it does exactly that and nothing else — every extra capability is a switch you flip when your team actually needs it, and the plumbing to grow (roles, SSO, multi-company) is already underneath.</p>
-</div>
+      <div class="hero">
+        <span class="pill">Free &amp; open source · AGPL</span>
+        <h1>Simple by default.<br />Scalable by design.</h1>
+        <p class="lede">
+          CapacityLens is a helicopter view of your agency's capacity: who's working on what, who's free, and when. Out
+          of the box it does exactly that and nothing else — every extra capability is a switch you flip when your team
+          actually needs it, and the plumbing to grow (roles, SSO, multi-company) is already underneath.
+        </p>
+      </div>
 
-<span class="eyebrow">The core</span>
-<h2>What it does, always</h2>
-<p class="lede">No modules to enable, no setup wizard. Create people and projects, drag out allocations, and the answers appear.</p>
+      <span class="eyebrow">The core</span>
+      <h2>What it does, always</h2>
+      <p class="lede">
+        No modules to enable, no setup wizard. Create people and projects, drag out allocations, and the answers appear.
+      </p>
 
-<div class="cards">
-  <div class="card"><h3>The Schedule</h3><p>One screen, zoomable from 1 to 8 weeks. Drag to allocate, mark work tentative, confirmed or completed, and draw time off — holiday, sick, unpaid — onto the same canvas so capacity is always honest. Full undo/redo, filter by person, discipline, client, project or activity.</p></div>
-  <div class="card"><h3>Utilisation at a glance</h3><p>Live percentages per person, per discipline, and for the whole team. Over-capacity days flag themselves in red — no report to run.</p></div>
-  <div class="card"><h3>People, not logins</h3><p>Schedule permanent staff, freelancers and contractors without creating accounts for them. Work hangs off a simple Clients → Projects → Activities shape, with a built-in "Internal" client for the non-billable stuff.</p></div>
-  <div class="card"><h3>Your data, portable</h3><p>Full JSON export and import from the sidebar; nightly SQLite backups in the Docker setup. No export ransom, ever. Light and dark themes, accessibility tested in CI.</p></div>
-</div>
+      <div class="cards">
+        <div class="card">
+          <h3>The Schedule</h3>
+          <p>
+            One screen, zoomable from 1 to 8 weeks. Drag to allocate, mark work tentative, confirmed or completed, and
+            draw time off — holiday, sick, unpaid — onto the same canvas so capacity is always honest. Full undo/redo,
+            filter by person, discipline, client, project or activity.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Utilisation at a glance</h3>
+          <p>
+            Live percentages per person, per discipline, and for the whole team. Over-capacity days flag themselves in
+            red — no report to run.
+          </p>
+        </div>
+        <div class="card">
+          <h3>People, not logins</h3>
+          <p>
+            Schedule permanent staff, freelancers and contractors without creating accounts for them. Work hangs off a
+            simple Clients → Projects → Activities shape, with a built-in "Internal" client for the non-billable stuff.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Your data, portable</h3>
+          <p>
+            Full JSON export and import from the sidebar; nightly SQLite backups in the Docker setup. No export ransom,
+            ever. Light and dark themes, accessibility tested in CI.
+          </p>
+        </div>
+      </div>
 
-<figure class="shot"><a href="screenshots/flows/schedule.jpg"><img src="screenshots/flows/schedule.jpg" alt="The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block" loading="lazy"></a><figcaption>The whole product in one screen: people, work, capacity, time off.</figcaption></figure>
+      <figure class="shot">
+        <a href="screenshots/flows/schedule.jpg"
+          ><img
+            src="screenshots/flows/schedule.jpg"
+            alt="The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block"
+            loading="lazy"
+        /></a>
+        <figcaption>The whole product in one screen: people, work, capacity, time off.</figcaption>
+      </figure>
 
-<span class="eyebrow">The philosophy</span>
-<h2>Off by default, on when you need it</h2>
-<p class="lede">Most tools ship everything on and make you prune. CapacityLens ships the minimum and lets you grow into the rest — each toggle lives in Settings with a plain-language explanation of what it changes. Turning something off never deletes data; it comes back when you flip the switch.</p>
+      <span class="eyebrow">The philosophy</span>
+      <h2>Off by default, on when you need it</h2>
+      <p class="lede">
+        Most tools ship everything on and make you prune. CapacityLens ships the minimum and lets you grow into the rest
+        — each toggle lives in Settings with a plain-language explanation of what it changes. Turning something off
+        never deletes data; it comes back when you flip the switch.
+      </p>
 
-<h3>Planning features — flip them in Settings</h3>
-<div class="table-wrap">
-<table>
-<tr><th>Capability</th><th>Default</th><th>What flipping it does</th></tr>
-<tr><td>Placeholders</td><td><span class="state off">Off</span></td><td>Unfilled "slots" you can pencil into the schedule before a person is hired or assigned.</td></tr>
-<tr><td>External resources</td><td><span class="state off">Off</span></td><td>Print shops, overflow studios — companies you hand work to. Visible on the schedule, but they carry no hours and never count toward your team's capacity.</td></tr>
-<tr><td>Offline access</td><td><span class="state off">Off</span></td><td>A seven-day, view-only device snapshot for train-journey schedule checks. Never queues edits.</td></tr>
-<tr><td>Demo data</td><td><span class="state off">Off</span></td><td>A fresh install is empty; <code>CAPACITYLENS_SEED_DEMO=1</code> seeds the two-company sample agency for evaluation.</td></tr>
-<tr><td>Disciplines</td><td><span class="state on">On</span></td><td>Grouping people by craft (Design, Development…). On because most agencies think this way — one toggle hides it everywhere if yours doesn't.</td></tr>
-</table>
-</div>
+      <h3>Planning features — flip them in Settings</h3>
+      <div class="table-wrap">
+        <table>
+          <tr>
+            <th>Capability</th>
+            <th>Default</th>
+            <th>What flipping it does</th>
+          </tr>
+          <tr>
+            <td>Placeholders</td>
+            <td><span class="state off">Off</span></td>
+            <td>Unfilled "slots" you can pencil into the schedule before a person is hired or assigned.</td>
+          </tr>
+          <tr>
+            <td>External resources</td>
+            <td><span class="state off">Off</span></td>
+            <td>
+              Print shops, overflow studios — companies you hand work to. Visible on the schedule, but they carry no
+              hours and never count toward your team's capacity.
+            </td>
+          </tr>
+          <tr>
+            <td>Offline access</td>
+            <td><span class="state off">Off</span></td>
+            <td>A seven-day, view-only device snapshot for train-journey schedule checks. Never queues edits.</td>
+          </tr>
+          <tr>
+            <td>Demo data</td>
+            <td><span class="state off">Off</span></td>
+            <td>
+              A fresh install is empty; <code>CAPACITYLENS_SEED_DEMO=1</code> seeds the two-company sample agency for
+              evaluation.
+            </td>
+          </tr>
+          <tr>
+            <td>Disciplines</td>
+            <td><span class="state on">On</span></td>
+            <td>
+              Grouping people by craft (Design, Development…). On because most agencies think this way — one toggle
+              hides it everywhere if yours doesn't.
+            </td>
+          </tr>
+        </table>
+      </div>
 
-<h3>Platform &amp; security — flip them in .env, when you get there</h3>
-<div class="table-wrap">
-<table>
-<tr><th>Capability</th><th>Default</th><th>What flipping it does</th></tr>
-<tr><td>Authentication</td><td><span class="state off">Off</span></td><td>The login wall itself. Open access on a trusted network by default; password auth or SSO when you want real accounts. (<a href="setup-guide.html">The five-minute setup.</a>)</td></tr>
-<tr><td>Multiple companies</td><td><span class="state off">Off</span></td><td>One company per instance until you set <code>CAPACITYLENS_MULTI_ACCOUNT=1</code>. No accidental multi-tenancy.</td></tr>
-<tr><td>Open signup</td><td><span class="state off">Off</span></td><td>Closed the moment the Owner exists — joining is invite-only unless you deliberately reopen it.</td></tr>
-<tr><td>MFA (TOTP)</td><td><span class="state off">Off</span></td><td>One env var (<code>SMALLSASS_ACCOUNT_REQUIRE_MFA=1</code>) requires authenticator codes for every password login.</td></tr>
-<tr><td>Audit log</td><td><span class="state on">On</span></td><td>Every change recorded, on by default and refusing to be disabled in production. The one thing you shouldn't be able to forget.</td></tr>
-<tr><td>Stale-write protection</td><td><span class="state on">On</span></td><td>Two people editing the same thing? The second save is challenged instead of silently overwriting. Opt-out, not opt-in.</td></tr>
-</table>
-</div>
+      <h3>Platform &amp; security — flip them in .env, when you get there</h3>
+      <div class="table-wrap">
+        <table>
+          <tr>
+            <th>Capability</th>
+            <th>Default</th>
+            <th>What flipping it does</th>
+          </tr>
+          <tr>
+            <td>Authentication</td>
+            <td><span class="state off">Off</span></td>
+            <td>
+              The login wall itself. Open access on a trusted network by default; password auth or SSO when you want
+              real accounts. (<a href="setup-guide.html">The five-minute setup.</a>)
+            </td>
+          </tr>
+          <tr>
+            <td>Multiple companies</td>
+            <td><span class="state off">Off</span></td>
+            <td>
+              One company per instance until you set <code>CAPACITYLENS_MULTI_ACCOUNT=1</code>. No accidental
+              multi-tenancy.
+            </td>
+          </tr>
+          <tr>
+            <td>Open signup</td>
+            <td><span class="state off">Off</span></td>
+            <td>Closed the moment the Owner exists — joining is invite-only unless you deliberately reopen it.</td>
+          </tr>
+          <tr>
+            <td>MFA (TOTP)</td>
+            <td><span class="state off">Off</span></td>
+            <td>
+              One env var (<code>SMALLSASS_ACCOUNT_REQUIRE_MFA=1</code>) requires authenticator codes for every password
+              login.
+            </td>
+          </tr>
+          <tr>
+            <td>Audit log</td>
+            <td><span class="state on">On</span></td>
+            <td>
+              Every change recorded, on by default and refusing to be disabled in production. The one thing you
+              shouldn't be able to forget.
+            </td>
+          </tr>
+          <tr>
+            <td>Stale-write protection</td>
+            <td><span class="state on">On</span></td>
+            <td>
+              Two people editing the same thing? The second save is challenged instead of silently overwriting. Opt-out,
+              not opt-in.
+            </td>
+          </tr>
+        </table>
+      </div>
 
-<div class="callout"><p><strong>Notice the pattern:</strong> convenience features default off; safety features default on. The two deliberate exceptions to "off by default" are the audit log and stale-write protection — because you'd only discover you needed them after the incident.</p></div>
+      <div class="callout">
+        <p>
+          <strong>Notice the pattern:</strong> convenience features default off; safety features default on. The two
+          deliberate exceptions to "off by default" are the audit log and stale-write protection — because you'd only
+          discover you needed them after the incident.
+        </p>
+      </div>
 
-<figure class="shot"><a href="screenshots/flows/settings-toggles.jpg"><img src="screenshots/flows/settings-toggles.jpg" alt="Settings page showing Placeholders and External toggles off by default, Internal work toggles on, each with a plain-language explanation" loading="lazy"></a><figcaption>Settings, as shipped: placeholders and externals off, internal work visible — every toggle explains itself.</figcaption></figure>
+      <figure class="shot">
+        <a href="screenshots/flows/settings-toggles.jpg"
+          ><img
+            src="screenshots/flows/settings-toggles.jpg"
+            alt="Settings page showing Placeholders and External toggles off by default, Internal work toggles on, each with a plain-language explanation"
+            loading="lazy"
+        /></a>
+        <figcaption>
+          Settings, as shipped: placeholders and externals off, internal work visible — every toggle explains itself.
+        </figcaption>
+      </figure>
 
-<span class="eyebrow">Tuning the simple parts</span>
-<h2>Settings that stay out of your way</h2>
-<p>The Settings page is one scrollable list of cards — no tabs, no admin console. A few worth knowing about:</p>
-<ul>
-  <li><strong>Scheduling mode</strong> — enter work as <em>Hours</em> (the default), <em>Days</em>, or pure <em>Blocks</em> with no hours at all. Pick the precision your agency actually plans at.</li>
-  <li><strong>Calendar</strong> — week start, timezone and language are set once at company creation and then frozen, so "today" and "this week" mean the same thing for everyone, forever.</li>
-  <li><strong>Internal work visibility</strong> — hide internal bars for a client-work-only view; hidden work still counts toward capacity, so a fully-booked person stays fully booked.</li>
-  <li><strong>Per-device preferences</strong> — minimise weekends, snap to week start, allocation-bar labels and theme are yours alone; they never change what teammates see.</li>
-</ul>
-<figure class="shot"><a href="screenshots/flows/settings-top.jpg"><img src="screenshots/flows/settings-top.jpg" alt="Settings page showing Company name, Scheduling mode (Hours/Days/Blocks) and the frozen Calendar card" loading="lazy"></a><figcaption>Hours, Days or Blocks — the scheduling-mode choice explains its own trade-offs.</figcaption></figure>
+      <span class="eyebrow">Tuning the simple parts</span>
+      <h2>Settings that stay out of your way</h2>
+      <p>The Settings page is one scrollable list of cards — no tabs, no admin console. A few worth knowing about:</p>
+      <ul>
+        <li>
+          <strong>Scheduling mode</strong> — enter work as <em>Hours</em> (the default), <em>Days</em>, or pure
+          <em>Blocks</em> with no hours at all. Pick the precision your agency actually plans at.
+        </li>
+        <li>
+          <strong>Calendar</strong> — week start, timezone and language are set once at company creation and then
+          frozen, so "today" and "this week" mean the same thing for everyone, forever.
+        </li>
+        <li>
+          <strong>Internal work visibility</strong> — hide internal bars for a client-work-only view; hidden work still
+          counts toward capacity, so a fully-booked person stays fully booked.
+        </li>
+        <li>
+          <strong>Per-device preferences</strong> — minimise weekends, snap to week start, allocation-bar labels and
+          theme are yours alone; they never change what teammates see.
+        </li>
+      </ul>
+      <figure class="shot">
+        <a href="screenshots/flows/settings-top.jpg"
+          ><img
+            src="screenshots/flows/settings-top.jpg"
+            alt="Settings page showing Company name, Scheduling mode (Hours/Days/Blocks) and the frozen Calendar card"
+            loading="lazy"
+        /></a>
+        <figcaption>Hours, Days or Blocks — the scheduling-mode choice explains its own trade-offs.</figcaption>
+      </figure>
 
-<span class="eyebrow">The scaling ladder</span>
-<h2>The same product at every size</h2>
-<p class="lede">You never migrate to a "bigger edition" — you flip the next switch when you get there.</p>
+      <span class="eyebrow">The scaling ladder</span>
+      <h2>The same product at every size</h2>
+      <p class="lede">You never migrate to a "bigger edition" — you flip the next switch when you get there.</p>
 
-<ol class="ladder">
-  <li>
-    <h4>Just you, evaluating</h4>
-    <p>One command, in-memory demo, nothing installed beyond the repo. (<a href="setup-guide.html">Setup guide</a>.)</p>
-  </li>
-  <li>
-    <h4>Your team, trusted network</h4>
-    <p>Real SQLite persistence, no logins. Docker Compose or bare Node behind your VPN. Backups on by default.</p>
-  </li>
-  <li>
-    <h4>Real accounts</h4>
-    <p>Four lines of .env turn on password auth: one Owner, invite links, four nested roles (Viewer → Editor → Admin → Owner) enforced server-side with field-level redaction — Viewers never see private names or time-off notes, exports are redacted per role.</p>
-  </li>
-  <li>
-    <h4>Company-grade identity</h4>
-    <p>Strict OIDC single sign-on against your identity provider, optional required MFA, deployment profiles that refuse unsafe combinations (the hosted profile, for instance, won't allow password logins at all).</p>
-  </li>
-  <li>
-    <h4>More than one company</h4>
-    <p>One env var away. Each company is fully isolated — memberships, roles and data are checked per-company on every request, not filtered in the UI.</p>
-  </li>
-</ol>
+      <ol class="ladder">
+        <li>
+          <h4>Just you, evaluating</h4>
+          <p>
+            One command, in-memory demo, nothing installed beyond the repo. (<a href="setup-guide.html">Setup guide</a
+            >.)
+          </p>
+        </li>
+        <li>
+          <h4>Your team, trusted network</h4>
+          <p>Real SQLite persistence, no logins. Docker Compose or bare Node behind your VPN. Backups on by default.</p>
+        </li>
+        <li>
+          <h4>Real accounts</h4>
+          <p>
+            Four lines of .env turn on password auth: one Owner, invite links, four nested roles (Viewer → Editor →
+            Admin → Owner) enforced server-side with field-level redaction — Viewers never see private names or time-off
+            notes, exports are redacted per role.
+          </p>
+        </li>
+        <li>
+          <h4>Company-grade identity</h4>
+          <p>
+            Strict OIDC single sign-on against your identity provider, optional required MFA, deployment profiles that
+            refuse unsafe combinations (the hosted profile, for instance, won't allow password logins at all).
+          </p>
+        </li>
+        <li>
+          <h4>More than one company</h4>
+          <p>
+            One env var away. Each company is fully isolated — memberships, roles and data are checked per-company on
+            every request, not filtered in the UI.
+          </p>
+        </li>
+      </ol>
 
-<span class="eyebrow">On purpose</span>
-<h2>What it will never do</h2>
-<p>The fastest way to stay simple is to refuse the right features. CapacityLens is deliberately <strong>not</strong> a budgeting or billing system, a timesheet, an hour-by-hour calendar, a project-management suite, a CRM, or a mobile-first app. Those boundaries are written into the README, not just the roadmap — if you need those tools, CapacityLens will sit happily beside them and stick to the one question it answers best: <em>who's busy, who's free, and when.</em></p>
+      <span class="eyebrow">On purpose</span>
+      <h2>What it will never do</h2>
+      <p>
+        The fastest way to stay simple is to refuse the right features. CapacityLens is deliberately
+        <strong>not</strong> a budgeting or billing system, a timesheet, an hour-by-hour calendar, a project-management
+        suite, a CRM, or a mobile-first app. Those boundaries are written into the README, not just the roadmap — if you
+        need those tools, CapacityLens will sit happily beside them and stick to the one question it answers best:
+        <em>who's busy, who's free, and when.</em>
+      </p>
 
-<h3>Going deeper</h3>
-<p><a href="setup-guide.html">Setup &amp; first-run guide</a> (illustrated walkthrough) · <a href="self-hosting.md">self-hosting.md</a> (Docker, env vars, backups) · <a href="authentication.md">authentication.md</a> (auth modes and profiles) · <a href="onboarding-and-access.md">onboarding-and-access.md</a> (the full role matrix) · <a href="privacy.md">privacy.md</a> (what's stored where).</p>
+      <h3>Going deeper</h3>
+      <p>
+        <a href="setup-guide.html">Setup &amp; first-run guide</a> (illustrated walkthrough) ·
+        <a href="self-hosting.md">self-hosting.md</a> (Docker, env vars, backups) ·
+        <a href="authentication.md">authentication.md</a> (auth modes and profiles) ·
+        <a href="onboarding-and-access.md">onboarding-and-access.md</a> (the full role matrix) ·
+        <a href="privacy.md">privacy.md</a> (what's stored where).
+      </p>
 
-<footer>Every default on this page is traced to source (<code>shared/src/types/entities.ts</code>, <code>.env.example</code>, <code>SettingsView.tsx</code>) at v0.31.0-alpha.1. Plain HTML with no dependencies, styled with the product's own palette.</footer>
-</main>
-</body>
+      <footer>
+        Every default on this page is traced to source (<code>shared/src/types/entities.ts</code>,
+        <code>.env.example</code>, <code>SettingsView.tsx</code>) at v0.31.0-alpha.1. Plain HTML with no dependencies,
+        styled with the product's own palette.
+      </footer>
+    </main>
+  </body>
 </html>
