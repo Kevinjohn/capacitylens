@@ -120,6 +120,8 @@ cross-browser checks, mutation scope and GitHub Actions checks.
 
 ### Using and operating CapacityLens
 
+- [Features](docs/features.html) — what it does, what ships off by default, and the scaling
+  ladder from solo demo to SSO multi-company. Simple by default, scalable by design.
 - [Setup &amp; first-run guide](docs/setup-guide.html) — an illustrated walkthrough of the demo,
   the five-minute password-auth install, invites and roles. Plain HTML with screenshots; open it
   straight from a checkout or serve it as-is.
