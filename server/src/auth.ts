@@ -507,6 +507,14 @@ export function countUsers(db: Db): number {
   return Number(row?.n ?? 0);
 }
 
+/** Identity-storage-owned lookup for the operator recovery tool: the ids of every credential
+ * identity registered under this normalized address. The caller passes a limit one higher than
+ * the count it accepts so ambiguity is detectable without walking the whole table. */
+export function findUserIdsByEmail(db: Db, email: string, limit: number): string[] {
+  const rows = db.prepare(`SELECT id FROM user WHERE email = ? LIMIT ?`).all(email, limit) as Array<{ id: string }>;
+  return rows.map((row) => row.id);
+}
+
 export function parseAuthMode(raw: string | undefined): AuthMode {
   const mode = raw === undefined || raw === "" ? "off" : raw;
   if (mode === "off" || mode === "password" || mode === "sso") return mode;

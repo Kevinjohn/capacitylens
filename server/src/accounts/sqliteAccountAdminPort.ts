@@ -24,6 +24,8 @@ import type {
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
 import {
+  assertControlTablesCurrent,
+  assertSingleOwnerControlPlaneCurrent,
   createInvite,
   getActiveMemberRole,
   getInvite,
@@ -78,6 +80,22 @@ export function hasLivePreauthorizedInvitation(db: Db, normalizedEmail: string, 
     )
     .all(normalizedEmail) as Array<{ expiresAt: string }>;
   return rows.some((row) => !inviteIsExpired(row.expiresAt, now));
+}
+
+/** Account-adapter-owned facts for the sole-Owner recovery tool, so it needs no direct control
+ * table access. The single-active-owner index makes "active Owner" identical to "sole active
+ * Owner", which is precisely the authority condition the tool refuses without. */
+export function listSoleOwnerAccountIds(db: Db, principalId: string): string[] {
+  return listMembershipsForUser(db, principalId)
+    .map((membership) => membership.accountId)
+    .filter((accountId) => getActiveMemberRole(db, accountId, principalId) === "owner");
+}
+
+/** Control-plane currency for offline tools: both the column contract and the exactly-one-Owner
+ * physical invariant, asserted before any recovery reasoning happens over their rows. */
+export function assertAccountControlPlaneCurrent(db: Db): void {
+  assertControlTablesCurrent(db);
+  assertSingleOwnerControlPlaneCurrent(db);
 }
 
 export interface LocalAccountAdminPort extends AccountAdminPort {
