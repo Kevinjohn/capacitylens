@@ -630,7 +630,12 @@ describe("CAPACITYLENS_AUTH password", () => {
         },
       });
       const cookie = cookiesOf(signUp);
-      db.prepare(`UPDATE session SET updatedAt = ?`).run(Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000);
+      // ISO-8601 text is what Better Auth's node:sqlite adapter actually stores — writing the
+      // production representation here is what makes this a regression test for the CAS that
+      // silently never matched integer-vs-text.
+      db.prepare(`UPDATE session SET updatedAt = ?`).run(
+        new Date(Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000).toISOString(),
+      );
 
       // This route is handled by Better Auth itself, so it proves the inactivity check is not only
       // attached to CapacityLens data routes.
@@ -676,7 +681,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       },
     });
     const cookie = cookiesOf(signUp);
-    db.prepare(`UPDATE session SET updatedAt = ?`).run(Date.now() + 24 * 60 * 60 * 1000);
+    db.prepare(`UPDATE session SET updatedAt = ?`).run(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
 
     expect(
       (
@@ -690,23 +695,36 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect((db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number }).n).toBe(0);
   });
 
-  it.each([
-    ["one millisecond before", SESSION_INACTIVITY_TTL_SECONDS * 1000 - 1, true],
-    ["exactly at", SESSION_INACTIVITY_TTL_SECONDS * 1000, false],
-    ["one millisecond after", SESSION_INACTIVITY_TTL_SECONDS * 1000 + 1, false],
-  ] as const)("treats a session %s the inactivity deadline as active=%s", async (_label, elapsed, active) => {
+  // Both storage representations: ISO-8601 text is what Better Auth's node:sqlite adapter really
+  // writes (the column is declared `date`, so text stays text); integer epoch milliseconds is the
+  // legacy fixture representation the implementation must also survive. The column below is
+  // declared `date` like the real schema — a hand-made table with a different declared type once
+  // hid the representation mismatch entirely.
+  const boundaryCases = (["integer epoch", "ISO-8601 text"] as const).flatMap((rep) =>
+    (
+      [
+        ["one millisecond before", SESSION_INACTIVITY_TTL_SECONDS * 1000 - 1, true],
+        ["exactly at", SESSION_INACTIVITY_TTL_SECONDS * 1000, false],
+        ["one millisecond after", SESSION_INACTIVITY_TTL_SECONDS * 1000 + 1, false],
+      ] as const
+    ).map(([label, elapsed, active]) => [`${label} (${rep})`, rep, elapsed, active] as const),
+  );
+
+  it.each(boundaryCases)("treats a session %s the inactivity deadline as active=%s", async (_label, rep, elapsed, active) => {
     const db = openDb(":memory:");
     const now = Date.parse("2026-07-31T09:00:00.000Z");
-    const token = `boundary-${elapsed}`;
+    const token = `boundary-${rep}-${elapsed}`;
     const updatedAt = now - elapsed;
-    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt INTEGER NOT NULL)`);
-    db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, updatedAt);
+    const stored: string | number = rep === "integer epoch" ? updatedAt : new Date(updatedAt).toISOString();
+    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date NOT NULL)`);
+    db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, stored);
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const result = await enforceSessionActivity({ session: { token, updatedAt: new Date(updatedAt) } }, db);
       expect(result !== null).toBe(active);
+      const expectedTouched = rep === "integer epoch" ? now : new Date(now).toISOString();
       expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual(
-        active ? { updatedAt: now } : undefined,
+        active ? { updatedAt: expectedTouched } : undefined,
       );
     } finally {
       nowSpy.mockRestore();
@@ -736,7 +754,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       expiresAt: string | number;
     };
     const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
-    db.prepare(`UPDATE session SET updatedAt = ?`).run(twoMinutesAgo);
+    db.prepare(`UPDATE session SET updatedAt = ?`).run(new Date(twoMinutesAgo).toISOString());
 
     expect(
       (
@@ -767,7 +785,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
     const stored = db.prepare(`SELECT token FROM session`).get() as { token: string };
     const stale = Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000;
-    const newer = Date.now();
+    const newer = new Date(Date.now()).toISOString();
     db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(newer, stored.token);
 
     const resolved = await enforceSessionActivity({ session: { token: stored.token, updatedAt: new Date(stale) } }, db);
@@ -788,7 +806,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
     const stored = db.prepare(`SELECT token FROM session`).get() as { token: string };
     const stale = Date.now() - 2 * 60 * 1000;
-    const newer = Date.now() + 1_000;
+    const newer = new Date(Date.now() + 1_000).toISOString();
     db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(newer, stored.token);
 
     await enforceSessionActivity({ session: { token: stored.token, updatedAt: new Date(stale) } }, db);

@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import Fastify, { type FastifyInstance } from "fastify";
 import { buildApp } from "./app";
 import { openDb, insertAll, type CompleteAccountSlice, type Db, type ProjectedAccountSlice } from "./db";
@@ -18,6 +18,7 @@ import {
   type Resource,
 } from "@capacitylens/shared/types/entities";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
+import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import type { TenantStore } from "./tenantStore";
 
 // P2.5a entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
@@ -337,6 +338,38 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
         userId,
       }),
     );
+  });
+
+  // The freshness deadline is INCLUSIVE (`>=` in authorize()): a session exactly at the bound is
+  // stale. The bound is pinned here at millisecond precision — the coarse 16-minute test above
+  // proves the wiring, these prove the operator.
+  it.each([
+    ["one millisecond inside the freshness window", ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000 - 1, 200],
+    ["exactly at the freshness deadline", ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000, 403],
+    ["one millisecond past the freshness deadline", ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000 + 1, 403],
+  ] as const)("treats an admin session aged %s as status %s for read-inactive", async (_label, age, status) => {
+    const { app, db } = await appWithAuth();
+    seedStates(db);
+    const { cookie, userId } = await signUp(app, `fresh-boundary-${age}@capacitylens.dev`);
+    upsertMember(db, {
+      accountId: "a1",
+      userId,
+      role: "admin",
+      status: "active",
+      createdAt: TS,
+    });
+    // Pin the clock AFTER sign-up so the session's updatedAt (written at real time) is never in
+    // the pinned clock's future, then age createdAt to the exact boundary under test.
+    const now = Date.now();
+    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(new Date(now - age).toISOString(), userId);
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const res = await readInactive(app, "a1", cookie);
+      expect(res.statusCode).toBe(status);
+      if (status === 403) expect(res.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });
 

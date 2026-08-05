@@ -225,46 +225,93 @@ interface RawSessionUser {
   image?: string | null;
 }
 
-/** Apply the app's idle timeout to a session Better Auth has already resolved. */
+/** Parse a stored `session.updatedAt` without assuming its representation: Better Auth's
+ *  node:sqlite adapter stores ISO-8601 text (the column is declared `date`, NUMERIC affinity),
+ *  while test fixtures historically wrote integer epoch milliseconds. Anything else is NaN,
+ *  which every caller treats as fail-closed. */
+function parseSessionTimestamp(value: string | number | null | undefined): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return Date.parse(value);
+  return Number.NaN;
+}
+
+/**
+ * Apply the app's idle timeout to a session Better Auth has already resolved.
+ *
+ * STORAGE REPRESENTATION IS NOT ASSUMED. Better Auth 1.6.x on node:sqlite stores
+ * `session.updatedAt` as ISO-8601 *text*, not the integer epoch milliseconds an earlier
+ * version of this function trusted a comment about. Comparing or writing numbers against a
+ * text-valued column means SQL predicates silently never match (INTEGER always sorts before
+ * TEXT), which turned both the expiry compare-and-set and the activity touch into no-ops on
+ * production rows. So: read the raw stored value, parse whatever is there, compare-and-set
+ * against the RAW value, and write back in the SAME representation that is stored. Direct
+ * conditional SQL is required because the adapter exposes only unconditional async writes and
+ * cannot provide compare-and-set; the CAS keeps deletes and touches monotonic even when
+ * overlapping requests settle out of order. Fails closed (row deleted, `null` returned) on an
+ * unparseable timestamp.
+ */
 export async function enforceSessionActivity<
   Session extends {
     session: { token: string; updatedAt: Date | string };
   },
 >(session: Session, db: Db): Promise<Session | null> {
+  const token = session.session.token;
+  const readRaw = (): { updatedAt: string | number | null } | undefined =>
+    db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token) as
+      { updatedAt: string | number | null } | undefined;
+  const destroy = (): null => {
+    db.prepare(`DELETE FROM session WHERE token = ?`).run(token);
+    return null;
+  };
   const lastActivity = new Date(session.session.updatedAt).getTime();
   const now = Date.now();
   const elapsed = now - lastActivity;
   if (!Number.isFinite(lastActivity) || elapsed < 0 || elapsed >= SESSION_INACTIVITY_TTL_SECONDS * 1000) {
-    if (!Number.isFinite(lastActivity)) {
-      db.prepare(`DELETE FROM session WHERE token = ?`).run(session.session.token);
-      return null;
+    if (!Number.isFinite(lastActivity)) return destroy();
+    const row = readRaw();
+    if (!row) return null;
+    const rowMs = parseSessionTimestamp(row.updatedAt);
+    if (!Number.isFinite(rowMs)) return destroy();
+    if (rowMs === lastActivity) {
+      const removed = db
+        .prepare(`DELETE FROM session WHERE token = ? AND updatedAt = ?`)
+        .run(token, row.updatedAt as string | number);
+      if (removed.changes >= 1) return null;
+      // Lost a race to a concurrent touch between the read and the delete — re-read it.
+      const current = readRaw();
+      if (!current) return null;
+      const currentMs = parseSessionTimestamp(current.updatedAt);
+      if (!Number.isFinite(currentMs)) return destroy();
+      session.session.updatedAt = new Date(currentMs);
+      return session;
     }
-    const removed = db
-      .prepare(`DELETE FROM session WHERE token = ? AND updatedAt = ?`)
-      .run(session.session.token, lastActivity);
-    if (removed.changes === 1) return null;
-    // A concurrent request may have touched the row after this request resolved its session.
-    // Re-read instead of deleting that newer activity from a stale snapshot.
-    const current = db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(session.session.token) as
-      { updatedAt: number } | undefined;
-    if (!current) return null;
-    session.session.updatedAt = new Date(current.updatedAt);
+    // A concurrent request touched the row after this request resolved its session.
+    // Adopt that newer activity instead of deleting it from a stale snapshot.
+    session.session.updatedAt = new Date(rowMs);
     return session;
   }
   if (elapsed >= SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS * 1000) {
-    // Better Auth's node:sqlite schema is deliberately pinned by our auth migration rehearsal:
-    // session.updatedAt is integer epoch milliseconds. Direct conditional SQL is required here
-    // because the adapter exposes only unconditional async writes and cannot provide compare-and-set.
-    // The predicate makes touches monotonic even when overlapping requests settle out of order.
-    db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ? AND updatedAt < ?`).run(
-      now,
-      session.session.token,
-      now,
-    );
-    const current = db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(session.session.token) as
-      { updatedAt: number } | undefined;
-    if (!current) return null;
-    session.session.updatedAt = new Date(current.updatedAt);
+    const row = readRaw();
+    if (!row) return null;
+    const rowMs = parseSessionTimestamp(row.updatedAt);
+    if (!Number.isFinite(rowMs)) return destroy();
+    let adopted = rowMs;
+    if (rowMs < now) {
+      const next: string | number = typeof row.updatedAt === "number" ? now : new Date(now).toISOString();
+      const touched = db
+        .prepare(`UPDATE session SET updatedAt = ? WHERE token = ? AND updatedAt = ?`)
+        .run(next, token, row.updatedAt as string | number);
+      if (touched.changes >= 1) adopted = now;
+      else {
+        // A concurrent touch won the CAS; adopt whatever it wrote.
+        const current = readRaw();
+        if (!current) return null;
+        const currentMs = parseSessionTimestamp(current.updatedAt);
+        if (!Number.isFinite(currentMs)) return destroy();
+        adopted = currentMs;
+      }
+    }
+    session.session.updatedAt = new Date(adopted);
   }
   return session;
 }

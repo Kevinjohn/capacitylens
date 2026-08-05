@@ -1389,9 +1389,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // client's re-auth dialog: a fresh sign-in always mints a session with a timestamp
       // (auth.api.getSession derives sessionCreatedAt from the session row), so no one is hard-stuck.
       // Date.parse(undefined ?? '') is NaN, and NaN fails Number.isFinite → stale.
+      // INCLUSIVE at the deadline (`>=`, matching enforceSessionActivity): a session sitting
+      // exactly on the freshness bound is stale, not fresh — a stated security bound is the last
+      // safe instant, not the first unsafe one.
       const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? "");
       const timestampMissing = !Number.isFinite(sessionCreatedAtMs);
-      if (timestampMissing || Date.now() - sessionCreatedAtMs > ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000) {
+      if (timestampMissing || Date.now() - sessionCreatedAtMs >= ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000) {
         securityEvent({
           event: "step_up_required",
           outcome: "blocked",

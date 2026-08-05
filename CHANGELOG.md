@@ -10,6 +10,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed the 30-minute session inactivity timeout, which was silently ineffective in production.
+  The idle-timeout enforcement assumed Better Auth stores `session.updatedAt` as integer epoch
+  milliseconds, but its node:sqlite adapter stores ISO-8601 text; every SQL comparison against
+  that column (the expiry compare-and-set and the activity touch) therefore never matched, so an
+  idle session stayed valid until the 12-hour absolute expiry. The enforcement now reads the raw
+  stored value, parses either representation, compares-and-sets against the raw value, and writes
+  back in the stored representation, failing closed on anything unparseable. The step-up freshness
+  gate for privileged actions was also made inclusive at its deadline (a session exactly at the
+  freshness bound is stale, matching the inactivity bound), and both bounds now carry
+  exact-boundary tests in each storage representation.
+
 ## [0.31.3-alpha.1] — 2026-08-01
 
 This patch loosens the bundle budget. It changes no application behaviour and leaves the portable
