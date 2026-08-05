@@ -80,6 +80,7 @@ const ACCOUNT_ACTION_VALUES = [
   "member.removed",
   "ownership.transferred",
   "identity.password_reset_issued",
+  "identity.owner_recovery_issued",
   "identity.sessions_revoked",
   "identity.local_deprovisioned",
   "flow.compensated",
