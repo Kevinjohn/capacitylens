@@ -136,6 +136,12 @@ This is the short, present-tense record of decisions that constrain future work.
 - Each authenticated company has exactly one Owner. Owner is not an invite or ordinary role-change
   option; ownership moves only through an explicit atomic transfer to an existing member, with the
   former Owner becoming Admin.
+- Sole-Owner credential recovery (2026-08-05) is an operator CLI (`reset:owner-password`), not a
+  product feature. Family invariant. It drives the ordinary reset ceremony against a stopped
+  server, enforced by an exclusive SQLite lock, and refuses unless the target is the sole active
+  Owner — the one state no in-product actor can recover. In-app policy is unchanged: Admins still
+  cannot administer an Owner, and a credential reset never moves ownership. Origin: Delivery Diary
+  divergence report; ruling recorded in `to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md`.
 - App members and scheduled Resources are separate records. Adding a Resource never grants access,
   and inviting a member never creates a schedulable person.
 - Team & access is a first-class destination visible to every role so members can understand their

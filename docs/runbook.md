@@ -368,6 +368,37 @@ procedure. The ledger never stores the submitted password or an independently te
 For disk-full or snapshot failure, stop write traffic before attempting cleanup. Never delete the
 only known-good snapshot.
 
+### Sole-Owner credential recovery
+
+A password-mode instance whose sole active Owner has lost their password has no in-product
+recovery path, by design: admins may never administer an Owner's credential, the
+exactly-one-active-Owner invariant means no second Owner exists to help, and the public
+password-reset endpoint is deliberately absent. Restoring from backup does not help — the backup
+holds the same credential the Owner cannot produce. The supported path is the operator CLI, which
+drives the ordinary reset ceremony (same token store, 24-hour expiry, single-use consumption,
+password policy and session revocation) and never writes a credential directly.
+
+1. Preserve the database file plus its `-wal`/`-shm` companions and record checksums, exactly as
+   for audit-outbox recovery above.
+2. Stop the application process. The tool additionally takes SQLite's exclusive lock and refuses
+   if any other process still holds the database — the `--confirm-server-stopped` flag records
+   intent, the lock enforces it.
+3. Using the same release that most recently started the database, with the instance's account
+   environment (`SMALLSASS_ACCOUNT_MODE=password`, `SMALLSASS_ACCOUNT_SECRET`,
+   `SMALLSASS_ACCOUNT_PUBLIC_URL`) present, run:
+   `pnpm --filter capacitylens-server reset:owner-password -- <database> <owner-email> --confirm-server-stopped`.
+4. The tool refuses: a missing or ambiguous identity for that address; a target that is not the
+   sole active Owner of at least one workspace (anyone else has an in-product reset path); an
+   older schema, rather than migrating outside the normal pre-migration backup ceremony; and any
+   non-password account mode. If the audit record cannot be written after the token is minted, the
+   freshly minted ceremony is revoked and the command fails closed.
+5. The single JSON output line contains the reset link — that link is the secret. Deliver it to
+   the Owner over a channel you trust; never store it in tickets or logs. The audit trail records
+   `identity.owner_recovery_issued` with a ceremony digest, never the token.
+6. Restart the application. The audit event drains to the configured sink on startup; confirm it
+   arrived. The Owner opens the link, sets a new password (all existing sessions are revoked) and
+   signs in.
+
 ## Erasure
 
 Account deletion erases the live tenant and eligible identities, but existing audit/backup copies

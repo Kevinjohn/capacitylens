@@ -84,6 +84,13 @@ revoke sessions only with reset-equivalent authority everywhere the target can e
 installation. Authority evaluation and execution are one flow command: membership/security
 revisions are rechecked, and a newly issued reset ceremony is burned if authority changes.
 
+The Owner rule is absolute in-product: no admin can ever reset an Owner's credential, and the
+exactly-one-active-Owner invariant means no second Owner exists to help. The sole Owner losing
+their password is therefore recovered by the operator, not in the product — a stopped-server CLI
+(`reset:owner-password`) that drives this same reset ceremony under an exclusive database lock.
+See the "Sole-Owner credential recovery" procedure in `docs/runbook.md`. A credential reset
+changes no ownership; explicit atomic transfer remains the only ownership-change path.
+
 Invitation and password-reset creation responses contain write-once bearer tokens. To reconcile an
 immediately lost response, the server may replay the same bearer for the same authorized command for
 up to five minutes. This cache is process-local, entry-bounded and independent of the bearer expiry;
