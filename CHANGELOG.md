@@ -10,18 +10,36 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.31.4-alpha.1] — 2026-08-05
+
+This security patch makes the 30-minute session inactivity timeout actually work — it had been
+silently ineffective, leaving idle sessions valid until the 12-hour absolute expiry. After
+upgrading, sessions idle for more than 30 minutes are signed out on their next request, so users
+returning from a long break will be asked to sign in again — that is the intended behaviour,
+newly enforced. It changes no data and leaves the portable export and SQLite database schema
+versions unchanged.
+
 ### Fixed
 
-- Fixed the 30-minute session inactivity timeout, which was silently ineffective in production.
-  The idle-timeout enforcement assumed Better Auth stores `session.updatedAt` as integer epoch
-  milliseconds, but its node:sqlite adapter stores ISO-8601 text; every SQL comparison against
-  that column (the expiry compare-and-set and the activity touch) therefore never matched, so an
-  idle session stayed valid until the 12-hour absolute expiry. The enforcement now reads the raw
-  stored value, parses either representation, compares-and-sets against the raw value, and writes
-  back in the stored representation, failing closed on anything unparseable. The step-up freshness
-  gate for privileged actions was also made inclusive at its deadline (a session exactly at the
-  freshness bound is stale, matching the inactivity bound), and both bounds now carry
-  exact-boundary tests in each storage representation.
+- Fixed the 30-minute session inactivity timeout, which was silently a no-op in production. The
+  idle-timeout enforcement assumed Better Auth stores `session.updatedAt` as integer epoch
+  milliseconds (an assumption recorded in a comment, never verified against a real row), but its
+  node:sqlite adapter stores ISO-8601 text. Every SQL comparison that bound a number against that
+  text column could not match — SQLite sorts every integer before every string — so the expiry
+  delete never deleted and the activity touch never wrote. The test suite stayed green because its
+  fixtures wrote integer timestamps, a representation production rows never have. The enforcement
+  now reads the raw stored value, accepts either representation, compares-and-sets against the raw
+  value, writes touches back in the representation the row already uses, and fails closed (session
+  refused, row deleted) on anything unparseable — so a future storage-format change in the library
+  degrades loudly instead of silently disabling the timeout again.
+- Made the step-up freshness gate for privileged actions inclusive at its deadline: a session
+  sitting exactly on the 15-minute freshness bound is now stale, matching the inactivity bound's
+  "last safe instant" rule instead of granting one extra tick.
+- Hardened the tests that guard both bounds: the inactivity boundary cases (one millisecond
+  before, exactly at, one millisecond after) now run in both storage representations against a
+  column declared like the real schema, integration fixtures age sessions using the production
+  ISO form, and the freshness gate gained exact-boundary coverage. Reported by a cross-repo
+  review; the same fix ships in the sibling tally-time project.
 
 ## [0.31.3-alpha.1] — 2026-08-01
 
@@ -2615,7 +2633,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.3-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.4-alpha.1...HEAD
+[0.31.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.3-alpha.1...v0.31.4-alpha.1
 [0.31.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.2-alpha.1...v0.31.3-alpha.1
 [0.31.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.1-alpha.1...v0.31.2-alpha.1
 [0.31.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.0-alpha.1...v0.31.1-alpha.1
