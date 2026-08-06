@@ -1,0 +1,19 @@
+name: cancel-probe
+on:
+  push:
+    branches: ["ci/cancel-probe"]
+permissions:
+  contents: read
+jobs:
+  slow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: sleep 180
+  notify:
+    needs: [slow]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo "NOTIFY_RAN slow=${{ needs.slow.result }}"
