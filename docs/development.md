@@ -199,8 +199,11 @@ provenance. The blocking ZAP scan boots the hardened posture — password authen
 MFA, scheduled backups and operator attestations, with credentials minted and masked per run — so a
 finding there is a regression in the recommended configuration. A second, non-blocking job scans
 the out-of-the-box default posture weekly and uploads its report as an artifact. Reviewed secret-scan
-fixture findings are pinned in `.gitleaksignore`. See
-`docs/security/security-review-2026-07-14.md` for assessment scope and residual controls.
+fixtures are allowlisted by value in `.gitleaks.toml`, which `pnpm run security:gitleaks-config`
+checks on every gate run. Because a scheduled or `main` run has no reviewer watching it, a failure
+there also opens — or comments on — a `security-scan-failure` issue rather than waiting to be
+noticed. See `docs/security/security-review-2026-07-14.md` for assessment scope and residual
+controls.
 
 The `main` ruleset requires every pull-request job that protects shipped behavior: all `gate` jobs,
 both `e2e` jobs, the Docker production smoke, CodeQL analysis, secret scan, dependency review, source

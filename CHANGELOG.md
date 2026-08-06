@@ -10,6 +10,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- A failed `security` workflow run on a schedule or on `main` now opens a `security-scan-failure`
+  issue naming the failed jobs and linking the run, and comments on that issue instead of filing a
+  duplicate if it is already open. The weekly scan broke on 2026-08-04 and stayed red for two days
+  because nothing surfaces a branch-event failure: there is no pull request to turn red and no
+  reviewer waiting on it. Pull-request failures are deliberately excluded, since they are already
+  in front of the person who caused them.
+
 ### Changed
 
 - Replaced the secret scanner's per-fingerprint exception list with a reviewed allowlist of the
