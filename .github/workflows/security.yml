@@ -29,6 +29,9 @@ jobs:
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Named rather than left to discovery: the reviewed fixture allowlist lives here, and a
+          # silently unloaded config would turn this gate red on values already signed off.
+          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml
 
   dependency-review:
     name: Dependency review

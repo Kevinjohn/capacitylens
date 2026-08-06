@@ -10,6 +10,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced the secret scanner's per-fingerprint exception list with a reviewed allowlist of the
+  deterministic fixture values themselves (`.gitleaks.toml`). Gitleaks fingerprints are
+  commit-scoped, so the previous list had to be re-approved whenever an unrelated commit rewrote
+  the line a fixture sat on — which twice left the scan failing on values already signed off, and
+  trained reviewers to wave findings through. Scoping by value rather than by file keeps a genuine
+  credential pasted into a test file reportable.
+
 ## [0.32.0-alpha.1] — 2026-08-06
 
 This release adds an operator recovery path for the one credential state no one inside the product

@@ -1,0 +1,40 @@
+# Secret-scanning configuration for the full-history gitleaks run in .github/workflows/security.yml.
+#
+# This file exists to end a maintenance treadmill. Gitleaks fingerprints are commit-scoped, so the
+# per-fingerprint entries this repository previously kept in .gitleaksignore had to be re-approved
+# every time an unrelated commit rewrote the line a fixture sat on — a repository-wide Prettier
+# sweep and a release commit each re-flagged the same already-reviewed values, and the scan then
+# stayed red until someone noticed. Re-approving a value that was never a credential teaches
+# reviewers to wave findings through, which is the opposite of what the gate is for.
+#
+# The allowlist below is therefore scoped to the *values themselves* rather than to the files they
+# appear in. Ignoring whole test paths would be simpler, but it would also mean a genuine
+# credential pasted into a test file goes unreported — a realistic mistake, and one this gate
+# should still catch. Note that a `paths` allowlist cannot be used to narrow these patterns to test
+# code: gitleaks applies path allowlists at the file level and skips the file before scanning it,
+# so adding `paths` here would silently disable detection in every file it matched. Value patterns
+# are the only scoping mechanism that keeps the rest of each file under the scanner.
+#
+# Adding to this file is a security decision. A new pattern must be a value that is fake by
+# construction — it names itself as a fixture, or is an obvious counter like "idempotency-1" — so
+# that allowlisting it everywhere is safe. A value that merely happens to be fake today does not
+# qualify.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deterministic fake secrets and idempotency keys used as server test fixtures"
+regexTarget = "secret"
+regexes = [
+  # Counter-style idempotency and command keys: "idempotency-1", "wrong-idempotency-1",
+  # "idempotency-2", "valid-idempotency-key-0001". Used to prove replay and mismatch handling.
+  '''^(?:wrong-|valid-|stale-|other-)?idempotency(?:-key)?-\d+$''',
+  # Fixture and local end-to-end harness secrets, each of which names itself and carries the
+  # obvious "0123456789abcdef" filler: "crash-fixture-secret-…", "correlation-test-secret-…",
+  # "fixture-secret-0123456789abcdef-012345", "capacitylens-oidc-e2e-secret-…". The e2e values are
+  # inline in package.json scripts that bind to localhost only.
+  '''^[a-z-]*(?:fixture|test|e2e)-secret-(?:0123456789abcdef|[0-9a-f]{16})(?:-[0-9a-f]+)?$''',
+  # The matching local e2e bootstrap token, e.g. "auth-e2e-bootstrap-token-0123456789abcdef".
+  '''^[a-z-]*bootstrap-token-(?:0123456789abcdef|[0-9a-f]{16})$''',
+]
