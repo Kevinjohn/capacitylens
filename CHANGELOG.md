@@ -10,6 +10,37 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.32.0-alpha.1] — 2026-08-06
+
+This release adds an operator recovery path for the one credential state no one inside the product
+can repair: a workspace's sole active Owner losing their password. Because non-Owners cannot
+administer an Owner and the single-active-Owner rule guarantees there is no second Owner to help,
+recovery is a deliberate stopped-server command-line ceremony rather than a product feature. It
+changes no data and leaves the portable export and SQLite database schema versions unchanged.
+
+### Added
+
+- Added `pnpm reset:owner-password`, a self-hosting operator command that issues a password-reset
+  link to the sole active Owner of a workspace. It drives the ordinary reset ceremony — same token
+  store, expiry, single-use consumption, password policy and session revocation — so it never
+  writes a credential directly and never relaxes in-app policy. It refuses unless it can take an
+  exclusive SQLite lock (the server really must be stopped, enforced rather than promised), unless
+  the database and authentication schemas are already current, unless exactly one identity matches
+  the address, and unless that identity is the sole active Owner of at least one workspace —
+  anyone else already has an in-product reset path. If anything fails after the link is minted,
+  the ceremony is revoked rather than left outstanding. The procedure is documented in the runbook
+  and the standing decision behind it in `DECISIONS.md`.
+- Added the `identity.owner_recovery_issued` audit action, so incident review can tell an
+  operator-issued recovery apart from an ordinary admin-issued reset. The event records the target
+  identity and a digest of the ceremony — never the reset token itself — and deliberately carries
+  no actor, because the absence of an in-product actor is the auditable fact.
+
+### Fixed
+
+- Restored the continuous-integration gates, which the previous release left failing: the recovery
+  command's source was missing from the reviewed cryptographic inventory, and three files were
+  committed unformatted. Both slipped through because the commits that introduced them skipped CI.
+
 ## [0.31.4-alpha.1] — 2026-08-05
 
 This security patch makes the 30-minute session inactivity timeout actually work — it had been
@@ -2633,7 +2664,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.4-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.32.0-alpha.1...HEAD
+[0.32.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.4-alpha.1...v0.32.0-alpha.1
 [0.31.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.3-alpha.1...v0.31.4-alpha.1
 [0.31.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.2-alpha.1...v0.31.3-alpha.1
 [0.31.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.1-alpha.1...v0.31.2-alpha.1
