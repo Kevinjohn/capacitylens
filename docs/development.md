@@ -201,9 +201,10 @@ finding there is a regression in the recommended configuration. A second, non-bl
 the out-of-the-box default posture weekly and uploads its report as an artifact. Reviewed secret-scan
 fixtures are allowlisted by value in `.gitleaks.toml`, which `pnpm run security:gitleaks-config`
 checks on every gate run. Because a scheduled or `main` run has no reviewer watching it, a failure
-there also opens — or comments on — a `security-scan-failure` issue rather than waiting to be
-noticed. See `docs/security/security-review-2026-07-14.md` for assessment scope and residual
-controls.
+there — or a cancellation that leaves the run with nothing to read — opens or comments on a
+`security-scan-failure` issue, and a later clean run closes it. A cancellation caused by a newer
+push is not reported, since that is `cancel-in-progress` working as intended. See
+`docs/security/security-review-2026-07-14.md` for assessment scope and residual controls.
 
 The `main` ruleset requires every pull-request job that protects shipped behavior: all `gate` jobs,
 both `e2e` jobs, the Docker production smoke, CodeQL analysis, secret scan, dependency review, source

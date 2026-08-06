@@ -241,11 +241,19 @@ jobs:
   # A failed scheduled run has no pull request to turn red and no reviewer waiting on it, so
   # nothing surfaces it: the weekly scan broke on 2026-08-04 and went unnoticed until someone
   # happened to open the Actions tab two days later. This job gives a branch-event failure a
-  # place to land that survives until it is closed. Pull requests are excluded deliberately —
-  # their failures are already in front of the person who caused them.
+  # place to land. Pull requests are excluded deliberately — their failures are already in front
+  # of the person who caused them.
+  #
+  # `always()` rather than `failure()` because a run that never got to execute is the failure
+  # mode least likely to be noticed: during the Actions outage of 2026-08-06 these jobs sat
+  # queued for ninety minutes and were then cancelled having run zero steps, which `failure()`
+  # does not match. scripts/report-workflow-outcome.mjs decides what that means — in particular
+  # it stays silent when `cancel-in-progress` cancelled a superseded push, which is healthy — and
+  # closes the report once the workflow is clean again so a transient failure tidies up after
+  # itself. Its judgement calls are covered by scripts/report-workflow-outcome.test.mjs.
   notify:
     name: Report an unattended failure
-    if: failure() && (github.event_name == 'schedule' || github.event_name == 'push')
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'push')
     needs: [secrets, sbom, containers, dast, dast-default, release-provenance]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -253,13 +261,16 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Open or update the failure issue
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Report the outcome
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # This job checks nothing out, so gh has no git remote to infer the repository from.
+          # Checkout leaves no credentialed remote for gh to infer the repository from.
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          # A skipped or cancelled job is not a failure; only name the ones that actually broke.
+          # Plain text rather than JSON: these are YAML expressions, where quoting JSON is a trap.
           RESULTS: |
             secrets=${{ needs.secrets.result }}
             sbom=${{ needs.sbom.result }}
@@ -267,32 +278,4 @@ jobs:
             dast=${{ needs.dast.result }}
             dast-default=${{ needs.dast-default.result }}
             release-provenance=${{ needs.release-provenance.result }}
-        run: |
-          set -euo pipefail
-          # `|| true` because grep exits non-zero when nothing matched, and "no job reported
-          # failure" is a report worth filing rather than a reason to abort silently: it means
-          # the workflow failed somewhere this list does not cover.
-          failed="$(printf '%s\n' "$RESULTS" | { grep '=failure$' || true; } | cut -d= -f1 | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
-          body="$(printf '%s\n' \
-            "The \`security\` workflow failed on a run nobody is watching." \
-            "" \
-            "- Trigger: \`$GITHUB_EVENT_NAME\` on \`$GITHUB_REF\`" \
-            "- Commit: $GITHUB_SHA" \
-            "- Failed jobs: ${failed:-unknown}" \
-            "- Run: $RUN_URL" \
-            "" \
-            "Close this issue once the run is green again; a later failure reopens the report as a comment here rather than filing a duplicate.")"
-          # The label doubles as the deduplication key, so it has to exist before the search.
-          gh label create security-scan-failure \
-            --color b60205 \
-            --description "An unattended security workflow run failed" \
-            --force >/dev/null
-          existing="$(gh issue list --state open --label security-scan-failure --limit 1 --json number --jq '.[0].number // empty')"
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-          else
-            gh issue create \
-              --title "Security workflow is failing" \
-              --label security-scan-failure \
-              --body "$body"
-          fi
+        run: node scripts/report-workflow-outcome.mjs

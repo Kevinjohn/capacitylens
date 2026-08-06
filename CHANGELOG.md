@@ -12,12 +12,21 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
-- A failed `security` workflow run on a schedule or on `main` now opens a `security-scan-failure`
-  issue naming the failed jobs and linking the run, and comments on that issue instead of filing a
-  duplicate if it is already open. The weekly scan broke on 2026-08-04 and stayed red for two days
-  because nothing surfaces a branch-event failure: there is no pull request to turn red and no
-  reviewer waiting on it. Pull-request failures are deliberately excluded, since they are already
-  in front of the person who caused them.
+- A `security` workflow run that fails — or is cancelled without completing — on a schedule or on
+  `main` now opens a `security-scan-failure` issue naming the affected jobs and linking the run,
+  and comments on that issue instead of filing a duplicate if one is already open. The weekly scan
+  broke on 2026-08-04 and stayed red for two days because nothing surfaces a branch-event failure:
+  there is no pull request to turn red and no reviewer waiting on it. Pull-request failures are
+  deliberately excluded, since they are already in front of the person who caused them.
+
+  Cancellations are included because the 2026-08-06 GitHub Actions outage showed that the run
+  least likely to be noticed is the one that never executed: jobs sat queued for ninety minutes and
+  were then cancelled having produced no logs at all. A cancellation is only reported when the
+  commit is still the tip of its branch — when a newer push superseded it, `cancel-in-progress`
+  was working as intended and the report stays silent. A clean run closes the open report, so a
+  transient failure tidies up after itself and an issue that stays open means something still needs
+  attention. The judgement calls live in `scripts/report-workflow-outcome.mjs` and are covered by
+  `pnpm run policy:workflow-report:test`, which the gate runs.
 
 ### Changed
 
