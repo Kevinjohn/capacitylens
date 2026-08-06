@@ -23,6 +23,24 @@ f698a3963a19a4ad73f4dbde942774f49755e684:server/src/fixtures/credentialOnboardin
 f698a3963a19a4ad73f4dbde942774f49755e684:server/src/accounts/sqliteAccountAdminPort.test.ts:generic-api-key:212
 f698a3963a19a4ad73f4dbde942774f49755e684:server/src/app.invites.test.ts:generic-api-key:253
 
+# The same deliberately fake fixture secrets and idempotency keys already reviewed above, re-flagged
+# at two further commits that rewrote their lines: the repository-wide Prettier sweep (20a9dcb) and
+# the v0.27.0-alpha.1 release (5bb5183). Gitleaks fingerprints are commit-scoped, so any commit that
+# touches these lines produces new fingerprints for values that have never been credentials.
+20a9dcb9174b99e144c36181fb71724da18d3859:server/src/accounts/sqliteAccountAdminPort.test.ts:generic-api-key:18
+20a9dcb9174b99e144c36181fb71724da18d3859:server/src/accounts/sqliteAccountAdminPort.test.ts:generic-api-key:214
+20a9dcb9174b99e144c36181fb71724da18d3859:server/src/credentialOnboardingDurability.test.ts:generic-api-key:41
+20a9dcb9174b99e144c36181fb71724da18d3859:server/src/fixtures/credentialOnboardingCrashFixture.ts:generic-api-key:14
+20a9dcb9174b99e144c36181fb71724da18d3859:server/src/app.auth.test.ts:generic-api-key:210
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/accounts/conformance/accountFlows.conformance.test.ts:generic-api-key:24
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/accounts/conformance/accountFlows.conformance.test.ts:generic-api-key:821
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/accounts/sqliteAccountAdminPort.test.ts:generic-api-key:212
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/app.invites.test.ts:generic-api-key:242
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/app.auth.test.ts:generic-api-key:222
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/credentialOnboardingDurability.test.ts:generic-api-key:49
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/db.migrate.test.ts:generic-api-key:62
+5bb5183d242b0608a78c3ff1831c5906b4c574fd:server/src/fixtures/credentialOnboardingCrashFixture.ts:generic-api-key:14
+
 # Deliberately fake idempotency key used to verify paired command-header validation. The value is
 # deterministic test data and has never been a credential.
 a999abc9dab570bd7b7e0808eb7e13cb360776b6:server/src/app.invites.test.ts:generic-api-key:206
