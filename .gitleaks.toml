@@ -29,12 +29,15 @@ regexTarget = "secret"
 regexes = [
   # Counter-style idempotency and command keys: "idempotency-1", "wrong-idempotency-1",
   # "idempotency-2", "valid-idempotency-key-0001". Used to prove replay and mismatch handling.
-  '''^(?:wrong-|valid-|stale-|other-)?idempotency(?:-key)?-\d+$''',
+  '''^(?:[a-z0-9]+-)*idempotency(?:-key)?-\d+$''',
   # Fixture and local end-to-end harness secrets, each of which names itself and carries the
   # obvious "0123456789abcdef" filler: "crash-fixture-secret-…", "correlation-test-secret-…",
   # "fixture-secret-0123456789abcdef-012345", "capacitylens-oidc-e2e-secret-…". The e2e values are
   # inline in package.json scripts that bind to localhost only.
-  '''^[a-z-]*(?:fixture|test|e2e)-secret-(?:0123456789abcdef|[0-9a-f]{16})(?:-[0-9a-f]+)?$''',
+  # The prefix consumes whole hyphen-separated segments: matching loose characters would allowlist
+  # "latest-secret-…", since "la" + "test" satisfies it. scripts/check-gitleaks-config.mjs holds
+  # that case as a regression test.
+  '''^(?:[a-z0-9]+-)*(?:fixture|test|e2e)-secret-(?:0123456789abcdef|[0-9a-f]{16})(?:-[0-9a-f]+)?$''',
   # The matching local e2e bootstrap token, e.g. "auth-e2e-bootstrap-token-0123456789abcdef".
-  '''^[a-z-]*bootstrap-token-(?:0123456789abcdef|[0-9a-f]{16})$''',
+  '''^(?:[a-z0-9]+-)*bootstrap-token-(?:0123456789abcdef|[0-9a-f]{16})$''',
 ]

@@ -17,7 +17,10 @@ new features and **patch** versions carry fixes.
   commit-scoped, so the previous list had to be re-approved whenever an unrelated commit rewrote
   the line a fixture sat on — which twice left the scan failing on values already signed off, and
   trained reviewers to wave findings through. Scoping by value rather than by file keeps a genuine
-  credential pasted into a test file reportable.
+  credential pasted into a test file reportable. The allowlist is itself gated: because a mistake
+  in it makes the scanner report less while still looking green, the build now asserts that its
+  patterns compile, that every reviewed fixture is still covered, that credential-shaped values
+  and near-misses are not, and that no file-level path exclusion has crept back in.
 
 ## [0.32.0-alpha.1] — 2026-08-06
 
