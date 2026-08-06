@@ -710,27 +710,30 @@ describe("CAPACITYLENS_AUTH password", () => {
     ).map(([label, elapsed, active]) => [`${label} (${rep})`, rep, elapsed, active] as const),
   );
 
-  it.each(boundaryCases)("treats a session %s the inactivity deadline as active=%s", async (_label, rep, elapsed, active) => {
-    const db = openDb(":memory:");
-    const now = Date.parse("2026-07-31T09:00:00.000Z");
-    const token = `boundary-${rep}-${elapsed}`;
-    const updatedAt = now - elapsed;
-    const stored: string | number = rep === "integer epoch" ? updatedAt : new Date(updatedAt).toISOString();
-    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date NOT NULL)`);
-    db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, stored);
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
-    try {
-      const result = await enforceSessionActivity({ session: { token, updatedAt: new Date(updatedAt) } }, db);
-      expect(result !== null).toBe(active);
-      const expectedTouched = rep === "integer epoch" ? now : new Date(now).toISOString();
-      expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual(
-        active ? { updatedAt: expectedTouched } : undefined,
-      );
-    } finally {
-      nowSpy.mockRestore();
-      db.close();
-    }
-  });
+  it.each(boundaryCases)(
+    "treats a session %s the inactivity deadline as active=%s",
+    async (_label, rep, elapsed, active) => {
+      const db = openDb(":memory:");
+      const now = Date.parse("2026-07-31T09:00:00.000Z");
+      const token = `boundary-${rep}-${elapsed}`;
+      const updatedAt = now - elapsed;
+      const stored: string | number = rep === "integer epoch" ? updatedAt : new Date(updatedAt).toISOString();
+      db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date NOT NULL)`);
+      db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, stored);
+      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+      try {
+        const result = await enforceSessionActivity({ session: { token, updatedAt: new Date(updatedAt) } }, db);
+        expect(result !== null).toBe(active);
+        const expectedTouched = rep === "integer epoch" ? now : new Date(now).toISOString();
+        expect(db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual(
+          active ? { updatedAt: expectedTouched } : undefined,
+        );
+      } finally {
+        nowSpy.mockRestore();
+        db.close();
+      }
+    },
+  );
 
   it("touches active sessions without extending their absolute expiry", async () => {
     const db = openDb(":memory:");

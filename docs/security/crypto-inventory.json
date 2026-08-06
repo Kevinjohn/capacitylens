@@ -70,6 +70,10 @@
       "purpose": "Versioned scrypt password storage, constant-time verification and HIBP SHA-1 range prefix"
     },
     {
+      "path": "server/src/resetOwnerPassword.ts",
+      "purpose": "Domain-separated unkeyed SHA-256 ceremony digest of an operator-issued reset token for auditing without retaining the credential, plus CSPRNG audit event identifiers"
+    },
+    {
       "path": "server/src/productionGuard.ts",
       "purpose": "Production warning when internal TLS is absent and posture handling for configured identities"
     },

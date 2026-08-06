@@ -7,7 +7,12 @@ import { resetOwnerPassword } from "../src/resetOwnerPassword";
 // pnpm forwards the argument separator itself with `pnpm run <script> -- <args>`; tolerate it.
 const args = process.argv.slice(2).filter((arg, index) => !(index === 0 && arg === "--"));
 const [databasePath, email, confirmFlag, ...extra] = args;
-if (!databasePath || !email || (confirmFlag !== undefined && confirmFlag !== "--confirm-server-stopped") || extra.length > 0) {
+if (
+  !databasePath ||
+  !email ||
+  (confirmFlag !== undefined && confirmFlag !== "--confirm-server-stopped") ||
+  extra.length > 0
+) {
   console.error("Usage: tsx scripts/reset-owner-password.ts <database> <email> --confirm-server-stopped");
   process.exitCode = 2;
 } else {

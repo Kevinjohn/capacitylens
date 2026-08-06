@@ -97,7 +97,9 @@ describe("resetOwnerPassword guards", () => {
 
   it("refuses a malformed address (isAccountEmail, not a substring check)", async () => {
     const { databasePath } = await seededInstance();
-    await expect(run(databasePath, { email: "owner@@capacitylens.dev" })).rejects.toThrow(/not a valid account address/);
+    await expect(run(databasePath, { email: "owner@@capacitylens.dev" })).rejects.toThrow(
+      /not a valid account address/,
+    );
   });
 
   it("refuses sso and off modes and an unset public URL, naming canonical keys", async () => {
@@ -164,9 +166,10 @@ describe("resetOwnerPassword ceremony", () => {
     // The audit outbox row is a valid account event carrying the ceremony digest and never the token.
     const inspect = openDbConnection(databasePath);
     fixtures.trackDb(inspect);
-    const rows = inspect
-      .prepare(`SELECT id, payload FROM capacitylens_audit_outbox`)
-      .all() as Array<{ id: string; payload: string }>;
+    const rows = inspect.prepare(`SELECT id, payload FROM capacitylens_audit_outbox`).all() as Array<{
+      id: string;
+      payload: string;
+    }>;
     expect(rows).toHaveLength(1);
     expect(rows[0]!.id).toBe(result.auditId);
     expect(rows[0]!.payload).not.toContain(token);
