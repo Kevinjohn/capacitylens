@@ -94,7 +94,8 @@ existing installation to SSO-only mode.
   credential pasted into a test file reportable. The allowlist is itself gated: because a mistake
   in it makes the scanner report less while still looking green, the build now asserts that its
   patterns compile, that every reviewed fixture is still covered, that credential-shaped values
-  and near-misses are not, and that no file-level path exclusion has crept back in.
+  and near-misses are not, that the scanner-supported singular global table is used, and that no
+  file-level path exclusion has crept back in.
 
 ## [0.32.0-alpha.1] — 2026-08-06
 

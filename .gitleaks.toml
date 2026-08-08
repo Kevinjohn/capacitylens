@@ -23,9 +23,7 @@
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Deterministic fake secrets and idempotency keys used as server test fixtures"
-regexTarget = "secret"
+[allowlist]
 regexes = [
   # Counter-style idempotency and command keys: "idempotency-1", "wrong-idempotency-1",
   # "idempotency-2", "valid-idempotency-key-0001". Used to prove replay and mismatch handling.

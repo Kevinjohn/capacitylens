@@ -10,7 +10,11 @@
 // earlier revision of the config made exactly that mistake; only the scanner's byte counter
 // (0 bytes read instead of 582) gave it away.
 //
-// The second is an over-broad value pattern. `[a-z-]*test-secret-…` looks precise but matches
+// The second is a misspelled global table. Gitleaks 8.24 reads `[allowlist]`; Viper silently ignores
+// the unsupported plural `[[allowlists]]`, leaving every reviewed fixture reportable even though
+// this JavaScript checker can still see and compile the nested regex strings.
+//
+// The third is an over-broad value pattern. `[a-z-]*test-secret-…` looks precise but matches
 // "latest-secret-…", because "la" + "test" satisfies it. Patterns must therefore break on segment
 // boundaries, and the corpora below lock that in.
 //
@@ -66,11 +70,19 @@ const credentials = [
 
 // Track the current TOML table so `paths` is judged only where it would do harm.
 let inAllowlist = false;
+let globalAllowlistCount = 0;
 for (const line of raw.split("\n")) {
   const text = line.includes("'''") ? line : line.replace(/#.*$/, "");
   const header = text.match(/^\s*\[{1,2}([^\]]+)\]{1,2}\s*$/);
   if (header) {
-    inAllowlist = header[1].trim() === "allowlists";
+    const table = header[1].trim();
+    if (table === "allowlists") {
+      failures.push(
+        "`[[allowlists]]` is not a supported global Gitleaks 8.24 table; use the singular `[allowlist]` table.",
+      );
+    }
+    inAllowlist = table === "allowlist";
+    if (inAllowlist) globalAllowlistCount += 1;
     continue;
   }
   if (inAllowlist && /^\s*paths\s*=/.test(text)) {
@@ -80,6 +92,10 @@ for (const line of raw.split("\n")) {
         "allowlisted values. Scope by value pattern instead.",
     );
   }
+}
+
+if (globalAllowlistCount !== 1) {
+  failures.push(`Expected exactly one global [allowlist] table, found ${globalAllowlistCount}.`);
 }
 
 if (!/^\s*useDefault\s*=\s*true\s*$/m.test(raw)) {
