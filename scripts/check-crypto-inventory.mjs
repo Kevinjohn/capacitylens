@@ -51,17 +51,21 @@ function discover(files) {
   return discovered;
 }
 
-const discovered = discover(trackedFiles);
 const untrackedDiscovered = discover(untrackedFiles);
-if (untrackedDiscovered.size > 0) {
-  console.warn(
-    `Untracked crypto-like files are outside the inventory gate and were ignored:\n  ${[...untrackedDiscovered].sort().join("\n  ")}`,
-  );
-}
+// Inventory entries attest reviewed repository content, not arbitrary files present in one working
+// tree. An untracked crypto implementation therefore cannot satisfy (or be satisfied by) the
+// inventory until it is intentionally added to git.
+const discovered = discover(trackedFiles);
+const unreviewedUntracked = [...untrackedDiscovered].sort();
 
 const unreviewed = [...discovered].filter((path) => !reviewed.has(path)).sort();
 const stale = [...reviewed].filter((path) => !discovered.has(path)).sort();
-if (unreviewed.length > 0 || stale.length > 0) {
+if (unreviewed.length > 0 || stale.length > 0 || unreviewedUntracked.length > 0) {
+  if (unreviewedUntracked.length > 0) {
+    console.error(
+      `Untracked cryptographic implementation paths must be added to git before review:\n  ${unreviewedUntracked.join("\n  ")}`,
+    );
+  }
   if (unreviewed.length > 0) {
     console.error(`Unreviewed cryptographic implementation paths:\n  ${unreviewed.join("\n  ")}`);
   }

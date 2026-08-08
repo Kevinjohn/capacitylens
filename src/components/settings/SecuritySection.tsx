@@ -14,6 +14,8 @@ import { Input } from "../ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
+import { useAuth } from "../../auth/authContext";
+import { Badge } from "../ui/badge";
 
 interface SessionView {
   id: string;
@@ -25,6 +27,8 @@ interface SessionView {
 type PasswordErrorField = "current" | "new" | "confirm";
 
 export function SecuritySection() {
+  const { providers } = useAuth();
+  const strictProvider = providers?.find((provider) => provider.kind === "oidc" && !provider.experimental) ?? null;
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,6 +39,74 @@ export function SecuritySection() {
   const [passwordErrorField, setPasswordErrorField] = useState<PasswordErrorField | null>(null);
   const sessionLoadGeneration = useRef(0);
   const errorId = useId();
+  const [providerConnected, setProviderConnected] = useState<boolean | null>(null);
+  const [providerError, setProviderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!strictProvider) return;
+    let cancelled = false;
+    const url = new URL(window.location.href);
+    const linkFailed = url.searchParams.has("capacitylensSsoLinkFailed");
+    void (async () => {
+      try {
+        const response = await accountClient.getIdentityProvider();
+        const body: unknown = await response.json().catch(() => null);
+        if (
+          !response.ok ||
+          !body ||
+          typeof body !== "object" ||
+          typeof (body as { connected?: unknown }).connected !== "boolean" ||
+          typeof (body as { verified?: unknown }).verified !== "boolean"
+        ) {
+          throw new Error("Invalid identity-provider status response.");
+        }
+        if (!cancelled) {
+          const status = body as { connected: boolean; verified: boolean };
+          // A duplicate or legacy-unverified row is still connected. Readiness owns its repair;
+          // starting another link here would be guaranteed to conflict.
+          setProviderConnected(status.connected);
+          setProviderError(linkFailed ? m.settings_sso_connect_error() : null);
+        }
+      } catch (cause) {
+        console.error("SecuritySection: identity-provider status failed", cause);
+        if (!cancelled) setProviderError(m.settings_sso_status_error());
+      }
+    })();
+    if (url.searchParams.has("capacitylensSsoLinked") || url.searchParams.has("capacitylensSsoLinkFailed")) {
+      url.searchParams.delete("capacitylensSsoLinked");
+      url.searchParams.delete("capacitylensSsoLinkFailed");
+      window.history.replaceState(window.history.state, "", url);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [strictProvider]);
+
+  const connectProvider = async () => {
+    if (!strictProvider || busy) return;
+    setBusy(true);
+    setProviderError(null);
+    try {
+      const response = await accountClient.linkIdentityProvider(window.location.href);
+      const body: unknown = await response.json().catch(() => null);
+      const result = body && typeof body === "object" ? (body as { url?: unknown; code?: unknown }) : null;
+      if (
+        response.status === 409 &&
+        (result?.code === "PROVIDER_ALREADY_LINKED" || result?.code === "MULTIPLE_PROVIDER_LINKS")
+      ) {
+        setProviderConnected(true);
+        setProviderError(result.code === "MULTIPLE_PROVIDER_LINKS" ? m.settings_sso_status_error() : null);
+        setBusy(false);
+        return;
+      }
+      if (!response.ok || typeof result?.url !== "string") throw new Error("Invalid identity-link response.");
+      window.location.assign(result.url);
+    } catch (cause) {
+      console.error("SecuritySection: identity-provider link failed", cause);
+      setProviderError(m.settings_sso_connect_error());
+      setBusy(false);
+    }
+  };
 
   const loadSessions = useCallback(async (): Promise<"loaded" | "unauthorized" | "failed" | "superseded"> => {
     const generation = ++sessionLoadGeneration.current;
@@ -207,6 +279,26 @@ export function SecuritySection() {
         <CardDescription>{m.settings_security_description()}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
+        {strictProvider && (
+          <div className="flex flex-col gap-2" data-testid="sso-connection">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-ink">{m.settings_sso_connect_heading()}</h3>
+              {providerConnected && (
+                <Badge variant="secondary">{m.settings_sso_connected({ provider: strictProvider.label })}</Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {m.settings_sso_connect_description({ provider: strictProvider.label })}
+            </p>
+            {providerConnected === false && (
+              <Button size="sm" type="button" disabled={busy} onClick={() => void connectProvider()}>
+                {m.settings_sso_connect_button({ provider: strictProvider.label })}
+              </Button>
+            )}
+            <FieldError>{providerError}</FieldError>
+            <Separator />
+          </div>
+        )}
         <form onSubmit={(event) => void changePassword(event)}>
           <FieldGroup className="gap-3">
             <h3 className="text-sm font-medium text-ink">{m.settings_security_change_password()}</h3>

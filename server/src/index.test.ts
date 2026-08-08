@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { authFromEnv, runAuthMigrations } from "./auth";
+import { openDb } from "./db";
+import { upsertMember } from "./controlTables";
 
 const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
 
@@ -14,6 +17,7 @@ function boot(overrides: NodeJS.ProcessEnv) {
     CAPACITYLENS_DB: ":memory:",
     CAPACITYLENS_AUDIT: "off",
     SMALLSASS_ACCOUNT_MODE: "off",
+    NODE_NO_WARNINGS: "1",
     ...overrides,
   };
   const directory = mkdtempSync(join(tmpdir(), "capacitylens-index-test-"));
@@ -47,6 +51,102 @@ function boot(overrides: NodeJS.ProcessEnv) {
 }
 
 describe("server entrypoint startup refusals", () => {
+  it("refuses a direct SSO-only flip and names an Owner without a verified provider link", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "capacitylens-sso-cutover-test-"));
+    const database = join(directory, "capacitylens.db");
+    const db = openDb(database);
+    const password = authFromEnv(db, {
+      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
+      SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+    });
+    await runAuthMigrations(password.auth!);
+    const timestamp = "2026-08-07T00:00:00.000Z";
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+    ).run("owner-1", "Owner", "owner@example.com", timestamp, timestamp);
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, 'credential', ?, ?, ?, ?)`,
+    ).run("credential-1", "owner-1", "owner-1", timestamp, timestamp);
+    db.prepare(
+      `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("live-session", "2099-01-01T00:00:00.000Z", "live-token", timestamp, timestamp, "owner-1");
+    db.prepare(
+      `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(
+      "live-reset",
+      "reset-password:owner@example.com",
+      "reset-value",
+      "2099-01-01T00:00:00.000Z",
+      timestamp,
+      timestamp,
+    );
+    db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
+      "workspace-1",
+      "Studio North",
+      "#3b82f6",
+      timestamp,
+      timestamp,
+    );
+    upsertMember(db, {
+      accountId: "workspace-1",
+      userId: "owner-1",
+      role: "owner",
+      status: "active",
+      createdAt: timestamp,
+    });
+    db.close();
+
+    try {
+      const result = boot({
+        CAPACITYLENS_DB: database,
+        SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-sso-only",
+        SMALLSASS_ACCOUNT_MODE: "sso",
+        SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
+        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+        SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+      });
+
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stderr).toContain("SSO cutover readiness failed");
+      expect(result.stderr).toContain("owner@example.com (owner)");
+      expect(result.stderr).not.toContain("at ");
+
+      const repeated = boot({
+        CAPACITYLENS_DB: database,
+        // The bounded no-profile compatibility posture must not bypass the same SSO interlock.
+        SMALLSASS_ACCOUNT_MODE: "sso",
+        SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
+        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+        SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+      });
+      expect(repeated.status, repeated.stderr).toBe(1);
+      expect(repeated.stderr).toContain("SSO cutover readiness failed");
+
+      const preserved = openDb(database);
+      expect(preserved.prepare(`SELECT id FROM session`).all()).toEqual([{ id: "live-session" }]);
+      expect(preserved.prepare(`SELECT id FROM verification`).all()).toEqual([{ id: "live-reset" }]);
+      expect(
+        preserved.prepare(`SELECT json_extract(payload, '$.action') AS action FROM capacitylens_audit_outbox`).all(),
+      ).toEqual([]);
+      preserved.close();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("frames a buildApp configuration failure without a raw stack", () => {
     const result = boot({
       CAPACITYLENS_CORS_ORIGIN: "*",

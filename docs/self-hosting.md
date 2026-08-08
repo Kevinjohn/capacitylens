@@ -192,6 +192,28 @@ After the first successful startup, the configured generic provider id and issue
 pair. Changing either side refuses startup to protect existing `(issuer, subject)` correlations;
 plan an explicit reviewed identity migration instead of editing those values in place.
 
+### Converting an existing password installation to SSO
+
+Use `self-hosted-mixed` as the staging posture. Every existing member must connect the configured
+strict-OIDC identity from their own fresh password session; administrators can see installation
+readiness and repair local email or wrong-subject mistakes from Team & access. Then run:
+
+```bash
+pnpm --filter capacitylens-server cutover:preflight -- /absolute/path/to/capacitylens.db
+```
+
+Do not proceed on a non-zero exit. When it passes, stop traffic, set
+`SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-sso-only` and
+`SMALLSASS_ACCOUNT_MODE=sso`, then restart. The server revokes all sessions and outstanding
+verification/reset ceremonies, durably records the first activation, and reruns the all-company
+readiness interlock before listening. Live reset ceremonies are reported and revoked rather than
+blocking that revocation; expired verification rows are ignored. SSO-only refuses open signup;
+experimental named social providers remain available to existing principals when configured but
+cannot admit a new local principal. New invitations must pre-authorise an email and be accepted
+through the strict provider. Retained credentials make rollback possible only by
+reverting to mixed mode and restarting.
+The complete operating and repair procedure is in `docs/runbook.md` under “Password-to-SSO cutover”.
+
 ## Bare-metal outline
 
 Use Node 24 and the pinned pnpm version:

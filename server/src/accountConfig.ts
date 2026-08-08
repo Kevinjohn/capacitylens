@@ -240,6 +240,11 @@ export function resolveAccountEnvironment(
     ) {
       throw new AccountConfigError(`${profile} requires a strict OIDC client, issuer, and discovery document.`);
     }
+    if (!capabilities.passwordSignIn) {
+      if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
+        throw new AccountConfigError("The SSO-only deployment profile forbids open signup.");
+      }
+    }
   }
   if (profile !== null && (env.CAPACITYLENS_SSO_AUTHORIZATION_URL || env.CAPACITYLENS_SSO_TOKEN_URL)) {
     throw new AccountConfigError(

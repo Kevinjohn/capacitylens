@@ -11,12 +11,15 @@ describe("cryptographic inventory file selection", () => {
     if (directory) rmSync(directory, { recursive: true, force: true });
   });
 
-  it("does not fail on an untracked crypto-like scratch file and identifies why", () => {
+  it("does not let an inventory entry bless an untracked crypto implementation", () => {
     directory = mkdtempSync(join(tmpdir(), "capacitylens-crypto-inventory-"));
     mkdirSync(join(directory, "scripts"), { recursive: true });
     mkdirSync(join(directory, "docs/security"), { recursive: true });
     cpSync(resolve("scripts/check-crypto-inventory.mjs"), join(directory, "scripts/check-crypto-inventory.mjs"));
-    writeFileSync(join(directory, "docs/security/crypto-inventory.json"), JSON.stringify({ entries: [] }));
+    writeFileSync(
+      join(directory, "docs/security/crypto-inventory.json"),
+      JSON.stringify({ entries: [{ path: "scratch.mjs" }] }),
+    );
     execFileSync("git", ["init", "--quiet"], { cwd: directory });
     execFileSync("git", ["add", "scripts/check-crypto-inventory.mjs", "docs/security/crypto-inventory.json"], {
       cwd: directory,
@@ -28,9 +31,9 @@ describe("cryptographic inventory file selection", () => {
       encoding: "utf8",
     });
 
-    expect(result.status).toBe(0);
-    expect(result.stderr).toContain("Untracked crypto-like files are outside the inventory gate and were ignored");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Untracked cryptographic implementation paths must be added to git before review");
     expect(result.stderr).toContain("scratch.mjs");
-    expect(result.stdout).toContain("0 implementation paths");
+    expect(result.stderr).toContain("Stale cryptographic inventory paths");
   });
 });

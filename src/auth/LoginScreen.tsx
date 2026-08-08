@@ -19,7 +19,12 @@ import {
   MAX_PASSWORD_INPUT_CODE_UNITS,
   passwordLengthFailure,
 } from "@capacitylens/shared/domain/password";
-import { clearExternalSignInError, externalSignInErrorUrl, hasExternalSignInError } from "./externalSignInError";
+import {
+  clearExternalSignInError,
+  externalSignInErrorCode,
+  externalSignInErrorUrl,
+  hasExternalSignInError,
+} from "./externalSignInError";
 
 function LoginField({ id, label, ...props }: ComponentProps<typeof Input> & { id: string; label: string }) {
   return (
@@ -64,7 +69,13 @@ export function LoginScreen({
   const [password, setPassword] = useState("");
   const [setupToken, setSetupToken] = useState("");
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
-  const [error, setError] = useState<string | null>(() => (returnedWithExternalError ? m.login_sso_failed() : null));
+  const [error, setError] = useState<string | null>(() => {
+    if (!returnedWithExternalError) return null;
+    const code = externalSignInErrorCode(window.location.href);
+    if (code === "oidc_verification_failed") return m.login_sso_verification_failed();
+    if (code === "account_link_conflict") return m.login_sso_account_link_conflict();
+    return m.login_sso_failed();
+  });
   const [busy, setBusy] = useState(false);
   const [twoFactorPending, setTwoFactorPending] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState("");

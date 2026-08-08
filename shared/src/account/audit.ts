@@ -11,7 +11,11 @@ export type AccountAuditAction =
   | "ownership.transferred"
   | "identity.password_reset_issued"
   | "identity.owner_recovery_issued"
+  | "identity.federated_linked"
+  | "identity.email_corrected"
+  | "identity.federated_link_removed"
   | "identity.sessions_revoked"
+  | "identity.sso_cutover_activated"
   | "identity.local_deprovisioned"
   | "flow.compensated"
   | "flow.reconciliation_required";

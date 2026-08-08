@@ -163,6 +163,33 @@ This is the short, present-tense record of decisions that constrain future work.
   equivalent must be reconsidered before hosted GA.
 - Email self-registration is closed by default. External identities require a verified email and
   a live invitation; initial SSO ownership requires an operator email allow-list.
+- External-identity admission and explicit linking are distinct. Creating a new local principal
+  requires a verified IdP email plus a live pre-authorised invitation (or the first-principal
+  bootstrap allow-list). An already-admitted principal may explicitly attach strict OIDC without a
+  second invitation, but only through their own fresh session and a callback assertion whose email
+  is verified and matches the local identity.
+- Password-to-SSO conversion uses the existing `self-hosted-mixed` → `self-hosted-sso-only` ladder.
+  Cutover readiness is installation-wide and is proved before the first-cutover session and
+  reset/verification revocation commits with its audit. A durable application-scoped activation
+  marker distinguishes that first boundary even when no live password session or ceremony remains;
+  the deployment profile remains authoritative, while clean restarts preserve sessions already
+  issued with federated assurance. Open signup is prohibited, the required strict-OIDC provider is
+  continuously non-unlinkable, and experimental named social providers remain compatible sign-in
+  doors for existing principals of self-hosted installations but cannot admit a new local principal
+  after cutover (hosted OIDC-only still refuses them).
+  SSO-only invitation acceptance requires a session from the strict provider so social-only admission
+  cannot make the next readiness check fail. Credentials remain dormant for break-glass:
+  recovery is an explicit configuration revert to mixed mode plus restart, never an in-place
+  password door in SSO-only mode.
+- Strict OIDC requires `email_verified: true` when admitting or explicitly linking a subject. A
+  returning subject may sign in when the IdP omits the claim only when its exact provider row has
+  durable verified-admission evidence. Legacy rows without that proof must be removed and relinked;
+  invalid cryptographic or identity assertions still fail closed with the stable
+  verification-specific error.
+- Every configured federated provider is treated as satisfying CapacityLens's local required-MFA
+  gate. CapacityLens cannot infer upstream MFA from a provider link, so operator enforcement and
+  testing at the IdP is required; this responsibility also applies to experimental named providers
+  used in mixed mode.
 - Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
   proxy. Legacy product/vendor-prefixed account variables remain warning aliases until both two
   stable minor releases and 90 days have elapsed from the first stable release carrying the

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { createStrictOidcClient, strictOidcUserInfo } from "./strictOidc";
+import {
+  createStrictOidcClient,
+  StrictOidcProviderUnavailableError,
+  StrictOidcVerificationError,
+  strictOidcUserInfo,
+} from "./strictOidc";
 
 const issuer = "http://127.0.0.1:5556/dex";
 const discoveryUrl = `${issuer}/.well-known/openid-configuration`;
@@ -124,14 +129,22 @@ describe("strictOidcUserInfo", () => {
     });
   });
 
-  it("defaults a missing email verification claim to false", async () => {
+  it("preserves a missing or false email verification claim for the stateful admission boundary", async () => {
     delete userInfo.email_verified;
     const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
-    const profile = await resolve({
-      idToken: await idToken(currentKeys[0]),
-      accessToken: "access-token",
-    });
-    expect(profile.emailVerified).toBe(false);
+    await expect(
+      resolve({
+        idToken: await idToken(currentKeys[0]),
+        accessToken: "access-token",
+      }),
+    ).resolves.toMatchObject({ emailVerified: false });
+    userInfo.email_verified = false;
+    await expect(
+      resolve({
+        idToken: await idToken(currentKeys[0]),
+        accessToken: "access-token",
+      }),
+    ).resolves.toMatchObject({ emailVerified: false });
   });
 
   it("normalizes a valid email and rejects malformed identity attributes", async () => {
@@ -151,6 +164,12 @@ describe("strictOidcUserInfo", () => {
         accessToken: "access-token",
       }),
     ).rejects.toThrow("invalid email");
+    await expect(
+      resolve({
+        idToken: await idToken(currentKeys[0]),
+        accessToken: "access-token",
+      }),
+    ).rejects.toBeInstanceOf(StrictOidcVerificationError);
   });
 
   it.each([
@@ -174,7 +193,9 @@ describe("strictOidcUserInfo", () => {
         idToken: await idToken(attacker),
         accessToken: "access-token",
       }),
-    ).rejects.toMatchObject({ code: "ERR_JWKS_NO_MATCHING_KEY" });
+    ).rejects.toMatchObject({
+      cause: expect.objectContaining({ code: "ERR_JWKS_NO_MATCHING_KEY" }),
+    });
   });
 
   it("rejects stale and implausibly future-issued ID tokens", async () => {
@@ -717,6 +738,32 @@ describe("strictOidcUserInfo", () => {
         accessToken: "access-token",
       }),
     ).rejects.toThrow("HTTP 503");
+    await expect(
+      resolve({
+        idToken: await idToken(currentKeys[0]),
+        accessToken: "access-token",
+      }),
+    ).rejects.toBeInstanceOf(StrictOidcProviderUnavailableError);
+  });
+
+  it("keeps a transient user-info outage distinct from an identity verification failure", async () => {
+    const healthyFetch = globalThis.fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = input instanceof Request ? input.url : String(input);
+        if (url === userInfoUrl) return new Response(null, { status: 503 });
+        return healthyFetch(input, init);
+      }),
+    );
+    const resolve = strictOidcUserInfo({ issuer, clientId, discoveryUrl });
+
+    await expect(
+      resolve({
+        idToken: await idToken(currentKeys[0]),
+        accessToken: "access-token",
+      }),
+    ).rejects.toBeInstanceOf(StrictOidcProviderUnavailableError);
   });
 
   it("retries discovery after a transient failure instead of caching rejection forever", async () => {

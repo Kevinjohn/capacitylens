@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
@@ -24,7 +24,7 @@ import {
 import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { accountConfigKey, resolveAccountEnvironment } from "./accountConfig";
-import { createStrictOidcClient, type StrictOidcClient } from "./strictOidc";
+import { createStrictOidcClient, StrictOidcVerificationError, type StrictOidcClient } from "./strictOidc";
 import {
   PASSWORD_CONTEXT_WORDS,
   PasswordPolicyDependencyError,
@@ -38,6 +38,12 @@ import { WorkQueueFullError } from "./workQueue";
 import { bindFederatedProvider, recordSessionAssurance, removeSessionAssurance } from "./accounts/state";
 import { applicationSessionHandle } from "./accounts/sessionHandle";
 import { tx } from "./txn";
+import {
+  createFederatedLinkCeremony,
+  deleteFederatedLinkCeremony,
+  reconcileObservedFederatedLinks,
+  type ObservedFederatedLink,
+} from "./federatedLinkLifecycle";
 
 /** Translate password-work backpressure before Better Auth can mistake it for a credential verdict
  * or an undifferentiated internal error. Malformed hashes still resolve false inside the hasher. */
@@ -131,8 +137,12 @@ export interface Auth {
   providers: AuthProviderInfo[];
   /** Configured upstream issuer for each local provider alias. Used for `(issuer, subject)` keys. */
   federatedIssuers: ReadonlyMap<string, string>;
+  /** The one strict OIDC provider used by the supported SSO cutover ceremony. */
+  strictProvider?: AuthProviderInfo | null;
   /** Validate and persist immutable issuer-to-provider aliases after app migrations complete. */
   ensureProviderBindings: () => void;
+  /** Verify every configured issuer/provider alias without writing (operator preflight). */
+  assertProviderBindings?: () => void;
   /** Create a user + credential account as one SQLite transaction, bypassing the
    *  public sign-up ROUTE entirely (and with it, the route's minPasswordLength check —
    *  internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
@@ -163,6 +173,16 @@ export interface Auth {
   deleteCredentialUser: (userId: string) => Promise<void>;
   /** Revoke every active session for a user (administrator offboarding/compromise response). */
   revokeUserSessions: (userId: string) => Promise<void>;
+  /** Start the only supported explicit identity-link ceremony. The raw provider route remains
+   * shadowed at the HTTP adapter, so freshness and provider policy cannot be bypassed. */
+  beginFederatedLink?: (input: {
+    headers: Headers;
+    principalId: string;
+    callbackURL: string;
+    errorCallbackURL: string;
+  }) => Promise<{ url: string; setCookies: string[] }>;
+  /** Finish any callback that committed before its audit/observation transaction completed. */
+  reconcileFederatedLinks?: () => void;
 }
 
 /** The identity attached to every request in 'off' mode — the seam Stage C will later
@@ -380,12 +400,288 @@ export const SESSION_INACTIVITY_TTL_SECONDS = 30 * 60;
 /** Bound session activity writes while keeping idle expiry accurate to within one minute. */
 export const SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS = 60;
 
+/** Reserved v25 index enforcing one principal for each external provider subject. */
+export const FEDERATED_SUBJECT_UNIQUE_INDEX = "idx_account_provider_subject_unique";
+/** Reserved v25 index enforcing one subject per provider for each local principal. */
+export const FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX = "idx_account_principal_provider_unique";
+/** Reserved v25 trigger that atomically records newly admitted external provider rows. */
+export const FEDERATED_OBSERVATION_TRIGGER = "capacitylens_observe_federated_account";
+
+/** Unreleased v25 application migration definition. The CapacityLens-owned tables make provider
+ * callbacks recoverable and their audits at-least-once. The account indexes close Better Auth's
+ * subject and per-principal find-then-create races; the trigger records a verified external row in
+ * the same SQLite statement that creates it, including direct OIDC admissions. */
+export const FEDERATED_IDENTITY_V25_DEFINITION = `
+CREATE TABLE IF NOT EXISTS capacitylens_federated_link_ceremonies (
+  id TEXT NOT NULL PRIMARY KEY,
+  principalId TEXT NOT NULL,
+  providerId TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  expiresAt TEXT NOT NULL,
+  completedAt TEXT
+) STRICT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_capacitylens_federated_link_ceremonies_principal
+  ON capacitylens_federated_link_ceremonies(principalId, providerId);
+CREATE TABLE IF NOT EXISTS capacitylens_federated_link_observations (
+  accountRowId TEXT NOT NULL PRIMARY KEY,
+  principalId TEXT NOT NULL,
+  providerId TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  verifiedAt TEXT NOT NULL,
+  auditedAt TEXT,
+  UNIQUE(providerId, subject)
+) STRICT;
+CREATE TABLE IF NOT EXISTS capacitylens_sso_cutover_state (
+  applicationId TEXT NOT NULL PRIMARY KEY,
+  activatedAt TEXT NOT NULL
+) STRICT;
+guard:sqlite_master(account):reject-duplicate-provider-coordinates:v2
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_provider_subject_unique ON account(providerId, accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_principal_provider_unique ON account(userId, providerId);
+CREATE TRIGGER IF NOT EXISTS capacitylens_observe_federated_account
+AFTER INSERT ON account
+WHEN NEW.providerId <> 'credential'
+BEGIN
+  INSERT INTO capacitylens_federated_link_observations
+    (accountRowId, principalId, providerId, subject, verifiedAt, auditedAt)
+  VALUES (NEW.id, NEW.userId, NEW.providerId, NEW.accountId, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), NULL);
+END;
+`;
+
+function federatedObservationTriggerSql(): string {
+  const marker = `CREATE TRIGGER IF NOT EXISTS ${FEDERATED_OBSERVATION_TRIGGER}`;
+  const start = FEDERATED_IDENTITY_V25_DEFINITION.indexOf(marker);
+  if (start < 0) throw new Error("The v25 identity definition is missing its observation trigger.");
+  return FEDERATED_IDENTITY_V25_DEFINITION.slice(start).trim();
+}
+
+/** SQLite removes IF NOT EXISTS from sqlite_master but otherwise retains the trigger definition. */
+function expectedStoredFederatedObservationTriggerSql(): string {
+  return federatedObservationTriggerSql()
+    .replace(/^CREATE TRIGGER IF NOT EXISTS\s+/, "CREATE TRIGGER ")
+    .replace(/;\s*$/, "");
+}
+
+function normalizeSchemaSql(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function sqliteTableExists(db: Db, table: string): boolean {
+  return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
+}
+
+/** Immutable implementation shared by the unreleased v25 ledger step and its same-version
+ * post-Better-Auth repair pass. Future schema versions must compose a new helper rather than edit
+ * this one, preserving the shipped migration definition and behavior together. */
+function installFederatedIdentityV25(db: Db): void {
+  db.exec(
+    FEDERATED_IDENTITY_V25_DEFINITION.slice(
+      0,
+      FEDERATED_IDENTITY_V25_DEFINITION.indexOf("guard:sqlite_master(account)"),
+    ),
+  );
+  if (!sqliteTableExists(db, "account")) return;
+
+  const duplicate = db
+    .prepare(
+      `SELECT a.providerId, a.accountId, GROUP_CONCAT(a.userId, ', ') AS principalIds,
+              GROUP_CONCAT(COALESCE(u.email, a.userId), ', ') AS people
+         FROM account AS a
+         LEFT JOIN user AS u ON u.id = a.userId
+        GROUP BY a.providerId, a.accountId
+       HAVING COUNT(*) > 1
+        LIMIT 1`,
+    )
+    .get() as { providerId: string; accountId: string; principalIds: string; people: string } | undefined;
+  if (duplicate) {
+    throw new Error(
+      `Federated subject duplication blocks the SSO migration — provider ${duplicate.providerId}, ` +
+        `subject ${duplicate.accountId}, principals ${duplicate.principalIds} (${duplicate.people}). ` +
+        "Reconcile the incorrect provider link before retrying.",
+    );
+  }
+  const repeatedProvider = db
+    .prepare(
+      `SELECT a.userId, a.providerId, GROUP_CONCAT(a.accountId, ', ') AS subjects,
+              COALESCE(u.email, a.userId) AS person
+         FROM account AS a
+         LEFT JOIN user AS u ON u.id = a.userId
+        GROUP BY a.userId, a.providerId
+       HAVING COUNT(*) > 1
+        LIMIT 1`,
+    )
+    .get() as { userId: string; providerId: string; subjects: string; person: string } | undefined;
+  if (repeatedProvider) {
+    throw new Error(
+      `Multiple provider links block the SSO migration — principal ${repeatedProvider.userId} ` +
+        `(${repeatedProvider.person}), provider ${repeatedProvider.providerId}, subjects ${repeatedProvider.subjects}. ` +
+        "Remove the incorrect exact provider row before retrying.",
+    );
+  }
+
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ${FEDERATED_SUBJECT_UNIQUE_INDEX} ON account(providerId, accountId);`);
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX} ON account(userId, providerId);`,
+  );
+  db.exec(federatedObservationTriggerSql());
+}
+
+/** Apply only the frozen v25 identity migration. */
+export function migrateFederatedIdentityV25(db: Db): void {
+  installFederatedIdentityV25(db);
+}
+
+/** Install/verify the current application-owned backstop around Better Auth's provider-account
+ * table. App migrations run before Better Auth creates tables on a fresh auth-enabled database,
+ * so this is deliberately idempotent and is also called immediately after auth migrations. */
+export function ensureFederatedIdentitySchema(db: Db): void {
+  installFederatedIdentityV25(db);
+}
+
+/** Fail unless every v25 identity table, index, and trigger has the exact owned shape. */
+export function assertFederatedIdentitySchemaCurrent(db: Db): void {
+  const expectedTables = new Map([
+    [
+      "capacitylens_federated_link_ceremonies",
+      [
+        ["id", "TEXT", 1, 1],
+        ["principalId", "TEXT", 1, 0],
+        ["providerId", "TEXT", 1, 0],
+        ["createdAt", "TEXT", 1, 0],
+        ["expiresAt", "TEXT", 1, 0],
+        ["completedAt", "TEXT", 0, 0],
+      ],
+    ],
+    [
+      "capacitylens_federated_link_observations",
+      [
+        ["accountRowId", "TEXT", 1, 1],
+        ["principalId", "TEXT", 1, 0],
+        ["providerId", "TEXT", 1, 0],
+        ["subject", "TEXT", 1, 0],
+        ["verifiedAt", "TEXT", 1, 0],
+        ["auditedAt", "TEXT", 0, 0],
+      ],
+    ],
+    [
+      "capacitylens_sso_cutover_state",
+      [
+        ["applicationId", "TEXT", 1, 1],
+        ["activatedAt", "TEXT", 1, 0],
+      ],
+    ],
+  ] as const);
+  for (const [table, expectedColumns] of expectedTables) {
+    const schema = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as
+      { sql: string } | undefined;
+    if (!schema) throw new Error(`DB identity schema is missing ${table}.`);
+    const columns = (
+      db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+        pk: number;
+      }>
+    ).map(({ name, type, notnull, pk }) => [name, type, notnull, pk]);
+    if (JSON.stringify(columns) !== JSON.stringify(expectedColumns) || !/\)\s*STRICT\s*$/i.test(schema.sql)) {
+      throw new Error(`DB identity schema has an invalid ${table} definition.`);
+    }
+  }
+  const ceremonyIndexes = db.prepare(`PRAGMA index_list(capacitylens_federated_link_ceremonies)`).all() as Array<{
+    name: string;
+    unique: number;
+  }>;
+  const ceremonyColumns = db
+    .prepare(`PRAGMA index_info(idx_capacitylens_federated_link_ceremonies_principal)`)
+    .all() as Array<{ name: string }>;
+  if (
+    !ceremonyIndexes.some(
+      ({ name, unique }) => name === "idx_capacitylens_federated_link_ceremonies_principal" && unique === 1,
+    ) ||
+    ceremonyColumns.map(({ name }) => name).join(",") !== "principalId,providerId"
+  ) {
+    throw new Error("DB identity schema has an invalid federated-link ceremony index definition.");
+  }
+  const observationIndexes = db.prepare(`PRAGMA index_list(capacitylens_federated_link_observations)`).all() as Array<{
+    name: string;
+    unique: number;
+    origin: string;
+  }>;
+  const hasProviderSubjectConstraint = observationIndexes.some(({ name, unique, origin }) => {
+    if (unique !== 1 || origin !== "u") return false;
+    const columns = db.prepare(`PRAGMA index_info(${name})`).all() as Array<{ name: string }>;
+    return columns.map(({ name: column }) => column).join(",") === "providerId,subject";
+  });
+  if (!hasProviderSubjectConstraint) {
+    throw new Error("DB identity schema is missing the provider-subject observation constraint.");
+  }
+  if (!sqliteTableExists(db, "account")) return;
+  const accountIndexes = db.prepare(`PRAGMA index_list(account)`).all() as Array<{ name: string; unique: number }>;
+  for (const [indexName, expectedColumns] of [
+    [FEDERATED_SUBJECT_UNIQUE_INDEX, "providerId,accountId"],
+    [FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX, "userId,providerId"],
+  ] as const) {
+    const columns = db.prepare(`PRAGMA index_info(${indexName})`).all() as Array<{ name: string }>;
+    const unique = accountIndexes.some((index) => index.name === indexName && index.unique === 1);
+    if (!unique || columns.map(({ name }) => name).join(",") !== expectedColumns) {
+      throw new Error(`DB identity schema has an invalid ${indexName} definition.`);
+    }
+  }
+  const trigger = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?`)
+    .get(FEDERATED_OBSERVATION_TRIGGER) as { sql: string } | undefined;
+  if (
+    !trigger ||
+    normalizeSchemaSql(trigger.sql) !== normalizeSchemaSql(expectedStoredFederatedObservationTriggerSql())
+  ) {
+    throw new Error(`DB identity schema has an invalid ${FEDERATED_OBSERVATION_TRIGGER} definition.`);
+  }
+}
+
+/** Identity-adapter-owned read that proves an observation still names the exact live provider
+ * account row before the lifecycle service emits its durable audit. */
+function verifiedUnauditedFederatedLinks(db: Db): readonly ObservedFederatedLink[] {
+  return db
+    .prepare(
+      `SELECT observation.accountRowId, observation.principalId, observation.providerId,
+              observation.subject, observation.verifiedAt
+         FROM capacitylens_federated_link_observations AS observation
+         JOIN account AS providerAccount
+           ON providerAccount.id = observation.accountRowId
+          AND providerAccount.userId = observation.principalId
+          AND providerAccount.providerId = observation.providerId
+          AND providerAccount.accountId = observation.subject
+        WHERE observation.auditedAt IS NULL
+        ORDER BY observation.verifiedAt, observation.accountRowId`,
+    )
+    .all() as unknown as ObservedFederatedLink[];
+}
+
 /** Per-call capture context for {@link mintPasswordResetToken}. AsyncLocalStorage (not a module
  *  variable) so two concurrent admin resets can never swap tokens across their await chains, and
  *  so a PUBLIC call to POST /api/auth/request-password-reset — which Better Auth exposes once
  *  sendResetPassword is configured — finds NO store and the token goes nowhere (that public route
  *  is inert-by-design here: no email is ever sent, and its anti-enumeration response is unchanged). */
 const resetTokenCapture = new AsyncLocalStorage<{ token: string | null }>();
+
+/** Better Auth converts adapter exceptions into a generic 500 Response before its public handler
+ * resolves. Capture the exact request-local exception so the callback seam can distinguish the
+ * two federated-account uniqueness races from unrelated provider or network failures. */
+const authHandlerErrorCapture = new AsyncLocalStorage<{ error: unknown }>();
+
+function isFederatedAccountCoordinateConstraint(error: unknown): boolean {
+  const sqlite = error as { code?: unknown; errcode?: unknown; message?: unknown };
+  const constraint =
+    sqlite?.errcode === 19 ||
+    sqlite?.errcode === 2067 ||
+    (typeof sqlite?.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
+  return (
+    constraint &&
+    typeof sqlite.message === "string" &&
+    sqlite.message.includes("account.providerId") &&
+    (sqlite.message.includes("account.accountId") || sqlite.message.includes("account.userId"))
+  );
+}
 
 /** The `emailAndPassword.sendResetPassword` hook: deliver the token to the capturing admin route
  *  (if any) instead of emailing it. Never throws — a throw here would surface as a Better Auth
@@ -442,6 +738,18 @@ export function revokeResetTokensForUser(db: Db, userId: string): void {
   // longer queryable. Revoking all outstanding verification ceremonies for a user on a privilege
   // change is the safe conservative action (and avoids retaining any other takeover-capable link).
   db.prepare(`DELETE FROM verification WHERE value = ?`).run(userId);
+}
+
+/** Revoke Better Auth's still-pending OAuth link state for one principal inside the caller's
+ * transaction. The state has no foreign key to the application ceremony, so identity mutations
+ * must explicitly clear both stores. */
+export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void {
+  if (!verificationTableExists(db)) return;
+  db.prepare(
+    `DELETE FROM verification
+      WHERE json_valid(value)
+        AND json_extract(value, '$.link.userId') = ?`,
+  ).run(principalId);
 }
 
 /**
@@ -695,6 +1003,35 @@ export function providerIdFromExternalContext(
   }
 }
 
+/** Accept a false/missing verification claim only for an exact row with durable verified-admission evidence. */
+export function assertStrictOidcEmailAdmission(
+  db: Db,
+  providerId: string,
+  profile: { sub: string; emailVerified: boolean },
+): void {
+  if (profile.emailVerified) return;
+  // Only a durable observation created by the v25 trigger proves that this exact provider row was
+  // admitted under the verified-email invariant. Legacy rows predate that proof and must relink.
+  const existing = db
+    .prepare(
+      `SELECT 1
+         FROM account AS account
+         JOIN capacitylens_federated_link_observations AS observation
+           ON observation.accountRowId = account.id
+          AND observation.principalId = account.userId
+          AND observation.providerId = account.providerId
+          AND observation.subject = account.accountId
+        WHERE account.providerId = ? AND account.accountId = ?
+        LIMIT 1`,
+    )
+    .get(providerId, profile.sub);
+  if (!existing) {
+    throw new StrictOidcVerificationError(
+      "OIDC user-info response must assert a verified email address for admission or linking.",
+    );
+  }
+}
+
 /** Verify and maintain CapacityLens's versioned first-owner claim control after application
  * migrations have succeeded. Schema changes belong exclusively to the application migration ledger. */
 export function ensureAuthControlTables(db: Db, env: Env): void {
@@ -880,7 +1217,28 @@ export function authFromEnv(
             requireIssuerValidation: false,
             pkce: true,
             getToken: oidcClient.exchangeCode,
-            getUserInfo: oidcClient.getUserInfo,
+            getUserInfo: async (tokens) => {
+              try {
+                const profile = await oidcClient.getUserInfo(tokens);
+                assertStrictOidcEmailAdmission(db, genericProviderId, profile);
+                return profile;
+              } catch (error) {
+                if (!(error instanceof StrictOidcVerificationError)) throw error;
+                console.error("Strict OIDC identity verification failed.", error);
+                // generic-oauth performs its browser redirect only when getUserInfo returns no
+                // profile. Preserve our stable reason in request-local state so the outer callback
+                // seam can replace generic-oauth's `user_info_is_missing` redirect without
+                // throwing an APIError that escapes to the browser as raw JSON.
+                const capture = authHandlerErrorCapture.getStore();
+                if (capture) {
+                  capture.error = APIError.from("UNAUTHORIZED", {
+                    message: "The identity provider response could not be verified.",
+                    code: "OIDC_IDENTITY_VERIFICATION_FAILED",
+                  });
+                }
+                return null;
+              }
+            },
             scopes,
           },
         ],
@@ -1041,7 +1399,16 @@ export function authFromEnv(
     // OAuth/OIDC callback failures are browser navigations, not JSON API calls. Route them back to
     // the product's sign-in wall, which renders one stable non-sensitive message and removes the
     // provider-controlled query values. Per-flow errorCallbackURL values preserve invite routes.
-    onAPIError: { errorURL: browserAuthErrorUrl.toString() },
+    onAPIError: {
+      errorURL: browserAuthErrorUrl.toString(),
+      onError(error) {
+        const capture = authHandlerErrorCapture.getStore();
+        if (capture) capture.error = error;
+        // Supplying onError replaces Better Auth's default logger, so retain a breadcrumb for the
+        // dependency failures that it has already normalized to a generic response.
+        if (!(error instanceof APIError)) console.error("Better Auth request failed.", error);
+      },
+    },
     // Better Auth defaults verification identifiers to plaintext. Reset identifiers contain the
     // live bearer token (`reset-password:<token>`), so a DB/backup reader could otherwise take over
     // the account. The library hashes on both create and consume, preserving the normal API while
@@ -1062,6 +1429,16 @@ export function authFromEnv(
 
             // Open EMAIL registration never opens external identity creation as a side effect.
             // Social/OIDC remains verified-email + invitation/allow-list gated in every posture.
+            const externalProviderId = externalSignup ? providerIdFromExternalContext(context) : null;
+            if (externalSignup && mode === "sso" && externalProviderId !== genericProviderId) {
+              // Named social providers remain compatibility sign-in doors for principals that
+              // already exist. Letting one create a new principal after cutover would immediately
+              // introduce a strict-provider readiness blocker on the next restart.
+              throw APIError.from("FORBIDDEN", {
+                message: "New SSO-only identities must sign in through the required OIDC provider.",
+                code: "STRICT_PROVIDER_REQUIRED",
+              });
+            }
             if (externalSignup && !(await opts.externalIdentityAdmission?.(sanitizedUser))) {
               throw APIError.from("FORBIDDEN", {
                 message: `This identity is not invited to this ${application.displayName} instance.`,
@@ -1314,11 +1691,75 @@ export function authFromEnv(
   // raw.api.getSession runs through the same hooks.before pipeline as HTTP routes, so the session is
   // already idle-checked and touched once before it reaches this provider-neutral adapter.
   const activeSession = (headers: Headers) => raw.api.getSession({ headers });
+  const strictProvider = configuredProviderInfo.find((provider) => provider.kind === "oidc") ?? null;
+  const trustedLinkOrigins = new Set([
+    publicUrl.origin,
+    ...(opts.trustedOrigins ?? []).map((value) => {
+      try {
+        return new URL(value).origin;
+      } catch (cause) {
+        throw new AuthConfigError(`Trusted origin ${JSON.stringify(value)} must be an absolute URL.`, { cause });
+      }
+    }),
+  ]);
+
+  const linkReturnUrl = (value: string, parameter: string, ceremonyId: string): URL => {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw APIError.from("BAD_REQUEST", {
+        message: "The identity-link return URL is invalid.",
+        code: "INVALID_CALLBACK_URL",
+      });
+    }
+    if (!trustedLinkOrigins.has(url.origin) || url.username || url.password) {
+      throw APIError.from("FORBIDDEN", {
+        message: "The identity-link return URL is not a trusted browser origin.",
+        code: "INVALID_CALLBACK_URL",
+      });
+    }
+    url.searchParams.set(parameter, ceremonyId);
+    return url;
+  };
+
+  const callbackErrorUrl = (request: Request): URL => {
+    const fallback = new URL(browserAuthErrorUrl);
+    if (!sqliteTableExists(db, "verification")) return fallback;
+    const state = new URL(request.url).searchParams.get("state");
+    if (!state) return fallback;
+    // Better Auth stores the returned OAuth state as the verification identifier. Use that indexed
+    // coordinate instead of parsing every reset, MFA, and abandoned OAuth row on each callback.
+    const storedIdentifier = createHash("sha256").update(state).digest("base64url");
+    const rows = db
+      .prepare(`SELECT value FROM verification WHERE identifier = ? LIMIT 2`)
+      .all(storedIdentifier) as Array<{
+      value: string;
+    }>;
+    for (const { value } of rows) {
+      try {
+        const stored = JSON.parse(value) as { oauthState?: unknown; errorURL?: unknown };
+        if (stored.oauthState !== state || typeof stored.errorURL !== "string") continue;
+        const target = new URL(stored.errorURL);
+        if (trustedLinkOrigins.has(target.origin) && !target.username && !target.password) return target;
+      } catch {
+        // Verification values are shared with non-OAuth ceremonies. Non-JSON rows cannot carry a
+        // validated callback URL and deliberately fall through to the stable application target.
+      }
+    }
+    return fallback;
+  };
+
+  const isStrictOidcVerificationFailure = (error: unknown): boolean =>
+    error instanceof APIError && error.body?.code === "OIDC_IDENTITY_VERIFICATION_FAILED";
 
   const auth: Auth = {
     // Enforce inactivity even when a caller goes directly to an authenticated Better Auth route
     // such as change-password rather than first touching an application data route.
     handler: async (request) => {
+      const callbackPath = new URL(request.url).pathname.replace(/^\/api\/auth/, "");
+      const callbackProviderId = providerIdFromExternalContext({ path: callbackPath });
+      const failureTarget = callbackProviderId ? callbackErrorUrl(request) : null;
       if (strictOidcClient && strictOidcAuthorizationProxyPath) {
         const requestUrl = new URL(request.url);
         if (request.method === "GET" && requestUrl.pathname === strictOidcAuthorizationProxyPath) {
@@ -1349,14 +1790,59 @@ export function authFromEnv(
           }
         }
       }
-      return raw.handler(request);
+      try {
+        const capture = { error: null as unknown };
+        const response = await authHandlerErrorCapture.run(capture, () => raw.handler(request));
+        if (callbackProviderId && isStrictOidcVerificationFailure(capture.error)) {
+          const target = failureTarget ?? new URL(browserAuthErrorUrl);
+          target.searchParams.set("error", "OIDC_IDENTITY_VERIFICATION_FAILED");
+          return Response.redirect(target, 302);
+        }
+        if (callbackProviderId && isFederatedAccountCoordinateConstraint(capture.error)) {
+          const target = failureTarget ?? new URL(browserAuthErrorUrl);
+          target.searchParams.set("error", "account_already_linked_to_different_user");
+          return Response.redirect(target, 302);
+        }
+        if (callbackProviderId) {
+          try {
+            reconcileObservedFederatedLinks(db, application.applicationId, () => verifiedUnauditedFederatedLinks(db));
+          } catch (error) {
+            // The trigger already preserved the durable observation. Keep the browser response
+            // truthful and let startup/request reconciliation retry the audit transaction.
+            console.error("Federated identity link audit reconciliation is pending.", error);
+          }
+        }
+        return response;
+      } catch (error) {
+        if (isFederatedAccountCoordinateConstraint(error)) {
+          const target = failureTarget ?? new URL(browserAuthErrorUrl);
+          target.searchParams.set("error", "account_already_linked_to_different_user");
+          return Response.redirect(target, 302);
+        }
+        throw error;
+      }
     },
     options: raw.options,
     providers: configuredProviderInfo,
     federatedIssuers: configuredFederatedIssuers,
+    strictProvider,
     ensureProviderBindings: () => {
       for (const [providerId, issuer] of configuredFederatedIssuers) {
         bindFederatedProvider(db, application.applicationId, issuer, providerId);
+      }
+    },
+    assertProviderBindings: () => {
+      for (const [providerId, issuer] of configuredFederatedIssuers) {
+        const row = db
+          .prepare(
+            `SELECT issuer, providerId
+               FROM account_federated_provider_bindings
+              WHERE applicationId = ? AND (issuer = ? OR providerId = ?)`,
+          )
+          .all(application.applicationId, issuer, providerId) as Array<{ issuer: string; providerId: string }>;
+        if (row.length !== 1 || row[0]!.issuer !== issuer || row[0]!.providerId !== providerId) {
+          throw new Error(`Persisted provider binding does not match configured provider ${providerId}.`);
+        }
       }
     },
     api: {
@@ -1389,6 +1875,69 @@ export function authFromEnv(
       ),
     deleteCredentialUser: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUser(userId)),
     revokeUserSessions: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUserSessions(userId)),
+    async beginFederatedLink({ headers, principalId, callbackURL, errorCallbackURL }) {
+      if (!strictProvider) {
+        throw APIError.from("BAD_REQUEST", {
+          message: "No strict OIDC provider is configured for account linking.",
+          code: "PROVIDER_NOT_FOUND",
+        });
+      }
+      // A previous callback may have committed its provider row immediately before a process stop.
+      // Repair that durable observation before starting another mutating link ceremony. Readiness
+      // reads remain side-effect free.
+      auth.reconcileFederatedLinks?.();
+      const session = await activeSession(headers);
+      if (!session || String(session.user.id) !== principalId) {
+        throw APIError.from("UNAUTHORIZED", {
+          message: "The identity-link session no longer matches the signed-in user.",
+          code: "SESSION_EXPIRED",
+        });
+      }
+      const existingLinks = db
+        .prepare(`SELECT id FROM account WHERE userId = ? AND providerId = ? ORDER BY id LIMIT 2`)
+        .all(principalId, strictProvider.id) as Array<{ id: string }>;
+      if (existingLinks.length > 0) {
+        throw APIError.from("CONFLICT", {
+          message:
+            existingLinks.length === 1
+              ? "This identity provider is already connected."
+              : "Multiple provider links require stopped-server repair before reconnecting.",
+          code: existingLinks.length === 1 ? "PROVIDER_ALREADY_LINKED" : "MULTIPLE_PROVIDER_LINKS",
+        });
+      }
+      const ceremonyId = randomBytes(24).toString("base64url");
+      const success = linkReturnUrl(callbackURL, "capacitylensSsoLinked", ceremonyId);
+      const failure = linkReturnUrl(errorCallbackURL, "capacitylensSsoLinkFailed", ceremonyId);
+      const ceremony = createFederatedLinkCeremony(db, principalId, strictProvider.id, ceremonyId, () =>
+        revokeFederatedLinkStateInTx(db, principalId),
+      );
+      const requestHeaders = new Headers(headers);
+      requestHeaders.set("content-type", "application/json");
+      const response = await raw.handler(
+        new Request(new URL("/api/auth/oauth2/link", publicUrl), {
+          method: "POST",
+          headers: requestHeaders,
+          body: JSON.stringify({
+            providerId: strictProvider.id,
+            callbackURL: success.toString(),
+            errorCallbackURL: failure.toString(),
+          }),
+        }),
+      );
+      const body: unknown = await response.json().catch(() => null);
+      const url = body && typeof body === "object" ? (body as { url?: unknown }).url : null;
+      if (!response.ok || typeof url !== "string") {
+        deleteFederatedLinkCeremony(db, ceremony.id);
+        throw APIError.from("BAD_GATEWAY", {
+          message: "The identity provider could not start the link ceremony.",
+          code: "PROVIDER_UNAVAILABLE",
+        });
+      }
+      return { url, setCookies: response.headers.getSetCookie() };
+    },
+    reconcileFederatedLinks() {
+      reconcileObservedFederatedLinks(db, application.applicationId, () => verifiedUnauditedFederatedLinks(db));
+    },
   };
   if (!opts.deferDatabaseSetup) auth.ensureProviderBindings();
   return { mode, auth };
@@ -1458,6 +2007,13 @@ export async function runAuthMigrations(auth: Auth): Promise<void> {
     throw new Error(
       `Better Auth schema migration did not converge; pending table change(s): ${remaining.tables.join(", ")}`,
     );
+  }
+  // A fresh database reaches application v25 before Better Auth creates `account`; install the
+  // composite uniqueness backstop now that the provider-owned table is guaranteed to exist.
+  const database = auth.options.database;
+  if (database && typeof database === "object" && "prepare" in database) {
+    ensureFederatedIdentitySchema(database as Db);
+    assertFederatedIdentitySchemaCurrent(database as Db);
   }
 }
 

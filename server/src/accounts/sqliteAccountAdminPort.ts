@@ -94,8 +94,14 @@ export function listSoleOwnerAccountIds(db: Db, principalId: string): string[] {
 /** Control-plane currency for offline tools: both the column contract and the exactly-one-Owner
  * physical invariant, asserted before any recovery reasoning happens over their rows. */
 export function assertAccountControlPlaneCurrent(db: Db): void {
-  assertControlTablesCurrent(db);
+  assertAccountControlPlaneSchemaCurrent(db);
   assertSingleOwnerControlPlaneCurrent(db);
+}
+
+/** Schema-only half of the control-plane assertion for the narrowly scoped tools whose purpose is
+ * to repair ownerless/memberless data that the full invariant must reject. */
+export function assertAccountControlPlaneSchemaCurrent(db: Db): void {
+  assertControlTablesCurrent(db);
 }
 
 export interface LocalAccountAdminPort extends AccountAdminPort {
@@ -119,6 +125,30 @@ export interface LocalAccountAdminPort extends AccountAdminPort {
    * any surviving workspace. All statuses count here so identity deprovisioning cannot leave a
    * surviving control row pointing at an erased principal. */
   eraseWorkspaceAdministrationInTx(workspaceId: string): readonly string[];
+}
+
+/** Account-control capabilities needed by cutover inventory and transaction-bound repair. */
+export interface SsoCutoverAccountAdminPort extends LocalAccountAdminPort {
+  inspectSsoCutoverWorkspaces(): readonly SsoCutoverWorkspaceFact[];
+  /** Recheck requested-workspace membership and the identity-global authority revision while the
+   * identity adapter owns the same SQLite write transaction. */
+  assertIdentityRepairAuthorityInTx(input: {
+    actor: ActorContext;
+    workspaceId: string;
+    targetPrincipalId: string;
+    action: Extract<IdentityAdminAction, "correct-email" | "remove-federated-link">;
+    expectedRevision: string;
+  }): void;
+  /** Promote one existing active member only while the workspace is still ownerless. This narrow
+   * stopped-server repair seam keeps control-table writes inside the account storage owner. */
+  repairOwnerlessWorkspaceInTx(workspaceId: string, principalId: string): boolean;
+}
+
+/** Immutable account-side workspace/member inventory for cutover evaluation. */
+export interface SsoCutoverWorkspaceFact {
+  workspaceId: string;
+  workspaceName: string;
+  members: readonly { principalId: string; role: Role; status: "active" }[];
 }
 
 function failure(code: AccountErrorCode, message: string, commandId?: string): AccountContractError {
@@ -327,7 +357,7 @@ export function sqliteAccountAdminPort(input: {
   audit?: AccountAuditPort;
   /** Test seam; production uses the bounded default. */
   writeOnceReplayCapacity?: number;
-}): LocalAccountAdminPort {
+}): SsoCutoverAccountAdminPort {
   const { applicationId, db, lock, trustedLocal = false, requireMfa = false } = input;
   const audit = accountAuditWriter(applicationId, input.audit);
   const invitationSecretReplay = new WriteOnceSecretReplay<CreatedInvitation>(
@@ -508,6 +538,24 @@ export function sqliteAccountAdminPort(input: {
   }
 
   return {
+    inspectSsoCutoverWorkspaces(): readonly SsoCutoverWorkspaceFact[] {
+      return (
+        db.prepare(`SELECT id, name FROM accounts ORDER BY name, id`).all() as Array<{ id: string; name: string }>
+      ).map((workspace) => ({
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        members: listMembersForAccount(db, workspace.id)
+          .filter((member) => member.status === "active")
+          .map((member) => ({ principalId: member.userId, role: member.role, status: "active" as const })),
+      }));
+    },
+    repairOwnerlessWorkspaceInTx(workspaceId, principalId) {
+      const members = listMembersForAccount(db, workspaceId).filter((member) => member.status === "active");
+      const target = members.find((member) => member.userId === principalId);
+      if (!target || members.some((member) => member.role === "owner")) return false;
+      upsertMember(db, { ...target, role: "owner" });
+      return true;
+    },
     roleForPrincipalInWorkspace(principalId, workspaceId) {
       if (!getRow(db, "accounts", workspaceId)) return null;
       return getActiveMemberRole(db, workspaceId, principalId);
@@ -1014,6 +1062,24 @@ export function sqliteAccountAdminPort(input: {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
       const current = evaluateAuthority(db, actor, targetPrincipalId, action);
       return current.allowed && current.revision === expectedRevision;
+    },
+
+    assertIdentityRepairAuthorityInTx({ actor, workspaceId, targetPrincipalId, action, expectedRevision }) {
+      assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
+      assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
+      if (!getActiveMemberRole(db, workspaceId, targetPrincipalId)) {
+        throw failure("NOT_FOUND", "Not a member of this workspace.");
+      }
+      const current = evaluateAuthority(db, actor, targetPrincipalId, action);
+      if (!current.allowed) {
+        throw failure(
+          current.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
+          "Identity repair authority is no longer available.",
+        );
+      }
+      if (current.revision !== expectedRevision) {
+        throw failure("CONFLICT", "Identity repair authority changed. Refresh and try again.");
+      }
     },
   };
 }

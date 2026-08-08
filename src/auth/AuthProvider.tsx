@@ -17,7 +17,7 @@ import {
 } from "./authContext";
 import { validateAuthUser } from "./validateAuthUser";
 import { reauthPending, resolveReauth, subscribeReauth } from "./reauthCoordinator";
-import { clearExternalSignInError, hasExternalSignInError } from "./externalSignInError";
+import { clearExternalSignInError, externalSignInErrorCode, hasExternalSignInError } from "./externalSignInError";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +61,8 @@ type Status =
       multiAccount: boolean;
       mfaRequired: boolean;
       providers: AuthProviderInfo[];
+      reauthMethod: "password" | "provider";
+      reauthProviderId: string | null;
     }
   | {
       kind: "login";
@@ -91,6 +93,8 @@ function passOpen(authMode: AuthMode, user: AuthUser | null): Status {
     multiAccount: true,
     mfaRequired: false,
     providers: [],
+    reauthMethod: "password",
+    reauthProviderId: null,
   };
 }
 
@@ -238,6 +242,14 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
         // carry them so the SESSION_NOT_FRESH step-up dialog can offer the SAME provider re-auth
         // route the login screen uses (DEFECT B). Off-spec entries are dropped (providersFrom).
         providers: providersFrom((body as { providers?: unknown } | null)?.providers),
+        reauthMethod:
+          (body as { reauthMethod?: unknown } | null)?.reauthMethod === "provider" || rawMode === "sso"
+            ? "provider"
+            : "password",
+        reauthProviderId:
+          typeof (body as { reauthProviderId?: unknown } | null)?.reauthProviderId === "string"
+            ? ((body as { reauthProviderId: string }).reauthProviderId ?? null)
+            : null,
       };
       // A live identity check does not prove the currently rendered tenant slice is live. Preserve
       // its offline/read-only marker until ServerSyncAdapter successfully reloads that slice; only
@@ -283,6 +295,8 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
             // Offline: no live provider list and no way to reach an IdP anyway — the step-up dialog
             // is unreachable here regardless (a security 403 needs the server), so [] is correct.
             providers: [],
+            reauthMethod: "password",
+            reauthProviderId: null,
           };
         }
       } catch (cacheError) {
@@ -306,10 +320,14 @@ function ReauthMount({
   authMode,
   user,
   providers,
+  reauthMethod,
+  reauthProviderId,
 }: {
   authMode: "password" | "sso";
   user: AuthUser | null;
   providers: AuthProviderInfo[];
+  reauthMethod: "password" | "provider";
+  reauthProviderId: string | null;
 }) {
   const pending = useSyncExternalStore(subscribeReauth, reauthPending);
   // This host exists only while the authenticated subtree is rendered. A concurrent 401 or
@@ -318,7 +336,13 @@ function ReauthMount({
   if (!pending) return null;
   return (
     <Suspense fallback={<AuthLoading message={m.auth_loading_confirmation()} overlay />}>
-      <ReauthDialog authMode={authMode} user={user} providers={providers} />
+      <ReauthDialog
+        authMode={authMode}
+        user={user}
+        providers={providers}
+        reauthMethod={reauthMethod}
+        reauthProviderId={reauthProviderId}
+      />
     </Suspense>
   );
 }
@@ -345,13 +369,21 @@ function AuthLoading({ message, overlay = false }: { message: string; overlay?: 
  * where the existing session means the login wall is intentionally not rendered. */
 function AuthenticatedExternalSignInFailure() {
   const [failed] = useState(() => hasExternalSignInError(window.location.href));
+  const [failureCode] = useState(() => externalSignInErrorCode(window.location.href));
   const setNotice = useStore((state) => state.setNotice);
 
   useEffect(() => {
     if (!failed) return;
     window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
-    setNotice(m.login_sso_failed(), "error");
-  }, [failed, setNotice]);
+    setNotice(
+      failureCode === "oidc_verification_failed"
+        ? m.login_sso_verification_failed()
+        : failureCode === "account_link_conflict"
+          ? m.login_sso_account_link_conflict()
+          : m.login_sso_failed(),
+      "error",
+    );
+  }, [failed, failureCode, setNotice]);
 
   return null;
 }
@@ -626,7 +658,13 @@ export function AuthProvider({
           security-sensitive action hits a SESSION_NOT_FRESH 403. Auth-on only — 'off' never 403s
           on freshness, so it needs no step-up UI (and this keeps the off/demo path unchanged). */}
       {status.authMode !== "off" && (
-        <ReauthMount authMode={status.authMode} user={status.user} providers={status.providers} />
+        <ReauthMount
+          authMode={status.authMode}
+          user={status.user}
+          providers={status.providers}
+          reauthMethod={status.reauthMethod}
+          reauthProviderId={status.reauthProviderId}
+        />
       )}
     </AuthContext.Provider>
   );

@@ -90,14 +90,28 @@ export interface PrincipalSummary {
   email: string | null;
 }
 
-export interface ApplicationSession {
+interface ApplicationSessionBase {
   id: SessionId;
   principal: LocalPrincipal;
   createdAt: IsoInstant;
   expiresAt: IsoInstant | null;
   freshUntil: IsoInstant | null;
-  assurance: "trusted-local" | "password" | "mfa" | "federated";
 }
+
+/** A verified application session. Federated assurance structurally requires the provider alias
+ * that issued it; every non-federated session structurally excludes one. */
+export type ApplicationSession = ApplicationSessionBase &
+  (
+    | {
+        assurance: "federated";
+        /** Provider alias only; never a bearer token or upstream subject. */
+        providerId: string;
+      }
+    | {
+        assurance: "trusted-local" | "password" | "mfa";
+        providerId?: null;
+      }
+  );
 
 export interface WorkspaceMembershipSummary {
   workspaceId: WorkspaceId;
@@ -185,7 +199,8 @@ export interface OwnershipTransfer {
   nextOwner: Membership;
 }
 
-export type IdentityAdminAction = "issue-password-reset" | "revoke-sessions";
+export type IdentityAdminAction =
+  "issue-password-reset" | "revoke-sessions" | "correct-email" | "remove-federated-link";
 
 export type IdentityAdminAuthorityDecision =
   | {

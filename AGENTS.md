@@ -40,8 +40,10 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Password auth and strict OIDC are supported; named social providers remain experimental.
 - Production password mode supports optional required TOTP MFA and defaults to breached-password
   screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory.
-- External identities require verified email plus an unused pre-authorised invitation. The first
-  SSO identity requires `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS`.
+- New external principals require verified email plus an unused pre-authorised invitation. The
+  first SSO identity requires `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS`. An already-authenticated local
+  principal may explicitly link a verified, email-matching strict-OIDC identity without consuming
+  another invitation.
 - Password mode may include providers; `sso` mode removes password sign-in.
 - Never weaken server authorization because the UI hides an action.
 - Password/session reset authority is identity-global: enforce it across every account the target

@@ -1,0 +1,48 @@
+import { copyFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { authFromEnv, assertFederatedIdentitySchemaCurrent, runAuthMigrations } from "../src/auth";
+import { DB_SCHEMA_VERSION, openDb } from "../src/db";
+
+const [sourceValue, targetValue] = process.argv.slice(2);
+const sourceVersion = Number(sourceValue);
+const targetVersion = Number(targetValue);
+if (!Number.isInteger(sourceVersion) || !Number.isInteger(targetVersion) || targetVersion !== DB_SCHEMA_VERSION) {
+  console.error(`Usage: tsx scripts/generate-database-fixtures.ts <source-version> ${DB_SCHEMA_VERSION}`);
+  process.exitCode = 2;
+} else {
+  const directory = resolve("src/fixtures/databases");
+  const targets = (["off", "password"] as const).map((mode) => ({
+    mode,
+    source: resolve(directory, `v${sourceVersion}-${mode}.db`),
+    target: resolve(directory, `v${targetVersion}-${mode}.db`),
+  }));
+  for (const { source, target } of targets) {
+    if (!existsSync(source)) throw new Error(`Fixture source does not exist: ${source}`);
+    if (existsSync(target)) throw new Error(`Refusing to overwrite committed fixture: ${target}`);
+  }
+
+  for (const { mode, source, target } of targets) {
+    copyFileSync(source, target);
+    const db = openDb(target);
+    try {
+      if (mode === "password") {
+        const configured = authFromEnv(db, {
+          SMALLSASS_ACCOUNT_MODE: "password",
+          SMALLSASS_ACCOUNT_SECRET: "fixture-secret-0123456789abcdef-012345",
+          SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+        });
+        await runAuthMigrations(configured.auth!);
+        assertFederatedIdentitySchemaCurrent(db);
+      }
+      const quickCheck = db.prepare(`PRAGMA quick_check`).all() as Array<{ quick_check: string }>;
+      if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== "ok") {
+        throw new Error(`${mode} fixture failed quick_check: ${JSON.stringify(quickCheck)}`);
+      }
+      const foreignKeys = db.prepare(`PRAGMA foreign_key_check`).all();
+      if (foreignKeys.length > 0) throw new Error(`${mode} fixture failed foreign_key_check.`);
+      db.exec(`PRAGMA journal_mode = DELETE; VACUUM;`);
+    } finally {
+      db.close();
+    }
+  }
+}

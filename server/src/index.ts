@@ -23,6 +23,10 @@ import type { BoundApplication } from "@capacitylens/shared/account/types";
 import { localExternalIdentityAdmission } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
 import { legacyProxyTrustWarning, trustProxyHeadersFrom } from "./proxyTrust";
+import { betterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
+import { sqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
+import { KeyedOperationLock } from "./accounts/operationLock";
+import { formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
 
 const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION;
 
@@ -169,8 +173,11 @@ if (resetForbidden(process.env)) {
 }
 
 let accountEnv: Record<string, string | undefined>;
+let accountProfile: ReturnType<typeof resolveAccountEnvironment>["profile"] = null;
 try {
-  accountEnv = resolveAccountEnvironment(process.env).env;
+  const resolved = resolveAccountEnvironment(process.env);
+  accountEnv = resolved.env;
+  accountProfile = resolved.profile;
 } catch (error) {
   refuseToStart(error instanceof Error ? error.message : String(error));
 }
@@ -336,7 +343,39 @@ try {
 try {
   if (auth) {
     await runAuthMigrations(auth);
+    auth.reconcileFederatedLinks?.();
     stopStartupIfRequested(db);
+  }
+  if (auth && authMode === "sso" && (accountProfile === "self-hosted-sso-only" || accountProfile === null)) {
+    const provider = auth.strictProvider;
+    if (!provider) throw new AuthConfigError("The SSO-only cutover has no configured strict OIDC provider.");
+    const identity = betterAuthIdentityPort({
+      applicationId: ACCOUNT_APPLICATION.applicationId,
+      auth,
+      authMode,
+      db,
+    });
+    const administration = sqliteAccountAdminPort({
+      applicationId: ACCOUNT_APPLICATION.applicationId,
+      db,
+      lock: new KeyedOperationLock(),
+      trustedLocal: false,
+      requireMfa: false,
+    });
+    // Reconfirm readiness under the same writer reservation that seals the boundary. This prevents
+    // another server process from admitting a blocker between preflight and the cutover mutation.
+    await identity.revokeAllForSsoCutover(() => {
+      const readiness = ssoCutoverReadiness({
+        provider,
+        providers: auth.providers,
+        identity,
+        administration,
+        openSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
+      });
+      if (!readiness.ready) {
+        throw new AuthConfigError(`SSO cutover readiness failed. ${formatSsoCutoverRefusal(readiness)}`);
+      }
+    });
   }
   // First-run owner bootstrap — AFTER the auth tables exist, BEFORE the app serves a request. In
   // off/sso mode createBootstrapAdmin throws AuthConfigError (the flag is meaningless there),
@@ -428,6 +467,7 @@ const { app, backups } = (() => {
       authMode,
       auth,
       requireMfa,
+      allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
       audit: auditSink,
       securityLog,
     });

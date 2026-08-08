@@ -1568,6 +1568,162 @@ describe("MembersSection — invite mint", () => {
   });
 });
 
+describe("MembersSection — SSO cutover repair", () => {
+  const providers: AuthContextValue["providers"] = [
+    { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
+  ];
+  const directory = [
+    { userId: "me", role: "owner" as const, isSelf: true },
+    { userId: "target", role: "admin" as const, isSelf: false },
+  ];
+
+  function ssoReadiness(linked: boolean, reason: string) {
+    return {
+      ready: false,
+      provider: { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
+      members: [
+        {
+          principalId: "target",
+          email: "target@x.io",
+          displayName: "Target",
+          role: "admin",
+          linked,
+          blocking: true,
+          critical: true,
+          reason,
+          repairLinks: linked ? [{ rowId: "link-1", providerId: "workforce", subject: "subject-1" }] : [],
+        },
+      ],
+      issues: [],
+      globalIssues: [],
+    };
+  }
+
+  function ssoFetch(linked: boolean, reason: string) {
+    const ordinary = mockFetch(directory);
+    return vi.fn(async (url: string, init?: RequestInit) => {
+      const target = String(url);
+      if (target.endsWith("/sso-readiness") && (!init || init.method === undefined || init.method === "GET")) {
+        return Response.json(ssoReadiness(linked, reason));
+      }
+      if (init?.method === "PATCH" || init?.method === "DELETE") return new Response(null, { status: 204 });
+      return ordinary(url, init);
+    });
+  }
+
+  it("refreshes readiness after a successful membership mutation", async () => {
+    const user = userEvent.setup();
+    const ordinary = mockFetch(directory);
+    let readinessReads = 0;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith("/sso-readiness") && (!init || init.method === undefined || init.method === "GET")) {
+        readinessReads += 1;
+        return Response.json(ssoReadiness(false, "member_not_linked"));
+      }
+      return ordinary(url, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection({ providers });
+
+    const targetRow = (await screen.findAllByTestId("member-row")).find((row) =>
+      within(row).queryByText(/target@x\.io/),
+    )!;
+    await waitFor(() => expect(readinessReads).toBe(1));
+    fireEvent.keyDown(within(targetRow).getByRole("combobox"), { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Change role" }));
+
+    await waitFor(() => expect(readinessReads).toBeGreaterThanOrEqual(2));
+  });
+
+  it("corrects a blocking member email through the fresh identity-global route", async () => {
+    const user = userEvent.setup();
+    const fetchMock = ssoFetch(false, "member_not_linked");
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection({ providers });
+
+    await user.click(await screen.findByTestId("sso-correct-email"));
+    const input = screen.getByTestId("sso-correct-email-input");
+    await user.clear(input);
+    await user.type(input, "corrected@example.com");
+    await user.click(screen.getByTestId("sso-correct-email-save"));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/target/email`,
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ email: "corrected@example.com" }),
+        }),
+      ),
+    );
+  });
+
+  it("confirms removal of an unverified wrong-subject link before dispatch", async () => {
+    const user = userEvent.setup();
+    const fetchMock = ssoFetch(true, "unverified_provider_link");
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection({ providers });
+
+    await user.click(await screen.findByTestId("sso-remove-link"));
+    const dialog = screen.getByRole("alertdialog");
+    expect(within(dialog).getByText(/target@x\.io.*sign in with their password/i)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    await user.click(within(dialog).getByRole("button", { name: "Remove incorrect link" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/target/federated-link`,
+        expect.objectContaining({
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rowId: "link-1", providerId: "workforce", subject: "subject-1" }),
+        }),
+      ),
+    );
+  });
+
+  it("surfaces a readiness fetch failure instead of hiding the cutover state", async () => {
+    const ordinary = mockFetch(directory);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).endsWith("/sso-readiness")) return Response.json({}, { status: 503 });
+        return ordinary(url, init);
+      }),
+    );
+    renderSection({ providers });
+
+    expect(await screen.findByTestId("sso-readiness-error")).toHaveTextContent(m.settings_sso_readiness_error());
+    expect(screen.queryByTestId("sso-readiness")).not.toBeInTheDocument();
+  });
+
+  it("rejects malformed nested readiness coordinates", async () => {
+    const ordinary = mockFetch(directory);
+    const malformed = ssoReadiness(true, "unverified_provider_link");
+    malformed.members[0]!.repairLinks[0]!.subject = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).endsWith("/sso-readiness")) return Response.json(malformed);
+        return ordinary(url, init);
+      }),
+    );
+    renderSection({ providers });
+
+    expect(await screen.findByTestId("sso-readiness-error")).toHaveTextContent(m.settings_sso_readiness_error());
+  });
+
+  it("does not offer mixed-mode email or link repair after password sign-in is disabled", async () => {
+    vi.stubGlobal("fetch", ssoFetch(true, "unverified_provider_link"));
+    renderSection({ authMode: "sso", providers });
+
+    expect(await screen.findByTestId("sso-readiness")).toBeInTheDocument();
+    expect(screen.queryByTestId("sso-correct-email")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("sso-remove-link")).not.toBeInTheDocument();
+  });
+});
+
 // Reference DEFAULT_ACCOUNT_ID so the fixture import is used (the URL the component builds).
 it("uses the active account id from the store in fetch URLs", async () => {
   const fetchMock = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);

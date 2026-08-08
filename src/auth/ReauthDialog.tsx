@@ -26,10 +26,14 @@ export function ReauthDialog({
   authMode,
   user,
   providers,
+  reauthMethod = authMode === "sso" ? "provider" : "password",
+  reauthProviderId = null,
 }: {
   authMode: "password" | "sso";
   user: AuthUser | null;
   providers: AuthProviderInfo[];
+  reauthMethod?: "password" | "provider";
+  reauthProviderId?: string | null;
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +139,10 @@ export function ReauthDialog({
 
   // SSO step-up: delegate to the identity provider. A skewed/empty provider list can't offer a
   // button — surface the same "no provider configured" copy the login screen uses, with only Cancel.
-  if (authMode === "sso") {
+  if (reauthMethod === "provider") {
+    const reauthProviders = reauthProviderId
+      ? providers.filter((provider) => provider.id === reauthProviderId)
+      : providers;
     return (
       <Modal
         title={m.reauth_title()}
@@ -150,10 +157,10 @@ export function ReauthDialog({
         }
       >
         <p className="text-sm text-muted-foreground">{m.reauth_body_sso()}</p>
-        <FieldError>{error ?? (providers.length === 0 ? m.login_sso_unavailable() : null)}</FieldError>
-        {providers.length > 0 ? (
+        <FieldError>{error ?? (reauthProviders.length === 0 ? m.login_sso_unavailable() : null)}</FieldError>
+        {reauthProviders.length > 0 ? (
           <div className="flex flex-col gap-2">
-            {providers.map((provider) => (
+            {reauthProviders.map((provider) => (
               <Button
                 size="sm"
                 key={`${provider.kind}:${provider.id}`}

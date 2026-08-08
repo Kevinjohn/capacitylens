@@ -27,7 +27,14 @@ import { seed } from "@capacitylens/shared/data/seed";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { PRESET_COLORS, snapToPresetColor } from "@capacitylens/shared/lib/color";
 import { createInvite, listInvitesForAccount, upsertMember, USED_INVITATION_RETENTION_LIMIT } from "./controlTables";
-import { authFromEnv, runAuthMigrations } from "./auth";
+import {
+  FEDERATED_OBSERVATION_TRIGGER,
+  FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX,
+  FEDERATED_SUBJECT_UNIQUE_INDEX,
+  assertFederatedIdentitySchemaCurrent,
+  authFromEnv,
+  runAuthMigrations,
+} from "./auth";
 import { TABLES } from "./tables";
 import { assertMigrationValuesPreserved, captureMigrationValues } from "./migrationPreservation";
 import {
@@ -45,8 +52,8 @@ import {
 
 const TS = "2026-01-01T00:00:00.000Z";
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
-const RELEASED_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23] as const;
-const RELEASED_FIXTURE_NAMES = RELEASED_FIXTURE_VERSIONS.flatMap((version) => [
+const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25] as const;
+const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
   `v${version}-off.db`,
   `v${version}-password.db`,
 ]);
@@ -1186,6 +1193,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
+      {
+        version: 25,
+        name: "secure-federated-identity-linking",
+        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+      },
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1216,7 +1228,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1244,7 +1256,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     const plan = planDatabaseMigrations(db).migrations;
-    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23, 24]);
+    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25]);
     expect(plan[0]).toEqual({
       version: 17,
       name: "add-durable-audit-outbox",
@@ -1397,6 +1409,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
+      {
+        version: 25,
+        name: "secure-federated-identity-linking",
+        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+      },
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1502,7 +1519,9 @@ describe("schema migration of an existing on-disk DB", () => {
       PRAGMA user_version = 19;
     `);
 
-    expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([20, 21, 22, 23, 24]);
+    expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
+      20, 21, 22, 23, 24, 25,
+    ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
     expect(db.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 20`).get()).toBeUndefined();
@@ -1542,6 +1561,11 @@ describe("schema migration of an existing on-disk DB", () => {
         version: 24,
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
+      },
+      {
+        version: 25,
+        name: "secure-federated-identity-linking",
+        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
     ]);
 
@@ -1606,6 +1630,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
+      {
+        version: 25,
+        name: "secure-federated-identity-linking",
+        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+      },
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1646,6 +1675,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
+      {
+        version: 25,
+        name: "secure-federated-identity-linking",
+        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+      },
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1664,7 +1698,7 @@ describe("schema migration of an existing on-disk DB", () => {
     db.exec(`
       DROP INDEX idx_invites_account_usedAt_id;
       DROP INDEX idx_invites_live_preauthEmail;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 24;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
       PRAGMA user_version = 23;
     `);
     const insert = (accountId: string, id: string, usedAt: string | null, expiresAt = "2999-01-01T00:00:00.000Z") =>
@@ -1692,6 +1726,11 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
+      {
+        version: 25,
+        name: "secure-federated-identity-linking",
+        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+      },
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -1710,6 +1749,128 @@ describe("schema migration of an existing on-disk DB", () => {
     initializeOpenDb(db, ":memory:");
     expect(db.prepare(`SELECT id FROM invites ORDER BY id`).all()).toEqual(rows);
     db.close();
+  });
+
+  it("v25 refuses duplicate provider subjects before installing the concurrency-safe unique index", () => {
+    const prepareV24IdentitySchema = (db: Db) => {
+      db.exec(`
+        DROP TABLE capacitylens_federated_link_observations;
+        DROP TABLE capacitylens_federated_link_ceremonies;
+        DROP TABLE capacitylens_sso_cutover_state;
+        DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25;
+        PRAGMA user_version = 24;
+        CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
+        CREATE TABLE account (
+          id TEXT PRIMARY KEY,
+          userId TEXT NOT NULL,
+          providerId TEXT NOT NULL,
+          accountId TEXT NOT NULL
+        );
+      `);
+    };
+
+    const clean = openDb(":memory:");
+    prepareV24IdentitySchema(clean);
+    clean.exec(`
+      INSERT INTO user (id, email) VALUES ('principal-1', 'owner@example.com');
+      INSERT INTO account (id, userId, providerId, accountId)
+      VALUES ('link-1', 'principal-1', 'workforce', 'subject-1');
+    `);
+    expect(planDatabaseMigrations(clean).migrations).toEqual([
+      {
+        version: 25,
+        name: "secure-federated-identity-linking",
+        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+      },
+    ]);
+    initializeOpenDb(clean, ":memory:");
+    expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
+    expect(() =>
+      clean
+        .prepare(`INSERT INTO account (id, userId, providerId, accountId) VALUES (?, ?, ?, ?)`)
+        .run("link-2", "principal-2", "workforce", "subject-1"),
+    ).toThrow(/unique constraint/i);
+    expect(() =>
+      clean
+        .prepare(`INSERT INTO account (id, userId, providerId, accountId) VALUES (?, ?, ?, ?)`)
+        .run("link-3", "principal-1", "workforce", "subject-2"),
+    ).toThrow(/unique constraint/i);
+    expect(
+      (clean.prepare(`PRAGMA index_list(account)`).all() as Array<{ name: string }>).some(
+        ({ name }) => name === FEDERATED_SUBJECT_UNIQUE_INDEX,
+      ),
+    ).toBe(true);
+    expect(
+      (clean.prepare(`PRAGMA index_list(account)`).all() as Array<{ name: string }>).some(
+        ({ name }) => name === FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX,
+      ),
+    ).toBe(true);
+    expect(
+      clean
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = ?`)
+        .get(FEDERATED_OBSERVATION_TRIGGER),
+    ).toEqual({ name: FEDERATED_OBSERVATION_TRIGGER });
+    clean
+      .prepare(`INSERT INTO account (id, userId, providerId, accountId) VALUES (?, ?, ?, ?)`)
+      .run("link-4", "principal-2", "workforce", "subject-2");
+    expect(
+      clean
+        .prepare(
+          `SELECT principalId, providerId, subject FROM capacitylens_federated_link_observations ORDER BY subject`,
+        )
+        .all(),
+    ).toEqual([{ principalId: "principal-2", providerId: "workforce", subject: "subject-2" }]);
+    clean.close();
+
+    const duplicate = openDb(":memory:");
+    prepareV24IdentitySchema(duplicate);
+    duplicate.exec(`
+      INSERT INTO user (id, email) VALUES
+        ('principal-1', 'owner@example.com'),
+        ('principal-2', 'other@example.com');
+      INSERT INTO account (id, userId, providerId, accountId) VALUES
+        ('link-1', 'principal-1', 'workforce', 'subject-1'),
+        ('link-2', 'principal-2', 'workforce', 'subject-1');
+    `);
+    expect(() => initializeOpenDb(duplicate, ":memory:")).toThrow(
+      /provider workforce, subject subject-1, principals principal-1, principal-2.*owner@example.com, other@example.com/i,
+    );
+    expect((duplicate.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+    expect(duplicate.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
+    duplicate.close();
+
+    const repeatedProvider = openDb(":memory:");
+    prepareV24IdentitySchema(repeatedProvider);
+    repeatedProvider.exec(`
+      INSERT INTO user (id, email) VALUES ('principal-1', 'owner@example.com');
+      INSERT INTO account (id, userId, providerId, accountId) VALUES
+        ('link-1', 'principal-1', 'workforce', 'subject-1'),
+        ('link-2', 'principal-1', 'workforce', 'subject-2');
+    `);
+    expect(() => initializeOpenDb(repeatedProvider, ":memory:")).toThrow(
+      /principal principal-1.*provider workforce, subjects subject-1, subject-2/i,
+    );
+    expect((repeatedProvider.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+    repeatedProvider.close();
+
+    const malformed = openDb(":memory:");
+    prepareV24IdentitySchema(malformed);
+    malformed.exec(`
+      CREATE TABLE capacitylens_federated_link_ceremonies (
+        id TEXT NOT NULL PRIMARY KEY,
+        principalId TEXT NOT NULL,
+        providerId TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        expiresAt TEXT NOT NULL,
+        completedAt TEXT
+      );
+    `);
+    expect(() => initializeOpenDb(malformed, ":memory:")).toThrow(
+      /invalid capacitylens_federated_link_ceremonies definition/i,
+    );
+    expect((malformed.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+    expect(malformed.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
+    malformed.close();
   });
 
   it("refuses missing or checksummed migration-history drift before planning writes", () => {
@@ -2022,8 +2183,8 @@ describe("schema migration of an existing on-disk DB", () => {
     }
   });
 
-  it.each(RELEASED_FIXTURE_VERSIONS)(
-    "upgrades the released v%s auth-off fixture, preserves data, and is idempotent on reopen",
+  it.each(DATABASE_FIXTURE_VERSIONS)(
+    "upgrades the versioned v%s auth-off fixture, preserves data, and is idempotent on reopen",
     (version) => {
       const copied = copyFixture(`v${version}-off.db`);
       try {
@@ -2076,8 +2237,8 @@ describe("schema migration of an existing on-disk DB", () => {
     },
   );
 
-  it.each(RELEASED_FIXTURE_VERSIONS)(
-    "upgrades the released v%s password fixture, preserves auth data, and converges with a fresh schema",
+  it.each(DATABASE_FIXTURE_VERSIONS)(
+    "upgrades the versioned v%s password fixture, preserves auth data, and converges with a fresh schema",
     async (version) => {
       const copied = copyFixture(`v${version}-password.db`);
       try {

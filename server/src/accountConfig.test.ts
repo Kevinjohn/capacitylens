@@ -247,6 +247,30 @@ describe("neutral account configuration", () => {
     ).not.toThrow();
   });
 
+  it("keeps experimental social providers compatible while requiring closed signup in self-hosted SSO-only", () => {
+    expect(() =>
+      resolveAccountEnvironment(
+        {
+          ...hosted,
+          SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-sso-only",
+          SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+          SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+        },
+        { warn: () => {} },
+      ),
+    ).not.toThrow();
+    expect(() =>
+      resolveAccountEnvironment(
+        {
+          ...hosted,
+          SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-sso-only",
+          SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
+        },
+        { warn: () => {} },
+      ),
+    ).toThrow(/forbids open signup/i);
+  });
+
   it("refuses external provider configuration in the password-only profile", () => {
     expect(() =>
       resolveAccountEnvironment(

@@ -294,6 +294,119 @@ reopen, and idempotent reopen for that source shape. Record the source schema
 version, row/table counts printed by the command and the result in the release evidence; the command
 never prints tenant content.
 
+## Password-to-SSO cutover
+
+This procedure is for an existing `self-hosted-password` installation. It preserves every local
+principal, membership, Owner seat, credential, and product record.
+
+1. Back up the database and retain the currently running image.
+2. Configure the strict provider and restart as `self-hosted-mixed` with account mode `password`.
+   Do not change the provider id or issuer after this first binding.
+3. Ask every active member—Owner first—to open Settings → Security and connect their own IdP
+   account. The IdP email must be verified and equal the local sign-in email.
+4. In Team & access, resolve every named readiness blocker. During mixed mode, an identity-global
+   Owner/Admin may correct the local email or remove an incorrect provider link. Both operations
+   revoke the target's sessions and pending ceremonies; the member signs in with their password and
+   starts a new link ceremony.
+5. Run the all-company preflight while the server is still available:
+
+   ```bash
+   pnpm --filter capacitylens-server cutover:preflight -- /absolute/path/to/capacitylens.db
+   ```
+
+   A non-zero exit is a stop condition. It names unlinked people and integrity/configuration
+   blockers. This includes non-member principals whose legacy strict-provider link lacks durable
+   verified-admission evidence; the refusal includes the exact provider and subject needed for
+   stopped-server repair. Remove a departed member through Team & access; CapacityLens has no
+   inactive-member state.
+
+6. Stop the server and application traffic. Preserve a second cutover-point backup.
+7. Set `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-sso-only` and
+   `SMALLSASS_ACCOUNT_MODE=sso`. Leave open signup unset. Any configured named social providers
+   remain experimental sign-in doors for existing principals, but cannot create a new local
+   principal; invitation acceptance still requires the strict provider. Verify their upstream MFA
+   and recovery policy as well.
+8. Restart. Startup runs migrations, reconciles any committed link observation, proves readiness
+   before mutating live state, then atomically revokes first-cutover sessions and verification/reset
+   ceremonies and records its durable activation marker with the audit. This still happens when no
+   live session or ceremony remains. Clean SSO-only restarts preserve sessions already issued with
+   federated assurance. Live reset ceremonies are reported by preflight and revoked by first cutover;
+   expired reset rows are ignored. A refusal names the person or company to
+   repair; do not bypass it.
+9. Sign in through the IdP and verify Owner administration, each company, invitation onboarding and
+   session revocation. New SSO-only invitations must pre-authorise the invitee's email.
+
+### Cutover repair commands
+
+The v25 uniqueness migration refuses a pre-existing `(providerId, subject)` duplicate instead of
+choosing a winner. Preserve the refusal text, restore/start the prior image in mixed mode if needed,
+and establish from IdP records and the affected people which local link is wrong. With the server
+stopped, remove only the exact email/subject pair named and confirmed by that investigation:
+
+```bash
+pnpm --filter capacitylens-server cutover:repair -- \
+  /absolute/path/to/capacitylens.db remove-provider-link \
+  wrong-local-email@example.com workforce exact-provider-subject --confirm-server-stopped
+```
+
+The command takes an exclusive lock, requires the mixed profile, and requires one exact local email,
+provider id, subject and stored row to converge. It can therefore remove one wrong row from a
+multi-link state and can repair named social-provider links even when that provider is no longer
+enabled. Unlike the live Team & access repair, the explicitly stopped-server command may remove an
+unusable final provider row so a critical readiness blocker is recoverable; establish a password
+recovery path in mixed mode first (use the stopped-server Owner reset when the Owner is affected).
+It revokes sessions in the same transaction and commits deletion with an operator audit event.
+Restart the current release in mixed mode, then have the correct principal link normally.
+
+A providerless or credential-only principal with no active membership cannot reach the self-service
+ceremony and blocks cutover. First prove the person has no remaining company access and should not
+be retained; then, with the server stopped, remove only that installation-local orphan:
+
+```bash
+pnpm --filter capacitylens-server cutover:repair -- \
+  /absolute/path/to/capacitylens.db deprovision-credential-orphan \
+  former-person@example.com --confirm-server-stopped
+```
+
+The command refuses any active membership or any provider set other than none or exactly one
+credential. It does not call or alter the upstream IdP. Never edit Better Auth tables manually; doing so bypasses
+session cleanup, link observations and audit.
+
+An ownerless company can be repaired only by promoting an existing active member, identified by the
+exact company id and normalized identity email:
+
+```bash
+pnpm --filter capacitylens-server cutover:repair -- \
+  /absolute/path/to/capacitylens.db assign-workspace-owner \
+  company-id member@example.com --confirm-server-stopped
+```
+
+A company with zero active members is inaccessible. After preserving the backup and proving that
+the company should be permanently deprovisioned, erase it and its scoped data with:
+
+```bash
+pnpm --filter capacitylens-server cutover:repair -- \
+  /absolute/path/to/capacitylens.db erase-empty-workspace \
+  company-id --confirm-server-stopped
+```
+
+Both commands refuse if their prerequisite changed and commit an operator audit in the same
+transaction. The empty-company operation is destructive; restore the cutover-point backup to
+recover it.
+
+### Rollback and IdP outage
+
+At cutover, password credentials are retained but dormant. Stop the server, revert the profile to
+`self-hosted-mixed` and mode to `password`, and restart; migrated password users can sign in again.
+If the sole Owner has lost that credential, run `reset:owner-password` while stopped, restart in
+mixed mode, redeem the link, then sign in. A reset changes a credential but creates no session.
+
+Rollback completeness decreases as SSO-native users join: a principal created after cutover has no
+password row, so reverting the profile alone does not restore their access. Once mixed mode is back,
+issue an individual reset for each such person. During an IdP outage, restrict traffic if necessary,
+record the rollback, and return to SSO-only only after the provider is healthy and preflight passes
+again.
+
 ## Incident containment
 
 For suspected account or session compromise:

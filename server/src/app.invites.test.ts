@@ -12,6 +12,8 @@ import {
 } from "./controlTables";
 import { authFromEnv, runAuthMigrations, DEMO_USER } from "./auth";
 import { PASSWORD_ENV, call, cookiesOf, signUp, registerServerFixtureCleanup } from "./testHelpers";
+import { recordSessionAssurance } from "./accounts/state";
+import { applicationSessionHandle } from "./accounts/sessionHandle";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 
@@ -893,6 +895,83 @@ describe("POST /api/invites (P1.10 create) — preauthEmail", () => {
 });
 
 describe("POST /api/invites/:token/accept (P1.10 preauth gate)", () => {
+  it("requires the strict provider before an SSO-only session can create a membership", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+      CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
+      CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
+    });
+    await runAuthMigrations(configured.auth!);
+    const passwordApp = buildApp(db, { authMode: "password", auth: configured.auth });
+    const joiner = await signUp(passwordApp, "social-only@capacitylens.dev");
+    verifyUserEmail(db, "social-only@capacitylens.dev");
+    await passwordApp.close();
+    const timestamp = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("github-link", "github", "github-subject", joiner.userId, timestamp, timestamp);
+    const session = db.prepare(`SELECT token FROM session WHERE userId = ?`).get(joiner.userId) as { token: string };
+    const sessionHandle = applicationSessionHandle("capacitylens", session.token);
+    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "github");
+    const ssoApp = buildApp(db, { authMode: "sso", auth: configured.auth });
+
+    const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
+    expect(socialMe.json().canCreateAccount).toBe(false);
+    const socialProvision = await call(ssoApp, {
+      method: "POST",
+      url: "/api/orgs",
+      headers: { cookie: joiner.cookie },
+      payload: { id: "founded", name: "Founded", color: "#3b82f6" },
+    });
+    expect(socialProvision.statusCode).toBe(403);
+    expect(socialProvision.json().error).toMatch(/required SSO provider/i);
+
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("workforce-link", "workforce", "workforce-subject", joiner.userId, timestamp, timestamp);
+    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "workforce");
+    const strictProvision = await call(ssoApp, {
+      method: "POST",
+      url: "/api/orgs",
+      headers: { cookie: joiner.cookie },
+      payload: { id: "founded", name: "Founded", color: "#3b82f6" },
+    });
+    expect(strictProvision.statusCode).toBe(201);
+    expect(getMemberRole(db, "founded", joiner.userId)).toBe("owner");
+
+    seedOne(db);
+    createInvite(db, {
+      token: "sso-provider-invite",
+      id: "sso-provider-invite-id",
+      accountId: "a1",
+      role: "editor",
+      preauthEmail: "social-only@capacitylens.dev",
+      expiresAt: "2999-01-01T00:00:00.000Z",
+      usedAt: null,
+      createdAt: TS,
+    });
+    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "github");
+
+    const refused = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error).toMatch(/required SSO provider/i);
+    expect(getMemberRole(db, "a1", joiner.userId)).toBeNull();
+    expect(getInvite(db, "sso-provider-invite")!.usedAt).toBeNull();
+
+    recordSessionAssurance(db, sessionHandle, joiner.userId, "federated", "workforce");
+    const accepted = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
+    expect(accepted.statusCode).toBe(200);
+    expect(getMemberRole(db, "a1", joiner.userId)).toBe("editor");
+  });
+
   it("a LINK invite (preauthEmail null) still binds any signed-in caller — P1.9 regression", async () => {
     const { app, db } = await appWithAuth();
     seedOne(db);

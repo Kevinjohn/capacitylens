@@ -18,7 +18,7 @@ import {
   SESSION_INACTIVITY_TTL_SECONDS,
 } from "./auth";
 import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
-import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
+import { finishAccountCommand, recordSessionAssurance, reserveAccountCommand } from "./accounts/state";
 import { applicationSessionHandle } from "./accounts/sessionHandle";
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
@@ -398,6 +398,205 @@ describe("CAPACITYLENS_AUTH password", () => {
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(401);
     expect(me.json().authMode).toBe("password"); // the login screen needs the mode
+  });
+
+  it("allowlists the Better Auth proxy surface so unclassified account mutations stay closed", async () => {
+    const app = await appWithAuth(PASSWORD_ENV);
+    for (const url of [
+      "/api/auth/oauth2/link",
+      "/api/auth/link-social",
+      "/api/auth/unlink-account",
+      "/api/auth/update-user",
+      "/api/auth/change-email",
+      "/api/auth/delete-user",
+      "/api/auth/revoke-sessions",
+      "/api/auth/future-account-mutation",
+    ]) {
+      const response = await call(app, { method: "POST", url, payload: {} });
+      expect(response.statusCode, url).toBe(404);
+    }
+    expect((await call(app, { method: "GET", url: "/api/auth/future-read-route" })).statusCode).toBe(404);
+    expect((await call(app, { method: "GET", url: "/api/auth/get-session" })).statusCode).not.toBe(404);
+    expect((await call(app, { method: "POST", url: "/api/auth/two-factor/disable", payload: {} })).statusCode).not.toBe(
+      404,
+    );
+    expect(
+      (await call(app, { method: "POST", url: "/api/auth/two-factor/generate-backup-codes", payload: {} })).statusCode,
+    ).not.toBe(404);
+  });
+
+  it("refuses to relink a principal who already has the strict provider", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    await runAuthMigrations(configured.auth!);
+    const app = buildApp(db, { authMode: "password", auth: configured.auth });
+    const signUp = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "linked@example.com", password: "password-123456", name: "Linked" },
+    });
+    const principal = db.prepare(`SELECT id FROM user WHERE email = ?`).get("linked@example.com") as { id: string };
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("strict-link", "sso", "subject-1", principal.id, TS, TS);
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/identity/link-provider",
+      headers: { cookie: cookiesOf(signUp) },
+      payload: {
+        callbackURL: "http://localhost:8787/settings",
+        errorCallbackURL: "http://localhost:8787/settings",
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe("PROVIDER_ALREADY_LINKED");
+    expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+  });
+
+  it("rejects an untrusted link return URL before persisting a ceremony", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    await runAuthMigrations(configured.auth!);
+    const app = buildApp(db, { authMode: "password", auth: configured.auth });
+    const signUp = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "linker@example.com", password: "password-123456", name: "Linker" },
+    });
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/identity/link-provider",
+      headers: { cookie: cookiesOf(signUp) },
+      payload: {
+        callbackURL: "https://attacker.example/collect",
+        errorCallbackURL: "http://localhost:8787/settings",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().code).toBe("INVALID_CALLBACK_URL");
+    expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+  });
+
+  it("forwards the signed OAuth state cookie when a provider-link ceremony starts", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    await runAuthMigrations(configured.auth!);
+    const app = buildApp(db, { authMode: "password", auth: configured.auth });
+    const signUp = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "link-cookie@example.com", password: "password-123456", name: "Link Cookie" },
+    });
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/identity/link-provider",
+      headers: { cookie: cookiesOf(signUp) },
+      payload: {
+        callbackURL: "http://localhost:8787/settings",
+        errorCallbackURL: "http://localhost:8787/settings",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().url).toContain("/api/auth/oidc/authorize/sso");
+    expect(response.headers["set-cookie"]).toBeDefined();
+    expect(cookiesOf(response)).toMatch(/state=/);
+    expect(db.prepare(`SELECT principalId, providerId FROM capacitylens_federated_link_ceremonies`).all()).toHaveLength(
+      1,
+    );
+  });
+
+  it("does not expose SSO email repair on an ordinary password-only installation", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(configured.auth!);
+    const app = buildApp(db, { authMode: "password", auth: configured.auth });
+    const signUp = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: {
+        email: "owner@example.com",
+        password: "password-123456",
+        name: "Password Owner",
+      },
+    });
+    expect(signUp.statusCode).toBe(200);
+    const cookie = cookiesOf(signUp);
+    const principalId = (db.prepare(`SELECT id FROM user WHERE email = ?`).get("owner@example.com") as { id: string })
+      .id;
+    db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
+      "workspace-1",
+      "Studio",
+      "#3b82f6",
+      TS,
+      TS,
+    );
+    db.prepare(
+      `INSERT INTO account_members (accountId, userId, role, status, createdAt)
+       VALUES (?, ?, 'owner', 'active', ?)`,
+    ).run("workspace-1", principalId, TS);
+    const response = await call(app, {
+      method: "PATCH",
+      url: `/api/accounts/workspace-1/members/${principalId}/email`,
+      headers: { cookie },
+      payload: { email: "corrected@example.com" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatch(/no strict OIDC provider/i);
+    expect(db.prepare(`SELECT email FROM user WHERE id = ?`).get(principalId)).toEqual({
+      email: "owner@example.com",
+    });
+  });
+
+  it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    await runAuthMigrations(configured.auth!);
+    const principalId = "federated-principal";
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+    ).run(principalId, "Federated Member", "federated@example.com", TS, TS);
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("federated-link", "sso", "subject-1", principalId, TS, TS);
+    recordSessionAssurance(db, "federated-session", principalId, "federated", "sso", TS);
+    const auth = {
+      ...configured.auth!,
+      api: {
+        ...configured.auth!.api,
+        getSession: vi.fn(async () => ({
+          user: {
+            id: principalId,
+            name: "Federated Member",
+            email: "federated@example.com",
+            emailVerified: true,
+            image: null,
+            twoFactorEnabled: false,
+          },
+          session: { id: "federated-session", createdAt: TS, expiresAt: "2099-01-01T00:00:00.000Z" },
+        })),
+      },
+    };
+    const app = buildApp(db, { authMode: "password", auth, requireMfa: true });
+
+    const data = await call(app, { method: "GET", url: "/api/accounts" });
+    expect(data.statusCode).toBe(200);
+    const me = await call(app, { method: "GET", url: "/api/auth/me" });
+    expect(me.statusCode).toBe(200);
+    expect(me.json()).toMatchObject({
+      mfaRequired: false,
+      reauthMethod: "provider",
+      reauthProviderId: "sso",
+    });
   });
 
   it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
@@ -961,6 +1160,41 @@ describe("CAPACITYLENS_AUTH password", () => {
 });
 
 describe("CAPACITYLENS_AUTH sso", () => {
+  it("keeps password mutation and invitation password signup closed", async () => {
+    const app = await appWithAuth(SSO_ENV);
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/auth/reset-password",
+          payload: { token: "old-token", newPassword: "replacement-password-123" },
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/auth/change-password",
+          payload: { currentPassword: "old-password", newPassword: "replacement-password-123" },
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/invites/invite-token/signup",
+          payload: {
+            email: "new@example.com",
+            name: "New Member",
+            password: "replacement-password-123",
+          },
+        })
+      ).statusCode,
+    ).toBe(404);
+  });
+
   it("discovers strict OIDC and issues a stateful PKCE redirect", async () => {
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {

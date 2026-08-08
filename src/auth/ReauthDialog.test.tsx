@@ -35,14 +35,26 @@ function Harness({
   user,
   providers = [],
   authMode = "password",
+  reauthMethod,
+  reauthProviderId,
 }: {
   user: AuthUser | null;
   providers?: AuthProviderInfo[];
   authMode?: "password" | "sso";
+  reauthMethod?: "password" | "provider";
+  reauthProviderId?: string | null;
 }) {
   const pending = useSyncExternalStore(subscribeReauth, reauthPending);
   if (!pending) return <div>no-dialog</div>;
-  return <ReauthDialog authMode={authMode} user={user} providers={providers} />;
+  return (
+    <ReauthDialog
+      authMode={authMode}
+      user={user}
+      providers={providers}
+      reauthMethod={reauthMethod}
+      reauthProviderId={reauthProviderId}
+    />
+  );
 }
 
 afterEach(() => {
@@ -198,6 +210,33 @@ describe("ReauthDialog (SESSION_NOT_FRESH step-up)", () => {
         errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
       }),
     );
+  });
+
+  it("uses the session's OIDC provider for a federated-only principal in mixed mode", async () => {
+    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    render(
+      <Harness
+        authMode="password"
+        reauthMethod="provider"
+        reauthProviderId="workforce"
+        user={user}
+        providers={[
+          { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
+          { id: "github", label: "GitHub", kind: "social", experimental: true },
+        ]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    expect(screen.queryByTestId("reauth-password")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Workforce SSO" }));
+
+    await waitFor(() =>
+      expect(signInOauth2).toHaveBeenCalledWith(expect.objectContaining({ providerId: "workforce" })),
+    );
+    expect(signInEmail).not.toHaveBeenCalled();
   });
 
   it("preserves the product route and supplies a marked social-provider failure return", async () => {

@@ -10,8 +10,50 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.33.0-alpha.1] — 2026-08-08
+
+This release adds the supported self-hosted password-to-SSO cutover workflow. It preserves existing
+principals and workspace access while staging strict OIDC links, blocks unsafe activation, provides
+operator preflight and repair tooling, and seals the first SSO-only startup with durable revocation
+and audit evidence. It advances the SQLite schema to v25 and the account security contract to 1.1.0;
+operators should follow the documented mixed-mode preflight and backup procedure before switching an
+existing installation to SSO-only mode.
+
 ### Added
 
+- Added the supported password-to-SSO migration path for self-hosted installations. Mixed mode now
+  lets each existing member connect the configured strict-OIDC identity without changing their
+  principal, memberships, Owner role, or scheduling data; Team & access shows all-company cutover
+  readiness and provides fresh, identity-global email and wrong-link repair. The operator
+  `cutover:preflight` command names every blocking person, orphan, company, ceremony and incompatible
+  sign-in path. A stopped-server `cutover:repair` command handles exact duplicate/multi-provider
+  rows, alternative-provider links, providerless or credential-only orphans, ownerless companies and explicitly
+  confirmed empty-company deprovisioning without manual identity-table edits.
+  Preflight also blocks legacy, unverified strict-provider links held by non-members before a later
+  invitation can turn one into an SSO-only restart failure.
+- Added the SSO-only startup interlock. After migrations it reconciles committed link observations,
+  proves readiness before atomically revoking first-cutover state and recording a durable
+  application-scoped activation marker with its audit; clean SSO-only
+  restarts preserve sessions already issued with federated assurance. It refuses to listen if any
+  company or member is not ready. Required
+  provider self-unlink, raw provider-link routes, password-reset redemption, open signup and
+  bearer-only invitations are closed in SSO-only mode. Existing experimental named social-provider
+  configuration remains compatible for existing principals without allowing new social-only local
+  identities, while invitation acceptance requires the strict provider and company provisioning does the same, so a social-only admission cannot break
+  later restarts. Link failures return to their initiating settings flow without retaining provider
+  diagnostics in browser history. Live reset ceremonies are
+  reported by preflight and revoked by first cutover instead of deadlocking that revocation. Credentials remain dormant
+  for the documented revert-to-mixed-and-restart break-glass path.
+- Added database migration v25 and released-shape off/password fixtures. The migration records
+  durable verified link observations in the same statement as every external account row and adds
+  unique indexes for provider/subject and principal/provider coordinates, closing direct-admission,
+  crash-gap and concurrent link races. Legacy external rows without verified-admission proof must
+  be removed and relinked in mixed mode; existing duplicates refuse with exact repair coordinates.
+- Fixed SSO staging and repair so provider-link initiation forwards Better Auth's signed state
+  cookie, verification failures return through the browser redirect, exact duplicate-link races
+  are distinguished from provider outages, stale unconfigured-provider links block readiness with
+  repair coordinates, and stopped-server repair can remove an otherwise unrecoverable final bad
+  provider row without exposing password credentials through that endpoint.
 - A `security` workflow run that fails — or is cancelled without completing — on a schedule or on
   `main` now opens a `security-scan-failure` issue naming the affected jobs and linking the run,
   and comments on that issue instead of filing a duplicate if one is already open. The weekly scan
@@ -30,6 +72,20 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Strict OIDC now requires `email_verified: true` for first admission and explicit link callbacks;
+  returning linked subjects remain available when an IdP omits the claim only when their exact row
+  carries durable verified-admission proof. Mixed-mode federated
+  sessions use their actual provider for fresh-session step-up and satisfy a local required-MFA
+  gate; they are no longer sent to an unusable password-only confirmation.
+- SSO cutover now ignores expired reset rows, records activation even when staging left no live
+  sessions, leaves provider outages as availability failures instead of link conflicts, and avoids
+  write-locking callback reconciliation when there is nothing to reconcile.
+- Settings waits for authoritative provider-link status before offering Connect, and Better Auth's
+  public proxy now exposes only explicitly classified sign-in, session, callback, password, and MFA
+  routes—including the existing MFA disable and backup-code renewal operations—so dependency-added
+  account mutations remain closed by default.
+- Advanced the account contract, conformance, and minimum security baseline to `1.1.0` /
+  `ACCOUNT-SEC-2026-08-07-01` for the identity-global SSO cutover and repair guarantees.
 - Replaced the secret scanner's per-fingerprint exception list with a reviewed allowlist of the
   deterministic fixture values themselves (`.gitleaks.toml`). Gitleaks fingerprints are
   commit-scoped, so the previous list had to be re-approved whenever an unrelated commit rewrote
@@ -2694,7 +2750,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.32.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.0-alpha.1...HEAD
+[0.33.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.32.0-alpha.1...v0.33.0-alpha.1
 [0.32.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.4-alpha.1...v0.32.0-alpha.1
 [0.31.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.3-alpha.1...v0.31.4-alpha.1
 [0.31.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.2-alpha.1...v0.31.3-alpha.1

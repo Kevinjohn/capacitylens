@@ -117,8 +117,9 @@ The exact issuer and discovery document are required. Discovery is the sole auth
 authorization, token, JWKS and user-info endpoints; explicit endpoint overrides are rejected. HTTP
 is accepted only for loopback test providers. URL credentials, malformed or reserved provider ids, missing
 `openid`, `profile` or `email` scopes, symmetric-only signing metadata and non-HTTPS remote endpoints
-refuse operation. The three scopes are required because CapacityLens binds the subject and requires
-the provider's verified email and display name during every sign-in.
+refuse operation. The three scopes are required because CapacityLens binds the subject and consumes
+the provider's email and display name during sign-in; verified email is mandatory for first
+admission and explicit linking.
 The registered `SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL` and
 `SMALLSASS_ACCOUNT_OIDC_TOKEN_URL` names exist only to map bounded legacy configuration; every
 named deployment profile rejects them. Do not set them for a supported deployment.
@@ -138,7 +139,8 @@ The relying-party path provides:
 - immediate JWKS refresh for an unknown signing-key id during normal overlap rotation;
 - no-redirect, time-bounded JWKS retrieval;
 - user-info retrieval using the access token and exact ID-token/user-info subject equality;
-- verified-email admission, with missing or false `email_verified` failing admission;
+- verified-email admission, with missing or false `email_verified` failing admission unless the
+  exact returning provider row has durable verified-admission evidence;
 - durable identity correlation by `(issuer, subject)`, never by email.
 
 The first external local principal must have a verified email listed in
@@ -153,6 +155,54 @@ identity admission performs an indexed lookup over only unused preauthorized inv
 On a fresh `self-hosted-mixed` deployment, the first-run wall shows both the setup-token password
 form and every configured external provider. The allow-listed first owner can therefore bootstrap
 through OIDC directly; creating an interim password owner is not required.
+
+### Password-to-SSO cutover
+
+An existing password installation migrates through `self-hosted-mixed`; do not flip directly from
+password-only to SSO-only. Mixed mode keeps password sign-in available while each member uses
+Settings → Security → **Connect your SSO account**. Linking preserves the local principal id,
+memberships, Owner seat, and every scheduling record. The callback requires the configured strict
+provider, a verified IdP email equal to the local email, and a provider subject not already claimed
+by another principal. Linking an existing admitted principal does not consume an invitation.
+
+Owner/Admin can monitor **SSO cutover readiness** in Team & access. During mixed-mode staging, an
+identity-global fresh administrator may correct a member's local email or remove an incorrect
+provider link; either action revokes that member's sessions and pending ceremonies and is audited.
+Raw provider link/unlink routes are shadowed, and the required provider cannot be self-unlinked.
+
+The operator's authoritative check is:
+
+```bash
+pnpm --filter capacitylens-server cutover:preflight -- /absolute/path/to/capacitylens.db
+```
+
+It evaluates all companies and names blocking people, including unlinked members, missing
+principals, multiple/unverified links (including legacy strict-provider links held by non-members),
+configured-social-only non-members, duplicate subjects, ownerless/memberless companies, providerless
+or credential-only orphans, and open signup. Live reset ceremonies are also reported,
+but they are revocable state rather than blockers: first cutover atomically deletes them after every
+non-revocable check passes. Expired verification rows are not outstanding. Provider rows created before durable
+verified-admission observations existed are intentionally unverified until removed and relinked in
+mixed mode. This also applies when upgrading an installation that was already SSO-only: restore the
+previous image if necessary, switch it to mixed mode, establish password recovery, then upgrade and
+complete the verified relink before returning to SSO-only. CapacityLens does not infer verified
+admission from a legacy row because older raw provider-link routes did not require that proof.
+After it passes, stop application traffic, change the profile and mode to
+`self-hosted-sso-only`/`sso`, and restart. Startup reruns the interlock after both application and
+Better Auth migrations, proves readiness before changing live state, atomically revokes first-cutover
+sessions and reset/verification ceremonies, records a durable application-scoped activation marker
+with the activation audit, and refuses to serve if readiness changed. Later clean SSO-only restarts
+preserve federated sessions. Self-hosted SSO-only requires one strict OIDC
+provider and remains compatible with configured experimental named social providers for existing
+members; named social callbacks cannot create a new local principal after cutover, and accepting an
+SSO-only invitation or provisioning a company requires signing in through the strict provider. Hosted
+OIDC-only accepts only strict OIDC. SSO-only requires email-preauthorised invitations and shadows
+password reset, password change and reset redemption.
+
+Credential rows are retained but dormant. Day-zero rollback is therefore a stopped-server
+configuration revert to `self-hosted-mixed`/`password` plus restart. Users first created through SSO
+after cutover have no password and need an individual reset after mixed mode returns. See the
+cutover and IdP-outage procedures in `docs/runbook.md`.
 
 The configured provider id and issuer become an immutable pair in the local database. Renaming a
 provider id, repointing it to a different issuer, or reusing an id for another issuer refuses startup
@@ -180,6 +230,11 @@ cross-product revocation mechanism is deferred, but must be revisited before hos
 Set `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED=1` only after verifying that the configured IdP requires MFA
 for every admitted identity and testing its recovery, session and logout behavior.
 
+CapacityLens treats every federated session as satisfying its local required-MFA gate because it
+cannot inspect the provider's upstream authentication policy. This includes experimental named
+providers in mixed mode. Enforcing and testing provider-side MFA is therefore the operator's
+responsibility; the assurance flag records that operational decision for the strict SSO profile.
+
 ## Experimental named providers
 
 Google, Microsoft and GitHub provider buttons remain experimental. They require a complete id/secret
@@ -197,6 +252,7 @@ discovery and provider unavailability; callback-shaped denial/failure cases prov
 retryable, non-reflecting browser error surface. A pre-module external bootstrap strips provider
 error fields from a marked return before hydration, retaining only the product marker; the signed-out
 wall, invitation flow or authenticated shell consumes that marker and removes it after rendering the
-stable message. Provider detail therefore does not depend on successful application hydration to
+stable message. Explicit provider-link failure markers receive the same pre-hydration diagnostic
+scrub and return to their validated per-flow settings URL. Provider detail therefore does not depend on successful application hydration to
 leave the address bar. See `docs/account-boundary.md` for the contract, version and sibling
 propagation model.

@@ -1,5 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import type {
   ApplicationSession,
@@ -15,12 +16,14 @@ import {
   SESSION_FRESH_AGE_SECONDS,
   SESSION_INACTIVITY_TTL_SECONDS,
   mintPasswordResetToken,
+  revokeFederatedLinkStateInTx,
   revokeResetTokensForUser,
   type Auth,
   type AuthMode,
 } from "../auth";
 import type { Db } from "../db";
-import { tx } from "../txn";
+import { enqueueAudit } from "../auditOutbox";
+import { tx, type SynchronousCallback } from "../txn";
 import {
   erasePrincipalCommandHistoryInTx,
   getSessionAuthentication,
@@ -44,6 +47,65 @@ export interface LocalIdentityPort extends IdentityPort {
   /** Embedded bulk capability for workspace erasure. Verification state is classified once for
    * the whole principal set while the coordinator owns the SQLite transaction. */
   deprovisionLocalPrincipalsInTx(principalIds: readonly string[], exceptCommandId?: string): void;
+}
+
+/** Embedded identity capabilities used by cutover inspection, activation, and exact repair. */
+export interface SsoCutoverIdentityPort extends LocalIdentityPort {
+  /** Run all synchronous identity/workspace inventory reads from one SQLite snapshot. */
+  readSsoCutoverSnapshot<Result>(read: () => Result): Result;
+  inspectProviderLinks(
+    principalId: string,
+    providerId: string,
+  ): readonly {
+    rowId: string;
+    subject: string;
+    verified: boolean;
+  }[];
+  inspectSsoCutover(providerId: string): SsoCutoverIdentityFacts;
+  /** Reconfirm readiness and, when necessary, seal the SSO boundary while holding one SQLite
+   * writer reservation. The callback must be synchronous and may perform nested snapshot reads. */
+  revokeAllForSsoCutover(assertReady: () => void): Promise<{ sessions: number; ceremonies: number }>;
+  correctPrincipalEmail(input: {
+    principalId: string;
+    email: string;
+    audit: AccountAuditEvent;
+    authorizeInTransaction(): void;
+  }): Promise<void>;
+  removeFederatedLink(input: FederatedLinkRemoval & { authorizeInTransaction(): void }): Promise<boolean>;
+  /** Stopped-server operator repair may remove the final unusable provider row. This capability is
+   * intentionally separate from the live administration path, which must preserve sign-in. */
+  removeFederatedLinkForStoppedRepair(input: FederatedLinkRemoval): Promise<boolean>;
+}
+
+interface FederatedLinkRemoval {
+  principalId: string;
+  providerId: string;
+  rowId: string;
+  subject: string;
+  audit: AccountAuditEvent;
+}
+
+/** Immutable identity-side inventory consumed by the pure cutover readiness evaluator. */
+export interface SsoCutoverIdentityFacts {
+  principals: readonly {
+    id: string;
+    email: string;
+    displayName: string | null;
+    providerIds: readonly string[];
+  }[];
+  requiredProviderLinks: readonly {
+    rowId: string;
+    principalId: string;
+    subject: string;
+    verified: boolean;
+  }[];
+  alternativeProviderLinks: readonly {
+    rowId: string;
+    principalId: string;
+    providerId: string;
+    subject: string;
+  }[];
+  outstandingResetPrincipalIds: readonly string[];
 }
 
 function providerFailure(message: string, cause: unknown): AccountContractError {
@@ -114,6 +176,25 @@ function receipt(commandId: string, changed?: boolean): OperationReceipt {
 
 function tableExists(db: Db, table: string): boolean {
   return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
+}
+
+/** Delete a principal's provider sessions and app-owned assurance inside the caller's SQLite
+ * transaction. This is used by identity corrections/repairs so no sign-in can land between a
+ * pre-mutation revocation and the mutation itself. */
+function revokePrincipalSessionsInTx(db: Db, applicationId: string, principalId: string): number {
+  if (!tableExists(db, "session")) {
+    removePrincipalSessionAssurance(db, principalId);
+    return 0;
+  }
+  const sessions = db.prepare(`SELECT token FROM session WHERE userId = ?`).all(principalId) as Array<{
+    token: string;
+  }>;
+  db.prepare(`DELETE FROM session WHERE userId = ?`).run(principalId);
+  for (const { token } of sessions) {
+    removeSessionAssurance(db, applicationSessionHandle(applicationId, token));
+  }
+  removePrincipalSessionAssurance(db, principalId);
+  return sessions.length;
 }
 
 const MALFORMED_STRUCTURED_VERIFICATION = "Identity erasure cannot classify malformed structured verification state.";
@@ -203,6 +284,12 @@ function eraseLocalPrincipalsInTx(db: Db, principalIds: readonly string[]): void
   const removeTwoFactor = tableExists(db, "twoFactor") ? db.prepare(`DELETE FROM twoFactor WHERE userId = ?`) : null;
   const removeUser = db.prepare(`DELETE FROM user WHERE id = ?`);
   for (const principalId of principals) {
+    if (tableExists(db, "capacitylens_federated_link_observations")) {
+      db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE principalId = ?`).run(principalId);
+    }
+    if (tableExists(db, "capacitylens_federated_link_ceremonies")) {
+      db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).run(principalId);
+    }
     removePrincipalSessionAssurance(db, principalId);
     removeSession?.run(principalId);
     removeAccount?.run(principalId);
@@ -219,7 +306,7 @@ export function betterAuthIdentityPort(input: {
   authMode: Exclude<AuthMode, "off">;
   db: Db;
   publicBaseUrl?: string;
-}): LocalIdentityPort {
+}): SsoCutoverIdentityPort {
   const { applicationId, auth, authMode, db } = input;
   const compensationKey = randomBytes(32);
 
@@ -314,6 +401,88 @@ export function betterAuthIdentityPort(input: {
     }
   };
 
+  const removeFederatedLink = async (
+    { principalId, providerId, rowId, subject, audit }: FederatedLinkRemoval,
+    preserveSignIn: boolean,
+    authorizeInTransaction?: () => void,
+  ): Promise<boolean> => {
+    if (providerId === "credential") {
+      throw new AccountContractError({
+        code: "VALIDATION_FAILED",
+        message: "Password credentials are not federated provider links.",
+        retryable: false,
+      });
+    }
+    try {
+      return tx(
+        db,
+        () => {
+          authorizeInTransaction?.();
+          const row = db
+            .prepare(`SELECT id, accountId FROM account WHERE id = ? AND userId = ? AND providerId = ?`)
+            .get(rowId, principalId, providerId) as { id: string; accountId: string } | undefined;
+          if (!row) return false;
+          if (row.accountId !== subject) {
+            throw new AccountContractError({
+              code: "CONFLICT",
+              message: "The provider link changed after it was inspected. Refresh and try again.",
+              retryable: false,
+            });
+          }
+          if (preserveSignIn) {
+            const remainingSignInMethods = db
+              .prepare(
+                `SELECT providerId, password
+                   FROM account
+                  WHERE userId = ?
+                    AND id <> ?
+                  ORDER BY id`,
+              )
+              .all(principalId, rowId) as Array<{ providerId: string; password: string | null }>;
+            const hasViableSignInMethod = remainingSignInMethods.some(({ providerId: candidate, password }) =>
+              candidate === "credential"
+                ? typeof password === "string" && password.length > 0
+                : auth.federatedIssuers.has(candidate),
+            );
+            if (!hasViableSignInMethod) {
+              throw new AccountContractError({
+                code: "CONFLICT",
+                message: "This provider link is the principal's only viable sign-in method and cannot be removed.",
+                retryable: false,
+              });
+            }
+          }
+          revokePrincipalSessionsInTx(db, applicationId, principalId);
+          if (tableExists(db, "capacitylens_federated_link_observations")) {
+            db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE accountRowId = ?`).run(rowId);
+          }
+          const removed = db
+            .prepare(`DELETE FROM account WHERE id = ? AND userId = ? AND providerId = ? AND accountId = ?`)
+            .run(rowId, principalId, providerId, subject);
+          if (removed.changes !== 1) {
+            throw new AccountContractError({
+              code: "CONFLICT",
+              message: "The provider link changed after it was inspected. Refresh and try again.",
+              retryable: false,
+            });
+          }
+          if (tableExists(db, "capacitylens_federated_link_ceremonies")) {
+            db.prepare(
+              `DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ? AND providerId = ?`,
+            ).run(principalId, providerId);
+          }
+          revokeFederatedLinkStateInTx(db, principalId);
+          enqueueAudit(db, audit, audit.id);
+          return true;
+        },
+        "immediate",
+      );
+    } catch (error) {
+      if (error instanceof AccountContractError) throw error;
+      throw providerFailure("Federated identity repair failed.", error);
+    }
+  };
+
   return {
     deprovisionLocalPrincipalInTx(principalId, exceptCommandId): void {
       erasePrincipalCommandHistoryInTx(db, principalId, exceptCommandId);
@@ -324,6 +493,286 @@ export function betterAuthIdentityPort(input: {
         erasePrincipalCommandHistoryInTx(db, principalId, exceptCommandId);
       }
       eraseLocalPrincipalsInTx(db, principalIds);
+    },
+    readSsoCutoverSnapshot<Result>(read: () => Result): Result {
+      return tx(db, read as SynchronousCallback<typeof read>);
+    },
+    inspectProviderLinks(principalId, providerId) {
+      if (!tableExists(db, "account")) return [];
+      const hasObservations = tableExists(db, "capacitylens_federated_link_observations");
+      const rows = hasObservations
+        ? (db
+            .prepare(
+              `SELECT account.id AS rowId,
+                      account.accountId AS subject,
+                      CASE
+                        WHEN observation.accountRowId IS NOT NULL
+                         AND observation.principalId = account.userId
+                         AND observation.providerId = account.providerId
+                         AND observation.subject = account.accountId
+                        THEN 1 ELSE 0
+                      END AS verified
+                 FROM account
+                 LEFT JOIN capacitylens_federated_link_observations AS observation
+                   ON observation.accountRowId = account.id
+                WHERE account.userId = ? AND account.providerId = ?
+                ORDER BY account.id
+                LIMIT 2`,
+            )
+            .all(principalId, providerId) as Array<{ rowId: string; subject: string; verified: number }>)
+        : (db
+            .prepare(
+              `SELECT id AS rowId, accountId AS subject, 0 AS verified
+                 FROM account
+                WHERE userId = ? AND providerId = ?
+                ORDER BY id
+                LIMIT 2`,
+            )
+            .all(principalId, providerId) as Array<{ rowId: string; subject: string; verified: number }>);
+      return rows.map((link) => ({ ...link, verified: link.verified === 1 }));
+    },
+    inspectSsoCutover(providerId): SsoCutoverIdentityFacts {
+      const users = db.prepare(`SELECT id, email, name FROM user ORDER BY email, id`).all() as Array<{
+        id: string;
+        email: string;
+        name: string | null;
+      }>;
+      const providerRows = db
+        .prepare(`SELECT id, userId, providerId, accountId FROM account ORDER BY userId, providerId, accountId`)
+        .all() as Array<{ id: string; userId: string; providerId: string; accountId: string }>;
+      const observations = new Map(
+        tableExists(db, "capacitylens_federated_link_observations")
+          ? (
+              db
+                .prepare(
+                  `SELECT accountRowId, principalId, providerId, subject
+                     FROM capacitylens_federated_link_observations`,
+                )
+                .all() as Array<{
+                accountRowId: string;
+                principalId: string;
+                providerId: string;
+                subject: string;
+              }>
+            ).map((observation) => [observation.accountRowId, observation] as const)
+          : [],
+      );
+      const providersByPrincipal = new Map<string, string[]>();
+      for (const row of providerRows) {
+        const values = providersByPrincipal.get(row.userId) ?? [];
+        values.push(row.providerId);
+        providersByPrincipal.set(row.userId, values);
+      }
+      const principalIds = new Set(users.map(({ id }) => id));
+      const outstandingResetPrincipalIds = tableExists(db, "verification")
+        ? [
+            ...new Set(
+              (
+                db.prepare(`SELECT value, expiresAt FROM verification`).all() as Array<{
+                  value: string;
+                  expiresAt: string | number;
+                }>
+              )
+                .filter(({ expiresAt }) => {
+                  const expiry = timestampMs(expiresAt);
+                  return !Number.isFinite(expiry) || expiry > Date.now();
+                })
+                .map(({ value }) => value)
+                .filter((value) => principalIds.has(value)),
+            ),
+          ]
+        : [];
+      return {
+        principals: users.map((user) => ({
+          id: user.id,
+          email: user.email,
+          displayName: user.name,
+          providerIds: [...new Set(providersByPrincipal.get(user.id) ?? [])],
+        })),
+        requiredProviderLinks: providerRows
+          .filter((row) => row.providerId === providerId)
+          .map((row) => ({
+            rowId: row.id,
+            principalId: row.userId,
+            subject: row.accountId,
+            verified:
+              observations.get(row.id)?.principalId === row.userId &&
+              observations.get(row.id)?.providerId === row.providerId &&
+              observations.get(row.id)?.subject === row.accountId,
+          })),
+        alternativeProviderLinks: providerRows
+          .filter((row) => row.providerId !== providerId && row.providerId !== "credential")
+          .map((row) => ({
+            rowId: row.id,
+            principalId: row.userId,
+            providerId: row.providerId,
+            subject: row.accountId,
+          })),
+        outstandingResetPrincipalIds,
+      };
+    },
+    async revokeAllForSsoCutover(assertReady) {
+      return tx(
+        db,
+        () => {
+          // Take the writer reservation before the final readiness read. Otherwise another process
+          // could admit a blocker or create a password session between preflight and revocation.
+          assertReady();
+          const sessionRows = tableExists(db, "session")
+            ? (db.prepare(`SELECT token, userId FROM session`).all() as Array<{ token: string; userId: string }>)
+            : [];
+          const verificationRows = tableExists(db, "verification")
+            ? (db.prepare(`SELECT value, expiresAt FROM verification`).all() as Array<{
+                value: string;
+                expiresAt: string | number;
+              }>)
+            : [];
+          const ceremonies = verificationRows.length;
+          const now = Date.now();
+          const principals = tableExists(db, "user")
+            ? (db.prepare(`SELECT id FROM user`).all() as Array<{ id: string }>).map(({ id }) => id)
+            : [];
+          const principalIds = new Set(principals);
+          const activeCutoverCeremonies = verificationRows.filter(({ value, expiresAt }) => {
+            const expiry = timestampMs(expiresAt);
+            return principalIds.has(value) && (!Number.isFinite(expiry) || expiry > now);
+          }).length;
+          const activated =
+            db.prepare(`SELECT 1 FROM capacitylens_sso_cutover_state WHERE applicationId = ?`).get(applicationId) !==
+            undefined;
+          const assuranceBySession = new Map(
+            tableExists(db, "account_session_assurance")
+              ? (
+                  db.prepare(`SELECT sessionId, assurance FROM account_session_assurance`).all() as Array<{
+                    sessionId: string;
+                    assurance: string;
+                  }>
+                ).map((row) => [row.sessionId, row.assurance] as const)
+              : [],
+          );
+          // The durable application-scoped marker distinguishes the first cutover from a clean
+          // restart even when staging left no live password sessions or ceremonies. A later
+          // rollback-created password/MFA session still re-establishes the post-cutover boundary.
+          const requiresCutover =
+            !activated ||
+            activeCutoverCeremonies > 0 ||
+            sessionRows.some(
+              ({ token }) => assuranceBySession.get(applicationSessionHandle(applicationId, token)) !== "federated",
+            );
+          if (!requiresCutover) return { sessions: 0, ceremonies: 0 };
+          for (const principalId of principals) revokePrincipalSessionsInTx(db, applicationId, principalId);
+          if (tableExists(db, "verification")) db.prepare(`DELETE FROM verification`).run();
+          db.prepare(`DELETE FROM account_session_assurance`).run();
+          db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies`).run();
+          const occurredAt = new Date().toISOString();
+          if (!activated) {
+            db.prepare(`INSERT INTO capacitylens_sso_cutover_state (applicationId, activatedAt) VALUES (?, ?)`).run(
+              applicationId,
+              occurredAt,
+            );
+            const activationAuditId = `sso-cutover:${applicationId}:${occurredAt}`;
+            enqueueAudit(
+              db,
+              {
+                id: activationAuditId,
+                occurredAt,
+                applicationId,
+                workspaceId: null,
+                actorPrincipalId: null,
+                targetPrincipalId: null,
+                commandId: null,
+                action: "identity.sso_cutover_activated",
+                outcome: "success",
+                changedFields: ["verificationCeremonies", "authenticationMode"],
+              },
+              activationAuditId,
+            );
+          }
+          if (sessionRows.length > 0) {
+            const revocationAuditId = `sso-cutover-sessions:${occurredAt}`;
+            enqueueAudit(
+              db,
+              {
+                id: revocationAuditId,
+                occurredAt,
+                applicationId,
+                workspaceId: null,
+                actorPrincipalId: null,
+                targetPrincipalId: null,
+                commandId: null,
+                action: "identity.sessions_revoked",
+                outcome: "success",
+                changedFields: ["sessions"],
+              },
+              revocationAuditId,
+            );
+          }
+          return { sessions: sessionRows.length, ceremonies };
+        },
+        "immediate",
+      );
+    },
+    async correctPrincipalEmail({ principalId, email, audit, authorizeInTransaction }) {
+      try {
+        tx(
+          db,
+          () => {
+            authorizeInTransaction();
+            const current = db.prepare(`SELECT email FROM user WHERE id = ?`).get(principalId) as
+              { email: string } | undefined;
+            if (!current) {
+              throw new AccountContractError({
+                code: "NOT_FOUND",
+                message: "No local sign-in identity exists for this member.",
+                retryable: false,
+              });
+            }
+            const collision = db.prepare(`SELECT id FROM user WHERE email = ? AND id <> ?`).get(email, principalId);
+            if (collision) {
+              throw new AccountContractError({
+                code: "IDENTITY_ALREADY_EXISTS",
+                message: "A sign-in identity already exists for that email address.",
+                retryable: false,
+              });
+            }
+            const changed = db
+              .prepare(`UPDATE user SET email = ?, emailVerified = 1, updatedAt = ? WHERE id = ?`)
+              .run(email, Date.now(), principalId);
+            if (changed.changes !== 1) {
+              throw new AccountContractError({
+                code: "NOT_FOUND",
+                message: "No local sign-in identity exists for this member.",
+                retryable: false,
+              });
+            }
+            revokeResetTokensForUser(db, principalId);
+            revokeFederatedLinkStateInTx(db, principalId);
+            db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).run(principalId);
+            revokePrincipalSessionsInTx(db, applicationId, principalId);
+            enqueueAudit(db, audit, audit.id);
+          },
+          "immediate",
+        );
+      } catch (error) {
+        if (error instanceof AccountContractError) throw error;
+        if (isDuplicateCredentialEmailError(error)) {
+          throw new AccountContractError(
+            {
+              code: "IDENTITY_ALREADY_EXISTS",
+              message: "A sign-in identity already exists for that email address.",
+              retryable: false,
+            },
+            { cause: error },
+          );
+        }
+        throw providerFailure("Identity email correction failed.", error);
+      }
+    },
+    removeFederatedLink(input) {
+      return removeFederatedLink(input, true, input.authorizeInTransaction);
+    },
+    removeFederatedLinkForStoppedRepair(input) {
+      return removeFederatedLink(input, false);
     },
     async verifyApplicationSession({ headers }): Promise<ApplicationSession | null> {
       try {
@@ -386,7 +835,7 @@ export function betterAuthIdentityPort(input: {
             : authentication?.assurance === "mfa"
               ? "mfa"
               : "password";
-        return {
+        const base = {
           id: resolved.session?.id ?? stableFallbackSessionId(applicationId, resolved.user.id, createdAt),
           principal: {
             id: resolved.user.id,
@@ -404,8 +853,10 @@ export function betterAuthIdentityPort(input: {
           createdAt,
           expiresAt,
           freshUntil: new Date(Date.parse(createdAt) + SESSION_FRESH_AGE_SECONDS * 1000).toISOString(),
-          assurance,
         };
+        return assurance === "federated"
+          ? { ...base, assurance, providerId: authentication!.providerId! }
+          : { ...base, assurance, providerId: null };
       } catch (error) {
         if (error instanceof AccountContractError) throw error;
         throw providerFailure("Session verification is temporarily unavailable.", error);

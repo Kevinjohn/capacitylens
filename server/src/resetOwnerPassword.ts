@@ -164,7 +164,7 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
 /** The --confirm-server-stopped flag made real: take SQLite's exclusive lock and keep it for the
  * whole ceremony. A live server's open transactions make acquisition fail (busy_timeout 0 = no
  * silent waiting); once held, a starting server cannot write mid-ceremony either. */
-function acquireExclusiveDatabaseLock(db: Db): void {
+export function acquireExclusiveDatabaseLock(db: Db): void {
   db.exec("PRAGMA busy_timeout = 0;");
   db.exec("PRAGMA locking_mode = EXCLUSIVE;");
   try {

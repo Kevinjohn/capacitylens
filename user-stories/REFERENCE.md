@@ -55,7 +55,9 @@ If the app changes, update this file first, then the affected stories.
    standing (the same predicate `POST /api/orgs` enforces): only a user who is owner/admin of
    SOME account — or any user on a zero-account instance — may create, so an editor-only or
    membership-less login never sees the button (its empty picker says "ask an admin for an
-   invite" instead of "create your first one"); a direct `POST /api/accounts` still 403s
+   invite" instead of "create your first one"). In SSO-only mode the current session must also come
+   from the required strict provider; an experimental social-provider session cannot provision an
+   Owner membership that would fail the next readiness check. A direct `POST /api/accounts` still 403s
    regardless, so this is UX only. The
    button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
    server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
@@ -545,6 +547,14 @@ the current password and can view/revoke active sessions. Recovery codes and ses
 never displayed after their one-time setup/use. Disabling MFA is deliberately not offered when the
 deployment requires it.
 
+On a `self-hosted-mixed` deployment with strict OIDC configured, the Security section also shows
+**Connect your SSO account** (`data-testid="sso-connection"`). **Connect with _provider_** starts a
+fresh-session-gated, self-service provider ceremony; the member authenticates at the IdP and returns
+to the same page. The provider must assert `email_verified: true`, its email must match the local
+sign-in email, and its immutable subject must not belong to another principal. A successful callback
+shows **Connected to _provider_**. Raw provider link/unlink routes are unavailable. A federated
+session in mixed mode uses that same provider—not a password it may not have—for **Confirm it's you**.
+
 **First-run owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
 bootstrap account and closes the moment it exists), the login wall shows a **Create the owner
@@ -575,7 +585,10 @@ existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, 
 under that identity, sees the signed-in email/name, then chooses **Accept invite**. **Use a different
 account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
 identity, the page explains the mismatch and retains that same recovery action instead of suggesting
-a retry as the wrong identity. A brand-new invitee chooses **Create account and
+a retry as the wrong identity. In SSO-only mode the accepting session must come from the required
+strict-OIDC provider; configured experimental social providers remain sign-in doors for existing
+principals but cannot create a new local principal or membership that would fail the next startup
+readiness check. A brand-new invitee chooses **Create account and
 accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
 then refreshes the authenticated company list, activates that company and enters it directly.
 A fresh authenticated boot is required because the pre-session invite page deliberately starts
@@ -617,7 +630,27 @@ edit its companies. In an authenticated server deploy, Owner/Admin additionally 
 management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
-The management section has three parts:
+The management section has four parts:
+
+- **SSO cutover readiness** (`data-testid="sso-readiness"`, mixed mode with strict OIDC only) shows
+  whether every active member of the company has one verified link to the required provider. It
+  names each member and role, highlights Owner and integrity blockers, and includes installation-wide
+  blockers such as unsupported providers, unverified strict-provider links held by non-members,
+  configured-social-only non-members, or providerless or credential-only orphan identities. Live
+  reset ceremonies are reported as pending cutover revocations, but do not block the transaction that
+  atomically revokes them. This is an advisory view; the operator CLI and SSO-only startup interlock independently
+  evaluate every company. A failed or malformed readiness response remains visible as
+  `data-testid="sso-readiness-error"`; it never silently removes the cutover warning. Admin-approved
+  email correction and wrong-subject unlink repair are
+  available only during mixed-mode staging, require a fresh identity-global administrative session,
+  revoke the affected member's sessions and pending link/reset ceremonies, and are durably audited.
+  Link repair is offered only for coordinates implicated by the reported blocker, supports both the
+  required and alternative providers, confirms the exact provider row and subject, and refuses to
+  remove a principal's only viable sign-in method. It is not rendered in SSO-only mode.
+  Their controls are **Correct email** (`data-testid="sso-correct-email"`), the correction input
+  (`data-testid="sso-correct-email-input"`), **Save and revoke sessions**
+  (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
+  (`data-testid="sso-remove-link"`).
 
 - **Members list** — one row per member (`data-testid="member-row"`) showing name (email), role and
   status; the caller's own row is marked **(you)**. Each manageable row carries a **role select**
@@ -657,6 +690,8 @@ The management section has three parts:
   execution to record its actual completed, compensated or repair-required outcome first. An
   unreadable or unrecognised conflict response also keeps the original browser command identity;
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
+  In SSO-only mode the pre-authorised email is required by both the UI and server because a
+  bearer-only invitation cannot admit a brand-new external identity.
 - **Outstanding invites** — a row per invite (`data-testid="invite-row"`) with role / preauth-email
   or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
   carries the secret token. When an invite expires while this page remains open, its row updates to
@@ -686,7 +721,11 @@ existing member and demotes the caller to admin atomically). `POST /api/invites`
 every caller — ownership is transferred, never invited — and
 `POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
 only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
-write-once) mints the reset link. The management UI is
+write-once) mints the reset link. SSO staging additionally exposes
+`GET /api/accounts/:accountId/sso-readiness`,
+`PATCH /api/accounts/:accountId/members/:userId/email`, and
+`DELETE /api/accounts/:accountId/members/:userId/federated-link`; the two repair writes are
+mixed-mode-only and identity-global. The management UI is
 `src/components/settings/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.

@@ -286,6 +286,7 @@ function betterAuthHarness(): Promise<Harness> {
       expiresAt: LATER,
       freshUntil: "2026-07-18T10:15:00.000Z",
       assurance: "password",
+      providerId: null,
     };
     const auth: Auth = {
       ...realAuth,

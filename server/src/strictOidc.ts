@@ -15,6 +15,23 @@ export class StrictOidcConfigError extends Error {
   }
 }
 
+/** A cryptographically or semantically invalid identity response. Callers may safely normalize
+ * this class to a stable authentication failure without hiding provider availability incidents. */
+export class StrictOidcVerificationError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "StrictOidcVerificationError";
+  }
+}
+
+/** A bounded provider request failed because the upstream service was unavailable. */
+export class StrictOidcProviderUnavailableError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "StrictOidcProviderUnavailableError";
+  }
+}
+
 export interface StrictOidcMetadata {
   issuer: string;
   authorization_endpoint: string;
@@ -90,11 +107,16 @@ function optionalPictureUrl(value: unknown): string | undefined {
 }
 
 async function json(url: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(url, {
-    ...init,
-    redirect: "error",
-    signal: AbortSignal.timeout(10_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (cause) {
+    throw new StrictOidcProviderUnavailableError("OIDC endpoint request failed.", { cause });
+  }
   const rejectBeforeRead = async (message: string): Promise<never> => {
     try {
       await response.body?.cancel();
@@ -103,7 +125,17 @@ async function json(url: string, init: RequestInit = {}): Promise<unknown> {
     }
     throw new Error(message);
   };
-  if (!response.ok) return rejectBeforeRead(`OIDC endpoint returned HTTP ${response.status}.`);
+  if (!response.ok) {
+    if (response.status === 429 || response.status >= 500) {
+      try {
+        await response.body?.cancel();
+      } catch {
+        // Cleanup must not replace the availability failure.
+      }
+      throw new StrictOidcProviderUnavailableError(`OIDC endpoint returned HTTP ${response.status}.`);
+    }
+    return rejectBeforeRead(`OIDC endpoint returned HTTP ${response.status}.`);
+  }
   const mediaType = response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
   if (mediaType !== "application/json" && !mediaType?.endsWith("+json")) {
     return rejectBeforeRead("OIDC endpoint did not return a JSON media type.");
@@ -253,7 +285,7 @@ export function createStrictOidcClient(input: {
 
   const getUserInfo = async (tokens: OidcTokens): Promise<StrictOidcProfile> => {
     if (!tokens.idToken || !tokens.accessToken) {
-      throw new Error("Strict OIDC requires both an ID token and an access token.");
+      throw new StrictOidcVerificationError("Strict OIDC requires both an ID token and an access token.");
     }
     const discovered = await metadata();
     jwks ??= createRemoteJWKSet(new URL(discovered.jwks_uri), {
@@ -267,48 +299,63 @@ export function createStrictOidcClient(input: {
       // discovery, user-info and Better Auth's authorization-code exchange.
       [customFetch]: async (url, init) => Response.json(await json(url.toString(), init)),
     });
-    const verified = await jwtVerify(tokens.idToken, jwks, {
-      issuer: input.issuer,
-      audience: input.clientId,
-      algorithms: discovered.allowed_signing_algorithms,
-      requiredClaims: ["sub", "iat", "exp"],
-      // This token is consumed immediately after the authorization-code exchange. Constraining its
-      // age turns `iat` into a real replay/freshness check rather than a presence-only checkbox.
-      maxTokenAge: "10m",
-      clockTolerance: 60,
-    });
+    let verified: Awaited<ReturnType<typeof jwtVerify>>;
+    try {
+      verified = await jwtVerify(tokens.idToken, jwks, {
+        issuer: input.issuer,
+        audience: input.clientId,
+        algorithms: discovered.allowed_signing_algorithms,
+        requiredClaims: ["sub", "iat", "exp"],
+        // This token is consumed immediately after the authorization-code exchange. Constraining its
+        // age turns `iat` into a real replay/freshness check rather than a presence-only checkbox.
+        maxTokenAge: "10m",
+        clockTolerance: 60,
+      });
+    } catch (cause) {
+      const code = cause && typeof cause === "object" ? (cause as { code?: unknown }).code : null;
+      if (cause instanceof StrictOidcProviderUnavailableError || code === "ERR_JWKS_TIMEOUT") throw cause;
+      const detail = cause instanceof Error ? cause.message : "The token could not be verified.";
+      throw new StrictOidcVerificationError(`OIDC ID token verification failed: ${detail}`, { cause });
+    }
     const claims: JWTPayload = verified.payload;
     if (claims.azp !== undefined && typeof claims.azp !== "string") {
-      throw new Error("OIDC ID token authorized party must be a string.");
+      throw new StrictOidcVerificationError("OIDC ID token authorized party must be a string.");
     }
     if (Array.isArray(claims.aud) && claims.aud.length > 1 && claims.azp !== input.clientId) {
-      throw new Error("OIDC ID token with multiple audiences has an invalid authorized party.");
+      throw new StrictOidcVerificationError("OIDC ID token with multiple audiences has an invalid authorized party.");
     }
     if (typeof claims.azp === "string" && claims.azp !== input.clientId) {
-      throw new Error("OIDC ID token authorized party does not match this client.");
+      throw new StrictOidcVerificationError("OIDC ID token authorized party does not match this client.");
     }
-    const profile = object(
-      await json(discovered.userinfo_endpoint, {
+    let userInfo: unknown;
+    try {
+      userInfo = await json(discovered.userinfo_endpoint, {
         headers: { Authorization: `Bearer ${tokens.accessToken}` },
-      }),
-    );
-    if (!profile || typeof profile.sub !== "string" || profile.sub.length === 0) {
-      throw new Error("OIDC user-info response is missing subject.");
+      });
+    } catch (cause) {
+      if (cause instanceof StrictOidcProviderUnavailableError) throw cause;
+      throw new StrictOidcVerificationError("OIDC user-info response could not be verified.", { cause });
     }
-    if (profile.sub !== claims.sub) throw new Error("OIDC ID-token and user-info subjects do not match.");
+    const profile = object(userInfo);
+    if (!profile || typeof profile.sub !== "string" || profile.sub.length === 0) {
+      throw new StrictOidcVerificationError("OIDC user-info response is missing subject.");
+    }
+    if (profile.sub !== claims.sub) {
+      throw new StrictOidcVerificationError("OIDC ID-token and user-info subjects do not match.");
+    }
     if (typeof profile.email !== "string") {
-      throw new Error("OIDC user-info response is missing email.");
+      throw new StrictOidcVerificationError("OIDC user-info response is missing email.");
     }
     const email = normalizeAccountEmail(profile.email);
     if (!isAccountEmail(email)) {
-      throw new Error("OIDC user-info response contains an invalid email address.");
+      throw new StrictOidcVerificationError("OIDC user-info response contains an invalid email address.");
     }
     if (
       typeof profile.name !== "string" ||
       profile.name.trim().length === 0 ||
       unicodeCharacterCount(profile.name.trim()) > MAX_NAME_LENGTH
     ) {
-      throw new Error("OIDC user-info response has a missing or invalid name.");
+      throw new StrictOidcVerificationError("OIDC user-info response has a missing or invalid name.");
     }
     return {
       ...profile,

@@ -69,9 +69,15 @@ export function canPerformIdentityAdminAction(
   targetRolesByWorkspace: ReadonlyMap<string, Role>,
   isSelf: boolean,
 ): boolean {
-  // Both supported operations alter identity-global security state and therefore intentionally use
+  // All supported operations alter identity-global security state and therefore intentionally use
   // the same all-workspaces standing rule. Keep the action check so an unknown future operation is
   // denied until its policy is explicitly classified.
-  if (action !== "issue-password-reset" && action !== "revoke-sessions") return false;
+  if (
+    action !== "issue-password-reset" &&
+    action !== "revoke-sessions" &&
+    action !== "correct-email" &&
+    action !== "remove-federated-link"
+  )
+    return false;
   return canAdministerIdentityAcrossWorkspaces(actorRolesByWorkspace, targetRolesByWorkspace, isSelf);
 }

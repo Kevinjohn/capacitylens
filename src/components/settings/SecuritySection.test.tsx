@@ -4,6 +4,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 const listSessions = vi.fn();
 const changePassword = vi.fn();
 const revokeOwnSession = vi.fn();
+const getIdentityProvider = vi.fn();
+const linkIdentityProvider = vi.fn();
 vi.mock("../../auth/authClient", () => ({
   authClient: {
     changePassword: (...args: unknown[]) => changePassword(...args),
@@ -17,6 +19,8 @@ vi.mock("../../account/accountClient", async (importOriginal) => {
       ...original.accountClient,
       listSessions: (...args: unknown[]) => listSessions(...args),
       revokeOwnSession: (...args: unknown[]) => revokeOwnSession(...args),
+      getIdentityProvider: (...args: unknown[]) => getIdentityProvider(...args),
+      linkIdentityProvider: (...args: unknown[]) => linkIdentityProvider(...args),
     },
   };
 });
@@ -24,6 +28,7 @@ vi.mock("../../account/accountClient", async (importOriginal) => {
 import { SecuritySection } from "./SecuritySection";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import { AuthContext, type AuthContextValue } from "../../auth/authContext";
 
 const SESSION = {
   id: "opaque-session-handle",
@@ -52,9 +57,84 @@ beforeEach(() => {
   listSessions.mockReset().mockImplementation(() => Promise.resolve(jsonResponse({ sessions: [SESSION] })));
   changePassword.mockReset();
   revokeOwnSession.mockReset();
+  getIdentityProvider.mockReset();
+  linkIdentityProvider.mockReset();
 });
 
+function renderWithSso() {
+  const value: AuthContextValue = {
+    authMode: "password",
+    user: { id: "member-1", email: "member@example.com" },
+    providers: [{ id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false }],
+    canCreateAccount: false,
+    multiAccount: false,
+    refreshAuth: async () => {},
+    signOut: async () => {},
+  };
+  return render(
+    <AuthContext.Provider value={value}>
+      <SecuritySection />
+    </AuthContext.Provider>,
+  );
+}
+
 describe("SecuritySection", () => {
+  it("shows verified provider-link status and starts the wrapped self-service ceremony", async () => {
+    getIdentityProvider.mockResolvedValue(jsonResponse({ connected: false, verified: false }));
+    linkIdentityProvider.mockResolvedValue(jsonResponse({ url: "https://idp.example/authorize" }));
+    const realLocation = window.location;
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...realLocation, href: realLocation.href, assign },
+    });
+    try {
+      renderWithSso();
+
+      expect(await screen.findByTestId("sso-connection")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Connect Workforce SSO" }));
+
+      await waitFor(() => expect(linkIdentityProvider).toHaveBeenCalledWith(window.location.href));
+      expect(assign).toHaveBeenCalledWith("https://idp.example/authorize");
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: realLocation });
+    }
+  });
+
+  it("does not offer provider linking while connection status is pending or unavailable", async () => {
+    const pending = deferred<Response>();
+    getIdentityProvider.mockReturnValueOnce(pending.promise);
+    const first = renderWithSso();
+    expect(await screen.findByTestId("sso-connection")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
+    first.unmount();
+
+    getIdentityProvider.mockResolvedValueOnce(jsonResponse({ error: "Unavailable" }, 503));
+    renderWithSso();
+    expect(await screen.findByText(m.settings_sso_status_error())).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
+  });
+
+  it("treats an unverified or duplicate provider row as connected instead of offering a conflicting link", async () => {
+    getIdentityProvider.mockResolvedValue(jsonResponse({ connected: true, verified: false }));
+    renderWithSso();
+
+    expect(await screen.findByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
+  });
+
+  it("reconciles an already-linked race from the link endpoint", async () => {
+    getIdentityProvider.mockResolvedValue(jsonResponse({ connected: false, verified: false }));
+    linkIdentityProvider.mockResolvedValue(
+      jsonResponse({ error: "Already linked", code: "PROVIDER_ALREADY_LINKED" }, 409),
+    );
+    renderWithSso();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Connect Workforce SSO" }));
+    expect(await screen.findByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
+  });
+
   it("renders its security controls from the message catalogue", async () => {
     render(<SecuritySection />);
 

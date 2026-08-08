@@ -3,9 +3,12 @@ import { DatabaseSync } from "node:sqlite";
 import { initializeOpenDb, openDb as openDbRaw, planDatabaseMigrations } from "./db";
 import {
   authFromEnv,
+  assertStrictOidcEmailAdmission,
+  assertFederatedIdentitySchemaCurrent,
   ensureAuthControlTables,
   planAuthSchemaMigrations,
   providerIdFromExternalContext,
+  revokeFederatedLinkStateInTx,
   runAuthMigrations,
   hashPasswordWithBackpressure,
   verifyPasswordWithBackpressure,
@@ -16,6 +19,9 @@ import { WorkQueueFullError } from "./workQueue";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { localExternalIdentityAdmission } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
+import { betterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
+import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
+import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
 
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
@@ -66,6 +72,249 @@ describe("password verification backpressure", () => {
   });
 });
 
+describe("federated link observation reconciliation", () => {
+  it("rejects a reserved observation trigger whose body does not match the v25 definition", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(configured.auth!);
+    db.exec(`
+      DROP TRIGGER capacitylens_observe_federated_account;
+      CREATE TRIGGER capacitylens_observe_federated_account
+      AFTER INSERT ON account
+      WHEN NEW.providerId <> 'credential' AND 0
+      BEGIN
+        SELECT 'capacitylens_federated_link_observations';
+      END;
+    `);
+
+    expect(() => assertFederatedIdentitySchemaCurrent(db)).toThrow(/invalid capacitylens_observe_federated_account/i);
+  });
+
+  it("requires verified email for admission/linking unless a returning subject has durable proof", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+    });
+    await runAuthMigrations(configured.auth!);
+    const timestamp = "2026-08-07T00:00:00.000Z";
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+    ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("link-1", "workforce", "known-subject", "principal-1", timestamp, timestamp);
+
+    expect(() => assertStrictOidcEmailAdmission(db, "workforce", { sub: "new-subject", emailVerified: false })).toThrow(
+      /verified email/i,
+    );
+    expect(() =>
+      assertStrictOidcEmailAdmission(db, "workforce", { sub: "known-subject", emailVerified: false }),
+    ).not.toThrow();
+    db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE accountRowId = ?`).run("link-1");
+    expect(() =>
+      assertStrictOidcEmailAdmission(db, "workforce", { sub: "known-subject", emailVerified: false }),
+    ).toThrow(/verified email/i);
+    expect(() =>
+      assertStrictOidcEmailAdmission(db, "workforce", { sub: "new-subject", emailVerified: true }),
+    ).not.toThrow();
+  });
+
+  it("admits a direct OIDC identity as verified on SSO-only restart and emits one stable audit", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+    });
+    await runAuthMigrations(configured.auth!);
+    const timestamp = "2026-08-07T00:00:00.000Z";
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+    ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
+    db.prepare(
+      `INSERT INTO capacitylens_federated_link_ceremonies
+        (id, principalId, providerId, createdAt, expiresAt, completedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("ceremony-1", "principal-1", "workforce", timestamp, "2099-01-01T00:00:00.000Z", timestamp);
+
+    const identity = betterAuthIdentityPort({
+      applicationId: "capacitylens",
+      auth: configured.auth!,
+      authMode: "sso",
+      db,
+    }).inspectSsoCutover("workforce");
+    expect(
+      evaluateSsoCutoverReadiness({
+        provider: configured.auth!.strictProvider!,
+        providers: configured.auth!.providers,
+        identity,
+        workspaces: [
+          {
+            workspaceId: "workspace-1",
+            workspaceName: "Studio",
+            members: [{ principalId: "principal-1", role: "owner", status: "active" }],
+          },
+        ],
+        openSignup: false,
+      }).ready,
+    ).toBe(true);
+
+    configured.auth!.reconcileFederatedLinks!();
+    configured.auth!.reconcileFederatedLinks!();
+
+    expect(db.prepare(`SELECT * FROM capacitylens_federated_link_observations`).all()).toEqual([
+      expect.objectContaining({
+        accountRowId: "link-1",
+        principalId: "principal-1",
+        providerId: "workforce",
+        subject: "subject-1",
+        verifiedAt: expect.any(String),
+        auditedAt: expect.any(String),
+      }),
+    ]);
+    expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "identity-link:link-1" }]);
+  });
+
+  it("keeps an interrupted zero-row ceremony until expiry and then removes it", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+    });
+    await runAuthMigrations(configured.auth!);
+    const ceremony = createFederatedLinkCeremony(db, "principal-1", "workforce");
+
+    configured.auth!.reconcileFederatedLinks!();
+    expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([{ id: ceremony.id }]);
+
+    db.prepare(`UPDATE capacitylens_federated_link_ceremonies SET expiresAt = ? WHERE id = ?`).run(
+      "2000-01-01T00:00:00.000Z",
+      ceremony.id,
+    );
+    configured.auth!.reconcileFederatedLinks!();
+    expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+  });
+
+  it("does not acquire a SQLite write lock when reconciliation has no work", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, PASSWORD_ENV);
+    await runAuthMigrations(configured.auth!);
+    let immediateTransactions = 0;
+    const observedDb = new Proxy(db, {
+      get(target, property) {
+        if (property === "exec") {
+          return (sql: string) => {
+            if (sql === "BEGIN IMMEDIATE") immediateTransactions += 1;
+            return target.exec(sql);
+          };
+        }
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+    reconcileObservedFederatedLinks(observedDb, "capacitylens", () => []);
+
+    expect(immediateTransactions).toBe(0);
+  });
+
+  it("supersedes an abandoned link ceremony when the same principal begins again", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+    });
+    await runAuthMigrations(configured.auth!);
+    createFederatedLinkCeremony(db, "principal-1", "workforce", "abandoned");
+    db.prepare(
+      `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(
+      "old-oauth-state",
+      "old-state",
+      JSON.stringify({ oauthState: "old-state", link: { userId: "principal-1", email: "one@example.com" } }),
+      Date.now() + 60_000,
+      Date.now(),
+      Date.now(),
+    );
+
+    expect(
+      createFederatedLinkCeremony(db, "principal-1", "workforce", "replacement", () =>
+        revokeFederatedLinkStateInTx(db, "principal-1"),
+      ).id,
+    ).toBe("replacement");
+    expect(
+      db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).all("principal-1"),
+    ).toEqual([{ id: "replacement" }]);
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([]);
+  });
+
+  it("preserves one observed row when an interrupted callback attempts a second subject", async () => {
+    const db = openDb(":memory:");
+    const configured = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+    });
+    await runAuthMigrations(configured.auth!);
+    const timestamp = "2026-08-07T00:00:00.000Z";
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+    ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
+    createFederatedLinkCeremony(db, "principal-1", "workforce");
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
+
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run("link-2", "workforce", "subject-2", "principal-1", timestamp, timestamp),
+    ).toThrow(/unique constraint/i);
+    configured.auth!.reconcileFederatedLinks!();
+
+    expect(db.prepare(`SELECT id, accountId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
+      { id: "link-1", accountId: "subject-1" },
+    ]);
+    expect(db.prepare(`SELECT accountRowId FROM capacitylens_federated_link_observations`).all()).toEqual([
+      { accountRowId: "link-1" },
+    ]);
+    expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+  });
+});
+
 describe("startup configuration before database migration", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -79,11 +328,18 @@ describe("startup configuration before database migration", () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 24 }));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 25 }));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
     db.close();
+  });
+
+  it("verifies owned federated constraints even before Better Auth creates account tables", () => {
+    const db = openDb(":memory:");
+    db.exec(`DROP INDEX idx_capacitylens_federated_link_ceremonies_principal`);
+
+    expect(() => assertFederatedIdentitySchemaCurrent(db)).toThrow(/ceremony index definition/i);
   });
 
   it.each(["not-a-timestamp", "2999-01-01T00:00:00.000Z"])(
@@ -107,6 +363,14 @@ describe("startup configuration before database migration", () => {
     );
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     db.close();
+  });
+
+  it("rejects a malformed configured trusted origin instead of silently dropping it", () => {
+    const db = openDb(":memory:");
+
+    expect(() => authFromEnv(db, PASSWORD_ENV, { trustedOrigins: ["not an absolute URL"] })).toThrow(
+      /trusted origin.*absolute URL/i,
+    );
   });
 
   it("refuses an OIDC issuer with query or fragment identity ambiguity", () => {
@@ -238,6 +502,7 @@ describe("startup configuration before database migration", () => {
       expect.objectContaining({ version: 22, name: "reactivate-builtin-internal-clients" }),
       expect.objectContaining({ version: 23, name: "index-foreign-key-children" }),
       expect.objectContaining({ version: 24, name: "bound-used-invitation-history" }),
+      expect.objectContaining({ version: 25, name: "secure-federated-identity-linking" }),
     ]);
     const before = await planAuthSchemaMigrations(configured.auth!);
     expect(before.pending).toBe(true);
@@ -379,6 +644,30 @@ describe("external identity creation gate", () => {
     await expect(
       before!({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
     ).rejects.toThrow(/not invited/);
+  });
+
+  it("keeps named social providers as existing-principal sign-in doors in SSO-only mode", async () => {
+    const db = openDb(":memory:");
+    const { auth } = authFromEnv(
+      db,
+      {
+        ...PASSWORD_ENV,
+        CAPACITYLENS_AUTH: "sso",
+        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
+        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+        CAPACITYLENS_SSO_CLIENT_ID: "strict-client",
+        CAPACITYLENS_SSO_CLIENT_SECRET: "strict-secret",
+        CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+        CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      },
+      { externalIdentityAdmission: async () => true },
+    );
+    const before = auth!.options.databaseHooks?.user?.create?.before;
+    expect(before).toBeTypeOf("function");
+
+    await expect(
+      before!({ email: "new-social@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
+    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "STRICT_PROVIDER_REQUIRED" }) });
   });
 
   it("keeps the first-external-identity claim control when email registration is open", () => {

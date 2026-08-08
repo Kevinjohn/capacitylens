@@ -5,6 +5,7 @@ import { PASSWORD_ENV } from "../../testHelpers";
 import { betterAuthIdentityPort } from "../betterAuthIdentityPort";
 import { tx } from "../../txn";
 import { bindFederatedProvider, getAccountCommand, recordSessionAssurance, reserveAccountCommand } from "../state";
+import { applicationSessionHandle } from "../sessionHandle";
 
 const sessionUser: SessionUser = {
   id: "principal-1",
@@ -64,6 +65,13 @@ function insertVerification(db: Db, id: string, value: string): void {
     VALUES (?, ?, ?, ?, ?, ?)
   `,
   ).run(id, id, value, LATER, NOW, NOW);
+}
+
+function markSsoCutoverActivated(db: Db, applicationId = "conformance-app"): void {
+  db.prepare(`INSERT INTO capacitylens_sso_cutover_state (applicationId, activatedAt) VALUES (?, ?)`).run(
+    applicationId,
+    NOW,
+  );
 }
 
 describe("local IdentityPort conformance", () => {
@@ -562,6 +570,464 @@ describe("local IdentityPort conformance", () => {
 
     expect(getAccountCommand(db, "conformance-app", "child", "child-key")).toBeNull();
     expect(getAccountCommand(db, "conformance-app", "parent", "parent-key")).toMatchObject({ targetPrincipalId: null });
+  });
+
+  it("atomically observes direct federated admissions and validates every stored coordinate", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityUser(db, "orphan-1", "Orphan", "orphan@example.com");
+    insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
+    insertIdentityAccount(db, "credential-1", "credential", "orphan-1", "orphan-1");
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "password",
+      db,
+    });
+
+    expect(port.inspectSsoCutover("sso").requiredProviderLinks).toEqual([
+      {
+        rowId: "link-1",
+        principalId: "principal-1",
+        subject: "subject-1",
+        verified: true,
+      },
+    ]);
+
+    db.prepare(`UPDATE capacitylens_federated_link_observations SET principalId = ? WHERE accountRowId = ?`).run(
+      "wrong-principal",
+      "link-1",
+    );
+    expect(port.inspectSsoCutover("sso").requiredProviderLinks[0]).toMatchObject({ verified: false });
+    expect(port.inspectProviderLinks("principal-1", "sso")).toEqual([
+      { rowId: "link-1", subject: "subject-1", verified: false },
+    ]);
+  });
+
+  it("ignores expired password-reset rows while retaining live readiness blockers", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityUser(db, "principal-2", "Two", "two@example.com");
+    insertVerification(db, "expired-reset", "principal-1");
+    insertVerification(db, "live-reset", "principal-2");
+    db.prepare(`UPDATE verification SET expiresAt = ? WHERE id = ?`).run("2020-01-01T00:00:00.000Z", "expired-reset");
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "password",
+      db,
+    });
+
+    expect(port.inspectSsoCutover("sso").outstandingResetPrincipalIds).toEqual(["principal-2"]);
+  });
+
+  it("records a first cutover even when no sessions or ceremonies remain", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "sso",
+      db,
+    });
+
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
+    expect(db.prepare(`SELECT applicationId FROM capacitylens_sso_cutover_state`).all()).toEqual([
+      { applicationId: "conformance-app" },
+    ]);
+    expect(
+      db.prepare(`SELECT json_extract(payload, '$.action') AS action FROM capacitylens_audit_outbox`).all(),
+    ).toEqual([{ action: "identity.sso_cutover_activated" }]);
+  });
+
+  it("rolls back the cutover when the readiness recheck fails under its writer reservation", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertVerification(db, "reset-1", "principal-1");
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "sso",
+      db,
+    });
+
+    await expect(
+      port.revokeAllForSsoCutover(() => {
+        expect(db!.isTransaction).toBe(true);
+        throw new Error("readiness changed");
+      }),
+    ).rejects.toThrow("readiness changed");
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([{ id: "reset-1" }]);
+    expect(db.prepare(`SELECT applicationId FROM capacitylens_sso_cutover_state`).all()).toEqual([]);
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([]);
+  });
+
+  it("revokes password, MFA, federated, and assurance-less sessions plus every reset ceremony", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    for (const [index, assurance] of ["password", "mfa", "federated", "missing"].entries()) {
+      const principalId = `principal-${index}`;
+      const sessionId = `session-${index}`;
+      insertIdentityUser(db, principalId, `Person ${index}`, `person-${index}@example.com`);
+      db.prepare(
+        `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(sessionId, LATER, `token-${index}`, NOW, NOW, principalId);
+      if (assurance !== "missing") {
+        recordSessionAssurance(
+          db,
+          sessionId,
+          principalId,
+          assurance as "password" | "mfa" | "federated",
+          assurance === "federated" ? "sso" : undefined,
+        );
+      }
+    }
+    insertVerification(db, "reset-1", "principal-0");
+    const configuredAuth = auth(async () => null);
+    vi.mocked(configuredAuth.revokeUserSessions).mockImplementation(async (principalId) => {
+      db!.prepare(`DELETE FROM session WHERE userId = ?`).run(principalId);
+    });
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: configuredAuth,
+      authMode: "password",
+      db,
+    });
+
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 4, ceremonies: 1 });
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
+    expect(configuredAuth.revokeUserSessions).not.toHaveBeenCalled();
+    expect(db.prepare(`SELECT id FROM session`).all()).toEqual([]);
+    expect(db.prepare(`SELECT sessionId FROM account_session_assurance`).all()).toEqual([]);
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([]);
+    expect(
+      (
+        db
+          .prepare(`SELECT json_extract(payload, '$.action') AS action FROM capacitylens_audit_outbox ORDER BY action`)
+          .all() as Array<{ action: string }>
+      ).map(({ action }) => action),
+    ).toEqual(["identity.sessions_revoked", "identity.sso_cutover_activated"]);
+  });
+
+  it("leaves an already-federated session untouched on a clean SSO-only restart", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    markSsoCutoverActivated(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    const token = "federated-token";
+    db.prepare(
+      `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("provider-session-1", LATER, token, NOW, NOW, "principal-1");
+    recordSessionAssurance(db, applicationSessionHandle("conformance-app", token), "principal-1", "federated", "sso");
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "sso",
+      db,
+    });
+
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
+    expect(db.prepare(`SELECT id FROM session`).all()).toEqual([{ id: "provider-session-1" }]);
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([]);
+  });
+
+  it("does not treat abandoned OAuth state as a new cutover ceremony", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    markSsoCutoverActivated(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    const token = "federated-token";
+    db.prepare(
+      `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("provider-session-1", LATER, token, NOW, NOW, "principal-1");
+    recordSessionAssurance(db, applicationSessionHandle("conformance-app", token), "principal-1", "federated", "sso");
+    insertVerification(
+      db,
+      "oauth-state-1",
+      JSON.stringify({
+        callbackURL: "https://app.example/settings",
+        codeVerifier: "verifier",
+        expiresAt: Date.now() + 60_000,
+        oauthState: "abandoned-state",
+      }),
+    );
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "sso",
+      db,
+    });
+
+    await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
+    expect(db.prepare(`SELECT id FROM session`).all()).toEqual([{ id: "provider-session-1" }]);
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([{ id: "oauth-state-1" }]);
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([]);
+  });
+
+  it("corrects an identity email with ceremony invalidation, session revocation, and audit in one durable outcome", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "principal-1", "One", "old@example.com");
+    insertVerification(db, "reset-1", "principal-1");
+    insertVerification(
+      db,
+      "link-state-1",
+      JSON.stringify({
+        oauthState: "state-1",
+        callbackURL: "http://localhost/settings",
+        expiresAt: Date.now() + 60_000,
+        link: { userId: "principal-1", email: "old@example.com" },
+      }),
+    );
+    insertVerification(
+      db,
+      "other-link-state",
+      JSON.stringify({
+        oauthState: "state-2",
+        callbackURL: "http://localhost/settings",
+        expiresAt: Date.now() + 60_000,
+        link: { userId: "principal-2", email: "other@example.com" },
+      }),
+    );
+    db.prepare(
+      `INSERT INTO capacitylens_federated_link_ceremonies
+        (id, principalId, providerId, createdAt, expiresAt, completedAt)
+       VALUES (?, ?, ?, ?, ?, NULL)`,
+    ).run("ceremony-1", "principal-1", "sso", NOW, LATER);
+    recordSessionAssurance(db, "session-1", "principal-1", "password");
+    db.prepare(
+      `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run("provider-session-1", LATER, "session-token-1", NOW, NOW, "principal-1");
+    // Simulate a sign-in and a link ceremony landing at the identity-update boundary. Because the
+    // update and revocation share one IMMEDIATE transaction, even rows created by this trigger are
+    // removed before the correction commits.
+    db.exec(`
+      CREATE TRIGGER simulate_identity_race
+      AFTER UPDATE OF email ON user
+      WHEN NEW.id = 'principal-1'
+      BEGIN
+        INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+        VALUES ('raced-session', '${LATER}', 'raced-token', '${NOW}', '${NOW}', 'principal-1');
+        INSERT INTO capacitylens_federated_link_ceremonies
+          (id, principalId, providerId, createdAt, expiresAt, completedAt)
+        VALUES ('raced-ceremony', 'principal-1', 'alternative', '${NOW}', '${LATER}', NULL);
+      END;
+    `);
+    const configuredAuth = auth(async () => null);
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: configuredAuth,
+      authMode: "password",
+      db,
+    });
+
+    const authorizeInTransaction = vi.fn();
+    await port.correctPrincipalEmail({
+      principalId: "principal-1",
+      email: "new@example.com",
+      authorizeInTransaction,
+      audit: {
+        id: "email-audit-1",
+        occurredAt: NOW,
+        applicationId: "conformance-app",
+        workspaceId: "workspace-1",
+        actorPrincipalId: "owner-1",
+        targetPrincipalId: "principal-1",
+        commandId: null,
+        action: "identity.email_corrected",
+        outcome: "success",
+        changedFields: ["email", "sessions"],
+      },
+    });
+
+    expect(configuredAuth.revokeUserSessions).not.toHaveBeenCalled();
+    expect(authorizeInTransaction).toHaveBeenCalledTimes(1);
+    expect(db.prepare(`SELECT email, emailVerified FROM user WHERE id = ?`).get("principal-1")).toEqual({
+      email: "new@example.com",
+      emailVerified: 1,
+    });
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([{ id: "other-link-state" }]);
+    expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
+    expect(db.prepare(`SELECT sessionId FROM account_session_assurance`).all()).toEqual([]);
+    expect(db.prepare(`SELECT id FROM session`).all()).toEqual([]);
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "email-audit-1" }]);
+  });
+
+  it("removes an incorrect provider link only after revoking sessions and commits its audit atomically", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityAccount(db, "link-1", "sso", "subject-1", "principal-1");
+    insertIdentityAccount(db, "credential-1", "credential", "principal-1", "principal-1");
+    db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-1");
+    insertVerification(
+      db,
+      "stale-link-state",
+      JSON.stringify({ oauthState: "old-state", link: { userId: "principal-1", email: "one@example.com" } }),
+    );
+    const configuredAuth = auth(async () => null);
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: configuredAuth,
+      authMode: "password",
+      db,
+    });
+
+    await expect(
+      port.removeFederatedLink({
+        principalId: "principal-1",
+        providerId: "sso",
+        rowId: "link-1",
+        subject: "subject-1",
+        authorizeInTransaction: vi.fn(),
+        audit: {
+          id: "unlink-audit-1",
+          occurredAt: NOW,
+          applicationId: "conformance-app",
+          workspaceId: "workspace-1",
+          actorPrincipalId: "owner-1",
+          targetPrincipalId: "principal-1",
+          commandId: null,
+          action: "identity.federated_link_removed",
+          outcome: "success",
+          changedFields: ["federatedIdentity", "sessions"],
+        },
+      }),
+    ).resolves.toBe(true);
+    expect(configuredAuth.revokeUserSessions).not.toHaveBeenCalled();
+    expect(db.prepare(`SELECT id FROM account WHERE providerId = 'sso'`).all()).toEqual([]);
+    expect(db.prepare(`SELECT accountRowId FROM capacitylens_federated_link_observations`).all()).toEqual([]);
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([]);
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "unlink-audit-1" }]);
+  });
+
+  it("refuses Owner self-repair when a federated link is the only viable sign-in method", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "owner-1", "Owner", "owner@example.com");
+    insertIdentityAccount(db, "only-link", "sso", "subject-1", "owner-1");
+    insertIdentityAccount(db, "disabled-link", "disabled-provider", "stale-subject", "owner-1");
+    db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
+      "workspace-1",
+      "Studio",
+      "#3b82f6",
+      NOW,
+      NOW,
+    );
+    db.prepare(
+      `INSERT INTO account_members (accountId, userId, role, status, createdAt)
+       VALUES (?, ?, 'owner', 'active', ?)`,
+    ).run("workspace-1", "owner-1", NOW);
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "password",
+      db,
+    });
+
+    await expect(
+      port.removeFederatedLink({
+        principalId: "owner-1",
+        providerId: "sso",
+        rowId: "only-link",
+        subject: "subject-1",
+        authorizeInTransaction: vi.fn(),
+        audit: {
+          id: "owner-unlink-audit",
+          occurredAt: NOW,
+          applicationId: "conformance-app",
+          workspaceId: "workspace-1",
+          actorPrincipalId: "owner-1",
+          targetPrincipalId: "owner-1",
+          commandId: null,
+          action: "identity.federated_link_removed",
+          outcome: "success",
+          changedFields: ["federatedIdentity", "sessions"],
+        },
+      }),
+    ).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
+    expect(db.prepare(`SELECT id FROM account WHERE id = 'only-link'`).get()).toEqual({ id: "only-link" });
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([]);
+  });
+
+  it("allows the stopped-server repair capability to remove an unusable final provider link", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityAccount(db, "only-link", "sso", "subject-1", "principal-1");
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "password",
+      db,
+    });
+
+    await expect(
+      port.removeFederatedLinkForStoppedRepair({
+        principalId: "principal-1",
+        providerId: "sso",
+        rowId: "only-link",
+        subject: "subject-1",
+        audit: {
+          id: "stopped-unlink-audit",
+          occurredAt: NOW,
+          applicationId: "conformance-app",
+          workspaceId: null,
+          actorPrincipalId: null,
+          targetPrincipalId: "principal-1",
+          commandId: null,
+          action: "identity.federated_link_removed",
+          outcome: "success",
+          changedFields: ["federatedIdentity", "sessions"],
+        },
+      }),
+    ).resolves.toBe(true);
+    expect(db.prepare(`SELECT id FROM account WHERE id = 'only-link'`).get()).toBeUndefined();
+    expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "stopped-unlink-audit" }]);
+  });
+
+  it("never treats a password credential as a federated repair coordinate", async () => {
+    db = openDb(":memory:");
+    await identityTables(db);
+    insertIdentityUser(db, "principal-1", "One", "one@example.com");
+    insertIdentityAccount(db, "credential-1", "credential", "principal-1", "principal-1");
+    const port = betterAuthIdentityPort({
+      applicationId: "conformance-app",
+      auth: auth(async () => null),
+      authMode: "password",
+      db,
+    });
+
+    await expect(
+      port.removeFederatedLinkForStoppedRepair({
+        principalId: "principal-1",
+        providerId: "credential",
+        rowId: "credential-1",
+        subject: "principal-1",
+        audit: {
+          id: "credential-unlink-audit",
+          occurredAt: NOW,
+          applicationId: "conformance-app",
+          workspaceId: null,
+          actorPrincipalId: null,
+          targetPrincipalId: "principal-1",
+          commandId: null,
+          action: "identity.federated_link_removed",
+          outcome: "success",
+          changedFields: ["federatedIdentity", "sessions"],
+        },
+      }),
+    ).rejects.toMatchObject({ failure: { code: "VALIDATION_FAILED" } });
+    expect(db.prepare(`SELECT id FROM account WHERE id = 'credential-1'`).get()).toEqual({ id: "credential-1" });
   });
 
   it("keeps no session distinct from a retryable provider failure", async () => {

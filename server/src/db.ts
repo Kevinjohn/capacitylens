@@ -55,6 +55,11 @@ import {
   FOREIGN_KEY_CHILD_INDEXES_V23_SQL,
   TENANT_ENTITY_INDEXES_V21_SQL,
 } from "./tenantIndexes";
+import {
+  assertFederatedIdentitySchemaCurrent,
+  FEDERATED_IDENTITY_V25_DEFINITION,
+  migrateFederatedIdentityV25,
+} from "./auth";
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
 // domain-core's job (see validate.ts). These helpers only map between SQL rows and the
@@ -65,7 +70,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 24;
+export const DB_SCHEMA_VERSION = 25;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -565,6 +570,12 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(24, "bound-used-invitation-history", USED_INVITATION_RETENTION_V24_DEFINITION, (db) => {
     migrateUsedInvitationHistoryV24(db);
     assertControlTablesCurrent(db);
+  }),
+  defineMigration(25, "secure-federated-identity-linking", FEDERATED_IDENTITY_V25_DEFINITION, (db) => {
+    migrateFederatedIdentityV25(db);
+    // Validate while the migration transaction still owns both DDL and ledger writes. A malformed
+    // pre-existing IF-NOT-EXISTS object must roll the entire version step back to v24.
+    assertFederatedIdentitySchemaCurrent(db);
   }),
 ];
 

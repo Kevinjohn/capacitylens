@@ -1,7 +1,7 @@
 {
   "name": "capacitylens-server",
   "private": true,
-  "version": "0.32.0-alpha.1",
+  "version": "0.33.0-alpha.1",
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "SQLite-backed REST API for CapacityLens. Imports the shared domain core so server and client validation cannot drift.",
@@ -18,6 +18,9 @@
     "rehearse:migrations": "node scripts/check-node.mjs && tsx scripts/rehearse-migrations.ts",
     "recover:audit-outbox": "node scripts/check-node.mjs && tsx scripts/recover-audit-outbox.ts",
     "reset:owner-password": "node scripts/check-node.mjs && tsx scripts/reset-owner-password.ts",
+    "cutover:preflight": "node scripts/check-node.mjs && tsx scripts/cutover-preflight.ts",
+    "cutover:repair": "node scripts/check-node.mjs && tsx scripts/cutover-repair.ts",
+    "fixtures:database": "node scripts/check-node.mjs && tsx scripts/generate-database-fixtures.ts",
     "test": "pnpm run test:unit && pnpm run test:account-flows && pnpm run test:credential-durability && pnpm run test:migrations",
     "test:unit": "node scripts/check-node.mjs && node scripts/run-unit-shard.mjs 1/1",
     "test:unit-shard": "node scripts/check-node.mjs && node scripts/run-unit-shard.mjs",

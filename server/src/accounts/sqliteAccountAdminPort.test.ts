@@ -980,6 +980,94 @@ describe("sqliteAccountAdminPort authority integrity", () => {
     }
   });
 
+  it("binds identity repair to the requested workspace and exact authority revision", async () => {
+    const db = openDb(":memory:");
+    try {
+      for (const id of ["workspace-a", "workspace-b"]) {
+        insertRow(db, "accounts", {
+          id,
+          name: id,
+          color: "#6366f1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+      }
+      upsertMember(db, {
+        accountId: "workspace-a",
+        userId: actor.principalId,
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      upsertMember(db, {
+        accountId: "workspace-b",
+        userId: actor.principalId,
+        role: "owner",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      upsertMember(db, {
+        accountId: "workspace-b",
+        userId: "target-1",
+        role: "viewer",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      const port = sqliteAccountAdminPort({
+        applicationId: "test-application",
+        db,
+        lock: new KeyedOperationLock(),
+      });
+      const crossWorkspace = await port.evaluateIdentityAdminAuthority({
+        actor,
+        targetPrincipalId: "target-1",
+        action: "correct-email",
+      });
+      expect(crossWorkspace.allowed).toBe(true);
+      expect(() =>
+        port.assertIdentityRepairAuthorityInTx({
+          actor,
+          workspaceId: "workspace-a",
+          targetPrincipalId: "target-1",
+          action: "correct-email",
+          expectedRevision: crossWorkspace.allowed ? crossWorkspace.revision : "unreachable",
+        }),
+      ).toThrow(/not a member/i);
+
+      upsertMember(db, {
+        accountId: "workspace-a",
+        userId: "target-1",
+        role: "viewer",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      const initial = await port.evaluateIdentityAdminAuthority({
+        actor,
+        targetPrincipalId: "target-1",
+        action: "correct-email",
+      });
+      expect(initial.allowed).toBe(true);
+      upsertMember(db, {
+        accountId: "workspace-a",
+        userId: "target-1",
+        role: "editor",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      expect(() =>
+        port.assertIdentityRepairAuthorityInTx({
+          actor,
+          workspaceId: "workspace-a",
+          targetPrincipalId: "target-1",
+          action: "correct-email",
+          expectedRevision: initial.allowed ? initial.revision : "unreachable",
+        }),
+      ).toThrow(/authority changed/i);
+    } finally {
+      db.close();
+    }
+  });
+
   it("does not report a principal as unaffiliated while any surviving membership row remains", () => {
     const db = openDb(":memory:");
     try {

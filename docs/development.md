@@ -99,9 +99,9 @@ suite.
 recovery behavior.
 Both gates also run the cryptographic implementation-path discovery check; a new primitive,
 certificate/key path or TLS configuration must be reviewed into `docs/security/crypto-inventory.json`.
-The hard gate scans tracked working-tree files. Crypto-like untracked files are listed separately as
-ignored workspace artifacts, so a scratch file cannot make two checkouts of the same change produce
-different pass/fail results; add an intended source file to Git before relying on the inventory gate.
+The hard gate inventories tracked working-tree files and fails separately when a crypto-like source
+file is still untracked. An inventory entry cannot bless a file that exists only in one checkout;
+add an intended source file to Git before reviewing it into the inventory.
 
 The mutation configuration deliberately measures the pure shared/scheduler/browser helper layer.
 React hooks are excluded because their effect and event orchestration is exercised by component and
@@ -338,6 +338,33 @@ integrity preservation, checksum-ledger convergence, idempotent reopen, rollback
 `ENOSPC`, and WAL recovery after killing a process with the real migration transaction open. Use
 `--keep` only in a protected development environment when the anonymised artifacts are needed for
 diagnosis; never commit an installation-derived database.
+
+Schema v25 adds the CapacityLens-owned federated-link observation/ceremony and SSO activation-state
+tables, an atomic observation trigger, and Better Auth `UNIQUE(providerId, accountId)` plus
+`UNIQUE(userId, providerId)` concurrency backstops. Established external account rows are not
+backfilled because their historical admission path cannot prove verified email; mixed-mode
+readiness requires removing and relinking them. Its committed off/password compatibility fixtures
+are generated from the last released pair with the release-candidate source and Node 24+:
+
+```bash
+pnpm --dir server fixtures:database 23 25
+```
+
+The generator refuses to overwrite an existing artifact, migrates copies only, converges the
+password fixture through Better Auth, runs `quick_check` and `foreign_key_check`, switches to delete
+journal mode, and vacuums both files. Record the generator revision, runtime versions and SHA-256
+digests in `server/src/fixtures/databases/README.md`.
+
+The SSO cutover's read-only all-company verifier is exercised manually against an upgraded staging
+copy with:
+
+```bash
+pnpm --filter capacitylens-server cutover:preflight -- /absolute/path/to/staging.db
+```
+
+The destructive `cutover:repair` tool is deliberately excluded from routine development flows. Its
+tests create disposable on-disk databases and prove exclusive-lock, exact-coordinate, membership,
+provider-set, session-cleanup and audit constraints; operators use it only through the runbook.
 
 App-owned control tables share the application migration stream. Better Auth remains pinned and
 owns its own tables; startup reruns its introspection migration and then verifies that no table or

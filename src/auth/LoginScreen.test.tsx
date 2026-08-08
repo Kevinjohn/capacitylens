@@ -66,6 +66,23 @@ describe("LoginScreen — external callback failures", () => {
     await waitFor(() => expect(window.location.search).toBe(""));
   });
 
+  it.each([
+    ["OIDC_IDENTITY_VERIFICATION_FAILED", m.login_sso_verification_failed()],
+    ["account_link_conflict", m.login_sso_account_link_conflict()],
+  ])("maps the application-owned callback code %s to actionable copy", async (code, expected) => {
+    window.history.replaceState({}, "", `/?externalSignInError=1&error=${code}`);
+    render(
+      <LoginScreen
+        authMode="sso"
+        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+        onSignedIn={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(expected);
+    await waitFor(() => expect(window.location.search).toBe(""));
+  });
+
   it("supplies a marked failure return to a named social provider", async () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     window.history.replaceState({}, "", "/invite/token?source=mail");

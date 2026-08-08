@@ -43,6 +43,9 @@ function parseStrictIsoInstant(value: string): number | null {
 export interface AccountRouteDependencies {
   authMode: AccountMode;
   authenticationConfigured: boolean;
+  /** SSO-only invitation acceptance must arrive through this provider so a new membership cannot
+   * make the installation fail its next strict-provider readiness check. */
+  requiredSsoProviderId: string | null;
   administration: AccountAdminPort;
   identity: IdentityPort;
   flows: AccountFlows;
@@ -62,6 +65,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   const {
     authMode,
     authenticationConfigured,
+    requiredSsoProviderId,
     administration: accountAdminPort,
     identity: identityPort,
     flows: accountFlows,
@@ -221,6 +225,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         preauthEmail = normalizeAccountEmail(trimmed); // store normalized so accept compares normalized↔normalized
       }
     }
+    if (authMode === "sso" && preauthEmail === null) {
+      return accountFail(reply, validationFailed("SSO-only onboarding requires an email-preauthorized invitation."));
+    }
     // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
     if (!authorize(req, reply, body.accountId, "manageInvites")) return;
     const requestedExpiry = body.expiresAt;
@@ -303,6 +310,19 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   app.post("/api/invites/:token/accept", async (req, reply) => {
     const { token } = req.params as { token: string };
     try {
+      if (
+        authMode === "sso" &&
+        (requiredSsoProviderId === null || req.authenticationProviderId !== requiredSsoProviderId)
+      ) {
+        // Preserve the route's unknown/used/expired precedence without consuming the invitation.
+        // A valid token then receives the provider-specific refusal before any membership write.
+        await accountAdminPort.previewInvitation({ token });
+        throw new AccountContractError({
+          code: "FORBIDDEN",
+          message: "Sign in with the required SSO provider before accepting this invitation.",
+          retryable: false,
+        });
+      }
       const accepted =
         authMode === "off"
           ? await accountAdminPort.claimInvitationForPrincipal({

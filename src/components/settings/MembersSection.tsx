@@ -9,6 +9,7 @@ import { m } from "@/i18n";
 import { can, canManageMemberRole, canRemoveMember, type Role } from "@capacitylens/shared/domain/access";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import { teamAccessClient, type TeamInvitation, type TeamMember } from "../../account/teamAccessClient";
+import { accountClient } from "../../account/accountClient";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { roleLabel, roleSummary } from "../../lib/accessCopy";
@@ -22,6 +23,13 @@ import { Button } from "../ui/button";
 import { FieldError, FieldSet, FieldLegend } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { APP_NAME } from "@capacitylens/shared/brand";
+import { SsoReadinessPanel } from "./SsoReadinessPanel";
+import {
+  parseWorkspaceReadiness,
+  type ReadinessMember,
+  type ReadinessRepairLink,
+  type WorkspaceReadiness,
+} from "./ssoReadiness";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
@@ -155,7 +163,8 @@ export function MembersSection() {
  * account-local drafts, confirmations, action locks and write-once bearer links together. */
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
   const [renderedAt, setRenderedAt] = useState(() => Date.now());
-  const { authMode, refreshAuth } = useAuth();
+  const { authMode, providers, refreshAuth } = useAuth();
+  const strictProvider = providers?.find((provider) => provider.kind === "oidc" && !provider.experimental) ?? null;
   const offline = useOfflineState();
   const setActiveAccount = useStore((s) => s.setActiveAccount);
   const setNotice = useStore((s) => s.setNotice);
@@ -186,6 +195,14 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     nextRole: Role;
   } | null>(null);
   const [memberConfirmation, setMemberConfirmation] = useState<MemberConfirmation | null>(null);
+  const [readiness, setReadiness] = useState<WorkspaceReadiness | null>(null);
+  const [readinessError, setReadinessError] = useState(false);
+  const [readinessRevision, setReadinessRevision] = useState(0);
+  const [emailRepair, setEmailRepair] = useState<{ member: ReadinessMember; email: string } | null>(null);
+  const [unlinkRepair, setUnlinkRepair] = useState<{
+    member: ReadinessMember;
+    link: ReadinessRepairLink;
+  } | null>(null);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
     setMintedLink((current) =>
       current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
@@ -219,6 +236,35 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     );
     return () => window.clearTimeout(timer);
   }, [invites, renderedAt]);
+  useEffect(() => {
+    if (gate !== "shown" || !activeAccountId || !strictProvider || offline.readOnly) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await accountClient.getSsoReadiness(activeAccountId);
+        const body: unknown = await response.json().catch(() => null);
+        const parsed = parseWorkspaceReadiness(body);
+        if (!response.ok || !parsed || parsed.provider.id !== strictProvider.id) {
+          throw new Error("Invalid SSO readiness response.");
+        }
+        if (!cancelled) {
+          setReadiness(parsed);
+          setReadinessError(false);
+        }
+      } catch (cause) {
+        console.error("MembersSection: SSO readiness failed", cause);
+        if (!cancelled) {
+          setReadiness(null);
+          setReadinessError(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAccountId, gate, offline.readOnly, readinessRevision, strictProvider]);
   const requestAccountId = (): string => {
     if (!activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return activeAccountId;
@@ -295,6 +341,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       const nextMembers = memberResult.value;
       const nextInvites = inviteResult.value;
       replaceDirectory(nextMembers, nextInvites);
+      setReadinessRevision((value) => value + 1);
       setMintedLink((current) =>
         current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
           ? null
@@ -374,6 +421,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       if (resetLink?.userId === mem.userId) setResetLink(null);
       if (mem.isSelf) await refreshCallerAccess();
       reload();
+      setReadinessRevision((value) => value + 1);
     } catch (e) {
       await reconcileUnknownMutation(
         m.settings_members_error_detail({
@@ -415,6 +463,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
         await refreshCallerAccess(true);
       }
       reload();
+      setReadinessRevision((value) => value + 1);
     } catch (e) {
       await reconcileUnknownMutation(
         m.settings_members_error_detail({
@@ -462,6 +511,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       }
       await refreshCallerAccess();
       reload();
+      setReadinessRevision((value) => value + 1);
     } catch (e) {
       await reconcileUnknownMutation(
         m.settings_members_error_detail({
@@ -512,6 +562,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
         expiresAt: body.expiresAt,
       });
       setNotice(m.settings_members_reset_created());
+      setReadinessRevision((value) => value + 1);
     } catch (e) {
       await reconcileUnknownMutation(
         m.settings_members_unknown_reset_request_failed({
@@ -572,6 +623,10 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     clear();
     const accountId = requestAccountId();
     const trimmed = invitePreauth.trim();
+    if (authMode === "sso" && trimmed.length === 0) {
+      fail("invite", m.settings_sso_invite_email_required());
+      return;
+    }
     if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
       fail("invite", m.identity_err_email());
       return;
@@ -687,6 +742,72 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     }
   };
 
+  const correctSsoEmail = async () => {
+    if (!emailRepair) return;
+    const accountId = requestAccountId();
+    const email = emailRepair.email.trim().toLowerCase();
+    if (!isAccountEmail(email)) {
+      fail("sso-email", m.identity_err_email());
+      return;
+    }
+    if (!beginAction(`sso-email:${emailRepair.member.principalId}`)) return;
+    try {
+      const response = await accountClient.correctMemberEmail(accountId, emailRepair.member.principalId, email);
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        const message =
+          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
+            ? (body as { error: string }).error
+            : m.settings_sso_correct_email_error();
+        fail("sso-email", message);
+        return;
+      }
+      const changedSelf = members?.some((member) => member.userId === emailRepair.member.principalId && member.isSelf);
+      setEmailRepair(null);
+      setNotice(m.settings_sso_correct_email_done());
+      if (changedSelf) {
+        window.location.reload();
+        return;
+      }
+      reload();
+      setReadinessRevision((value) => value + 1);
+    } catch (cause) {
+      console.error("MembersSection: SSO email correction failed", cause);
+      fail("sso-email", m.settings_sso_correct_email_error());
+    } finally {
+      endAction();
+    }
+  };
+
+  const removeIncorrectSsoLink = async (member: ReadinessMember, link: ReadinessRepairLink) => {
+    const accountId = requestAccountId();
+    if (!beginAction(`sso-unlink:${member.principalId}`)) return;
+    try {
+      const response = await accountClient.removeFederatedLink(accountId, member.principalId, link);
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        const message =
+          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
+            ? (body as { error: string }).error
+            : m.settings_sso_remove_link_error();
+        fail(null, message);
+        return;
+      }
+      const changedSelf = members?.some((candidate) => candidate.userId === member.principalId && candidate.isSelf);
+      setNotice(m.settings_sso_remove_link_done());
+      if (changedSelf) {
+        window.location.reload();
+        return;
+      }
+      setReadinessRevision((value) => value + 1);
+    } catch (cause) {
+      console.error("MembersSection: SSO link removal failed", cause);
+      fail(null, m.settings_sso_remove_link_error());
+    } finally {
+      endAction();
+    }
+  };
+
   const memberConfirmationCopy = memberConfirmation ? confirmationCopy(memberConfirmation) : null;
 
   return (
@@ -703,6 +824,32 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             {busyAction ? m.settings_members_updating() : ""}
           </p>
           <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>
+
+          {gate === "shown" && !offline.readOnly && strictProvider && readinessError && (
+            <section
+              className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 p-3"
+              data-testid="sso-readiness-error"
+              role="alert"
+            >
+              <h3 className="text-sm font-medium text-danger">{m.settings_sso_readiness_heading()}</h3>
+              <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
+            </section>
+          )}
+
+          {gate === "shown" && !offline.readOnly && strictProvider && readiness && (
+            <SsoReadinessPanel
+              authMode={authMode}
+              readiness={readiness}
+              busy={busyAction !== null}
+              emailRepair={emailRepair}
+              setEmailRepair={setEmailRepair}
+              error={error}
+              errorField={errorField}
+              errorId={errorId}
+              onCorrectEmail={() => void correctSsoEmail()}
+              onRemoveLink={(member, link) => setUnlinkRepair({ member, link })}
+            />
+          )}
 
           {/* Members list */}
           {members && members.length === 0 ? (
@@ -888,7 +1035,11 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                 </div>
                 <div className="min-w-48 flex-1">
                   <TextField
-                    label={m.settings_invite_preauth_label()}
+                    label={
+                      authMode === "sso"
+                        ? m.settings_invite_preauth_label_required()
+                        : m.settings_invite_preauth_label()
+                    }
                     ariaLabel={m.settings_invite_preauth_aria()}
                     type="email"
                     value={invitePreauth}
@@ -1020,6 +1171,21 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             void changeRole(pending.member, pending.nextRole);
           }}
           onCancel={() => setRoleChange(null)}
+        />
+      )}
+      {unlinkRepair && (
+        <ConfirmDialog
+          title={m.settings_sso_remove_link_title()}
+          confirmLabel={m.settings_sso_remove_link()}
+          message={m.settings_sso_remove_link_message({
+            member: unlinkRepair.member.email ?? unlinkRepair.member.displayName ?? unlinkRepair.member.principalId,
+          })}
+          onConfirm={() => {
+            const pending = unlinkRepair;
+            setUnlinkRepair(null);
+            void removeIncorrectSsoLink(pending.member, pending.link);
+          }}
+          onCancel={() => setUnlinkRepair(null)}
         />
       )}
     </>

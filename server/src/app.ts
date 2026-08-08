@@ -17,8 +17,9 @@ import { AccountContractError, statusForAccountFailure } from "@capacitylens/sha
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
-import { betterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
+import { betterAuthIdentityPort, type SsoCutoverIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { sqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
+import { registerSsoCutoverRoutes } from "./accounts/ssoCutoverRoutes";
 import { actorContextFromSession, localAccountFlows } from "./accounts/localAccountFlows";
 import { KeyedOperationLock } from "./accounts/operationLock";
 import { trustedLocalIdentityPort } from "./accounts/trustedLocalIdentityPort";
@@ -49,6 +50,7 @@ declare module "fastify" {
     user: SessionUser | null;
     accountActor: ActorContext | null;
     authenticationUserId: string | null;
+    authenticationProviderId: string | null;
   }
 }
 import { parseData, MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
@@ -252,6 +254,8 @@ export interface AppOptions {
   /** Require an enrolled and completed TOTP second factor before password users may access tenant
    * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */
   requireMfa?: boolean;
+  /** Resolved registration posture used by the SSO cutover verifier. */
+  allowOpenSignup?: boolean;
   /** CORS allow-list: a comma-separated list of explicit origins. Wildcards are rejected because
    *  the browser client always uses cookie credentials. Defaults to the localhost allow-list when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
@@ -490,10 +494,41 @@ function sessionUserFromApplicationSession(session: ApplicationSession): Session
     emailVerified: session.principal.emailVerified,
     name: session.principal.displayName,
     image: session.principal.image ?? null,
-    twoFactorEnabled:
-      session.assurance === "mfa" || session.assurance === "federated" || session.assurance === "trusted-local",
+    twoFactorEnabled: sessionSatisfiesRequiredMfa(session),
     sessionCreatedAt: session.createdAt,
   };
+}
+
+/** CapacityLens treats provider-authenticated and trusted-local sessions as satisfying its local
+ * MFA gate; provider-side MFA enforcement remains an explicit operator responsibility. */
+function sessionSatisfiesRequiredMfa(session: ApplicationSession): boolean {
+  return session.assurance === "mfa" || session.assurance === "federated" || session.assurance === "trusted-local";
+}
+
+/** CapacityLens's complete public seam into Better Auth. New dependency routes remain closed until
+ * they are deliberately classified here and covered by the application's own policy surface. */
+function betterAuthProxyRouteAllowed(authMode: Exclude<AuthMode, "off">, method: string, pathname: string): boolean {
+  const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/oauth2", "POST /sign-in/social"]);
+  if (common.has(`${method} ${pathname}`)) return true;
+  if (
+    (method === "GET" || method === "POST") &&
+    (/^\/oauth2\/callback\/[a-z0-9_-]+$/.test(pathname) || /^\/callback\/[a-z0-9_-]+$/.test(pathname))
+  ) {
+    return true;
+  }
+  if (method === "GET" && /^\/oidc\/authorize\/[a-z0-9_-]+$/.test(pathname)) return true;
+  if (authMode !== "password") return false;
+  return new Set([
+    "POST /sign-up/email",
+    "POST /sign-in/email",
+    "POST /reset-password",
+    "POST /change-password",
+    "POST /two-factor/enable",
+    "POST /two-factor/disable",
+    "POST /two-factor/generate-backup-codes",
+    "POST /two-factor/verify-totp",
+    "POST /two-factor/verify-backup-code",
+  ]).has(`${method} ${pathname}`);
 }
 
 const validAccountCommandHeader = (value: unknown): value is string =>
@@ -1220,6 +1255,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.decorateRequest("user", null);
   app.decorateRequest("accountActor", null);
   app.decorateRequest("authenticationUserId", null);
+  app.decorateRequest("authenticationProviderId", null);
   app.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
     const path = req.url.split("?", 1)[0];
     if (
@@ -1263,7 +1299,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const user = sessionUserFromApplicationSession(session);
       req.user = user;
       req.accountActor = actorContextFromSession(session);
-      if (authMode === "password" && opts.requireMfa === true && user.twoFactorEnabled !== true) {
+      req.authenticationProviderId = session.assurance === "federated" ? session.providerId : null;
+      if (authMode === "password" && opts.requireMfa === true && !sessionSatisfiesRequiredMfa(session)) {
         securityEvent({
           event: "mfa_required",
           outcome: "blocked",
@@ -1608,10 +1645,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return {
           authMode,
           user,
-          mfaRequired: authMode === "password" && opts.requireMfa === true && user.twoFactorEnabled !== true,
+          mfaRequired: authMode === "password" && opts.requireMfa === true && !sessionSatisfiesRequiredMfa(session),
+          reauthMethod: session.assurance === "federated" ? "provider" : "password",
+          reauthProviderId: session.providerId ?? null,
           providers: auth?.providers ?? [],
           multiAccount,
-          canCreateAccount: capAllows && (await userMayCreateAccount(db, accountAdminPort, authMode, user.id)),
+          canCreateAccount:
+            capAllows &&
+            (authMode !== "sso" ||
+              (session.assurance === "federated" && session.providerId === auth?.strictProvider?.id)) &&
+            (await userMayCreateAccount(db, accountAdminPort, authMode, user.id)),
         };
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
@@ -1629,24 +1672,27 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // web Response → Fastify reply (set-cookie kept as separate headers; content-length
     // recomputed by Fastify).
     if (authMode !== "off" && auth) {
-      // P1.18: SHADOW Better Auth's PUBLIC `request-password-reset` endpoint with a 404. Configuring
-      // `emailAndPassword.sendResetPassword` (so admins can mint reset links server-side) is what
-      // makes Better Auth expose this unauthenticated POST — but we NEVER want it reachable over
-      // HTTP: we have no email delivery, so a public call would only write an orphaned SQLite
-      // verification row per request (an unauthenticated, rate-limit-off-by-default DoS surface that
-      // grows the DB) while sending nothing. Our own reset-link minting calls `auth.api.request
-      // PasswordReset` in-process (mintPasswordResetToken), NOT this route, so shadowing it costs us
-      // nothing. A static route outranks the wildcard handler below in Fastify's router (same trick
-      // as /api/auth/me), so this 404 wins. Registered for every auth-on mode (in 'sso' the endpoint
-      // is inert anyway — sendResetPassword isn't set there — but a uniform 404 keeps the surface
-      // identical across modes).
-      app.post("/api/auth/request-password-reset", (_req, reply) => reply.code(404).send({ error: "Not found." }));
+      registerSsoCutoverRoutes(app, {
+        auth,
+        authMode,
+        identity: identityPort as SsoCutoverIdentityPort,
+        administration: accountAdminPort,
+        applicationId: application.applicationId,
+        openSignup: opts.allowOpenSignup === true,
+        authorize,
+        fail: accountFail,
+        toWebHeaders,
+      });
       app.route({
         method: ["GET", "POST"],
         url: "/api/auth/*",
         handler: async (req, reply) => {
           const url = authenticationRequestUrl(req);
           if (!url) return reply.code(400).send({ error: "Invalid request authority." });
+          const authPath = new URL(url).pathname.slice("/api/auth".length);
+          if (!betterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
+            return reply.code(404).send({ error: "Not found." });
+          }
           const requestHeaders = toWebHeaders(req.headers);
           if (requestHeaders.has("cookie") || requestHeaders.has("authorization")) {
             req.authenticationUserId = await resolveAuthenticationUserId(auth, requestHeaders, req, logOn);
@@ -1823,6 +1869,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
       // is accepted and validated like any other write.
       try {
+        if (
+          authMode === "sso" &&
+          (auth?.strictProvider?.id === undefined || req.authenticationProviderId !== auth.strictProvider.id)
+        ) {
+          return accountFail(
+            reply,
+            new AccountContractError({
+              code: "FORBIDDEN",
+              message: "Sign in with the required SSO provider before creating a company.",
+              retryable: false,
+            }),
+          );
+        }
         const command = accountCommand(req);
         const bootstrapAuthorized = bootstrapTokenMatches(
           opts.bootstrapToken,
@@ -1880,6 +1939,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     registerAccountRoutes(app, {
       authMode,
       authenticationConfigured: auth !== null,
+      requiredSsoProviderId: authMode === "sso" ? (auth?.strictProvider?.id ?? null) : null,
       administration: accountAdminPort,
       identity: identityPort,
       flows: accountFlows,
