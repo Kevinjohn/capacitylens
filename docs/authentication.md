@@ -17,6 +17,13 @@ Set `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE` when an installation should enforce a
 | `self-hosted-sso-only` | no       | yes         | Self-hosted IdP-only install                                    |
 | `hosted-oidc-only`     | no       | yes         | Hosted product; password and named-social configuration refused |
 
+Moving an existing password installation onto SSO is a supported, staged procedure: the operator
+steps live in [runbook.md](runbook.md#password-to-sso-cutover), and
+[sso-cutover-guide.html](sso-cutover-guide.html) walks the same nine steps with screenshots for
+self-hosters. [company-login-guide.html](company-login-guide.html) is the jargon-free version of
+this page's OIDC requirements, written as click-by-click instructions for Google Workspace,
+Entra ID, Okta and Keycloak — send self-hosters there rather than here.
+
 The open-source product does not force SSO. Hosted is SSO-only as a standing product constraint;
 weakening it requires an explicit architecture amendment and must not be treated as a sales-time
 configuration exception.

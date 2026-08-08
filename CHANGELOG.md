@@ -10,6 +10,29 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.33.1-alpha.1] — 2026-08-08
+
+Documentation only. No product code changed.
+
+### Added
+
+- Added `docs/company-login-guide.html`, a jargon-free walkthrough for pointing CapacityLens at the
+  identity provider an agency already uses. It covers the redirect URI, the three values to collect,
+  and click-by-click steps for Google Workspace, Microsoft 365 / Entra ID, Okta and Keycloak, plus a
+  requirements checklist for any other OpenID Connect provider and a symptom-to-fix table for the
+  refusals operators actually hit. Linked from the setup guide, the cutover guide and
+  `authentication.md`.
+
+### Changed
+
+- Reworked the nine steps in `docs/sso-cutover-guide.html` into collapsible panels, so the procedure
+  reads as a nine-line overview and expands one step at a time. Steps keep their own anchors
+  (`#step-6`), expand on print, and work without JavaScript.
+- Rewrote the self-hoster-facing HTML guides in plain language, replacing "OIDC app in your IdP",
+  "container image", "SQLite file" and similar with terms an agency owner installing this themselves
+  would recognise, and defining the operator and Owner/Admin roles where the steps begin. The
+  operator-facing Markdown references keep their existing vocabulary.
+
 ## [0.33.0-alpha.1] — 2026-08-08
 
 This release adds the supported self-hosted password-to-SSO cutover workflow. It preserves existing
@@ -2751,7 +2774,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.1-alpha.1...HEAD
+[0.33.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.0-alpha.1...v0.33.1-alpha.1
 [0.33.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.32.0-alpha.1...v0.33.0-alpha.1
 [0.32.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.4-alpha.1...v0.32.0-alpha.1
 [0.31.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.3-alpha.1...v0.31.4-alpha.1

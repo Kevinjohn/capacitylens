@@ -439,8 +439,9 @@ pnpm run dev:demo     # open http://127.0.0.1:5173</code></pre>
           <span class="pill">Recommended · 5 min</span>
           <h3>Password auth</h3>
           <p>
-            Login wall, one Owner, four roles, invite links. The walkthrough below. SSO/OIDC is the same model with your
-            IdP on top — see <a href="authentication.md">authentication.md</a>.
+            Login wall, one Owner, four roles, invite links. The walkthrough below. Signing in with your company's
+            Google, Microsoft or Okta account instead is the same model with that on top — see
+            <a href="company-login-guide.html">company-login-guide.html</a>.
           </p>
         </div>
       </div>
@@ -465,8 +466,9 @@ SMALLSASS_ACCOUNT_SECRET=&lt;random 32+ chars&gt;      # session signing
 SMALLSASS_ACCOUNT_PUBLIC_URL=https://plan.example.com
 SMALLSASS_ACCOUNT_SETUP_TOKEN=&lt;random 32+ chars&gt; # claims the Owner seat, used once</code></pre>
           <p>
-            Start it with Docker Compose or bare metal — both covered in <a href="self-hosting.md">self-hosting.md</a>.
-            SQLite is the database; there's nothing else to stand up.
+            Start it with Docker Compose or straight on the machine — both covered in
+            <a href="self-hosting.md">self-hosting.md</a>. All the data lives in one file next to the app; there's no
+            separate database to install.
           </p>
         </li>
         <li>
@@ -682,13 +684,16 @@ SMALLSASS_ACCOUNT_SETUP_TOKEN=&lt;random 32+ chars&gt; # claims the Owner seat, 
       </ol>
       <p>
         If it earns its place in that Friday meeting, invite the rest of the studio. If it doesn't, it's one directory
-        and one SQLite file to delete — no offboarding, no export ransom.
+        and one data file to delete — no offboarding, no export ransom.
       </p>
 
       <h3>Going deeper</h3>
       <p>
         <a href="self-hosting.md">self-hosting.md</a> (Docker, upgrades, backups) ·
         <a href="authentication.md">authentication.md</a> (profiles, SSO) ·
+        <a href="company-login-guide.html">company-login-guide.html</a> (signing in with your company's Google,
+        Microsoft or Okta account) · <a href="sso-cutover-guide.html">sso-cutover-guide.html</a> (moving an existing
+        install from passwords to single sign-on) ·
         <a href="onboarding-and-access.md">onboarding-and-access.md</a> (full role matrix and enforcement layers) ·
         <a href="runbook.md">runbook.md</a> (operations).
       </p>
