@@ -28,7 +28,7 @@ for disposable tests.
   multi-company deployments do not receive separate password-work reservations.
 
 The authoritative environment register is `.env.example`. Production deployment and operations
-are documented in `docs/self-hosting.md`, `docs/authentication.md` and `docs/runbook.md`.
+are documented in `docs-src/self-hosting.md`, `docs-src/authentication.md` and `docs-src/runbook.md`.
 
 ## Authentication
 

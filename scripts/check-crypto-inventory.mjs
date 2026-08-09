@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-const inventoryPath = "docs/security/crypto-inventory.json";
+const inventoryPath = "docs-src/security/crypto-inventory.json";
 const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
 const reviewed = new Set(inventory.entries.map((entry) => entry.path));
 
@@ -18,7 +18,7 @@ const trackedFiles = gitFiles(["--cached"]);
 const untrackedFiles = gitFiles(["--others", "--exclude-standard"]);
 
 const excluded =
-  /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide)(?:\/|$)|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$|^docs\/security\/crypto-inventory\.json$/;
+  /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide)(?:\/|$)|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$|^docs-src\/security\/crypto-inventory\.json$/;
 const eligible = /(?:\.[cm]?[jt]sx?|\.sh|\.conf|\.ya?ml|\.json|\.sql|\.py)$/;
 const markers = [
   /(?:from|require\()['"]node:crypto/,

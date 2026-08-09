@@ -26,6 +26,8 @@ export default defineConfig([
     // linting them double-parses every file and confuses the typed parser's tsconfig-root lookup.
     ".stryker-tmp",
     "reports",
+    // Built documentation (`pnpm run docs:build`) — generated HTML/CSS committed at docs/.
+    "docs",
   ]),
 
   // Gate and public runtime scripts are production code too. Keep them on the recommended JS

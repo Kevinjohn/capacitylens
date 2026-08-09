@@ -159,7 +159,7 @@ export default defineConfig({
           },
         ]
       : []),
-    // Phase 6 rehearsal (docs/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
+    // Phase 6 rehearsal (docs-src/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
     // the PRODUCTION build served behind a local /api proxy (scripts/serve-dist.mjs), with
     // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
     // baseURL override is the only difference. Started by hand per the runbook, so the

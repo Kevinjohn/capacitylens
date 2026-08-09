@@ -18,7 +18,7 @@ import { cwd } from "node:process";
 // test guards the supply chain. If an analytics, telemetry, or email package is ever added to any
 // workspace manifest — or pulled in transitively via the root lockfile — this test FAILS LOUDLY,
 // naming the offending package and where it appeared, so the "we send nothing out" claim can't
-// quietly rot as the dependency tree grows. See docs/security/privacy.md.
+// quietly rot as the dependency tree grows. See docs-src/security/privacy.md.
 //
 // Matching is EXACT package name only (no substring matching), so a legitimately-named package
 // (e.g. some hypothetical "react-analytics-table" UI helper) can't be killed by a denylist entry
@@ -57,7 +57,7 @@ const DENYLIST: string[] = [
   "rollbar",
   "logrocket",
 
-  // --- email infrastructure (the product never sends email — see docs/security/privacy.md) ---
+  // --- email infrastructure (the product never sends email — see docs-src/security/privacy.md) ---
   "nodemailer",
   "@sendgrid/mail",
   "@sendgrid/client",

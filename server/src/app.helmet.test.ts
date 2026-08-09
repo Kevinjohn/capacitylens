@@ -70,7 +70,7 @@ describe("P2.7 privacy posture — CSP forbids browser egress (connect-src is se
   // server-to-server — so connect-src legitimately stays 'self'. These assertions are the
   // no-WIDENING guard: if anyone ever adds an external origin (an IdP, an analytics endpoint, a
   // wildcard) to connect-src or default-src, this test fails. Pairs with the dependency-denylist
-  // half in src/test/privacy-posture.test.ts to form the full no-egress proof. See docs/security/privacy.md.
+  // half in src/test/privacy-posture.test.ts to form the full no-egress proof. See docs-src/security/privacy.md.
 
   /** Pull a single directive's full segment ("connect-src 'self'") out of the CSP header. */
   const directive = (csp: string, name: string): string | undefined =>

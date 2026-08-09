@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 // Whitespace-normalized so markdown line wrapping cannot break an exact-phrase pin.
 const page = (path: string) =>
-  readFileSync(fileURLToPath(new URL(`../../docs/${path}`, import.meta.url)), "utf8").replace(/\s+/g, " ");
+  readFileSync(fileURLToPath(new URL(`../../docs-src/${path}`, import.meta.url)), "utf8").replace(/\s+/g, " ");
 
 describe("operator documentation", () => {
   it("includes an executable Compose named-volume restore path", () => {

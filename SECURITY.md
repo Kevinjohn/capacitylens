@@ -35,5 +35,5 @@ recommended for disaster recovery but are optional. The packaged internal nginxâ
 its own per-install TLS identity. Do not expose an auth-off instance to the internet.
 
 The current threat model, control inventories, full OWASP ASVS 5.0.0 ledger and dated review are in
-[`docs/security`](docs/security). They distinguish application guarantees from deployment controls
+[`docs-src/security`](docs-src/security). They distinguish application guarantees from deployment controls
 and list residual gaps; please include the relevant control/finding id in a report when possible.

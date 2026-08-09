@@ -65,7 +65,7 @@ services:
       # UNSET, so an empty value reaches the server and turns backups off. The
       # /backups volume mount below stays either way; it is simply unused then.
       # Deliberately use `-`, not `:-`: unset selects /backups, while an explicitly empty value
-      # disables scheduled backups as documented in docs/self-hosting/backups-and-restore.md.
+      # disables scheduled backups as documented in docs-src/self-hosting/backups-and-restore.md.
       CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR-/backups}
       # Same-origin via the nginx proxy -> CORS stays fail-closed. Override only
       # if you expose the API on a different origin.

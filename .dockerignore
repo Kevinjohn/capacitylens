@@ -43,6 +43,7 @@ test-results
 **/coverage
 **/capacitylens-audit*.jsonl
 docs
+docs-src
 user-stories
 code-reviews
 .issue-fix-state

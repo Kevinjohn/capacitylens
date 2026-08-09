@@ -15,8 +15,8 @@ CapacityLens makes it easy to see who is busy, available or over capacity, then 
 before schedules become problems.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/schedule-dark.png">
-  <img alt="CapacityLens schedule showing people, allocation bars, utilisation, time off and an over-capacity day." src="docs/screenshots/schedule-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs-src/screenshots/schedule-dark.png">
+  <img alt="CapacityLens schedule showing people, allocation bars, utilisation, time off and an over-capacity day." src="docs-src/screenshots/schedule-light.png">
 </picture>
 
 ## What it is
@@ -76,7 +76,7 @@ pnpm run dev
 This starts the web app on `:5173` and the SQLite API on `:8787`. Development mode includes sample
 data; a fresh production instance starts empty.
 
-For a persistent deployment, start with the [self-hosting guide](docs/self-hosting/index.md).
+For a persistent deployment, start with the [self-hosting guide](docs-src/self-hosting/index.md).
 
 ## Stack
 
@@ -103,8 +103,8 @@ in-memory demo adapter.
 - Offline mode is read-only: it never queues or synchronises edits.
 - The SQLite database remains the source of truth.
 
-Read the details in [how sign-in works](docs/company-login/index.md) and
-[offline access](docs/guide/offline-access.md).
+Read the details in [how sign-in works](docs-src/company-login/index.md) and
+[offline access](docs-src/guide/offline-access.md).
 
 ## Checks for contributors
 
@@ -114,36 +114,37 @@ pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and
 pnpm run e2e          # Chromium demo, database and authentication flows
 ```
 
-See [development](docs/reference/development.md#checks) for the enforced coverage/build numbers,
+See [development](docs-src/reference/development.md#checks) for the enforced coverage/build numbers,
 cross-browser checks, mutation scope and GitHub Actions checks.
 
 ## Documentation
 
-The documentation lives at **<https://kevinjohn.github.io/capacitylens/>** — a searchable
-site with step-by-step guides. The same pages are plain Markdown under [`docs/`](docs/),
-readable straight from a checkout or on GitHub.
+The documentation lives at **<https://kevinjohn.github.io/capacitylens/>** — a static
+site with step-by-step guides. The same pages are committed as standalone HTML under
+[`docs/`](docs/) (open `docs/index.html` straight from a checkout, no server needed)
+and as plain Markdown sources under [`docs-src/`](docs-src/), readable on GitHub.
 
 ### Using and operating CapacityLens
 
-- [Getting started](docs/getting-started/what-is-capacitylens.md) — what CapacityLens is, the
+- [Getting started](docs-src/getting-started/what-is-capacitylens.md) — what CapacityLens is, the
   two-minute demo, the five-minute install, invites and roles.
-- [Using CapacityLens](docs/guide/the-schedule.md) — the schedule, people and placeholders,
-  projects and allocations, time off, settings and [offline access](docs/guide/offline-access.md).
-- [Company login (SSO)](docs/company-login/index.md) — how sign-in works, connecting your
+- [Using CapacityLens](docs-src/guide/the-schedule.md) — the schedule, people and placeholders,
+  projects and allocations, time off, settings and [offline access](docs-src/guide/offline-access.md).
+- [Company login (SSO)](docs-src/company-login/index.md) — how sign-in works, connecting your
   provider, and the guided password-to-SSO cutover.
-- [Self-hosting](docs/self-hosting/index.md) — Docker Compose, configuration, TLS, backups,
+- [Self-hosting](docs-src/self-hosting/index.md) — Docker Compose, configuration, TLS, backups,
   upgrades, monitoring and incident response.
-- [Security and privacy](docs/security/index.md) — posture, stored data and operator
+- [Security and privacy](docs-src/security/index.md) — posture, stored data and operator
   responsibilities.
-- [Glossary](docs/reference/glossary.md) — the terms the docs rely on, in plain language.
+- [Glossary](docs-src/reference/glossary.md) — the terms the docs rely on, in plain language.
 
 ### Developing CapacityLens
 
-- [Development guide](docs/reference/development.md) — repository map, checks, test data and local workflows.
+- [Development guide](docs-src/reference/development.md) — repository map, checks, test data and local workflows.
 - [Server README](server/README.md) — API, authorization, persistence and backup boundaries.
-- [Security review](docs/security/security-review-2026-07-14.md) — threat model, remediations,
+- [Security review](docs-src/security/security-review-2026-07-14.md) — threat model, remediations,
   residual risks and complete OWASP mappings.
-- [ASVS 5.0.0 ledger](docs/security/owasp-asvs-5.0.0.md) — every L1–L3 requirement accounted for.
+- [ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) — every L1–L3 requirement accounted for.
 - [Standing decisions](DECISIONS.md) — decisions that shape the product and architecture.
 - [Changelog](CHANGELOG.md) — released and upcoming changes.
 

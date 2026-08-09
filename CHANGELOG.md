@@ -10,6 +10,26 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.35.0-alpha.1] — 2026-08-09
+
+Standalone documentation build. No application behaviour changed.
+
+### Changed
+
+- The documentation build is now truly standalone static HTML: no JavaScript, relative
+  links throughout, and every page opens straight from disk (`docs/index.html`) without a
+  web server. A post-build step (`scripts/docs-standalone.mjs`, no new dependencies)
+  strips the VitePress client scripts and rewrites absolute URLs; the same output still
+  deploys to GitHub Pages. Search and the mobile sidebar menu, which needed JavaScript,
+  are gone.
+- The docs folders swapped roles: the Markdown sources moved from `docs/` to `docs-src/`,
+  and the committed HTML build moved from `site/` to `docs/`.
+
+### Fixed
+
+- Formatted the documentation sources with Prettier; they had slipped past the previous
+  release's format check.
+
 ## [0.34.0-alpha.1] — 2026-08-09
 
 Documentation site. One user-visible wording fix; no behaviour changed.
@@ -2806,7 +2826,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.34.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.0-alpha.1...HEAD
+[0.35.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.34.0-alpha.1...v0.35.0-alpha.1
 [0.34.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.1-alpha.1...v0.34.0-alpha.1
 [0.33.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.0-alpha.1...v0.33.1-alpha.1
 [0.33.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.32.0-alpha.1...v0.33.0-alpha.1

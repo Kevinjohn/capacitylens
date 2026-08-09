@@ -14,14 +14,14 @@ describe("cryptographic inventory file selection", () => {
   it("does not let an inventory entry bless an untracked crypto implementation", () => {
     directory = mkdtempSync(join(tmpdir(), "capacitylens-crypto-inventory-"));
     mkdirSync(join(directory, "scripts"), { recursive: true });
-    mkdirSync(join(directory, "docs/security"), { recursive: true });
+    mkdirSync(join(directory, "docs-src/security"), { recursive: true });
     cpSync(resolve("scripts/check-crypto-inventory.mjs"), join(directory, "scripts/check-crypto-inventory.mjs"));
     writeFileSync(
-      join(directory, "docs/security/crypto-inventory.json"),
+      join(directory, "docs-src/security/crypto-inventory.json"),
       JSON.stringify({ entries: [{ path: "scratch.mjs" }] }),
     );
     execFileSync("git", ["init", "--quiet"], { cwd: directory });
-    execFileSync("git", ["add", "scripts/check-crypto-inventory.mjs", "docs/security/crypto-inventory.json"], {
+    execFileSync("git", ["add", "scripts/check-crypto-inventory.mjs", "docs-src/security/crypto-inventory.json"], {
       cwd: directory,
     });
     writeFileSync(join(directory, "scratch.mjs"), `import { randomBytes } from 'node:crypto'\nrandomBytes(8)\n`);

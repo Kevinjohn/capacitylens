@@ -73,20 +73,21 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 ## Documentation
 
 - `DECISIONS.md` holds standing decisions.
-- `README.md` is public/product-facing; implementation details belong in `docs/reference/development.md`.
-- User-facing docs are a VitePress site under `docs/` (`pnpm run docs:dev` / `docs:build`),
-  deployed by `.github/workflows/docs.yml`. The built static site is committed at `site/` —
-  after any docs change, run `pnpm run docs:build` and commit the regenerated output.
-  Follow `docs/STYLE.md` for any docs change.
-- The operator set lives in `docs/self-hosting/` (install, configuration, TLS, backups,
-  upgrades, monitoring, incidents) and `docs/company-login/` (sign-in modes, SSO cutover).
+- `README.md` is public/product-facing; implementation details belong in `docs-src/reference/development.md`.
+- User-facing docs are Markdown sources under `docs-src/`, built with VitePress plus
+  `scripts/docs-standalone.mjs` into standalone static HTML committed at `docs/`
+  (`pnpm run docs:dev` / `docs:build`), deployed by `.github/workflows/docs.yml`.
+  After any docs change, run `pnpm run docs:build` and commit the regenerated `docs/`.
+  Follow `docs-src/STYLE.md` for any docs change.
+- The operator set lives in `docs-src/self-hosting/` (install, configuration, TLS, backups,
+  upgrades, monitoring, incidents) and `docs-src/company-login/` (sign-in modes, SSO cutover).
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
 
 ## Green gate
 
 Run `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e`. Cross-browser and mutation suites
-are documented in `docs/reference/development.md`. Keep E2E specs browser-agnostic.
+are documented in `docs-src/reference/development.md`. Keep E2E specs browser-agnostic.
 
 ## GitHub CI policy
 

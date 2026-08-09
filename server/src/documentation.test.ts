@@ -38,7 +38,7 @@ describe("standing documentation contracts", () => {
   });
 
   it.each([
-    ["docs/reference/development.md", /`(scripts\/[^`]+\.(?:mjs|js|ts))`/g],
+    ["docs-src/reference/development.md", /`(scripts\/[^`]+\.(?:mjs|js|ts))`/g],
     ["DEFENSIVE-CODING.md", /`((?:shared|server|src)\/[^`]+\.ts)`/g],
   ] as const)("keeps repository paths in %s resolvable", (document, pattern) => {
     const paths = [...read(document).matchAll(pattern)].map((match) => match[1]);
