@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.35.5-alpha.1] — 2026-08-09
+
+Sidebar rework: the administration destinations move out of the day-to-day list, and
+import/export becomes a Settings card. No schema change.
+
 ### Changed
 
 - **The left sidebar now gets out of the way of the actual work.** Its day-to-day destinations —
@@ -27,6 +32,9 @@ new features and **patch** versions carry fixes.
   carries your avatar — your identity provider's picture when it supplied one, your initials
   otherwise. It appears on any auth-enabled deployment as well as the demo build; previously only
   the demo build offered sign-out from the sidebar (#169).
+- Every documentation screenshot that shows the left sidebar was recaptured from the running app,
+  so the docs and the README heroes match the new navigation instead of showing the old mid-list
+  Team & access and the retired sidebar "Data" section.
 
 ## [0.35.4-alpha.1] — 2026-08-09
 
@@ -2911,7 +2919,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...HEAD
+[0.35.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...v0.35.5-alpha.1
 [0.35.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.3-alpha.1...v0.35.4-alpha.1
 [0.35.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.2-alpha.1...v0.35.3-alpha.1
 [0.35.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.1-alpha.1...v0.35.2-alpha.1
