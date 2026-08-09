@@ -1,3 +1,8 @@
+---
+title: Mutation-test security review — 2026-07-15
+description: How the mutation-testing suite's 92.84% score was reviewed for security meaning, and the one defect it caught.
+---
+
 # Mutation-test security review — 2026-07-15
 
 ## Conclusion

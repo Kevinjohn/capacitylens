@@ -1,7 +1,7 @@
 {
   "name": "capacitylens",
   "private": true,
-  "version": "0.33.1-alpha.1",
+  "version": "0.34.0-alpha.1",
   "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
   "author": "Kevinjohn Gallagher",
@@ -44,6 +44,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "test": "pnpm run paraglide:compile && vitest run",
     "test:watch": "pnpm run paraglide:compile && vitest",
     "coverage": "pnpm run paraglide:compile && vitest run --coverage && pnpm run coverage:files",
@@ -115,6 +118,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.64.0",
     "vite": "^8.1.4",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.10"
   }
 }

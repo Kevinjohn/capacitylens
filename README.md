@@ -76,7 +76,7 @@ pnpm run dev
 This starts the web app on `:5173` and the SQLite API on `:8787`. Development mode includes sample
 data; a fresh production instance starts empty.
 
-For a persistent deployment, start with the [self-hosting guide](docs/self-hosting.md).
+For a persistent deployment, start with the [self-hosting guide](docs/self-hosting/index.md).
 
 ## Stack
 
@@ -103,7 +103,8 @@ in-memory demo adapter.
 - Offline mode is read-only: it never queues or synchronises edits.
 - The SQLite database remains the source of truth.
 
-Read the details in [authentication](docs/authentication.md) and [offline access](docs/offline.md).
+Read the details in [how sign-in works](docs/company-login/index.md) and
+[offline access](docs/guide/offline-access.md).
 
 ## Checks for contributors
 
@@ -113,27 +114,32 @@ pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and
 pnpm run e2e          # Chromium demo, database and authentication flows
 ```
 
-See [development](docs/development.md#checks) for the enforced coverage/build numbers,
+See [development](docs/reference/development.md#checks) for the enforced coverage/build numbers,
 cross-browser checks, mutation scope and GitHub Actions checks.
 
 ## Documentation
 
+The documentation lives at **<https://kevinjohn.github.io/capacitylens/>** — a searchable
+site with step-by-step guides. The same pages are plain Markdown under [`docs/`](docs/),
+readable straight from a checkout or on GitHub.
+
 ### Using and operating CapacityLens
 
-- [Features](docs/features.html) — what it does, what ships off by default, and the scaling
-  ladder from solo demo to SSO multi-company. Simple by default, scalable by design.
-- [Setup &amp; first-run guide](docs/setup-guide.html) — an illustrated walkthrough of the demo,
-  the five-minute password-auth install, invites and roles. Plain HTML with screenshots; open it
-  straight from a checkout or serve it as-is.
-- [Self-hosting](docs/self-hosting.md) — Docker Compose, environment variables, upgrades and deployment.
-- [Authentication](docs/authentication.md) — password, social and OIDC modes.
-- [Offline access](docs/offline.md) — device cache behavior and limitations.
-- [Operations runbook](docs/runbook.md) — health checks, backups, restore drills and incidents.
-- [Privacy](docs/privacy.md) — stored data, browser storage and operator responsibilities.
+- [Getting started](docs/getting-started/what-is-capacitylens.md) — what CapacityLens is, the
+  two-minute demo, the five-minute install, invites and roles.
+- [Using CapacityLens](docs/guide/the-schedule.md) — the schedule, people and placeholders,
+  projects and allocations, time off, settings and [offline access](docs/guide/offline-access.md).
+- [Company login (SSO)](docs/company-login/index.md) — how sign-in works, connecting your
+  provider, and the guided password-to-SSO cutover.
+- [Self-hosting](docs/self-hosting/index.md) — Docker Compose, configuration, TLS, backups,
+  upgrades, monitoring and incident response.
+- [Security and privacy](docs/security/index.md) — posture, stored data and operator
+  responsibilities.
+- [Glossary](docs/reference/glossary.md) — the terms the docs rely on, in plain language.
 
 ### Developing CapacityLens
 
-- [Development guide](docs/development.md) — repository map, checks, test data and local workflows.
+- [Development guide](docs/reference/development.md) — repository map, checks, test data and local workflows.
 - [Server README](server/README.md) — API, authorization, persistence and backup boundaries.
 - [Security review](docs/security/security-review-2026-07-14.md) — threat model, remediations,
   residual risks and complete OWASP mappings.

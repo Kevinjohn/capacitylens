@@ -10,6 +10,38 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.34.0-alpha.1] — 2026-08-09
+
+Documentation site. One user-visible wording fix; no behaviour changed.
+
+### Added
+
+- Rebuilt the documentation as a VitePress site under `docs/` (committed build in `site/`,
+  deployed to GitHub Pages by the new `docs.yml` workflow). The disparate Markdown and HTML
+  guides became one navigable site: Getting started, Using CapacityLens, Company login (SSO),
+  Self-hosting, Security and privacy, and Reference sections, with local search, breadcrumbs
+  and a glossary. `docs/STYLE.md` records the writing standard.
+- Added `docs/self-hosting/install-without-docker.md`, a bare-metal walkthrough (Node 24,
+  systemd unit, nginx examples), nginx/Caddy reverse-proxy examples in TLS and networking,
+  Docker equivalents for the incident-recovery commands, and the audit-file variables to the
+  configuration reference.
+- Added screenshots throughout, captured from the access lab: the Projects page, allocation
+  forms, resource forms, time-off draw mode, team access and the SSO connect/cutover flows.
+
+### Changed
+
+- Replaced the standalone HTML guides (`setup-guide.html`, `company-login-guide.html`,
+  `sso-cutover-guide.html`, `features.html`) and the flat operator Markdown files with the
+  site's pages; repository references now point at the new paths.
+- One tone-of-voice and terminology pass across every page: consistent en-GB spelling,
+  "company login provider" per the style guide's word table, and "company" wherever the
+  internal word "account" had leaked into user-facing prose.
+
+### Fixed
+
+- The offline-access setting description now says "the last company you opened" instead of
+  "the last account you opened", matching the product's user-facing vocabulary.
+
 ## [0.33.1-alpha.1] — 2026-08-08
 
 Documentation only. No product code changed.
@@ -2774,7 +2806,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.34.0-alpha.1...HEAD
+[0.34.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.1-alpha.1...v0.34.0-alpha.1
 [0.33.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.0-alpha.1...v0.33.1-alpha.1
 [0.33.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.32.0-alpha.1...v0.33.0-alpha.1
 [0.32.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.31.4-alpha.1...v0.32.0-alpha.1

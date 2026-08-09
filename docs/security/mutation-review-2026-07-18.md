@@ -1,3 +1,8 @@
+---
+title: Mutation-test review — 2026-07-18
+description: A follow-up mutation-testing pass after fixing test-scope drift, scoring 92.37% with no runner errors.
+---
+
 # Mutation-test review — 2026-07-18
 
 ## Conclusion

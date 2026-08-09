@@ -1,0 +1,264 @@
+---
+title: Glossary
+description: The plain-language meaning of every term these docs use, from account to user.
+---
+
+# Glossary
+
+Every jargon word in these docs links here the first time it appears. This page is the
+full list, in plain language, with a link to where each term is covered in depth.
+
+## account
+
+An account is CapacityLens's internal name for a company workspace — the isolated set of
+clients, projects, people and schedule data one team works in. Day-to-day, these docs call
+it a company: an installation can host one company, or several once multi-company is
+turned on, each fully separated on every request. One screen uses the word in its
+everyday sense instead: the first-run "Create the owner account" form, where it means
+the Owner's own sign-in. See
+[Roles and permissions](/getting-started/roles-and-permissions).
+
+## activity
+
+An activity is the specific thing a person is booked to do on an allocation —
+project-specific, internal (not tied to a project), or cross-project, like general
+account management. See [Projects and allocations](/guide/projects-and-allocations).
+
+## admin
+
+Admin is the second-highest of the four roles a member can hold in a company, below Owner
+and above Editor and Viewer. An Admin can invite and manage other members, see time-off
+notes, and restore or purge archived data — but cannot touch the Owner or transfer
+ownership. See [Roles and permissions](/getting-started/roles-and-permissions).
+
+## allocation
+
+An allocation is a block of work placed on the schedule for a person: a project, a date
+range, and a status of tentative, confirmed or completed. Dragging out three days of a
+designer's time on a project is one allocation. See
+[Projects and allocations](/guide/projects-and-allocations).
+
+## break-glass
+
+Break-glass is the fast, deliberate rollback from single sign-on back to mixed mode
+(passwords and company login both) if something goes wrong after cutover: change two
+settings back and restart. Passwords are kept, not deleted, during an SSO-only cutover for
+exactly this reason. See
+[Move from passwords to single sign-on](/company-login/move-to-single-sign-on).
+
+## claims
+
+Claims are the facts an identity provider reports about a person during company
+login — their email address, whether that email is verified, and a stable ID that
+doesn't change. CapacityLens relies on these to admit someone and keep their sign-in
+linked to the same person. See
+[Set up your company login](/company-login/set-up-company-login).
+
+## client secret
+
+A client secret is the private, random string an identity provider issues alongside a
+client ID, proving that sign-in requests really come from your CapacityLens server.
+It's usually shown once and should be treated like a root password. See
+[Set up your company login](/company-login/set-up-company-login).
+
+## company login
+
+Company login is the everyday name for signing in through the identity provider your
+organisation already uses for email — Google Workspace, Microsoft Entra, Okta or similar —
+instead of a CapacityLens-specific password. See [How sign-in works](/company-login/).
+
+## cutover
+
+Cutover is the moment a self-hosted installation switches from mixed mode to
+company-login only, closing the password door for good. It happens once every active
+member is connected and the readiness check passes. See
+[Move from passwords to single sign-on](/company-login/move-to-single-sign-on).
+
+## demo mode
+
+Demo mode is the in-memory, nothing-to-install version of CapacityLens: a fictional
+two-company sample dataset that resets on every reload and has no real logins, memberships
+or roles. It's what [Try the demo](/getting-started/try-the-demo) runs.
+
+## discipline
+
+A discipline is a category people are grouped by across the app — Design,
+Development, and so on — used for filtering and for per-discipline utilisation
+figures. Turned on by default. See [Settings](/guide/settings).
+
+## external party
+
+An external party is a non-capacity-tracked resource on the schedule, such as a
+print shop or a subcontractor, that can be booked without counting toward anyone's
+utilisation. Off by default. See [Settings](/guide/settings).
+
+## identity provider
+
+An identity provider (IdP) is the outside system that checks a person's password or company
+login and tells CapacityLens who they are — Google, Microsoft Entra, Okta or Keycloak, for
+example. These docs use the everyday name, company login, wherever possible; see
+[How sign-in works](/company-login/).
+
+## invite
+
+An invite is a single-use link an Owner or Admin creates for a specific role, and optionally
+a specific email address, so someone can join a company. CapacityLens shows the link once
+and never emails it — the person who creates it has to send it themselves. See
+[Invite your team](/getting-started/invite-your-team).
+
+## issuer
+
+The issuer is the exact web address an identity provider uses to identify itself in
+its discovery document. CapacityLens compares it character for character against the
+address you configure, and refuses to start if they don't match. See
+[Set up your company login](/company-login/set-up-company-login).
+
+## link (accounts)
+
+Linking is the step where a signed-in person connects their password identity to their
+company login provider, proving the two are the same person before single sign-on can take
+over. Linking keeps the person's existing membership, role and scheduling history
+untouched. See
+[Move from passwords to single sign-on](/company-login/move-to-single-sign-on).
+
+## member
+
+A member is a person's membership in one company: an identity, a role and a status, scoped
+to that company alone. Being a member doesn't automatically put someone on the schedule,
+and being on the schedule doesn't automatically make someone a member — CapacityLens keeps
+these as deliberately separate records. See
+[Roles and permissions](/getting-started/roles-and-permissions).
+
+## MFA / TOTP
+
+MFA (multi-factor authentication) is a second proof of identity beyond a password. TOTP
+(time-based one-time password) is the six-digit authenticator-app code CapacityLens uses
+for it. An operator can require MFA for every password sign-in with one setting. See
+[Security overview](/security/).
+
+## mixed mode
+
+Mixed mode is the deployment setting where password sign-in and company login are
+both switched on at once, so people can connect their company login account before
+the password door closes. It's a supported way to run CapacityLens permanently, not
+just a migration stage. See
+[Move from passwords to single sign-on](/company-login/move-to-single-sign-on).
+
+## OIDC
+
+OIDC (OpenID Connect) is the technical standard CapacityLens's single sign-on is built on —
+the jargon behind the everyday phrase company login. See
+[Set up your company login](/company-login/set-up-company-login).
+
+## owner
+
+The Owner is the one person per company with full control: the only role that can delete
+the company, replace its whole dataset, or transfer ownership. Every company has exactly
+one Owner, and no Admin can reset an Owner's password or remove them. See
+[Roles and permissions](/getting-started/roles-and-permissions).
+
+## password mode
+
+Password mode is the setting where people sign in with an email and password stored by
+CapacityLens itself, rather than through a company login provider. It's the default for a
+new self-hosted install. See [Configuration](/self-hosting/configuration).
+
+## person
+
+A person is a schedulable resource — someone who can receive allocations and time off on
+the schedule. A person doesn't need a CapacityLens login: you can schedule a freelancer, or
+a role you haven't hired yet, without ever inviting them as a member. See
+[People and placeholders](/guide/people-and-placeholders).
+
+## PKCE
+
+PKCE is an extra check built into the sign-in handshake that stops a stolen sign-in
+code being reused by someone else. CapacityLens requires it from every identity
+provider it connects to. See
+[Set up your company login](/company-login/set-up-company-login).
+
+## placeholder
+
+A placeholder is an unfilled slot you pencil into the schedule before a role is hired or
+assigned — a way to plan for work you know is coming without naming a real person yet. See
+[People and placeholders](/guide/people-and-placeholders).
+
+## readiness
+
+Readiness is what the SSO cutover readiness panel in Team & access reports: whether
+every active member of a company has connected their company login account, so
+cutover can happen without locking anyone out. The same check runs as a command an
+operator can run before cutover. See
+[Move from passwords to single sign-on](/company-login/move-to-single-sign-on).
+
+## redirect URI
+
+A redirect URI (also called a callback URL) is the exact web address your identity
+provider sends someone back to once they've signed in. It has to match your
+CapacityLens address character for character, or the first sign-in click fails. See
+[Set up your company login](/company-login/set-up-company-login).
+
+## role
+
+A role is what a member is allowed to do in a company: Viewer, Editor, Admin or Owner, each
+able to do everything the role below it can plus more. Roles are set per company, so the
+same person can be an Editor in one company and a Viewer in another. See
+[Roles and permissions](/getting-started/roles-and-permissions).
+
+## schedule
+
+The schedule is the single week-by-week grid at the centre of CapacityLens, showing every
+person's allocations and time off, zoomable from one to eight weeks. See
+[The schedule](/guide/the-schedule).
+
+## session
+
+A session is the period between signing in and signing out, or timing out, tracked by
+CapacityLens on the server. A session lasts at most twelve hours and ends after thirty
+minutes of inactivity, whichever comes first. See [Security overview](/security/).
+
+## single sign-on (SSO)
+
+Single sign-on (SSO) lets people sign in to CapacityLens with the same account they use for
+the rest of their company's tools, instead of a separate password. It's the formal name for
+what these docs call company login. See [How sign-in works](/company-login/).
+
+## snapshot (offline)
+
+A snapshot is the read-only copy of a company's schedule CapacityLens stores on your device
+when offline access is turned on, so you can check it without a connection. Snapshots expire
+after seven days and never accept edits. See [Offline access](/guide/offline-access).
+
+## social sign-in
+
+Social sign-in is the experimental "Continue with Google/Microsoft/GitHub" button, separate
+from company login. After a company has moved to single sign-on, a social button can let an
+existing person sign in, but it can't create a new one. See
+[How sign-in works](/company-login/).
+
+## SQLite / the database
+
+SQLite is the single-file database CapacityLens stores everything in — every company,
+person, allocation and audit entry. Self-hosting keeps that one file, plus its backups, on
+persistent storage. See [Backups and restore](/self-hosting/backups-and-restore).
+
+## time off
+
+Time off is a block on the schedule marking a person unavailable — holiday, sick leave or
+unpaid leave — drawn onto the same canvas as their work so capacity stays honest. See
+[Time off](/guide/time-off).
+
+## user
+
+A user is a login identity: the record that lets someone sign in at all, scoped to the
+whole installation rather than to one company. One user can be a member of several
+companies, each with a different role — and a user existing doesn't put anyone on the
+schedule; a person and a member are separate records for that. See
+[Invite your team](/getting-started/invite-your-team).
+
+## utilisation
+
+Utilisation is how much of a person's available time is booked with allocations,
+shown as a percentage. CapacityLens can show total, per-discipline and personal
+utilisation figures, and some scheduling modes let work be booked without counting
+toward it. See [Settings](/guide/settings).

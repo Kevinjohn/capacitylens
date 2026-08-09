@@ -1,3 +1,8 @@
+---
+title: Security control inventories
+description: Entry points, sensitive-data classes, the cryptographic inventory, service limits and audit events — dated 2026-07-14.
+---
+
 # Security control inventories
 
 Version: 2026-07-14. These inventories support ASVS architecture requirements; they are not a

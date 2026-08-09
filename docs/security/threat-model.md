@@ -1,3 +1,8 @@
+---
+title: CapacityLens threat model
+description: The security objectives, assets, actors, abuse cases and accepted risks that shape CapacityLens's design.
+---
+
 # CapacityLens threat model
 
 Version: 2026-07-14. Review this model after changes to authentication, tenancy, imports, offline

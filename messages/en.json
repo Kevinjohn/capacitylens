@@ -668,7 +668,7 @@
   "settings_clear_desc_server": "Clears offline snapshots and {app} preferences cached in this browser. Your company data lives in the database and is safe. This cannot be undone for this browser.",
   "settings_clear_confirm_server": "This permanently clears offline snapshots and {app} preferences stored in THIS browser, and cannot be undone. Your company data lives in the database and is safe.",
   "settings_offline_heading": "Offline access",
-  "settings_offline_description": "Keep the last account you opened available on this device for seven days. Offline access is view only: changes are disabled and nothing is queued for later.",
+  "settings_offline_description": "Keep the last company you opened available on this device for seven days. Offline access is view only: changes are disabled and nothing is queued for later.",
   "settings_offline_toggle": "Make this device available offline",
   "settings_offline_enabled_notice": "Offline access is enabled on this device.",
   "settings_offline_disabled_notice": "Offline data was removed from this device.",

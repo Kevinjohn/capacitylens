@@ -66,3 +66,6 @@ CapacityLens.md
 loop-workflow.md
 flow-review.md
 _code-review-2026-07-17-below-cap.md
+
+# VitePress (build output lives in the committed site/ folder)
+docs/.vitepress/cache

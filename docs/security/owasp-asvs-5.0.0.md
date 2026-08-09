@@ -1,3 +1,8 @@
+---
+title: OWASP ASVS 5.0.0 complete control ledger
+description: Every one of the 345 ASVS 5.0.0 requirements, assessed as Pass, Partial, Gap or Not Applicable, dated 2026-07-14.
+---
+
 # OWASP ASVS 5.0.0 complete control ledger
 
 Assessment date: 2026-07-14; posture updated 2026-07-15. Target: ASVS Level 2 when optional hardening

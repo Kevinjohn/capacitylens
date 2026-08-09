@@ -1,0 +1,33 @@
+/* Plain, light, text-first — tuned toward classic documentation sites.
+   Brand blue mirrors src/index.css so the docs read as part of the product. */
+:root {
+  --vp-c-brand-1: #2563eb;
+  --vp-c-brand-2: #1d4ed8;
+  --vp-c-brand-3: #3b82f6;
+  --vp-c-brand-soft: rgba(37, 99, 235, 0.14);
+}
+
+.dark {
+  --vp-c-brand-1: #60a5fa;
+  --vp-c-brand-2: #3b82f6;
+  --vp-c-brand-3: #2563eb;
+  --vp-c-brand-soft: rgba(96, 165, 250, 0.16);
+}
+
+/* Keep body copy at a comfortable reading measure. */
+.vp-doc {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* Screenshots: bordered, never wider than the text column. */
+.vp-doc img {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  max-width: 100%;
+}
+
+/* Step results quoted after a command read quieter than the command itself. */
+.vp-doc blockquote {
+  font-size: 0.9375rem;
+}

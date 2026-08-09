@@ -1,3 +1,8 @@
+---
+title: Security review — 2026-07-14
+description: A point-in-time source-code security review against OWASP ASVS 5.0.0, with findings, remediations and residual risks.
+---
+
 # Security review — 2026-07-14 (deployment posture updated 2026-07-15)
 
 ## Executive conclusion
@@ -11,7 +16,7 @@ enforcement. Higher-assurance hardware authentication, adaptive device/location 
 HSM/full-memory encryption and deployer-provided controls remain outside the application guarantee.
 
 The target is OWASP ASVS 5.0 Level 2 when optional hardening is enabled, with Level 3 controls
-assessed rather than ignored. The companion [complete ASVS ledger](owasp-asvs-5.0.0.md) accounts for
+assessed rather than ignored. The companion [complete ASVS ledger](/security/owasp-asvs-5.0.0) accounts for
 all 345 requirements as Pass, Partial, Gap or Not Applicable. Password-only deployments are below
 the strict L2 authentication target by explicit product-policy choice.
 
@@ -122,7 +127,7 @@ data sensitivity or user population changes.
 | Governance        | Security policy, full ASVS ledger, data/crypto/log/third-party inventory, public disclosure channel                                                                                                | Define deployment-specific risk owner, metrics and annual policy/exception review                      |
 | Design            | Threat model, architecture/tenant invariants, privacy and defensive-coding standards                                                                                                               | Add automated abuse-case review to major architecture changes and provider-specific assurance profiles |
 | Implementation    | Shared validation core, code review gates, lockfile, secret scan, SAST, dependency review, SBOM/provenance                                                                                         | Add signed container publication and enforced branch protections when public                           |
-| Verification      | Unit/integration/mutation/cross-browser E2E, authorization regressions, restore drill, container scan and ZAP; survivor triage is recorded in the [mutation review](mutation-review-2026-07-15.md) | Commission an independent authenticated penetration test against the release deployment                |
+| Verification      | Unit/integration/mutation/cross-browser E2E, authorization regressions, restore drill, container scan and ZAP; survivor triage is recorded in the [mutation review](/security/mutation-review-2026-07-15) | Commission an independent authenticated penetration test against the release deployment                |
 | Operations        | Production guard, typed forwarding, restrictive files/containers, backup and incident runbooks                                                                                                     | Exercise incident/log/restore procedures with the real collector, IdP and encrypted backup destination |
 
 ## Maintenance and remediation policy

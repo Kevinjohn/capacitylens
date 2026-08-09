@@ -33,7 +33,7 @@ afterEach(() => {
 // backup: this exercises the WHOLE recovery path end to end so the restore SEQUENCE itself is
 // continuously verified by `pnpm run gate:server`, not just on a one-off manual run on the droplet.
 //
-// The cycle mirrors docs/runbook.md's "Restore" section EXACTLY: snapshot the live DB → make an
+// The cycle mirrors docs/self-hosting/backups-and-restore.md's "Restore" section EXACTLY: snapshot the live DB → make an
 // edit AFTER the snapshot (work the backup can't have captured) → simulate disaster by corrupting
 // the live file → restore by copying the snapshot over it and removing the WAL/SHM sidecars → open
 // and verify. The two assertions below are deliberately NON-VACUOUS: the corrupt live DB must fail

@@ -379,7 +379,7 @@ function setupTokenMatches(configured: string | undefined, presented: string | n
 }
 
 // ── Admin-issued password-reset links (P1.18) ──────────────────────────────────────────────────
-// CapacityLens deliberately has NO email infrastructure (docs/self-hosting.md — a standing
+// CapacityLens deliberately has NO email infrastructure (docs/security/privacy.md — a standing
 // non-goal), so Better Auth's reset flow is repurposed: `sendResetPassword` (the "send the email"
 // hook) doesn't send anything — it CAPTURES the minted token and hands it back to the admin-gated
 // route, which returns it exactly once (the invite-link pattern: write-once, distributed
