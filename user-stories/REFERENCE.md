@@ -620,7 +620,7 @@ active company; the refreshed company directory remains available for normal acc
 single polite status announces checking, readiness, joining and completion; accepting moves focus
 to that status, and completed activation moves focus to **Continue**.
 An accept by someone whose membership in that company is **disabled or archived** is refused
-(403) with _"This membership is disabled. An Owner or Admin must restore it before you can
+(403) with _"This membership is no longer active. An Owner or Admin must restore it before you can
 rejoin."_ — redemption must never be a route back in for a member an administrator turned off, and
 the invite is left unused so it still works once the membership is restored. A
 **used** link shows _"This invite has already been used."_; an

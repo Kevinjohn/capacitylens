@@ -37,7 +37,7 @@
   "access_not_applicable_summary": "Select a company to view its membership role and access details.",
   "access_unavailable_label": "Access unavailable",
   "access_unavailable_summary": "Your company role could not be verified. Editing remains disabled; retry or reload when the server is available.",
-  "access_role_owner_summary": "Full company access. You are the single Owner and can explicitly transfer ownership to another member.",
+  "access_role_owner_summary": "Full company access. You are the single Owner of this company.",
   "access_role_admin_summary": "Can edit the schedule, manage members and invites, and see time-off notes. Cannot see private real names or transfer ownership.",
   "access_role_editor_summary": "Can edit scheduling data. Cannot manage access, see time-off notes, or see private real names.",
   "access_role_viewer_summary": "Read-only schedule access. Cannot edit, manage access, see time-off notes, or see private real names.",

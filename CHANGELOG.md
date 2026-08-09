@@ -46,7 +46,9 @@ new features and **patch** versions carry fixes.
   Actions. Each row ends in a pencil that changes the role and a gear holding the rest. (#175)
 - **The per-member transfer-ownership button is gone.** Handing a company over is a rare, deliberate
   act and no longer sits on every row; the owner-only API operation is unchanged, and transfer will
-  get its own section in a follow-up. (#175)
+  get its own section in a follow-up. Your access no longer offers to transfer ownership either — it
+  now reads "Full company access. You are the single Owner of this company.", because promising a
+  control that has no screen behind it is worse than saying nothing. (#175)
 
 ## [0.35.5-alpha.1] — 2026-08-09
 

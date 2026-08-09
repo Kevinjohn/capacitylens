@@ -546,7 +546,9 @@ export function sqliteAccountAdminPort(input: {
     if (existing && existing.status !== "active") {
       throw failure(
         "FORBIDDEN",
-        "This membership is disabled. An Owner or Admin must restore it before you can rejoin.",
+        // Covers disabled AND archived, so it names neither: the person redeeming the link has no
+        // business knowing which, and an inaccurate "disabled" on an archived row would be worse.
+        "This membership is no longer active. An Owner or Admin must restore it before you can rejoin.",
         input.command.commandId,
       );
     }
