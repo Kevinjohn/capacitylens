@@ -33,15 +33,15 @@
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
     "@fastify/helmet": "^13.1.0",
-    "@fastify/rate-limit": "^11.1.0",
-    "better-auth": "1.6.23",
-    "fastify": "^5.10.0",
-    "jose": "6.2.3"
+    "@fastify/rate-limit": "^11.2.0",
+    "better-auth": "1.6.26",
+    "fastify": "^5.11.2",
+    "jose": "6.2.8"
   },
   "devDependencies": {
     "@types/node": "^24.12.3",
     "esbuild": "0.28.1",
-    "tsx": "4.23.1",
+    "tsx": "4.23.8",
     "typescript": "~6.0.2"
   }
 }
