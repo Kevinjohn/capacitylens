@@ -75,8 +75,9 @@ describe("Compose exceptions in the environment register", () => {
   });
 
   it("keeps private local reference material out of the Docker build context", () => {
+    const ignoredLines = dockerIgnore.split("\n").map((line) => line.trim());
     for (const path of ["/_input/", "/to-my-siblings/"]) {
-      expect(dockerIgnore, path).toMatch(new RegExp(`^${path.replace(/[/]/g, "\\/")}$`, "m"));
+      expect(ignoredLines, path).toContain(path);
     }
   });
 });
