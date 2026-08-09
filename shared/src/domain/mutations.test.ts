@@ -175,6 +175,13 @@ describe("assertScopedRefs", () => {
     );
   });
 
+  it("rejects a non-string reference id", () => {
+    const data = { ...base(), clients: [client("c1", A1)] };
+    expect(() => assertScopedRefs(data, A1, "projects", { clientId: 1 })).toThrow(
+      "Project must reference a client in this company.",
+    );
+  });
+
   it("rejects a new reference to an archived parent at the generic scoped write boundary", () => {
     const archivedClient = { ...client("c1", A1), archivedAt: TS };
     const data = { ...base(), clients: [archivedClient] };

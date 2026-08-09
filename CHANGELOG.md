@@ -10,6 +10,16 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.35.2-alpha.1] — 2026-08-09
+
+Mutation-testing follow-up. No application behaviour changed.
+
+### Added
+
+- Direct unit coverage for `isDomainErrorCode` and `DomainError` (name, code, message), and for
+  `assertScopedRefs` rejecting a non-string reference id — closing gaps a Stryker mutation run
+  found in `shared/src/domain/errors.ts` and `mutations.ts`.
+
 ## [0.35.1-alpha.1] — 2026-08-09
 
 Documentation tooling housekeeping. No application behaviour changed.
@@ -2841,7 +2851,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.2-alpha.1...HEAD
+[0.35.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.1-alpha.1...v0.35.2-alpha.1
 [0.35.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.0-alpha.1...v0.35.1-alpha.1
 [0.35.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.34.0-alpha.1...v0.35.0-alpha.1
 [0.34.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.1-alpha.1...v0.34.0-alpha.1
