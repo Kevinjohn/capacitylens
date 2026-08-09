@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import { isAccountRole, isMembershipStatus, type MembershipStatus, type Role } from "@capacitylens/shared/account/types";
+import {
+  isAccountRole,
+  isMembershipStatus,
+  type MembershipStatus,
+  type Role,
+} from "@capacitylens/shared/account/types";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
 import { revokeResetTokensForUser } from "./auth";

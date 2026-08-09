@@ -90,9 +90,7 @@ describe("canChangeMemberStatus(actor, target, isSelf) — disable/archive/resto
     // any divergence here would be a way to reach a target you are not allowed to remove.
     for (const actor of ROLES) {
       for (const target of ROLES) {
-        expect(canChangeMemberStatus(actor, target, false), `${actor}->${target}`).toBe(
-          canRemoveMember(actor, target),
-        );
+        expect(canChangeMemberStatus(actor, target, false), `${actor}->${target}`).toBe(canRemoveMember(actor, target));
       }
     }
   });

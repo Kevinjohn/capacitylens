@@ -990,7 +990,9 @@ export function sqliteAccountAdminPort(input: {
             throw failure("FORBIDDEN", "Forbidden.", command.commandId);
           if (!setMemberStatus(db, workspaceId, targetPrincipalId, nextStatus))
             throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
-          const row = listMembersForAccount(db, workspaceId).find((candidate) => candidate.userId === targetPrincipalId)!;
+          const row = listMembersForAccount(db, workspaceId).find(
+            (candidate) => candidate.userId === targetPrincipalId,
+          )!;
           return membership(db, row);
         },
       });

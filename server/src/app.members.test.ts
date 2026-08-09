@@ -1156,8 +1156,7 @@ const patchStatusReq = (
 const storedStatus = (db: Db, accountId: string, userId: string): string | undefined =>
   (
     db.prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`).get(accountId, userId) as
-      | { status: string }
-      | undefined
+      { status: string } | undefined
   )?.status;
 
 describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", () => {
@@ -1175,7 +1174,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
   it("disables a member, and the disabled member can no longer enter the account", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("disable");
     // Precondition: the editor can read a1 today.
-    expect((await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode).toBe(200);
+    expect(
+      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
+    ).toBe(200);
 
     const res = await patchStatusReq(app, "a1", ed.userId, "disabled", { cookie: owner.cookie });
     expect(res.statusCode).toBe(200);
@@ -1269,7 +1270,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     const a2member = await signUp(app, "a2member-status@capacitylens.dev");
     upsertMember(db, { accountId: "a2", userId: a2member.userId, role: "editor", status: "active", createdAt: TS });
 
-    expect((await patchStatusReq(app, "a2", a2member.userId, "disabled", { cookie: a1owner.cookie })).statusCode).toBe(403);
+    expect((await patchStatusReq(app, "a2", a2member.userId, "disabled", { cookie: a1owner.cookie })).statusCode).toBe(
+      403,
+    );
     expect(storedStatus(db, "a2", a2member.userId)).toBe("active");
   });
 
@@ -1285,7 +1288,9 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
   it("404s for a principal who is not a member of the account", async () => {
     const { app, owner } = await ownerAndEditor("missing");
     const outsider = await signUp(app, "outsider-status@capacitylens.dev");
-    expect((await patchStatusReq(app, "a1", outsider.userId, "disabled", { cookie: owner.cookie })).statusCode).toBe(404);
+    expect((await patchStatusReq(app, "a1", outsider.userId, "disabled", { cookie: owner.cookie })).statusCode).toBe(
+      404,
+    );
   });
 
   it("a session-less request is 401", async () => {
