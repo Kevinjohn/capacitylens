@@ -38,7 +38,8 @@ test.describe("CRUD + demo lifecycle", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("RoundTrip Co")).toBeVisible();
 
-    // Export and capture the downloaded file.
+    // Export and capture the downloaded file. Import/export lives in a Settings card now (#169).
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     const downloadPromise = page.waitForEvent("download");
     await page.getByTestId("export-data").click();
     const file = await (await downloadPromise).path();
@@ -52,6 +53,7 @@ test.describe("CRUD + demo lifecycle", () => {
     await expect(page.getByText("RoundTrip Co")).toHaveCount(0);
 
     // Importing the file restores it — confirm the replace in the dialog first.
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByTestId("import-input").setInputFiles(file);
     await expect(page.getByRole("alertdialog", { name: "Import data?" })).toBeVisible();
     await page.getByRole("button", { name: "Replace data" }).click();

@@ -47,8 +47,9 @@ phone-ish size (≤ 767px wide, or ≤ 480px tall for landscape).
   labelled links, and choosing one navigates and closes the sheet.
 - ✅ In compact landscape (> 767px wide but ≤ 480px tall), the persistent sidebar starts in icon
   mode when no choice is stored. On a normal desktop it starts open.
-- ✅ Icon mode: link labels, the company block and Export/Import are hidden; nine destination
-  icons show, each revealing its section label as an instant hover label to its right.
+- ✅ Icon mode: link labels and the account block are hidden; nine destination icons show —
+  seven working destinations, then the pinned **Team & access** / **Settings** pair below the
+  divider — each revealing its section label as an instant hover label to its right.
 - ✅ Activating an icon-mode destination navigates directly and leaves the sidebar collapsed.
 - ✅ Icon-mode destinations remain keyboard-focusable links with the same accessible label as
   their expanded form. Their decorative SVGs and the separate drag/click **SidebarRail** are

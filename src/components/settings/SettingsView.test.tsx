@@ -202,6 +202,22 @@ describe("SettingsView — build stamp", () => {
   });
 });
 
+describe("SettingsView — Import & export card (issue #169)", () => {
+  it("renders the import/export tools as the LAST card on the page", () => {
+    render(<SettingsView />);
+
+    expect(screen.getByRole("heading", { name: "Import & export" })).toBeInTheDocument();
+    expect(screen.getByTestId("export-data")).toHaveTextContent("Export JSON");
+    expect(screen.getByTestId("import-data")).toHaveTextContent("Import JSON");
+    expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
+
+    // Last card, not merely present: the whole point of the move was that this administrative,
+    // destructive-on-import tool is something you scroll to on purpose.
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings.at(-1)).toBe("Import & export");
+  });
+});
+
 describe("SettingsView — Account section (auth)", () => {
   it("renders no Account section by default (auth off / demo build — today's Settings)", () => {
     render(<SettingsView />);

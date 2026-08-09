@@ -16,7 +16,7 @@ import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
 import type { Filters } from "../store/useStore";
 import { cn } from "@/lib/utils";
-import { LINKS } from "../lib/navLinks";
+import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -300,8 +300,12 @@ function buildItems({
   // ── Pages ──────────────────────────────────────────────────────────────────
   // Derive page destinations from the same source as the sidebar navigation. New first-class
   // routes therefore cannot silently appear in navigation while being absent from the palette.
-  const pages: PaletteItem[] = LINKS.filter(([to]) => disciplinesEnabled || to !== "/disciplines").map(
-    ([to, label]) => ({
+  // BOTH nav groups: the admin destinations (Team & access, Settings) are merely pinned to the
+  // bottom of the sidebar (issues #169/#172) — they are still first-class routes, and dropping them
+  // here would quietly remove the keyboard-only way to reach them.
+  const pages: PaletteItem[] = [...LINKS, ...ADMIN_LINKS]
+    .filter(([to]) => disciplinesEnabled || to !== "/disciplines")
+    .map(([to, label]) => ({
       id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
       label: label(),
       sublabel: to,
@@ -310,8 +314,7 @@ function buildItems({
         void navigate(to);
         onClose();
       },
-    }),
-  );
+    }));
 
   const filteredPages = q ? fuzzyFilter(pages, q, (p) => p.label).slice(0, SECTION_LIMIT) : pages;
 

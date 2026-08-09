@@ -216,11 +216,52 @@ describe("AppShell navigation links", () => {
     expect(screen.getByText("CapacityLens")).toBeInTheDocument();
   });
 
-  it("renders Export and Import buttons", () => {
+  // Issue #169: import/export left the sidebar for a Settings card. Nothing in the shell may
+  // resurrect it — the whole point was to stop it occupying permanent nav real estate.
+  it("does NOT render the import/export tools in the sidebar", () => {
     renderAppShell();
 
-    expect(screen.getByTestId("export-data")).toBeInTheDocument();
-    expect(screen.getByTestId("import-data")).toBeInTheDocument();
+    expect(screen.queryByTestId("settings-data-tools")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("import-data")).not.toBeInTheDocument();
+  });
+
+  // Issue #169: the bottom-left identity control. The demo persona is signed in here (isDemoMode is
+  // mocked true above and authMode defaults to "off"), so the avatar'd button ends the demo session.
+  it("offers an avatar'd sign-out below Switch company", () => {
+    renderAppShell();
+
+    const signOut = screen.getByTestId("nav-sign-out");
+    expect(signOut).toHaveTextContent("Sign out");
+    expect(signOut).toHaveAttribute("title", "Signed in as Jordan Avery");
+    expect(signOut.querySelector("[data-slot='avatar']")).not.toBeNull();
+
+    expect(useStore.getState().fakeSignedIn).toBe(true);
+    fireEvent.click(signOut);
+    expect(useStore.getState().fakeSignedIn).toBe(false);
+  });
+
+  // Issues #169/#172: Team & access and Settings are pinned BELOW the day-to-day destinations, in
+  // that order, so administration stops competing with the app's actual purpose. Assert the real
+  // document order rather than mere presence — presence alone would pass with the old layout.
+  it("pins Team & access and Settings, in that order, after every other destination", () => {
+    renderAppShell();
+
+    // Scoped to the nav landmark so the skip-to-content link above the sidebar stays out of it.
+    const order = within(screen.getByRole("navigation"))
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+    expect(order).toEqual([
+      "/",
+      "/resources",
+      "/disciplines",
+      "/clients",
+      "/projects",
+      "/activities",
+      "/timeoff",
+      "/team",
+      "/settings",
+    ]);
   });
 
   it("nav links point to correct routes", () => {
@@ -433,32 +474,6 @@ describe("AppShell hydration gate", () => {
     renderAppShell();
 
     expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
-  });
-});
-
-describe("AppShell Export/Import section", () => {
-  it("shows the Export JSON button with correct test id", () => {
-    renderAppShell();
-    const exportBtn = screen.getByTestId("export-data");
-    expect(exportBtn).toBeInTheDocument();
-    expect(exportBtn.tagName).toBe("BUTTON");
-    expect(exportBtn).toHaveTextContent("Export JSON");
-  });
-
-  it("shows the Import JSON button with correct test id", () => {
-    renderAppShell();
-    const importBtn = screen.getByTestId("import-data");
-    expect(importBtn).toBeInTheDocument();
-    expect(importBtn.tagName).toBe("BUTTON");
-    expect(importBtn).toHaveTextContent("Import JSON");
-  });
-
-  it("has a hidden file input for importing", () => {
-    renderAppShell();
-    const input = screen.getByTestId("import-input");
-    expect(input).toBeInTheDocument();
-    expect(input).toHaveAttribute("type", "file");
-    expect(input).toHaveAttribute("accept", "application/json");
   });
 });
 

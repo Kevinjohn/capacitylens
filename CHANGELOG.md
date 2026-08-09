@@ -10,6 +10,24 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **The left sidebar now gets out of the way of the actual work.** Its day-to-day destinations —
+  Schedule, Resources, Disciplines, Clients, Projects, Activities, Time off — sit together at the
+  top, and **Team & access** and **Settings** are pinned as a separate administration group at the
+  bottom of the list, below a divider. Both are still ordinary destinations with the same icons,
+  labels and command-palette entries; only their placement changed. Team & access moved because it
+  is role-gated in practice, so it shouldn't sit among everyone's destinations (#172).
+- **Import/export moved out of the sidebar into Settings.** The old "Data" section is now an
+  **Import & export** card at the very bottom of the Settings page, below Archived & deleted.
+  Exporting a backup or replacing a company's data is a rare administrative act and no longer takes
+  permanent navigation real estate. Nothing about the export or the confirm-before-replace import
+  flow itself changed, including the owner-only import gate on authenticated deployments (#169).
+- **The bottom of the sidebar now shows who you are.** Below Switch company, a **Sign out** row
+  carries your avatar — your identity provider's picture when it supplied one, your initials
+  otherwise. It appears on any auth-enabled deployment as well as the demo build; previously only
+  the demo build offered sign-out from the sidebar (#169).
+
 ## [0.35.4-alpha.1] — 2026-08-09
 
 Security hardening from a Codex CLI scan and a follow-up code review. No schema change.

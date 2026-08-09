@@ -6,7 +6,7 @@ import { m, syncLocaleFromAccount } from "@/i18n";
 import { useAccountSummaries } from "../auth/useAccountSummaries";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "../lib/joinedAccountHandoff";
-import { LINKS } from "../lib/navLinks";
+import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
 import { hasOpenModal, textEntryOwnsShortcut } from "../lib/shortcutGuards";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { useStore } from "../store/useStore";
@@ -81,7 +81,10 @@ export function useAppShellController() {
   }, [activeLanguage, activeLanguagePending]);
 
   useEffect(() => {
-    const match = LINKS.find(([to]) => matchPath({ path: to, end: true }, pathname) !== null);
+    // BOTH nav groups (issues #169/#172): the admin destinations are pinned to the bottom of the
+    // sidebar but are still routes, and omitting them here would silently regress /team and
+    // /settings to the bare brand title (WCAG 2.4.2).
+    const match = [...LINKS, ...ADMIN_LINKS].find(([to]) => matchPath({ path: to, end: true }, pathname) !== null);
     document.title = match ? `${match[1]()} · ${APP_NAME}` : APP_NAME;
   }, [pathname, activeLanguage, activeLanguagePending]);
 

@@ -90,12 +90,25 @@ const NONEMPTY_CAPACITYLENS = JSON.stringify({
   },
 });
 
-const importFile = (page: import("@playwright/test").Page, name: string, body: string) =>
-  page.getByTestId("import-input").setInputFiles({
+type Page = import("@playwright/test").Page;
+
+/**
+ * Import/export moved out of the sidebar into a Settings card (issue #169), so every import now
+ * starts by opening Settings. Clicking the link while already on `/settings` is a harmless no-op,
+ * which keeps this callable from any starting page.
+ */
+const importFile = async (page: Page, name: string, body: string) => {
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page.getByTestId("settings-data-tools")).toBeVisible();
+  await page.getByTestId("import-input").setInputFiles({
     name,
     mimeType: "application/json",
     buffer: Buffer.from(body),
   });
+};
+
+/** Back to the schedule, where the seeded/imported rows are asserted. */
+const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", exact: true }).click();
 
 // Covers US-DAT-02..04 and the canonical demo seed. Export round-trip and reset-on-reload
 // are covered in e2e/crud.spec.ts; server persistence lives in persistence.db.spec.ts.
@@ -122,6 +135,7 @@ test.describe("Data import/export", () => {
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
     // Data is untouched — the seeded resource is still there.
+    await openSchedule(page);
     await expect(page.getByText("Tyler Nix")).toBeVisible();
   });
 
@@ -132,6 +146,7 @@ test.describe("Data import/export", () => {
     await page.getByRole("alertdialog", { name: "Import data?" }).getByRole("button", { name: "Replace data" }).click();
 
     // Replaced → the linked imported graph renders and seeded-only data is gone.
+    await openSchedule(page);
     await expect(page.getByText("Imported Person")).toBeVisible();
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Imported Activity" })).toBeVisible();
     await expect(page.getByText("Tyler Nix")).toHaveCount(0);
@@ -164,6 +179,7 @@ test.describe("Data import/export", () => {
     // catch-all. Shown via a Sonner error toast now (was the hand-rolled Toast's role="alert");
     // assert on the message text, which is Sonner-DOM-agnostic.
     await expect(page.getByText(/not CapacityLens data/i)).toBeVisible();
+    await openSchedule(page);
     await expect(page.getByText("Tyler Nix")).toBeVisible(); // data preserved, no dialog, no wipe
   });
 
@@ -176,6 +192,7 @@ test.describe("Data import/export", () => {
     // is a Sonner error toast now; assert on its message text (Sonner-DOM-agnostic).
     await expect(page.getByText(/no CapacityLens records/i)).toBeVisible();
     await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
+    await openSchedule(page);
     await expect(page.getByText("Tyler Nix")).toBeVisible();
   });
 
@@ -235,6 +252,7 @@ test.describe("Data import/export", () => {
 
       await expect(page.getByText(refusal.message)).toBeVisible();
       await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
+      await openSchedule(page);
       await expect(page.getByText("Tyler Nix")).toBeVisible();
     });
   }

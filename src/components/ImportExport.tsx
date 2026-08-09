@@ -14,7 +14,6 @@ import { undoShortcut } from "../lib/keyboardShortcuts";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Button } from "./ui/button";
-import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from "./ui/sidebar";
 import { reloadPage } from "../lib/reloadPage";
 import { useServerImport } from "./import-export/useServerImport";
 
@@ -198,101 +197,97 @@ export function ImportExport() {
   };
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden" data-testid="sidebar-data-tools">
-      <SidebarGroupLabel>{m.data_menu_label()}</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
-              slice that is about to be obsolete, and a second import would race the first. */}
-          <SidebarMenuItem>
-            <Button
-              variant="ghost"
-              data-testid="export-data"
-              onClick={() => void onExport()}
-              disabled={importBusy || exportBusy}
-              className="h-8 w-full justify-start px-2"
-            >
-              {m.data_export()}
-            </Button>
-          </SidebarMenuItem>
-          {canImport && (
-            <SidebarMenuItem>
-              <Button
-                variant="ghost"
-                data-testid="import-data"
-                onClick={() => fileRef.current?.click()}
-                disabled={importBusy}
-                className="h-8 w-full justify-start px-2"
-              >
-                {m.data_import()}
-              </Button>
-            </SidebarMenuItem>
-          )}
-        </SidebarMenu>
+    // Lives in a Settings card (issue #169), NOT the sidebar: a full-slice export/replace is a
+    // once-in-a-while administrative act, and it was crowding the day-to-day destinations. The
+    // enclosing SettingsCard owns the heading and description, so this renders controls only.
+    <div className="flex flex-col gap-3" data-testid="settings-data-tools">
+      <div className="flex flex-wrap gap-2">
+        {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
+            slice that is about to be obsolete, and a second import would race the first. */}
+        <Button
+          size="sm"
+          variant="outline"
+          data-testid="export-data"
+          onClick={() => void onExport()}
+          disabled={importBusy || exportBusy}
+        >
+          {m.data_export()}
+        </Button>
         {canImport && (
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            data-testid="import-input"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onImport(f);
-              e.target.value = "";
-            }}
-          />
+          <Button
+            size="sm"
+            variant="outline"
+            data-testid="import-data"
+            onClick={() => fileRef.current?.click()}
+            disabled={importBusy}
+          >
+            {m.data_import()}
+          </Button>
         )}
+      </div>
+      {canImport && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json"
+          data-testid="import-input"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void onImport(f);
+            e.target.value = "";
+          }}
+        />
+      )}
 
-        {/* The import UI LOCK (see importBusy above): a non-dismissable blocking dialog for the few
+      {/* The import UI LOCK (see importBusy above): a non-dismissable blocking dialog for the few
           seconds of POST + re-hydrate. onClose is a deliberate no-op — visibility is owned by
           importBusy alone, so Escape/backdrop cannot dismiss it. The body carries tabIndex={0} so
           the Modal's Tab-trap engages (it no-ops on a panel with zero focusables) and initial
           focus lands on the status text for screen readers. */}
-        {importBusy && (
-          <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
-            {importRequiresReload ? (
-              <div className="flex flex-col gap-3">
-                <p role="alert" data-testid="import-reload-required" className="text-sm text-muted-foreground">
-                  {m.data_import_unknown_reload_required()}
-                </p>
-                <Button type="button" size="sm" onClick={reloadPage}>
-                  {m.boundary_reload()}
-                </Button>
-              </div>
-            ) : (
-              <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted-foreground">
-                {m.data_importing_body()}
+      {importBusy && (
+        <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
+          {importRequiresReload ? (
+            <div className="flex flex-col gap-3">
+              <p role="alert" data-testid="import-reload-required" className="text-sm text-muted-foreground">
+                {m.data_import_unknown_reload_required()}
               </p>
-            )}
-          </Modal>
-        )}
+              <Button type="button" size="sm" onClick={reloadPage}>
+                {m.boundary_reload()}
+              </Button>
+            </div>
+          ) : (
+            <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted-foreground">
+              {m.data_importing_body()}
+            </p>
+          )}
+        </Modal>
+      )}
 
-        {pendingImport && canImport && (
-          <ConfirmDialog
-            title={m.data_import_confirm_title()}
-            confirmLabel={m.data_import_confirm_action()}
-            message={
-              <>
-                {m.data_import_confirm_intro()}
-                <span className="font-medium text-ink">{pendingImport.name}</span>
-                {m.data_import_confirm_mid1()}
-                <span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>
-                {m.data_import_confirm_mid2()}
-                {summarize(pendingImport.data)}
-                {/* Honest dialog semantics: the demo/local import goes through the undoable store
+      {pendingImport && canImport && (
+        <ConfirmDialog
+          title={m.data_import_confirm_title()}
+          confirmLabel={m.data_import_confirm_action()}
+          message={
+            <>
+              {m.data_import_confirm_intro()}
+              <span className="font-medium text-ink">{pendingImport.name}</span>
+              {m.data_import_confirm_mid1()}
+              <span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>
+              {m.data_import_confirm_mid2()}
+              {summarize(pendingImport.data)}
+              {/* Honest dialog semantics: the demo/local import goes through the undoable store
                   history (⌘Z restores); the server import is an atomic server-side slice replace
                   the store history never sees, so promising ⌘Z there would be a lie. */}
-                {serverMode
-                  ? m.data_import_confirm_outro_server()
-                  : m.data_import_confirm_outro({ shortcut: undoShortcut() })}
-              </>
-            }
-            onConfirm={confirmImport}
-            onCancel={() => setPendingImport(null)}
-          />
-        )}
-      </SidebarGroupContent>
-    </SidebarGroup>
+              {serverMode
+                ? m.data_import_confirm_outro_server()
+                : m.data_import_confirm_outro({ shortcut: undoShortcut() })}
+            </>
+          }
+          onConfirm={confirmImport}
+          onCancel={() => setPendingImport(null)}
+        />
+      )}
+    </div>
   );
 }

@@ -19,7 +19,7 @@ Import replaces everything, so feeding it a random JSON or a non-CapacityLens fi
   (Note: a file like `{ "resources": [] }` _would_ be accepted — the guard recognises any of `resources`, `disciplines`, `clients`, `projects`, `phases`, `activities`, `allocations`, `timeOff` as an array — so the test file must contain none of those keys as arrays.)
 
 1. Note the current data (e.g. Clients shows _Acme Inc._ and _Globex_; the Schedule has the seed bars).
-2. In the sidebar **Data** section, click **Import JSON** and choose the non-CapacityLens file.
+2. Open **Settings** → the **Import & export** card at the bottom of the page, click **Import JSON** and choose the non-CapacityLens file.
 3. Observe the result — no confirmation dialog appears; instead a notice toast is shown.
 
 ## Acceptance criteria

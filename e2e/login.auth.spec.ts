@@ -98,7 +98,9 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
     await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
-    await page.getByRole("button", { name: "Sign out" }).click();
+    // Scoped to the page body: the sidebar footer carries its own avatar'd Sign out (#169), so an
+    // unscoped lookup now matches two buttons.
+    await page.locator("#main").getByRole("button", { name: "Sign out" }).click();
 
     // Session gone: back behind the wall, and a reload stays there.
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();

@@ -31,7 +31,6 @@ export type NavLinkDef = [to: string, label: () => string, icon: LucideIcon];
 export const LINKS: NavLinkDef[] = [
   ["/", () => m.nav_schedule(), CalendarIcon],
   [ROUTE_RESOURCES, () => m.nav_resources(), UsersIcon],
-  [ROUTE_TEAM, () => m.nav_team_access(), ShieldCheckIcon],
   // External / 3rd parties moved INTO the Resources tab behind a per-account setting
   // (`externalEnabled` on the Account, default off — Settings → External). They no longer have their
   // own nav link; the old /external route redirects to /resources for saved bookmarks.
@@ -40,5 +39,16 @@ export const LINKS: NavLinkDef[] = [
   ["/projects", () => m.nav_projects(), FolderIcon],
   ["/activities", () => m.nav_activities(), ClipboardCheckIcon],
   ["/timeoff", () => m.nav_timeoff(), SunIcon],
+];
+
+/**
+ * Administration destinations, pinned to the BOTTOM of the sidebar in their own group below a
+ * separator (issues #169 / #172). They are the same `NavLinkDef` shape and render through the same
+ * menu markup as `LINKS` — only their placement differs. Team & access is here because it is
+ * role-gated in practice (most people never act on it) and Settings because it is rarely visited:
+ * neither should compete for the eye with the day-to-day scheduling destinations above.
+ */
+export const ADMIN_LINKS: NavLinkDef[] = [
+  [ROUTE_TEAM, () => m.nav_team_access(), ShieldCheckIcon],
   [ROUTE_SETTINGS, () => m.nav_settings(), SlidersHorizontalIcon],
 ];

@@ -19,6 +19,7 @@ import { validateName } from "../../lib/validation";
 import { Avatar, ConfirmDialog, ListPage, SegmentedControl, SwitchField, TextField } from "../common/ui";
 import { SecuritySection } from "./SecuritySection";
 import { ArchivedSection } from "./ArchivedSection";
+import { ImportExport } from "../ImportExport";
 import { supportedTimeZones, timeZoneOptionLabel } from "../../lib/timezones";
 import { externalExplainer } from "../../lib/externalCopy";
 import { m } from "@/i18n";
@@ -615,6 +616,14 @@ export function SettingsView() {
             the inactive read (admin tier). Rendered unconditionally; the section decides its own
             visibility. */}
         <ArchivedSection />
+
+        {/* Import & export (issue #169) — moved out of the sidebar, where it took permanent nav
+            real estate for something almost nobody does twice. Deliberately the LAST card: it is
+            administrative, destructive on the import side, and should be the thing you scroll to
+            on purpose rather than something the eye lands on. */}
+        <SettingsCard title={m.settings_data_heading()} description={m.settings_data_description()}>
+          <ImportExport />
+        </SettingsCard>
 
         {/* Build provenance footer (P1.7) + feedback link (P5.2) — only in builds the
             deploy script stamps; absent (today's Settings exactly) when both env vars

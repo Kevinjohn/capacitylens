@@ -15,7 +15,7 @@ Import is a full replace, so a wrong file or a mistimed click can blow away the 
 **Precondition:** Seeded app open. Have a valid CapacityLens file to import (e.g. the `capacitylens-data.json` from US-DAT-01). To make the change obvious, first add a clearly identifiable entity to the _current_ app — e.g. a client named **Marker Co.** on the Clients page — that is **not** in the import file.
 
 1. Confirm **Marker Co.** exists in the current data (Clients list).
-2. In the sidebar **Data** section, click **Import JSON**, choose the file, and click **Replace data** in the "Import data?" dialog.
+2. Open **Settings** → the **Import & export** card at the bottom of the page, click **Import JSON**, choose the file, and click **Replace data** in the "Import data?" dialog.
 3. The dataset is replaced; the success toast "Imported … Press ⌘Z to undo." appears. **Marker Co.** is now gone (it wasn't in the file).
 4. Press **⌘Z** (Undo).
 

@@ -124,17 +124,23 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                                              |
-| ------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schedule      | `/`            | Timeline scheduler                                                                                                                                  |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                         |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                   |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                                     |
-| Clients       | `/clients`     | Client list                                                                                                                                         |
-| Projects      | `/projects`    | Project list                                                                                                                                        |
-| Activities    | `/activities`  | Activity list                                                                                                                                       |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                                       |
-| Settings      | `/settings`    | Settings (company rename, scheduling, calendar, disciplines, schedule, Internal work colours, allocation bars, utilisation, appearance, local data) |
+| Link label    | Route          | Screen                                                                                                                                                               |
+| ------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schedule      | `/`            | Timeline scheduler                                                                                                                                                   |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                          |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                                                      |
+| Clients       | `/clients`     | Client list                                                                                                                                                          |
+| Projects      | `/projects`    | Project list                                                                                                                                                         |
+| Activities    | `/activities`  | Activity list                                                                                                                                                        |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                                                        |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                    |
+| Settings      | `/settings`    | Settings (company rename, scheduling, calendar, disciplines, schedule, Internal work colours, allocation bars, utilisation, appearance, local data, import & export) |
+
+The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
+to the **bottom** of the nav list, below a divider and separated from the working destinations
+above. Both remain ordinary first-class routes (same markup, same icons, same command-palette
+entries); only their placement differs, so administration stays out of the way of the app's
+day-to-day purpose and role-gated controls don't sit among everyone's destinations.
 
 That's **nine** sections by default — **eight** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see _Disciplines optional_ under Domain rules). External / 3rd
@@ -148,7 +154,10 @@ An otherwise unmatched or stale URL renders the branded **Page not found** scree
 matching stays strict: while signed out, a truncated or nested token URL remains behind the usable
 sign-in wall rather than being treated as a valid bearer entry.
 
-The **Data** section (**Export JSON** / **Import JSON**) sits below the nav links. In an authenticated
+The **Import & export** card (**Export JSON** / **Import JSON**) is the **last card on the Settings
+page**, below **Archived & deleted**. It used to be a "Data" section in the sidebar; it moved because
+a full-slice export or replacement is a rare administrative act that does not warrant permanent
+navigation real estate. In an authenticated
 server deployment, **Import JSON** is owner-only because a slice replacement can author or erase
 owner-confidential client/project identities; **Export JSON** remains available at its existing
 role tiers and is server-redacted for non-owners. The local demo and auth-off deploy remain
@@ -172,11 +181,16 @@ If the import may have committed but the reload cannot prove the resulting state
 blocked behind an explicit reload action; parked pre-import edits are never replayed over the
 replacement. File reads and confirmations remain bound to the company that was active when the file
 was selected, and export/import actions suppress duplicate in-flight requests.
-The company block —
-the active company name plus a **Switch company** control (which returns to the company picker) —
-is pinned to the **bottom** of the sidebar, below a divider beneath the Data section. (It used to
-sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
+The account block —
+the active company name and role badge, a **Switch company** control (which returns to the company
+picker), and a **Sign out** row carrying the signed-in person's avatar — is pinned to the very
+**bottom** of the sidebar, below a divider beneath the administration group. (The company name used
+to sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
 both the open menu and the collapsed rail, so the nav icons don't shift when the sidebar collapses.)
+The avatar is the signed-in user's own picture when the identity provider supplied one, initials
+otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
+"Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
+It appears on any auth-enabled deploy and in the demo build; an auth-off server shows no such row.
 
 **Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
@@ -191,7 +205,7 @@ destination remains the same labelled, keyboard-focusable navigation link as in 
 clicking or tapping it navigates directly while the rail stays collapsed. Its decorative icon is
 `aria-hidden`, while the visually hidden label continues to supply the link's accessible name and
 an instant visual hover label appears to the right. Collapsing hides
-the company block and the Data section until re-opened. The choice is device-global
+the account block until re-opened; the administration group stays as icons on the rail. The choice is device-global
 (`localStorage` key `capacitylens/sidebar`); with no stored choice the sidebar starts **open on
 desktop and collapsed on small screens** (`(max-width: 767px), (max-height: 480px)` — phone
 portrait or phone landscape).

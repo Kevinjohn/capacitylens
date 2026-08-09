@@ -10,7 +10,7 @@ import { RotateHint } from "./RotateHint";
 import { Spinner } from "./ui/spinner";
 import { Alert, AlertDescription } from "./ui/alert";
 import { m } from "@/i18n";
-import { LINKS } from "../lib/navLinks";
+import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
 import { useOfflineState } from "../data/useOfflineState";
 import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
@@ -126,6 +126,7 @@ export function AppShell() {
           </a>
           <AppSidebar
             activeAccount={activeAccount}
+            adminLinks={ADMIN_LINKS}
             demoAuthActive={demoAuthActive}
             navLinks={navLinks}
             onSignOut={signOutDemo}

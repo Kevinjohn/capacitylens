@@ -32,6 +32,36 @@ test.describe("Navigation & shell", () => {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
   });
 
+  // Issues #169/#172. Assert real DOM order and the account block below it — mere presence of the
+  // links passed under the old layout too, so only order proves the move happened.
+  test("pins Team & access and Settings below the working destinations, above the account block", async ({ page }) => {
+    await openApp(page);
+
+    const hrefs = await page.locator("nav a").evaluateAll((links) => links.map((l) => l.getAttribute("href")));
+    expect(hrefs).toEqual([
+      "/",
+      "/resources",
+      "/disciplines",
+      "/clients",
+      "/projects",
+      "/activities",
+      "/timeoff",
+      "/team",
+      "/settings",
+    ]);
+
+    // Switch company then the avatar'd sign-out, both below the nav landmark.
+    await expect(page.getByRole("button", { name: "Switch company" })).toBeVisible();
+    await expect(page.getByTestId("nav-sign-out")).toBeVisible();
+
+    // Import/export is gone from the sidebar and lives on Settings instead (#169).
+    await expect(page.getByTestId("export-data")).toHaveCount(0);
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Import & export" })).toBeVisible();
+    await expect(page.getByTestId("export-data")).toBeVisible();
+    await expect(page.getByTestId("import-data")).toBeVisible();
+  });
+
   test("settings toggles the colour theme", async ({ page }) => {
     await openApp(page, "Studio North", "/settings");
     // Light is the default preference.

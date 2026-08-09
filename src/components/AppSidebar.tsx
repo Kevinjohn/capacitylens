@@ -5,8 +5,11 @@ import { usePermissionStatus, useRole } from "../auth/permissionContext";
 import { useOfflineState } from "../data/useOfflineState";
 import { accessLabelFor } from "../lib/accessCopy";
 import { accessExperienceFor } from "../lib/accessMode";
+import { FAKE_USER } from "../lib/fakeAuth";
+import demoAvatarUrl from "../assets/avatar-demo.svg";
+import { DEFAULT_COLORS } from "../lib/palette";
+import { Avatar } from "./common/ui";
 import type { NavLinkDef } from "../lib/navLinks";
-import { ImportExport } from "./ImportExport";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,
@@ -32,6 +35,8 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 
 interface AppSidebarProps {
   activeAccount: { name: string } | null;
+  /** Administration destinations pinned to the bottom of the nav (Team & access, Settings). */
+  adminLinks: NavLinkDef[];
   demoAuthActive: boolean;
   navLinks: NavLinkDef[];
   onSignOut: () => void;
@@ -42,6 +47,7 @@ interface AppSidebarProps {
 /** CapacityLens navigation composed from the standard ShadCN Sidebar primitives. */
 export function AppSidebar({
   activeAccount,
+  adminLinks,
   demoAuthActive,
   navLinks,
   onSignOut,
@@ -53,13 +59,19 @@ export function AppSidebar({
   const expanded = isMobile ? openMobile : open;
   const compactView = useStore((s) => s.compactView);
   const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
+  // On mobile the sidebar is an overlay sheet; following a link must dismiss it or the destination
+  // stays hidden behind the nav. On desktop the sidebar is persistent, so this is a no-op.
+  const closeOnMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   // Vertical density ("Compact view" device pref, default OFF = roomier). Published as CSS custom
   // properties on the sidebar root rather than threaded as props: the nav is assembled from several
-  // components (this file plus ImportExport's "Data" group), and the rules below key off the shadcn
-  // primitives' own `data-slot` hooks, so every menu inside the sidebar picks the rhythm up without
-  // each one having to read the store. Only GAPS and PADDING move — item height is untouched, so the
-  // collapsed icon rail (which pins each button square) is unaffected. See src/index.css.
+  // groups (the primary destinations, the pinned admin group, the account footer), and the rules
+  // below key off the shadcn primitives' own `data-slot` hooks, so every menu inside the sidebar
+  // picks the rhythm up without each one having to read the store. Only GAPS and PADDING move — item
+  // height is untouched, so the collapsed icon rail (which pins each button square) is unaffected.
+  // See src/index.css.
   const density = schedulerDensity(compactView);
 
   return (
@@ -90,38 +102,26 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <nav>
+        {/* ONE <nav> landmark around both groups. The admin group is a separate visual block (issues
+            #169/#172) but the same navigation region, so screen-reader users still hear a single
+            "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
+            the scroll area whenever the primary list is shorter than the viewport. */}
+        <nav className="flex flex-1 flex-col">
           <SidebarGroup>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {navLinks.map(([to, label, NavIcon]) => {
-                  const text = label();
-                  const isActive = matchPath({ path: to, end: to === "/" }, pathname) !== null;
-                  return (
-                    <SidebarMenuItem key={to}>
-                      <SidebarMenuButton asChild isActive={isActive} tooltip={text}>
-                        <NavLink
-                          to={to}
-                          end={to === "/"}
-                          data-nav={to}
-                          onClick={() => {
-                            if (isMobile) setOpenMobile(false);
-                          }}
-                        >
-                          <NavIcon aria-hidden="true" focusable="false" />
-                          <span>{text}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
+              <NavMenu links={navLinks} pathname={pathname} onNavigate={closeOnMobile} />
             </SidebarGroupContent>
           </SidebarGroup>
-        </nav>
 
-        <SidebarSeparator />
-        <ImportExport />
+          {adminLinks.length > 0 && (
+            <SidebarGroup className="mt-auto">
+              <SidebarSeparator className="mx-0 mb-1" />
+              <SidebarGroupContent>
+                <NavMenu links={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+        </nav>
       </SidebarContent>
 
       {activeAccount && (
@@ -139,19 +139,69 @@ export function AppSidebar({
                 {m.nav_switch_company()}
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {demoAuthActive && (
-              <SidebarMenuItem>
-                <SidebarMenuButton size="sm" onClick={onSignOut}>
-                  {m.nav_sign_out()}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
+            <SessionMenuItem demoAuthActive={demoAuthActive} onSignOutDemo={onSignOut} />
           </SidebarMenu>
         </SidebarFooter>
       )}
 
       <SidebarRail aria-hidden="true" />
     </Sidebar>
+  );
+}
+
+/** One menu of nav destinations. Shared by the primary list and the pinned admin group so both
+ *  render identical markup — same active matching, same `data-nav` tour anchor, same collapsed-rail
+ *  tooltip — and can never drift apart. */
+function NavMenu({ links, onNavigate, pathname }: { links: NavLinkDef[]; onNavigate: () => void; pathname: string }) {
+  return (
+    <SidebarMenu>
+      {links.map(([to, label, NavIcon]) => {
+        const text = label();
+        const isActive = matchPath({ path: to, end: to === "/" }, pathname) !== null;
+        return (
+          <SidebarMenuItem key={to}>
+            <SidebarMenuButton asChild isActive={isActive} tooltip={text}>
+              <NavLink to={to} end={to === "/"} data-nav={to} onClick={onNavigate}>
+                <NavIcon aria-hidden="true" focusable="false" />
+                <span>{text}</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
+}
+
+/**
+ * The signed-in identity + sign-out control at the very bottom of the nav (issue #169).
+ *
+ * Two identities can be signed in here and they never overlap: the COSMETIC demo persona
+ * (`demoAuthActive` — real auth is off, see fakeAuth.ts) and a REAL Better Auth session
+ * (`authMode !== "off"`). An auth-off server with no demo build has neither, and renders nothing —
+ * exactly as before. The control always reads "Sign out" rather than toggling to "Sign in": the
+ * entry gate (AppEntryGate / LoginScreen) means the shell — and therefore this footer — only ever
+ * renders for someone already signed in, so offering "Sign in" here would be a dead affordance.
+ */
+function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: boolean; onSignOutDemo: () => void }) {
+  const { authMode, signOut, user } = useAuth();
+  if (!demoAuthActive && authMode === "off") return null;
+
+  const name = demoAuthActive ? FAKE_USER.name : (user?.name ?? user?.email ?? m.settings_signed_in_unknown());
+  const imageUrl = demoAuthActive ? demoAvatarUrl : (user?.image ?? undefined);
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        size="sm"
+        data-testid="nav-sign-out"
+        title={m.nav_signed_in_as({ who: name })}
+        onClick={demoAuthActive ? onSignOutDemo : () => void signOut()}
+      >
+        <Avatar name={name} color={DEFAULT_COLORS.account} size={20} imageUrl={imageUrl} />
+        <span className="truncate">{m.nav_sign_out()}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
