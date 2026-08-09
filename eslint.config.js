@@ -26,8 +26,10 @@ export default defineConfig([
     // linting them double-parses every file and confuses the typed parser's tsconfig-root lookup.
     ".stryker-tmp",
     "reports",
-    // Built documentation (`pnpm run docs:build`) — generated HTML/CSS committed at docs/.
+    // Documentation: docs/ is the generated build, docs-src/ is hand-maintained
+    // prose (plus its VitePress config) — linters keep their hands off both.
     "docs",
+    "docs-src",
   ]),
 
   // Gate and public runtime scripts are production code too. Keep them on the recommended JS

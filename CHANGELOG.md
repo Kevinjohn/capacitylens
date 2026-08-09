@@ -10,6 +10,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.35.1-alpha.1] — 2026-08-09
+
+Documentation tooling housekeeping. No application behaviour changed.
+
+### Changed
+
+- Prettier and ESLint now leave both documentation folders alone: `docs/` is generated
+  output, and the `docs-src/` prose (with its runbook-pinned phrasing) is hand-maintained.
+
 ### Removed
 
 - The GitHub Pages deploy job. The docs workflow now only validates the build (dead
@@ -2832,7 +2841,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.1-alpha.1...HEAD
+[0.35.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.0-alpha.1...v0.35.1-alpha.1
 [0.35.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.34.0-alpha.1...v0.35.0-alpha.1
 [0.34.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.1-alpha.1...v0.34.0-alpha.1
 [0.33.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.33.0-alpha.1...v0.33.1-alpha.1

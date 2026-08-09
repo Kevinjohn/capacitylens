@@ -1,5 +1,10 @@
-# Generated output
+# Documentation: docs/ is generated output, docs-src/ is prose whose wording and
+# layout are hand-maintained (runbook.test.ts pins exact phrases) — neither is
+# the formatter's to touch.
 docs
+docs-src
+
+# Generated output
 dist
 build
 coverage
