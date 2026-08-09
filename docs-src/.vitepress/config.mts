@@ -1,6 +1,6 @@
 import { defineConfig } from "vitepress";
 
-// The docs site. Built with `pnpm run docs:build`, served from GitHub Pages.
+// The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
 // Sidebar order is the reading order: sections run from "never seen it" to
 // "operating it in production" to "reference".
 export default defineConfig({

@@ -119,10 +119,9 @@ cross-browser checks, mutation scope and GitHub Actions checks.
 
 ## Documentation
 
-The documentation lives at **<https://kevinjohn.github.io/capacitylens/>** — a static
-site with step-by-step guides. The same pages are committed as standalone HTML under
-[`docs/`](docs/) (open `docs/index.html` straight from a checkout, no server needed)
-and as plain Markdown sources under [`docs-src/`](docs-src/), readable on GitHub.
+The documentation ships with the repository: step-by-step guides committed as standalone
+HTML under [`docs/`](docs/) — open `docs/index.html` straight from a checkout, no server
+needed — with the plain Markdown sources under [`docs-src/`](docs-src/), readable on GitHub.
 
 ### Using and operating CapacityLens
 

@@ -76,7 +76,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - `README.md` is public/product-facing; implementation details belong in `docs-src/reference/development.md`.
 - User-facing docs are Markdown sources under `docs-src/`, built with VitePress plus
   `scripts/docs-standalone.mjs` into standalone static HTML committed at `docs/`
-  (`pnpm run docs:dev` / `docs:build`), deployed by `.github/workflows/docs.yml`.
+  (`pnpm run docs:dev` / `docs:build`), validated in CI by `.github/workflows/docs.yml`.
   After any docs change, run `pnpm run docs:build` and commit the regenerated `docs/`.
   Follow `docs-src/STYLE.md` for any docs change.
 - The operator set lives in `docs-src/self-hosting/` (install, configuration, TLS, backups,

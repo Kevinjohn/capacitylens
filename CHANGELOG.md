@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Removed
+
+- The GitHub Pages deploy job. The docs workflow now only validates the build (dead
+  links, standalone rewriting); the documentation ships committed in `docs/` and was
+  never actually hosted.
+
 ## [0.35.0-alpha.1] — 2026-08-09
 
 Standalone documentation build. No application behaviour changed.
