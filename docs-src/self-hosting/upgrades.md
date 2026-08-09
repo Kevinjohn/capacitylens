@@ -69,6 +69,15 @@ rather than guessing.
 7. Keep the old container image and the recovery snapshot until you're satisfied the
    upgrade is good.
 
+### Stored credential effects
+
+Some releases change how CapacityLens stores credentials rather than the schema. When a
+release begins encrypting OAuth/OIDC tokens at rest, tokens written in plaintext by an earlier
+version keep working unchanged and are transparently re-encrypted the next time they are
+refreshed — this is a content-only change with no database migration and no operator action.
+Sign-in is unaffected. The `CHANGELOG.md` Security section calls out the specific release where
+this applies.
+
 ## Roll back
 
 Rollback means stopping the API, restoring the pre-migration snapshot this release

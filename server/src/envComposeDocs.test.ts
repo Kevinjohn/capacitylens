@@ -5,6 +5,15 @@ import { describe, expect, it } from "vitest";
 const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
 const compose = readFileSync(fileURLToPath(new URL("../../docker-compose.yml", import.meta.url)), "utf8");
 const dockerfile = readFileSync(fileURLToPath(new URL("../../Dockerfile", import.meta.url)), "utf8");
+const nginxConf = readFileSync(fileURLToPath(new URL("../../nginx.conf", import.meta.url)), "utf8");
+const dockerIgnore = readFileSync(fileURLToPath(new URL("../../.dockerignore", import.meta.url)), "utf8");
+const appSource = readFileSync(fileURLToPath(new URL("./app.ts", import.meta.url)), "utf8");
+
+/** The invite sub-actions whose bearer rides in the URL path, as enumerated at a `.../(a|b|c)` site. */
+const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
+  const alternation = source.match(anchor);
+  return alternation ? [...new Set(alternation[1].split("|").map((value) => value.trim()))].sort() : [];
+};
 
 describe("Compose exceptions in the environment register", () => {
   it("documents runtime values that Compose pins to its private network and durable volume", () => {
@@ -48,5 +57,27 @@ describe("Compose exceptions in the environment register", () => {
     expect(dockerfile).toContain("pnpm --filter capacitylens-server run build:runtime");
     expect(dockerfile).toContain("exec node dist/index.mjs");
     expect(dockerfile).not.toContain("exec node_modules/.bin/tsx");
+  });
+
+  it("suppresses the nginx access log for exactly the invite bearers the app redacts", () => {
+    // The invite token rides in the request path (preview, accept, signup). Its capability must be
+    // kept out of logs at every hop, so nginx's `access_log off` location and the app's log-redaction
+    // regex must cover the identical action set — coupling them here means a future token-scoped
+    // invite route that lands in one list but not the other fails this test instead of leaking.
+    const nginxActions = inviteActionsAt(
+      nginxConf,
+      /location\s+~\s+\^\/api\/invites\/\[\^\/\]\+\/\(([^)]+)\)\$\s*\{[^}]*access_log\s+off;/,
+    );
+    const appActions = inviteActionsAt(appSource, /INVITE_OPERATION_URL_RE\s*=[^\n]*\(\?:([^)]+)\)/);
+    expect(nginxActions, "nginx invite access_log-off actions").toContain("preview");
+    expect(appActions, "app INVITE_OPERATION_URL_RE actions").not.toHaveLength(0);
+    expect(nginxActions).toEqual(appActions);
+  });
+
+  it("keeps private local reference material out of the Docker build context", () => {
+    const ignoredLines = dockerIgnore.split("\n").map((line) => line.trim());
+    for (const path of ["/_input/", "/to-my-siblings/"]) {
+      expect(ignoredLines, path).toContain(path);
+    }
   });
 });
