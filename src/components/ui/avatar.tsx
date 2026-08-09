@@ -23,6 +23,7 @@ function Avatar({
   );
 }
 
+// Local shadcn deviation: crop supplied portraits to the circular frame instead of distorting them.
 function AvatarImage({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Image>) {
   return (
     <AvatarPrimitive.Image

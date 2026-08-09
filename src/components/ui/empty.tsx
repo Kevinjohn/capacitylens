@@ -59,6 +59,7 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
   return <div data-slot="empty-title" className={cn("text-lg font-medium tracking-tight", className)} {...props} />;
 }
 
+// Local shadcn deviation: descriptions retain paragraph semantics and paragraph-native props.
 function EmptyDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
