@@ -7,15 +7,28 @@ import { useCanEdit } from "../../auth/permissionContext";
 import { disciplinesEnabledFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { errorMessage } from "../../lib/errorMessage";
-import { ZOOM_LEVELS } from "../../lib/schedulerConfig";
+import { ZOOM_LEVELS, type WeeksZoom } from "../../lib/schedulerConfig";
 import { schedulerDensity } from "./layout";
+import { JumpToDateInput } from "./JumpToDateInput";
 import { SegmentedControl } from "../common/ui";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
-import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
+
+/**
+ * The jump-to-date picker is deliberately not rendered: reaching a far-off date is rare enough that
+ * it doesn't earn toolbar space, and a month list is the likelier affordance for it. {@link
+ * JumpToDateInput} stays live and tested so re-surfacing it is a one-line flip — see DECISIONS.md.
+ * Typed `boolean` (not the `false` literal) so the render below is a condition, not dead code.
+ */
+const SHOW_JUMP_TO_DATE: boolean = false;
+
+/** A visible span in words — "1 week" / "4 weeks". Shared by the dropdown's options and its
+ *  accessible name so the two can't drift apart. */
+const zoomLabel = (weeks: number) =>
+  weeks > 1 ? m.scheduler_weeks_option_other({ count: weeks }) : m.scheduler_weeks_option_one({ count: weeks });
 
 export function SchedulerToolbar() {
   // Viewer read-only (P1.12): a viewer has nothing to draw / mutate / undo, so the draw-mode toggle
@@ -28,8 +41,6 @@ export function SchedulerToolbar() {
   const setZoom = useStore((s) => s.setZoom);
   const panDays = useStore((s) => s.panDays);
   const goToToday = useStore((s) => s.goToToday);
-  const goToDate = useStore((s) => s.goToDate);
-  const focusDate = useStore((s) => s.ui.focusDate);
   const drawMode = useStore((s) => s.ui.drawMode);
   const setDrawMode = useStore((s) => s.setDrawMode);
   // Undo/redo is global (the ⌘Z/⌘⇧Z handler lives in AppShell) but its visible affordance lives
@@ -139,37 +150,52 @@ export function SchedulerToolbar() {
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
         </div>
-        <Button size="sm" variant="outline" onClick={() => panDays(-7)} title={m.scheduler_nav_prev_title()}>
-          <ChevronLeft data-icon="inline-start" /> {m.scheduler_nav_prev()}
+        {/* Prev/Next are icon-only: the chevrons carry the meaning. There is no visible text to
+            contradict it, so aria-label alone names them "Prev"/"Next". */}
+        <Button
+          size="icon-sm"
+          variant="outline"
+          onClick={() => panDays(-7)}
+          aria-label={m.scheduler_nav_prev()}
+          title={m.scheduler_nav_prev_title()}
+        >
+          <ChevronLeft />
         </Button>
         <Button size="sm" variant="outline" onClick={goToToday}>
           {m.scheduler_nav_today()}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => panDays(7)} title={m.scheduler_nav_next_title()}>
-          {m.scheduler_nav_next()} <ChevronRight data-icon="inline-end" />
+        <Button
+          size="icon-sm"
+          variant="outline"
+          onClick={() => panDays(7)}
+          aria-label={m.scheduler_nav_next()}
+          title={m.scheduler_nav_next_title()}
+        >
+          <ChevronRight />
         </Button>
-        <Input
-          type="date"
-          value={focusDate}
-          onChange={(e) => isValidISODate(e.target.value) && goToDate(e.target.value)}
-          aria-label={m.scheduler_jump_to_date()}
-          title={m.scheduler_jump_to_date()}
-          className="w-auto"
-        />
-        <SegmentedControl
-          className="ml-2"
-          ariaLabel={m.scheduler_weeks_visible_aria()}
-          value={zoom}
-          onChange={setZoom}
-          options={ZOOM_LEVELS.map((w) => ({
-            value: w,
-            label: m.scheduler_zoom_week_label({ count: w }),
-            title:
-              w > 1
-                ? m.scheduler_weeks_visible_title_other({ count: w })
-                : m.scheduler_weeks_visible_title_one({ count: w }),
-          }))}
-        />
+        {SHOW_JUMP_TO_DATE && <JumpToDateInput />}
+        {/* Weeks visible. The trigger shows only the span ("4 weeks"), so the accessible name adds
+            the purpose AND repeats that visible text — "Weeks visible, 4 weeks". A bare
+            "Weeks visible" label would hide the words the user can see from speech input
+            (WCAG 2.5.3 Label in Name). */}
+        <Select value={String(zoom)} onValueChange={(value) => setZoom(Number(value) as WeeksZoom)}>
+          <SelectTrigger
+            size="sm"
+            aria-label={m.scheduler_weeks_visible_aria({ span: zoomLabel(zoom) })}
+            className="ml-2 w-auto"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {ZOOM_LEVELS.map((w) => (
+                <SelectItem key={w} value={String(w)}>
+                  {zoomLabel(w)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
         {/* Draw-mode toggle + Undo/Redo: editor-only (P1.12). A viewer can't draw or mutate, so the
             draw toggle and the undo/redo affordances are hidden (nothing to switch / undo). */}
         {canEdit && (

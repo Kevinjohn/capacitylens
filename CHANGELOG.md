@@ -10,6 +10,26 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **The schedule's week range is now a dropdown.** The row of `1w` / `2w` / `4w` / `6w` / `8w`
+  buttons is replaced by a single **Weeks visible** dropdown offering the same five spans, written
+  out ("4 weeks") rather than abbreviated. Nothing about the spans or the week-start snap changed —
+  the control is just one thing instead of five, and the closed dropdown states which span you are
+  looking at (#173).
+- **Prev and Next are now icon-only chevrons.** The words are gone; the left/right chevrons carry
+  the meaning, with the same "Back one week" / "Forward one week" tooltips. **Today** is unchanged
+  (#173).
+- **The jump-to-date picker is no longer shown on the schedule.** People rarely look far ahead, and
+  when they do a month list is likely the better answer than a date field — so the picker is hidden
+  while that design is worked out. Navigate with **Today** and the chevrons. Nothing was removed
+  from the product: the control's code is retained and still covered by tests (#173).
+- The **Weeks visible** dropdown announces itself as "Weeks visible, 4 weeks" — the words you can
+  see are part of its accessible name, so voice control can act on what is on screen
+  (WCAG 2.5.3 Label in Name).
+- Every documentation screenshot of the schedule was recaptured from the running app, and the
+  Schedule guide, the user stories and `DECISIONS.md` were rewritten around the new top bar.
+
 ## [0.35.5-alpha.1] — 2026-08-09
 
 Sidebar rework: the administration destinations move out of the day-to-day list, and

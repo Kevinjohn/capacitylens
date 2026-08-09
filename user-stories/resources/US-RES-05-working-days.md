@@ -22,7 +22,7 @@ them, so nobody plans work into a day the person never works.
 2. In **Working days**, confirm Mon, Tue, Wed are pressed (`aria-pressed="true"`) and
    Thu, Fri, Sat, Sun are off.
 3. Click **Save** (no change needed — this is the verified state).
-4. Go to **Schedule** and set the zoom to **1w** (or **2w**) so individual day columns are
+4. Go to **Schedule** and set **Weeks visible** to **1 week** (or **2 weeks**) so individual day columns are
    wide enough to render the per-day tint.
 
 ## Acceptance criteria

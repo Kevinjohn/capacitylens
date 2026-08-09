@@ -19,7 +19,7 @@ Projects get renamed, move between clients (a brand handed to a different accoun
 3. Change **Client** = _Globex_.
 4. Change the **Colour** by opening it and picking a different swatch.
 5. Click **Save**. The dialog closes.
-6. Open the **Schedule** (`/`) and **Jump to date** → `2026-06-01` to see this project's bars.
+6. Open the **Schedule** (`/`) and click **Today** to see this project's bars.
 
 ## Acceptance criteria
 

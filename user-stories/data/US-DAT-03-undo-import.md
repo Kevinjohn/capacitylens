@@ -23,4 +23,4 @@ Import is a full replace, so a wrong file or a mistimed click can blow away the 
 
 - ✅ Immediately after the confirmed import, the live data is the file's contents (the pre-import marker, **Marker Co.**, is absent).
 - ✅ Pressing **⌘Z** restores the entire pre-import dataset in one step — **Marker Co.** reappears and any other pre-import entities/allocations/time-off return.
-- ✅ The restore is whole-dataset, not partial: the lists and the Schedule (Jump to date → 2026-06-01) match the state from just before the import.
+- ✅ The restore is whole-dataset, not partial: the lists and the Schedule (click **Today**) match the state from just before the import.

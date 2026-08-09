@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-CLI-04 — the built-in "Internal" pseudo-client.
 test.describe("Internal client", () => {
@@ -48,7 +48,7 @@ test.describe("Internal client", () => {
     await openApp(page);
     // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Alex,
     // 8–10 June) is on-screen.
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });

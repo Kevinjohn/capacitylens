@@ -17,7 +17,7 @@ Reorganising the team should never cost you people. Deleting a discipline is int
 1. On the **Design** row, click the **Delete** (trash) icon. The "Delete discipline?" confirmation dialog opens.
 2. Read the dialog: it states that the discipline's resources will be **ungrouped (moved to "No discipline"), not deleted**.
 3. Click **Delete** to confirm. The dialog closes.
-4. Click **Schedule** in the sidebar (`/`); use **Jump to date** → `2026-06-01` to see the seed bars.
+4. Click **Schedule** in the sidebar (`/`); click **Today** to see the seed bars.
 5. Press **⌘Z** (Undo) to reverse the deletion.
 
 ## Acceptance criteria

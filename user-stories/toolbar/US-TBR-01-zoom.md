@@ -12,15 +12,15 @@ Some questions need a day-level view of this week; others need a two-month overv
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). (Do not pre-set a zoom — this story changes it.) The seed bars live in June 2026; **Jump to date** → `2026-06-01` to keep one in view.
+**Precondition:** Seeded app open at **Schedule** (`/`). (Do not pre-set **Weeks visible** — this story changes it.) Click **Today** so the seed bars are in view.
 
-1. Click **1w**. Note the width of a chosen bar (e.g. _Brand System_).
-2. Click **8w**.
+1. Open the **Weeks visible** dropdown and choose **1 week**. Note the width of a chosen bar (e.g. _Brand System_).
+2. Open the **Weeks visible** dropdown and choose **8 weeks**.
 3. Compare the same bar's width.
 
 ## Acceptance criteria
 
-- ✅ The zoom buttons are `1w` / `2w` / `4w` / `6w` / `8w`; clicking one sets that many weeks across the viewport.
-- ✅ The zoom choices form a radiogroup; the selected radio has `aria-checked="true"` and all other zoom radios have `aria-checked="false"`.
-- ✅ The same allocation bar is physically **narrower at 8w than at 1w** (day columns shrink to fit more weeks).
-- ✅ Switching zoom rescales the day columns and re-anchors the grid's **left edge to the week start** (see **US-TBR-08**); it does not change the zoom of any other control or alter any allocation.
+- ✅ **Weeks visible** is a dropdown (accessible name "Weeks visible") whose five options read **"1 week", "2 weeks", "4 weeks", "6 weeks", "8 weeks"**; choosing one sets that many weeks across the viewport.
+- ✅ The closed trigger displays the current level in words (e.g. **"4 weeks"**).
+- ✅ The same allocation bar is physically **narrower at 8 weeks than at 1 week** (day columns shrink to fit more weeks).
+- ✅ Choosing a new level rescales the day columns and re-anchors the grid's **left edge to the week start** (see **US-TBR-08**); it does not change any other control or alter any allocation.

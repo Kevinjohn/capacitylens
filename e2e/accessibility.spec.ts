@@ -1,11 +1,11 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp, setZoom } from "./helpers";
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
 test.describe("Keyboard & accessibility", () => {
   test("an allocation bar is focusable and Enter opens the editor", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -17,7 +17,7 @@ test.describe("Keyboard & accessibility", () => {
 
   test("arrow keys move a focused bar by a day", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });

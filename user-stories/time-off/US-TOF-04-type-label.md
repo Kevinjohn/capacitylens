@@ -15,7 +15,7 @@ The list answers one question — who is out and how long — so it stays delibe
 **Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed has **Tyler Nix** off **10–12 June** with type _Holiday_.
 
 1. Read the **Tyler Nix** row — it reads **Wed 10th Jun · 3 days**. There is no end date, type or note in the row.
-2. Go to **Schedule** (`/`), zoom **1w** (so day columns are wide enough to render the block's label text), **Jump to date** → `2026-06-01`.
+2. Go to **Schedule** (`/`), set **Weeks visible** to **1 week** (so day columns are wide enough to render the block's label text), and click **Today** so the seed bars are in view.
 3. Read the label inside Tyler's `timeoff-block`.
 
 ## Acceptance criteria

@@ -28,9 +28,9 @@ faint diagonal hatch on its header so it reads as unfilled at a glance.
 ## Columns: the visible weeks
 
 Columns are days, grouped into a zoomable range of one, two, four, six or eight weeks
-at a time — the segmented control in the toolbar switches between them (`1w`, `2w`, and
-so on). Use **Prev** and **Next** to pan a week at a time, **Today** to jump back to the
-current week, or the date field to jump straight to a specific day.
+at a time — the **Weeks visible** dropdown in the toolbar switches between them. Use the
+arrow buttons (hover for "Back one week" / "Forward one week") to pan a week at a time,
+and **Today** to jump back to the current week.
 
 Weekend columns get a faint tint when you're zoomed in close enough to see individual
 days clearly.

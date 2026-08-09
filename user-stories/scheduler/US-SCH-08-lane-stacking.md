@@ -12,7 +12,7 @@ A person can legitimately be on two things at once (that's exactly how over-allo
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01`. **Tyler Nix** has two seed allocations that overlap on **3–4 June** (8h + 4h), which is what over-allocates him.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Tyler Nix** has two seed allocations that overlap on **3–4 June** (8h + 4h), which is what over-allocates him.
 
 1. Look at Tyler's row in early June.
 2. Note the two bars that overlap on 3–4 June: they are drawn on **different vertical lanes** within Tyler's row, one above the other — not stacked on top of each other.

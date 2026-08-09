@@ -12,8 +12,8 @@ A large studio's schedule is long. Typing part of a name or role is the quickest
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** →
-`2026-06-01`. The seeded people are visible. Placeholders and external resources remain hidden by
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and
+click **Today** so the seeded people are visible. Placeholders and external resources remain hidden by
 their default-off account settings and are outside this search example.
 
 1. Click the **Search people…** box.

@@ -12,7 +12,7 @@ Work gets handed over — someone goes on leave, a freelancer takes an activity,
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a _Brand System_ bar on the **Pam Gonzalez** row.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Brand System_ bar on the **Pam Gonzalez** row.
 
 1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = _Pam Gonzalez_.
 2. Change **Assignee** to _Nike Spiros_.

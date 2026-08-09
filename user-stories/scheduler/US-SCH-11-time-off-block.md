@@ -12,7 +12,7 @@ Time off and allocations both occupy a person's days, but they mean opposite thi
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01`. **Tyler Nix** has time off **10–12 June** with the reason **Holiday**.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Tyler Nix** has time off **10–12 June** with the reason **Holiday**.
 
 1. Look at Tyler's row on **10–12 June**: a hatched **time-off block** spans those days.
 2. Read its label: **"Holiday"** (visible because the block is wide enough at this range).
@@ -22,4 +22,4 @@ Time off and allocations both occupy a person's days, but they mean opposite thi
 
 - ✅ Tyler's **10–12 June** shows a **time-off block** (`data-testid="timeoff-block"`).
 - ✅ The block is labelled **"Holiday"** (the label shows when the block is wide enough to fit it).
-- ✅ The time-off block is visible at the current **4w** zoom (it does not depend on fine zoom).
+- ✅ The time-off block is visible at the current **4 weeks** zoom (it does not depend on fine zoom).

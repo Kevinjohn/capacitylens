@@ -5,6 +5,7 @@ import {
   openApp,
   probeSchedulerGeometry as probe,
   settledSchedulerLeftDate as settledLeftDate,
+  setZoom,
   waitForWeekSnap,
 } from "./helpers";
 
@@ -32,7 +33,7 @@ test.describe("Snap to week start", () => {
 
   test("with the setting ON, a stray scroll nudge snaps back to the week start", async ({ page }) => {
     await openApp(page); // snap on by default
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on the week start (Monday, default weekStartsOn).
     // Poll, not a single read: under parallel load (Firefox especially) the zoom-click scroll +
@@ -51,7 +52,7 @@ test.describe("Snap to week start", () => {
 
   test("the snap FLOORS to the current week (not NEAREST), even past the half-week", async ({ page }) => {
     await openApp(page); // snap on by default
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on this week's Monday. Frozen clock 2026-06-03 (Wed),
     // week origin Monday 2026-06-01 → the leading day NUMBER here is "1". Read it only once the zoom-
@@ -95,7 +96,7 @@ test.describe("Snap to week start", () => {
 
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByTestId("getting-started-dismiss").click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     // The left edge now opens flush on a Sunday (the week start), not a Monday.
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Sun");
@@ -115,7 +116,7 @@ test.describe("Snap to week start", () => {
     await expect(toggle).toHaveAttribute("aria-checked", "false");
 
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
     // Poll the open-flush precondition until the zoom-click scroll settles on Monday (parallel-load
     // Firefox can still be settling on a single read).
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Mon");

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { goToSeedWeek, openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-RES-01..10 (Resources area). Each test starts from the seeded app
 // (Playwright gives every test a fresh page → fresh in-memory seed).
@@ -66,8 +66,8 @@ test.describe("Resources", () => {
   // not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
   test("archiving a resource hides it from the list + schedule, and undo restores it", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
-    await page.getByLabel("Jump to date").fill("2026-06-01");
+    await setZoom(page, 4);
+    await goToSeedWeek(page);
     const tylerBars = page.locator('[data-resource-id="r-tyler"]').getByTestId("allocation-bar");
     await expect(tylerBars.first()).toBeVisible();
 

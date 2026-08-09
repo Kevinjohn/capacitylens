@@ -16,7 +16,7 @@ the way on its own (or on demand) so the schedule stays the focus.
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at Schedule (`/`). Click **4w** so more of the
+**Precondition:** Seeded app open at Schedule (`/`). Set **Weeks visible** to **4 weeks** so more of the
 timeline is visible, then scroll the grid fully left if the seed bars aren't in view.
 
 1. Find the **Brand System** allocation bar (a _Brand Themes_ activity on _Pam Gonzalez_).

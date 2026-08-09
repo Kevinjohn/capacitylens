@@ -27,6 +27,12 @@ This is the short, present-tense record of decisions that constrain future work.
 - Displayed utilisation is calculated over the visible 1/2/4/6/8-week window.
 - `overSoon` is calculated over a fixed forward 14-day window from today and never changes with
   zoom or pan.
+- The visible span is chosen from a **Weeks visible** dropdown, not a row of always-on buttons. The
+  five spans are unchanged; the schedule's top bar is reserved for the controls people reach for
+  every session.
+- The schedule's jump-to-date picker is not shown. Planners rarely look far ahead, and when they do
+  a month list is the likelier affordance; that design is deferred rather than decided. The control
+  remains in the codebase and under test so restoring or reusing it is a one-line change.
 
 ## Data and tenancy
 

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { goToSeedWeek, openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-TOF-01..04.
 test.describe("Time off", () => {
@@ -16,7 +16,7 @@ test.describe("Time off", () => {
 
     // It renders as a labelled block on Nike's lane.
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -34,8 +34,8 @@ test.describe("Time off", () => {
 
     // The readable type label still lives on the timeline block (zoom 1w so the label renders).
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
-    await page.getByLabel("Jump to date").fill("2026-06-01");
+    await setZoom(page, 1);
+    await goToSeedWeek(page);
     const block = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
     await expect(block).toContainText("Holiday"); // the human label…
     await expect(block).not.toContainText("holiday"); // …not the raw enum
@@ -67,8 +67,8 @@ test.describe("Time off", () => {
 
     // The same record exists on the schedule before deletion.
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
-    await page.getByLabel("Jump to date").fill("2026-06-01");
+    await setZoom(page, 1);
+    await goToSeedWeek(page);
     const block = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
     await expect(block).toContainText("Holiday");
     await page.getByRole("link", { name: "Time off" }).click();

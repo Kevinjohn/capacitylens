@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp, setZoom } from "./helpers";
 
 // The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be
 // set ONLY by picking a preset swatch (no hex/RGB entry — see ColorField + the "preset
@@ -90,7 +90,7 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
     // The "Wireframes" bar (a Project Lightning activity) must render the picked hex. Seed bars
     // sit in early June and are visible at 4w with the grid scrolled fully left.
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });

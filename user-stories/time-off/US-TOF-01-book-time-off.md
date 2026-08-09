@@ -20,12 +20,12 @@ People take holidays, get sick and book unpaid days. The manager records that on
 4. Set **Type** = _Holiday_.
 5. Optionally type a **Note** (e.g. `Long weekend`).
 6. Click **Save**. The dialog closes and a new entry appears in the list.
-7. Go to **Schedule** (`/`), use **Jump to date** → `2026-06-01`, and set the zoom to **1w** so individual day columns are wide enough to render the per-day tint and the block label.
+7. Go to **Schedule** (`/`), click **Today** so the seed bars are in view, and set **Weeks visible** to **1 week** so individual day columns are wide enough to render the per-day tint and the block label.
 
 ## Acceptance criteria
 
 - ✅ After Save, the dialog closes and a `timeoff-row` for **Nike Spiros** appears in the Time off list, reading **Nike Spiros · Wed 17th Jun · 3 days**. (The list is deliberately terse — the end date, the type and any note are stored and shown on the timeline block, not in this row; see US-TOF-04.)
-- ✅ On the Schedule (Jump to date → 2026-06-01, zoom **1w**), Nike's lane shows a labelled `timeoff-block` over 17–19 June carrying the type label (the block label renders once a column is wide enough — use 1w).
+- ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Nike's lane shows a labelled `timeoff-block` over 17–19 June carrying the type label (the block label renders once a column is wide enough — use 1 week).
 - ✅ Those days read as unavailable: each covered day in Nike's lane is greyed (`data-testid="unavailable-day"`), reflecting 0 available hours.
 - ✅ Saving with **no Resource** selected keeps the dialog open and is rejected with the inline error "Choose a resource." (`aria-invalid` on the Resource field).
 - ✅ Clearing **Start** or **End** so a date is empty keeps the dialog open and is rejected with "Start and end dates are required." (`aria-invalid` on the date fields).

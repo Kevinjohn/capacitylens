@@ -16,7 +16,7 @@ The manager wants the schedule to read top-to-bottom in a stable order, the same
 
 1. Click **Add discipline**, name it `Strategy`, pick a colour, and **Save**.
 2. Note where **Strategy** lands in the Disciplines list.
-3. Click **Schedule** in the sidebar (`/`); use **Jump to date** → `2026-06-01`. Note the group order.
+3. Click **Schedule** in the sidebar (`/`); click **Today**. Note the group order.
 
 ## Acceptance criteria
 

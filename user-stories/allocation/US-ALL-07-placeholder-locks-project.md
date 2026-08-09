@@ -13,7 +13,7 @@ A placeholder is a reserved slot for one project (e.g. _Senior Designer_ on _Pro
 ## How (end-to-end)
 
 **Precondition:** Seeded app open. In **Settings**, enable **Show placeholders**, then return to
-**Schedule** (`/`), set zoom to **4w**, and set **Jump to date** → `2026-06-01`. The **Senior
+**Schedule** (`/`), set **Weeks visible** to **4 weeks**, and click **Today**. The **Senior
 Designer** placeholder (`r-ph-designer`) is bound to **Project Lightning** (`p-acme`).
 
 1. On the seeded **Senior Designer** placeholder's row (shown on the schedule as the literal **Placeholder** with a `?` avatar), click **+** to open **New allocation** — or draw on its lane in Work mode. In create mode the assignee is fixed to that row (no Assignee select), so the modal opens already bound to the placeholder.
