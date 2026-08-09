@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import type { LookupAddress } from "node:dns";
+import { lookup } from "node:dns/promises";
 import {
   createStrictOidcClient,
   StrictOidcProviderUnavailableError,
   StrictOidcVerificationError,
   strictOidcUserInfo,
 } from "./strictOidc";
+
+// Off-issuer endpoint containment resolves hostnames through DNS; the loopback issuer used across
+// this suite keeps every other endpoint same-origin, so `lookup` is only reached by the split-origin
+// tests below, which drive it explicitly. A default rejection makes any unexpected call a hard error.
+vi.mock("node:dns/promises", () => ({ lookup: vi.fn(async () => Promise.reject(new Error("unexpected DNS lookup"))) }));
 
 const issuer = "http://127.0.0.1:5556/dex";
 const discoveryUrl = `${issuer}/.well-known/openid-configuration`;
@@ -355,6 +362,85 @@ describe("strictOidcUserInfo", () => {
     );
     const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
     await expect(client.metadata()).rejects.toThrow("OIDC discovery issuer does not match the configured issuer.");
+  });
+
+  const discoveryWith = (override: Record<string, unknown>) =>
+    vi.fn(async () =>
+      Response.json({
+        ...requiredDiscoveryCapabilities,
+        issuer,
+        authorization_endpoint: `${issuer}/auth`,
+        token_endpoint: `${issuer}/token`,
+        jwks_uri: jwksUrl,
+        userinfo_endpoint: userInfoUrl,
+        id_token_signing_alg_values_supported: ["RS256"],
+        ...override,
+      }),
+    );
+
+  // SSRF containment only engages for a publicly-reachable issuer, so these tests configure one (a
+  // literal public IP keeps `issuerIsInternal` from needing a DNS lookup). Endpoints default to the
+  // issuer origin; each case overrides one to an off-origin address that must be refused or allowed.
+  const publicIssuer = "https://93.184.216.34";
+  const publicDiscoveryUrl = `${publicIssuer}/.well-known/openid-configuration`;
+  const publicDiscoveryWith = (override: Record<string, unknown>) =>
+    vi.fn(async () =>
+      Response.json({
+        ...requiredDiscoveryCapabilities,
+        issuer: publicIssuer,
+        authorization_endpoint: `${publicIssuer}/auth`,
+        token_endpoint: `${publicIssuer}/token`,
+        jwks_uri: `${publicIssuer}/keys`,
+        userinfo_endpoint: `${publicIssuer}/userinfo`,
+        id_token_signing_alg_values_supported: ["RS256"],
+        ...override,
+      }),
+    );
+  const publicClient = () =>
+    createStrictOidcClient({ issuer: publicIssuer, clientId, discoveryUrl: publicDiscoveryUrl });
+
+  it.each([
+    ["token_endpoint literal loopback", { token_endpoint: "https://127.0.0.1:9999/token" }],
+    ["jwks_uri literal RFC1918", { jwks_uri: "https://10.0.0.5/keys" }],
+    ["userinfo_endpoint literal link-local metadata", { userinfo_endpoint: "https://169.254.169.254/userinfo" }],
+    ["jwks_uri literal IPv6 loopback", { jwks_uri: "https://[::1]/keys" }],
+    // IPv6 forms that embed an IPv4 address must classify by the embedded v4, whatever the spelling.
+    ["jwks_uri IPv4-mapped loopback (hex)", { jwks_uri: "https://[::ffff:7f00:1]/keys" }],
+    ["jwks_uri IPv4-mapped loopback (dotted)", { jwks_uri: "https://[::ffff:127.0.0.1]/keys" }],
+    ["jwks_uri IPv4-mapped metadata (hex)", { jwks_uri: "https://[::ffff:a9fe:a9fe]/keys" }],
+    ["jwks_uri IPv4-compatible loopback", { jwks_uri: "https://[::7f00:1]/keys" }],
+    ["jwks_uri 6to4 loopback", { jwks_uri: "https://[2002:7f00:1::]/keys" }],
+    ["jwks_uri NAT64 RFC1918", { jwks_uri: "https://[64:ff9b::a00:5]/keys" }],
+  ])("refuses an off-issuer %s that is a private or reserved address", async (_label, override) => {
+    vi.stubGlobal("fetch", publicDiscoveryWith(override));
+    await expect(publicClient().metadata()).rejects.toThrow("private or reserved network address");
+  });
+
+  it("refuses an off-issuer endpoint whose hostname resolves to a private address", async () => {
+    vi.mocked(lookup).mockResolvedValueOnce([{ address: "10.1.2.3", family: 4 }] as unknown as LookupAddress);
+    vi.stubGlobal("fetch", publicDiscoveryWith({ jwks_uri: "https://keys.internal.example/keys" }));
+    await expect(publicClient().metadata()).rejects.toThrow("private or reserved network address");
+  });
+
+  it("accepts an off-issuer endpoint that resolves to a globally routable address (split-origin providers)", async () => {
+    vi.mocked(lookup).mockResolvedValueOnce([{ address: "198.51.100.7", family: 4 }] as unknown as LookupAddress);
+    vi.stubGlobal("fetch", publicDiscoveryWith({ jwks_uri: "https://keys.provider.example/oauth2/v3/certs" }));
+    await expect(publicClient().metadata()).resolves.toMatchObject({
+      jwks_uri: "https://keys.provider.example/oauth2/v3/certs",
+    });
+  });
+
+  it("accepts an off-issuer endpoint on a global-unicast IPv6 literal", async () => {
+    vi.stubGlobal("fetch", publicDiscoveryWith({ jwks_uri: "https://[2606:4700:4700::1111]/keys" }));
+    await expect(publicClient().metadata()).resolves.toMatchObject({ jwks_uri: "https://[2606:4700:4700::1111]/keys" });
+  });
+
+  it("accepts an off-issuer private endpoint when the issuer itself is internal (split-origin on-prem)", async () => {
+    // Loopback issuer => intentionally internal deployment => containment is skipped, so an internal
+    // jwks host on a different origin is allowed with no operator configuration.
+    vi.stubGlobal("fetch", discoveryWith({ jwks_uri: "https://10.0.0.5/keys" }));
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl });
+    await expect(client.metadata()).resolves.toMatchObject({ jwks_uri: "https://10.0.0.5/keys" });
   });
 
   it.each([null, []])("rejects a non-object discovery document (%j)", async (document) => {

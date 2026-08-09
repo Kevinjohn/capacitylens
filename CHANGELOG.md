@@ -10,6 +10,32 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.35.4-alpha.1] — 2026-08-09
+
+Security hardening from a Codex CLI scan and a follow-up code review. No schema change.
+
+### Security
+
+- OAuth/OIDC refresh and access tokens are now encrypted at rest (`encryptOAuthTokens`), and
+  implicit account-linking is disabled (`disableImplicitLinking`) so a federated identity can only
+  attach to an existing account through an explicit, verified link. This is a content-only change
+  with no schema migration: tokens stored before the upgrade keep working and are transparently
+  re-encrypted the next time they are refreshed — no re-authentication or operator action required.
+- The strict-OIDC discovery handler now resolves each advertised endpoint
+  (`token_endpoint`, `jwks_uri`, `userinfo_endpoint`) and, for a publicly-reachable issuer, rejects
+  any that fall off the issuer origin and resolve to a private or reserved network address (RFC 1918,
+  loopback, link-local including the cloud metadata range, CGNAT, and the IPv6 equivalents — mapped,
+  compatible, 6to4 and NAT64 forms are classified by their embedded IPv4), closing an SSRF pivot a
+  compromised or misconfigured provider could otherwise use. A deployment whose issuer is itself on an
+  internal network is treated as intentionally internal, so split-origin on-prem IdPs keep working
+  with no configuration.
+- The nginx reverse proxy now suppresses its access log for the invite **preview** route in
+  addition to accept/signup, keeping the URL-path invite bearer out of logs on every hop; a unit
+  test couples the nginx suppression list to the application's log-redaction pattern so the two
+  cannot drift apart.
+- Private local reference material (`/_input/`, `/to-my-siblings/`) is excluded from the Docker
+  build context so it can never be baked into an image layer or builder cache.
+
 ## [0.35.3-alpha.1] — 2026-08-09
 
 Documentation polish. No application behaviour changed.
@@ -2867,7 +2893,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.3-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...HEAD
+[0.35.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.3-alpha.1...v0.35.4-alpha.1
 [0.35.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.2-alpha.1...v0.35.3-alpha.1
 [0.35.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.1-alpha.1...v0.35.2-alpha.1
 [0.35.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.0-alpha.1...v0.35.1-alpha.1

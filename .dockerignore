@@ -22,6 +22,11 @@
 **/*.db-wal
 **/*.db-shm
 
+# Private local reference material — git-ignored design/competitor scraps and the sibling
+# handbook workspace. Never bake these into an image layer or builder cache.
+/_input/
+/to-my-siblings/
+
 # Agent / loop scratch and state (never part of a build)
 .claude
 *-state.json

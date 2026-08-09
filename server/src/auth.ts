@@ -1503,7 +1503,11 @@ export function authFromEnv(
     // Email is an attribute, never an account-link key. Linking requires a separate authenticated
     // ceremony outside an OIDC callback, so a newly observed issuer/subject cannot attach itself to
     // an existing local principal merely by presenting the same verified email address.
-    account: { accountLinking: { disableImplicitLinking: true } },
+    //
+    // Provider access/refresh/id tokens are encrypted with the application secret before they reach
+    // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials
+    // — defence in depth between database-copy theft and application-secret theft.
+    account: { accountLinking: { disableImplicitLinking: true }, encryptOAuthTokens: true },
     emailAndPassword: {
       enabled: mode === "password",
       // The static library flag stays OFF so the sign-up gate has ONE owner: the live hooks.before
