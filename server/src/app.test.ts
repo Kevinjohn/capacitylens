@@ -500,6 +500,17 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
     expect(s.projects).toHaveLength(0);
   });
 
+  it("rolls back valid repeated allocations when one generated sibling is invalid", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    const res = await batch(app, [
+      { method: "PUT", table: "allocations", id: "repeat-good", row: allocation("repeat-good", "a1", "r1", "t1") },
+      { method: "PUT", table: "allocations", id: "repeat-bad", row: allocation("repeat-bad", "a1", "missing", "t1") },
+    ]);
+    expect(res.statusCode).toBe(400);
+    expect((await state(app)).allocations).toHaveLength(0);
+  });
+
   it("rolls back earlier operations when a placeholder rebind would invalidate existing work", async () => {
     const { app } = freshApp();
     await scaffold(app);

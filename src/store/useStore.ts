@@ -403,7 +403,11 @@ export interface StoreState {
   updateActivity: (id: ID, patch: Patch<Activity>) => void;
   deleteActivity: (id: ID) => void;
 
+  /** Create one allocation through the same atomic validation/write path as `addAllocations`. */
   addAllocation: (input: Draft<Allocation>) => Allocation;
+  /** Create a non-empty allocation batch in one mutation/history step. Every draft is validated before
+   * anything commits; a tenancy, reference or date-range failure throws and leaves state untouched. */
+  addAllocations: (inputs: readonly Draft<Allocation>[]) => Allocation[];
   /** Apply an allocation patch. False means the write was deliberately refused as a Viewer or the
    * target disappeared before commit; validation/tenancy violations still throw. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean;
@@ -688,6 +692,30 @@ export const useStore = create<StoreState>()((set, get, store) => {
     // and patch types at every call site above, which is where correctness is actually checked.
     mutate((d) => ({ ...d, [key]: updateById(d[key] as Entity[], id, effective as Partial<Entity>) }) as AppData);
     return true;
+  };
+
+  // One shared implementation keeps single and repeated creation behavior identical. Build and
+  // validate every row before mutate() so a bad middle draft cannot publish, persist or enter history.
+  const addAllocationsImpl = (inputs: readonly Draft<Allocation>[]): Allocation[] => {
+    if (inputs.length === 0) throw new Error("At least one allocation is required.");
+    const accountId = requireAccount();
+    const allocations = inputs.map((input) => ({
+      ...input,
+      hoursPerDay: clampHoursPerDay(input.hoursPerDay),
+      id: newId(),
+      accountId,
+      ...stamp(),
+    }));
+    // Preserve the existing add* contract: a Viewer receives a constructed return value plus the
+    // visible read-only notice, but no validation or state mutation runs.
+    if (blockedByViewer()) return allocations;
+    const data = get().data;
+    for (const allocation of allocations) {
+      assertAllocation(data, accountId, allocation.resourceId, allocation.activityId, allocation.hoursPerDay);
+      assertDateRange(allocation.startDate, allocation.endDate);
+    }
+    mutate((d) => ({ ...d, allocations: [...d.allocations, ...allocations] }));
+    return allocations;
   };
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
@@ -1196,21 +1224,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
       mutate((d) => deleteActivityCascade(d, id));
     }),
 
-    addAllocation: guardedAdd(
-      (input: Draft<Allocation>): Allocation => ({
-        ...input,
-        hoursPerDay: clampHoursPerDay(input.hoursPerDay),
-        id: newId(),
-        accountId: requireAccount(),
-        ...stamp(),
-      }),
-      (e, input) => {
-        assertAllocation(get().data, e.accountId, input.resourceId, input.activityId, input.hoursPerDay);
-        assertDateRange(input.startDate, input.endDate);
-        mutate((d) => ({ ...d, allocations: [...d.allocations, e] }));
-        return e;
-      },
-    ),
+    addAllocation: (input) => addAllocationsImpl([input])[0],
+    addAllocations: addAllocationsImpl,
     updateAllocation: guarded(
       (id: ID, patch: Patch<Allocation>) =>
         updateOwned("allocations", id, patch, (merged, existing) => {

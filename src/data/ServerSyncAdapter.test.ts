@@ -14,7 +14,15 @@ import {
 } from "./ServerSyncAdapter";
 import { diffOpsFromPossibleBases } from "./syncOps";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { Account, AppData, Client, Discipline, Project, TimeOff } from "@capacitylens/shared/types/entities";
+import type {
+  Account,
+  Allocation,
+  AppData,
+  Client,
+  Discipline,
+  Project,
+  TimeOff,
+} from "@capacitylens/shared/types/entities";
 import {
   cacheAccountSlice,
   cacheAuthSnapshot,
@@ -48,6 +56,18 @@ const project = (id: string, clientId: string, updatedAt = TS1): Project => ({
   color: "#3b82f6",
   createdAt: TS1,
   updatedAt,
+});
+const allocation = (id: string, startDate: Allocation["startDate"]): Allocation => ({
+  id,
+  accountId: "a1",
+  resourceId: "r1",
+  activityId: "t1",
+  startDate,
+  endDate: startDate,
+  hoursPerDay: 8,
+  status: "confirmed",
+  createdAt: TS1,
+  updatedAt: TS1,
 });
 
 const withData = (over: Partial<AppData>): AppData => ({
@@ -760,6 +780,25 @@ describe("ServerSyncAdapter.saveAll", () => {
       "PUT clients/c1", // upserts parent-first
       "PUT projects/p1",
     ]);
+  });
+
+  it("dispatches an isolated weekly repeat as allocation PUTs in one client batch", async () => {
+    const fetchImpl = okFetch() as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const allocations = Array.from({ length: 14 }, (_, index) =>
+      allocation(
+        `repeat-${index}`,
+        `2026-${String(1 + Math.floor(index / 4)).padStart(2, "0")}-${String(1 + (index % 4) * 7).padStart(2, "0")}` as Allocation["startDate"],
+      ),
+    );
+    await adapter.saveAll(withData({ allocations }));
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    const ops = batchOps(calls[0]);
+    expect(ops).toHaveLength(14);
+    expect(ops.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
+    expect(ops.map((op) => op.id)).toEqual(allocations.map((row) => row.id));
   });
 
   it("does NOT advance the snapshot on a failed batch, so the next save replays the delta", async () => {

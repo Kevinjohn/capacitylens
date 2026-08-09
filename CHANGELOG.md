@@ -10,6 +10,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- **New allocations can repeat weekly or monthly for the next three calendar months.** The create
+  form now offers Weekly, 2/3/4-week and Monthly choices, previews the number of independent
+  allocations and final start date, and aggregates capacity/time-off warnings across the generated
+  group. The complete group saves atomically and is removed by one Undo; afterwards every allocation
+  can be edited or deleted independently. Edit and Duplicate remain single-allocation flows (#174).
+
 ## [0.35.6-alpha.1] — 2026-08-09
 
 The schedule's top bar: one **Weeks visible** dropdown in place of five week buttons, icon-only

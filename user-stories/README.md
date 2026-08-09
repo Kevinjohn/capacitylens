@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-118 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
+119 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -153,6 +153,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change assignee               | `e2e/allocation.spec.ts`                          |
 | [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder locks the project | `e2e/allocation.spec.ts` + `e2e/features.spec.ts` |
 | [US-ALL-08](allocation/US-ALL-08-validation.md)                | Rejects bad input             | `e2e/allocation.spec.ts`                          |
+| [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating allocations  | `e2e/allocation.spec.ts`                          |
 
 ## Toolbar — `toolbar/`
 

@@ -27,6 +27,74 @@ test.describe("Allocation editor", () => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
 
+  test("creates and undoes a weekly repeat batch", async ({ page }) => {
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
+    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    const dialog = page.getByRole("dialog", { name: "New allocation" });
+    await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
+    await dialog.getByLabel("Start Date").fill("2026-06-10");
+    await dialog.getByLabel(/^End/).fill("2026-06-10");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
+    await expect(dialog).toContainText("Creates 14 independent allocations. Last start: Wed 9th Sep.");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(20);
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
+  });
+
+  test("creates every-three-weeks from direct date input", async ({ page }) => {
+    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    const dialog = page.getByRole("dialog", { name: "New allocation" });
+    await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
+    await dialog.getByLabel("Start Date").fill("2026-06-13");
+    await dialog.getByLabel(/^End/).fill("2026-06-13");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "every-three-weeks");
+    await expect(dialog).toContainText("Creates 5 independent allocations. Last start: Sat 5th Sep.");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(11);
+  });
+
+  test("creates monthly batches on the 13th and across February, then edits one independently", async ({ page }) => {
+    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    let dialog = page.getByRole("dialog", { name: "New allocation" });
+    await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
+    await dialog.getByLabel("Start Date").fill("2026-06-13");
+    await dialog.getByLabel(/^End/).fill("2026-06-13");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
+    await expect(dialog).toContainText("Creates 4 independent allocations. Last start: Sun 13th Sep.");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
+
+    const julyOccurrence = page.locator('[data-testid="allocation-bar"][aria-label*="13 Jul to 13 Jul"]');
+    await julyOccurrence.click();
+    let editor = page.getByRole("dialog", { name: "Edit allocation" });
+    await expect(editor.getByRole("combobox", { name: "Repeat" })).toHaveCount(0);
+    await editor.getByLabel("Note").fill("Edited independently");
+    await editor.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
+
+    await julyOccurrence.click();
+    editor = page.getByRole("dialog", { name: "Edit allocation" });
+    await editor.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(9);
+
+    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    dialog = page.getByRole("dialog", { name: "New allocation" });
+    await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
+    await dialog.getByLabel("Start Date").fill("2027-01-31");
+    await dialog.getByLabel(/^End/).fill("2027-01-31");
+    await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
+    await expect(dialog).toContainText("Creates 4 independent allocations. Last start: Fri 30th Apr.");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+
   test("edits an allocation and reflects the change on the bar", async ({ page }) => {
     await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit allocation" });
@@ -39,7 +107,9 @@ test.describe("Allocation editor", () => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
-    await page.getByRole("dialog", { name: "Edit allocation" }).getByRole("button", { name: "Duplicate" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit allocation" });
+    await expect(dialog.getByRole("combobox", { name: "Repeat" })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Duplicate" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
 

@@ -18,6 +18,8 @@ vi.mock("../../lib/capacity", async (importOriginal) => ({
 }));
 
 const ACC = DEFAULT_ACCOUNT_ID;
+const originalAddAllocation = useStore.getState().addAllocation;
+const originalAddAllocations = useStore.getState().addAllocations;
 
 async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: string, optionName: string) {
   const trigger = screen.getByRole("combobox", { name: label });
@@ -82,7 +84,11 @@ function base(): AppData {
 }
 
 beforeEach(() => {
+  // Zustand state writes replace the state object while retaining action references. Restore these
+  // explicitly so a spy installed in one test cannot survive on a later state object.
+  useStore.setState({ addAllocation: originalAddAllocation, addAllocations: originalAddAllocations });
   capacityAdvisoryMock.mockClear();
+  capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
   useStore.getState().replaceAll(base());
   useStore.getState().setActiveAccount(ACC);
   // Placeholders default OFF (per-account pref). Several tests reassign to / from a placeholder
@@ -1208,5 +1214,237 @@ describe("AllocationModal Enter key submission", () => {
     const activities = useStore.getState().data.activities;
     expect(activities.some((t) => t.name === "Brand new activity")).toBe(true);
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Brand new activity");
+  });
+});
+
+describe("AllocationModal repeat creation", () => {
+  const addPerson = () =>
+    useStore.getState().addResource({
+      kind: "person",
+      name: "Tyler",
+      role: "Designer",
+      employmentType: "permanent",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      color: "#111111",
+    });
+
+  const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+  };
+
+  it("shows all six create-only options, defaults to one-off and dirty-tracks repeat changes", async () => {
+    const resource = addPerson();
+    const { unmount } = render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    const repeat = screen.getByRole("combobox", { name: "Repeat" });
+    expect(repeat).toHaveTextContent("Doesn’t repeat");
+    fireEvent.keyDown(repeat, { key: "ArrowDown" });
+    for (const option of ["Doesn’t repeat", "Weekly", "Every 2 weeks", "Every 3 weeks", "Every 4 weeks", "Monthly"]) {
+      expect(screen.getByRole("option", { name: option })).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("option", { name: "Weekly" }));
+    expect(useStore.getState().dirtyForm).toBe(true);
+    unmount();
+
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
+  });
+
+  it("previews every cadence with formatShortDate and creates weekly through one bulk call", async () => {
+    const resource = addPerson();
+    const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+    const oneSpy = vi.spyOn(useStore.getState(), "addAllocation");
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
+    );
+    await completeAssignment(user);
+
+    for (const [choice, count, lastStart] of [
+      ["Weekly", 14, "Mon 31st Aug"],
+      ["Every 2 weeks", 7, "Mon 24th Aug"],
+      ["Every 3 weeks", 5, "Mon 24th Aug"],
+      ["Every 4 weeks", 4, "Mon 24th Aug"],
+      ["Monthly", 4, "Tue 1st Sep"],
+    ] as const) {
+      await chooseOption(user, "Repeat", choice);
+      expect(
+        screen.getByText(`Creates ${count} independent allocations. Last start: ${lastStart}.`),
+      ).toBeInTheDocument();
+    }
+
+    await chooseOption(user, "Repeat", "Weekly");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(oneSpy).not.toHaveBeenCalled();
+    expect(bulkSpy).toHaveBeenCalledTimes(1);
+    const drafts = bulkSpy.mock.calls[0][0];
+    expect(drafts).toHaveLength(14);
+    expect(drafts[0]).toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-03" });
+    expect(drafts.at(-1)).toMatchObject({ startDate: "2026-08-31", endDate: "2026-09-02" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    bulkSpy.mockRestore();
+    oneSpy.mockRestore();
+  });
+
+  it("keeps the original monthly numeric day while preserving a multi-day span", async () => {
+    const resource = addPerson();
+    const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2027-01-31", endDate: "2027-02-02" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Monthly");
+    expect(screen.getByText("Creates 4 independent allocations. Last start: Fri 30th Apr.")).toBeInTheDocument();
+    expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(bulkSpy.mock.calls[0][0].map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
+      ["2027-01-31", "2027-02-02"],
+      ["2027-02-28", "2027-03-02"],
+      ["2027-03-31", "2027-04-02"],
+      ["2027-04-30", "2027-05-02"],
+    ]);
+    bulkSpy.mockRestore();
+  });
+
+  it.each(["days", "blocks"] as const)(
+    "rejects a %s repeat when a later occurrence cannot fit the complete working span",
+    async (schedulingMode) => {
+      useStore.getState().updateAccount(ACC, { schedulingMode });
+      const resource = useStore.getState().addResource({
+        ...person("Tyler"),
+        workingDays: [0, 1, 2, 3, 4, 5, 6],
+      });
+      const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+      const onClose = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <AllocationModal
+          create={{ resourceId: resource.id, startDate: "9999-09-30", endDate: "9999-10-02" }}
+          onClose={onClose}
+        />,
+      );
+      await completeAssignment(user);
+      await chooseOption(user, "Repeat", "Monthly");
+      expect(screen.queryByText(/creates 4 independent allocations/i)).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Repeating allocations cannot extend beyond the supported date range.",
+      );
+      expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
+      expect(bulkSpy).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+      bulkSpy.mockRestore();
+    },
+  );
+
+  it("keeps one-off on addAllocation and leaves a rejected bulk dialog open", async () => {
+    const resource = addPerson();
+    const oneSpy = vi.spyOn(useStore.getState(), "addAllocation");
+    const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+    const user = userEvent.setup();
+    const first = render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(oneSpy).toHaveBeenCalledTimes(1);
+    expect(bulkSpy).not.toHaveBeenCalled();
+    first.unmount();
+    oneSpy.mockRestore();
+    bulkSpy.mockRestore();
+    useStore.setState({ addAllocation: originalAddAllocation, addAllocations: originalAddAllocations });
+
+    const rejectBulk = vi.spyOn(useStore.getState(), "addAllocations").mockImplementation(() => {
+      throw new Error("The generated batch was rejected.");
+    });
+    const onClose = vi.fn();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={onClose}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Every 3 weeks");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("The generated batch was rejected.");
+    expect(onClose).not.toHaveBeenCalled();
+    rejectBulk.mockRestore();
+  });
+
+  it("aggregates singular/plural repeat advisory fragments and keeps saving advisory-only", async () => {
+    const resource = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    capacityAdvisoryMock.mockClear();
+    let call = 0;
+    capacityAdvisoryMock.mockImplementation(() => {
+      call += 1;
+      if (call === 1) return { overDays: 1, timeOffDays: 1 };
+      if (call === 2) return { overDays: 0, timeOffDays: 1 };
+      return { overDays: 0, timeOffDays: 0 };
+    });
+    await chooseOption(user, "Repeat", "Weekly");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "For this repeat, 1 allocation may exceed capacity and 2 allocations overlap time off. Saving is still allowed.",
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("duplicates exactly one allocation through the single-row path and never exposes Repeat", async () => {
+    const resource = addPerson();
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const oneSpy = vi.spyOn(useStore.getState(), "addAllocation");
+    const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Duplicate" }));
+    expect(oneSpy).toHaveBeenCalledTimes(1);
+    expect(bulkSpy).not.toHaveBeenCalled();
+    expect(useStore.getState().data.allocations).toHaveLength(2);
+    oneSpy.mockRestore();
+    bulkSpy.mockRestore();
   });
 });
