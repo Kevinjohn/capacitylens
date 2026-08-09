@@ -61,6 +61,7 @@ export interface AuditRecord {
     | "softDelete"
     | "purge"
     | "memberRole"
+    | "memberStatus"
     | "memberRemove"
     | "ownershipTransfer"
     | "inviteCreate"

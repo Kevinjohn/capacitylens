@@ -12,6 +12,7 @@ import type {
   InvitationSummary,
   IsoInstant,
   Membership,
+  MembershipStatus,
   OperationReceipt,
   PendingOperationReceipt,
   OwnershipTransfer,
@@ -96,7 +97,15 @@ export interface IdentityPort {
 export interface AccountAdminPort {
   listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
   getMembership(input: { principalId: PrincipalId; workspaceId: WorkspaceId }): Promise<Membership | null>;
-  listMemberships(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<readonly Membership[]>;
+  /** Active memberships by default. `includeInactive` additionally returns disabled and archived
+   *  rows and exists for ONE caller — the administrative member directory, which must show an
+   *  administrator the state they applied so they can reverse it. Never widen an authorization read
+   *  with it: a non-active membership confers nothing. */
+  listMemberships(input: {
+    actor: ActorContext;
+    workspaceId: WorkspaceId;
+    includeInactive?: boolean;
+  }): Promise<readonly Membership[]>;
   listInvitations(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<readonly InvitationSummary[]>;
   previewInvitation(input: { token: string }): Promise<InvitationPreview>;
   preparePasswordInvitationClaim(input: {
@@ -141,6 +150,15 @@ export interface AccountAdminPort {
     targetPrincipalId: PrincipalId;
     /** Transport-valid roles are accepted here; policy rejects owner with OWNER_TRANSFER_REQUIRED. */
     nextRole: Role;
+    command: CommandIdentity;
+  }): Promise<Membership>;
+  /** Disable, archive or restore a membership. The role and join date are preserved; only the
+   *  authority to enter the workspace changes. Owner memberships and the actor's own are refused. */
+  changeMemberStatus(input: {
+    actor: ActorContext;
+    workspaceId: WorkspaceId;
+    targetPrincipalId: PrincipalId;
+    nextStatus: MembershipStatus;
     command: CommandIdentity;
   }): Promise<Membership>;
   removeMember(input: {

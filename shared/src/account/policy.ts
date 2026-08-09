@@ -39,6 +39,25 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
   return isAccountRole(targetRole) && canAdministerAccount(actorRole, "manage-members") && targetRole !== "owner";
 }
 
+/**
+ * May `actor` move `target`'s membership between lifecycle states (disable / archive / restore)?
+ *
+ * Deliberately the SAME authority as removal, minus self-service: suspending a membership denies
+ * account entry exactly as removal does, so it must not be reachable by anyone who could not also
+ * remove the target. The Owner exclusion inside {@link canRemoveMember} is load-bearing beyond
+ * policy taste — the physical single-active-Owner index and the boot assertion both key on
+ * `role = 'owner' AND status = 'active'`, so disabling an Owner would leave a member-bearing
+ * account ownerless and fail the next boot.
+ *
+ * Self-operation is refused rather than merely discouraged: an administrator who disabled their own
+ * membership would immediately lose the authority needed to reverse it, and for a sole Admin that
+ * is an unrecoverable lockout no in-app path could undo.
+ */
+export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf: boolean): boolean {
+  if (isSelf) return false;
+  return canRemoveMember(actorRole, targetRole);
+}
+
 export function canAdministerIdentity(actorRole: Role, targetRole: Role): boolean {
   if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
   return targetRole !== "owner" || actorRole === "owner";

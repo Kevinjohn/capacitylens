@@ -675,9 +675,13 @@ export function localAccountFlows(input: {
     },
 
     async listMemberDirectory({ actor, workspaceId }): Promise<readonly MemberDirectoryEntry[]> {
+      // The ONLY caller that asks for non-active rows. An administrator who disabled or archived a
+      // member has to be able to see that state to reverse it; every other read of this port stays
+      // active-only, because a non-active membership confers no authority.
       const memberships = await administration.listMemberships({
         actor,
         workspaceId,
+        includeInactive: true,
       });
       const principals = await identity.getPrincipalSummaries({
         principalIds: memberships.map((entry) => entry.principalId),

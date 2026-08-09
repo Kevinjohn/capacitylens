@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { AccountContractError, retryAfterSeconds, type AccountErrorCode } from "@capacitylens/shared/account/errors";
 import {
   canAdministerAccount,
+  canChangeMemberStatus,
   canManageMemberRole,
   canPerformIdentityAdminAction,
   canRemoveMember,
@@ -42,6 +43,7 @@ import {
   removeAllMembersForAccount,
   removeMember as removeMemberRow,
   revokeInvite,
+  setMemberStatus,
   upsertMember,
   type AccountMember,
   InviteAlreadyUsedError,
@@ -651,11 +653,15 @@ export function sqliteAccountAdminPort(input: {
       return row ? membership(db, row) : null;
     },
 
-    async listMemberships({ actor, workspaceId }) {
+    async listMemberships({ actor, workspaceId, includeInactive = false }) {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
       assertAccountAuthority(db, actor, workspaceId, "list-members", trustedLocal);
+      // Default active-only. `includeInactive` is a LISTING widening for the administrative
+      // directory, never an authorization one — this read is already gated on 'list-members', and
+      // the returned rows carry their real status so a caller cannot mistake a disabled membership
+      // for an active one.
       return listMembersForAccount(db, workspaceId)
-        .filter((row) => row.status === "active")
+        .filter((row) => includeInactive || row.status === "active")
         .map((row) => membership(db, row));
     },
 
@@ -957,6 +963,34 @@ export function sqliteAccountAdminPort(input: {
           const row = listMembershipsForUser(db, targetPrincipalId).find(
             (candidate) => candidate.accountId === workspaceId,
           )!;
+          return membership(db, row);
+        },
+      });
+    },
+
+    async changeMemberStatus({ actor, workspaceId, targetPrincipalId, nextStatus, command }) {
+      return runMutation({
+        operation: "change-member-status",
+        actorPrincipalId: actor.principalId,
+        targetPrincipalId,
+        workspaceId,
+        command,
+        payload: { workspaceId, targetPrincipalId, nextStatus },
+        lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
+        audit: { action: "member.status_changed", changedFields: ["status"] },
+        execute: () => {
+          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
+          const acting = assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
+          // Status-AGNOSTIC lookup, unlike changeMemberRole's getActiveMemberRole: restoring a
+          // disabled or archived membership is the whole point, and an active-only read would make
+          // every such target look like a non-member.
+          const target = listMembersForAccount(db, workspaceId).find((row) => row.userId === targetPrincipalId);
+          if (!target) throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
+          if (!canChangeMemberStatus(acting, target.role, targetPrincipalId === actor.principalId))
+            throw failure("FORBIDDEN", "Forbidden.", command.commandId);
+          if (!setMemberStatus(db, workspaceId, targetPrincipalId, nextStatus))
+            throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
+          const row = listMembersForAccount(db, workspaceId).find((candidate) => candidate.userId === targetPrincipalId)!;
           return membership(db, row);
         },
       });
