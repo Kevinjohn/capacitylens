@@ -276,9 +276,9 @@ function roleMap(
  * The same map for a TARGET of identity administration, counting memberships of every lifecycle
  * status. Deliberately NOT `roleMap`, and the asymmetry is the point in both directions:
  *
- * - An actor's authority must come only from ACTIVE memberships — a suspended admin administers
+ * - An actor's authority must come only from ACTIVE memberships — a disabled admin administers
  *   nobody — so actors keep using `roleMap`.
- * - A target's suspended memberships must still COUNT. Dropping them made an empty map, which
+ * - A target's non-active memberships must still COUNT. Dropping them made an empty map, which
  *   `authorityDecisions` reads as `target-not-member` and denies: disabling a member was therefore
  *   the act that destroyed the administrator's ability to revoke that member's live sessions or
  *   reset their password — exactly backwards for the compromised-account case that motivates
@@ -539,14 +539,14 @@ export function sqliteAccountAdminPort(input: {
     const now = new Date().toISOString();
     // Status-AGNOSTIC on purpose. An active-only probe reports a disabled or archived member as a
     // NON-member, and the branch below would then upsert them back to `status: "active"` at the
-    // invite's role — silently reversing an administrator's suspension, with no member.status_changed
-    // audit record, for anyone who still holds (or is handed) a link-only invite. Suspension is
-    // reversed by an administrator through changeMemberStatus, never by the suspended party.
+    // invite's role — silently reversing an administrator's decision, with no member.status_changed
+    // audit record, for anyone who still holds (or is handed) a link-only invite. A non-active
+    // membership is restored by an administrator through changeMemberStatus, never by its holder.
     const existing = getMembershipRow(db, live.accountId, input.principalId);
     if (existing && existing.status !== "active") {
       throw failure(
         "FORBIDDEN",
-        "This membership is suspended. An Owner or Admin must restore it before you can rejoin.",
+        "This membership is disabled. An Owner or Admin must restore it before you can rejoin.",
         input.command.commandId,
       );
     }
@@ -1050,8 +1050,8 @@ export function sqliteAccountAdminPort(input: {
           assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
           const acting = assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
           // Status-AGNOSTIC, like changeMemberStatus and for the same reason: the members table
-          // lists suspended rows so an administrator can act on them. An active-only read made
-          // Remove 404 on exactly those rows, leaving no way to delete a suspended membership
+          // lists non-active rows so an administrator can act on them. An active-only read made
+          // Remove 404 on exactly those rows, leaving no way to delete a disabled membership
           // except to restore the member's access first — the opposite of the intent.
           const target = getMembershipRow(db, workspaceId, targetPrincipalId);
           if (!target) throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
@@ -1148,7 +1148,7 @@ export function sqliteAccountAdminPort(input: {
       // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
       // An active-only probe would 404 the compromised-account case that identity repair exists for —
       // an admin disables the account FIRST and then kills its sessions / rotates its password, and
-      // an active-only read here reports the person they just suspended as a non-member. The
+      // an active-only read here reports the person they just disabled as a non-member. The
       // authority question is answered below by evaluateAuthority, which still ranks roles.
       if (!getMembershipRow(db, workspaceId, targetPrincipalId)) {
         throw failure("NOT_FOUND", "Not a member of this workspace.");

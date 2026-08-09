@@ -30,7 +30,7 @@ import { FieldError, FieldSet } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { Badge } from "../ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Pencil, Settings } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Settings } from "lucide-react";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { SsoReadinessPanel } from "./SsoReadinessPanel";
 import {
@@ -277,6 +277,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // Which row's gear popover is open. Controlled rather than uncontrolled so choosing an action can
   // close the menu before its confirmation appears — an open popover behind a modal is a trap.
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
+  // Collapsed by default (#175). Disabled and archived memberships are history, not the team: an
+  // administrator opens this group deliberately, to reverse a change or clear a row out.
+  const [inactiveOpen, setInactiveOpen] = useState(false);
   const [readiness, setReadiness] = useState<WorkspaceReadiness | null>(null);
   const [readinessError, setReadinessError] = useState(false);
   const [readinessRevision, setReadinessRevision] = useState(0);
@@ -896,6 +899,175 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 
   const memberConfirmationCopy = memberConfirmation ? confirmationCopy(memberConfirmation) : null;
 
+  // The directory arrives in one list and splits in two for display (#175). The main table is the
+  // team — no "active" heading, because those rows are simply the members. Disabled and archived
+  // rows move into the collapsed group below; they keep their badge there, so the two states stay
+  // distinguishable without a table each. The server's order (join date, then name) is preserved by
+  // filtering rather than re-sorting.
+  const activeMembers = members?.filter((mem) => mem.status === "active") ?? null;
+  const inactiveMembers = members?.filter((mem) => mem.status !== "active") ?? [];
+
+  // One row renderer for both tables: the gear's actions, the pencil's gate and the status badge are
+  // identical wherever the row is drawn — only the grouping differs.
+  const memberRow = (mem: Member) => {
+    // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue
+    // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
+    // Ordinary role changes never touch the Owner.
+    const representativeRole: Role = mem.role === "viewer" ? "editor" : "viewer";
+    // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves its target
+    // through getActiveMemberRole, so offering the pencil on a non-active row could only ever
+    // produce a 404. Restore the member first, then change the role — a role change must not be a
+    // back door that quietly reinstates access.
+    const mayTouch = mem.status === "active" && !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
+    // Remove, by contrast, is status-agnostic on both sides: deleting a non-active membership is a
+    // normal administrative act and must not require reinstating it first.
+    const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
+    const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, mem.role, mem.isSelf);
+    const memberLabel = labelFor(mem);
+    // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP;
+    // the server 400s there regardless) and never for a target an admin can't touch
+    // (e.g. an owner, or a member who owns another account — a reset link is an
+    // account-takeover capability). We trust the SERVER-computed `mayResetPassword`:
+    // it already folds in the cross-account + self-exemption checks the per-account
+    // pure guard cannot see AND returns `false` in SSO mode.
+    const mayReset = mem.mayResetPassword;
+    const hasMenu = mayReset || mem.mayRevokeSessions || mayChangeStatus || mayRemove;
+    return (
+      <tr key={mem.userId} className="border-b last:border-b-0" data-testid="member-row">
+        <td className="py-2 pr-3">
+          <span className="text-ink">{memberLabel}</span>
+          {mem.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
+          {mem.status !== "active" && (
+            <Badge variant="outline" className="ml-2" data-testid="member-status">
+              {mem.status === "disabled" ? m.settings_member_status_disabled() : m.settings_member_status_archived()}
+            </Badge>
+          )}
+        </td>
+        <td className="py-2 pr-3 text-muted-foreground" data-testid="member-role">
+          {mem.role === "owner" ? m.settings_member_sole_owner_protected() : roleLabel(mem.role)}
+        </td>
+        <td className="py-2 pr-3 text-muted-foreground" data-testid="member-last-login">
+          {lastLoginLabel(mem.lastLoginAt)}
+        </td>
+        <td className="py-2">
+          <div className="flex items-center justify-end gap-1">
+            {hasMenu && (
+              <Popover
+                open={openMenuFor === mem.userId}
+                onOpenChange={(open) => setOpenMenuFor(open ? mem.userId : null)}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title={m.settings_member_settings_aria({ member: memberLabel })}
+                    aria-label={m.settings_member_settings_aria({ member: memberLabel })}
+                    data-testid="member-menu"
+                    disabled={busyAction !== null}
+                  >
+                    <Settings />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56 p-1">
+                  <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                    {m.settings_member_settings_heading()}
+                  </p>
+                  {mayReset && (
+                    <MemberMenuItem
+                      testId="member-reset-password"
+                      label={m.settings_member_reset_password()}
+                      ariaLabel={m.settings_member_reset_password_aria({ member: memberLabel })}
+                      onSelect={() => chooseMemberAction("resetPassword", mem)}
+                    />
+                  )}
+                  {mem.mayRevokeSessions && (
+                    <MemberMenuItem
+                      testId="member-revoke-sessions"
+                      label={m.settings_member_revoke_sessions()}
+                      ariaLabel={m.settings_member_revoke_sessions_aria({ member: memberLabel })}
+                      onSelect={() => chooseMemberAction("revokeSessions", mem)}
+                    />
+                  )}
+                  {mayChangeStatus &&
+                    (mem.status === "active" ? (
+                      <>
+                        <MemberMenuItem
+                          testId="member-disable"
+                          label={m.settings_member_disable()}
+                          ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
+                          onSelect={() => chooseMemberAction("disable", mem)}
+                        />
+                        <MemberMenuItem
+                          testId="member-archive"
+                          label={m.settings_member_archive()}
+                          ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
+                          onSelect={() => chooseMemberAction("archive", mem)}
+                        />
+                      </>
+                    ) : (
+                      <MemberMenuItem
+                        testId="member-restore"
+                        label={m.settings_member_restore()}
+                        ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
+                        onSelect={() => chooseMemberAction("restore", mem)}
+                      />
+                    ))}
+                  {mayRemove && (
+                    <MemberMenuItem
+                      testId="member-remove"
+                      label={m.settings_member_remove()}
+                      ariaLabel={m.settings_member_remove_aria({ member: memberLabel })}
+                      danger
+                      onSelect={() => chooseMemberAction("remove", mem)}
+                    />
+                  )}
+                </PopoverContent>
+              </Popover>
+            )}
+            {mayTouch && (
+              <Button
+                size="sm"
+                variant="ghost"
+                title={m.settings_member_edit_aria({ member: memberLabel })}
+                aria-label={m.settings_member_edit_aria({ member: memberLabel })}
+                data-testid="member-edit"
+                disabled={busyAction !== null}
+                onClick={() => setRoleEdit({ member: mem, nextRole: mem.role })}
+              >
+                <Pencil />
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  // Wrapped in an overflow container so a narrow viewport scrolls the TABLE, never the page.
+  const membersTable = (rows: Member[], testId: string) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm" data-testid={testId}>
+        <thead>
+          <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+            <th scope="col" className="py-2 pr-3 font-medium">
+              {m.settings_member_col_name()}
+            </th>
+            <th scope="col" className="py-2 pr-3 font-medium">
+              {m.settings_member_col_role()}
+            </th>
+            <th scope="col" className="py-2 pr-3 font-medium">
+              {m.settings_member_col_last_login()}
+            </th>
+            <th scope="col" className="py-2 text-right font-medium">
+              <span className="sr-only">{m.settings_member_col_actions()}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>{rows.map(memberRow)}</tbody>
+      </table>
+    </div>
+  );
+
   return (
     <>
       <Card data-testid="members-section" aria-busy={busyAction !== null}>
@@ -939,171 +1111,34 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 
           {/* Members table (#175). One row per member: identity, role, last login, then the two
               action affordances — a gear for the rare lifecycle actions and, at the far right, the
-              pencil that opens the role editor. Wrapped in an overflow container so a narrow
-              viewport scrolls the TABLE, never the page. */}
+              pencil that opens the role editor. */}
           {members && members.length === 0 ? (
             <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm" data-testid="members-table">
-                <thead>
-                  <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-                    <th scope="col" className="py-2 pr-3 font-medium">
-                      {m.settings_member_col_name()}
-                    </th>
-                    <th scope="col" className="py-2 pr-3 font-medium">
-                      {m.settings_member_col_role()}
-                    </th>
-                    <th scope="col" className="py-2 pr-3 font-medium">
-                      {m.settings_member_col_last_login()}
-                    </th>
-                    <th scope="col" className="py-2 text-right font-medium">
-                      <span className="sr-only">{m.settings_member_col_actions()}</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members?.map((mem) => {
-                    // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue
-                    // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
-                    // Ordinary role changes never touch the Owner.
-                    const representativeRole: Role = mem.role === "viewer" ? "editor" : "viewer";
-                    // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves
-                    // its target through getActiveMemberRole, so offering the pencil on a suspended
-                    // row could only ever produce a 404. Restore the member first, then change the
-                    // role — a role change must not be a back door that quietly reinstates access.
-                    const mayTouch =
-                      mem.status === "active" && !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
-                    // Remove, by contrast, is status-agnostic on both sides: deleting a suspended
-                    // membership is a normal administrative act and must not require reinstating it.
-                    const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
-                    const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, mem.role, mem.isSelf);
-                    const memberLabel = labelFor(mem);
-                    // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP;
-                    // the server 400s there regardless) and never for a target an admin can't touch
-                    // (e.g. an owner, or a member who owns another account — a reset link is an
-                    // account-takeover capability). We trust the SERVER-computed `mayResetPassword`:
-                    // it already folds in the cross-account + self-exemption checks the per-account
-                    // pure guard cannot see AND returns `false` in SSO mode.
-                    const mayReset = mem.mayResetPassword;
-                    const hasMenu = mayReset || mem.mayRevokeSessions || mayChangeStatus || mayRemove;
-                    return (
-                      <tr key={mem.userId} className="border-b last:border-b-0" data-testid="member-row">
-                        <td className="py-2 pr-3">
-                          <span className="text-ink">{memberLabel}</span>
-                          {mem.isSelf && (
-                            <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>
-                          )}
-                          {mem.status !== "active" && (
-                            <Badge variant="outline" className="ml-2" data-testid="member-status">
-                              {mem.status === "disabled"
-                                ? m.settings_member_status_disabled()
-                                : m.settings_member_status_archived()}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground" data-testid="member-role">
-                          {mem.role === "owner" ? m.settings_member_sole_owner_protected() : roleLabel(mem.role)}
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground" data-testid="member-last-login">
-                          {lastLoginLabel(mem.lastLoginAt)}
-                        </td>
-                        <td className="py-2">
-                          <div className="flex items-center justify-end gap-1">
-                            {hasMenu && (
-                              <Popover
-                                open={openMenuFor === mem.userId}
-                                onOpenChange={(open) => setOpenMenuFor(open ? mem.userId : null)}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    title={m.settings_member_settings_aria({ member: memberLabel })}
-                                    aria-label={m.settings_member_settings_aria({ member: memberLabel })}
-                                    data-testid="member-menu"
-                                    disabled={busyAction !== null}
-                                  >
-                                    <Settings />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent align="end" className="w-56 p-1">
-                                  <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                                    {m.settings_member_settings_heading()}
-                                  </p>
-                                  {mayReset && (
-                                    <MemberMenuItem
-                                      testId="member-reset-password"
-                                      label={m.settings_member_reset_password()}
-                                      ariaLabel={m.settings_member_reset_password_aria({ member: memberLabel })}
-                                      onSelect={() => chooseMemberAction("resetPassword", mem)}
-                                    />
-                                  )}
-                                  {mem.mayRevokeSessions && (
-                                    <MemberMenuItem
-                                      testId="member-revoke-sessions"
-                                      label={m.settings_member_revoke_sessions()}
-                                      ariaLabel={m.settings_member_revoke_sessions_aria({ member: memberLabel })}
-                                      onSelect={() => chooseMemberAction("revokeSessions", mem)}
-                                    />
-                                  )}
-                                  {mayChangeStatus &&
-                                    (mem.status === "active" ? (
-                                      <>
-                                        <MemberMenuItem
-                                          testId="member-disable"
-                                          label={m.settings_member_disable()}
-                                          ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
-                                          onSelect={() => chooseMemberAction("disable", mem)}
-                                        />
-                                        <MemberMenuItem
-                                          testId="member-archive"
-                                          label={m.settings_member_archive()}
-                                          ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
-                                          onSelect={() => chooseMemberAction("archive", mem)}
-                                        />
-                                      </>
-                                    ) : (
-                                      <MemberMenuItem
-                                        testId="member-restore"
-                                        label={m.settings_member_restore()}
-                                        ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
-                                        onSelect={() => chooseMemberAction("restore", mem)}
-                                      />
-                                    ))}
-                                  {mayRemove && (
-                                    <MemberMenuItem
-                                      testId="member-remove"
-                                      label={m.settings_member_remove()}
-                                      ariaLabel={m.settings_member_remove_aria({ member: memberLabel })}
-                                      danger
-                                      onSelect={() => chooseMemberAction("remove", mem)}
-                                    />
-                                  )}
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                            {mayTouch && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                title={m.settings_member_edit_aria({ member: memberLabel })}
-                                aria-label={m.settings_member_edit_aria({ member: memberLabel })}
-                                data-testid="member-edit"
-                                disabled={busyAction !== null}
-                                onClick={() => setRoleEdit({ member: mem, nextRole: mem.role })}
-                              >
-                                <Pencil />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            activeMembers && membersTable(activeMembers, "members-table")
+          )}
+
+          {/* Disabled and archived memberships, collapsed behind a disclosure (#175). They are still
+              real rows an administrator has to be able to reach — to restore one, or to remove it —
+              but they are not the team, so they do not compete with it for the reader's attention.
+              The group is absent entirely when there is nothing in it. */}
+          {inactiveMembers.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 self-start text-sm font-medium text-brand underline-offset-2 hover:underline"
+                aria-expanded={inactiveOpen}
+                aria-controls="members-inactive"
+                data-testid="members-inactive-toggle"
+                onClick={() => setInactiveOpen((open) => !open)}
+              >
+                {inactiveOpen ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
+                {m.settings_members_inactive_group({ count: inactiveMembers.length })}
+              </button>
+              {inactiveOpen && (
+                <div id="members-inactive">{membersTable(inactiveMembers, "members-inactive-table")}</div>
+              )}
+            </section>
           )}
 
           {/* Freshly-minted password-reset link (P1.18) — write-once, same posture as the invite link

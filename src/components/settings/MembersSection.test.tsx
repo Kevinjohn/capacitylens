@@ -126,6 +126,13 @@ async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
   await screen.findByText(m.settings_member_settings_heading());
 }
 
+/** Disabled and archived rows live behind a collapsed disclosure (#175) — open it before reaching
+ *  for one. Returns once the second table is on screen. */
+async function openInactiveGroup(user: User): Promise<HTMLElement> {
+  await user.click(await screen.findByTestId("members-inactive-toggle"));
+  return screen.findByTestId("members-inactive-table");
+}
+
 /** Open a row's gear menu and choose one action by test id. */
 async function chooseMemberAction(user: User, row: HTMLElement, testId: string): Promise<void> {
   await openMemberMenu(user, row);
@@ -832,8 +839,9 @@ describe("MembersSection — member lifecycle", () => {
     ]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
+    await openInactiveGroup(user);
     const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
-    // A suspended member must stay VISIBLE and legible, or the state is unreversible.
+    // A non-active member must stay REACHABLE and legible, or the state is unreversible.
     expect(within(edRow).getByTestId("member-status")).toHaveTextContent(m.settings_member_status_disabled());
 
     await openMemberMenu(user, edRow);
@@ -850,7 +858,7 @@ describe("MembersSection — member lifecycle", () => {
     );
   });
 
-  it("hides the role pencil on a suspended row while keeping the gear's actions", async () => {
+  it("hides the role pencil on a non-active row while keeping the gear's actions", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
@@ -860,18 +868,69 @@ describe("MembersSection — member lifecycle", () => {
       ]),
     );
     renderSection();
+    await openInactiveGroup(user);
     const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
 
     // A role change writes status: "active", so offering the pencil here would turn "edit their role"
     // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
     expect(within(edRow).queryByTestId("member-edit")).not.toBeInTheDocument();
 
-    // The gear is NOT withdrawn with it: suspending someone must never cost an administrator the
+    // The gear is NOT withdrawn with it: disabling someone must never cost an administrator the
     // ability to rotate their password, kill their sessions, or remove them outright.
     await openMemberMenu(user, edRow);
     expect(screen.getByTestId("member-reset-password")).toBeInTheDocument();
     expect(screen.getByTestId("member-revoke-sessions")).toBeInTheDocument();
     expect(screen.getByTestId("member-remove")).toBeInTheDocument();
+  });
+
+  it("keeps non-active members out of the main table and behind a collapsed disclosure", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", status: "disabled" },
+        { userId: "vic", role: "viewer", status: "archived" },
+      ]),
+    );
+    renderSection();
+
+    // The main table is the TEAM. Two of these three memberships are history and must not pad it out.
+    const mainTable = await screen.findByTestId("members-table");
+    expect(within(mainTable).getAllByTestId("member-row")).toHaveLength(1);
+    expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
+
+    // Collapsed by default: the group is announced with its count, but lists nobody until asked.
+    const toggle = screen.getByTestId("members-inactive-toggle");
+    expect(toggle).toHaveTextContent(m.settings_members_inactive_group({ count: 2 }));
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
+
+    const inactiveTable = await openInactiveGroup(user);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // Both non-active states share one group; the per-row badge is what tells them apart.
+    const badges = within(inactiveTable)
+      .getAllByTestId("member-status")
+      .map((badge) => badge.textContent);
+    expect(badges).toEqual([m.settings_member_status_disabled(), m.settings_member_status_archived()]);
+
+    // It closes again — this is a disclosure, not a one-way reveal.
+    await user.click(toggle);
+    expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
+  });
+
+  it("omits the disclosure entirely when every membership is active", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor" },
+      ]),
+    );
+    renderSection();
+    // An empty "No longer active (0)" control would be a permanent reminder of nothing.
+    await screen.findByTestId("members-table");
+    expect(screen.queryByTestId("members-inactive-toggle")).not.toBeInTheDocument();
   });
 
   it("offers no status action against the Owner or against yourself", async () => {

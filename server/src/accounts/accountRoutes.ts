@@ -700,7 +700,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     try {
       const command = accountCommand(req);
       // includeInactive, for the same reason as the reset-password route above: killing the sessions
-      // of an account you have just suspended is the point, not an edge case.
+      // of an account you have just disabled is the point, not an edge case.
       const targetMembership = await accountAdminPort.getMembership({
         principalId: userId,
         workspaceId: accountId,

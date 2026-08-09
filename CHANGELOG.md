@@ -12,20 +12,28 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
-- **A member's access can now be suspended instead of only removed.** Each row's new gear menu
+- **A member's access can now be turned off instead of only removed.** Each row's new gear menu
   offers **Disable user** and **Archive user**, both reversible from the same menu with **Restore
-  access**. A suspended membership keeps its role and history but authorizes nothing — the server
+  access**. A disabled membership keeps its role and history but authorizes nothing — the server
   refuses that person's reads until they are restored — while the administrative directory keeps
   listing them, so the change is visible and undoable. Neither the Owner nor yourself can be
-  suspended, in the UI or at the API. (#175)
-- **Suspension holds on every path, and costs an administrator nothing.** A suspended member cannot
+  disabled, in the UI or at the API. (#175)
+- **Disabling holds on every path, and costs an administrator nothing.** A disabled member cannot
   redeem an invite back into the company — the attempt is refused and the invite is left unused, so
-  only an Owner or Admin can restore access — and the role pencil is withdrawn from suspended rows
+  only an Owner or Admin can restore access — and the role pencil is withdrawn from non-active rows
   so a role change can never quietly reinstate someone. In the other direction, **Reset password**,
-  **Revoke sessions** and **Remove** all keep working against a suspended member, because disabling
+  **Revoke sessions** and **Remove** all keep working against a disabled member, because turning off
   a compromised account first and rotating its credentials second is exactly the sequence this is
   for. Re-applying the status a member already holds succeeds and changes nothing, so a second admin
   on a stale screen cannot silently kill a reset link the first admin just handed out. (#175)
+- **Members who are no longer active have their own collapsed group.** The main table lists the
+  team; disabled and archived memberships sit behind **No longer active (N)**, closed until someone
+  opens it. They are still one click from **Restore access** or **Remove**, but they no longer pad
+  out the list of people you actually work with. The group disappears entirely when it is empty.
+  (#175)
+- **Members are listed by join date, then by name.** People appear in the order they joined the
+  company, and anyone who joined at the same moment — a bulk import, say — is ordered
+  alphabetically rather than by internal id. (#175)
 - **The members table shows Last login.** It is derived from retained sessions, so a member with no
   retained session reads **Unknown** rather than "Never": that read cannot tell "never signed in"
   apart from "session aged out", and the page does not claim the stronger of the two. (#175)

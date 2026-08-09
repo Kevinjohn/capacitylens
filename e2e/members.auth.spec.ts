@@ -177,7 +177,7 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(inviteRows).toHaveCount(2);
     await expect(page.getByTestId("invite-link")).toHaveCount(0);
 
-    // ── Owner in a separate browser: A drives the #175 gear menu to suspend and restore C, then
+    // ── Owner in a separate browser: A drives the #175 gear menu to disable and restore C, then
     // hands the account to C through the owner-only transfer endpoint. The same mounted app
     // reprojects A as Admin on its next authoritative read, without an account switch. ────────────
     const ownerContext = await newObservedContext({ reducedMotion: "reduce" });
@@ -194,11 +194,23 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
 
     const ownerTarget = ownerPage.getByTestId("member-row").filter({ hasText: EDITOR });
 
-    // Disable C through the gear menu: the row says so, and the server agrees.
+    // Disable C through the gear menu. C then leaves the main table for the collapsed
+    // "No longer active" group, so the row is only reachable once that disclosure is opened — which
+    // is the point: the team list is the team, and this is history you go looking for.
     await ownerTarget.getByTestId("member-menu").click();
     await ownerPage.getByTestId("member-disable").click();
     await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Disable user" }).click();
-    await expect(ownerTarget).toContainText("Disabled");
+    await expect(
+      ownerPage.getByTestId("members-table").getByTestId("member-row").filter({ hasText: EDITOR }),
+    ).toHaveCount(0);
+    const inactiveToggle = ownerPage.getByTestId("members-inactive-toggle");
+    await expect(inactiveToggle).toHaveAttribute("aria-expanded", "false");
+    await inactiveToggle.click();
+    const inactiveTarget = ownerPage
+      .getByTestId("members-inactive-table")
+      .getByTestId("member-row")
+      .filter({ hasText: EDITOR });
+    await expect(inactiveTarget).toContainText("Disabled");
     await expect
       .poll(async () => {
         const res = await request.get(`${API}/api/accounts/${accountId}/members`, {
@@ -209,18 +221,20 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
       })
       .toBe("disabled");
 
-    // A disabled membership authorizes nothing: C's own reads are refused while suspended.
-    const suspendedRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
+    // A disabled membership authorizes nothing: C's own reads are refused until restored.
+    const disabledRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
       headers: { cookie: editor.cookie },
     });
-    expect(suspendedRead.status()).toBe(403);
+    expect(disabledRead.status()).toBe(403);
 
-    // Restore is the same menu, one item — and it is the ONLY status item offered while suspended.
-    await ownerTarget.getByTestId("member-menu").click();
+    // Restore is the same menu, one item — and it is the ONLY status item offered here.
+    await inactiveTarget.getByTestId("member-menu").click();
     await expect(ownerPage.getByTestId("member-disable")).toHaveCount(0);
     await ownerPage.getByTestId("member-restore").click();
     await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Restore access" }).click();
+    // C rejoins the team table, and with nobody left in it the whole group disappears.
     await expect(ownerTarget).not.toContainText("Disabled");
+    await expect(ownerPage.getByTestId("members-inactive-toggle")).toHaveCount(0);
 
     // Ownership now moves through the owner-only endpoint; #175 left no per-row button behind.
     await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);

@@ -32,7 +32,7 @@ permissions](/getting-started/roles-and-permissions) for why.
 1. Open **Team & access**. Your own access is summarised at the top of the page; select
    **See full capabilities** if you want the full list of what your role can and can't do.
 
-   ![Team & access page showing your access summary, the members table and the invite panel](../screenshots/flows/team-access.jpg)
+   ![Team & access page showing your access summary, the members table and the No longer active group below it](../screenshots/flows/team-access.jpg)
 
 2. Choose a role in the "Invite someone" panel. The consequences of that role are spelled
    out in plain language underneath it, and you can optionally pre-authorise a specific

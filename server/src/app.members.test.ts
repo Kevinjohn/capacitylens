@@ -1222,7 +1222,7 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     expect(res.statusCode).toBe(200);
     const members = (res.json() as { members: Array<{ userId: string; status: string; role: string }> }).members;
     const row = members.find((m) => m.userId === ed.userId);
-    // An invisible suspended member would be an unreversible one — the admin needs the row to act on.
+    // An invisible non-active member would be an unreversible one — the admin needs the row to act on.
     expect(row).toBeDefined();
     expect(row!.status).toBe("disabled");
     expect(row!.role).toBe("editor");
@@ -1231,7 +1231,7 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
   it("refuses to disable the OWNER — the account must never be left without one", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("owner-target");
     upsertMember(db, { accountId: "a1", userId: ed.userId, role: "admin", status: "active", createdAt: TS });
-    // Even an admin acting within their tier cannot suspend the owner; the single-active-owner index
+    // Even an admin acting within their tier cannot disable the owner; the single-active-owner index
     // and the boot assertion both key on role='owner' AND status='active'.
     expect((await patchStatusReq(app, "a1", owner.userId, "disabled", { cookie: ed.cookie })).statusCode).toBe(403);
     expect(storedStatus(db, "a1", owner.userId)).toBe("active");
@@ -1262,7 +1262,7 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
     }
   });
 
-  it("cross-tenant: an owner of a1 cannot suspend a member of a2", async () => {
+  it("cross-tenant: an owner of a1 cannot disable a member of a2", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const a1owner = await signUp(app, "a1owner-status@capacitylens.dev");
@@ -1327,9 +1327,9 @@ describe("GET /api/accounts/:id/members — lastLoginAt", () => {
 // change — agrees about what a non-active row means. Each case below failed before this pass, and
 // each fails independently, so a regression in one cannot hide behind another.
 
-describe("suspension holds across every membership path (#175 review)", () => {
-  /** Owner + editor of a1, with the editor already suspended into `status`. */
-  async function ownerAndSuspendedEditor(suffix: string, status: "disabled" | "archived" = "disabled") {
+describe("disabling holds across every membership path (#175 review)", () => {
+  /** Owner + editor of a1, with the editor already moved into `status`. */
+  async function ownerAndInactiveEditor(suffix: string, status: "disabled" | "archived" = "disabled") {
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
@@ -1340,11 +1340,11 @@ describe("suspension holds across every membership path (#175 review)", () => {
     return { app, db, owner, ed };
   }
 
-  it("a suspended member cannot redeem an invite back into the account, and the invite stays unused", async () => {
-    const { app, db, owner, ed } = await ownerAndSuspendedEditor("invite-bypass");
-    // A link-only invite the suspended member holds (or is handed). Before this fix the accept path
+  it("a disabled member cannot redeem an invite back into the account, and the invite stays unused", async () => {
+    const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass");
+    // A link-only invite the disabled member holds (or is handed). Before this fix the accept path
     // probed membership with an ACTIVE-only read, saw "not a member", and upserted them back to
-    // active at the invite's role — reversing the suspension with no audit record.
+    // active at the invite's role — reversing the administrator's decision with no audit record.
     const created = await call(app, {
       method: "POST",
       url: "/api/invites",
@@ -1373,7 +1373,7 @@ describe("suspension holds across every membership path (#175 review)", () => {
   });
 
   it("an archived member is refused identically, so neither suspension is the weaker one", async () => {
-    const { app, db, owner, ed } = await ownerAndSuspendedEditor("invite-bypass-archived", "archived");
+    const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass-archived", "archived");
     const token = (
       (
         await call(app, {
@@ -1392,7 +1392,7 @@ describe("suspension holds across every membership path (#175 review)", () => {
   });
 
   it("a restored member can then redeem that same invite, so the refusal is a pause and not a wall", async () => {
-    const { app, db, owner, ed } = await ownerAndSuspendedEditor("invite-after-restore");
+    const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-after-restore");
     const token = (
       (
         await call(app, {
@@ -1417,7 +1417,7 @@ describe("suspension holds across every membership path (#175 review)", () => {
   });
 
   it("an admin keeps reset-password and revoke-sessions authority over a member they just disabled", async () => {
-    const { app, owner, ed } = await ownerAndSuspendedEditor("identity-authority");
+    const { app, owner, ed } = await ownerAndInactiveEditor("identity-authority");
     // The compromised-account case: an admin disables first, THEN kills the live session. Before
     // this fix the target's authority map was active-only, so disabling someone reported them as
     // "not a member" and removed both controls — leaving the attacker's session running.
@@ -1431,7 +1431,7 @@ describe("suspension holds across every membership path (#175 review)", () => {
     expect(row.mayResetPassword).toBe(true);
     expect(row.mayRevokeSessions).toBe(true);
 
-    // Not merely advertised — the routes themselves still work on the suspended member.
+    // Not merely advertised — the routes themselves still work on the disabled member.
     expect(
       (
         await call(app, {
@@ -1452,9 +1452,9 @@ describe("suspension holds across every membership path (#175 review)", () => {
     ).toBe(204);
   });
 
-  it("removes a suspended membership without restoring its access first", async () => {
-    const { app, db, owner, ed } = await ownerAndSuspendedEditor("remove-suspended");
-    // The gear offers Remove on a suspended row; before this fix the route's active-only lookup
+  it("removes a disabled membership without restoring its access first", async () => {
+    const { app, db, owner, ed } = await ownerAndInactiveEditor("remove-suspended");
+    // The gear offers Remove on a non-active row; before this fix the route's active-only lookup
     // 404'd, so the only way to delete the membership was to hand its access back first.
     const res = await call(app, {
       method: "DELETE",
@@ -1466,8 +1466,8 @@ describe("suspension holds across every membership path (#175 review)", () => {
     expect(storedStatus(db, "a1", ed.userId)).toBeUndefined();
   });
 
-  it("refuses a ROLE change on a suspended membership — restore is the only way back", async () => {
-    const { app, db, owner, ed } = await ownerAndSuspendedEditor("role-suspended");
+  it("refuses a ROLE change on a non-active membership — restore is the only way back", async () => {
+    const { app, db, owner, ed } = await ownerAndInactiveEditor("role-suspended");
     // Deliberately NOT widened. changeMemberRole writes `status: "active"`, so accepting it here
     // would make a role edit a silent reinstatement. The UI hides the pencil on these rows; this is
     // the server half of the same rule.
@@ -1536,7 +1536,7 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
     ).token;
 
     // The guard must not become an excuse to skip the protocol on a REAL transition: a link minted
-    // while the member was active must not redeem into a suspended one.
+    // while the member was active must not redeem into a non-active one.
     expect((await patchStatusReq(app, "a1", ed.userId, "disabled", { cookie: owner.cookie })).statusCode).toBe(200);
     expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
     expect(
@@ -1548,5 +1548,35 @@ describe("re-applying a member's current status is a no-op (#175 review)", () =>
         })
       ).statusCode,
     ).toBe(400);
+  });
+});
+
+// The directory is a list a person reads top to bottom, so its order is part of the feature, not an
+// implementation detail. Join date first (that is how an administrator remembers the team), name as
+// the tie-break — a bulk import stamps everyone with the same instant, and an id order there reads
+// as random. principalId last, so two identically-named same-instant rows still list identically
+// between reads.
+describe("member listing order (#175)", () => {
+  it("orders by join date, then by name", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const owner = await signUp(app, "owner-order@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+
+    // Three members sharing ONE joinedAt, seeded in an order that is neither alphabetical nor the
+    // one the id happens to produce, so a passing assertion cannot be an accident of insertion.
+    const later = "2026-02-01T00:00:00.000Z";
+    for (const name of ["Carol Third", "alice First", "Bob Second"]) {
+      const user = await signUp(app, `${name.split(" ")[0].toLowerCase()}-order@capacitylens.dev`);
+      db.prepare(`UPDATE user SET name = ? WHERE id = ?`).run(name, user.userId);
+      upsertMember(db, { accountId: "a1", userId: user.userId, role: "editor", status: "active", createdAt: later });
+    }
+
+    const res = await membersReq(app, "a1", { cookie: owner.cookie });
+    expect(res.statusCode).toBe(200);
+    const listed = (res.json() as { members: Array<{ name: string | null }> }).members.map((row) => row.name);
+    // The owner joined first and stays first regardless of name; the rest sort case-insensitively,
+    // so "alice" is not exiled past "Bob" by a raw byte comparison.
+    expect(listed).toEqual(["Tester", "alice First", "Bob Second", "Carol Third"]);
   });
 });

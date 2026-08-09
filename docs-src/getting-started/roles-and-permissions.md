@@ -51,14 +51,16 @@ member. Ownership transfer has no screen of its own yet: the per-member button w
 removed because it doesn't belong on every row, and its replacement is still being
 designed. Until then, transferring ownership needs a self-hosting admin (see [A company
 has no Owner](/self-hosting/incidents#a-company-has-no-owner) for the related recovery
-tool). An Admin can invite, remove, suspend or change the role of any other member, but
+tool). An Admin can invite, remove, disable or change the role of any other member, but
 can't touch the Owner — and nobody, not even the Owner, can disable or archive the Owner
 or themselves. Disabling or archiving someone stops them opening the company straight
-away while keeping their role and history, and it can be undone from the same menu. If a company somehow ends up with no Owner at all, see [A company has
+away while keeping their role and history, and it can be undone from the same menu. Those
+people leave the main member list and move into the **No longer active** group beneath it,
+which stays closed until you open it. If a company somehow ends up with no Owner at all, see [A company has
 no Owner](/self-hosting/incidents#a-company-has-no-owner) — CapacityLens repairs that
 automatically in almost every case.
 
-![The Team & access page, where an Admin or Owner sees each member's role, last sign-in and per-member actions](../screenshots/flows/team-access.jpg)
+![The Team & access page, where an Admin or Owner sees each member's role, last sign-in and per-member actions, with the No longer active group opened to show a disabled and an archived member](../screenshots/flows/team-access.jpg)
 
 ## Details
 

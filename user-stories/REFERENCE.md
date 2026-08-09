@@ -620,8 +620,8 @@ active company; the refreshed company directory remains available for normal acc
 single polite status announces checking, readiness, joining and completion; accepting moves focus
 to that status, and completed activation moves focus to **Continue**.
 An accept by someone whose membership in that company is **disabled or archived** is refused
-(403) with _"This membership is suspended. An Owner or Admin must restore it before you can
-rejoin."_ — redemption must never be a route back in for a member an administrator suspended, and
+(403) with _"This membership is disabled. An Owner or Admin must restore it before you can
+rejoin."_ — redemption must never be a route back in for a member an administrator turned off, and
 the invite is left unused so it still works once the membership is restored. A
 **used** link shows _"This invite has already been used."_; an
 **expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
@@ -676,8 +676,14 @@ The management section has four parts:
 - **Members table** (`data-testid="members-table"`) — columns **Name**, **Member role**, **Last
   login** (`data-testid="member-last-login"`) and
   **Actions**, one row per member (`data-testid="member-row"`); the caller's own row is
-  marked **(you)** and a suspended member's row carries a **Disabled** or **Archived** badge
-  (`data-testid="member-status"`). **Last
+  marked **(you)** and a non-active member's row carries a **Disabled** or **Archived** badge
+  (`data-testid="member-status"`). Members are ordered by **join date, then name** (with the
+  principal id as a final tie-break so the listing is stable between reads). The table itself lists
+  only **active** members; disabled and archived memberships are grouped below it behind a
+  collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
+  reporting its state through `aria-expanded`) which reveals a second table of the same columns
+  (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
+  state, and its rows carry the same badges, gear and confirmations as the main table. **Last
   login** is derived from the retained session table, so a member with no retained session reads
   **Unknown** — that read cannot distinguish "never signed in" from "session aged out", and the UI
   never claims the stronger of the two. Each manageable **active** row ends in a pencil
@@ -690,9 +696,9 @@ The management section has four parts:
   (`data-testid="member-revoke-sessions"`), **Disable user** (`data-testid="member-disable"`),
   **Archive user** (`data-testid="member-archive"`) and **Remove**
   (`data-testid="member-remove"`), with **Restore access** (`data-testid="member-restore"`)
-  replacing disable/archive once the member is suspended. The pencil is offered on **active rows
-  only** — a role change must not be a back door that reinstates a suspended member, so a suspended
-  row is restored first — while the gear, including **Remove**, stays available on suspended rows so
+  replacing disable/archive once the member is no longer active. The pencil is offered on **active
+  rows only** — a role change must not be a back door that reinstates a disabled member, so such a
+  row is restored first — while the gear, including **Remove**, stays available on those rows so
   a membership can be ended without first handing its access back. Every control has a member-scoped
   accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**, **Reset
   password for _member_**, **Revoke sessions for _member_**, **Disable _member_** — so non-linear
@@ -703,8 +709,8 @@ The management section has four parts:
   mutation cannot be raised. Removing yourself explicitly warns that you will return to the company
   picker and need a new invitation; revoking your own sessions warns that the current browser will
   reload into sign-in. Disable and archive are offered only where the target is neither the Owner nor
-  yourself; a suspended membership keeps its role and history but authorizes nothing, and the member
-  stays listed so the change is visible and reversible. No row carries a transfer-ownership control
+  yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
+  the member stays listed under **No longer active** so the change is visible and reversible. No row carries a transfer-ownership control
   for anyone. In **password mode only**, the menu's **Reset password** mints a
   **single-use, 24-hour** reset link
   shown **once** (`data-testid="reset-link"`, `<origin>/reset-password/<token>`) with a **Copy**
@@ -741,7 +747,7 @@ The management section has four parts:
 The Owner row carries no pencil for anyone, and no gear for anyone but the Owner themselves (whose
 own row still offers the self-service Reset password and Revoke sessions): each company has exactly
 one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
-removed nor suspended.
+removed nor disabled.
 Ownership transfer is owner-only and atomic — it promotes the target and steps the caller down to
 Admin in one transaction — but has no control in the member table; it is reached through
 `POST /api/accounts/:accountId/transfer-ownership` while its own owner-only section is designed. No generic

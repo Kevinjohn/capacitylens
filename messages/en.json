@@ -191,6 +191,7 @@
   "settings_invite_intro": "Send someone a one-time link. A new member is not automatically placed on the schedule.",
   "settings_members_updating": "Updating team access…",
   "settings_members_empty": "No members yet.",
+  "settings_members_inactive_group": "No longer active ({count})",
   "settings_member_you": "(you)",
   "settings_member_role_label": "Member role",
   "settings_member_role_aria": "Member role for {member}",

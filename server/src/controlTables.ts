@@ -439,7 +439,7 @@ export function upsertMember(db: Db, member: AccountMember): void {
  * overwrite. It shares upsertMember's post-write security handling, and for the same reason: the
  * status column is exactly what {@link getActiveMemberRole} narrows on, so flipping it changes the
  * authority the user holds. That must burn any outstanding password-reset link (a link minted while
- * they were an active member must not redeem into a suspended one) and bump the security revision
+ * they were an active member must not redeem into a non-active one) and bump the security revision
  * so live sessions re-resolve their membership instead of coasting on a cached one.
  *
  * @param db         The open SQLite handle.
