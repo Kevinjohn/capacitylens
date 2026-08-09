@@ -55,7 +55,7 @@ const crumbs = computed<Crumb[]>(() => {
 .breadcrumbs ol {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 0.75rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -63,7 +63,7 @@ const crumbs = computed<Crumb[]>(() => {
 .breadcrumbs li {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.75rem;
   color: var(--vp-c-text-2);
 }
 .breadcrumbs li + li::before {

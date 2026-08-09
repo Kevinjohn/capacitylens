@@ -14,6 +14,21 @@
   --vp-c-brand-soft: rgba(96, 165, 250, 0.16);
 }
 
+/* Code blocks are dark on the light page: terminals and code samples should read
+   as terminals. #24292e is the canvas of the github-dark syntax theme set in
+   config.mts, so tokens and background come from the same palette. */
+:root {
+  --vp-code-block-bg: #24292e;
+  --vp-code-lang-color: rgba(235, 235, 245, 0.5);
+  --vp-code-line-highlight-color: rgba(255, 255, 255, 0.08);
+  --vp-code-line-number-color: rgba(235, 235, 245, 0.4);
+  --vp-code-copy-code-bg: rgba(255, 255, 255, 0.08);
+  --vp-code-copy-code-hover-bg: rgba(255, 255, 255, 0.16);
+  --vp-code-copy-code-border-color: rgba(255, 255, 255, 0.14);
+  --vp-code-copy-code-hover-border-color: rgba(255, 255, 255, 0.24);
+  --vp-code-copy-code-active-text: rgba(235, 235, 245, 0.8);
+}
+
 /* Keep body copy at a comfortable reading measure. */
 .vp-doc {
   font-size: 16px;
@@ -25,6 +40,29 @@
   border: 1px solid var(--vp-c-divider);
   border-radius: 6px;
   max-width: 100%;
+}
+
+/* Tables fill the text column instead of shrinking to their content.
+   (VitePress defaults tables to display:block for horizontal scrolling, which
+   also makes them shrink-to-fit; our tables are narrow enough not to need it.) */
+.vp-doc table {
+  display: table;
+  width: 100%;
+}
+
+/* Top-align cell content: with tall rows (the glossary), a vertically centred
+   term floats awkwardly, and a deep link anchored to it would land with the
+   row's first lines above the fold. */
+.vp-doc td,
+.vp-doc th {
+  vertical-align: top;
+}
+
+/* Anchor targets inside table cells (the glossary's term ids) need the same
+   sticky-navbar clearance VitePress gives headings, or deep links land with
+   the row hidden behind the navbar. */
+.vp-doc table span[id] {
+  scroll-margin-top: calc(var(--vp-nav-height) + 24px);
 }
 
 /* Step results quoted after a command read quieter than the command itself. */

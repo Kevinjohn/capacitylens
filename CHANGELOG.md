@@ -10,6 +10,22 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.35.3-alpha.1] — 2026-08-09
+
+Documentation polish. No application behaviour changed.
+
+### Changed
+
+- Code samples in the documentation are now dark (github-dark syntax theme), so terminal
+  commands read as terminals on the light page; the non-functional copy button is hidden
+  in the standalone build.
+- The glossary is a term/meaning table instead of one heading per term, with every
+  deep-link anchor preserved.
+- Documentation tables span the full text column, table cells are top-aligned, and
+  breadcrumb separators have three times the breathing room.
+- The configuration page now explains why account settings carry the `SMALLSASS_ACCOUNT_`
+  prefix while app settings use `CAPACITYLENS_`.
+
 ## [0.35.2-alpha.1] — 2026-08-09
 
 Mutation-testing follow-up. No application behaviour changed.
@@ -2851,7 +2867,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.3-alpha.1...HEAD
+[0.35.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.2-alpha.1...v0.35.3-alpha.1
 [0.35.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.1-alpha.1...v0.35.2-alpha.1
 [0.35.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.0-alpha.1...v0.35.1-alpha.1
 [0.35.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.34.0-alpha.1...v0.35.0-alpha.1

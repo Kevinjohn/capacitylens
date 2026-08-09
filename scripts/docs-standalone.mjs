@@ -39,7 +39,7 @@ const files = walk(siteDir);
 // CSS (rather than surgically deleting nested markup) keeps this script free
 // of any HTML parsing.
 const DEAD_CHROME_CSS =
-  "<style>.VPNavBarSearch,.VPNavBarHamburger,.VPLocalNav,.VPBackdrop{display:none !important}</style>";
+  "<style>.VPNavBarSearch,.VPNavBarHamburger,.VPLocalNav,.VPBackdrop,.vp-doc [class*='language-'] button.copy{display:none !important}</style>";
 
 // Map an absolute base-rooted URL to one relative to the page's directory.
 // A trailing slash means the directory's index page.

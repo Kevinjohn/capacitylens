@@ -22,6 +22,11 @@ export default defineConfig({
   // Deliberately light-only: plain white page, dark text, like classic docs sites.
   appearance: false,
 
+  // Code blocks are the one dark element on the light page: terminals and code
+  // read as terminals. The background/label colours to match live in
+  // theme/custom.css (--vp-code-block-bg and friends).
+  markdown: { theme: "github-dark" },
+
   // Internal records that live in docs-src/ but are not part of the site.
   srcExclude: ["STYLE.md", "sso-cutover-design.md", "account-boundary.md", "README.md"],
 

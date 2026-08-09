@@ -11,7 +11,9 @@ the complete, authoritative register with defaults — this page groups the vari
 matter for a self-hosted install by what you're trying to do. Server variables
 (`CAPACITYLENS_*`, `SMALLSASS_ACCOUNT_*`) take effect on restart. Client variables
 (`VITE_CAPACITYLENS_*`) are baked into the web app at build time, so changing one needs a
-rebuild.
+rebuild. Two prefixes are deliberate: sign-in and accounts are built as a separable
+platform component, so their settings carry the `SMALLSASS_ACCOUNT_` prefix, while
+everything specific to the app itself uses `CAPACITYLENS_`.
 
 ## Sign-in mode
 
