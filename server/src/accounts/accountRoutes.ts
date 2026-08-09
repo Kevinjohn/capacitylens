@@ -652,9 +652,13 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     }
     try {
       const command = accountCommand(req);
+      // includeInactive: an existence probe, not an authorization one (that is the port's job just
+      // below). An admin disables a compromised account first and rotates its password second, so an
+      // active-only probe here would 404 exactly the case this route exists for.
       const targetMembership = await accountAdminPort.getMembership({
         principalId: userId,
         workspaceId: accountId,
+        includeInactive: true,
       });
       if (!targetMembership) {
         return accountFail(reply, memberNotFound(command));
@@ -695,9 +699,12 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     }
     try {
       const command = accountCommand(req);
+      // includeInactive, for the same reason as the reset-password route above: killing the sessions
+      // of an account you have just suspended is the point, not an edge case.
       const targetMembership = await accountAdminPort.getMembership({
         principalId: userId,
         workspaceId: accountId,
+        includeInactive: true,
       });
       if (!targetMembership) return accountFail(reply, memberNotFound(command));
       const revoked = await accountFlows!.revokeMemberSessions({

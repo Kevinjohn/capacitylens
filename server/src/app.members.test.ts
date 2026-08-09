@@ -1320,3 +1320,233 @@ describe("GET /api/accounts/:id/members — lastLoginAt", () => {
     expect(members.find((m) => m.userId === ed.userId)!.lastLoginAt).toBeNull();
   });
 });
+
+// ── #175 review: the status domain must reach EVERY membership path, not just the new route ──────
+// Widening a membership to active/disabled/archived is only half a feature. The other half is that
+// every path which resolves a member — invite redemption, identity administration, removal, role
+// change — agrees about what a non-active row means. Each case below failed before this pass, and
+// each fails independently, so a regression in one cannot hide behind another.
+
+describe("suspension holds across every membership path (#175 review)", () => {
+  /** Owner + editor of a1, with the editor already suspended into `status`. */
+  async function ownerAndSuspendedEditor(suffix: string, status: "disabled" | "archived" = "disabled") {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
+    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
+    expect((await patchStatusReq(app, "a1", ed.userId, status, { cookie: owner.cookie })).statusCode).toBe(200);
+    return { app, db, owner, ed };
+  }
+
+  it("a suspended member cannot redeem an invite back into the account, and the invite stays unused", async () => {
+    const { app, db, owner, ed } = await ownerAndSuspendedEditor("invite-bypass");
+    // A link-only invite the suspended member holds (or is handed). Before this fix the accept path
+    // probed membership with an ACTIVE-only read, saw "not a member", and upserted them back to
+    // active at the invite's role — reversing the suspension with no audit record.
+    const created = await call(app, {
+      method: "POST",
+      url: "/api/invites",
+      payload: { accountId: "a1", role: "admin" },
+      headers: { cookie: owner.cookie },
+    });
+    expect(created.statusCode).toBe(201);
+    const token = (created.json() as { token: string }).token;
+
+    const accept = await call(app, {
+      method: "POST",
+      url: `/api/invites/${token}/accept`,
+      headers: { cookie: ed.cookie },
+    });
+    expect(accept.statusCode).toBe(403);
+
+    // The suspension held on every axis: status, role (no silent promotion to the invite's admin),
+    // and entry to the account.
+    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
+    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
+    expect(
+      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
+    ).toBe(403);
+    // And the invite is NOT burned — it still works once an admin restores the membership.
+    expect(getInvite(db, token)!.usedAt).toBeNull();
+  });
+
+  it("an archived member is refused identically, so neither suspension is the weaker one", async () => {
+    const { app, db, owner, ed } = await ownerAndSuspendedEditor("invite-bypass-archived", "archived");
+    const token = (
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/invites",
+          payload: { accountId: "a1", role: "editor" },
+          headers: { cookie: owner.cookie },
+        })
+      ).json() as { token: string }
+    ).token;
+    expect(
+      (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
+        .statusCode,
+    ).toBe(403);
+    expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
+  });
+
+  it("a restored member can then redeem that same invite, so the refusal is a pause and not a wall", async () => {
+    const { app, db, owner, ed } = await ownerAndSuspendedEditor("invite-after-restore");
+    const token = (
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/invites",
+          payload: { accountId: "a1", role: "editor" },
+          headers: { cookie: owner.cookie },
+        })
+      ).json() as { token: string }
+    ).token;
+    expect(
+      (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
+        .statusCode,
+    ).toBe(403);
+
+    expect((await patchStatusReq(app, "a1", ed.userId, "active", { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(
+      (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
+        .statusCode,
+    ).toBe(200);
+    expect(getInvite(db, token)!.usedAt).not.toBeNull();
+  });
+
+  it("an admin keeps reset-password and revoke-sessions authority over a member they just disabled", async () => {
+    const { app, owner, ed } = await ownerAndSuspendedEditor("identity-authority");
+    // The compromised-account case: an admin disables first, THEN kills the live session. Before
+    // this fix the target's authority map was active-only, so disabling someone reported them as
+    // "not a member" and removed both controls — leaving the attacker's session running.
+    const listed = await membersReq(app, "a1", { cookie: owner.cookie });
+    expect(listed.statusCode).toBe(200);
+    const row = (
+      listed.json() as {
+        members: Array<{ userId: string; mayResetPassword: boolean; mayRevokeSessions: boolean }>;
+      }
+    ).members.find((m) => m.userId === ed.userId)!;
+    expect(row.mayResetPassword).toBe(true);
+    expect(row.mayRevokeSessions).toBe(true);
+
+    // Not merely advertised — the routes themselves still work on the suspended member.
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: `/api/accounts/a1/members/${ed.userId}/reset-password`,
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: `/api/accounts/a1/members/${ed.userId}/revoke-sessions`,
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(204);
+  });
+
+  it("removes a suspended membership without restoring its access first", async () => {
+    const { app, db, owner, ed } = await ownerAndSuspendedEditor("remove-suspended");
+    // The gear offers Remove on a suspended row; before this fix the route's active-only lookup
+    // 404'd, so the only way to delete the membership was to hand its access back first.
+    const res = await call(app, {
+      method: "DELETE",
+      url: `/api/accounts/a1/members/${ed.userId}`,
+      headers: { cookie: owner.cookie },
+    });
+    expect(res.statusCode).toBe(204);
+    expect(getMemberRole(db, "a1", ed.userId)).toBeNull();
+    expect(storedStatus(db, "a1", ed.userId)).toBeUndefined();
+  });
+
+  it("refuses a ROLE change on a suspended membership — restore is the only way back", async () => {
+    const { app, db, owner, ed } = await ownerAndSuspendedEditor("role-suspended");
+    // Deliberately NOT widened. changeMemberRole writes `status: "active"`, so accepting it here
+    // would make a role edit a silent reinstatement. The UI hides the pencil on these rows; this is
+    // the server half of the same rule.
+    const res = await call(app, {
+      method: "PATCH",
+      url: `/api/accounts/a1/members/${ed.userId}`,
+      payload: { role: "viewer" },
+      headers: { cookie: owner.cookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
+    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
+  });
+});
+
+describe("re-applying a member's current status is a no-op (#175 review)", () => {
+  it("succeeds without burning the member's outstanding reset link", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const owner = await signUp(app, "owner-noop-status@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    const ed = await signUp(app, "editor-noop-status@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
+
+    // One admin mints a reset link and hands it over...
+    const minted = await call(app, {
+      method: "POST",
+      url: `/api/accounts/a1/members/${ed.userId}/reset-password`,
+      headers: { cookie: owner.cookie },
+    });
+    expect(minted.statusCode).toBe(201);
+    const token = (minted.json() as { token: string }).token;
+
+    // ...then a second admin, on a stale screen, re-applies the status the member already holds.
+    // SQLite counts a MATCHED row as changed even when the written value is identical, so an
+    // unguarded UPDATE would run the membership-write security protocol and silently kill the link.
+    const res = await patchStatusReq(app, "a1", ed.userId, "active", { cookie: owner.cookie });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ userId: ed.userId, status: "active" });
+    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
+
+    // THE POINT: the link the first admin distributed still redeems.
+    const redeemed = await call(app, {
+      method: "POST",
+      url: "/api/auth/reset-password",
+      payload: { newPassword: "a-brand-new-password-123", token },
+    });
+    expect(redeemed.statusCode).toBe(200);
+  });
+
+  it("still burns the link when the status genuinely changes", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const owner = await signUp(app, "owner-real-status@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    const ed = await signUp(app, "editor-real-status@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
+    const token = (
+      (
+        await call(app, {
+          method: "POST",
+          url: `/api/accounts/a1/members/${ed.userId}/reset-password`,
+          headers: { cookie: owner.cookie },
+        })
+      ).json() as { token: string }
+    ).token;
+
+    // The guard must not become an excuse to skip the protocol on a REAL transition: a link minted
+    // while the member was active must not redeem into a suspended one.
+    expect((await patchStatusReq(app, "a1", ed.userId, "disabled", { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/auth/reset-password",
+          payload: { newPassword: "should-not-work-456", token },
+        })
+      ).statusCode,
+    ).toBe(400);
+  });
+});

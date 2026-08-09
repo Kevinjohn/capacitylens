@@ -619,6 +619,10 @@ activatable). Leaving the invitation route while that refresh is pending does no
 active company; the refreshed company directory remains available for normal account selection. A
 single polite status announces checking, readiness, joining and completion; accepting moves focus
 to that status, and completed activation moves focus to **Continue**.
+An accept by someone whose membership in that company is **disabled or archived** is refused
+(403) with _"This membership is suspended. An Owner or Admin must restore it before you can
+rejoin."_ — redemption must never be a route back in for a member an administrator suspended, and
+the invite is left unused so it still works once the membership is restored. A
 **used** link shows _"This invite has already been used."_; an
 **expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
 explicit UTC offsets, and malformed stored values fail closed); an **unknown** token shows _"Invite not
@@ -670,20 +674,26 @@ The management section has four parts:
   (`data-testid="sso-remove-link"`).
 
 - **Members table** (`data-testid="members-table"`) — columns **Name**, **Member role**, **Last
-  login** and **Actions**, one row per member (`data-testid="member-row"`); the caller's own row is
-  marked **(you)** and a suspended member's row carries a **Disabled** or **Archived** badge. **Last
+  login** (`data-testid="member-last-login"`) and
+  **Actions**, one row per member (`data-testid="member-row"`); the caller's own row is
+  marked **(you)** and a suspended member's row carries a **Disabled** or **Archived** badge
+  (`data-testid="member-status"`). **Last
   login** is derived from the retained session table, so a member with no retained session reads
   **Unknown** — that read cannot distinguish "never signed in" from "session aged out", and the UI
-  never claims the stronger of the two. Each manageable row ends in a pencil
+  never claims the stronger of the two. Each manageable **active** row ends in a pencil
   (`data-testid="member-edit"`) opening the **Change member role** dialog — a role select
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
-  plain-language consequences, and **Save role** (`data-testid="member-role-save"`) — and a gear
+  plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
+  (`data-testid="member-role-save"`) — and a gear
   (`data-testid="member-menu"`) opening the **Member actions** menu: **Reset password**
   (`data-testid="member-reset-password"`), **Revoke sessions**
   (`data-testid="member-revoke-sessions"`), **Disable user** (`data-testid="member-disable"`),
   **Archive user** (`data-testid="member-archive"`) and **Remove**
   (`data-testid="member-remove"`), with **Restore access** (`data-testid="member-restore"`)
-  replacing disable/archive once the member is suspended. Every control has a member-scoped
+  replacing disable/archive once the member is suspended. The pencil is offered on **active rows
+  only** — a role change must not be a back door that reinstates a suspended member, so a suspended
+  row is restored first — while the gear, including **Remove**, stays available on suspended rows so
+  a membership can be ended without first handing its access back. Every control has a member-scoped
   accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**, **Reset
   password for _member_**, **Revoke sessions for _member_**, **Disable _member_** — so non-linear
   assistive-technology navigation cannot detach an action from its target. Each menu action opens a
@@ -703,7 +713,9 @@ The management section has four parts:
   account-takeover capability; only an Owner may reset an Owner — the server 403s regardless). The
   action is absent in `sso` mode (the IdP owns credentials). **Revoke sessions** uses the same
   cross-account authority rule as password reset.
-- **Invite form** — an Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
+- **Invite form** — a card of its own (`data-testid="invites-section"`), separate from the members
+  table since #175 so inviting someone is not mixed into the list of people who already joined. An
+  Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
   selected role's plain-language consequences visible below it, plus an optional **pre-authorise
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
@@ -743,7 +755,9 @@ nullable `lastLoginAt` derived from retained sessions; OFF → `{members:[]}`),
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
 404 non-member, 403 by the role rules),
 `PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `disabled` | `archived`;
-204; 400 unknown status, 404 non-member, 403 against the Owner, against yourself, or by the role
+200 `{userId, status}`, idempotent — re-applying the status a member already holds succeeds without
+burning their outstanding reset link; 400 unknown status, 404 non-member, 403 against the Owner,
+against yourself, or by the role
 rules — a non-active membership authorizes nothing, so the member's own reads 403 until restored
 while the administrative directory keeps listing them),
 `DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner),

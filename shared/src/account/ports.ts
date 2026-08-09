@@ -96,7 +96,16 @@ export interface IdentityPort {
 
 export interface AccountAdminPort {
   listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
-  getMembership(input: { principalId: PrincipalId; workspaceId: WorkspaceId }): Promise<Membership | null>;
+  /** Active membership by default — this is the read request authorization goes through, so a
+   *  disabled or archived row must look like no membership at all. `includeInactive` answers the
+   *  different question "does this relationship exist?" and is for identity administration only:
+   *  an admin disables a compromised account BEFORE rotating its password and killing its
+   *  sessions, so those routes must still find the member they just suspended. */
+  getMembership(input: {
+    principalId: PrincipalId;
+    workspaceId: WorkspaceId;
+    includeInactive?: boolean;
+  }): Promise<Membership | null>;
   /** Active memberships by default. `includeInactive` additionally returns disabled and archived
    *  rows and exists for ONE caller — the administrative member directory, which must show an
    *  administrator the state they applied so they can reverse it. Never widen an authorization read

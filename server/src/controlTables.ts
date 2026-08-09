@@ -446,19 +446,73 @@ export function upsertMember(db: Db, member: AccountMember): void {
  * @param accountId  The account whose membership is changing.
  * @param userId     The login whose membership is changing.
  * @param status     The {@link MembershipStatus} to move to.
- * @returns `true` when a row was updated; `false` when no such membership exists. Callers treat
- *   `false` as NOT_FOUND rather than success — an absent membership must never report a committed
- *   lifecycle change.
+ * @returns Which of the three outcomes occurred. `"missing"` is NOT_FOUND to callers — an absent
+ *   membership must never report a committed lifecycle change. `"unchanged"` is a SUCCESS: the
+ *   membership already holds the requested status, so the caller's intent is satisfied. The three
+ *   are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
+ *   demand opposite responses, and because a re-applied status must not pay the security cost below.
  */
-export function setMemberStatus(db: Db, accountId: string, userId: string, status: MembershipStatus): boolean {
+export function setMemberStatus(
+  db: Db,
+  accountId: string,
+  userId: string,
+  status: MembershipStatus,
+): "changed" | "unchanged" | "missing" {
+  // `AND status <> ?` makes a same-value write matchless, which is what keeps the security protocol
+  // below off the no-op path: SQLite counts a row it MATCHED as changed even when the value written
+  // is identical, so an unguarded UPDATE would burn an unrelated admin's freshly-minted reset link
+  // every time anyone re-applied a status the member already had.
   const changed =
     db
-      .prepare(`UPDATE account_members SET status = ? WHERE accountId = ? AND userId = ?`)
-      .run(status, accountId, userId).changes > 0;
-  if (!changed) return false;
+      .prepare(`UPDATE account_members SET status = ? WHERE accountId = ? AND userId = ? AND status <> ?`)
+      .run(status, accountId, userId, status).changes > 0;
+  if (!changed) {
+    // Matchless: either the membership is absent, or it already holds this status. Only the second
+    // is success, so distinguish them with a read rather than guessing.
+    return getMembershipRow(db, accountId, userId) === null ? "missing" : "unchanged";
+  }
   revokeResetTokensForUser(db, userId);
   bumpSecurityRevision(db, userId);
-  return true;
+  return "changed";
+}
+
+/**
+ * Read ONE membership row, whatever its lifecycle status.
+ *
+ * The status-agnostic counterpart to {@link getActiveMemberRole}, and deliberately NOT a substitute
+ * for it: this helper answers "does this relationship exist?" (administration, lifecycle), never
+ * "what authority does this login hold?" (authorization). A disabled or archived row is a real
+ * membership that an administrator must still be able to see, restore and remove — and one that
+ * must confer nothing. Callers that narrow authority keep using {@link getActiveMemberRole}.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account to look up.
+ * @param userId     The login to look up.
+ * @returns The membership row, or `null` when this login has no membership in this account.
+ * @throws Error  If the stored role is not a known {@link Role} — control-table corruption, which
+ *   fails loud here exactly as it does in {@link listMembersForAccount}.
+ */
+export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
+  const row = db
+    .prepare(
+      `SELECT accountId, userId, role, status, createdAt FROM account_members
+        WHERE accountId = ? AND userId = ?`,
+    )
+    .get(accountId, userId) as
+    { accountId: string; userId: string; role: string; status: string; createdAt: string } | undefined;
+  if (!row) return null;
+  if (!isKnownRole(row.role)) {
+    throw new Error(
+      `getMembershipRow: stored role ${JSON.stringify(row.role)} for (${row.accountId}, ${row.userId}) is not a known role — control table corrupted.`,
+    );
+  }
+  return {
+    accountId: row.accountId,
+    userId: row.userId,
+    role: row.role,
+    status: membershipStatus(row.status, row.accountId, row.userId),
+    createdAt: row.createdAt,
+  };
 }
 
 /**

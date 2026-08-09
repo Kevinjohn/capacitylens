@@ -260,7 +260,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // The freshly-minted password-reset link (P1.18) — same write-once posture as the invite link,
   // labelled with WHO it resets so an admin juggling several members can't hand out the wrong one.
   // `userId` is carried (not just the display label) so a membership write that burns this member's
-  // token server-side can clear the block — see the changeRole / transferOwnership clears below.
+  // token server-side can clear the block — see the changeRole / changeStatus clears below.
   const [resetLink, setResetLink] = useState<{
     userId: string;
     link: string;
@@ -628,7 +628,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       }
       // Write-once: build + show the link straight from this response and never again. `userId` is
       // carried so a later membership write on this member can clear the stale block (see the
-      // changeRole / transferOwnership clears above).
+      // changeRole / changeStatus clears above).
       setResetLink({
         userId: mem.userId,
         link: `${window.location.origin}/reset-password/${encodeURIComponent(body.token)}`,
@@ -968,7 +968,14 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                     // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
                     // Ordinary role changes never touch the Owner.
                     const representativeRole: Role = mem.role === "viewer" ? "editor" : "viewer";
-                    const mayTouch = !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
+                    // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves
+                    // its target through getActiveMemberRole, so offering the pencil on a suspended
+                    // row could only ever produce a 404. Restore the member first, then change the
+                    // role — a role change must not be a back door that quietly reinstates access.
+                    const mayTouch =
+                      mem.status === "active" && !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
+                    // Remove, by contrast, is status-agnostic on both sides: deleting a suspended
+                    // membership is a normal administrative act and must not require reinstating it.
                     const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
                     const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, mem.role, mem.isSelf);
                     const memberLabel = labelFor(mem);

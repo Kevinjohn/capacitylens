@@ -98,6 +98,18 @@ intro.
   independently of what the UI renders. A non-active membership authorizes nothing: the member's own
   reads against the company return **403** until they are restored, while the administrative
   directory keeps listing them so the change is visible and reversible.
+- Suspension cannot be reversed by the suspended party. Redeeming an invite for a company where the
+  caller's membership is disabled or archived is **403**, leaves the membership untouched and leaves
+  the invite **unused** — only an Owner/Admin restores access, and the restore is audited as
+  `member.status_changed`.
+- Suspending someone never costs an administrator the ability to act on them: **Reset password** and
+  **Revoke sessions** stay available against a disabled or archived member (the compromised-account
+  case is precisely why an admin disables first), and **Remove** works on a suspended row without
+  first restoring its access. The role **pencil** is the one exception — it is offered on active rows
+  only, so a role change can never quietly reinstate a suspended member.
+- Re-applying the status a member already holds succeeds (**200**) and changes nothing: it must not
+  burn that member's outstanding password-reset link or bump their security revision, so a second
+  admin acting on a stale screen cannot silently kill a link the first admin just handed out.
 - Invite and ordinary role choices show their plain-language consequences before the mutation is
   submitted; ordinary role changes require explicit confirmation.
 - An Admin manages members but NOT owner-only operations (the acceptance headline, enforced per the

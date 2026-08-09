@@ -30,6 +30,7 @@ import {
   createInvite,
   getActiveMemberRole,
   getInvite,
+  getMembershipRow,
   inviteIsExpired,
   listInvitesForAccount,
   listMembersForAccount,
@@ -271,6 +272,30 @@ function roleMap(
   );
 }
 
+/**
+ * The same map for a TARGET of identity administration, counting memberships of every lifecycle
+ * status. Deliberately NOT `roleMap`, and the asymmetry is the point in both directions:
+ *
+ * - An actor's authority must come only from ACTIVE memberships — a suspended admin administers
+ *   nobody — so actors keep using `roleMap`.
+ * - A target's suspended memberships must still COUNT. Dropping them made an empty map, which
+ *   `authorityDecisions` reads as `target-not-member` and denies: disabling a member was therefore
+ *   the act that destroyed the administrator's ability to revoke that member's live sessions or
+ *   reset their password — exactly backwards for the compromised-account case that motivates
+ *   disabling someone in the first place.
+ *
+ * Widening here cannot weaken the standing rule. `canAdministerIdentityAcrossWorkspaces` demands
+ * the actor out-rank the target in EVERY workspace the target appears in, so adding workspaces to
+ * the target's map can only hold the actor to a stricter test, never a laxer one.
+ */
+function targetRoleMap(db: Db, principalId: string, workspaceIds: ReadonlySet<string>): Map<string, Role> {
+  return new Map(
+    listMembershipsForUser(db, principalId)
+      .filter((row) => workspaceIds.has(row.accountId))
+      .map((row) => [row.accountId, row.role]),
+  );
+}
+
 function authorityRevision(actorRevision: number, targetRevision: number): string {
   return `actor:${actorRevision};target:${targetRevision}`;
 }
@@ -323,7 +348,7 @@ function evaluateAuthoritiesForTargets(
   const actorRevision = getSecurityRevision(db, actor.principalId);
   const results = new Map<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>();
   for (const targetPrincipalId of new Set(targetPrincipalIds)) {
-    const targetRoles = roleMap(db, targetPrincipalId, workspaceIds);
+    const targetRoles = targetRoleMap(db, targetPrincipalId, workspaceIds);
     results.set(
       targetPrincipalId,
       authorityDecisions(db, actor, targetPrincipalId, actions, actorRoles, targetRoles, actorRevision),
@@ -512,8 +537,20 @@ export function sqliteAccountAdminPort(input: {
       );
     }
     const now = new Date().toISOString();
-    const existing = getActiveMemberRole(db, live.accountId, input.principalId);
-    const effectiveRole = existing ?? live.role;
+    // Status-AGNOSTIC on purpose. An active-only probe reports a disabled or archived member as a
+    // NON-member, and the branch below would then upsert them back to `status: "active"` at the
+    // invite's role — silently reversing an administrator's suspension, with no member.status_changed
+    // audit record, for anyone who still holds (or is handed) a link-only invite. Suspension is
+    // reversed by an administrator through changeMemberStatus, never by the suspended party.
+    const existing = getMembershipRow(db, live.accountId, input.principalId);
+    if (existing && existing.status !== "active") {
+      throw failure(
+        "FORBIDDEN",
+        "This membership is suspended. An Owner or Admin must restore it before you can rejoin.",
+        input.command.commandId,
+      );
+    }
+    const effectiveRole = existing?.role ?? live.role;
     if (!existing) {
       upsertMember(db, {
         accountId: live.accountId,
@@ -645,10 +682,10 @@ export function sqliteAccountAdminPort(input: {
         );
     },
 
-    async getMembership({ principalId, workspaceId }) {
+    async getMembership({ principalId, workspaceId, includeInactive = false }) {
       if (!getRow(db, "accounts", workspaceId)) return null;
       const row = listMembershipsForUser(db, principalId).find(
-        (candidate) => candidate.accountId === workspaceId && candidate.status === "active",
+        (candidate) => candidate.accountId === workspaceId && (includeInactive || candidate.status === "active"),
       );
       return row ? membership(db, row) : null;
     },
@@ -984,16 +1021,17 @@ export function sqliteAccountAdminPort(input: {
           // Status-AGNOSTIC lookup, unlike changeMemberRole's getActiveMemberRole: restoring a
           // disabled or archived membership is the whole point, and an active-only read would make
           // every such target look like a non-member.
-          const target = listMembersForAccount(db, workspaceId).find((row) => row.userId === targetPrincipalId);
+          const target = getMembershipRow(db, workspaceId, targetPrincipalId);
           if (!target) throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canChangeMemberStatus(acting, target.role, targetPrincipalId === actor.principalId))
             throw failure("FORBIDDEN", "Forbidden.", command.commandId);
-          if (!setMemberStatus(db, workspaceId, targetPrincipalId, nextStatus))
+          // "unchanged" is success, not a fault: the membership already holds the requested status,
+          // so the caller's intent is satisfied and no reset link should have been burned for it.
+          if (setMemberStatus(db, workspaceId, targetPrincipalId, nextStatus) === "missing")
             throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
-          const row = listMembersForAccount(db, workspaceId).find(
-            (candidate) => candidate.userId === targetPrincipalId,
-          )!;
-          return membership(db, row);
+          // The post-write row is the pre-write row with the new status — the write above changed
+          // nothing else. Re-reading it would only re-derive what we already hold.
+          return membership(db, { ...target, status: nextStatus });
         },
       });
     },
@@ -1011,9 +1049,13 @@ export function sqliteAccountAdminPort(input: {
         execute: () => {
           assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
           const acting = assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
-          const target = getActiveMemberRole(db, workspaceId, targetPrincipalId);
+          // Status-AGNOSTIC, like changeMemberStatus and for the same reason: the members table
+          // lists suspended rows so an administrator can act on them. An active-only read made
+          // Remove 404 on exactly those rows, leaving no way to delete a suspended membership
+          // except to restore the member's access first — the opposite of the intent.
+          const target = getMembershipRow(db, workspaceId, targetPrincipalId);
           if (!target) throw failure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
-          if (!canRemoveMember(acting, target)) throw failure("FORBIDDEN", "Forbidden.", command.commandId);
+          if (!canRemoveMember(acting, target.role)) throw failure("FORBIDDEN", "Forbidden.", command.commandId);
           removeMemberRow(db, workspaceId, targetPrincipalId);
           return receipt(command.commandId);
         },
@@ -1103,7 +1145,12 @@ export function sqliteAccountAdminPort(input: {
     assertIdentityRepairAuthorityInTx({ actor, workspaceId, targetPrincipalId, action, expectedRevision }) {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal);
       assertAccountAuthority(db, actor, workspaceId, "manage-members", trustedLocal);
-      if (!getActiveMemberRole(db, workspaceId, targetPrincipalId)) {
+      // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
+      // An active-only probe would 404 the compromised-account case that identity repair exists for —
+      // an admin disables the account FIRST and then kills its sessions / rotates its password, and
+      // an active-only read here reports the person they just suspended as a non-member. The
+      // authority question is answered below by evaluateAuthority, which still ranks roles.
+      if (!getMembershipRow(db, workspaceId, targetPrincipalId)) {
         throw failure("NOT_FOUND", "Not a member of this workspace.");
       }
       const current = evaluateAuthority(db, actor, targetPrincipalId, action);

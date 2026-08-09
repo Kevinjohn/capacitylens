@@ -850,6 +850,30 @@ describe("MembersSection — member lifecycle", () => {
     );
   });
 
+  it("hides the role pencil on a suspended row while keeping the gear's actions", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", status: "disabled", mayResetPassword: true, mayRevokeSessions: true },
+      ]),
+    );
+    renderSection();
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+
+    // A role change writes status: "active", so offering the pencil here would turn "edit their role"
+    // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
+    expect(within(edRow).queryByTestId("member-edit")).not.toBeInTheDocument();
+
+    // The gear is NOT withdrawn with it: suspending someone must never cost an administrator the
+    // ability to rotate their password, kill their sessions, or remove them outright.
+    await openMemberMenu(user, edRow);
+    expect(screen.getByTestId("member-reset-password")).toBeInTheDocument();
+    expect(screen.getByTestId("member-revoke-sessions")).toBeInTheDocument();
+    expect(screen.getByTestId("member-remove")).toBeInTheDocument();
+  });
+
   it("offers no status action against the Owner or against yourself", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(

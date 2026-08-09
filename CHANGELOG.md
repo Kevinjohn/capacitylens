@@ -18,6 +18,14 @@ new features and **patch** versions carry fixes.
   refuses that person's reads until they are restored — while the administrative directory keeps
   listing them, so the change is visible and undoable. Neither the Owner nor yourself can be
   suspended, in the UI or at the API. (#175)
+- **Suspension holds on every path, and costs an administrator nothing.** A suspended member cannot
+  redeem an invite back into the company — the attempt is refused and the invite is left unused, so
+  only an Owner or Admin can restore access — and the role pencil is withdrawn from suspended rows
+  so a role change can never quietly reinstate someone. In the other direction, **Reset password**,
+  **Revoke sessions** and **Remove** all keep working against a suspended member, because disabling
+  a compromised account first and rotating its credentials second is exactly the sequence this is
+  for. Re-applying the status a member already holds succeeds and changes nothing, so a second admin
+  on a stale screen cannot silently kill a reset link the first admin just handed out. (#175)
 - **The members table shows Last login.** It is derived from retained sessions, so a member with no
   retained session reads **Unknown** rather than "Never": that read cannot tell "never signed in"
   apart from "session aged out", and the page does not claim the stronger of the two. (#175)
