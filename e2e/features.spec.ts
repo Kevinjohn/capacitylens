@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
@@ -77,7 +77,7 @@ test.describe("Feature flows", () => {
     await openApp(page);
     // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
     // early-June seed bars stay in view — no manual scroll reset needed.
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
     const b0 = await box(bar);
@@ -104,7 +104,7 @@ test.describe("Feature flows", () => {
 
   test("drawing in Time off mode opens a prefilled time-off form", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     // Toolbar draw-mode radio, distinct from the "Time off" nav link.
     await page.getByRole("radio", { name: "Time off", exact: true }).click();
 
@@ -134,7 +134,7 @@ test.describe("Feature flows", () => {
     // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
     await page.getByRole("switch", { name: "Show placeholders" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });

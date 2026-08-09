@@ -15,7 +15,7 @@ not shared account data, so each person sets it to taste. It defaults **on** —
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open on the Schedule (clock inside the seed window — see _Seed data_ in REFERENCE.md), at a fine zoom (e.g. **1w**) so per-day columns show.
+**Precondition:** Seeded app open on the Schedule (clock inside the seed window — see _Seed data_ in REFERENCE.md), at a fine zoom (e.g. **1 week** on **Weeks visible**) so per-day columns show.
 
 1. On the Schedule, note the date header: weekdays read three-letter labels (`Mon`, `Tue`, …) and **both** weekend days read a single **"S"**. The Saturday and Sunday columns are clearly narrower than the weekday columns. A bar that spans a weekend (e.g. Pam's **Brand System**, 1–9 June) still draws as one continuous bar across the narrowed weekend.
 2. Open **Settings** (sidebar). In the **Schedule** section, find the **Minimise weekends** switch — it's **on**.

@@ -12,7 +12,7 @@ A bar can only show so much on its face, especially when narrow. The manager oft
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01` so the seed bars are in view.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. Hover the **Brand System** bar.
 2. A popover (`data-testid="allocation-popover"`) appears showing: the activity/label, **project · client** (e.g. _Brand Themes · Globex_), the **date range**, **Nh/day**, the **status**, and a note line if the allocation has one.

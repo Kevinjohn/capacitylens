@@ -1,12 +1,12 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026 and are visible at 4w with scroll reset.
 test.describe("Allocation editor", () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -112,7 +112,7 @@ test.describe("Allocation editor", () => {
     await page.getByRole("link", { name: "Settings" }).click();
     await page.getByRole("switch", { name: "Show placeholders" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });

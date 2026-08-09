@@ -12,7 +12,7 @@ The fastest way to plan is to "paint" time directly on the timeline where you wa
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01`. Make sure the draw-mode toggle is on **Work** (the default).
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Make sure the draw-mode toggle is on **Work** (the default).
 
 1. Scroll the timeline fully to the left so the start of the visible range is at the left edge (the precise drawn position only needs to land on empty lane space).
 2. On an empty stretch of a resource's lane, press the mouse button down, drag right across roughly two day-columns, and release.

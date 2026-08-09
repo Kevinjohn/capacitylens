@@ -18,7 +18,7 @@ Studios rename and re-colour their categories as the business evolves (a "Develo
 2. Change **Name** = `Engineering`.
 3. Change the **Colour** by opening it and picking a different swatch.
 4. Click **Save**. The dialog closes.
-5. Click **Schedule** in the sidebar (`/`); use **Jump to date** → `2026-06-01` to see the seed bars.
+5. Click **Schedule** in the sidebar (`/`); click **Today** to see the seed bars.
 
 ## Acceptance criteria
 

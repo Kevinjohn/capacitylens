@@ -368,13 +368,23 @@ rejection reason. Viewers see no allocation mutation actions.
 `Cancel`. Dialog/footer action buttons keep their text — only the list-row actions are icon-only.
 The archive flow is reversible and retains children; it must not be described as cascade deletion.
 
-**Scheduler toolbar.** Zoom radios `1w`/`2w`/`4w`/`6w`/`8w` in a radiogroup (the active one has
-`aria-checked="true"`); `‹ Prev`, `Today`, `Next ›`; a `Jump to date` date input; a
+**Scheduler toolbar.** A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
+carries its visible text — "Weeks visible, 4 weeks" — so voice control can act on the words on
+screen, WCAG 2.5.3) replaces the former zoom radiogroup (#173): its five options read "1 week", "2
+weeks", "4 weeks", "6 weeks", "8 weeks", and the closed trigger displays the current one (e.g. "4
+weeks"). Then icon-only **Prev**/**Next** chevron buttons (accessible names "Prev"/"Next" via
+`aria-label`, hover titles "Back one week"/"Forward one week" — the words no longer show) and a
+text **Today** button. The **Jump to date** date input is HIDDEN from the toolbar as of #173 (a
+deliberate product decision — people rarely look far ahead, and a month list is the likely future
+affordance); its component (`src/components/scheduler/JumpToDateInput.tsx`) is retained, gated
+behind `SHOW_JUMP_TO_DATE` in `SchedulerToolbar.tsx`, and its behaviour is covered by
+`src/components/scheduler/JumpToDateInput.test.tsx` plus the `goToDate` tests in
+`src/store/useStore.test.ts` rather than through the toolbar UI.
 **Navigation always re-anchors the grid's left edge to the week start** (the account
-`weekStartsOn`, default Monday): a **zoom** click (1/2/4/6/8w), a **Prev/Next** pan, and the
-**date picker** all snap the leftmost column to that week's Monday so the helicopter view always
-opens on a week boundary. The `Jump to date` input reflects the snapped Monday (its value is the
-snapped focus date — pick a Thursday and it shows that week's Monday). `Today` snaps the same way.
+`weekStartsOn`, default Monday): choosing a **Weeks visible** level, a **Prev/Next** pan, and
+**Today** all snap the leftmost column to that week's Monday so the helicopter view always
+opens on a week boundary. (The hidden **Jump to date** picker snaps the same way when re-enabled —
+see the tests above.)
 A pure window resize / Minimise-weekends toggle does NOT re-anchor — it preserves the exact
 left-edge date. (This is ALWAYS on; there is no setting.)
 A
@@ -421,7 +431,7 @@ default — sibling to _Minimise weekends_. It's also a **device-global** displa
 first day (the account `weekStartsOn`, default Monday) — a stray nudge that would park the view on
 a Tue/Wed settles back to that week's Monday. It floors (never forward): forward weeks are reached
 via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the mid-week day. This
-governs **free scroll only** — the always-on **navigation** snap (zoom / Prev-Next / date-picker,
+governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
 see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
 
 **Calendar (per-account, FROZEN after creation — P1.14).** Settings → **Calendar** shows the
@@ -1124,7 +1134,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   roles remain distinct and WCAG-AA readable in light and dark themes. User-selected client,
   project and discipline swatches remain entity data colours, while new accounts and resources use
   the default blue preset.
-- **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
+- **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the **Weeks visible** span, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
   the 1/2/4/6/8-week range anchored at the left edge of the view — so **switching the range toggle
   recomputes it** to reflect exactly the visible span. It turns **red** when the resource trips its

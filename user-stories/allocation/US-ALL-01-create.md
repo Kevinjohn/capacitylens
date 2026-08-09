@@ -12,7 +12,7 @@ Scheduling work is the core job of the app. A studio manager plans who does what
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01` so the June bars are visible.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the June bars are visible.
 
 1. On the **Tyler Nix** row, click the **+** (`Add allocation`) button at the right of the name column. The **New allocation** dialog opens; in row-create mode the assignee is fixed to that row, so there is no **Assignee** select — the dialog title names them ("New allocation for _Tyler Nix_").
 2. Choose **Project** = _Acme Inc. / Project Lightning_.

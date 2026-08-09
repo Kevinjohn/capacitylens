@@ -1,5 +1,14 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, probeSchedulerGeometry as probe, selectShadOption, waitForWeekSnap } from "./helpers";
+import {
+  goToSeedWeek,
+  openApp,
+  probeSchedulerGeometry as probe,
+  schedulerLeftMonthLabel,
+  selectShadOption,
+  setZoom,
+  settledSchedulerLeftDate,
+  waitForWeekSnap,
+} from "./helpers";
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
@@ -44,7 +53,7 @@ test.describe("Scheduler", () => {
 
   test("draws a new allocation on an empty part of a lane", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
 
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
@@ -72,7 +81,7 @@ test.describe("Scheduler", () => {
 
   test("drags a bar to move it later", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
     const b0 = await box(bar);
@@ -90,7 +99,7 @@ test.describe("Scheduler", () => {
 
   test("resizes a bar via its end handle", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
 
     // "Wireframes" (4 days) keeps its right edge on-screen, unlike the 9-day "Brand System".
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
@@ -114,17 +123,15 @@ test.describe("Scheduler", () => {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
 
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
-    await expect(page.getByRole("radio", { name: "1w", exact: true })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("radio", { name: "4w", exact: true })).toHaveAttribute("aria-checked", "false");
+    await setZoom(page, 1);
+    await expect(page.getByRole("combobox", { name: "Weeks visible" })).toHaveText("1 week");
     const wide = await box(bar);
     await page.screenshot({
       path: testInfo.outputPath("capacitylens_1week.png"),
     });
 
-    await page.getByRole("radio", { name: "8w", exact: true }).click();
-    await expect(page.getByRole("radio", { name: "8w", exact: true })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("radio", { name: "1w", exact: true })).toHaveAttribute("aria-checked", "false");
+    await setZoom(page, 8);
+    await expect(page.getByRole("combobox", { name: "Weeks visible" })).toHaveText("8 weeks");
     const narrow = await box(bar);
     await page.screenshot({
       path: testInfo.outputPath("capacitylens_8week.png"),
@@ -147,7 +154,7 @@ test.describe("Scheduler", () => {
     await expect(snap).toHaveAttribute("aria-checked", "false");
 
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
     const grid = page.getByTestId("scheduler-grid");
     await expect(grid).toBeVisible();
 
@@ -182,18 +189,25 @@ test.describe("Scheduler", () => {
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
   });
 
-  test("jumping to a date moves the timeline to that month", async ({ page }) => {
+  // This used to jump straight to August through the date picker. That picker is hidden as of
+  // #173, so the same "the header follows the window into another month" behaviour is driven by
+  // the controls that remain: Today, then Next a week at a time.
+  test("paning forward moves the timeline into the next month", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-    await page.getByLabel("Jump to date").fill("2026-08-10");
-    await expect(page.getByLabel("Jump to date")).toHaveValue("2026-08-10");
-    await expect(page.getByText("Aug 2026")).toBeVisible();
+    await goToSeedWeek(page); // left edge = Mon 2026-06-01
+    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe("Jun 2026");
+
+    // Five weeks on from 1 June is Mon 6 July — the first left edge that is fully in July.
+    for (let week = 0; week < 5; week += 1) await page.getByRole("button", { name: "Next" }).click();
+    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe("Jul 2026");
+    expect(await settledSchedulerLeftDate(page)).toContain("Mon");
   });
 
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -215,8 +229,7 @@ test.describe("Scheduler", () => {
     // grid's first-measure scroll effect. A slow CI render can otherwise leave this test looking
     // at a zero-utilisation window outside the June seed even though the same fixture is stable
     // locally. June 1 is the shared left edge this zoom comparison is actually meant to exercise.
-    await page.getByLabel("Jump to date").fill("2026-06-01");
-    await expect(page.getByLabel("Jump to date")).toHaveValue("2026-06-01");
+    await goToSeedWeek(page);
     await expect(page.getByText("Jun 2026")).toBeVisible();
     const overall = page.getByTestId("overall-utilization");
     const pct = async () => Number.parseInt((await overall.textContent())?.replace("%", "") ?? "", 10);
@@ -232,8 +245,10 @@ test.describe("Scheduler", () => {
     // label to track the zoom, then poll BOTH numbers to a STABLE value (two equal reads in a row) —
     // the visible window re-anchors via a rAF after the scroll settles, so a bare read can race that.
     const readAtZoom = async (weeks: 1 | 2 | 4 | 8): Promise<{ overall: number; tyler: number }> => {
-      await page.getByRole("radio", { name: `${weeks}w`, exact: true }).click();
-      await expect(page.getByRole("radio", { name: `${weeks}w`, exact: true })).toHaveAttribute("aria-checked", "true");
+      await setZoom(page, weeks);
+      await expect(page.getByRole("combobox", { name: "Weeks visible" })).toHaveText(
+        weeks === 1 ? "1 week" : `${weeks} weeks`,
+      );
       // The label tracks the zoom (no longer a fixed "next 2w").
       await expect(page.getByText(`Utilisation · ${weeks}w`)).toBeVisible();
       await expect(tylerUtil).toBeVisible(); // selector resolves to exactly Tyler's per-person cell
@@ -276,7 +291,7 @@ test.describe("Scheduler", () => {
 
   test("stacks overlapping allocations onto a taller row (US-SCH-08)", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -295,7 +310,7 @@ test.describe("Scheduler", () => {
 
   test("allocation status and note are visually distinct on the bar (US-SCH-19)", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -335,7 +350,7 @@ test.describe("Scheduler", () => {
     await expect(snap).toHaveAttribute("aria-checked", "false");
 
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     // Header day cells read "<dayNum><EEE>", e.g. "1Mon"; a minimised weekend collapses to "<n>S".
     // We assert on the weekday suffix, and capture the leading day NUMBER to prove the window moved.
@@ -357,7 +372,7 @@ test.describe("Scheduler", () => {
 
     // (1) ZOOM snaps even with the pref OFF.
     await nudgeOffMonday();
-    await page.getByRole("radio", { name: "2w", exact: true }).click();
+    await setZoom(page, 2);
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
     const afterZoom = dayNum((await probe(page)).leftDate);
 

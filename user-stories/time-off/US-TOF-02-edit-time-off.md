@@ -18,12 +18,12 @@ Plans move. A holiday gets shortened, or what was logged as a holiday turns out 
 2. Confirm the dialog is pre-filled: **Resource** = _Tyler Nix_, **Start** = `2026-06-10`, **End** = `2026-06-12`, **Type** = _Holiday_.
 3. Change **Type** = _Sick_ and shorten the range to **End** = `2026-06-11`.
 4. Click **Save**. The dialog closes.
-5. Go to **Schedule** (`/`), use **Jump to date** → `2026-06-01`, and set the zoom to **1w** to read the block over Tyler's lane.
+5. Go to **Schedule** (`/`), click **Today** so the seed bars are in view, and set **Weeks visible** to **1 week** to read the block over Tyler's lane.
 
 ## Acceptance criteria
 
 - ✅ The dialog is titled **Edit time off** and pre-fills every field from the existing entry (resource, start, end, type, note).
 - ✅ After Save, Tyler's `timeoff-row` updates to **Tyler Nix · Wed 10th Jun · 2 days** — the start date is unchanged, and shortening the end shows as a smaller day count (3 → 2). The new _Sick_ type is stored and shows on the timeline block + when you re-open the editor — it is not shown in the list row (see US-TOF-04).
-- ✅ On the Schedule (Jump to date → 2026-06-01, zoom **1w**), Tyler's `timeoff-block` now spans 10–11 June (one day shorter) and carries the new type label; 12 June is no longer covered.
+- ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Tyler's `timeoff-block` now spans 10–11 June (one day shorter) and carries the new type label; 12 June is no longer covered.
 - ✅ Editing back (or pressing **⌘Z**) returns the entry to its prior state — the edit is reversible.
 - ✅ The same validation as creating applies: a reversed range (End before Start) keeps the dialog open with "End date cannot be before the start date."

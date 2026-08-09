@@ -12,7 +12,7 @@ Estimates change once work is underway — a two-day activity becomes four. Drag
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01`.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. Find the **Wireframes** bar (a 4-day allocation whose right edge stays on-screen).
 2. Note its current width.

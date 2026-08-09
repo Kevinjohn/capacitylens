@@ -5,7 +5,7 @@ import { SchedulerToolbar } from "./SchedulerToolbar";
 import { emptyFilters, useStore } from "../../store/useStore";
 import { resetStoreWithAccount } from "../../test/fixtures";
 
-async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: string, optionName: string) {
+async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: string | RegExp, optionName: string) {
   const trigger = screen.getByRole("combobox", { name: label });
   trigger.focus();
   fireEvent.keyDown(trigger, { key: "ArrowDown" });
@@ -18,27 +18,57 @@ beforeEach(() => {
   useStore.getState().setZoom(4);
 });
 
-describe("SchedulerToolbar zoom control", () => {
-  it("clicking a zoom level sets ui.zoom (weeks visible)", async () => {
+describe("SchedulerToolbar weeks dropdown", () => {
+  it("offers every zoom level in words and selects the current one", () => {
+    render(<SchedulerToolbar />);
+
+    const trigger = screen.getByRole("combobox", { name: /Weeks visible/ });
+    expect(trigger).toHaveTextContent("4 weeks");
+    // The visible text must live INSIDE the accessible name (WCAG 2.5.3 Label in Name), so speech
+    // input can act on what the user reads: "Weeks visible" alone would not contain "4 weeks".
+    expect(trigger).toHaveAccessibleName("Weeks visible, 4 weeks");
+
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    // Singular for 1, plural beyond it — and no leftover "4w" segment buttons.
+    expect(screen.getByRole("option", { name: "1 week" })).toBeInTheDocument();
+    for (const weeks of [2, 4, 6, 8]) {
+      expect(screen.getByRole("option", { name: `${weeks} weeks` })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("radio", { name: "4w" })).not.toBeInTheDocument();
+  });
+
+  it("choosing a level sets ui.zoom (weeks visible)", async () => {
     const user = userEvent.setup();
     render(<SchedulerToolbar />);
 
-    await user.click(screen.getByRole("radio", { name: "8w" }));
+    await chooseOption(user, /Weeks visible/, "8 weeks");
     expect(useStore.getState().ui.zoom).toBe(8);
 
-    await user.click(screen.getByRole("radio", { name: "1w" }));
+    await chooseOption(user, /Weeks visible/, "1 week");
     expect(useStore.getState().ui.zoom).toBe(1);
   });
 });
 
 describe("SchedulerToolbar date navigation", () => {
-  it("does not call goToDate for a malformed programmatic date change", () => {
-    const goToDate = vi.fn();
-    useStore.setState({ goToDate });
+  // Prev/Next are icon-only; the accessible name is what both users and locators rely on.
+  it.each([
+    ["Prev", -7],
+    ["Next", 7],
+  ] as const)("%s pans the window by a week", async (name, days) => {
+    const user = userEvent.setup();
+    const panDays = vi.fn();
+    useStore.setState({ panDays });
     render(<SchedulerToolbar />);
 
-    fireEvent.change(screen.getByLabelText("Jump to date"), { target: { value: "2026-2-30" } });
-    expect(goToDate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name }));
+    expect(panDays).toHaveBeenCalledWith(days);
+  });
+
+  // The picker is hidden, not deleted — JumpToDateInput.test.tsx covers the component itself.
+  it("does not render the jump-to-date picker", () => {
+    render(<SchedulerToolbar />);
+
+    expect(screen.queryByLabelText("Jump to date")).not.toBeInTheDocument();
   });
 });
 

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
 // active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
@@ -58,7 +58,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
 
     // Schedule now shows the neutral External band at the very bottom.
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -106,7 +106,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await openApp(page);
     await enableExternal(page);
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -154,7 +154,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await openApp(page);
     await enableExternal(page);
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
       (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;

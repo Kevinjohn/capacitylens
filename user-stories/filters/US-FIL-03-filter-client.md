@@ -12,7 +12,7 @@ For a client review or billing check, the manager wants to see just that client'
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. Seed clients are _Acme Inc._ (Project Lightning) and _Globex_ (Brand Themes).
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Seed clients are _Acme Inc._ (Project Lightning) and _Globex_ (Brand Themes).
 
 1. Open the **Filter by client** select.
 2. Choose **Acme Inc.**.

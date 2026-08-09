@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { disableCssMotion, openApp } from "./helpers";
+import { disableCssMotion, openApp, setZoom } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -57,7 +57,7 @@ test("scheduler in dark mode has no serious or critical violations", async ({ pa
 async function openDrawMode(page: import("@playwright/test").Page): Promise<void> {
   await openApp(page);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
-  await page.getByRole("radio", { name: "4w", exact: true }).click();
+  await setZoom(page, 4);
   await page.getByTestId("scheduler-grid").evaluate((el) => {
     (el as HTMLElement).scrollLeft = 0;
   });
@@ -110,7 +110,7 @@ test("scheduler in time-off draw mode (dark) has no serious or critical violatio
 async function openAllocationEditor(page: import("@playwright/test").Page): Promise<void> {
   await openApp(page);
   await disableCssMotion(page);
-  await page.getByRole("radio", { name: "4w", exact: true }).click();
+  await setZoom(page, 4);
   await page.getByTestId("scheduler-grid").evaluate((el) => {
     (el as HTMLElement).scrollLeft = 0;
   });
@@ -287,7 +287,7 @@ test("a focused allocation bar is not obscured by the sticky header or left colu
   await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
   await page.setViewportSize({ width: 1000, height: 420 });
   await openApp(page);
-  await page.getByRole("radio", { name: "4w", exact: true }).click();
+  await setZoom(page, 4);
   const grid = page.getByTestId("scheduler-grid");
   await expect(grid).toBeVisible();
 

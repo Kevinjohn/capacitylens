@@ -12,7 +12,7 @@ Plans slip. When a piece of work needs to start a few days later — or can be p
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01` so the seed bars are in view.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. Find the **Brand System** bar (the 9-day allocation on Brand Themes).
 2. Note its current left edge (start) position.

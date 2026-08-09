@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
 // SPANS a weekend adds no over-marker; opting the allocation into weekends turns those days red; and
@@ -19,7 +19,7 @@ test.describe("Weekend over-marker", () => {
 
   test("a spanned weekend is not over; include-weekends and time-off are", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "2w", exact: true }).click();
+    await setZoom(page, 2);
 
     await expect(nikeOverMarkers(page)).toHaveCount(0); // Nike has no seed over-days
     const baseline = 0;

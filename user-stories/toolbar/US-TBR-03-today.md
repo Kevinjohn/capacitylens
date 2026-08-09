@@ -12,7 +12,7 @@ After exploring future or past weeks, the manager wants a one-click way home to 
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. Scroll the schedule grid far to the right (or pan several weeks forward) so today is well off-screen.
 2. Click **Today**.
@@ -21,4 +21,4 @@ After exploring future or past weeks, the manager wants a one-click way home to 
 
 - ✅ Before clicking, the grid is scrolled a long way from today (large horizontal scroll offset).
 - ✅ After clicking **Today**, the timeline re-scrolls back so today is near the visible window (the scroll offset drops sharply toward the start).
-- ✅ **Today** does not change the zoom level.
+- ✅ **Today** does not change the **Weeks visible** level.

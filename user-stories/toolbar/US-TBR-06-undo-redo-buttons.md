@@ -12,7 +12,7 @@ The keyboard path (**⌘Z** / **⌘⇧Z**, see US-TBR-07) is fast for power user
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. Scan the toolbar — to the right of the draw-mode toggle, find the **Undo** and **Redo** icon buttons.
 2. On a fresh load (account just picked, empty history) note both buttons look inactive.

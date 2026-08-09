@@ -18,7 +18,7 @@ A booked holiday gets cancelled. The manager deletes the entry so the schedule f
 2. Read the dialog message: "Remove this time-off entry?".
 3. Click **Cancel** — the dialog closes and the row is unchanged (proves Cancel is safe).
 4. Click the **Delete** (trash) icon on the row again, then click **Delete** in the dialog to confirm. The dialog closes.
-5. Go to **Schedule** (`/`), **Jump to date** → `2026-06-01`, zoom **1w**, to confirm the block is gone.
+5. Go to **Schedule** (`/`), click **Today** so the seed bars are in view, **Weeks visible** = **1 week**, to confirm the block is gone.
 6. Press **⌘Z** (Undo) to restore the entry.
 
 ## Acceptance criteria

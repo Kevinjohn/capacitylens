@@ -12,7 +12,7 @@ When focused on one project's delivery, the manager wants the schedule reduced t
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. More than one project's bars are visible.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so more than one project's bars are visible.
 
 1. Open the **Filter by project** select.
 2. Choose **Brand Themes** (`p-brand`).

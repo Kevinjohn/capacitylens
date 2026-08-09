@@ -12,7 +12,7 @@ A booking with no resource, no activity, empty or reversed dates, or zero hours 
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. Open **New allocation** from a row **+** (the assignee is fixed to that row — there is no Assignee select in create mode).
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Open **New allocation** from a row **+** (the assignee is fixed to that row — there is no Assignee select in create mode).
 
 1. Leave **Activity** empty (`— Select activity —`), click **Save** → rejected.
 2. Choose an Activity, then clear **Start** (or **End**), click **Save** → rejected.

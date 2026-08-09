@@ -14,7 +14,7 @@ Over-allocation is the single most important signal in a capacity tool: it's the
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01`. **Tyler Nix** is over-allocated on **3–4 June** (8h on one allocation + 4h on another > his 8h/day).
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Tyler Nix** is over-allocated on **3–4 June** (8h on one allocation + 4h on another > his 8h/day).
 
 1. Look at Tyler's row on **3–4 June**: those columns carry the over-marker (full-height tint with a top band).
 2. Confirm a non-over-allocated day (e.g. a day with a single 8h booking) carries **no** over-marker.
@@ -25,7 +25,7 @@ Over-allocation is the single most important signal in a capacity tool: it's the
 - ✅ Tyler's **3–4 June** shows at least one **over-marker** (`data-testid="over-marker"`).
 - ✅ A day where allocated ≤ available shows **no** over-marker.
 - ✅ Pushing a day's total allocated hours above available (more hours, or an extra bar) flags that day with an over-marker.
-- ✅ The over-marker is visible at the current **4w** zoom (it does not depend on fine zoom).
+- ✅ The over-marker is visible with **Weeks visible** set to **4 weeks** (it does not depend on fine zoom).
 - ✅ A weekend that an allocation merely **spans** (default, weekend-aware) shows **no** over-marker — only the grey unavailable tint.
 - ✅ An allocation with **"Include weekends as working days"** on flags its weekend days with an over-marker (the resource has 0 weekend capacity).
 - ✅ Work scheduled on a **time-off / holiday** day still shows the over-marker (a real conflict, unlike a merely-spanned weekend).

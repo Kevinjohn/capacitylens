@@ -10,7 +10,7 @@ deleted from Settings → Archived & deleted.
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Use **Jump to date** → `2026-06-01`
+**Precondition:** Seeded app open at **Schedule** (`/`). Click **Today**
 so the seed bars and time off are in view. **Tyler Nix** has both allocations
 (over-allocated on 3–4 June) and time off (10–12 June, Holiday).
 
@@ -20,7 +20,7 @@ so the seed bars and time off are in view. **Tyler Nix** has both allocations
    from the schedule and can be restored or permanently deleted from **Settings → Archived & deleted**.
 4. Click **Cancel** first — the dialog closes and Tyler is still present (nothing archived).
 5. Click the **Archive Tyler Nix** icon again, then click **Archive** to confirm.
-6. Go back to **Schedule** (Jump to `2026-06-01` if needed) and observe Tyler is gone (hidden, not
+6. Go back to **Schedule** (click **Today** if needed) and observe Tyler is gone (hidden, not
    destroyed — his record + allocations + time off are retained).
 7. Undo the archive — either press **⌘Z** or click the toolbar **Undo** button (LOCAL mode) — and
    Tyler reappears on the list and schedule.

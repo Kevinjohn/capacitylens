@@ -29,7 +29,7 @@ is actually used.
 3. Click **Activities** in the sidebar (`/activities`). Click **Add activity**, set **Name** =
    `Team retro`, choose the **Internal** kind (the **Project** picker disappears), and **Save** — the
    activity lands in the **Internal activities** section with no project.
-4. Click **Schedule** (`/`). Widen to **4w** and scroll to the start so the seed's project-less
+4. Click **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and scroll to the start so the seed's project-less
    cross-project _Design_ booking (Alex Rivera, 8–10 June) is visible.
 5. Open **Filter by client** and choose **Internal** (it's still an option here).
 
