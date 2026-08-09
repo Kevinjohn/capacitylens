@@ -10,6 +10,28 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- **A member's access can now be suspended instead of only removed.** Each row's new gear menu
+  offers **Disable user** and **Archive user**, both reversible from the same menu with **Restore
+  access**. A suspended membership keeps its role and history but authorizes nothing — the server
+  refuses that person's reads until they are restored — while the administrative directory keeps
+  listing them, so the change is visible and undoable. Neither the Owner nor yourself can be
+  suspended, in the UI or at the API. (#175)
+- **The members table shows Last login.** It is derived from retained sessions, so a member with no
+  retained session reads **Unknown** rather than "Never": that read cannot tell "never signed in"
+  apart from "session aged out", and the page does not claim the stronger of the two. (#175)
+
+### Changed
+
+- **Team & access is a table, not a wall of cards.** The capability tick list is collapsed behind
+  **See full capabilities**, the two explainer cards that carried no controls are gone, inviting
+  someone has its own panel, and the member list is a real table of Name, Member role, Last login and
+  Actions. Each row ends in a pencil that changes the role and a gear holding the rest. (#175)
+- **The per-member transfer-ownership button is gone.** Handing a company over is a rare, deliberate
+  act and no longer sits on every row; the owner-only API operation is unchanged, and transfer will
+  get its own section in a follow-up. (#175)
+
 ## [0.35.5-alpha.1] — 2026-08-09
 
 Sidebar rework: the administration destinations move out of the day-to-day list, and

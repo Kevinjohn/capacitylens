@@ -41,17 +41,20 @@ throughout these docs.
 | See time-off notes                             |    —     |    —     |  Yes  |  Yes  |
 | See private client/project real names          |    —     |    —     |   —   |  Yes  |
 | List members and manage invites                |    —     |    —     |  Yes  |  Yes  |
+| Disable, archive or restore a member           |    —     |    —     |  Yes  |  Yes  |
 | Export the schedule                            | Redacted | Redacted | Full  | Full  |
 | Import, delete the company, transfer ownership |    —     |    —     |   —   |  Yes  |
 
 There is exactly one Owner per company, and Owner can't be assigned through an invite or
 an ordinary role change — only through an explicit ownership transfer to an existing
-member. An Admin can invite, remove or change the role of any other member, but can't
-touch the Owner. If a company somehow ends up with no Owner at all, see [A company has
+member. An Admin can invite, remove, suspend or change the role of any other member, but
+can't touch the Owner — and nobody, not even the Owner, can disable or archive the Owner
+or themselves. Disabling or archiving someone stops them opening the company straight
+away while keeping their role and history, and it can be undone from the same menu. If a company somehow ends up with no Owner at all, see [A company has
 no Owner](/self-hosting/incidents#a-company-has-no-owner) — CapacityLens repairs that
 automatically in almost every case.
 
-![The Team & access page, where an Admin or Owner sees each member's role and manages invites](../screenshots/flows/team-access.jpg)
+![The Team & access page, where an Admin or Owner sees each member's role, last sign-in and per-member actions](../screenshots/flows/team-access.jpg)
 
 ## Details
 

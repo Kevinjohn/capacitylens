@@ -134,6 +134,9 @@ test.describe("viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await page.getByRole("link", { name: "Team & access" }).click();
     const currentAccess = page.getByTestId("current-access");
     await expect(currentAccess).toContainText("Viewer");
+    // #175: the tick list is collapsed by default — a Viewer opens it to read what the role allows.
+    await expect(currentAccess.getByText("View the schedule")).toHaveCount(0);
+    await currentAccess.getByTestId("capabilities-toggle").click();
     await expect(currentAccess.getByText("View the schedule")).toBeVisible();
     await expect(currentAccess.getByText("Edit scheduling data")).toHaveClass(/text-muted/);
     await expect(page.getByText(/An Owner or Admin manages invitations/)).toBeVisible();

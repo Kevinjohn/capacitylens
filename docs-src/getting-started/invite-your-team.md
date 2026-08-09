@@ -29,9 +29,10 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 ## Create an invite
 
-1. Open **Team & access**. Your own access is explained at the top of the page.
+1. Open **Team & access**. Your own access is summarised at the top of the page; select
+   **See full capabilities** if you want the full list of what your role can and can't do.
 
-   ![Team & access page showing your access summary, app members and scheduled resources cards](../screenshots/flows/team-access.jpg)
+   ![Team & access page showing your access summary, the members table and the invite panel](../screenshots/flows/team-access.jpg)
 
 2. Choose a role in the "Invite someone" panel. The consequences of that role are spelled
    out in plain language underneath it, and you can optionally pre-authorise a specific
@@ -61,9 +62,29 @@ Either way, they land directly on your schedule with their role visible.
 
 ## Pending invites
 
-Invites that haven't been accepted yet stay listed on **Team & access** as pending, along
-with your current members. Owners and Admins can see this list; other roles only see
-their own access.
+Invites that haven't been accepted yet stay listed on **Team & access** as pending, in
+their own panel below your members. Owners and Admins can see this list; other roles only
+see their own access.
+
+## Managing someone who already joined
+
+Your members are listed in a table showing their name, role and last sign-in. Two controls
+sit at the end of each row:
+
+- The **pencil** changes that person's role, with the consequences spelled out before you
+  save.
+- The **gear** opens the rest: reset their password, sign them out everywhere, disable or
+  archive them, or remove them from the company.
+
+**Disable** and **archive** both stop someone opening the company immediately while
+keeping their role and history — use them when someone leaves, goes on long-term leave, or
+you need access shut off right now. They stay in the list with a badge, and **Restore
+access** in the same menu puts them back exactly as they were. Removing someone, by
+contrast, is permanent: they'd need a fresh invitation to return.
+
+"Last login" reads **Unknown** when there's no recent sign-in on record. It's honest about
+what it knows: CapacityLens can't tell "hasn't signed in for a long time" apart from
+"never signed in", so it doesn't claim either.
 
 ## Common questions
 
