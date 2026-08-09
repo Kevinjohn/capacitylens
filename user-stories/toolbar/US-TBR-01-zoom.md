@@ -20,7 +20,7 @@ Some questions need a day-level view of this week; others need a two-month overv
 
 ## Acceptance criteria
 
-- ✅ **Weeks visible** is a dropdown (accessible name "Weeks visible") whose five options read **"1 week", "2 weeks", "4 weeks", "6 weeks", "8 weeks"**; choosing one sets that many weeks across the viewport.
+- ✅ **Weeks visible** is a dropdown (accessible name "Weeks visible, <span>", e.g. "Weeks visible, 4 weeks") whose five options read **"1 week", "2 weeks", "4 weeks", "6 weeks", "8 weeks"**; choosing one sets that many weeks across the viewport.
 - ✅ The closed trigger displays the current level in words (e.g. **"4 weeks"**).
 - ✅ The same allocation bar is physically **narrower at 8 weeks than at 1 week** (day columns shrink to fit more weeks).
 - ✅ Choosing a new level rescales the day columns and re-anchors the grid's **left edge to the week start** (see **US-TBR-08**); it does not change any other control or alter any allocation.

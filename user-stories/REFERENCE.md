@@ -363,8 +363,9 @@ rejection reason. Viewers see no allocation mutation actions.
 `Cancel`. Dialog/footer action buttons keep their text — only the list-row actions are icon-only.
 The archive flow is reversible and retains children; it must not be described as cascade deletion.
 
-**Scheduler toolbar.** A **Weeks visible** dropdown (a `role="combobox"` select, accessible name
-"Weeks visible") replaces the former zoom radiogroup (#173): its five options read "1 week", "2
+**Scheduler toolbar.** A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
+carries its visible text — "Weeks visible, 4 weeks" — so voice control can act on the words on
+screen, WCAG 2.5.3) replaces the former zoom radiogroup (#173): its five options read "1 week", "2
 weeks", "4 weeks", "6 weeks", "8 weeks", and the closed trigger displays the current one (e.g. "4
 weeks"). Then icon-only **Prev**/**Next** chevron buttons (accessible names "Prev"/"Next" via
 `aria-label`, hover titles "Back one week"/"Forward one week" — the words no longer show) and a
@@ -1128,7 +1129,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   roles remain distinct and WCAG-AA readable in light and dark themes. User-selected client,
   project and discipline swatches remain entity data colours, while new accounts and resources use
   the default blue preset.
-- **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
+- **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the **Weeks visible** span, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
   the 1/2/4/6/8-week range anchored at the left edge of the view — so **switching the range toggle
   recomputes it** to reflect exactly the visible span. It turns **red** when the resource trips its
