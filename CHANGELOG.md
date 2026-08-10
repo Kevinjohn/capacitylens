@@ -10,6 +10,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.38.2-alpha.1] — 2026-08-10
+
+### Changed
+
+- Kept source-owned shadcn primitives at the registry-aligned 80-column width so dry-run diffs
+  emphasize substantive drift while repository formatting remains enforced (#164).
+
 ## [0.38.1-alpha.1] — 2026-08-10
 
 ### Fixed
@@ -3052,7 +3059,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.2-alpha.1...HEAD
+[0.38.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.1-alpha.1...v0.38.2-alpha.1
 [0.38.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.0-alpha.1...v0.38.1-alpha.1
 [0.38.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.37.0-alpha.1...v0.38.0-alpha.1
 [0.37.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.36.0-alpha.1...v0.37.0-alpha.1
