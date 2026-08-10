@@ -1,7 +1,6 @@
 name: security
 
 on:
-  pull_request:
   workflow_dispatch:
   push:
     branches: [main]
@@ -35,15 +34,21 @@ jobs:
 
   dependency-review:
     name: Dependency review
-    if: github.event_name == 'pull_request'
+    # Compares the dependency manifests a push added to `main`. Without a pull-request
+    # event the action has no base to diff against, so the refs are passed explicitly.
+    # Skipped when `before` is the all-zero SHA (branch creation and force pushes).
+    if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
+          base-ref: ${{ github.event.before }}
+          head-ref: ${{ github.sha }}
           fail-on-severity: high
           deny-licenses: AGPL-1.0-only, AGPL-1.0-or-later, SSPL-1.0
 

@@ -1,14 +1,18 @@
 name: gate
 
+# Deliberately no `pull_request:` trigger. Work lands through a pull request, but the
+# checks run when the merge reaches `main` — or on demand from the Actions tab / `gh
+# workflow run gate.yml --ref <branch>` before merging. Opening a pull request and pushing
+# to its branch used to fire this workflow (and e2e, docker, security and CodeQL) on every
+# event, which is several full passes per change for no added signal.
 on:
-  pull_request:
   workflow_dispatch:
   push:
     branches: [main]
     tags: ["v*"]
-  # Monthly run on the default branch: PR/tag runs never feed the README's unqualified
-  # badge (it reflects default-branch runs only), so without this the badge reads
-  # "no status" between releases. Also doubles as a bit-rot canary for the toolchain.
+  # Monthly run on the default branch: tag runs never feed the README's unqualified badge
+  # (it reflects default-branch runs only), so without this the badge reads "no status"
+  # between releases. Also doubles as a bit-rot canary for the toolchain.
   schedule:
     - cron: "17 6 3 * *"
 
@@ -59,7 +63,11 @@ jobs:
 
   dco:
     name: DCO sign-off
-    if: github.event_name == 'pull_request'
+    # Checks the commits a push added to `main`. A squash merge lands one commit, so its
+    # sign-off has to be in the squash body — `gh pr merge --squash --body "$(git log -1
+    # --format=%b)"` carries it over. Skipped when `before` is the all-zero SHA (branch
+    # creation and force pushes leave no range to verify).
+    if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -67,11 +75,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify every pull-request commit is signed off
+      - name: Verify every pushed commit is signed off
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          PR_AUTHOR: ${{ github.actor }}
         run: |
           node --test scripts/check-dco.test.mjs
           node scripts/check-dco.mjs "$BASE_SHA" "$HEAD_SHA" "$PR_AUTHOR"

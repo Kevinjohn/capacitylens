@@ -350,7 +350,33 @@ process-heavy test that intentionally exercises termination may get a dedicated 
 job, but passing assertions must never be manufactured with forced exits, weaker cleanup,
 thread-pool reuse or a larger outer timeout.
 
-### CI jobs and required checks
+### When CI runs
+
+No workflow is triggered by a pull request. Work still lands through one, but the checks
+run when the merge reaches `main`, plus their own weekly or monthly schedules. To see a
+green run before merging, dispatch the workflows against the branch:
+
+```bash
+gh workflow run gate.yml --ref <branch>
+gh workflow run e2e.yml --ref <branch>
+```
+
+Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker`,
+`security` and `CodeQL` on every event — several full passes per change. The local
+`pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` are the fast feedback loop; CI
+is the record.
+
+Two jobs used to depend on pull-request context and now read the pushed commit range
+(`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
+skip when that range doesn't exist — branch creation and force pushes. Because a squash
+merge lands a single commit, its `Signed-off-by` trailer has to survive into the squash
+body:
+
+```bash
+gh pr merge <number> --squash --delete-branch --body "$(git log -1 --format=%b)"
+```
+
+### CI jobs
 
 The `e2e` workflow runs cross-browser behavior and strict OIDC/Dex conformance as
 independent jobs. Each Playwright phase writes a distinct HTML report, JUnit result and
@@ -358,9 +384,9 @@ trace directory; failed jobs retain those artifacts for seven days, and the OIDC
 includes timestamped Dex logs. Docker Compose smoke tests stay separate so the README
 badges report independent status.
 
-CodeQL runs on pull requests, `main` and its weekly schedule. OpenSSF Scorecard runs on
-`main` and weekly. The security workflow performs full-history secret scanning, PR
-dependency review, source SBOM generation, container vulnerability scanning, two OWASP ZAP
+CodeQL runs on `main` and its weekly schedule. OpenSSF Scorecard runs on `main` and
+weekly. The security workflow performs full-history secret scanning, dependency review,
+source SBOM generation, container vulnerability scanning, two OWASP ZAP
 baselines and tagged-release provenance. The blocking ZAP scan boots the hardened posture
 — password authentication, required MFA, scheduled backups and operator attestations, with
 credentials minted and masked per run — so a finding there is a regression in the
@@ -374,13 +400,11 @@ cancellation caused by a newer push is not reported, since that's `cancel-in-pro
 working as intended. See `docs-src/security/security-review-2026-07-14.md` for assessment
 scope and residual controls.
 
-The `main` ruleset requires every pull-request job that protects shipped behavior: all
-`gate` jobs, both `e2e` jobs, the Docker production smoke, CodeQL analysis, secret scan,
-dependency review, source SBOM, container vulnerability scan and the blocking hardened-
-posture ZAP baseline. Weekly-only, tag-only and informational jobs are not required
-because they don't produce a status on every pull request. Required checks must never be
-configured by a display name that no current PR workflow emits; update the ruleset in the
-same change whenever a workflow or job name changes.
+`main` carries no branch protection and no ruleset, so nothing mechanically blocks a
+merge. A red `main` is found by looking at the run the merge produced, or at the badges in
+the README. If protection is ever added, note that required status checks are matched by
+display name and no workflow reports on a pull request any more — a required check that
+never runs leaves every pull request permanently unmergeable.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`;
 uploads are deliberately skipped until that secret exists. Uploads are best-effort because

@@ -97,6 +97,12 @@ are documented in `docs-src/reference/development.md`. Keep E2E specs browser-ag
 
 ## GitHub CI policy
 
+- Land work through a pull request: branch, `git commit -s` (a DCO `Signed-off-by` trailer is
+  required), push, open the pull request, then merge it.
+- No workflow runs on a pull request. CI runs when the merge reaches `main`, or on demand:
+  `gh workflow run gate.yml --ref <branch>`. Dispatch before merging when the change warrants it.
+- Squash-merge with the sign-off carried into the body, or the DCO job fails on `main`:
+  `gh pr merge <number> --squash --delete-branch --body "$(git log -1 --format=%b)"`.
 - For patch-version-only changes, skip GitHub CI by default.
 - For minor-version changes, ask the user whether GitHub CI should be run before proceeding.
 - For major-version changes, GitHub CI must be run; do not skip it.
