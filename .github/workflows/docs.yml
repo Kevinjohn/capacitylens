@@ -56,11 +56,15 @@ jobs:
         # would otherwise ship silently: the site still builds, and the unit
         # tests that inspect docs/ would keep passing against the stale HTML.
         run: |
-          if ! git diff --quiet -- docs; then
-            # The actual hunks, not just a file list: "36 files changed" says
-            # nothing about whether the cause is a real staleness or a build
+          # --porcelain, not `git diff`: a build that emits a file nobody
+          # committed (a new asset, a renamed hashed stylesheet) leaves it
+          # untracked, which git diff does not see — and that file is exactly
+          # the kind that is missing from the site readers open.
+          if [ -n "$(git status --porcelain -- docs)" ]; then
+            # Which files, and then the actual hunks: a file count alone says
+            # nothing about whether the cause is real staleness or a build
             # input that differs between this runner and the author's machine.
-            git diff --stat -- docs
+            git status --short -- docs
             git diff -- docs | head -100
             echo "::error::docs/ is out of date. Run 'pnpm run docs:build' and commit the result."
             exit 1

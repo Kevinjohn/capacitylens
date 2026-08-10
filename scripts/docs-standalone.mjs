@@ -16,12 +16,17 @@
 //
 // Run via `pnpm run docs:build`, which chains it after `vitepress build`.
 
-import { readdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
-import { join, relative, dirname, sep } from "node:path";
+import { readdirSync, readFileSync, writeFileSync, copyFileSync, rmSync, existsSync } from "node:fs";
+import { join, relative, dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BASE } from "../docs-src/.vitepress/base.mjs";
 
-const BASE = "/capacitylens/";
-const siteDir = join(dirname(fileURLToPath(import.meta.url)), "..", "docs");
+const repoDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+const siteDir = join(repoDir, "docs");
+
+// Files a page links to that VitePress does not treat as a page asset, so the
+// build leaves them behind. Source path → path in the built site.
+const EXTRA_ASSETS = [["docs-src/security/crypto-inventory.json", "security/crypto-inventory.json"]];
 
 if (!existsSync(join(siteDir, "index.html"))) {
   console.error(`docs-standalone: no build found at ${siteDir} — run \`vitepress build docs-src\` first.`);
@@ -39,8 +44,13 @@ const files = walk(siteDir);
 // Chrome that only functions with the client-side app running. Hiding it with
 // CSS (rather than surgically deleting nested markup) keeps this script free
 // of any HTML parsing.
+// The flyout is the nav bar's overflow menu, which opens on hover/focus handled
+// in script; the sidebar caret toggles a group open, which nothing can do here.
+// (Groups themselves are configured expanded — see config.mts — so hiding the
+// caret hides a control, not any links.)
 const DEAD_CHROME_CSS =
-  "<style>.VPNavBarSearch,.VPNavBarHamburger,.VPLocalNav,.VPBackdrop,.vp-doc [class*='language-'] button.copy{display:none !important}</style>";
+  "<style>.VPNavBarSearch,.VPNavBarHamburger,.VPLocalNav,.VPBackdrop,.VPFlyout," +
+  ".VPSidebarItem .caret,.vp-doc [class*='language-'] button.copy{display:none !important}</style>";
 
 // Map an absolute base-rooted URL to one relative to the page's directory.
 // A trailing slash means the directory's index page.
@@ -85,6 +95,10 @@ for (const file of files.filter((f) => f.endsWith(".css"))) {
   writeFileSync(file, css.replaceAll(`url(${BASE}assets/`, "url("));
 }
 
+for (const [source, target] of EXTRA_ASSETS) {
+  copyFileSync(join(repoDir, source), join(siteDir, target));
+}
+
 // The client-side app and its data are no longer referenced by anything.
 rmSync(join(siteDir, "hashmap.json"), { force: true });
 for (const file of files.filter((f) => f.endsWith(".js"))) rmSync(file);
@@ -101,6 +115,37 @@ const leftovers = walk(siteDir)
   .map((f) => relative(siteDir, f));
 if (leftovers.length > 0) {
   console.error(`docs-standalone: absolute ${BASE} URLs remain in: ${leftovers.join(", ")}`);
+  process.exit(1);
+}
+
+// Every local link and asset reference must resolve to a file that exists, the
+// way a browser opening the page from disk would resolve it. The absolute-URL
+// check above only catches URLs still carrying the deploy base; this catches the
+// other ways a shipped page can point at nothing — an extensionless href that
+// needs a server to rewrite it, or a file the build never copied.
+const localTargets = (html) => {
+  const found = [];
+  for (const [, url] of html.matchAll(/(?:href|src)="([^"]*)"/g)) found.push(url);
+  for (const [, url] of html.matchAll(/url\(["']?([^"')]+)["']?\)/g)) found.push(url);
+  return found
+    .map((url) => url.split("#")[0].split("?")[0])
+    .filter((url) => url && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(url))
+    .map((url) => decodeURIComponent(url));
+};
+
+const broken = [];
+for (const file of walk(siteDir).filter((f) => f.endsWith(".html") || f.endsWith(".css"))) {
+  for (const target of localTargets(readFileSync(file, "utf8"))) {
+    // A root-relative URL has no meaning under file:// — it points at the
+    // filesystem root — so it is broken whatever sits at the other end.
+    const resolved = target.startsWith("/") ? null : resolve(dirname(file), target);
+    if (!resolved || !existsSync(resolved)) {
+      broken.push(`${relative(siteDir, file)} → ${target}`);
+    }
+  }
+}
+if (broken.length > 0) {
+  console.error(`docs-standalone: links with no file at the other end:\n  ${broken.join("\n  ")}`);
   process.exit(1);
 }
 

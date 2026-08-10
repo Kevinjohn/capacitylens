@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "path": "Dockerfile",
+      "purpose": "Digest-pinned TLS initializer build and health-check trust scoping"
+    },
+    {
+      "path": "nginx.conf",
+      "purpose": "Verified TLS 1.2/1.3 reverse-proxy connection to the API service"
+    },
+    {
+      "path": "scripts/internal-tls.sh",
+      "purpose": "Per-install P-256 CA and API certificate generation, verification and rotation"
+    },
+    {
+      "path": "scripts/check-ui-primitives.mjs",
+      "purpose": "Unkeyed SHA-256 source-integrity digests for deliberate review of source-owned UI primitive changes"
+    },
+    {
+      "path": "server/scripts/rehearse-migrations.ts",
+      "purpose": "Unkeyed SHA-256 database-state digests for temporary anonymised migration rollback rehearsals"
+    },
+    {
+      "path": "server/src/app.ts",
+      "purpose": "CSPRNG bearer values, constant-time bootstrap comparison, deterministic SHA-256 workspace identifiers and HTTPS server options"
+    },
+    {
+      "path": "server/src/auditOutboxRecovery.ts",
+      "purpose": "Unkeyed SHA-256 integrity digests for exact preserved malformed audit-outbox evidence"
+    },
+    {
+      "path": "server/src/accounts/betterAuthIdentityPort.ts",
+      "purpose": "SHA-256 reset/fallback handles, a per-process 256-bit compensation key and constant-time compensation-handle verification"
+    },
+    {
+      "path": "server/src/accounts/commands.ts",
+      "purpose": "Domain-separated unkeyed SHA-256 digests for canonical idempotency payload comparison without retaining bearer/password inputs"
+    },
+    {
+      "path": "server/src/accounts/sqliteAccountAdminPort.ts",
+      "purpose": "256-bit CSPRNG invitation bearers and domain-separated SHA-256 bearer indexing for account commands"
+    },
+    {
+      "path": "server/src/accounts/sessionHandle.ts",
+      "purpose": "Domain-separated SHA-256 application-local handles that prevent session bearer tokens crossing the account boundary"
+    },
+    {
+      "path": "server/src/auth.ts",
+      "purpose": "CSPRNG identity tokens, constant-time setup token comparison and Better Auth MFA/session configuration"
+    },
+    {
+      "path": "server/src/federatedLinkLifecycle.ts",
+      "purpose": "192-bit CSPRNG non-secret identifiers for bounded federated-link callback ceremonies"
+    },
+    {
+      "path": "server/src/controlTables.ts",
+      "purpose": "SHA-256 invite-token indexing and CSPRNG non-secret identifiers"
+    },
+    {
+      "path": "server/src/db.ts",
+      "purpose": "Unkeyed SHA-256 identity checksums for immutable non-secret database migration definitions"
+    },
+    {
+      "path": "server/src/internalTls.ts",
+      "purpose": "Fail-closed internal HTTPS identity loading with a TLS 1.2 minimum"
+    },
+    {
+      "path": "server/src/index.ts",
+      "purpose": "Internal TLS environment loading and HTTPS listener activation"
+    },
+    {
+      "path": "server/src/passwordSecurity.ts",
+      "purpose": "Versioned scrypt password storage, constant-time verification and HIBP SHA-1 range prefix"
+    },
+    {
+      "path": "server/src/resetOwnerPassword.ts",
+      "purpose": "Domain-separated unkeyed SHA-256 ceremony digest of an operator-issued reset token for auditing without retaining the credential, plus CSPRNG audit event identifiers"
+    },
+    {
+      "path": "server/src/productionGuard.ts",
+      "purpose": "Production warning when internal TLS is absent and posture handling for configured identities"
+    },
+    {
+      "path": "server/src/strictOidc.ts",
+      "purpose": "JOSE verification of asymmetric signed OIDC ID tokens with issuer, audience, timestamp and remotely rotated JWKS enforcement"
+    },
+    {
+      "path": "server/src/syncOrdering.ts",
+      "purpose": "Unkeyed SHA-256 digests of non-secret synchronised row state for exact same-session successor-write provenance checks"
+    },
+    {
+      "path": "shared/src/lib/id.ts",
+      "purpose": "Secure-context UUID generation"
+    },
+    {
+      "path": "src/data/offlineCache.ts",
+      "purpose": "Non-extractable AES-256-GCM offline snapshot encryption with random IV and AAD"
+    },
+    {
+      "path": "public/offline-worker.js",
+      "purpose": "CSPRNG installation identifiers that isolate staged service-worker shell caches until activation"
+    },
+    {
+      "path": "src/data/ServerSyncAdapter.ts",
+      "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
+    },
+    {
+      "path": "src/account/accountClient.ts",
+      "purpose": "Secure-context UUID generation plus SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
+    },
+    {
+      "path": "src/hooks/useLifecycleActions.ts",
+      "purpose": "Secure-context UUID generation for non-secret lifecycle mutation idempotency keys"
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "purpose": "OpenSSL generation of ephemeral authentication secrets and bootstrap tokens for isolated CI security checks"
+    },
+    {
+      "path": "docker-compose.yml",
+      "purpose": "Internal TLS certificate, key and CA path wiring between the API and reverse proxy containers"
+    }
+  ]
+}
