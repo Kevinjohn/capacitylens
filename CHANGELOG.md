@@ -18,6 +18,12 @@ new features and **patch** versions carry fixes.
   previously only legible by opening the image file directly. The lightbox is pure CSS — the
   published docs deliberately ship without JavaScript so they open straight from disk (#187).
 
+### Fixed
+
+- **Documentation pages no longer show an empty "Last updated:" label.** The date was filled in by
+  the client-side app, which the published docs deliberately ship without, so every page carried the
+  label with nothing after it. Showing a real date again means rendering it at build time (#187).
+
 ## [0.38.2-alpha.1] — 2026-08-10
 
 ### Changed
