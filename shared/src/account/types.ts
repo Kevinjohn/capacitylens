@@ -42,9 +42,27 @@ export type Role = (typeof ACCOUNT_ROLES)[number];
 export function isAccountRole(value: unknown): value is Role {
   return typeof value === "string" && (ACCOUNT_ROLES as readonly string[]).includes(value);
 }
-/** Public administration ports return active memberships only; inactive storage rows are internal
- * retention state and deliberately do not flow through this contract. */
-export type MembershipStatus = "active";
+/**
+ * The lifecycle state of one membership.
+ *
+ * - `'active'`   — an ordinary member: may enter the account under their role.
+ * - `'disabled'` — suspended by an administrator. The membership and its role are retained, but the
+ *                  principal may NOT enter the account. Reversible.
+ * - `'archived'` — retired by an administrator. Same denial of entry as `'disabled'`; the separate
+ *                  state exists so a long-departed member can be filtered out of day-to-day
+ *                  administration without destroying the audit trail a removal would.
+ *
+ * Only `'active'` confers authority. Every authorization read narrows on `status = 'active'`, so a
+ * non-active membership is indistinguishable from absence to the access matrix; the widened union
+ * is a listing/administration concern, never a permission one. Administration ports return
+ * non-active rows ONLY to the member-directory read, so an administrator can see and reverse the
+ * state they applied.
+ */
+export const MEMBERSHIP_STATUSES = Object.freeze(["active", "disabled", "archived"] as const);
+export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
+export function isMembershipStatus(value: unknown): value is MembershipStatus {
+  return typeof value === "string" && (MEMBERSHIP_STATUSES as readonly string[]).includes(value);
+}
 
 export interface BoundApplication {
   applicationId: ApplicationId;
@@ -88,6 +106,12 @@ export interface PrincipalSummary {
   id: PrincipalId;
   displayName: string | null;
   email: string | null;
+  /** When this principal most recently authenticated, derived from the newest retained session.
+   *  `null` means "no retained session" — a principal who has never signed in AND one whose last
+   *  session has aged out of retention are deliberately indistinguishable here, so callers must
+   *  present it as "unknown", never as "never signed in". Absent on lookups that do not resolve
+   *  sessions (e.g. the federated-subject probe). */
+  lastAuthenticatedAt?: IsoInstant | null;
 }
 
 interface ApplicationSessionBase {

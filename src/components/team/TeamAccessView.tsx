@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
 import { can, canSeePrivateNames, canSeeTimeOffNote, type Role } from "@capacitylens/shared/domain/access";
 import { usePermissionStatus, useRole } from "../../auth/permissionContext";
 import { useAuth } from "../../auth/authContext";
@@ -7,7 +7,7 @@ import { accessExperienceFor } from "../../lib/accessMode";
 import { useOfflineState } from "../../data/useOfflineState";
 import { MembersSection } from "../settings/MembersSection";
 import { Badge } from "../ui/badge";
-import { Check, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { m } from "@/i18n";
@@ -30,6 +30,7 @@ function capabilities(role: Role): Capability[] {
 
 export function TeamAccessView() {
   const role = useRole();
+  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   const permissionStatus = usePermissionStatus();
   const { authMode } = useAuth();
   const offline = useOfflineState();
@@ -77,17 +78,44 @@ export function TeamAccessView() {
 
         <CardContent>
           {effectiveRole ? (
-            <ul className="grid gap-2 sm:grid-cols-2" aria-label={m.access_capabilities_label()}>
-              {capabilities(effectiveRole).map((capability) => (
-                <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
-                  {capability.allowed ? <Check className="text-brand" /> : <X className="text-muted-foreground" />}
-                  <span className="sr-only">
-                    {capability.allowed ? m.access_cap_allowed() : m.access_cap_not_allowed()}
-                  </span>
-                  <span className={capability.allowed ? undefined : "text-muted-foreground"}>{capability.label}</span>
-                </li>
-              ))}
-            </ul>
+            // Collapsed by default: the tick list is reference material, not something anyone reads
+            // on every visit, and expanded it pushed the member table below the fold (#175).
+            <>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-sm font-medium text-brand underline-offset-2 hover:underline"
+                aria-expanded={capabilitiesOpen}
+                aria-controls="access-capabilities"
+                data-testid="capabilities-toggle"
+                onClick={() => setCapabilitiesOpen((open) => !open)}
+              >
+                {capabilitiesOpen ? (
+                  <ChevronDown data-icon="inline-start" />
+                ) : (
+                  <ChevronRight data-icon="inline-start" />
+                )}
+                {capabilitiesOpen ? m.access_capabilities_hide() : m.access_capabilities_show()}
+              </button>
+              {capabilitiesOpen && (
+                <ul
+                  id="access-capabilities"
+                  className="mt-3 grid gap-2 sm:grid-cols-2"
+                  aria-label={m.access_capabilities_label()}
+                >
+                  {capabilities(effectiveRole).map((capability) => (
+                    <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
+                      {capability.allowed ? <Check className="text-brand" /> : <X className="text-muted-foreground" />}
+                      <span className="sr-only">
+                        {capability.allowed ? m.access_cap_allowed() : m.access_cap_not_allowed()}
+                      </span>
+                      <span className={capability.allowed ? undefined : "text-muted-foreground"}>
+                        {capability.label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           ) : accessWarning ? (
             <Alert>
               <AlertDescription>{accessWarning}</AlertDescription>
@@ -96,37 +124,13 @@ export function TeamAccessView() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <h2>{m.access_members_heading()}</h2>
-            </CardTitle>
-            <CardDescription>{m.access_members_explainer()}</CardDescription>
-          </CardHeader>
-          {!authenticated && (
-            <CardContent className="text-xs font-medium text-muted-foreground">
-              {m.access_members_demo_note()}
-            </CardContent>
-          )}
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <h2>{m.access_resources_heading()}</h2>
-            </CardTitle>
-            <CardDescription>{m.access_resources_explainer()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link
-              to="/resources"
-              className="mt-3 inline-block text-sm font-medium text-brand underline-offset-2 hover:underline"
-            >
-              {m.access_open_resources()}
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Demo and open installations have no real membership directory, so say so plainly rather
+          than leaving the page looking broken. Previously this lived in a members explainer card. */}
+      {!authenticated && (
+        <Alert>
+          <AlertDescription>{m.access_members_demo_note()}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Resolve permission before mounting: lower roles must not issue privileged directory reads
           merely by visiting this page. */}

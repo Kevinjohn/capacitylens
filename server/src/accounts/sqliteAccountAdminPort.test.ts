@@ -784,7 +784,12 @@ describe("sqliteAccountAdminPort authority integrity", () => {
     }
   });
 
-  it("reactivates an inactive invitee with the invitation role rather than its stale role", async () => {
+  // Was "reactivates an inactive invitee with the invitation role rather than its stale role". The
+  // #175 review closed that door entirely: redeeming an invite is no longer a way back INTO a
+  // non-active membership at any role, because it would let the suspended party reverse their own
+  // suspension with no `member.status_changed` record. The escalation half of the old assertion is
+  // kept and strengthened — the stale `owner` role must not survive either.
+  it("refuses an invite claim against a non-active membership, granting neither role", async () => {
     const db = openDb(":memory:");
     try {
       insertRow(db, "accounts", {
@@ -825,8 +830,11 @@ describe("sqliteAccountAdminPort authority integrity", () => {
           passwordMode: true,
           command: { commandId: "inactive-claim-command", idempotencyKey: "inactive-claim-key" },
         }),
-      ).resolves.toMatchObject({ role: "viewer", status: "active" });
-      expect(port.roleForPrincipalInWorkspace("invitee-1", "workspace-1")).toBe("viewer");
+      ).rejects.toMatchObject({ failure: { code: "FORBIDDEN" } });
+      // No entry at all: the stale row still confers nothing, so the claim bought neither the
+      // invitation's viewer role nor the row's stale owner role.
+      expect(port.roleForPrincipalInWorkspace("invitee-1", "workspace-1")).toBeNull();
+      expect(getInvite(db, invitation.token)?.usedAt ?? null).toBeNull();
     } finally {
       db.close();
     }

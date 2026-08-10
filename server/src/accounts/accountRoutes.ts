@@ -6,7 +6,7 @@ import type {
   IdentityPort,
 } from "@capacitylens/shared/account/ports";
 import type { AccountMode, CommandIdentity } from "@capacitylens/shared/account/types";
-import { isAccountRole } from "@capacitylens/shared/account/types";
+import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import type { Action } from "@capacitylens/shared/domain/access";
@@ -458,6 +458,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
           createdAt: member.joinedAt,
           name: principal?.displayName ?? null,
           email: principal?.email ?? null,
+          // Derived from the newest RETAINED session, so it silently becomes null once a member's
+          // last session ages out. It is a convenience column, never an authorization input.
+          lastLoginAt: principal?.lastAuthenticatedAt ?? null,
           isSelf: member.principalId === req.accountActor!.principalId,
           mayResetPassword: authMode === "password" && reset.allowed,
           mayRevokeSessions: revoke.allowed,
@@ -503,6 +506,50 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         });
       }
       return reply.code(200).send({ userId: changed.principalId, role: changed.role });
+    } catch (err) {
+      return accountFail(reply, err);
+    }
+  });
+
+  // CHANGE a member's lifecycle status: disable, archive, or restore to active. The role and join
+  // date are untouched — only the authority to enter the account changes, because every
+  // authorization read narrows on status = 'active'. Owner targets and the caller's own membership
+  // are refused by the pure guard (canChangeMemberStatus); an administrator must not be able to
+  // strand the account without an Owner, nor lock themselves out of the account they administer.
+  app.patch("/api/accounts/:accountId/members/:userId/status", async (req, reply) => {
+    const { accountId, userId } = req.params as {
+      accountId: string;
+      userId: string;
+    };
+    const body = (req.body ?? {}) as { status?: unknown };
+    if (!isMembershipStatus(body.status)) {
+      return reply.code(400).send({
+        error: "status must be one of active, disabled, archived.",
+      });
+    }
+    const nextStatus = body.status;
+    if (!authorize(req, reply, accountId, "manageMembers")) return;
+    if (authMode === "off") return rejectTrustedLocalMemberMutation(reply);
+    try {
+      const changed = await accountAdminPort.changeMemberStatus({
+        actor: req.accountActor!,
+        workspaceId: accountId,
+        targetPrincipalId: userId,
+        nextStatus,
+        command: accountCommand(req),
+      });
+      if (!wasAccountCommandReplayed(changed)) {
+        audit(reply, {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId,
+          action: "memberStatus",
+          entity: "membership",
+          id: userId,
+          changedFields: ["status"],
+        });
+      }
+      return reply.code(200).send({ userId: changed.principalId, status: changed.status });
     } catch (err) {
       return accountFail(reply, err);
     }
@@ -605,9 +652,13 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     }
     try {
       const command = accountCommand(req);
+      // includeInactive: an existence probe, not an authorization one (that is the port's job just
+      // below). An admin disables a compromised account first and rotates its password second, so an
+      // active-only probe here would 404 exactly the case this route exists for.
       const targetMembership = await accountAdminPort.getMembership({
         principalId: userId,
         workspaceId: accountId,
+        includeInactive: true,
       });
       if (!targetMembership) {
         return accountFail(reply, memberNotFound(command));
@@ -648,9 +699,12 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     }
     try {
       const command = accountCommand(req);
+      // includeInactive, for the same reason as the reset-password route above: killing the sessions
+      // of an account you have just disabled is the point, not an edge case.
       const targetMembership = await accountAdminPort.getMembership({
         principalId: userId,
         workspaceId: accountId,
+        includeInactive: true,
       });
       if (!targetMembership) return accountFail(reply, memberNotFound(command));
       const revoked = await accountFlows!.revokeMemberSessions({

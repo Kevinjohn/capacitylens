@@ -170,6 +170,14 @@ function providerInstant(value: string | number, field: "createdAt" | "expiresAt
   return new Date(milliseconds).toISOString();
 }
 
+/** Best-effort read of an aggregated `session.createdAt`. Returns null — "unknown" — for an absent
+ *  or unparseable value, because this feeds a display column, not a decision. */
+function lastAuthenticatedInstant(value: string | number | null): string | null {
+  if (value === null) return null;
+  const milliseconds = timestampMs(value);
+  return Number.isFinite(milliseconds) ? new Date(milliseconds).toISOString() : null;
+}
+
 function receipt(commandId: string, changed?: boolean): OperationReceipt {
   return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) };
 }
@@ -873,11 +881,38 @@ export function betterAuthIdentityPort(input: {
           const placeholders = chunk.map(() => "?").join(", ");
           summaries.push(
             ...db
-              .prepare(`SELECT id, name, email FROM user WHERE id IN (${placeholders})`)
+              .prepare(
+                // lastAuthenticatedAt is the newest RETAINED session for this principal. Sessions
+                // are pruned once they expire, so this reports "when we last saw them sign in, as
+                // far as we still know" — never a durable sign-in history. That is precisely why
+                // the field is documented as unknown-vs-never ambiguous and is not, and must not
+                // become, an input to any access decision. LEFT JOIN so a principal with no
+                // retained session still yields their identity row rather than vanishing.
+                `SELECT u.id, u.name, u.email, MAX(s.createdAt) AS lastAuthenticatedAt
+                   FROM user AS u
+                   LEFT JOIN session AS s ON s.userId = u.id
+                  WHERE u.id IN (${placeholders})
+                  GROUP BY u.id, u.name, u.email`,
+              )
               .all(...chunk)
               .map((row) => {
-                const value = row as { id: string; name: string | null; email: string | null };
-                return { id: value.id, displayName: value.name, email: value.email };
+                const value = row as {
+                  id: string;
+                  name: string | null;
+                  email: string | null;
+                  lastAuthenticatedAt: string | number | null;
+                };
+                return {
+                  id: value.id,
+                  displayName: value.name,
+                  email: value.email,
+                  // Better Auth stores session.createdAt as either an ISO string or an epoch
+                  // number depending on the dialect, so normalise through the same timestampMs
+                  // the session-verification path uses. Unlike providerInstant this DEGRADES to
+                  // null instead of throwing: a malformed timestamp on one row must not fail the
+                  // whole member directory over a decorative column.
+                  lastAuthenticatedAt: lastAuthenticatedInstant(value.lastAuthenticatedAt),
+                };
               }),
           );
         }

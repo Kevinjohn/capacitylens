@@ -1,5 +1,5 @@
-import type { InvitationRole } from "@capacitylens/shared/account/types";
-import { isAccountRole } from "@capacitylens/shared/account/types";
+import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
+import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient, accountCommandOutcomeUnknown } from "./accountClient";
 import { hasDuplicateIdentity } from "../lib/arrayIdentity";
@@ -9,10 +9,13 @@ import { apiErrorFromBody, readApiError } from "../lib/readApiError";
 export interface TeamMember {
   userId: string;
   role: Role;
-  status: "active";
+  status: MembershipStatus;
   createdAt: string;
   name: string | null;
   email: string | null;
+  /** Newest RETAINED session, so null means "unknown", never "has never signed in": a member whose
+   *  last session aged out of retention is deliberately indistinguishable from one who never had one. */
+  lastLoginAt: string | null;
   isSelf: boolean;
   mayResetPassword: boolean;
   mayRevokeSessions: boolean;
@@ -53,8 +56,9 @@ function parseMembers(value: unknown): TeamMember[] | null {
       typeof row.userId !== "string" ||
       row.userId.length === 0 ||
       !isAccountRole(row.role) ||
-      row.status !== "active" ||
+      !isMembershipStatus(row.status) ||
       !isTimestamp(row.createdAt) ||
+      !(row.lastLoginAt === undefined || row.lastLoginAt === null || isTimestamp(row.lastLoginAt)) ||
       !(row.name === null || typeof row.name === "string") ||
       !(row.email === null || typeof row.email === "string") ||
       typeof row.isSelf !== "boolean" ||
@@ -71,6 +75,7 @@ function parseMembers(value: unknown): TeamMember[] | null {
       createdAt: row.createdAt,
       name: row.name,
       email: row.email,
+      lastLoginAt: typeof row.lastLoginAt === "string" ? row.lastLoginAt : null,
       isSelf: row.isSelf,
       mayResetPassword: row.mayResetPassword === true,
       mayRevokeSessions: row.mayRevokeSessions === true,
@@ -199,6 +204,14 @@ export const teamAccessClient = {
 
   async changeMemberRole(workspaceId: string, principalId: string, role: Role): Promise<TeamAccessResult<true>> {
     return commandResult(await accountClient.changeMemberRole(workspaceId, principalId, role), noContent);
+  },
+
+  async changeMemberStatus(
+    workspaceId: string,
+    principalId: string,
+    status: MembershipStatus,
+  ): Promise<TeamAccessResult<true>> {
+    return commandResult(await accountClient.changeMemberStatus(workspaceId, principalId, status), noContent);
   },
 
   async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
