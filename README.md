@@ -1,58 +1,30 @@
 # CapacityLens
 
-[![gate](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml)
-[![E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml)
-[![test coverage](https://codecov.io/gh/Kevinjohn/capacitylens/graph/badge.svg?branch=main)](https://codecov.io/gh/Kevinjohn/capacitylens)
-[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white)](.nvmrc)
-[![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kevinjohn/capacitylens/badge)](https://scorecard.dev/viewer/?uri=github.com/Kevinjohn/capacitylens)
-[![Docker build](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml)
-[![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+**Who's free next week?**
 
-**Week-by-week capacity planning for small agencies.**
+Every small agency answers that question badly. It lives in someone's head, a colour-coded
+spreadsheet, or a group chat at 5pm on a Friday. So work gets promised to people who are already
+full, the quiet capacity nobody noticed goes unsold, and the person who was going to be on holiday
+finds out about their new project the week before they leave.
 
-CapacityLens makes it easy to see who is busy, available or over capacity, then adjust the plan
-before schedules become problems.
+CapacityLens is a shared, week-by-week picture of where everyone's time is going — so you can see
+who is busy, who has room, and who is about to be buried, and move things around before it becomes
+a problem.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs-src/screenshots/schedule-dark.png">
-  <img alt="CapacityLens schedule showing people, allocation bars, utilisation, time off and an over-capacity day." src="docs-src/screenshots/schedule-light.png">
+  <img alt="The CapacityLens schedule: people grouped by discipline, coloured allocation bars across a two-week window, per-person utilisation, an over-capacity day highlighted in red, and a booked holiday." src="docs-src/screenshots/schedule-light.png">
 </picture>
 
-## What it is
+One screen. People down the side, days across the top, the work in between. Red means someone is
+over capacity that day. The percentage next to each name is how full they are across the window
+you're looking at.
 
-CapacityLens is a deliberately small, self-hosted resource scheduler for agencies that plan work
-in weekly blocks.
+## Try it in two minutes
 
-- Plan clients → projects → activities and people → allocations → time off in one visual schedule.
-- View a 1, 2, 4, 6 or 8 week window.
-- See daily over-capacity, visible-window **Utilisation**, and a separate 14-day forward warning.
-- Include employees, placeholders and capacity-free external partners.
-- Keep accounts isolated with role-based access and a SQLite source of truth.
-- Import and export JSON, undo and redo changes, and use keyboard-friendly light or dark themes.
-
-## What it is not
-
-CapacityLens is not a:
-
-- budget, billing or financial planning system;
-- timesheet or time-tracking tool;
-- hour-by-hour scheduling system;
-- project-management suite or CRM; or
-- mobile-first scheduling app.
-
-Those boundaries are intentional. CapacityLens is for a clear weekly view of resource capacity,
-not for managing every part of agency operations.
-
-## Who it is for
-
-Agency owners, studio or operations leads, resource planners and project leads who need a shared
-answer to: “Who can take on this work, and when?”
-
-## Try it
-
-The demo is editable but temporary. It runs in memory, resets on reload and never stores schedule
-data in browser storage.
+The demo runs entirely in your browser with sample data. It is fully editable — drag things about,
+book time off, break something. Nothing is saved and nothing leaves your machine; reload and it's
+back to the beginning.
 
 ```bash
 corepack enable
@@ -60,11 +32,36 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Open <http://127.0.0.1:5173>.
+Then open <http://127.0.0.1:5173>, pick a demo account, and you're in.
 
-## Run the full stack
+## What you can do with it
 
-Node 24 and pnpm are required. The pinned Node version is in `.nvmrc`.
+- **See the week ahead** — 1, 2, 4, 6 or 8 weeks at a time, filtered by discipline, client or project.
+- **Spot trouble early** — daily over-capacity in red, plus a 14-day forward warning for problems
+  just off the edge of the screen.
+- **Plan work you haven't won yet** — placeholder people for roles you'd need to hire or borrow, and
+  external partners who don't count against your capacity.
+- **Keep holidays in the picture** — time off sits in the same view as the work, so it stops being a
+  surprise.
+- **Know how full you really are** — utilisation per person and across the whole visible window.
+- **Run it yourself** — your data in your own SQLite file, on your own server, under AGPL-3.0.
+
+## What it deliberately isn't
+
+CapacityLens will not track tasks, tickets, deadlines, budgets or timesheets, and it won't schedule
+anyone by the hour. It answers a simpler question — where are your people's hours going, and where
+is there room? — and stops there.
+
+If you need Jira, use Jira. This is the thing you look at _before_ you open Jira.
+
+## Who it's for
+
+Agency owners, studio and operations leads, resource planners and project leads: the people who get
+asked "can we take this on?" and need a shared, honest answer.
+
+## Run it for real
+
+Node 24 and pnpm are required; the pinned version is in `.nvmrc`.
 
 ```bash
 nvm use
@@ -73,86 +70,78 @@ pnpm install
 pnpm run dev
 ```
 
-This starts the web app on `:5173` and the SQLite API on `:8787`. Development mode includes sample
-data; a fresh production instance starts empty.
+That starts the web app on `:5173` and the SQLite API on `:8787`, with sample data loaded.
+A fresh production instance starts empty.
 
-For a persistent deployment, start with the [self-hosting guide](docs-src/self-hosting/index.md).
+For a real deployment — Docker Compose, TLS, backups and upgrades — follow the
+[self-hosting guide](docs-src/self-hosting/index.md).
 
-## Stack
+## Sign-in, in short
 
-| Area          | Technology                                  | Purpose                                             |
-| ------------- | ------------------------------------------- | --------------------------------------------------- |
-| Web app       | React, TypeScript, Vite, Tailwind CSS       | The schedule and settings UI                        |
-| Client state  | Zustand                                     | UI state, persistence orchestration and undo/redo   |
-| Shared domain | TypeScript in `shared/`                     | Types, validation, migrations and scheduling rules  |
-| API and auth  | Fastify and Better Auth                     | HTTP API, sessions and account authorization        |
-| Database      | Node’s built-in SQLite driver               | Persistent server-side source of truth              |
-| Verification  | Vitest, Testing Library, Playwright and axe | Unit, integration, browser and accessibility checks |
-| Deployment    | Docker Compose or Node 24                   | Self-hosted production and development environments |
+Password sign-in is the stable self-hosted default, with breached-password screening, optional
+required TOTP MFA and user-controlled session revocation. Strict OIDC is first-class; the named
+Google, Microsoft and GitHub providers are still experimental. Optional offline access keeps a
+read-only snapshot for up to seven days — it never queues or syncs edits, and SQLite stays the
+source of truth.
 
-The browser uses the API in normal builds. Only `VITE_CAPACITYLENS_DEMO=1` selects the temporary
-in-memory demo adapter.
-
-## Authentication and offline access
-
-- Password authentication is the stable self-hosted default. Strict OIDC is first-class; named
-  Google, Microsoft and GitHub providers remain experimental. Hosted deployments are OIDC-only.
-- Password mode defaults to breached-password screening and supports optional required TOTP MFA,
-  with fixed/idle session limits, host-only cookies and user-controlled session revocation.
-- Optional offline access stores a verified snapshot for up to seven days.
-- Offline mode is read-only: it never queues or synchronises edits.
-- The SQLite database remains the source of truth.
-
-Read the details in [how sign-in works](docs-src/company-login/index.md) and
-[offline access](docs-src/guide/offline-access.md).
-
-## Checks for contributors
-
-```bash
-pnpm run gate         # formatting, generated i18n, typecheck, lint, coverage, zero-coverage checks and build budget
-pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and migration/architecture checks
-pnpm run e2e          # Chromium demo, database and authentication flows
-```
-
-See [development](docs-src/reference/development.md#checks) for the enforced coverage/build numbers,
-cross-browser checks, mutation scope and GitHub Actions checks.
+Details: [how sign-in works](docs-src/company-login/index.md) ·
+[offline access](docs-src/guide/offline-access.md)
 
 ## Documentation
 
-The documentation ships with the repository: step-by-step guides committed as standalone
-HTML under [`docs/`](docs/) — open `docs/index.html` straight from a checkout, no server
-needed — with the plain Markdown sources under [`docs-src/`](docs-src/), readable on GitHub.
+The docs ship with the repository. Open [`docs/index.html`](docs/) straight from a checkout — no
+server, no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
-### Using and operating CapacityLens
-
-- [Getting started](docs-src/getting-started/what-is-capacitylens.md) — what CapacityLens is, the
-  two-minute demo, the five-minute install, invites and roles.
+- [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo, the
+  five-minute install, invites and roles.
 - [Using CapacityLens](docs-src/guide/the-schedule.md) — the schedule, people and placeholders,
-  projects and allocations, time off, settings and [offline access](docs-src/guide/offline-access.md).
-- [Company login (SSO)](docs-src/company-login/index.md) — how sign-in works, connecting your
-  provider, and the guided password-to-SSO cutover.
-- [Self-hosting](docs-src/self-hosting/index.md) — Docker Compose, configuration, TLS, backups,
-  upgrades, monitoring and incident response.
+  projects and allocations, time off and settings.
+- [Company login (SSO)](docs-src/company-login/index.md) — connecting your provider and the guided
+  password-to-SSO cutover.
+- [Self-hosting](docs-src/self-hosting/index.md) — configuration, TLS, backups, monitoring and
+  incident response.
 - [Security and privacy](docs-src/security/index.md) — posture, stored data and operator
   responsibilities.
 - [Glossary](docs-src/reference/glossary.md) — the terms the docs rely on, in plain language.
 
-### Developing CapacityLens
+## Under the hood
 
-- [Development guide](docs-src/reference/development.md) — repository map, checks, test data and local workflows.
-- [Server README](server/README.md) — API, authorization, persistence and backup boundaries.
-- [Security review](docs-src/security/security-review-2026-07-14.md) — threat model, remediations,
-  residual risks and complete OWASP mappings.
-- [ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) — every L1–L3 requirement accounted for.
-- [Standing decisions](DECISIONS.md) — decisions that shape the product and architecture.
-- [Changelog](CHANGELOG.md) — released and upcoming changes.
+React, TypeScript, Vite and Tailwind in the browser; Zustand for UI state and undo/redo; a shared
+TypeScript domain in `shared/` for validation, migrations and the scheduling rules; Fastify and
+Better Auth over Node's built-in SQLite driver on the server. Vitest, Testing Library, Playwright
+and axe keep it honest. Deploy with Docker Compose or plain Node 24.
 
-### Project policies
+The browser always talks to the API; only `VITE_CAPACITYLENS_DEMO=1` swaps in the throwaway
+in-memory demo adapter.
 
-[Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) ·
-[Security policy](SECURITY.md) · [Trademarks](TRADEMARKS.md)
+## Contributing
 
-## License
+```bash
+pnpm run gate         # formatting, generated i18n, typecheck, lint, coverage and build budget
+pnpm run gate:server  # server/shared formatting, typecheck, tests, coverage and architecture checks
+pnpm run e2e          # Chromium demo, database and authentication flows
+```
 
-CapacityLens is licensed under [AGPL-3.0-only](LICENSE). Product names and logos are addressed
-separately in [TRADEMARKS.md](TRADEMARKS.md).
+Start with [contributing](CONTRIBUTING.md) and the
+[development guide](docs-src/reference/development.md#checks) for the enforced coverage and build
+numbers, cross-browser checks and CI jobs. Also worth reading: the
+[server README](server/README.md), the [standing decisions](DECISIONS.md) behind the product and
+architecture, and the [changelog](CHANGELOG.md).
+
+[Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·
+[Security review](docs-src/security/security-review-2026-07-14.md) ·
+[ASVS 5.0.0 ledger](docs-src/security/owasp-asvs-5.0.0.md) · [Trademarks](TRADEMARKS.md)
+
+## Licence
+
+CapacityLens is [AGPL-3.0-only](LICENSE). Product names and logos are handled separately in
+[TRADEMARKS.md](TRADEMARKS.md).
+
+[![gate](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/gate.yml)
+[![E2E](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/e2e.yml)
+[![test coverage](https://codecov.io/gh/Kevinjohn/capacitylens/graph/badge.svg?branch=main)](https://codecov.io/gh/Kevinjohn/capacitylens)
+[![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kevinjohn/capacitylens/badge)](https://scorecard.dev/viewer/?uri=github.com/Kevinjohn/capacitylens)
+[![Docker build](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/capacitylens/actions/workflows/docker.yml)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white)](.nvmrc)
+[![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
