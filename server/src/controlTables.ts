@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import { isAccountRole, type Role } from "@capacitylens/shared/account/types";
+import {
+  isAccountRole,
+  isMembershipStatus,
+  type MembershipStatus,
+  type Role,
+} from "@capacitylens/shared/account/types";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
 import { revokeResetTokensForUser } from "./auth";
@@ -19,14 +24,15 @@ import { tx } from "./txn";
 // a live, role-bearing token).
 
 /**
- * The lifecycle status of one membership row.
+ * The lifecycle status of one membership row: `'active' | 'disabled' | 'archived'`.
  *
- * Forward-compatible enum: only `'active'` exists today (a row IS an active membership). Future
- * statuses — e.g. `'invited'` (email-preauthorised, not yet bound) or `'suspended'` — may be added
- * here as the invite/lifecycle work (P1.9/P1.10) lands; modelling it as a named union now means
- * those additions are a one-line widening rather than a column-meaning change.
+ * Re-exported from the shared account contract rather than declared here, so the storage column and
+ * the public port contract cannot drift apart — the whole reason the status was modelled as a named
+ * union from the start. Only `'active'` confers authority: every authorization read below narrows on
+ * `status = 'active'` (see {@link getActiveMemberRole}), so a disabled or archived row is
+ * indistinguishable from absence to the access matrix.
  */
-export type MembershipStatus = "active";
+export type { MembershipStatus };
 
 /**
  * One row of the `account_members` control table: a single login's role for a single account.
@@ -49,6 +55,28 @@ export interface AccountMember {
 }
 
 const isKnownRole = isAccountRole;
+
+/**
+ * Narrow a stored `account_members.status` TEXT value onto {@link MembershipStatus}.
+ *
+ * Unlike a stored role — where an unknown value is a corruption we fail LOUD on, because guessing
+ * would hand someone the wrong access level — an unknown status is neither dangerous nor
+ * necessarily a fault: alpha databases carry rows written as `'suspended'` / `'inactive'` before
+ * this union existed. Every one of those legacy spellings meant the same thing, "retained but may
+ * not enter", so they normalise to `'disabled'`.
+ *
+ * The direction of the fallback is the safety property: an unrecognised value can only ever become
+ * a NON-active status, never `'active'`. A row we cannot interpret must not confer authority, and
+ * the authorization reads narrow on the stored `'active'` literal in SQL anyway — this mapping
+ * governs only what administration surfaces display.
+ */
+function membershipStatus(stored: string, accountId: string, userId: string): MembershipStatus {
+  if (isMembershipStatus(stored)) return stored;
+  console.warn(
+    `controlTables: membership (${accountId}, ${userId}) carries unrecognised status ${JSON.stringify(stored)} — reading it as 'disabled'.`,
+  );
+  return "disabled";
+}
 
 export const USED_INVITATION_RETENTION_LIMIT = 200;
 export const USED_INVITATION_RETENTION_MS = 365 * 24 * 60 * 60 * 1_000;
@@ -404,6 +432,90 @@ export function upsertMember(db: Db, member: AccountMember): void {
 }
 
 /**
+ * Move an EXISTING membership between lifecycle states, leaving its role and join date untouched.
+ *
+ * Distinct from {@link upsertMember} on purpose: that helper is the create/role-change path and
+ * needs a role plus a join timestamp, neither of which a disable/archive/restore knows or should
+ * overwrite. It shares upsertMember's post-write security handling, and for the same reason: the
+ * status column is exactly what {@link getActiveMemberRole} narrows on, so flipping it changes the
+ * authority the user holds. That must burn any outstanding password-reset link (a link minted while
+ * they were an active member must not redeem into a non-active one) and bump the security revision
+ * so live sessions re-resolve their membership instead of coasting on a cached one.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose membership is changing.
+ * @param userId     The login whose membership is changing.
+ * @param status     The {@link MembershipStatus} to move to.
+ * @returns Which of the three outcomes occurred. `"missing"` is NOT_FOUND to callers — an absent
+ *   membership must never report a committed lifecycle change. `"unchanged"` is a SUCCESS: the
+ *   membership already holds the requested status, so the caller's intent is satisfied. The three
+ *   are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
+ *   demand opposite responses, and because a re-applied status must not pay the security cost below.
+ */
+export function setMemberStatus(
+  db: Db,
+  accountId: string,
+  userId: string,
+  status: MembershipStatus,
+): "changed" | "unchanged" | "missing" {
+  // `AND status <> ?` makes a same-value write matchless, which is what keeps the security protocol
+  // below off the no-op path: SQLite counts a row it MATCHED as changed even when the value written
+  // is identical, so an unguarded UPDATE would burn an unrelated admin's freshly-minted reset link
+  // every time anyone re-applied a status the member already had.
+  const changed =
+    db
+      .prepare(`UPDATE account_members SET status = ? WHERE accountId = ? AND userId = ? AND status <> ?`)
+      .run(status, accountId, userId, status).changes > 0;
+  if (!changed) {
+    // Matchless: either the membership is absent, or it already holds this status. Only the second
+    // is success, so distinguish them with a read rather than guessing.
+    return getMembershipRow(db, accountId, userId) === null ? "missing" : "unchanged";
+  }
+  revokeResetTokensForUser(db, userId);
+  bumpSecurityRevision(db, userId);
+  return "changed";
+}
+
+/**
+ * Read ONE membership row, whatever its lifecycle status.
+ *
+ * The status-agnostic counterpart to {@link getActiveMemberRole}, and deliberately NOT a substitute
+ * for it: this helper answers "does this relationship exist?" (administration, lifecycle), never
+ * "what authority does this login hold?" (authorization). A disabled or archived row is a real
+ * membership that an administrator must still be able to see, restore and remove — and one that
+ * must confer nothing. Callers that narrow authority keep using {@link getActiveMemberRole}.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account to look up.
+ * @param userId     The login to look up.
+ * @returns The membership row, or `null` when this login has no membership in this account.
+ * @throws Error  If the stored role is not a known {@link Role} — control-table corruption, which
+ *   fails loud here exactly as it does in {@link listMembersForAccount}.
+ */
+export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
+  const row = db
+    .prepare(
+      `SELECT accountId, userId, role, status, createdAt FROM account_members
+        WHERE accountId = ? AND userId = ?`,
+    )
+    .get(accountId, userId) as
+    { accountId: string; userId: string; role: string; status: string; createdAt: string } | undefined;
+  if (!row) return null;
+  if (!isKnownRole(row.role)) {
+    throw new Error(
+      `getMembershipRow: stored role ${JSON.stringify(row.role)} for (${row.accountId}, ${row.userId}) is not a known role — control table corrupted.`,
+    );
+  }
+  return {
+    accountId: row.accountId,
+    userId: row.userId,
+    role: row.role,
+    status: membershipStatus(row.status, row.accountId, row.userId),
+    createdAt: row.createdAt,
+  };
+}
+
+/**
  * Resolve one login's role for one account, or `null` if it is not a member. The account adapter
  * narrows this to active memberships before applying canonical account policy.
  *
@@ -465,7 +577,7 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
       accountId: r.accountId,
       userId: r.userId,
       role: r.role,
-      status: r.status as MembershipStatus,
+      status: membershipStatus(r.status, r.accountId, r.userId),
       createdAt: r.createdAt,
     };
   });
@@ -507,7 +619,7 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
       accountId: r.accountId,
       userId: r.userId,
       role: r.role,
-      status: r.status as MembershipStatus,
+      status: membershipStatus(r.status, r.accountId, r.userId),
       createdAt: r.createdAt,
     };
   });

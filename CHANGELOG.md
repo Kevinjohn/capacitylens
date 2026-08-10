@@ -18,6 +18,66 @@ new features and **patch** versions carry fixes.
   group. The complete group saves atomically and is removed by one Undo; afterwards every allocation
   can be edited or deleted independently. Edit and Duplicate remain single-allocation flows (#174).
 
+## [0.37.0-alpha.1] — 2026-08-10
+
+Team & access now has a focused member directory with reversible disable, archive and restore
+actions, last-login visibility, and server-enforced handling for every non-active membership path.
+No database migration or account-contract version change is required.
+
+### Added
+
+- **A member's access can now be turned off instead of only removed.** Each row's new gear menu
+  offers **Disable user** and **Archive user**, both reversible from the same menu with **Restore
+  access**. A disabled membership keeps its role and history but authorizes nothing — the server
+  refuses that person's reads until they are restored — while the administrative directory keeps
+  listing them, so the change is visible and undoable. Neither the Owner nor yourself can be
+  disabled, in the UI or at the API. (#175)
+- **Disabling holds on every path, and costs an administrator nothing.** A disabled member cannot
+  redeem an invite back into the company — the attempt is refused and the invite is left unused, so
+  only an Owner or Admin can restore access — and the role pencil is withdrawn from non-active rows
+  so a role change can never quietly reinstate someone. In the other direction, **Reset password**,
+  **Revoke sessions** and **Remove** all keep working against a disabled member, because turning off
+  a compromised account first and rotating its credentials second is exactly the sequence this is
+  for. Re-applying the status a member already holds succeeds and changes nothing, so a second admin
+  on a stale screen cannot silently kill a reset link the first admin just handed out. (#175)
+- **Members who are no longer active have their own collapsed group.** The main table lists the
+  team; disabled and archived memberships sit behind **No longer active (N)**, closed until someone
+  opens it. They are still one click from **Restore access** or **Remove**, but they no longer pad
+  out the list of people you actually work with. The group disappears entirely when it is empty.
+  (#175)
+- **Members are listed by join date, then by name.** People appear in the order they joined the
+  company, and anyone who joined at the same moment — a bulk import, say — is ordered
+  alphabetically rather than by internal id. (#175)
+- **The members table shows Last login.** It is derived from retained sessions, so a member with no
+  retained session reads **Unknown** rather than "Never": that read cannot tell "never signed in"
+  apart from "session aged out", and the page does not claim the stronger of the two. (#175)
+
+### Changed
+
+- **Team & access is a table, not a wall of cards.** The capability tick list is collapsed behind
+  **See full capabilities**, the two explainer cards that carried no controls are gone, inviting
+  someone has its own panel, and the member list is a real table of Name, Member role, Last login and
+  Actions. Each row ends in a pencil that changes the role and a gear holding the rest. (#175)
+- **The per-member transfer-ownership button is gone.** Handing a company over is a rare, deliberate
+  act and no longer sits on every row; the owner-only API operation is unchanged, and transfer will
+  get its own section in a follow-up. Your access no longer offers to transfer ownership either — it
+  now reads "Full company access. You are the single Owner of this company.", because promising a
+  control that has no screen behind it is worse than saying nothing. (#175)
+
+## [0.36.0-alpha.1] — 2026-08-10
+
+The source-owned shadcn primitives now match the current registry where appropriate while keeping
+CapacityLens's documented behaviour, semantic colour language and accessibility guarantees.
+
+### Changed
+
+- Shared role and status badges now use the current shadcn pill silhouette, invalid-state styling
+  and link-aware variants while retaining CapacityLens's brand and contrast-tuned semantic colours
+  (#163).
+- Removed inert React Server Component directives from the Vite-owned UI primitives and documented
+  the sidebar's deliberate shortcut guards and omitted cookie persistence so future registry
+  comparisons preserve those choices (#162).
+
 ## [0.35.7-alpha.1] — 2026-08-10
 
 A demo-data rename: the seeded people, companies, clients and projects are now recognisable,
@@ -2980,7 +3040,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.37.0-alpha.1...HEAD
+[0.37.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.36.0-alpha.1...v0.37.0-alpha.1
+[0.36.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...v0.36.0-alpha.1
 [0.35.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...v0.35.7-alpha.1
 [0.35.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...v0.35.6-alpha.1
 [0.35.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...v0.35.5-alpha.1

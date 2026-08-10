@@ -3,6 +3,7 @@ import type { Role } from "./types";
 import {
   canAdministerAccount,
   canAdministerIdentityAcrossWorkspaces,
+  canChangeMemberStatus,
   canManageMemberRole,
   canRemoveMember,
 } from "./policy";
@@ -78,5 +79,37 @@ describe("account administration policy", () => {
     expect(canManageMemberRole("admin", "superuser" as Role, "editor")).toBe(false);
     expect(canManageMemberRole("admin", "editor", "superuser" as Role)).toBe(false);
     expect(canRemoveMember("admin", "superuser" as Role)).toBe(false);
+  });
+});
+
+describe("canChangeMemberStatus(actor, target, isSelf) — disable/archive/restore matrix (#175)", () => {
+  const ROLES: readonly Role[] = ["owner", "admin", "editor", "viewer"];
+
+  it("tracks removal authority for every actor/target pair", () => {
+    // Suspending a membership withdraws exactly what removing it would, so the two share one gate:
+    // any divergence here would be a way to reach a target you are not allowed to remove.
+    for (const actor of ROLES) {
+      for (const target of ROLES) {
+        expect(canChangeMemberStatus(actor, target, false), `${actor}->${target}`).toBe(canRemoveMember(actor, target));
+      }
+    }
+  });
+
+  it("never permits suspending the Owner", () => {
+    // Load-bearing: the single-active-owner partial index and the ownerless-account boot assertion
+    // both key on role='owner' AND status='active'.
+    expect(canChangeMemberStatus("owner", "owner", false)).toBe(false);
+    expect(canChangeMemberStatus("admin", "owner", false)).toBe(false);
+  });
+
+  it("refuses self-operation even for an owner — lockout would be unrecoverable in-app", () => {
+    for (const actor of ROLES) {
+      expect(canChangeMemberStatus(actor, actor, true), actor).toBe(false);
+    }
+  });
+
+  it("fails closed on an unknown role", () => {
+    expect(canChangeMemberStatus("superuser" as Role, "editor", false)).toBe(false);
+    expect(canChangeMemberStatus("admin", "superuser" as Role, false)).toBe(false);
   });
 });

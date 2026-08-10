@@ -228,6 +228,14 @@ function replayCapacityExceeded(commandId: string, retryAfterMs: number): Accoun
   });
 }
 
+/** The name a directory entry sorts under: display name, else email, else the principal id — the
+ *  same fallback chain the UI labels the row with, so the rendered list is visibly in order even
+ *  for a member who signed up without a name. */
+function directorySortName(entry: MemberDirectoryEntry): string {
+  const principal = entry.principal;
+  return principal?.displayName?.trim() || principal?.email?.trim() || entry.membership.principalId;
+}
+
 export function actorContextFromSession(
   input: {
     id: string;
@@ -675,18 +683,37 @@ export function localAccountFlows(input: {
     },
 
     async listMemberDirectory({ actor, workspaceId }): Promise<readonly MemberDirectoryEntry[]> {
+      // The ONLY caller that asks for non-active rows. An administrator who disabled or archived a
+      // member has to be able to see that state to reverse it; every other read of this port stays
+      // active-only, because a non-active membership confers no authority.
       const memberships = await administration.listMemberships({
         actor,
         workspaceId,
+        includeInactive: true,
       });
       const principals = await identity.getPrincipalSummaries({
         principalIds: memberships.map((entry) => entry.principalId),
       });
       const byId = new Map(principals.map((principal) => [principal.id, principal]));
-      return memberships.map((entry) => ({
-        membership: entry,
-        principal: byId.get(entry.principalId) ?? null,
-      }));
+      return (
+        memberships
+          .map((entry) => ({
+            membership: entry,
+            principal: byId.get(entry.principalId) ?? null,
+          }))
+          // Join date first, then name (#175). Founders stay at the top in the order they arrived,
+          // which is how an administrator remembers the team; the name is the tie-break, because a
+          // bulk import gives everyone the same joinedAt to the millisecond and an arbitrary id
+          // order there reads as random. principalId last so the sort is total and the listing is
+          // byte-identical between reads. Comparison is locale-aware and case-insensitive so
+          // "alice" and "Alice" do not sit either side of "Bob".
+          .sort(
+            (left, right) =>
+              left.membership.joinedAt.localeCompare(right.membership.joinedAt) ||
+              directorySortName(left).localeCompare(directorySortName(right), undefined, { sensitivity: "base" }) ||
+              left.membership.principalId.localeCompare(right.membership.principalId),
+          )
+      );
     },
 
     async acceptInviteWithPasswordSignup({

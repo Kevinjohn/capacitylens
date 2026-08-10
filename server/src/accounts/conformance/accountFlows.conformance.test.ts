@@ -155,6 +155,7 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
     changeMemberRole: vi.fn(async () => member),
+    changeMemberStatus: vi.fn(async ({ nextStatus }) => ({ ...member, status: nextStatus })),
     removeMember: vi.fn(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",

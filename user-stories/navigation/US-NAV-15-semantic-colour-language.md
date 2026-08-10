@@ -26,6 +26,8 @@ and discipline swatches remain data colours rather than being confused with the 
    destructive roles remain distinct and legible.
 5. Pick a user-defined client/project/discipline swatch. Confirm it changes that entity's data
    colour only; it does not change the meaning of primary or destructive controls.
+6. Compare role and status badges in the company picker, sidebar footer or Team & access. Confirm
+   they share a compact pill silhouette while colour continues to communicate their semantic role.
 
 ## Acceptance criteria
 
@@ -39,3 +41,5 @@ and discipline swatches remain data colours rather than being confused with the 
   does not depend on colour alone because controls retain meaningful labels.
 - ✅ Default account/resource/entity presets use the refreshed blue family, while user-selected
   preset swatches continue to render as entity data colours.
+- ✅ Shared role and status badges use a compact pill silhouette; their existing brand, neutral,
+  warning, danger and outline colours keep the meanings described above.

@@ -30,6 +30,7 @@ interface RawMember {
   role: "owner" | "admin" | "editor" | "viewer";
   status?: string;
   createdAt?: string;
+  lastLoginAt?: string | null;
   name?: string | null;
   email?: string | null;
   isSelf?: boolean;
@@ -57,6 +58,7 @@ function mockFetch(members: RawMember[] | { status: number }) {
           members: members.map((m) => ({
             status: "active",
             createdAt: "2026-01-01T00:00:00.000Z",
+            lastLoginAt: null,
             name: null,
             email: `${m.userId}@x.io`,
             isSelf: false,
@@ -113,6 +115,38 @@ function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
       <MembersSection />
     </AuthContext.Provider>,
   );
+}
+
+type User = ReturnType<typeof userEvent.setup>;
+
+/** Row actions moved behind the row's gear popover (#175). Open it; the popover renders in a
+ *  PORTAL, so its items are reachable from `screen`, never from `within(row)`. */
+async function openMemberMenu(user: User, row: HTMLElement): Promise<void> {
+  await user.click(within(row).getByTestId("member-menu"));
+  await screen.findByText(m.settings_member_settings_heading());
+}
+
+/** Disabled and archived rows live behind a collapsed disclosure (#175) — open it before reaching
+ *  for one. Returns once the second table is on screen. */
+async function openInactiveGroup(user: User): Promise<HTMLElement> {
+  await user.click(await screen.findByTestId("members-inactive-toggle"));
+  return screen.findByTestId("members-inactive-table");
+}
+
+/** Open a row's gear menu and choose one action by test id. */
+async function chooseMemberAction(user: User, row: HTMLElement, testId: string): Promise<void> {
+  await openMemberMenu(user, row);
+  await user.click(screen.getByTestId(testId));
+}
+
+/** The role selector moved out of the row and into the pencil's dialog (#175): open it, pick the
+ *  role, then Save. Selecting a role is now a DRAFT — nothing is sent until Save. */
+async function saveRoleVia(user: User, row: HTMLElement, option: string): Promise<void> {
+  await user.click(within(row).getByTestId("member-edit"));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
+  fireEvent.click(screen.getByRole("option", { name: option }));
+  await user.click(within(dialog).getByTestId("member-role-save"));
 }
 
 beforeEach(() => {
@@ -430,14 +464,16 @@ describe("MembersSection — admin affordances", () => {
     const rows = await screen.findAllByTestId("member-row");
     const ownerRow = rows.find((r) => within(r).queryByText(/theowner@x\.io/))!;
     expect(ownerRow).toBeTruthy();
-    // No role <select> and no Remove button on the owner row for an admin.
-    expect(within(ownerRow).queryByRole("combobox")).not.toBeInTheDocument();
-    expect(within(ownerRow).queryByTestId("member-remove")).not.toBeInTheDocument();
+    // No pencil on the owner row for an admin, and no gear either: with reset/revoke/status/remove
+    // all forbidden against an Owner the menu has nothing left to offer, so it is not rendered.
+    expect(within(ownerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
+    expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
     // The editor row, by contrast, IS manageable by the admin.
     const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
-    expect(within(editorRow).getByRole("combobox")).toBeInTheDocument();
-    expect(within(editorRow).getByTestId("member-remove")).toBeInTheDocument();
+    expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
+    await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
 
   it("names the member and waits for confirmation before sending removal", async () => {
@@ -449,7 +485,7 @@ describe("MembersSection — admin affordances", () => {
       within(row).queryByText(/theeditor@x\.io/),
     )!;
 
-    await user.click(within(editorRow).getByTestId("member-remove"));
+    await chooseMemberAction(user, editorRow, "member-remove");
 
     const dialog = screen.getByRole("alertdialog");
     expect(within(dialog).getByText(/theeditor@x\.io will immediately lose access/)).toBeInTheDocument();
@@ -481,7 +517,7 @@ describe("MembersSection — admin affordances", () => {
       within(row).queryByText(/theeditor@x\.io/),
     )!;
 
-    await user.click(within(editorRow).getByTestId(testId));
+    await chooseMemberAction(user, editorRow, testId);
 
     const dialog = screen.getByRole("alertdialog");
     expect(within(dialog).getByText(consequence)).toBeInTheDocument();
@@ -499,7 +535,8 @@ describe("MembersSection — admin affordances", () => {
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
       within(row).queryByText(/theeditor@x\.io/),
     )!;
-    const revokeButton = within(editorRow).getByTestId("member-revoke-sessions");
+    await openMemberMenu(user, editorRow);
+    const revokeButton = screen.getByTestId("member-revoke-sessions");
 
     expect(revokeButton).toHaveTextContent(m.settings_member_revoke_sessions());
     await user.click(revokeButton);
@@ -532,7 +569,7 @@ describe("MembersSection — admin affordances", () => {
       within(row).queryByText(/theeditor@x\.io/),
     )!;
 
-    await user.click(within(editorRow).getByTestId("member-revoke-sessions"));
+    await chooseMemberAction(user, editorRow, "member-revoke-sessions");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: m.settings_member_revoke_sessions(),
@@ -552,7 +589,7 @@ describe("MembersSection — admin affordances", () => {
     renderSection();
     const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
 
-    await user.click(within(selfRow).getByTestId("member-remove"));
+    await chooseMemberAction(user, selfRow, "member-remove");
     expect(within(screen.getByRole("alertdialog")).getByText(/return to the company picker/i)).toBeInTheDocument();
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -560,7 +597,7 @@ describe("MembersSection — admin affordances", () => {
       }),
     );
 
-    await user.click(within(selfRow).getByTestId("member-revoke-sessions"));
+    await chooseMemberAction(user, selfRow, "member-revoke-sessions");
     expect(within(screen.getByRole("alertdialog")).getByText(/this browser.*reload into sign-in/i)).toBeInTheDocument();
   });
 
@@ -573,16 +610,16 @@ describe("MembersSection — admin affordances", () => {
     const rows = await screen.findAllByTestId("member-row");
     const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
 
-    fireEvent.keyDown(within(editorRow).getByRole("combobox"), {
-      key: "ArrowDown",
-    });
+    await user.click(within(editorRow).getByTestId("member-edit"));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/theeditor@x\.io/)).toBeInTheDocument();
+    fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    const dialog = screen.getByRole("alertdialog");
-    expect(within(dialog).getByText(/theeditor@x\.io will become Viewer/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/Read-only schedule access/)).toBeInTheDocument();
+    // The summary explains the consequence, and choosing a role is still only a DRAFT.
+    expect(within(dialog).getByTestId("member-role-summary")).toHaveTextContent(/Read-only schedule access/);
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/members/theeditor"), expect.anything());
 
-    await user.click(within(dialog).getByRole("button", { name: "Change role" }));
+    await user.click(within(dialog).getByTestId("member-role-save"));
     expect(fetchMock).toHaveBeenCalledWith(
       `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
       expect.objectContaining({
@@ -614,9 +651,7 @@ describe("MembersSection — admin affordances", () => {
       within(row).queryByText(/theeditor@x\.io/),
     )!;
 
-    fireEvent.keyDown(within(editorRow).getByRole("combobox"), { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    await user.click(screen.getByRole("button", { name: "Change role" }));
+    await saveRoleVia(user, editorRow, "Viewer");
 
     await waitFor(() => expect(screen.getByTestId("members-section")).toHaveAttribute("aria-busy", "true"));
     const status = screen.getByRole("status");
@@ -636,15 +671,7 @@ describe("MembersSection — admin affordances", () => {
     renderSection({ refreshAuth });
 
     const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
-    fireEvent.keyDown(within(selfRow).getByRole("combobox"), {
-      key: "ArrowDown",
-    });
-    fireEvent.click(screen.getByRole("option", { name: "Editor" }));
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Change role",
-      }),
-    );
+    await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
@@ -661,15 +688,7 @@ describe("MembersSection — admin affordances", () => {
     renderSection();
 
     const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
-    fireEvent.keyDown(within(selfRow).getByRole("combobox"), {
-      key: "ArrowDown",
-    });
-    fireEvent.click(screen.getByRole("option", { name: "Editor" }));
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Change role",
-      }),
-    );
+    await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
     expect(useStore.getState().notice?.message).toMatch(/could not be safely refreshed/i);
@@ -682,7 +701,7 @@ describe("MembersSection — owner affordances", () => {
       { userId: "me", role: "owner", isSelf: true },
       {
         userId: "alice",
-        name: "Alice Editor",
+        name: "Barbara Gordon",
         email: "alice@example.test",
         role: "editor",
         mayResetPassword: true,
@@ -690,7 +709,7 @@ describe("MembersSection — owner affordances", () => {
       },
       {
         userId: "bob",
-        name: "Bob Viewer",
+        name: "James Gordon",
         email: "bob@example.test",
         role: "viewer",
         mayResetPassword: true,
@@ -701,14 +720,26 @@ describe("MembersSection — owner affordances", () => {
     renderSection();
     await screen.findByTestId("members-section");
 
-    for (const member of ["Alice Editor (alice@example.test)", "Bob Viewer (bob@example.test)"]) {
-      expect(screen.getByRole("combobox", { name: `Member role for ${member}` })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `Reset password for ${member}` })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `Revoke sessions for ${member}` })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `Remove ${member}` })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `Transfer ownership to ${member}` })).toBeInTheDocument();
+    const user = userEvent.setup();
+    const rows = screen.getAllByTestId("member-row");
+    for (const member of ["Barbara Gordon (alice@example.test)", "James Gordon (bob@example.test)"]) {
+      // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
+      expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
+
+      const row = rows.find((candidate) => within(candidate).queryByText(member))!;
+      await openMemberMenu(user, row);
+      for (const action of [
+        `Reset password for ${member}`,
+        `Revoke sessions for ${member}`,
+        `Disable ${member}`,
+        `Archive ${member}`,
+        `Remove ${member}`,
+      ]) {
+        expect(screen.getByRole("button", { name: action })).toBeInTheDocument();
+      }
+      await user.keyboard("{Escape}");
     }
-    expect(screen.queryByRole("combobox", { name: "Member role" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
   });
 
@@ -728,10 +759,9 @@ describe("MembersSection — owner affordances", () => {
 
     const rows = await screen.findAllByTestId("member-row");
     const editorRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
-    expect(within(editorRow).getByRole("combobox")).toBeInTheDocument();
-    fireEvent.keyDown(within(editorRow).getByRole("combobox"), {
-      key: "ArrowDown",
-    });
+    await user.click(within(editorRow).getByTestId("member-edit"));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
     expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
   });
 
@@ -746,145 +776,226 @@ describe("MembersSection — owner affordances", () => {
 
     const rows = await screen.findAllByTestId("member-row");
     const soleOwnerRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
-    expect(within(soleOwnerRow).getByText(/Owner — transfer to change/)).toBeInTheDocument();
-    expect(within(soleOwnerRow).queryByRole("combobox")).not.toBeInTheDocument();
-    expect(within(soleOwnerRow).queryByTestId("member-remove")).not.toBeInTheDocument();
+    expect(within(soleOwnerRow).getByTestId("member-role")).toHaveTextContent(m.settings_member_sole_owner_protected());
+    // No pencil (the role is not editable) and no gear: nothing in it would be permitted.
+    expect(within(soleOwnerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
+    expect(within(soleOwnerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
   });
 });
 
-describe("MembersSection — transfer ownership", () => {
-  it('an owner sees "Transfer ownership" only on non-self rows', async () => {
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", role: "editor" },
-    ];
-    vi.stubGlobal("fetch", mockFetch(members));
+describe("MembersSection — member lifecycle", () => {
+  // Transfer ownership is deliberately NOT here: #175 removed the per-member button, and the
+  // action returns under a follow-up ticket as its own owner-only section. Its server route and
+  // client method are untouched, so this describe covers what the ROW can now do instead.
+  const lifecycleMembers: RawMember[] = [
+    { userId: "me", role: "owner", isSelf: true },
+    { userId: "ed", role: "editor" },
+  ];
+
+  it("never offers a transfer-ownership control on any row", async () => {
+    vi.stubGlobal("fetch", mockFetch(lifecycleMembers));
     renderSection();
     await screen.findByTestId("members-section");
 
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    await openMemberMenu(userEvent.setup(), edRow);
+    expect(screen.queryByTestId("member-make-owner")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /transfer ownership/i })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["member-disable", "disabled", /cannot open this company until you restore them/i],
+    ["member-archive", "archived", /filed away and cannot open this company/i],
+  ])("confirms %s before PATCHing the new status", async (testId, status, consequence) => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch(lifecycleMembers);
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+
+    await chooseMemberAction(user, edRow, testId);
+    const dialog = screen.getByRole("alertdialog");
+    expect(within(dialog).getByText(consequence)).toBeInTheDocument();
+    // Opening the confirmation is not the write.
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/status"), expect.anything());
+
+    await user.click(
+      within(dialog).getByRole("button", { name: new RegExp(status === "disabled" ? "Disable" : "Archive") }),
+    );
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status }) }),
+      ),
+    );
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe(m.settings_members_status_changed()));
+  });
+
+  it("badges a non-active member and offers restore INSTEAD of disable/archive", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch([
+      { userId: "me", role: "owner", isSelf: true },
+      { userId: "ed", role: "editor", status: "disabled" },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    await openInactiveGroup(user);
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    // A non-active member must stay REACHABLE and legible, or the state is unreversible.
+    expect(within(edRow).getByTestId("member-status")).toHaveTextContent(m.settings_member_status_disabled());
+
+    await openMemberMenu(user, edRow);
+    expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
+    await user.click(screen.getByTestId("member-restore"));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /restore/i }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status: "active" }) }),
+      ),
+    );
+  });
+
+  it("hides the role pencil on a non-active row while keeping the gear's actions", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", status: "disabled", mayResetPassword: true, mayRevokeSessions: true },
+      ]),
+    );
+    renderSection();
+    await openInactiveGroup(user);
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+
+    // A role change writes status: "active", so offering the pencil here would turn "edit their role"
+    // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
+    expect(within(edRow).queryByTestId("member-edit")).not.toBeInTheDocument();
+
+    // The gear is NOT withdrawn with it: disabling someone must never cost an administrator the
+    // ability to rotate their password, kill their sessions, or remove them outright.
+    await openMemberMenu(user, edRow);
+    expect(screen.getByTestId("member-reset-password")).toBeInTheDocument();
+    expect(screen.getByTestId("member-revoke-sessions")).toBeInTheDocument();
+    expect(screen.getByTestId("member-remove")).toBeInTheDocument();
+  });
+
+  it("keeps non-active members out of the main table and behind a collapsed disclosure", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", status: "disabled" },
+        { userId: "vic", role: "viewer", status: "archived" },
+      ]),
+    );
+    renderSection();
+
+    // The main table is the TEAM. Two of these three memberships are history and must not pad it out.
+    const mainTable = await screen.findByTestId("members-table");
+    expect(within(mainTable).getAllByTestId("member-row")).toHaveLength(1);
+    expect(within(mainTable).queryByText(/ed@x\.io/)).not.toBeInTheDocument();
+
+    // Collapsed by default: the group is announced with its count, but lists nobody until asked.
+    const toggle = screen.getByTestId("members-inactive-toggle");
+    expect(toggle).toHaveTextContent(m.settings_members_inactive_group({ count: 2 }));
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
+
+    const inactiveTable = await openInactiveGroup(user);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // Both non-active states share one group; the per-row badge is what tells them apart.
+    const badges = within(inactiveTable)
+      .getAllByTestId("member-status")
+      .map((badge) => badge.textContent);
+    expect(badges).toEqual([m.settings_member_status_disabled(), m.settings_member_status_archived()]);
+
+    // It closes again — this is a disclosure, not a one-way reveal.
+    await user.click(toggle);
+    expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
+  });
+
+  it("omits the disclosure entirely when every membership is active", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor" },
+      ]),
+    );
+    renderSection();
+    // An empty "No longer active (0)" control would be a permanent reminder of nothing.
+    await screen.findByTestId("members-table");
+    expect(screen.queryByTestId("members-inactive-toggle")).not.toBeInTheDocument();
+  });
+
+  it("offers no status action against the Owner or against yourself", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
+        { userId: "owner", role: "owner" },
+      ]),
+    );
+    renderSection();
+    const selfRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/me@x\.io/))!;
+
+    // Self-suspension would be an unrecoverable in-app lockout; the Owner is protected because the
+    // single-active-Owner invariant keys on role='owner' AND status='active'.
+    await openMemberMenu(user, selfRow);
+    expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    const ownerRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/owner@x\.io/))!;
+    expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a refused status change instead of reporting success", async () => {
+    const user = userEvent.setup();
+    const reads = mockFetch(lifecycleMembers);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).endsWith("/members/ed/status") && init?.method === "PATCH") {
+          return { ok: false, status: 403, json: async () => ({ error: "Forbidden." }) } as Response;
+        }
+        return reads(url, init);
+      }),
+    );
+    renderSection();
+    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+
+    await chooseMemberAction(user, edRow, "member-disable");
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
+
+    expect(await screen.findByText("Forbidden.")).toBeInTheDocument();
+    expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
+  });
+
+  it("renders a session-derived last login, and 'Unknown' when none is retained", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch([
+        { userId: "me", role: "owner", isSelf: true, lastLoginAt: "2026-07-18T10:00:00.000Z" },
+        { userId: "ed", role: "editor", lastLoginAt: null },
+      ]),
+    );
+    renderSection();
     const rows = await screen.findAllByTestId("member-row");
     const selfRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
     const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
-    // The atomic hand-over is offered on an eligible target, never on the caller.
-    expect(within(edRow).getByTestId("member-make-owner")).toBeInTheDocument();
-    expect(within(selfRow).queryByTestId("member-make-owner")).not.toBeInTheDocument();
-  });
 
-  it("an admin never sees the transfer action", async () => {
-    const members: RawMember[] = [
-      { userId: "me", role: "admin", isSelf: true },
-      { userId: "ed", role: "editor" },
-    ];
-    vi.stubGlobal("fetch", mockFetch(members));
-    renderSection();
-    await screen.findByTestId("members-section");
-    expect(screen.queryByTestId("member-make-owner")).not.toBeInTheDocument();
-  });
-
-  it("confirms the consequence before POSTing the transfer", async () => {
-    const user = userEvent.setup();
-    const refreshAuth = vi.fn(async () => {});
-    const fetchMock = mockFetch([
-      { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", role: "editor" },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const revisionBefore = useStore.getState().membershipRevision;
-    renderSection({ refreshAuth });
-    await screen.findByTestId("members-section");
-
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
-    await user.click(within(edRow).getByTestId("member-make-owner"));
-    expect(screen.getByText(/You will become an Admin/)).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/transfer-ownership"), expect.anything());
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Transfer ownership",
-      }),
+    expect(within(selfRow).getByTestId("member-last-login")).toHaveTextContent(
+      new Date("2026-07-18T10:00:00.000Z").toLocaleDateString(),
     );
-    expect(fetchMock).toHaveBeenCalledWith(
-      `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/transfer-ownership`,
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ toUserId: "ed" }),
-      }),
-    );
-    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
-    expect(refreshAuth).toHaveBeenCalledTimes(1);
-    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
-  });
-
-  it("surfaces the server error when a transfer is refused", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const u = String(url);
-      if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: "me",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "me@x.io",
-                isSelf: true,
-                mayResetPassword: false,
-                mayRevokeSessions: true,
-              },
-              {
-                userId: "ed",
-                role: "editor",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "ed@x.io",
-                isSelf: false,
-                mayResetPassword: false,
-                mayRevokeSessions: true,
-              },
-            ],
-          }),
-        } as unknown as Response;
-      }
-      if (u.endsWith("/invites") && (!init || init.method === undefined || init.method === "GET")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ invites: [] }),
-        } as unknown as Response;
-      }
-      if (u.endsWith("/transfer-ownership")) {
-        return {
-          ok: false,
-          status: 403,
-          json: async () => ({
-            error: "Only the owner can transfer ownership.",
-          }),
-        } as unknown as Response;
-      }
-      return {
-        ok: true,
-        status: 204,
-        json: async () => ({}),
-      } as unknown as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection();
-    await screen.findByTestId("members-section");
-
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
-    await user.click(within(edRow).getByTestId("member-make-owner"));
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Transfer ownership",
-      }),
-    );
-    // The server's own message is preferred over the generic fallback (body.error ?? …).
-    expect(await screen.findByText("Only the owner can transfer ownership.")).toBeInTheDocument();
+    // "Unknown", never "Never": a retained-session read cannot tell the two apart.
+    expect(within(edRow).getByTestId("member-last-login")).toHaveTextContent(m.settings_member_last_login_unknown());
   });
 
   it("reconciles an unknown self-demotion even after member reads become forbidden", async () => {
@@ -975,13 +1086,7 @@ describe("MembersSection — transfer ownership", () => {
     await screen.findByTestId("members-section");
 
     const self = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
-    fireEvent.keyDown(within(self).getByRole("combobox"), { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Editor" }));
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Change role",
-      }),
-    );
+    await saveRoleVia(user, self, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
@@ -1014,17 +1119,20 @@ describe("MembersSection — transfer ownership", () => {
     renderSection();
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/ed@x\.io/))!;
 
-    fireEvent.click(within(editorRow).getByTestId("member-make-owner"));
-    fireEvent.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Transfer ownership",
-      }),
-    );
-    fireEvent.click(within(editorRow).getByTestId("member-remove"));
+    const user = userEvent.setup();
+    await chooseMemberAction(user, editorRow, "member-disable");
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
+
+    // While the first mutation is in flight the row's own affordances are disabled, so a second
+    // action cannot even be raised — the beginAction lock and the disabled state agree.
+    await waitFor(() => expect(within(editorRow).getByTestId("member-menu")).toBeDisabled());
+    expect(within(editorRow).getByTestId("member-edit")).toBeDisabled();
+    await user.click(within(editorRow).getByTestId("member-menu"));
+    expect(screen.queryByText(m.settings_member_settings_heading())).not.toBeInTheDocument();
 
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
     expect(mutations).toHaveLength(1);
-    expect(String(mutations[0][0])).toContain("/transfer-ownership");
+    expect(String(mutations[0][0])).toContain("/status");
     release!();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });
@@ -1065,7 +1173,7 @@ describe("MembersSection — invite mint", () => {
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
       within(row).queryByText(/editor@x\.io/),
     )!;
-    await user.click(within(editorRow).getByTestId("member-reset-password"));
+    await chooseMemberAction(user, editorRow, "member-reset-password");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Reset password",
@@ -1080,7 +1188,7 @@ describe("MembersSection — invite mint", () => {
     expect(screen.getByRole("button", { name: "Copy invitation link" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
 
-    await user.click(within(editorRow).getByTestId("member-remove"));
+    await chooseMemberAction(user, editorRow, "member-remove");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Remove",
@@ -1629,9 +1737,7 @@ describe("MembersSection — SSO cutover repair", () => {
       within(row).queryByText(/target@x\.io/),
     )!;
     await waitFor(() => expect(readinessReads).toBe(1));
-    fireEvent.keyDown(within(targetRow).getByRole("combobox"), { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Change role" }));
+    await saveRoleVia(user, targetRow, "Viewer");
 
     await waitFor(() => expect(readinessReads).toBeGreaterThanOrEqual(2));
   });

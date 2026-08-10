@@ -333,6 +333,20 @@ export const accountClient = {
     );
   },
 
+  changeMemberStatus(
+    workspaceId: string,
+    principalId: string,
+    status: string,
+    command?: BrowserAccountCommand,
+  ): Promise<Response> {
+    return runCommand(`member-status:${workspaceId}:${principalId}:${status}`, command, (resolved) =>
+      apiFetchReauth(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/status`,
+        jsonCommandInit("PATCH", { status }, resolved),
+      ),
+    );
+  },
+
   removeMember(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand(`member-remove:${workspaceId}:${principalId}`, command, (resolved) =>
       apiFetchReauth(

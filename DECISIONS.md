@@ -14,6 +14,8 @@ This is the short, present-tense record of decisions that constrain future work.
   phase.
 - Resources are people, placeholders or external parties. External parties have no capacity and
   do not contribute to utilisation.
+- Shared role and status badges use a compact pill silhouette. Their semantic colours continue to
+  distinguish brand/default, neutral, warning, danger and outline states.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.
 - The product introduction is acknowledged once per device, not once per sign-in.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the

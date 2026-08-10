@@ -192,6 +192,11 @@ otherwise, and the demo persona's face in the demo build. The row always reads *
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
 It appears on any auth-enabled deploy and in the demo build; an auth-off server shows no such row.
 
+**Badge shape.** Shared role and status badges use a compact pill silhouette. This applies to the
+company picker and sidebar roles, invite roles, Team & access posture, placeholder resources,
+company-login connection state and cutover readiness. Their semantic colour remains independent:
+brand/default, neutral, warning, danger and outline badges keep their existing meanings.
+
 **Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
 On small screens the matching top-bar control opens the sidebar sheet and exposes the same
@@ -639,6 +644,10 @@ activatable). Leaving the invitation route while that refresh is pending does no
 active company; the refreshed company directory remains available for normal account selection. A
 single polite status announces checking, readiness, joining and completion; accepting moves focus
 to that status, and completed activation moves focus to **Continue**.
+An accept by someone whose membership in that company is **disabled or archived** is refused
+(403) with _"This membership is no longer active. An Owner or Admin must restore it before you can
+rejoin."_ — redemption must never be a route back in for a member an administrator turned off, and
+the invite is left unused so it still works once the membership is restored. A
 **used** link shows _"This invite has already been used."_; an
 **expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
 explicit UTC offsets, and malformed stored values fail closed); an **unknown** token shows _"Invite not
@@ -650,12 +659,15 @@ section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
 Owner, Admin, Editor and Viewer. Its **Your access** panel (`data-testid="current-access"`) shows the
-active role and a plain-language allowed/not-allowed capability summary, including schedule writes,
-member administration, time-off-note visibility and private client/project-name visibility. The
-sidebar company block also shows the resolved role (`data-testid="active-role"`); Viewer retains the
-explicit **View only** wording. The page explains that **App members** (identities with a company
-role) and **Scheduled resources** (people/placeholders/external parties receiving allocations) are
-separate records, and links to `/resources`; neither record implicitly creates the other.
+active role in a plain-language summary sentence. The full allowed/not-allowed capability list —
+schedule writes, member administration, time-off-note visibility and private client/project-name
+visibility — is collapsed behind a **See full capabilities** disclosure
+(`data-testid="capabilities-toggle"`, reporting its state through `aria-expanded`), so the page opens
+on the member table rather than on reference material. The sidebar company block also shows the
+resolved role (`data-testid="active-role"`); Viewer retains the explicit **View only** wording. Where
+there is no company directory to show, the page says plainly that Team & access lists the people who
+sign in, not the resources you schedule, and that adding a Resource does not create an app login;
+neither record implicitly creates the other.
 
 In the in-memory demo the route remains visible but labels the state **Demo access** and clearly says
 that it neither creates app members nor simulates server authorization. A persisted auth-off server
@@ -686,32 +698,55 @@ The management section has four parts:
   (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
   (`data-testid="sso-remove-link"`).
 
-- **Members list** — one row per member (`data-testid="member-row"`) showing name (email), role and
-  status; the caller's own row is marked **(you)**. Each manageable row carries a **role select**
-  (`data-testid="member-role-select"`) and a **Remove** button (`data-testid="member-remove"`); the
-  role selector offers only Admin, Editor and Viewer. Every row control has a member-scoped
-  accessible name — **Member role for _member_**, **Remove _member_**, **Reset password for _member_**,
-  **Revoke sessions for _member_** or **Transfer ownership to _member_** — so non-linear
-  assistive-technology navigation cannot detach an action from its target. Choosing a different role first opens a
-  confirmation that names the member, the proposed role and its plain-language consequences; the
-  PATCH is sent only after **Change role** is confirmed. **Remove**, **Reset password** and
-  **Revoke sessions** likewise name the affected member in a confirmation before sending their
-  destructive or security-sensitive request. While any member action is in flight, the management
-  section is marked busy and politely announces **Updating team access…**. Removing yourself explicitly warns that you will
-  return to the company picker and need a new invitation; revoking your own sessions warns that the
-  current browser will reload into sign-in. An **Owner** additionally sees a **Transfer
-  ownership** button (`data-testid="member-make-owner"`) on every
-  other, non-owner member's row (the atomic ownership hand-over — see below). In **password mode
-  only**, manageable rows also carry a **Reset password** button
-  (`data-testid="member-reset-password"`): clicking it mints a **single-use, 24-hour** reset link
+- **Members table** (`data-testid="members-table"`) — columns **Name**, **Member role**, **Last
+  login** (`data-testid="member-last-login"`) and
+  **Actions**, one row per member (`data-testid="member-row"`); the caller's own row is
+  marked **(you)** and a non-active member's row carries a **Disabled** or **Archived** badge
+  (`data-testid="member-status"`). Members are ordered by **join date, then name** (with the
+  principal id as a final tie-break so the listing is stable between reads). The table itself lists
+  only **active** members; disabled and archived memberships are grouped below it behind a
+  collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
+  reporting its state through `aria-expanded`) which reveals a second table of the same columns
+  (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
+  state, and its rows carry the same badges, gear and confirmations as the main table. **Last
+  login** is derived from the retained session table, so a member with no retained session reads
+  **Unknown** — that read cannot distinguish "never signed in" from "session aged out", and the UI
+  never claims the stronger of the two. Each manageable **active** row ends in a pencil
+  (`data-testid="member-edit"`) opening the **Change member role** dialog — a role select
+  (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
+  plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
+  (`data-testid="member-role-save"`) — and a gear
+  (`data-testid="member-menu"`) opening the **Member actions** menu: **Reset password**
+  (`data-testid="member-reset-password"`), **Revoke sessions**
+  (`data-testid="member-revoke-sessions"`), **Disable user** (`data-testid="member-disable"`),
+  **Archive user** (`data-testid="member-archive"`) and **Remove**
+  (`data-testid="member-remove"`), with **Restore access** (`data-testid="member-restore"`)
+  replacing disable/archive once the member is no longer active. The pencil is offered on **active
+  rows only** — a role change must not be a back door that reinstates a disabled member, so such a
+  row is restored first — while the gear, including **Remove**, stays available on those rows so
+  a membership can be ended without first handing its access back. Every control has a member-scoped
+  accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**, **Reset
+  password for _member_**, **Revoke sessions for _member_**, **Disable _member_** — so non-linear
+  assistive-technology navigation cannot detach an action from its target. Each menu action opens a
+  confirmation naming the affected member before sending its destructive or security-sensitive
+  request. While any member action is in flight, the management section is marked busy, politely
+  announces **Updating team access…**, and every row's pencil and gear are disabled, so a second
+  mutation cannot be raised. Removing yourself explicitly warns that you will return to the company
+  picker and need a new invitation; revoking your own sessions warns that the current browser will
+  reload into sign-in. Disable and archive are offered only where the target is neither the Owner nor
+  yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
+  the member stays listed under **No longer active** so the change is visible and reversible. No row carries a transfer-ownership control
+  for anyone. In **password mode only**, the menu's **Reset password** mints a
+  **single-use, 24-hour** reset link
   shown **once** (`data-testid="reset-link"`, `<origin>/reset-password/<token>`) with a **Copy**
   button named **Copy reset link for _member_** and a note naming the member and the expiry date — nothing is emailed; the admin hands the
   link over directly. An **Admin never sees Reset password on an Owner's row** (a reset link is an
   account-takeover capability; only an Owner may reset an Owner — the server 403s regardless). The
-  button is absent in `sso` mode (the IdP owns credentials).
-  Manageable rows also carry **Revoke sessions** (`data-testid="member-revoke-sessions"`), using
-  the same cross-account authority rule as password reset.
-- **Invite form** — an Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
+  action is absent in `sso` mode (the IdP owns credentials). **Revoke sessions** uses the same
+  cross-account authority rule as password reset.
+- **Invite form** — a card of its own (`data-testid="invites-section"`), separate from the members
+  table since #175 so inviting someone is not mixed into the list of people who already joined. An
+  Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
   selected role's plain-language consequences visible below it, plus an optional **pre-authorise
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
@@ -734,19 +769,29 @@ The management section has four parts:
   one for more than 365 days. Live unused invitations keep their existing expiry and explicit
   revocation lifecycle and are not removed by the used-history limit.
 
-The Owner row has no role selector and no Remove action for anyone: each company has exactly one
-Owner, and ownership is changed only by explicit transfer. The Owner sees **Transfer ownership**
-(`data-testid="member-make-owner"`) on another active non-owner member; choosing it promotes the
-target and steps the caller down to Admin in one transaction. An Admin never sees it. No generic
+The Owner row carries no pencil for anyone, and no gear for anyone but the Owner themselves (whose
+own row still offers the self-service Reset password and Revoke sessions): each company has exactly
+one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
+removed nor disabled.
+Ownership transfer is owner-only and atomic — it promotes the target and steps the caller down to
+Admin in one transaction — but has no control in the member table; it is reached through
+`POST /api/accounts/:accountId/transfer-ownership` while its own owner-only section is designed. No generic
 role-change or invite endpoint can assign Owner, even for the current Owner. A partial unique SQLite
 index prevents multiple active owners for an account, and the server prevents removing/demoting the
 Owner outside transfer. The server remains the backstop: bypassing the UI cannot grant a second
 Owner, transfer as Admin, revoke another account's invite or read another account's member list.
 
-The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; OFF → `{members:[]}`),
+The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; each member carries `status` and a
+nullable `lastLoginAt` derived from retained sessions; OFF → `{members:[]}`),
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
-404 non-member, 403 by the role rules), `DELETE /api/accounts/:accountId/members/:userId` (204; 403
-for the Owner),
+404 non-member, 403 by the role rules),
+`PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `disabled` | `archived`;
+200 `{userId, status}`, idempotent — re-applying the status a member already holds succeeds without
+burning their outstanding reset link; 400 unknown status, 404 non-member, 403 against the Owner,
+against yourself, or by the role
+rules — a non-active membership authorizes nothing, so the member's own reads 403 until restored
+while the administrative directory keeps listing them),
+`DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner),
 `GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
 `DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe),
 `POST /api/accounts/:accountId/transfer-ownership {toUserId}` (owner-only; 400 missing/empty or

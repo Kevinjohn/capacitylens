@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { PermissionContext } from "../../auth/permissionContext";
@@ -43,6 +43,11 @@ function renderView(
   );
 }
 
+/** The capability tick list is collapsed by default (#175); every assertion about it must open it. */
+function showCapabilities(): void {
+  fireEvent.click(screen.getByTestId("capabilities-toggle"));
+}
+
 describe("TeamAccessView", () => {
   beforeEach(() => {
     buildMode.demo = false;
@@ -53,14 +58,27 @@ describe("TeamAccessView", () => {
     setOfflineReadState("cleanup", false);
   });
 
-  it("labels the demo honestly and explains members versus resources", () => {
+  it("labels the demo honestly and says why there is no membership directory", () => {
     buildMode.demo = true;
     renderView(null, "off");
     expect(screen.getByTestId("current-access")).toHaveTextContent("Demo access");
     expect(screen.getByText(/not a real company membership/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "App members" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Scheduled resources" })).toBeInTheDocument();
+    expect(screen.getByText(/people who sign in, not the resources/i)).toBeInTheDocument();
     expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+  });
+
+  it("keeps the capability list collapsed until it is asked for", async () => {
+    renderView("viewer", "password");
+    const toggle = screen.getByTestId("capabilities-toggle");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("View the schedule")).not.toBeInTheDocument();
+
+    showCapabilities();
+    expect(screen.getByTestId("capabilities-toggle")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("View the schedule")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("capabilities-toggle"));
+    expect(screen.queryByText("View the schedule")).not.toBeInTheDocument();
   });
 
   it("distinguishes an auth-off persisted server from the in-memory demo", () => {
@@ -76,6 +94,7 @@ describe("TeamAccessView", () => {
   it("shows every Viewer capability and keeps management understandable but unavailable", () => {
     renderView("viewer", "password");
     expect(screen.getByTestId("current-access")).toHaveTextContent("Viewer");
+    showCapabilities();
     expect(screen.getByText("View the schedule")).toBeInTheDocument();
     expect(screen.getByText("Edit scheduling data")).toHaveClass("text-muted-foreground");
     expect(screen.getByText("View the schedule").closest("li")).toHaveTextContent("Allowed:");
@@ -130,6 +149,7 @@ describe("TeamAccessView", () => {
     const current = screen.getByTestId("current-access");
     expect(current).toHaveTextContent("Offline · View only");
     expect(current).toHaveTextContent(/cached snapshot/i);
+    showCapabilities();
     expect(screen.getByText("View the schedule").closest("li")).toHaveTextContent("Allowed:");
     expect(screen.getByText("Edit scheduling data").closest("li")).toHaveTextContent("Not allowed:");
     expect(screen.getByText("Transfer ownership")).toHaveClass("text-muted-foreground");

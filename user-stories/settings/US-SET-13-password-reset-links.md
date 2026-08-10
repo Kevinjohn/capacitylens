@@ -27,9 +27,10 @@ identity provider owns credentials, and in auth-off there are none.
 **Precondition:** Server mode with `CAPACITYLENS_AUTH=password`. Owner A's company has member B
 (editor). B has forgotten their password. Sign in as **A**, pick the company, open **Team & access**.
 
-1. In the **Members** section, B's row (`data-testid="member-row"`) shows a **Reset password**
-   button (`data-testid="member-reset-password"`).
-2. A clicks it. A block appears with the full link `<origin>/reset-password/<token>`
+1. In the **Members** table, A opens the gear on B's row (`data-testid="member-row"` →
+   `data-testid="member-menu"`). The **Member actions** menu holds **Reset password**
+   (`data-testid="member-reset-password"`).
+2. A chooses it and confirms. A block appears with the full link `<origin>/reset-password/<token>`
    (`data-testid="reset-link"`), a visible **Copy** button whose accessible name is
    **Copy reset link for B**, and a note naming **B** and the expiry date — the link is shown
    **once** and never again.
@@ -46,9 +47,9 @@ identity provider owns credentials, and in auth-off there are none.
 
 ## Acceptance criteria
 
-- **Reset password** appears only in server + auth-on **password** mode, only for an Owner/Admin,
-  and never on an Owner's row for an Admin (only an Owner may reset an Owner). Absent in `sso`
-  mode and in auth-off/local.
+- **Reset password** appears in the row's gear menu only in server + auth-on **password** mode, only
+  for an Owner/Admin, and never on an Owner's row for an Admin (only an Owner may reset an Owner).
+  Absent in `sso` mode and in auth-off/local.
 - The minted link is **single-use** and **expires in 24 hours**; it is returned exactly once
   (`201 {token, expiresAt}`) and never stored, listed, logged, or shown again.
 - `/reset-password/:token` renders **without a session**; redeeming sets the new password via

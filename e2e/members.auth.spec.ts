@@ -14,12 +14,13 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
 // invites admin B + editor C (both accept via the API). Then, as B (admin), we drive the Team &
 // access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
-// revoke it. We assert the Owner option AND the transfer affordance are ABSENT for B in
-// the UI, and at the API layer that nobody can assign Owner through PATCH (400),
-// cannot touch owner A (→ 403), cannot transfer ownership (→ 403), that owner membership cannot be
-// removed through the ordinary member endpoint (→ 403), and — the cross-tenant headline — that B
-// cannot read ANOTHER account's members (→ 403). Finally owner A transfers through the UI and the
-// live shell immediately reprojects A as Admin. Browser-agnostic (no UA branching).
+// revoke it. We assert the Owner option is ABSENT for B in the UI, and at the API layer that nobody
+// can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot transfer ownership
+// (→ 403), that owner membership cannot be removed through the ordinary member endpoint (→ 403),
+// and — the cross-tenant headline — that B cannot read ANOTHER account's members (→ 403). Then owner
+// A drives the gear menu to disable and restore C, and finally transfers ownership through the API
+// (#175 removed the per-row transfer button) so the live shell reprojects A as Admin on its next
+// authoritative read. Browser-agnostic (no UA branching).
 
 // Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp/signUpUserWithId) comes from ./auth-helpers.
 const STAMP = Date.now();
@@ -114,9 +115,13 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(page.getByRole("link", { name: "Invite your team" })).toHaveAttribute("href", "/team");
     await page.getByRole("link", { name: "Team & access" }).click();
     await expect(page.getByTestId("current-access")).toContainText("Admin");
-    await expect(page.getByRole("heading", { name: "App members", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Scheduled resources", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
+
+    // #175: the capability tick list is reference material, collapsed until asked for.
+    await expect(page.getByText("View the schedule")).toHaveCount(0);
+    await page.getByTestId("capabilities-toggle").click();
+    await expect(page.getByText("View the schedule")).toBeVisible();
+    await page.getByTestId("capabilities-toggle").click();
 
     // The member list shows all three (owner A, admin B = you, editor C).
     const rows = page.getByTestId("member-row");
@@ -127,15 +132,17 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // The invite role picker offers NO owner option for an admin.
     const inviteOwnerOption = page.locator('[data-testid="invite-role"] option[value="owner"]');
     await expect(inviteOwnerOption).toHaveCount(0);
-    // Nor a transfer button on any row — transfer of ownership is owner-only, invisible to B.
+    // #175 removed the per-row transfer affordance outright — no row offers it to anyone.
     await expect(page.getByTestId("member-make-owner")).toHaveCount(0);
 
-    // B changes C from editor → viewer through the UI (C's row has a role select).
+    // B changes C from editor → viewer through the UI (the pencil opens the role dialog).
     const editorRow = rows.filter({ hasText: EDITOR });
-    await selectShadOption(editorRow.getByTestId("member-role-select").getByRole("combobox"), "viewer");
-    await expect(page.getByRole("alertdialog")).toContainText("will become Viewer");
-    await expect(page.getByRole("alertdialog")).toContainText("Read-only schedule access");
-    await page.getByRole("alertdialog").getByRole("button", { name: "Change role" }).click();
+    await editorRow.getByTestId("member-edit").click();
+    await selectShadOption(page.getByRole("dialog").getByTestId("member-role-select").getByRole("combobox"), "viewer");
+    // The dialog names the member and spells out what the chosen role can and cannot do.
+    await expect(page.getByRole("dialog")).toContainText(EDITOR);
+    await expect(page.getByRole("dialog")).toContainText("Read-only schedule access");
+    await page.getByRole("dialog").getByTestId("member-role-save").click();
     // The server confirms the change.
     await expect
       .poll(async () => {
@@ -156,8 +163,9 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // Changing somebody else's role re-reads the directory but does not invalidate the caller's
     // membership projection or unmount this write-once link. The bearer must remain copyable until
     // the admin deliberately leaves the page.
-    await selectShadOption(editorRow.getByTestId("member-role-select").getByRole("combobox"), "editor");
-    await page.getByRole("alertdialog").getByRole("button", { name: "Change role" }).click();
+    await editorRow.getByTestId("member-edit").click();
+    await selectShadOption(page.getByRole("dialog").getByTestId("member-role-select").getByRole("combobox"), "editor");
+    await page.getByRole("dialog").getByTestId("member-role-save").click();
     await expect(page.getByTestId("invite-link")).toHaveText(mintedInviteLink ?? "");
 
     // The new invite shows in the outstanding list (newest first); B revokes it. The earlier admin +
@@ -169,9 +177,9 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(inviteRows).toHaveCount(2);
     await expect(page.getByTestId("invite-link")).toHaveCount(0);
 
-    // ── Owner-only transfer in a separate browser: A hands the account to C atomically. The same
-    // mounted app must immediately refetch both membership projections: current access/sidebar show
-    // Admin and owner-only transfer controls disappear, without a reload or account switch. ────────
+    // ── Owner in a separate browser: A drives the #175 gear menu to disable and restore C, then
+    // hands the account to C through the owner-only transfer endpoint. The same mounted app
+    // reprojects A as Admin on its next authoritative read, without an account switch. ────────────
     const ownerContext = await newObservedContext({ reducedMotion: "reduce" });
     const ownerPage = await ownerContext.newPage();
     await ownerPage.goto("/");
@@ -185,12 +193,65 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
 
     const ownerTarget = ownerPage.getByTestId("member-row").filter({ hasText: EDITOR });
-    await ownerTarget.getByTestId("member-make-owner").click();
-    await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Transfer ownership" }).click();
 
-    await expect(ownerPage.getByTestId("current-access")).toContainText("Admin");
-    await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
+    // Disable C through the gear menu. C then leaves the main table for the collapsed
+    // "No longer active" group, so the row is only reachable once that disclosure is opened — which
+    // is the point: the team list is the team, and this is history you go looking for.
+    await ownerTarget.getByTestId("member-menu").click();
+    await ownerPage.getByTestId("member-disable").click();
+    await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Disable user" }).click();
+    await expect(
+      ownerPage.getByTestId("members-table").getByTestId("member-row").filter({ hasText: EDITOR }),
+    ).toHaveCount(0);
+    const inactiveToggle = ownerPage.getByTestId("members-inactive-toggle");
+    await expect(inactiveToggle).toHaveAttribute("aria-expanded", "false");
+    await inactiveToggle.click();
+    const inactiveTarget = ownerPage
+      .getByTestId("members-inactive-table")
+      .getByTestId("member-row")
+      .filter({ hasText: EDITOR });
+    await expect(inactiveTarget).toContainText("Disabled");
+    await expect
+      .poll(async () => {
+        const res = await request.get(`${API}/api/accounts/${accountId}/members`, {
+          headers: { cookie: owner.cookie },
+        });
+        const members = (await res.json()).members as Array<{ userId: string; status: string }>;
+        return members.find((m) => m.userId === editor.userId)?.status;
+      })
+      .toBe("disabled");
+
+    // A disabled membership authorizes nothing: C's own reads are refused until restored.
+    const disabledRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
+      headers: { cookie: editor.cookie },
+    });
+    expect(disabledRead.status()).toBe(403);
+
+    // Restore is the same menu, one item — and it is the ONLY status item offered here.
+    await inactiveTarget.getByTestId("member-menu").click();
+    await expect(ownerPage.getByTestId("member-disable")).toHaveCount(0);
+    await ownerPage.getByTestId("member-restore").click();
+    await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Restore access" }).click();
+    // C rejoins the team table, and with nobody left in it the whole group disappears.
+    await expect(ownerTarget).not.toContainText("Disabled");
+    await expect(ownerPage.getByTestId("members-inactive-toggle")).toHaveCount(0);
+
+    // Ownership now moves through the owner-only endpoint; #175 left no per-row button behind.
     await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);
+    const transfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+      headers: { cookie: owner.cookie },
+      data: { toUserId: editor.userId },
+    });
+    expect(transfer.status()).toBe(200);
+
+    // A re-reads membership and is reprojected as Admin — in the company picker and, once the
+    // company is reopened, in the sidebar footer.
+    await ownerPage.reload();
+    const ownerCompany = ownerPage.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true });
+    await expect(ownerCompany).toContainText("Admin");
+    await ownerCompany.click();
+    await dismissIntroIfPresent(ownerPage, ownerPage.locator("#main"));
+    await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
     await expect
       .poll(async () => {
         const res = await request.get(`${API}/api/accounts/${accountId}/members`, {

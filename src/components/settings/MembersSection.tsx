@@ -4,10 +4,16 @@ import { useAuth } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
-import { ConfirmDialog, SelectField, TextField } from "../common/ui";
+import { ConfirmDialog, Modal, SelectField, TextField } from "../common/ui";
 import { m } from "@/i18n";
-import { can, canManageMemberRole, canRemoveMember, type Role } from "@capacitylens/shared/domain/access";
-import type { InvitationRole } from "@capacitylens/shared/account/types";
+import {
+  can,
+  canChangeMemberStatus,
+  canManageMemberRole,
+  canRemoveMember,
+  type Role,
+} from "@capacitylens/shared/domain/access";
+import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
 import { teamAccessClient, type TeamInvitation, type TeamMember } from "../../account/teamAccessClient";
 import { accountClient } from "../../account/accountClient";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
@@ -20,8 +26,11 @@ import { useOfflineState } from "../../data/useOfflineState";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { FieldError, FieldSet, FieldLegend } from "../ui/field";
+import { FieldError, FieldSet } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { Badge } from "../ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { ChevronDown, ChevronRight, Pencil, Settings } from "lucide-react";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { SsoReadinessPanel } from "./SsoReadinessPanel";
 import {
@@ -32,15 +41,17 @@ import {
 } from "./ssoReadiness";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
-// Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
-// invites + mint a new invite (link + optional email-preauth, reusing POST /api/invites). The CLIENT
+// Owner/Admin list members in a table (name / role / last login), change a member's role through the
+// row's pencil, reach the rarer lifecycle actions through the row's gear, and invite people from a
+// SEPARATE card below (#175). Ownership transfer is deliberately absent: it is not a per-row action
+// and returns as its own owner-only section under a follow-up ticket. The CLIENT
 // gate is courtesy only — the SAME pure guards (canManageMemberRole / canRemoveMember) hide controls
 // the user can't use, but the SERVER is the backstop (every route is gated server-side; a 403 on the
 // initial members fetch is what hides the whole section for a viewer/editor). The invite TOKEN is
 // shown exactly ONCE, straight from the create response — it is write-once and never read back.
 
 type Member = TeamMember;
-type MemberConfirmationAction = "remove" | "resetPassword" | "revokeSessions";
+type MemberConfirmationAction = "remove" | "resetPassword" | "revokeSessions" | "disable" | "archive" | "restore";
 type MemberConfirmation = { action: MemberConfirmationAction; member: Member };
 
 // Each role's label is a GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS
@@ -94,7 +105,43 @@ function confirmationCopy({ action, member }: MemberConfirmation): {
           ? m.settings_revoke_self_sessions_message({ app: APP_NAME })
           : m.settings_revoke_sessions_message({ member: labelFor(member), app: APP_NAME }),
       };
+    case "disable":
+      return {
+        title: m.settings_disable_member_title(),
+        confirmLabel: m.settings_member_disable(),
+        message: m.settings_disable_member_message({ member: labelFor(member) }),
+      };
+    case "archive":
+      return {
+        title: m.settings_archive_member_title(),
+        confirmLabel: m.settings_member_archive(),
+        message: m.settings_archive_member_message({ member: labelFor(member) }),
+      };
+    case "restore":
+      return {
+        title: m.settings_restore_member_title(),
+        confirmLabel: m.settings_member_restore(),
+        message: m.settings_restore_member_message({ member: labelFor(member) }),
+      };
   }
+}
+
+/** The status a confirmed lifecycle action writes. Kept beside confirmationCopy so a new action
+ *  cannot be added to the union without deciding both its wording and its effect. */
+const STATUS_FOR_ACTION: Readonly<Record<"disable" | "archive" | "restore", MembershipStatus>> = Object.freeze({
+  disable: "disabled",
+  archive: "archived",
+  restore: "active",
+});
+
+/** Local wall-clock rendering of a session-derived timestamp. A member whose last session has aged
+ *  out of retention is indistinguishable from one who has never signed in, so both read "Unknown" —
+ *  never "Never", which would be a claim the data cannot support. */
+function lastLoginLabel(value: string | null): string {
+  if (value === null) return m.settings_member_last_login_unknown();
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return m.settings_member_last_login_unknown();
+  return new Date(parsed).toLocaleDateString();
 }
 
 /**
@@ -148,6 +195,37 @@ function CopyableLinkBlock({
   );
 }
 
+/** One row of the gear popover. A plain button, not a Radix menu item: the popover holds four
+ *  actions at most and each one opens a confirmation, so the extra roving-focus machinery of a
+ *  full menu would buy nothing. */
+function MemberMenuItem({
+  label,
+  ariaLabel,
+  testId,
+  danger = false,
+  onSelect,
+}: {
+  label: string;
+  ariaLabel: string;
+  testId: string;
+  danger?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      data-testid={testId}
+      className={`flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent ${
+        danger ? "text-danger" : "text-ink"
+      }`}
+      onClick={onSelect}
+    >
+      {label}
+    </button>
+  );
+}
+
 /**
  * The Team & access member-management section. Renders ONLY in server + auth-on mode; a 403 on the initial
  * members read self-gates it away for a viewer/editor (renders nothing). Owner/Admin affordances are
@@ -182,19 +260,26 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // The freshly-minted password-reset link (P1.18) — same write-once posture as the invite link,
   // labelled with WHO it resets so an admin juggling several members can't hand out the wrong one.
   // `userId` is carried (not just the display label) so a membership write that burns this member's
-  // token server-side can clear the block — see the changeRole / transferOwnership clears below.
+  // token server-side can clear the block — see the changeRole / changeStatus clears below.
   const [resetLink, setResetLink] = useState<{
     userId: string;
     link: string;
     member: string;
     expiresAt: string;
   } | null>(null);
-  const [transferTarget, setTransferTarget] = useState<Member | null>(null);
-  const [roleChange, setRoleChange] = useState<{
+  // The pencil dialog's draft. `nextRole` is a draft until Save, so opening the dialog and closing
+  // it again is never a write — the old inline select could fire a change on a stray keypress.
+  const [roleEdit, setRoleEdit] = useState<{
     member: Member;
     nextRole: Role;
   } | null>(null);
   const [memberConfirmation, setMemberConfirmation] = useState<MemberConfirmation | null>(null);
+  // Which row's gear popover is open. Controlled rather than uncontrolled so choosing an action can
+  // close the menu before its confirmation appears — an open popover behind a modal is a trap.
+  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
+  // Collapsed by default (#175). Disabled and archived memberships are history, not the team: an
+  // administrator opens this group deliberately, to reverse a change or clear a row out.
+  const [inactiveOpen, setInactiveOpen] = useState(false);
   const [readiness, setReadiness] = useState<WorkspaceReadiness | null>(null);
   const [readinessError, setReadinessError] = useState(false);
   const [readinessRevision, setReadinessRevision] = useState(0);
@@ -389,7 +474,6 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 
   const myRole = members?.find((m) => m.isSelf)?.role;
   const mayManageInvites = myRole !== undefined && can(myRole, "manageInvites");
-  const mayTransferOwnership = myRole !== undefined && can(myRole, "transferOwnership");
   // NB: the param is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2); a
   // `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
   const changeRole = async (mem: Member, nextRole: Role) => {
@@ -477,48 +561,41 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     }
   };
 
-  // Transfer ownership to `mem` and step the caller down to admin (server-atomic, owner-only). The
-  // confirmation makes the loss of Owner authority explicit; only the new owner can hand it back.
-  const transferOwnership = async (mem: Member) => {
+  // Disable / archive / restore a membership. The row survives with its role intact; every
+  // authorization read narrows on status='active', so a non-active membership simply confers
+  // nothing. `mem` is NOT `m` (the i18n catalogue) — see changeRole above.
+  const changeStatus = async (mem: Member, nextStatus: MembershipStatus) => {
+    if (nextStatus === mem.status) return;
     const accountId = requestAccountId();
-    if (!beginAction(`transfer:${mem.userId}`)) return;
+    if (!beginAction(`status:${mem.userId}`)) return;
     try {
-      const result = await teamAccessClient.transferOwnership(accountId, mem.userId);
+      const result = await teamAccessClient.changeMemberStatus(accountId, mem.userId, nextStatus);
       if (!isActiveAccount(accountId)) return;
       if (result.kind !== "ok") {
         if (result.kind === "unknown") {
-          await reconcileUnknownMutation(m.settings_members_unknown_ownership_transfer(), {
-            callerAccessMayHaveChanged: true,
-          });
+          await reconcileUnknownMutation(m.settings_members_unknown_status_change());
           return;
         }
         fail(
           null,
           result.kind === "rejected" && result.message
             ? result.message
-            : m.settings_members_err_transfer({ status: result.status }),
+            : m.settings_members_err_change_status({ status: result.status }),
         );
         return;
       }
-      setNotice(m.settings_members_ownership_transferred());
-      // transferOwnership does TWO upserts in one tx — promoting `mem` AND demoting the caller — so
-      // the server burns outstanding reset tokens for BOTH. Clear the write-once block if it shows a
-      // link for either party, so we never hand out a link the server has already revoked (same
-      // reason as the changeRole clear above). `mm` is NOT `m` (the i18n catalogue).
-      const selfUserId = members?.find((mm) => mm.isSelf)?.userId;
-      if (resetLink && (resetLink.userId === mem.userId || resetLink.userId === selfUserId)) {
-        setResetLink(null);
-      }
-      await refreshCallerAccess();
+      setNotice(m.settings_members_status_changed());
+      // setMemberStatus burns this member's outstanding reset tokens server-side, exactly as an
+      // ordinary membership write does, so a shown link for them is already dead.
+      if (resetLink?.userId === mem.userId) setResetLink(null);
       reload();
       setReadinessRevision((value) => value + 1);
     } catch (e) {
       await reconcileUnknownMutation(
         m.settings_members_error_detail({
-          message: m.settings_members_unknown_ownership_transfer(),
+          message: m.settings_members_unknown_status_change(),
           error: errorMessage(e),
         }),
-        { callerAccessMayHaveChanged: true },
       );
     } finally {
       endAction();
@@ -554,7 +631,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       }
       // Write-once: build + show the link straight from this response and never again. `userId` is
       // carried so a later membership write on this member can clear the stale block (see the
-      // changeRole / transferOwnership clears above).
+      // changeRole / changeStatus clears above).
       setResetLink({
         userId: mem.userId,
         link: `${window.location.origin}/reset-password/${encodeURIComponent(body.token)}`,
@@ -729,16 +806,28 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     );
   };
 
+  /** Pick an action from a row's gear menu: dismiss the menu, then raise its confirmation. */
+  const chooseMemberAction = (action: MemberConfirmationAction, member: Member) => {
+    setOpenMenuFor(null);
+    setMemberConfirmation({ action, member });
+  };
+
   const confirmedMemberAction = () => {
     if (!memberConfirmation) return;
     const pending = memberConfirmation;
     setMemberConfirmation(null);
-    if (pending.action === "remove") {
-      void removeMember(pending.member);
-    } else if (pending.action === "resetPassword") {
-      void resetPassword(pending.member);
-    } else {
-      void revokeSessions(pending.member);
+    switch (pending.action) {
+      case "remove":
+        void removeMember(pending.member);
+        return;
+      case "resetPassword":
+        void resetPassword(pending.member);
+        return;
+      case "revokeSessions":
+        void revokeSessions(pending.member);
+        return;
+      default:
+        void changeStatus(pending.member, STATUS_FOR_ACTION[pending.action]);
     }
   };
 
@@ -810,6 +899,175 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 
   const memberConfirmationCopy = memberConfirmation ? confirmationCopy(memberConfirmation) : null;
 
+  // The directory arrives in one list and splits in two for display (#175). The main table is the
+  // team — no "active" heading, because those rows are simply the members. Disabled and archived
+  // rows move into the collapsed group below; they keep their badge there, so the two states stay
+  // distinguishable without a table each. The server's order (join date, then name) is preserved by
+  // filtering rather than re-sorting.
+  const activeMembers = members?.filter((mem) => mem.status === "active") ?? null;
+  const inactiveMembers = members?.filter((mem) => mem.status !== "active") ?? [];
+
+  // One row renderer for both tables: the gear's actions, the pencil's gate and the status badge are
+  // identical wherever the row is drawn — only the grouping differs.
+  const memberRow = (mem: Member) => {
+    // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue
+    // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
+    // Ordinary role changes never touch the Owner.
+    const representativeRole: Role = mem.role === "viewer" ? "editor" : "viewer";
+    // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves its target
+    // through getActiveMemberRole, so offering the pencil on a non-active row could only ever
+    // produce a 404. Restore the member first, then change the role — a role change must not be a
+    // back door that quietly reinstates access.
+    const mayTouch = mem.status === "active" && !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
+    // Remove, by contrast, is status-agnostic on both sides: deleting a non-active membership is a
+    // normal administrative act and must not require reinstating it first.
+    const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
+    const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, mem.role, mem.isSelf);
+    const memberLabel = labelFor(mem);
+    // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP;
+    // the server 400s there regardless) and never for a target an admin can't touch
+    // (e.g. an owner, or a member who owns another account — a reset link is an
+    // account-takeover capability). We trust the SERVER-computed `mayResetPassword`:
+    // it already folds in the cross-account + self-exemption checks the per-account
+    // pure guard cannot see AND returns `false` in SSO mode.
+    const mayReset = mem.mayResetPassword;
+    const hasMenu = mayReset || mem.mayRevokeSessions || mayChangeStatus || mayRemove;
+    return (
+      <tr key={mem.userId} className="border-b last:border-b-0" data-testid="member-row">
+        <td className="py-2 pr-3">
+          <span className="text-ink">{memberLabel}</span>
+          {mem.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
+          {mem.status !== "active" && (
+            <Badge variant="outline" className="ml-2" data-testid="member-status">
+              {mem.status === "disabled" ? m.settings_member_status_disabled() : m.settings_member_status_archived()}
+            </Badge>
+          )}
+        </td>
+        <td className="py-2 pr-3 text-muted-foreground" data-testid="member-role">
+          {mem.role === "owner" ? m.settings_member_sole_owner_protected() : roleLabel(mem.role)}
+        </td>
+        <td className="py-2 pr-3 text-muted-foreground" data-testid="member-last-login">
+          {lastLoginLabel(mem.lastLoginAt)}
+        </td>
+        <td className="py-2">
+          <div className="flex items-center justify-end gap-1">
+            {hasMenu && (
+              <Popover
+                open={openMenuFor === mem.userId}
+                onOpenChange={(open) => setOpenMenuFor(open ? mem.userId : null)}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title={m.settings_member_settings_aria({ member: memberLabel })}
+                    aria-label={m.settings_member_settings_aria({ member: memberLabel })}
+                    data-testid="member-menu"
+                    disabled={busyAction !== null}
+                  >
+                    <Settings />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56 p-1">
+                  <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                    {m.settings_member_settings_heading()}
+                  </p>
+                  {mayReset && (
+                    <MemberMenuItem
+                      testId="member-reset-password"
+                      label={m.settings_member_reset_password()}
+                      ariaLabel={m.settings_member_reset_password_aria({ member: memberLabel })}
+                      onSelect={() => chooseMemberAction("resetPassword", mem)}
+                    />
+                  )}
+                  {mem.mayRevokeSessions && (
+                    <MemberMenuItem
+                      testId="member-revoke-sessions"
+                      label={m.settings_member_revoke_sessions()}
+                      ariaLabel={m.settings_member_revoke_sessions_aria({ member: memberLabel })}
+                      onSelect={() => chooseMemberAction("revokeSessions", mem)}
+                    />
+                  )}
+                  {mayChangeStatus &&
+                    (mem.status === "active" ? (
+                      <>
+                        <MemberMenuItem
+                          testId="member-disable"
+                          label={m.settings_member_disable()}
+                          ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
+                          onSelect={() => chooseMemberAction("disable", mem)}
+                        />
+                        <MemberMenuItem
+                          testId="member-archive"
+                          label={m.settings_member_archive()}
+                          ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
+                          onSelect={() => chooseMemberAction("archive", mem)}
+                        />
+                      </>
+                    ) : (
+                      <MemberMenuItem
+                        testId="member-restore"
+                        label={m.settings_member_restore()}
+                        ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
+                        onSelect={() => chooseMemberAction("restore", mem)}
+                      />
+                    ))}
+                  {mayRemove && (
+                    <MemberMenuItem
+                      testId="member-remove"
+                      label={m.settings_member_remove()}
+                      ariaLabel={m.settings_member_remove_aria({ member: memberLabel })}
+                      danger
+                      onSelect={() => chooseMemberAction("remove", mem)}
+                    />
+                  )}
+                </PopoverContent>
+              </Popover>
+            )}
+            {mayTouch && (
+              <Button
+                size="sm"
+                variant="ghost"
+                title={m.settings_member_edit_aria({ member: memberLabel })}
+                aria-label={m.settings_member_edit_aria({ member: memberLabel })}
+                data-testid="member-edit"
+                disabled={busyAction !== null}
+                onClick={() => setRoleEdit({ member: mem, nextRole: mem.role })}
+              >
+                <Pencil />
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  // Wrapped in an overflow container so a narrow viewport scrolls the TABLE, never the page.
+  const membersTable = (rows: Member[], testId: string) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm" data-testid={testId}>
+        <thead>
+          <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+            <th scope="col" className="py-2 pr-3 font-medium">
+              {m.settings_member_col_name()}
+            </th>
+            <th scope="col" className="py-2 pr-3 font-medium">
+              {m.settings_member_col_role()}
+            </th>
+            <th scope="col" className="py-2 pr-3 font-medium">
+              {m.settings_member_col_last_login()}
+            </th>
+            <th scope="col" className="py-2 text-right font-medium">
+              <span className="sr-only">{m.settings_member_col_actions()}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>{rows.map(memberRow)}</tbody>
+      </table>
+    </div>
+  );
+
   return (
     <>
       <Card data-testid="members-section" aria-busy={busyAction !== null}>
@@ -851,144 +1109,36 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             />
           )}
 
-          {/* Members list */}
+          {/* Members table (#175). One row per member: identity, role, last login, then the two
+              action affordances — a gear for the rare lifecycle actions and, at the far right, the
+              pencil that opens the role editor. */}
           {members && members.length === 0 ? (
             <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
           ) : (
-            <ItemGroup>
-              {members?.map((mem, index) => {
-                // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2);
-                // shadowing it here would make `m.settings_*()` resolve against the Member object instead.
-                // Ordinary role changes never touch the Owner. Ownership uses the explicit transfer below.
-                const representativeRole: Role = mem.role === "viewer" ? "editor" : "viewer";
-                const mayTouch = !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
-                const isOwner = mem.role === "owner";
-                const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
-                const memberLabel = labelFor(mem);
-                // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP; the
-                // server 400s there regardless) and never for a target an admin can't touch (e.g. an owner,
-                // or a member who owns another account — a reset link is an account-takeover capability).
-                // We trust the SERVER-computed `mayResetPassword`: it already folds in the cross-account +
-                // self-exemption checks the per-account pure guard can't see AND returns `false` in SSO mode,
-                // so the old `authMode === 'password'` / `myRole` conditions here would be redundant.
-                const mayReset = mem.mayResetPassword;
-                return (
-                  <Fragment key={mem.userId}>
-                    {index > 0 && <ItemSeparator />}
-                    <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="member-row">
-                      <ItemContent className="min-w-0">
-                        <span className="text-sm text-ink">{memberLabel}</span>
-                        {mem.isSelf && (
-                          <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>
-                        )}
-                        <span className="ml-2 text-xs text-muted-foreground">· {mem.status}</span>
-                      </ItemContent>
-                      <ItemActions className="flex-wrap justify-end">
-                        {mayTouch ? (
-                          <span data-testid="member-role-select">
-                            <SelectField
-                              label={m.settings_member_role_label()}
-                              ariaLabel={m.settings_member_role_aria({
-                                member: memberLabel,
-                              })}
-                              value={mem.role}
-                              onChange={(v) =>
-                                setRoleChange({
-                                  member: mem,
-                                  nextRole: v as Role,
-                                })
-                              }
-                              options={roleOptions()}
-                              disabled={busyAction !== null}
-                            />
-                          </span>
-                        ) : (
-                          <span className="text-sm capitalize text-muted-foreground">{mem.role}</span>
-                        )}
-                        {mayReset && (
-                          <Button
-                            aria-label={m.settings_member_reset_password_aria({
-                              member: memberLabel,
-                            })}
-                            size="sm"
-                            variant="outline"
-                            data-testid="member-reset-password"
-                            disabled={busyAction !== null}
-                            onClick={() =>
-                              setMemberConfirmation({
-                                action: "resetPassword",
-                                member: mem,
-                              })
-                            }
-                          >
-                            {m.settings_member_reset_password()}
-                          </Button>
-                        )}
-                        {mem.mayRevokeSessions && (
-                          <Button
-                            aria-label={m.settings_member_revoke_sessions_aria({
-                              member: memberLabel,
-                            })}
-                            size="sm"
-                            variant="outline"
-                            data-testid="member-revoke-sessions"
-                            disabled={busyAction !== null}
-                            onClick={() =>
-                              setMemberConfirmation({
-                                action: "revokeSessions",
-                                member: mem,
-                              })
-                            }
-                          >
-                            {m.settings_member_revoke_sessions()}
-                          </Button>
-                        )}
-                        {mayRemove && (
-                          <Button
-                            aria-label={m.settings_member_remove_aria({
-                              member: memberLabel,
-                            })}
-                            size="sm"
-                            variant="danger-soft"
-                            data-testid="member-remove"
-                            disabled={busyAction !== null}
-                            onClick={() =>
-                              setMemberConfirmation({
-                                action: "remove",
-                                member: mem,
-                              })
-                            }
-                          >
-                            {m.settings_member_remove()}
-                          </Button>
-                        )}
-                        {/* Ownership has one path: a confirmed, atomic hand-over that promotes the target and
-                    demotes the caller. Generic role selectors never offer Owner. */}
-                        {mayTransferOwnership && !mem.isSelf && mem.role !== "owner" && (
-                          <Button
-                            aria-label={m.settings_member_make_owner_aria({
-                              member: memberLabel,
-                            })}
-                            size="sm"
-                            variant="outline"
-                            data-testid="member-make-owner"
-                            disabled={busyAction !== null}
-                            onClick={() => setTransferTarget(mem)}
-                          >
-                            {m.settings_member_make_owner()}
-                          </Button>
-                        )}
-                        {isOwner && (
-                          <span className="text-xs text-muted-foreground">
-                            {m.settings_member_sole_owner_protected()}
-                          </span>
-                        )}
-                      </ItemActions>
-                    </Item>
-                  </Fragment>
-                );
-              })}
-            </ItemGroup>
+            activeMembers && membersTable(activeMembers, "members-table")
+          )}
+
+          {/* Disabled and archived memberships, collapsed behind a disclosure (#175). They are still
+              real rows an administrator has to be able to reach — to restore one, or to remove it —
+              but they are not the team, so they do not compete with it for the reader's attention.
+              The group is absent entirely when there is nothing in it. */}
+          {inactiveMembers.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 self-start text-sm font-medium text-brand underline-offset-2 hover:underline"
+                aria-expanded={inactiveOpen}
+                aria-controls="members-inactive"
+                data-testid="members-inactive-toggle"
+                onClick={() => setInactiveOpen((open) => !open)}
+              >
+                {inactiveOpen ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
+                {m.settings_members_inactive_group({ count: inactiveMembers.length })}
+              </button>
+              {inactiveOpen && (
+                <div id="members-inactive">{membersTable(inactiveMembers, "members-inactive-table")}</div>
+              )}
+            </section>
           )}
 
           {/* Freshly-minted password-reset link (P1.18) — write-once, same posture as the invite link
@@ -1016,11 +1166,21 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               }
             />
           )}
+        </CardContent>
+      </Card>
 
-          {/* Invite form */}
-          {mayManageInvites && (
-            <FieldSet className="gap-2 rounded-md border p-3">
-              <FieldLegend variant="label">{m.settings_invite_heading()}</FieldLegend>
+      {/* Inviting someone is its own job, not a footnote to the member table (#175): it lives in a
+          separate card together with the invites that are still outstanding. */}
+      {mayManageInvites && (
+        <Card data-testid="invites-section" aria-busy={busyAction !== null}>
+          <CardHeader>
+            <CardTitle>
+              <h2>{m.settings_invite_heading()}</h2>
+            </CardTitle>
+            <CardDescription>{m.settings_invite_intro()}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <FieldSet className="gap-2">
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-40">
                   <SelectField
@@ -1078,59 +1238,59 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                 />
               )}
             </FieldSet>
-          )}
 
-          {/* Outstanding invites */}
-          {mayManageInvites && invites.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
-              <ItemGroup>
-                {invites.map((inv, index) => {
-                  const expired = Date.parse(inv.expiresAt) <= renderedAt;
-                  const actionable = inv.usedAt === null && !expired;
-                  return (
-                    <Fragment key={inv.id}>
-                      {index > 0 && <ItemSeparator />}
-                      <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
-                        <ItemContent className="text-sm text-ink">
-                          <span className="capitalize">{inv.role}</span>
-                          {inv.preauthEmail
-                            ? m.settings_invite_suffix_email({
-                                email: inv.preauthEmail,
-                              })
-                            : m.settings_invite_suffix_link()}
-                          {inv.usedAt
-                            ? m.settings_invite_suffix_used()
-                            : expired
-                              ? m.settings_invite_suffix_expired()
-                              : // Invite validity spans several days, so keep this compact row date-only while
-                                // rendering the date on the viewer's local calendar rather than slicing UTC.
-                                m.settings_invite_suffix_expires({
-                                  date: new Date(inv.expiresAt).toLocaleDateString(),
-                                })}
-                        </ItemContent>
-                        {actionable && (
-                          <ItemActions>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              data-testid="invite-revoke"
-                              disabled={busyAction !== null}
-                              onClick={() => void revokeInvite(inv.id)}
-                            >
-                              {m.settings_invite_revoke()}
-                            </Button>
-                          </ItemActions>
-                        )}
-                      </Item>
-                    </Fragment>
-                  );
-                })}
-              </ItemGroup>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {/* Outstanding invites */}
+            {invites.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
+                <ItemGroup>
+                  {invites.map((inv, index) => {
+                    const expired = Date.parse(inv.expiresAt) <= renderedAt;
+                    const actionable = inv.usedAt === null && !expired;
+                    return (
+                      <Fragment key={inv.id}>
+                        {index > 0 && <ItemSeparator />}
+                        <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
+                          <ItemContent className="text-sm text-ink">
+                            <span className="capitalize">{inv.role}</span>
+                            {inv.preauthEmail
+                              ? m.settings_invite_suffix_email({
+                                  email: inv.preauthEmail,
+                                })
+                              : m.settings_invite_suffix_link()}
+                            {inv.usedAt
+                              ? m.settings_invite_suffix_used()
+                              : expired
+                                ? m.settings_invite_suffix_expired()
+                                : // Invite validity spans several days, so keep this compact row date-only while
+                                  // rendering the date on the viewer's local calendar rather than slicing UTC.
+                                  m.settings_invite_suffix_expires({
+                                    date: new Date(inv.expiresAt).toLocaleDateString(),
+                                  })}
+                          </ItemContent>
+                          {actionable && (
+                            <ItemActions>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                data-testid="invite-revoke"
+                                disabled={busyAction !== null}
+                                onClick={() => void revokeInvite(inv.id)}
+                              >
+                                {m.settings_invite_revoke()}
+                              </Button>
+                            </ItemActions>
+                          )}
+                        </Item>
+                      </Fragment>
+                    );
+                  })}
+                </ItemGroup>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
       {memberConfirmation && memberConfirmationCopy && (
         <ConfirmDialog
           title={memberConfirmationCopy.title}
@@ -1140,38 +1300,45 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           onCancel={() => setMemberConfirmation(null)}
         />
       )}
-      {transferTarget && (
-        <ConfirmDialog
-          title={m.settings_transfer_owner_title()}
-          confirmLabel={m.settings_member_make_owner()}
-          message={m.settings_transfer_owner_message({
-            member: labelFor(transferTarget),
-          })}
-          onConfirm={() => {
-            const target = transferTarget;
-            setTransferTarget(null);
-            void transferOwnership(target);
-          }}
-          onCancel={() => setTransferTarget(null)}
-        />
-      )}
-      {roleChange && (
-        <ConfirmDialog
+      {/* The pencil's editor. Role only, by design (#175): everything else a member's row can do
+          lives behind the gear, and ownership is not a row-level action at all. */}
+      {roleEdit && (
+        <Modal
           title={m.settings_change_role_title()}
-          confirmLabel={m.settings_change_role_confirm()}
-          confirmVariant="default"
-          message={m.settings_change_role_message({
-            member: labelFor(roleChange.member),
-            role: roleLabel(roleChange.nextRole),
-            summary: roleSummary(roleChange.nextRole),
-          })}
-          onConfirm={() => {
-            const pending = roleChange;
-            setRoleChange(null);
+          onClose={() => setRoleEdit(null)}
+          onSubmit={() => {
+            const pending = roleEdit;
+            setRoleEdit(null);
             void changeRole(pending.member, pending.nextRole);
           }}
-          onCancel={() => setRoleChange(null)}
-        />
+          footer={
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={() => setRoleEdit(null)}>
+                {m.form_cancel()}
+              </Button>
+              <Button type="submit" size="sm" data-testid="member-role-save" disabled={busyAction !== null}>
+                {m.settings_member_role_save()}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-muted-foreground">{labelFor(roleEdit.member)}</p>
+          <span data-testid="member-role-select">
+            <SelectField
+              label={m.settings_member_role_label()}
+              ariaLabel={m.settings_member_role_aria({ member: labelFor(roleEdit.member) })}
+              value={roleEdit.nextRole}
+              onChange={(value) =>
+                setRoleEdit((current) => (current ? { ...current, nextRole: value as Role } : current))
+              }
+              options={roleOptions()}
+              disabled={busyAction !== null}
+            />
+          </span>
+          <p className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-role-summary">
+            {roleSummary(roleEdit.nextRole)}
+          </p>
+        </Modal>
       )}
       {unlinkRepair && (
         <ConfirmDialog

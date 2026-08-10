@@ -5,6 +5,7 @@ import type { Role } from "../account/types";
 import {
   canAdministerAccount,
   canAdministerIdentityAcrossWorkspaces,
+  canChangeMemberStatus as canChangeCanonicalMemberStatus,
   canManageMemberRole as canManageCanonicalMemberRole,
   canRemoveMember as canRemoveCanonicalMember,
   isAtLeast as isAtLeastCanonicalRole,
@@ -161,6 +162,25 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
  */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
   return canRemoveCanonicalMember(actorRole, targetRole);
+}
+
+/**
+ * May `actorRole` disable, archive or restore the membership of a member holding `targetRole`?
+ *
+ * PURE: no I/O, no session — the two roles plus whether the target IS the actor.
+ *
+ * Same authority as {@link canRemoveMember} (suspension denies account entry exactly as removal
+ * does) with self-operation refused, so an administrator cannot lock themselves out of the very
+ * account they would need to enter to undo it. The server enforces this independently; the client
+ * imports the same function purely so a control it cannot use is not offered.
+ *
+ * @param actorRole  - the acting member's role.
+ * @param targetRole - the role the member whose status is changing currently holds.
+ * @param isSelf     - whether the target membership is the actor's own.
+ * @returns `true` iff the lifecycle change is permitted by the pure matrix; `false` otherwise.
+ */
+export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf: boolean): boolean {
+  return canChangeCanonicalMemberStatus(actorRole, targetRole, isSelf);
 }
 
 /**

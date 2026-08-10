@@ -59,7 +59,9 @@ test.describe("password reset link (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
     const memberRow = page.getByTestId("member-row").filter({ hasText: MEMBER });
     await expect(memberRow).toBeVisible();
-    await memberRow.getByTestId("member-reset-password").click();
+    // #175 moved the per-member actions behind the row's gear menu.
+    await memberRow.getByTestId("member-menu").click();
+    await page.getByTestId("member-reset-password").click();
     await page
       .getByRole("alertdialog", { name: "Create password-reset link?" })
       .getByRole("button", { name: "Reset password" })
