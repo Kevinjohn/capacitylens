@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.38.0-alpha.1] — 2026-08-10
+
+Allocation creation now supports atomic weekly and monthly repeat batches for the next three
+calendar months, with a complete preview and one-step Undo. No recurrence schema or API change is
+introduced; the generated allocations remain ordinary independent records.
+
 ### Added
 
 - **New allocations can repeat weekly or monthly for the next three calendar months.** The create
@@ -3040,7 +3046,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.37.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.0-alpha.1...HEAD
+[0.38.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.37.0-alpha.1...v0.38.0-alpha.1
 [0.37.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.36.0-alpha.1...v0.37.0-alpha.1
 [0.36.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...v0.36.0-alpha.1
 [0.35.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...v0.35.7-alpha.1
