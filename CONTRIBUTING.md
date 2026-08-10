@@ -51,9 +51,10 @@ why the change preserves the existing contract.
 
 ## Formatting
 
-Prettier owns whitespace, quoting and line breaks. The only project setting is `printWidth: 120`;
-everything else is stock. Run `pnpm run format` before committing — `pnpm run gate` fails on
-unformatted files.
+Prettier owns whitespace, quoting and line breaks. The project uses `printWidth: 120`, except for
+the vendored shadcn primitives in `src/components/ui/`, which retain the upstream 80-column width
+so registry diffs show substantive changes instead of reflow noise. Everything else is stock. Run
+`pnpm run format` before committing — `pnpm run gate` fails on unformatted files.
 
 Style is not reviewable: if Prettier produced it, it is correct. Reach for `// prettier-ignore`
 only when a hand-aligned block genuinely reads better, and say why in the patch.

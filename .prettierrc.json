@@ -1,3 +1,11 @@
 {
-  "printWidth": 120
+  "printWidth": 120,
+  "overrides": [
+    {
+      "files": "src/components/ui/**/*.{js,jsx,ts,tsx}",
+      "options": {
+        "printWidth": 80
+      }
+    }
+  ]
 }

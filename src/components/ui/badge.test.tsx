@@ -9,7 +9,12 @@ describe("Badge", () => {
 
     const badge = screen.getByText("Owner");
     expect(badge).toHaveAttribute("data-variant", "default");
-    expect(badge).toHaveClass("rounded-full", "border-transparent", "bg-brand-soft", "text-brand-soft-ink");
+    expect(badge).toHaveClass(
+      "rounded-full",
+      "border-transparent",
+      "bg-brand-soft",
+      "text-brand-soft-ink",
+    );
     expect(badge).not.toHaveClass("rounded-md");
   });
 
@@ -39,8 +44,17 @@ describe("Badge", () => {
       </>,
     );
 
-    expect(screen.getByText("Preview")).toHaveClass("[a&]:hover:bg-accent", "[a&]:hover:text-accent-foreground");
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("data-variant", "link");
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveClass("text-brand", "[a&]:hover:underline");
+    expect(screen.getByText("Preview")).toHaveClass(
+      "[a&]:hover:bg-accent",
+      "[a&]:hover:text-accent-foreground",
+    );
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "data-variant",
+      "link",
+    );
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveClass(
+      "text-brand",
+      "[a&]:hover:underline",
+    );
   });
 });
