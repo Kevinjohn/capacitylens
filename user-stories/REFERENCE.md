@@ -326,7 +326,7 @@ colour swatches, each `radio` labelled by a human-readable name like `Blue dark`
 select between presets. Fields with rejected input expose the inline error as their accessible
 description. Allocation and time-off validation focus the associated invalid field (or the
 form-level alert), scroll it into view, and clear the stale error on the next edit. Other labels are
-`Start`, `End`, `Hours / day`, `Status`,
+`Start`, `End`, `Hours / day`, `Repeat`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
@@ -362,6 +362,16 @@ button's `aria-label`/`title` carries its action and, where needed, the row name
 An allocation **Delete** asks for confirmation, then closes its editor only after the store accepts
 the removal. If the mutation rejects, the dialog stays open and its form error surfaces the safe
 rejection reason. Viewers see no allocation mutation actions.
+
+**Repeat allocation creation.** New allocation forms opened from either the row **+** or a drawn
+range include a **Repeat** dropdown between the scheduling controls and **Status**. It defaults to
+**Doesn’t repeat** and offers **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4 weeks** and
+**Monthly**. A repeating choice previews the number of independent allocations and the final start
+date over a fixed three-calendar-month window. Saving creates ordinary allocations in one undoable
+operation; one Undo removes the whole generated batch. Each allocation can then be edited or deleted
+independently. Edit and Duplicate never show or inherit the Repeat choice. Capacity and time-off
+warnings count the generated allocations affected, remain advisory, and include conflicts between
+allocations in the same generated batch.
 
 **Destructive confirmation** uses the action-specific title and buttons: lifecycle list actions use
 `Archive <entity>?`, `Archive`, and `Cancel`; actual deletion uses `Delete <entity>?`, `Delete`, and

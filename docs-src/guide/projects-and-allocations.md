@@ -49,11 +49,18 @@ There are two ways to book a person's time on the schedule:
    with the visible week.
 2. Draw it directly: click and drag across the days you want on that person's row.
 
-![The New allocation form with Project, Activity, Start Date, End Date, Hours / day and Status fields, plus an Add activity button](../screenshots/flows/allocation-form.jpg)
+![The New allocation form with Project, Activity, dates, workload, Repeat and Status fields, plus an Add activity button](../screenshots/flows/allocation-form.jpg)
 
 Either way, fill in the project or activity and save. If the activity you need doesn't
 exist yet, an "Add activity" option inside the same form can create it on the spot —
 unless your company has turned that convenience off in [Settings](/guide/settings).
+
+For regular work, choose **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4
+weeks** or **Monthly** under **Repeat**. The form shows how many independent allocations
+it will create over the next three calendar months and the final start date. Save once
+to create the complete group. One Undo removes that group; after creation, you can edit
+or delete each allocation independently. Leave **Doesn’t repeat** selected for a single
+allocation.
 
 ## Edit, move and remove allocations
 

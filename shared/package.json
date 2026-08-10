@@ -35,6 +35,7 @@
     "./lib/dateMath": "./src/lib/dateMath.ts",
     "./lib/id": "./src/lib/id.ts",
     "./lib/integrity": "./src/lib/integrity.ts",
+    "./lib/repeatingDates": "./src/lib/repeatingDates.ts",
     "./lib/sanitizeImport": "./src/lib/sanitizeImport.ts",
     "./lib/schedulingDays": "./src/lib/schedulingDays.ts",
     "./lib/strings": "./src/lib/strings.ts",

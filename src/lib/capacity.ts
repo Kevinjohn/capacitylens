@@ -165,6 +165,12 @@ export interface CapacityAdvisory {
   timeOffDays: number; // days in the window the resource is on time off
 }
 
+/** Allocation fields read by the capacity advisory, accepting persisted rows or transient drafts. */
+export type CapacityAllocationInput = Pick<
+  Allocation,
+  "resourceId" | "startDate" | "endDate" | "hoursPerDay" | "ignoreWeekends"
+>;
+
 /** Non-blocking advisory for a PROPOSED allocation of `hoursPerDay` over [start, end] (with the
  *  proposal's own `ignoreWeekends`): how many days it would push the resource over capacity, and how
  *  many fall on time off. `otherAllocations` is the existing load to count against (caller excludes
@@ -181,7 +187,7 @@ export interface CapacityAdvisory {
  *  (each only on the days IT works), so it's O(window + load), not O(windowDays × allocations). */
 export function capacityAdvisory(
   resource: Resource,
-  otherAllocations: Allocation[],
+  otherAllocations: readonly CapacityAllocationInput[],
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,

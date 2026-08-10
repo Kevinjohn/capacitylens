@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { daysInclusive, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import {
   blockHoursPerDay,
   daysOfWorkFor,
@@ -42,6 +44,13 @@ import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
 import { buildActivityOptions } from "./activityOptions";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
+import { formatShortDate } from "../../lib/dateDisplay";
+import {
+  projectAllocationDates,
+  repeatingAllocationAdvisory,
+  repeatPatternForSelection,
+  type RepeatSelection,
+} from "../../lib/repeatingAllocations";
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
  *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
@@ -50,6 +59,15 @@ import { undoShortcut } from "../../lib/keyboardShortcuts";
 const roundDays = (n: number) => Math.round(n * 1e6) / 1e6;
 /** 2-dp rounding for the human-readable "…h/day" hint only — never fed back into a value. */
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+const repeatOptions = (): Option[] => [
+  { value: "none", label: m.form_allocation_repeat_none() },
+  { value: "weekly", label: m.form_allocation_repeat_weekly() },
+  { value: "every-two-weeks", label: m.form_allocation_repeat_every_two_weeks() },
+  { value: "every-three-weeks", label: m.form_allocation_repeat_every_three_weeks() },
+  { value: "every-four-weeks", label: m.form_allocation_repeat_every_four_weeks() },
+  { value: "monthly", label: m.form_allocation_repeat_monthly() },
+];
 
 type AllocationModalProps =
   | { allocationId: string; onClose: () => void }
@@ -119,6 +137,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const data = useActiveScopedData();
   const addAllocation = useStore((s) => s.addAllocation);
+  const addAllocations = useStore((s) => s.addAllocations);
   const updateAllocation = useStore((s) => s.updateAllocation);
   const deleteAllocation = useStore((s) => s.deleteAllocation);
   const addActivity = useStore((s) => s.addActivity);
@@ -159,6 +178,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? "confirmed");
   const [note, setNote] = useState(editing?.note ?? "");
   const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false);
+  const [repeat, setRepeat] = useState<RepeatSelection>("none");
   // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
   // hours/dates against the assignee's working week; for a NEW one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
@@ -234,6 +254,69 @@ export function AllocationModal(props: AllocationModalProps) {
   const typedDateSpanDays = startDate && endDate ? daysInclusive(startDate, endDate) : 0;
   const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
 
+  // Repeating preview/advisory inputs mirror the effective persisted fields without invoking the
+  // submit validator (which owns focus/error side effects). Invalid partial form state gets no
+  // preview; a supported-domain failure is surfaced when Save is attempted.
+  const repeatProjection = useMemo(() => {
+    if (!create || repeat === "none" || !selectedResource || !resourceId || !activityId) return null;
+    if (!isValidISODate(startDate) || !isValidISODate(effEndDate) || effEndDate < startDate) return null;
+    if (daysInclusive(startDate, effEndDate) > MAX_SPAN_DAYS) return null;
+    if ((isDays || isBlocks) && (!validDaysOver || !spanFitsDateDomain)) return null;
+    if (isDays && !(daysOfWork > 0)) return null;
+    if (
+      !isExternal &&
+      !isBlocks &&
+      !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
+    )
+      return null;
+    const activity = data.activities.find((candidate) => candidate.id === activityId);
+    if (!activity || !validateAllocationAssignment(selectedResource, activity.projectId).ok) return null;
+    try {
+      const { startDates } = generateRepeatingStartDates(startDate, repeatPatternForSelection(repeat));
+      const drafts = projectAllocationDates(
+        {
+          resourceId,
+          activityId,
+          startDate,
+          endDate: effEndDate,
+          hoursPerDay: effHoursPerDay,
+          status,
+          note: note || undefined,
+          ignoreWeekends: isExternal ? true : ignoreWeekends,
+        },
+        startDates,
+        { schedulingMode: mode, daysOver, resource: selectedResource },
+      );
+      return { drafts, startDates };
+    } catch (error) {
+      // A near-boundary date is valid form input but cannot form a three-month repeat. Save owns the
+      // localized error surface; invariant/programming errors remain loud instead of disappearing.
+      if (error instanceof RangeError) return null;
+      throw error;
+    }
+  }, [
+    activityId,
+    create,
+    data.activities,
+    daysOfWork,
+    daysOver,
+    effEndDate,
+    effHoursPerDay,
+    ignoreWeekends,
+    isBlocks,
+    isDays,
+    isExternal,
+    mode,
+    note,
+    repeat,
+    resourceId,
+    selectedResource,
+    spanFitsDateDomain,
+    startDate,
+    status,
+    validDaysOver,
+  ]);
+
   // Non-blocking capacity advisory (DECISIONS.md: "advisory at allocation time"). The drag-move
   // path shows this as a post-commit toast; surface it HERE too — on the create/edit surface that
   // every keyboard user and every "+"-create reaches. Saving stays allowed (advisory, never a block).
@@ -255,6 +338,33 @@ export function AllocationModal(props: AllocationModalProps) {
       isBlocks,
     );
     const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId);
+    if (create && repeat !== "none") {
+      if (!repeatProjection) return null;
+      const { overCapacityAllocations, timeOffAllocations } = repeatingAllocationAdvisory(
+        effectiveValues.resource,
+        others,
+        resourceTimeOff,
+        repeatProjection.drafts,
+      );
+      const bits: string[] = [];
+      if (overCapacityAllocations)
+        bits.push(
+          overCapacityAllocations === 1
+            ? m.form_allocation_repeat_advisory_over_capacity_one({ count: overCapacityAllocations })
+            : m.form_allocation_repeat_advisory_over_capacity_other({ count: overCapacityAllocations }),
+        );
+      if (timeOffAllocations)
+        bits.push(
+          timeOffAllocations === 1
+            ? m.form_allocation_repeat_advisory_timeoff_one({ count: timeOffAllocations })
+            : m.form_allocation_repeat_advisory_timeoff_other({ count: timeOffAllocations }),
+        );
+      return bits.length
+        ? m.form_allocation_repeat_advisory({
+            advisory: bits.join(m.form_allocation_repeat_advisory_join()),
+          })
+        : null;
+    }
     const { overDays, timeOffDays } = capacityAdvisory(
       effectiveValues.resource,
       others,
@@ -277,8 +387,20 @@ export function AllocationModal(props: AllocationModalProps) {
           ? m.form_allocation_advisory_timeoff_one({ count: timeOffDays })
           : m.form_allocation_advisory_timeoff_other({ count: timeOffDays }),
       );
-    return bits.length ? bits.join(m.form_allocation_advisory_join()) : null;
-  }, [data.allocations, data.timeOff, editId, effectiveValues, ignoreWeekends, isBlocks, resourceId, startDate]);
+    return bits.length ? m.form_allocation_advisory({ advisory: bits.join(m.form_allocation_advisory_join()) }) : null;
+  }, [
+    create,
+    data.allocations,
+    data.timeOff,
+    editId,
+    effectiveValues,
+    ignoreWeekends,
+    isBlocks,
+    repeat,
+    repeatProjection,
+    resourceId,
+    startDate,
+  ]);
 
   // Guard the formatted end-date hint: effEndDate is derived from a user-typed span, and a
   // value past the date range parses to an Invalid Date, which format() would throw on
@@ -526,12 +648,30 @@ export function AllocationModal(props: AllocationModalProps) {
           ...fields,
           ...(!isBlocks || isExternal ? { hoursPerDay: draftHoursPerDay } : {}),
         });
-      } else {
+      } else if (repeat === "none") {
         addAllocation(draft);
+      } else {
+        if (!selectedResource) {
+          throw new Error("The selected resource could not be resolved for repeat projection.");
+        }
+        const { startDates } = generateRepeatingStartDates(draft.startDate, repeatPatternForSelection(repeat));
+        const drafts = projectAllocationDates(draft, startDates, {
+          schedulingMode: mode,
+          daysOver,
+          resource: selectedResource,
+        });
+        addAllocations(drafts);
       }
       onClose();
     } catch (e) {
-      fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_save_failed());
+      fail(
+        null,
+        repeat !== "none" && e instanceof RangeError
+          ? m.form_allocation_err_repeat_date_domain()
+          : e instanceof Error
+            ? errorMessage(e)
+            : m.form_allocation_err_save_failed(),
+      );
     }
   };
 
@@ -565,6 +705,7 @@ export function AllocationModal(props: AllocationModalProps) {
       ? resourceDisplayName(initialResource)
       : m.form_allocation_advisory_resource_name()
     : undefined;
+  const repeatLastStart = repeatProjection?.startDates.at(-1);
 
   return (
     <Modal
@@ -810,6 +951,24 @@ export function AllocationModal(props: AllocationModalProps) {
           />
         </>
       )}
+      {create && (
+        <>
+          <SelectField
+            label={m.form_allocation_repeat_label()}
+            value={repeat}
+            onChange={(value) => setRepeat(value as RepeatSelection)}
+            options={repeatOptions()}
+          />
+          {repeatProjection && repeatLastStart && (
+            <p className="text-xs text-muted-foreground">
+              {m.form_allocation_repeat_preview({
+                count: repeatProjection.startDates.length,
+                lastStart: formatShortDate(repeatLastStart),
+              })}
+            </p>
+          )}
+        </>
+      )}
       <SelectField
         label={m.form_allocation_status_label()}
         value={status}
@@ -839,7 +998,7 @@ export function AllocationModal(props: AllocationModalProps) {
 
       {advisory && (
         <Alert variant="warn" role="status">
-          <AlertDescription>{m.form_allocation_advisory({ advisory })}</AlertDescription>
+          <AlertDescription>{advisory}</AlertDescription>
         </Alert>
       )}
       <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
