@@ -10,18 +10,6 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/docs.yml"
-  # Also on PRs: the committed docs/ is the artifact people read, and the
-  # freshness check below is the only thing that catches a source change whose
-  # rebuild was never committed. (Duplicated rather than a YAML anchor —
-  # GitHub Actions does not expand anchors.)
-  pull_request:
-    paths:
-      - "docs-src/**"
-      - "docs/**"
-      - "scripts/docs-standalone.mjs"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 concurrency:
