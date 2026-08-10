@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.35.7-alpha.1] — 2026-08-10
+
+A demo-data rename: the seeded people, companies, clients and projects are now recognisable,
+obviously-fictional comic-book names, and every documentation screenshot was recaptured to match.
+Display strings only — no schema change, no API change, no identifier change.
+
 ### Changed
 
 - **The demo dataset's people, companies, clients and projects were renamed.** The two seeded
@@ -2966,7 +2972,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...HEAD
+[0.35.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...v0.35.7-alpha.1
 [0.35.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...v0.35.6-alpha.1
 [0.35.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...v0.35.5-alpha.1
 [0.35.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.3-alpha.1...v0.35.4-alpha.1
