@@ -69,6 +69,8 @@ see their own access.
 Your members are listed in a table showing their name and email, with their role beneath
 their name. Two controls sit at the end of each row:
 
+![Members table with the privacy-preserving sign-in setting enabled](../screenshots/flows/team-access.jpg)
+
 - The **pencil** changes that person's role, with the consequences spelled out before you
   save.
 - The **gear** opens the rest: reset their password, sign them out everywhere, disable or
@@ -81,10 +83,12 @@ access** in the same menu puts them back exactly as they were. Removing someone,
 contrast, is permanent: they'd need a fresh invitation to return.
 
 Owners can turn on **Record member sign-ins** above the table. It is off by default. When
-it is on, a **Signed in** column shows **Yes** or **Not yet** for each member. CapacityLens
-stores no sign-in date or activity history for this feature. Turning the setting off
-deletes every confirmation. Admins can see the column when an Owner enables it, but only
-the Owner can change the setting.
+it is on, the columns are **Name**, **Email**, **Signed in**, **Edit member** and **Member
+settings**. The last two controls stay together at the right-hand edge. **Signed in**
+shows **Yes** or **Not yet** for each member. CapacityLens stores no sign-in date or
+activity history for this feature. Turning the setting off deletes every confirmation.
+Admins can see the column when an Owner enables it, but only the Owner can change the
+setting.
 
 ## Common questions
 
