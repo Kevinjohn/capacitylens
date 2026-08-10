@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.37.0-alpha.1] — 2026-08-10
+
+Team & access now has a focused member directory with reversible disable, archive and restore
+actions, last-login visibility, and server-enforced handling for every non-active membership path.
+No database migration or account-contract version change is required.
+
 ### Added
 
 - **A member's access can now be turned off instead of only removed.** Each row's new gear menu
@@ -3026,7 +3032,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.36.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.37.0-alpha.1...HEAD
+[0.37.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.36.0-alpha.1...v0.37.0-alpha.1
 [0.36.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...v0.36.0-alpha.1
 [0.35.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...v0.35.7-alpha.1
 [0.35.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...v0.35.6-alpha.1
