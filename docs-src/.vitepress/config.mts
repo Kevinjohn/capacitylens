@@ -1,4 +1,5 @@
 import { defineConfig } from "vitepress";
+import { imageLightbox } from "./lightbox.mts";
 
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
 // Sidebar order is the reading order: sections run from "never seen it" to
@@ -25,7 +26,9 @@ export default defineConfig({
   // Code blocks are the one dark element on the light page: terminals and code
   // read as terminals. The background/label colours to match live in
   // theme/custom.css (--vp-code-block-bg and friends).
-  markdown: { theme: "github-dark" },
+  // Screenshots get a JavaScript-free click-to-enlarge lightbox; see lightbox.mts
+  // for why it has to be build-time markup rather than a library.
+  markdown: { theme: "github-dark", config: imageLightbox },
 
   // Internal records that live in docs-src/ but are not part of the site.
   srcExclude: ["STYLE.md", "sso-cutover-design.md", "account-boundary.md", "README.md"],

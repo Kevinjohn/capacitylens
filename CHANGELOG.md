@@ -10,6 +10,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- **Documentation screenshots open full size when clicked.** Every screenshot in the docs is now a
+  lightbox: click it to see it filling the window, then click anywhere to close. The
+  screenshots are captured well above the width of the text column, so this shows detail that was
+  previously only legible by opening the image file directly. The lightbox is pure CSS — the
+  published docs deliberately ship without JavaScript so they open straight from disk (#187).
+
 ## [0.38.2-alpha.1] — 2026-08-10
 
 ### Changed

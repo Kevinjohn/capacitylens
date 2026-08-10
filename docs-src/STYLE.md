@@ -48,6 +48,13 @@ other page uses the standard numbered-list-under-`## Steps` pattern.
 - **Screenshots are real.** Every screenshot is captured from the running app (the
   access lab: `pnpm run dev:access`), lives in `docs-src/screenshots/`, and has alt text
   describing what it shows. Never mock up a screenshot. If the UI changes, recapture.
+- **Screenshots are click-to-enlarge, so capture them large.** Every image in a page is
+  automatically wrapped in a lightbox and shown at its natural size when clicked, so
+  capture at least ~1400px wide and don't downscale before committing — the text column
+  is only ~690px, and the enlarged view is the whole point. Nothing to write in the
+  Markdown: a plain `![alt](path)` gets this. The mechanism is CSS-only by necessity
+  (`docs-src/.vitepress/lightbox.mts` explains why); the published docs ship with no
+  JavaScript at all, so never reach for a lightbox library.
 - **Commands are copy-pasteable.** One command per block, no `$` prompts, and the
   expected output (or the relevant part of it) shown after.
 - **No cards.** Prose, lists, tables and steps only. Tables are for genuinely tabular

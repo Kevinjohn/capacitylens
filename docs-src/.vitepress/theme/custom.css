@@ -42,6 +42,98 @@
   max-width: 100%;
 }
 
+/* Click a screenshot to see it full size. The markup comes from
+   .vitepress/lightbox.mts; this is the whole mechanism, and it is deliberately
+   CSS-only — the shipped docs/ have every script stripped so the pages open
+   from disk, which no lightbox library can survive.
+
+   Both the inline screenshot and the overlay are labels for one hidden
+   checkbox, so opening and closing costs no history entries and needs no
+   script. There is no Escape key binding, because that would need JavaScript. */
+
+/* Visually hidden but still focusable and still operable with Space — this is
+   the control, so it must not be display:none or hidden. */
+.vp-doc .cl-toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vp-doc label.cl-zoom {
+  display: inline-block;
+  cursor: zoom-in;
+}
+
+/* The image is the only affordance a reader sees, so it has to look clickable,
+   and keyboard focus lands on the (invisible) checkbox — show that on the
+   image instead, or focus would appear to vanish. */
+.vp-doc label.cl-zoom:hover img,
+.vp-doc .cl-toggle:focus-visible + label.cl-zoom img {
+  border-color: var(--vp-c-brand-1);
+}
+
+.vp-doc .cl-toggle:focus-visible + label.cl-zoom img {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+}
+
+.cl-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  /* Above everything VitePress positions, including the sticky navbar. */
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: rgba(15, 23, 42, 0.92);
+  cursor: zoom-out;
+}
+
+.cl-toggle:checked ~ .cl-lightbox {
+  display: flex;
+}
+
+/* Natural size where it fits, shrunk to the viewport where it does not —
+   never stretched past 1:1, which would only blur the detail being sought. */
+.cl-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* Clicking anywhere closes, so say so. Absolute rather than a flex item, or it
+   would sit beside the image and squeeze it. */
+.cl-lightbox::after {
+  content: "Close";
+  position: absolute;
+  top: clamp(0.5rem, 2vw, 1.5rem);
+  right: clamp(0.5rem, 2vw, 1.5rem);
+  padding: 0.35rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* A printed page should show the screenshots in the flow of the text, never a
+   full-page overlay that happens to be open. */
+@media print {
+  .cl-lightbox {
+    display: none !important;
+  }
+}
+
 /* Tables fill the text column instead of shrinking to their content.
    (VitePress defaults tables to display:block for horizontal scrolling, which
    also makes them shrink-to-fit; our tables are narrow enough not to need it.) */
