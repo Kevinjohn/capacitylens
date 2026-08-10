@@ -11,19 +11,19 @@ if (!registryPin || registryPin !== mcpPin) {
 }
 
 const sourceOwnedPrimitives = {
-  "src/components/ui/alert-dialog.tsx": "7854a649e9b85a45d4bc4cbcc409fc192893e0d9eac40f4a5611a007a38d27b7",
-  "src/components/ui/alert.tsx": "bd29934aa20bbbec8a3a8288760e1b1bd14fa417833eed81aa7bcbe3c1952d4a",
-  "src/components/ui/avatar.tsx": "3d0fefe17e5b306b0988c179a0f1061e6db602c3737d390d53a8b446a05afaed",
-  "src/components/ui/badge.tsx": "3de25b19c1f7102ecae4cdde65346c1df6937aa4757dc0e96dd2235e45ab8cfe",
-  "src/components/ui/button.tsx": "2b496d42d6ee283218eb09840f5ac80e9e70d7bc7d0c4a8aafb12ab6a6545dd5",
-  "src/components/ui/dialog.tsx": "53579f839edf9ba006c680cbf7f3921d4fed0d7ff175f6a25556dba12f0a1d35",
-  "src/components/ui/empty.tsx": "58d34dee3134788a7589b90da577dc4c2a3f3b8ff08aad88c793ae15795eaa2e",
-  "src/components/ui/popover.tsx": "7305ffad7b25b357d5b773eb305414f4b9f3edbcfa76104a8d23d49bd22562e0",
-  "src/components/ui/select.tsx": "8599b341223be4c0cd302ccd3115caddf0231f76a5263931953410d8d270b8b0",
-  "src/components/ui/sheet.tsx": "96e98f094c75fed4bc0a51fc13a415ef1571440f6af00a27628382e6396a0369",
-  "src/components/ui/sidebar.tsx": "c33615478512cbcfa35642b5ddea61ec0b1d580689b43d2861764beaf5bd763d",
-  "src/components/ui/toggle-group.tsx": "13d5432461ff342a30e5b8fddd2987fd9a50b92cdcb4df261099b68a8692bf85",
-  "src/components/ui/tooltip.tsx": "00a6287d9fd1b8957f6fe7aa790e81312421bad7f4baced67ecf6d9354a2de5c",
+  "src/components/ui/alert-dialog.tsx": "349db420b7bbf35740d3ab12ed59d43890a7c1e3226254aec3565958a9a4dcfe",
+  "src/components/ui/alert.tsx": "ebc8fc4919d4fb9df5fe2ec21f79b857e842aa175d48334956e201f61a774455",
+  "src/components/ui/avatar.tsx": "b890b5ca3e769447cf5796c0b52a9013d95819084775de1118c9eba0b64780fb",
+  "src/components/ui/badge.tsx": "b694c63f9d671da39f1080fb6553e7193be113b3f9d43f582d03a62aaa12aedb",
+  "src/components/ui/button.tsx": "41dbd3f75017f1d9608b2cb7ed083680856567f25d06a5e7034197060f339e01",
+  "src/components/ui/dialog.tsx": "205eb95021029f859a758bcfb3cc1b06411e4115770e1b3832ac05dcb965562b",
+  "src/components/ui/empty.tsx": "7a1a93dfb6e50fd48828adda4190d5c41d1d3eab291c90cdb15f5fc7ee85a35e",
+  "src/components/ui/popover.tsx": "f61dada3673fe5a39c3a13bec2f4d13cda295b50284ec59468e33da70be8b3eb",
+  "src/components/ui/select.tsx": "69293c2bc2ba73582bfc8e79622f98e3345b8df99a83e2447567e9c6fa1d010b",
+  "src/components/ui/sheet.tsx": "6be9428d6cbd836f873775c304bbacce1d5466faef038e96b8946a418c566051",
+  "src/components/ui/sidebar.tsx": "20448ce1be6a481a85e5e97a12fb1c65d6eff987330436a018df998553695e29",
+  "src/components/ui/toggle-group.tsx": "e4c20c6688e2194eb0bfef615337b492617c9ea55d41bdb5f41964a8f1456fa9",
+  "src/components/ui/tooltip.tsx": "ad91c94f267ab82affe152c8cc20cfa78c2d7225af8f83618e3ec5a925b734aa",
 };
 
 const changed = [];

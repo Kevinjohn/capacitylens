@@ -31,7 +31,14 @@ describe("global UI layer tokens", () => {
   });
 
   it("orders sticky, drag, modal, popover, tooltip and skip-link tiers", () => {
-    const values = ["sticky", "drag", "modal", "popover", "tooltip", "skip-link"].map((tier) => {
+    const values = [
+      "sticky",
+      "drag",
+      "modal",
+      "popover",
+      "tooltip",
+      "skip-link",
+    ].map((tier) => {
       const match = css.match(new RegExp(`--z-index-${tier}:\\s*(\\d+)`));
       expect(match, `missing --z-index-${tier}`).not.toBeNull();
       return Number(match?.[1]);
