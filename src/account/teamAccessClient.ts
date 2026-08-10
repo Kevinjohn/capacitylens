@@ -13,12 +13,16 @@ export interface TeamMember {
   createdAt: string;
   name: string | null;
   email: string | null;
-  /** Newest RETAINED session, so null means "unknown", never "has never signed in": a member whose
-   *  last session aged out of retention is deliberately indistinguishable from one who never had one. */
-  lastLoginAt: string | null;
+  /** Coarse, account-opted-in observation. Null means tracking is off; no timestamp is collected. */
+  signInConfirmed: boolean | null;
   isSelf: boolean;
   mayResetPassword: boolean;
   mayRevokeSessions: boolean;
+}
+
+export interface TeamDirectory {
+  members: TeamMember[];
+  signInTrackingEnabled: boolean;
 }
 
 export interface TeamInvitation {
@@ -47,8 +51,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isTimestamp = isIsoInstant;
 
-function parseMembers(value: unknown): TeamMember[] | null {
-  if (!isRecord(value) || !Array.isArray(value.members)) return null;
+function parseMembers(value: unknown): TeamDirectory | null {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.members) ||
+    !(value.signInTrackingEnabled === undefined || typeof value.signInTrackingEnabled === "boolean")
+  )
+    return null;
+  const signInTrackingEnabled = value.signInTrackingEnabled === true;
   const members: TeamMember[] = [];
   for (const row of value.members) {
     if (
@@ -58,7 +68,11 @@ function parseMembers(value: unknown): TeamMember[] | null {
       !isAccountRole(row.role) ||
       !isMembershipStatus(row.status) ||
       !isTimestamp(row.createdAt) ||
-      !(row.lastLoginAt === undefined || row.lastLoginAt === null || isTimestamp(row.lastLoginAt)) ||
+      !(
+        row.signInConfirmed === undefined ||
+        row.signInConfirmed === null ||
+        typeof row.signInConfirmed === "boolean"
+      ) ||
       !(row.name === null || typeof row.name === "string") ||
       !(row.email === null || typeof row.email === "string") ||
       typeof row.isSelf !== "boolean" ||
@@ -75,14 +89,14 @@ function parseMembers(value: unknown): TeamMember[] | null {
       createdAt: row.createdAt,
       name: row.name,
       email: row.email,
-      lastLoginAt: typeof row.lastLoginAt === "string" ? row.lastLoginAt : null,
+      signInConfirmed: typeof row.signInConfirmed === "boolean" ? row.signInConfirmed : null,
       isSelf: row.isSelf,
       mayResetPassword: row.mayResetPassword === true,
       mayRevokeSessions: row.mayRevokeSessions === true,
     });
   }
   if (value.members.length > 0 && members.length === 0) return null;
-  return hasDuplicateIdentity(members, (member) => member.userId) ? null : members;
+  return hasDuplicateIdentity(members, (member) => member.userId) ? null : { members, signInTrackingEnabled };
 }
 
 function parseInvitations(value: unknown): TeamInvitation[] | null {
@@ -194,8 +208,14 @@ const noContent = (): true => true;
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
  * here; the Team & access controller consumes semantic outcomes only. */
 export const teamAccessClient = {
-  async listMembers(workspaceId: string): Promise<TeamAccessResult<TeamMember[]>> {
+  async listMembers(workspaceId: string): Promise<TeamAccessResult<TeamDirectory>> {
     return readResult(await accountClient.listMembers(workspaceId), parseMembers);
+  },
+
+  async setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<TeamAccessResult<boolean>> {
+    return readResult(await accountClient.setMemberSignInTracking(workspaceId, enabled), (body) =>
+      isRecord(body) && typeof body.enabled === "boolean" ? body.enabled : null,
+    );
   },
 
   async listInvitations(workspaceId: string): Promise<TeamAccessResult<TeamInvitation[]>> {

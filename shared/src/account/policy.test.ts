@@ -15,6 +15,8 @@ describe("account administration policy", () => {
     expect(canAdministerAccount("viewer", "manage-members")).toBe(false);
     expect(canAdministerAccount("editor", "manage-invitations")).toBe(false);
     expect(canAdministerAccount("admin", "manage-members")).toBe(true);
+    expect(canAdministerAccount("admin", "manage-member-sign-in-tracking")).toBe(false);
+    expect(canAdministerAccount("owner", "manage-member-sign-in-tracking")).toBe(true);
     expect(canAdministerAccount("admin", "transfer-ownership")).toBe(false);
     expect(canAdministerAccount("owner", "transfer-ownership")).toBe(true);
     expect(canAdministerAccount("admin", "erase-workspace")).toBe(false);

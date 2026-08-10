@@ -106,12 +106,6 @@ export interface PrincipalSummary {
   id: PrincipalId;
   displayName: string | null;
   email: string | null;
-  /** When this principal most recently authenticated, derived from the newest retained session.
-   *  `null` means "no retained session" — a principal who has never signed in AND one whose last
-   *  session has aged out of retention are deliberately indistinguishable here, so callers must
-   *  present it as "unknown", never as "never signed in". Absent on lookups that do not resolve
-   *  sessions (e.g. the federated-subject probe). */
-  lastAuthenticatedAt?: IsoInstant | null;
 }
 
 interface ApplicationSessionBase {

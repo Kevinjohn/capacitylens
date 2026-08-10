@@ -87,13 +87,17 @@ describe("teamAccessClient identity validation", () => {
 
     await expect(teamAccessClient.listMembers("account-1")).resolves.toMatchObject({
       kind: "ok",
-      value: [
-        {
-          userId: "legacy-user",
-          mayResetPassword: false,
-          mayRevokeSessions: false,
-        },
-      ],
+      value: {
+        signInTrackingEnabled: false,
+        members: [
+          {
+            userId: "legacy-user",
+            signInConfirmed: null,
+            mayResetPassword: false,
+            mayRevokeSessions: false,
+          },
+        ],
+      },
     });
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("unsupported member-directory row"),

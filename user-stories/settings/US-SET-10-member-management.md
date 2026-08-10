@@ -6,9 +6,10 @@
 
 Let an Owner or Admin manage who can access their company from Team & access: see the member list, invite
 people (a link, optionally pre-authorised to one email), change a member's role, disable or restore a
-member's access, remove a member, and list/revoke outstanding invites. An Admin manages members but
-cannot do owner-only operations. Ownership transfer is owner-only and, since #175, has no per-row
-control: it is an API operation awaiting its own owner-only section.
+member's access, remove a member, and list/revoke outstanding invites. An Owner may also opt in to a
+coarse "has signed in" confirmation for each membership. An Admin manages members but cannot do
+owner-only operations. Ownership transfer is owner-only and, since #175, has no per-row control: it
+is an API operation awaiting its own owner-only section.
 
 ## Why
 
@@ -41,14 +42,13 @@ intro.
    reference material. Below it sits the **Members** section (`data-testid="members-section"`,
    heading **Members**).
 2. The **member list** is a table (`data-testid="members-table"`) with the columns **Name**,
-   **Member role**, **Last login** and **Actions**, one row per member
-   (`data-testid="member-row"`); B's own row is marked **(you)**. The table lists the active members,
+   **Email**, **Edit member** and **Member settings**, one row per member
+   (`data-testid="member-row"`); the role sits beneath the name and B's own row is marked **(you)**.
+   The table lists the active members,
    ordered by join date and then by name; disabled and archived memberships are grouped below it
    behind a collapsed **No longer active (_count_)** disclosure
    (`data-testid="members-inactive-toggle"`) that reveals a second table
-   (`data-testid="members-inactive-table"`) whose rows carry a **Disabled**/**Archived** badge. **Last login** is derived from the retained session table, so a
-   member with no retained session reads **Unknown** — never "Never", which this read cannot honestly
-   distinguish.
+   (`data-testid="members-inactive-table"`) whose rows carry a **Disabled**/**Archived** badge.
 3. Each row ends in two controls, both naming their member for screen readers: a pencil
    (`data-testid="member-edit"`) that opens the **Change member role** dialog, and a gear
    (`data-testid="member-menu"`) that opens the member-actions menu. Both are disabled while any
@@ -85,6 +85,13 @@ intro.
    **Owner** and steps the caller down to **Admin** in one server call, and the account always keeps
    exactly one Owner. The caller cannot target themselves (400) or a non-member (404). A follow-up
    issue gives it a dedicated owner-only section.
+10. Signed in as A, the Owner can turn on **Record member sign-ins**
+    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Email** and
+    the two right-aligned action columns. It shows only **Yes** or **Not yet** for a successful
+    sign-in while the setting is on. The setting is off by default, starts a fresh observation
+    window when enabled, and deletes every confirmation when disabled. CapacityLens stores no
+    sign-in date, enablement date or site-activity history for this feature. B can see the column
+    after A enables it but cannot see or operate the switch.
 
 ## Acceptance criteria
 
@@ -92,9 +99,16 @@ intro.
   from a persisted auth-off server's **Open access** posture. The **Members** management section
   renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
   explanation but no member directory or controls.
-- The member list is a table of **Name**, **Member role**, **Last login** and **Actions**, with the
-  caller's own row marked, ordered by join date and then by name. An unknown last login renders
-  **Unknown**, never "Never".
+- The member list is a table of **Name**, **Email**, optional **Signed in**, **Edit member** and
+  **Member settings**, with the role visible beneath the name. The caller's own row is marked and
+  rows are ordered by join date and then by name. The pencil occupies the fourth column and the gear
+  the fifth when **Signed in** is visible; both action columns stay separated and right-aligned.
+- **Record member sign-ins** is Owner-only and off by default. Enabling it starts a fresh window,
+  confirms the Owner operating the switch and stores one nullable boolean per membership. A
+  successful sign-in changes **Not yet** to **Yes**. Changing that membership's access state,
+  revoking the person's sessions or issuing a new password-reset link clears the confirmation.
+  Disabling the setting erases all confirmations. No timestamp or site-activity event is recorded by
+  this feature.
 - The main table lists only active members. Disabled and archived memberships appear under a
   **No longer active (_count_)** disclosure that is **collapsed by default**, reports its state
   through `aria-expanded`, badges each row **Disabled** or **Archived**, and is absent entirely when
@@ -136,8 +150,10 @@ intro.
   transferring ownership as a non-owner is **403**, to a non-member is **404**, and to a missing/empty
   or self target is **400**; revoking another account's invite is a no-op; and reading another
   account's members is **403** (no cross-tenant member leak).
-- API routes: `GET /api/accounts/:accountId/members` (each member carries `status` and a nullable
-  `lastLoginAt`), `PATCH …/members/:userId {role}`, `PATCH …/members/:userId/status {status}`,
+- API routes: `GET /api/accounts/:accountId/members` (returns
+  `{members, signInTrackingEnabled}`; each member carries `status` and nullable
+  `signInConfirmed`), `PUT …/member-sign-in-tracking {enabled}` (Owner only),
+  `PATCH …/members/:userId {role}`, `PATCH …/members/:userId/status {status}`,
   `DELETE …/members/:userId`, `POST …/transfer-ownership {toUserId}` (owner-only),
   `GET /api/accounts/:accountId/invites` (no token), `DELETE …/invites/:id`. OFF mode returns empty
   lists and inert mutates.

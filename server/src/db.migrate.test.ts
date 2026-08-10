@@ -51,6 +51,11 @@ import {
 // current shape, so the migration is a no-op there and would give false confidence.)
 
 const TS = "2026-01-01T00:00:00.000Z";
+const V26_MIGRATION = {
+  version: 26,
+  name: "add-member-sign-in-confirmation",
+  checksum: "05c1b48c51278afc08fe6e067329f97a42f803b69d0f21df0079e9512cfa8339",
+} as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -825,9 +830,11 @@ describe("schema migration of an existing on-disk DB", () => {
           userId TEXT NOT NULL,
           role TEXT NOT NULL,
           status TEXT NOT NULL,
-          createdAt TEXT NOT NULL
+          createdAt TEXT NOT NULL,
+          signInConfirmed TEXT
         );
-        INSERT INTO account_members_rebuilt SELECT * FROM account_members;
+        INSERT INTO account_members_rebuilt
+          SELECT accountId, userId, role, status, createdAt, signInConfirmed FROM account_members;
         DROP TABLE account_members;
         ALTER TABLE account_members_rebuilt RENAME TO account_members;
         CREATE INDEX idx_account_members_userId ON account_members(userId);
@@ -1198,6 +1205,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "secure-federated-identity-linking",
         checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
+      V26_MIGRATION,
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1228,7 +1236,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1256,7 +1264,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     const plan = planDatabaseMigrations(db).migrations;
-    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25]);
+    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
     expect(plan[0]).toEqual({
       version: 17,
       name: "add-durable-audit-outbox",
@@ -1414,6 +1422,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "secure-federated-identity-linking",
         checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
+      V26_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1520,7 +1529,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25,
+      20, 21, 22, 23, 24, 25, 26,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -1567,6 +1576,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "secure-federated-identity-linking",
         checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
+      V26_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1635,6 +1645,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "secure-federated-identity-linking",
         checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
+      V26_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1680,6 +1691,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "secure-federated-identity-linking",
         checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
+      V26_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1731,6 +1743,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "secure-federated-identity-linking",
         checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
+      V26_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -1757,7 +1770,7 @@ describe("schema migration of an existing on-disk DB", () => {
         DROP TABLE capacitylens_federated_link_observations;
         DROP TABLE capacitylens_federated_link_ceremonies;
         DROP TABLE capacitylens_sso_cutover_state;
-        DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25;
+        DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
         PRAGMA user_version = 24;
         CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
         CREATE TABLE account (
@@ -1782,6 +1795,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "secure-federated-identity-linking",
         checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
       },
+      V26_MIGRATION,
     ]);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
@@ -1923,6 +1937,26 @@ describe("schema migration of an existing on-disk DB", () => {
     } finally {
       copied.cleanup();
     }
+  });
+
+  it("v26 adds default-off member sign-in confirmation through one explicit ledger step", () => {
+    const db = openDb(":memory:");
+    db.exec(`
+      DROP TABLE account_member_sign_in_tracking;
+      ALTER TABLE account_members DROP COLUMN signInConfirmed;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 26;
+      PRAGMA user_version = 25;
+    `);
+
+    expect(planDatabaseMigrations(db).migrations).toEqual([V26_MIGRATION]);
+    initializeOpenDb(db, ":memory:");
+    expect(
+      (db.prepare("PRAGMA table_info(account_members)").all() as Array<{ name: string }>).some(
+        ({ name }) => name === "signInConfirmed",
+      ),
+    ).toBe(true);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM account_member_sign_in_tracking").get()).toEqual({ count: 0 });
+    db.close();
   });
 
   it("emits v11 owner-promotion outcomes only after the migration commits", () => {

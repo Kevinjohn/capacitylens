@@ -25,6 +25,7 @@ export type { Role } from "../account/types";
  *                              Admin tier (owner | admin).
  * - `'manageMembers'`    — add / remove members and change their roles. Admin tier (owner | admin).
  * - `'manageInvites'`    — create / revoke invites (link + email-preauth). Admin tier (owner | admin).
+ * - `'manageMemberSignInTracking'` — opt into coarse sign-in confirmation. Owner ONLY.
  * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
  * - `'deleteAccount'`    — erase an entire account and its members' orphaned identities. Owner ONLY.
  * - `'transferOwnership'`— hand the account to another login. Owner ONLY.
@@ -38,6 +39,7 @@ export type Action =
   | "manageInternalClient"
   | "manageMembers"
   | "manageInvites"
+  | "manageMemberSignInTracking"
   | "purge"
   | "deleteAccount"
   | "transferOwnership";
@@ -64,6 +66,7 @@ const MIN_TIER = {
 const ACCOUNT_ADMIN_ACTION = {
   manageMembers: "manage-members",
   manageInvites: "manage-invitations",
+  manageMemberSignInTracking: "manage-member-sign-in-tracking",
   deleteAccount: "erase-workspace",
   transferOwnership: "transfer-ownership",
 } as const satisfies Record<AccountAdministrationAction, AccountAdminAction>;

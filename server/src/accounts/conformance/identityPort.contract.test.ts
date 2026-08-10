@@ -95,15 +95,8 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
       const summaries = await current.port.getPrincipalSummaries({
         principalIds: [current.knownPrincipal.id, "unknown-principal", current.knownPrincipal.id],
       });
-      // Identity fields are contractual for every adapter. lastAuthenticatedAt is not: it is
-      // OPTIONAL precisely because an adapter without retained sessions (trusted-local) has nothing
-      // truthful to report, so the contract fixes its TYPE rather than its value.
-      const { lastAuthenticatedAt, ...identity } = current.knownPrincipal;
-      void lastAuthenticatedAt;
       expect(summaries).toHaveLength(1);
-      expect(summaries[0]).toMatchObject(identity);
-      const observed = summaries[0]!.lastAuthenticatedAt;
-      expect(observed === undefined || observed === null || isIsoInstant(observed)).toBe(true);
+      expect(summaries[0]).toEqual(current.knownPrincipal);
     });
 
     it("does not correlate an unknown upstream identity by email", async () => {

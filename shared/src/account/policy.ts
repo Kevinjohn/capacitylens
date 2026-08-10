@@ -1,7 +1,12 @@
 import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
 
 export type AccountAdminAction =
-  "list-members" | "manage-members" | "manage-invitations" | "transfer-ownership" | "erase-workspace";
+  | "list-members"
+  | "manage-members"
+  | "manage-invitations"
+  | "manage-member-sign-in-tracking"
+  | "transfer-ownership"
+  | "erase-workspace";
 
 const ROLE_RANK: Readonly<Record<Role, number>> = {
   viewer: 0,
@@ -14,6 +19,7 @@ const MIN_ADMIN_TIER = {
   "list-members": "admin",
   "manage-members": "admin",
   "manage-invitations": "admin",
+  "manage-member-sign-in-tracking": "owner",
   "transfer-ownership": "owner",
   "erase-workspace": "owner",
 } as const satisfies Record<AccountAdminAction, Role>;

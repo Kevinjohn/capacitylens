@@ -113,10 +113,13 @@ describe("account-boundary architecture", () => {
     const productPolicy = readFileSync(resolve(serverRoot, "../../shared/src/domain/access.ts"), "utf8");
     const accountPolicy = readFileSync(resolve(sharedAccountRoot, "policy.ts"), "utf8");
     const productThresholds = productPolicy.match(/const MIN_TIER = \{[\s\S]*?\n\}/)?.[0] ?? "";
-    expect(productThresholds).not.toMatch(/manageMembers|manageInvites|deleteAccount|transferOwnership/);
+    expect(productThresholds).not.toMatch(
+      /manageMembers|manageInvites|manageMemberSignInTracking|deleteAccount|transferOwnership/,
+    );
     expect(productPolicy).toContain("canAdministerAccount(role, accountAction)");
     expect(accountPolicy).toMatch(/['"]manage-members['"]:\s*['"]admin['"]/);
     expect(accountPolicy).toMatch(/['"]manage-invitations['"]:\s*['"]admin['"]/);
+    expect(accountPolicy).toMatch(/['"]manage-member-sign-in-tracking['"]:\s*['"]owner['"]/);
     expect(accountPolicy).toMatch(/['"]transfer-ownership['"]:\s*['"]owner['"]/);
     expect(accountPolicy).toMatch(/['"]erase-workspace['"]:\s*['"]owner['"]/);
   });
@@ -131,6 +134,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables.ts"),
       resolve(serverRoot, "db.ts"),
       resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "accounts/memberSignInTracking.ts"),
     ]);
     const controlTableImporters = new Set([
       resolve(serverRoot, "db.ts"),

@@ -30,6 +30,7 @@ import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 import type { LocalAccountAdminPort } from "./sqliteAccountAdminPort";
 import { WriteOnceSecretReplay } from "./writeOnceSecretReplay";
 import { accountAuditWriter, recordTerminalOutcome, type AccountAuditInput } from "./accountFlowRuntime";
+import { clearTrackedMemberSignIn } from "./memberSignInTracking";
 
 type RepairCoordinate = "workspaceId" | "targetPrincipalId" | "provisionalPrincipalId" | "ceremonyId";
 
@@ -1068,18 +1069,20 @@ export function localAccountFlows(input: {
             throw changed;
           }
           persistTerminalOutcome(
-            () =>
-              completeCommand(db, scope, command, {
+            () => {
+              clearTrackedMemberSignIn(db, targetPrincipalId);
+              return completeCommand(db, scope, command, {
                 ceremonyId: ceremony!.ceremonyId,
                 expiresAt: ceremony!.expiresAt,
-              }),
+              });
+            },
             {
               action: "identity.password_reset_issued",
               outcome: "success",
               actorPrincipalId: actor.principalId,
               targetPrincipalId,
               command,
-              changedFields: ["credential"],
+              changedFields: ["credential", "signInConfirmation"],
             },
           );
           resetReplay.storeReserved(command.commandId, ceremony);
@@ -1183,14 +1186,20 @@ export function localAccountFlows(input: {
             targetPrincipalId,
             command,
           });
-          persistTerminalOutcome(() => completeCommand(db, scope, command, result), {
-            action: "identity.sessions_revoked",
-            outcome: "success",
-            actorPrincipalId: actor.principalId,
-            targetPrincipalId,
-            command,
-            changedFields: ["sessions"],
-          });
+          persistTerminalOutcome(
+            () => {
+              clearTrackedMemberSignIn(db, targetPrincipalId);
+              return completeCommand(db, scope, command, result);
+            },
+            {
+              action: "identity.sessions_revoked",
+              outcome: "success",
+              actorPrincipalId: actor.principalId,
+              targetPrincipalId,
+              command,
+              changedFields: ["sessions", "signInConfirmation"],
+            },
+          );
           return result;
         } catch (error) {
           const code = error instanceof AccountContractError ? error.failure.code : "DEPENDENCY_UNAVAILABLE";

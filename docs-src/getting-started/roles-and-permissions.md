@@ -60,7 +60,13 @@ which stays closed until you open it. If a company somehow ends up with no Owner
 no Owner](/self-hosting/incidents#a-company-has-no-owner) — CapacityLens repairs that
 automatically in almost every case.
 
-![The Team & access page, where an Admin or Owner sees each member's role, last sign-in and per-member actions, with the No longer active group opened to show a disabled and an archived member](../screenshots/flows/team-access.jpg)
+![Members table showing the optional Signed in column and row controls](../screenshots/flows/team-access.jpg)
+
+Owners can enable **Record member sign-ins** when they need a simple confirmation that an
+invite or access reset worked. It is off by default and records only **Yes** or **Not yet**
+for each company membership—never when someone signed in or what they did. Turning it off
+deletes the confirmations. See [Invite your team](/getting-started/invite-your-team#managing-someone-who-already-joined)
+for the member-management details.
 
 ## Details
 
