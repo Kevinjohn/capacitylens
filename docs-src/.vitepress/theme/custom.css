@@ -88,33 +88,49 @@
   z-index: 200;
   align-items: center;
   justify-content: center;
+  /* A tall capture can be taller than the window even at 1:1, and the point of
+     the lightbox is to read the detail — so let the overlay scroll rather than
+     shrinking the image to fit. `safe` keeps the top of an overflowing image
+     reachable; browsers without it just centre, as before. */
+  overflow: auto;
+  align-items: safe center;
   padding: clamp(1rem, 4vw, 3rem);
   background: rgba(15, 23, 42, 0.92);
   cursor: zoom-out;
 }
 
-.cl-toggle:checked ~ .cl-lightbox {
+/* Adjacent siblings, not `~`: the plugin emits toggle, inline label and overlay
+   as a run of three, and a general sibling combinator would let one checked
+   toggle reveal every later overlay in the same paragraph — clicking the first
+   of two screenshots would open the second. */
+.cl-toggle:checked + .cl-zoom + .cl-lightbox {
   display: flex;
 }
 
-/* Natural size where it fits, shrunk to the viewport where it does not —
-   never stretched past 1:1, which would only blur the detail being sought. */
+/* The page behind a fixed overlay still scrolls, which loses the reader's place
+   (and rubber-bands under the backdrop on iOS). No script needed. */
+html:has(.cl-toggle:checked) {
+  overflow: hidden;
+}
+
+/* Natural size where it fits, narrowed to the viewport where it does not —
+   never stretched past 1:1, which would only blur the detail being sought.
+   Height is deliberately unconstrained; the overlay scrolls instead. */
 .cl-lightbox img {
   max-width: 100%;
-  max-height: 100%;
   width: auto;
   height: auto;
-  object-fit: contain;
   border: 0;
   border-radius: 4px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
 }
 
-/* Clicking anywhere closes, so say so. Absolute rather than a flex item, or it
-   would sit beside the image and squeeze it. */
+/* Clicking anywhere closes, so say so. Taken out of flow rather than left as a
+   flex item, or it would sit beside the image and squeeze it; fixed rather than
+   absolute so it stays in the corner while a tall image is scrolled. */
 .cl-lightbox::after {
   content: "Close";
-  position: absolute;
+  position: fixed;
   top: clamp(0.5rem, 2vw, 1.5rem);
   right: clamp(0.5rem, 2vw, 1.5rem);
   padding: 0.35rem 0.85rem;

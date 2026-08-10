@@ -16,9 +16,10 @@ import { cwd } from "node:process";
 // swaps in a JS lightbox library, or if the plugin stops wrapping some images.
 //
 // What this does NOT check: that docs/ is up to date with docs-src/. Rebuilding and
-// diffing here would be far too slow for a unit test; AGENTS.md requires
-// `pnpm run docs:build` after any docs change, and .github/workflows/docs.yml
-// re-runs the build so a source change that cannot build fails CI.
+// diffing here would be far too slow for a unit test — that is why
+// .github/workflows/docs.yml rebuilds the site and fails on any diff against the
+// committed docs/. Without that step these assertions could pass against stale HTML
+// while the published pages shipped without the fix.
 
 const ROOT = join(cwd());
 const SITE = join(ROOT, "docs");
@@ -40,6 +41,13 @@ const articleOf = (html: string) => {
   return start === -1 || end === -1 ? "" : html.slice(start, end);
 };
 
+// The plugin deliberately leaves an image alone when it is already inside a
+// link, because a <label> nested in an <a> is invalid. Dropping anchors before
+// counting keeps that supported authoring pattern from reading as a regression
+// — otherwise the coverage check below fails on a page that is entirely correct
+// and the only way to get green is to weaken the check.
+const withoutLinks = (html: string) => html.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, "");
+
 describe("docs image lightbox", () => {
   const pages = htmlPages(SITE).map((path) => {
     const html = readFileSync(path, "utf8");
@@ -55,18 +63,20 @@ describe("docs image lightbox", () => {
     expect(withScreenshots.length).toBeGreaterThan(5);
   });
 
-  it("makes every content screenshot click-to-enlarge", () => {
-    // Each wrapped screenshot is emitted twice (inline + overlay copy), so a page
-    // with N images must have N/2 toggles. An image that lost its wrapper — or a
-    // deliberately linked image, which the plugin skips — shows up here as a
-    // mismatch and needs this expectation revisited rather than silently shipping
-    // an inert screenshot.
+  it("makes every unlinked content screenshot click-to-enlarge", () => {
+    // Each wrapped screenshot is emitted twice (inline + overlay copy), so once
+    // the images the plugin is meant to skip are removed, a page with N images
+    // must have N/2 toggles. An image that lost its wrapper shows up here as a
+    // surplus rather than silently shipping as an inert screenshot.
     const uncovered = withScreenshots
-      .map((page) => ({
-        name: page.name,
-        images: countOf(page.article, "<img"),
-        toggles: countOf(page.article, 'class="cl-toggle"'),
-      }))
+      .map((page) => {
+        const unlinked = withoutLinks(page.article);
+        return {
+          name: page.name,
+          images: countOf(unlinked, "<img"),
+          toggles: countOf(unlinked, 'class="cl-toggle"'),
+        };
+      })
       .filter((page) => page.images !== page.toggles * 2);
 
     expect(uncovered).toEqual([]);

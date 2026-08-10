@@ -7,9 +7,13 @@
 // lightbox is pure CSS, and this markdown-it plugin emits the markup it needs
 // at build time:
 //
-//   <input type="checkbox" class="cl-toggle" id="cl-zoom-1" aria-label="View full size: …">
+//   <input type="checkbox" class="cl-toggle" id="cl-zoom-1" aria-label="View this image full size">
 //   <label class="cl-zoom" for="cl-zoom-1"><img src="…" alt="…"></label>   <- inline screenshot
 //   <label class="cl-lightbox" for="cl-zoom-1"><img src="…" alt=""></label> <- overlay
+//
+// The three elements are adjacent siblings and the CSS matches them that way
+// (`:checked + .cl-zoom + .cl-lightbox`), so two screenshots in one paragraph
+// cannot open each other's overlay.
 //
 // The overlay is display:none until the checkbox is checked; both labels point
 // at the same checkbox, so clicking the screenshot opens it and clicking
@@ -29,8 +33,14 @@
 //
 // The trade-off is that the control is a checkbox rather than a link: it is
 // focusable and toggles with Space, but not with Enter, and it cannot be deep
-// linked. Neither matters for "let me see that screenshot properly". There is
-// no Escape-to-close, which would need JavaScript.
+// linked. Neither matters for "let me see that screenshot properly".
+//
+// Known keyboard limitation: opening leaves focus on the checkbox, so Space
+// closes again — but the overlay is not a modal. Tabbing while it is open moves
+// focus into the article behind the backdrop, where the focus ring cannot be
+// seen, and there is no Escape binding. Both fixes (focus trapping, a key
+// handler) need JavaScript, which the standalone build strips, so the escape
+// hatch is Shift+Tab back to the checkbox and Space.
 //
 // Both <img> tags carry the same src, so the browser reuses the one download —
 // the overlay shows the image at its natural size, which for our screenshots
@@ -43,11 +53,11 @@ interface Token {
   attrGet(name: string): string | null;
   attrSet(name: string, value: string): void;
   children: Token[] | null;
+  content: string;
 }
 
 interface Renderer {
   renderToken(tokens: Token[], idx: number, options: unknown): string;
-  renderInlineAsText(tokens: Token[], options: unknown, env: unknown): string;
   rules: Record<string, RenderRule | undefined>;
 }
 
@@ -92,8 +102,12 @@ export function imageLightbox(md: MarkdownItRenderer): void {
 
   // An image that is already a link is left alone: a <label> nested inside an
   // <a> is interactive content inside a link, which is invalid and behaves
-  // unpredictably. Rendering is strictly sequential, so tracking open links as
-  // they are emitted is enough to spot those images.
+  // unpredictably (the browser fires the label and follows the href at once).
+  // Rendering is strictly sequential, so tracking open links as they are
+  // emitted is enough to spot those images — but they arrive as two different
+  // token kinds: `[![alt](img)](href)` produces link_open/link_close, while a
+  // hand-written <a href="…">![alt](img)</a> produces raw html_inline, which
+  // those rules never see. Both are counted here.
   const linkDepth = new WeakMap<object, number>();
   const depthOf = (env: unknown) =>
     typeof env === "object" && env !== null ? (linkDepth.get(env) ?? 0) : 0;
@@ -111,33 +125,52 @@ export function imageLightbox(md: MarkdownItRenderer): void {
     return renderLinkClose(tokens, idx, options, env, self);
   };
 
+  const renderHtmlInline = md.renderer.rules.html_inline ?? renderToken;
+
+  md.renderer.rules.html_inline = (tokens, idx, options, env, self) => {
+    const html = tokens[idx].content ?? "";
+    const opened = (html.match(/<a[\s>]/gi) ?? []).length;
+    const closed = (html.match(/<\/a\s*>/gi) ?? []).length;
+    if (opened !== closed) setDepth(env, Math.max(0, depthOf(env) + opened - closed));
+    return renderHtmlInline(tokens, idx, options, env, self);
+  };
+
   md.renderer.rules.image = (tokens, idx, options, env, self) => {
     const token = tokens[idx];
-    const src = token.attrGet("src");
     const index = pageCounter(env);
 
     // Screenshots are heavy (up to 290KB each, several per page) and most sit
     // below the fold, so let the browser defer the ones the reader may never
-    // reach. This has to go on the INLINE copy: the overlay copy lives inside
-    // display:none and is never fetched until it is opened, so lazy-loading it
-    // would save nothing.
-    token.attrSet("loading", "lazy");
+    // reach — except the first on the page, which is usually in the opening
+    // viewport and is often the LCP element; deferring that one delays the
+    // paint it is measured by. This goes on the INLINE copy: the overlay copy
+    // lives inside display:none and is not fetched until it is opened, so
+    // lazy-loading it would save nothing.
+    if (index !== 1) token.attrSet("loading", "lazy");
     token.attrSet("decoding", "async");
 
     const inline = renderImage(tokens, idx, options, env, self);
+
+    // src is read AFTER rendering, not before: VitePress's own image rule (the
+    // one `renderImage` calls into) rewrites the token's src — `./`-prefixing
+    // it and percent-decoding it — and that rewritten form is what Vue's
+    // transformAssetUrls recognises as a bundled asset. Reading it first would
+    // give the overlay the raw authored path, so a screenshot written without a
+    // leading `./` would render inline but 404 in the enlarged view.
+    const src = token.attrGet("src");
     if (depthOf(env) > 0 || src === null || index === null) return inline;
 
     const id = `cl-zoom-${index}`;
-    const alt = self.renderInlineAsText(token.children ?? [], options, env).trim();
-    const openLabel = alt === "" ? "View this image full size" : `View full size: ${alt}`;
 
-    // The overlay copy is decorative: a reader using a screen reader has already
-    // been given the description by the inline image above it.
+    // The control is described generically, and the overlay copy is marked
+    // decorative, so the screenshot's alt text is announced exactly once — by
+    // the inline image itself. Repeating the alt in the checkbox's label would
+    // make every screenshot read out twice.
     return (
-      `<input type="checkbox" class="cl-toggle" id="${id}" aria-label="${escapeAttr(openLabel)}">` +
+      `<input type="checkbox" class="cl-toggle" id="${id}" aria-label="View this image full size">` +
       `<label class="cl-zoom" for="${id}">${inline}</label>` +
       `<label class="cl-lightbox" for="${id}">` +
-      `<img src="${escapeAttr(src)}" alt="" loading="lazy" decoding="async"></label>`
+      `<img src="${escapeAttr(src)}" alt="" decoding="async"></label>`
     );
   };
 }
