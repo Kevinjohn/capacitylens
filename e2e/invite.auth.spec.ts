@@ -13,7 +13,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // identity, and explicitly accepts. Finally we assert the API-layer single-use guarantee (re-POSTing
 // the same token is 409). Browser-agnostic (no UA branching).
 
-// The auth-e2e server is SEEDED (Studio North + Loft Digital), so a fresh sign-up is not a first-run
+// The auth-e2e server is SEEDED (Wayne Enterprises + Stark Industries), so a fresh sign-up is not a first-run
 // bootstrap and holds no membership — /api/orgs would 403; the BOOTSTRAP_TOKEN (from ./auth-helpers)
 // is the documented operator path to provision an org on an already-populated instance. Shared
 // plumbing (API/BOOTSTRAP_TOKEN/signUp) comes from ./auth-helpers.

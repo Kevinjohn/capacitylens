@@ -18,12 +18,12 @@ Import replaces everything, so feeding it a random JSON or a non-CapacityLens fi
 - a JSON object with none of CapacityLens's entity keys, e.g. `{ "hello": "world" }`.
   (Note: a file like `{ "resources": [] }` _would_ be accepted — the guard recognises any of `resources`, `disciplines`, `clients`, `projects`, `phases`, `activities`, `allocations`, `timeOff` as an array — so the test file must contain none of those keys as arrays.)
 
-1. Note the current data (e.g. Clients shows _Acme Inc._ and _Globex_; the Schedule has the seed bars).
+1. Note the current data (e.g. Clients shows _Queen Consolidated_ and _LexCorp_; the Schedule has the seed bars).
 2. Open **Settings** → the **Import & export** card at the bottom of the page, click **Import JSON** and choose the non-CapacityLens file.
 3. Observe the result — no confirmation dialog appears; instead a notice toast is shown.
 
 ## Acceptance criteria
 
 - ✅ Choosing an unrecognised file shows a rejection toast naming the SPECIFIC reason — **"This file is not CapacityLens data."** for a JSON object with none of CapacityLens's entity keys, or **"That file isn't valid JSON."** for a non-JSON/garbage file — and does **not** open the "Import data?" confirmation dialog. (The toast surfaces the real reason rather than one generic message, so the manager knows what was wrong with the file.)
-- ✅ The current dataset is fully preserved — no entities are removed or changed (the Clients list still shows _Acme Inc._ and _Globex_; the seed schedule is intact). There is no silent wipe.
+- ✅ The current dataset is fully preserved — no entities are removed or changed (the Clients list still shows _Queen Consolidated_ and _LexCorp_; the seed schedule is intact). There is no silent wipe.
 - ✅ A subsequent valid import still works normally (the failed attempt doesn't leave the import flow stuck).

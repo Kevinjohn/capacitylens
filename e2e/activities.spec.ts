@@ -7,7 +7,7 @@ test.describe("Activities", () => {
   test("adds an internal, a cross-project, and a project-specific activity into their three sections", async ({
     page,
   }) => {
-    await openApp(page, "Studio North", "/activities");
+    await openApp(page, "Wayne Enterprises", "/activities");
 
     // Internal kind → project picker hidden, lands in the "Internal activities" section.
     await page.getByRole("button", { name: "Add activity" }).click();
@@ -38,11 +38,11 @@ test.describe("Activities", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(
       page.getByTestId("project-specific-activities").getByTestId("activity-row").filter({ hasText: "Spec review" }),
-    ).toContainText("Acme");
+    ).toContainText("Queen");
   });
 
   test("edits an activity name", async ({ page }) => {
-    await openApp(page, "Studio North", "/activities");
+    await openApp(page, "Wayne Enterprises", "/activities");
     await page
       .getByTestId("activity-row")
       .filter({ hasText: "CMS Review" })

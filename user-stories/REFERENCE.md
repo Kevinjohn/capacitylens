@@ -10,7 +10,7 @@ If the app changes, update this file first, then the affected stories.
 > (`VITE_CAPACITYLENS_DEMO=1`) keeps data in memory with no login or network calls and resets on
 > reload — that
 > is the build these manual stories run against, started with `pnpm run dev:demo`, signed in to the
-> seeded **Studio North** company.
+> seeded **Wayne Enterprises** company.
 
 ---
 
@@ -27,8 +27,8 @@ If the app changes, update this file first, then the affected stories.
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
    device-globally; "Sign out" on the picker/sidebar returns to it).
 4. Then the **company picker** (you choose a tenant on every load — `activeAccountId` is never
-   persisted). Pick **Studio North** to see the seeded data these stories describe. (A second
-   seeded company, _Loft Digital_, is near-empty.) While "signed in", the picker shows
+   persisted). Pick **Wayne Enterprises** to see the seeded data these stories describe. (A second
+   seeded company, _Stark Industries_, is near-empty.) While "signed in", the picker shows
    _"Signed in as Jordan Avery"_ with a **Sign out** link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
@@ -254,7 +254,7 @@ success for the rebase never hides the independent loss.
 > real, server-backed instance (the default deploy) no longer auto-seeds from the client side —
 > `bootstrap()` (src/main.tsx) only passes a seed dataset in the demo build
 > (`VITE_CAPACITYLENS_DEMO=1`); a fresh server-backed instance lands on the empty
-> create-your-company picker instead of a fabricated "Studio North" (a pre-seeded two-company
+> create-your-company picker instead of a fabricated "Wayne Enterprises" (a pre-seeded two-company
 > instance would otherwise trip its own single-company cap on first boot). The two-company seed
 > described below happens only in: the demo build (`pnpm run dev:demo`, what these stories run
 > against), local dev tooling that opts in explicitly, and the db-backed E2E server's explicit
@@ -263,37 +263,37 @@ success for the rebase never hides the independent loss.
 > only in trusted-local/auth-off mode; an auth-enabled server refuses it even when the development
 > flag is set because a browser session carries no installation-wide erasure authority.
 
-- **Accounts (companies):** **Studio North** (holds everything below — pick this one) and
-  _Loft Digital_ (a second tenant with one Design discipline and no work).
+- **Accounts (companies):** **Wayne Enterprises** (holds everything below — pick this one) and
+  _Stark Industries_ (a second tenant with one Design discipline and no work).
 - **Disciplines:** Design (order 0), Development (1), Copywriting (2).
 - **Resources:**
-  - _Tyler Nix_ — Designer, Design, permanent, 8h, Mon–Fri.
-  - _Pam Gonzalez_ — PR & Brand, Copywriting, permanent, 8h, Mon–Fri.
-  - _Nike Spiros_ — Web Developer, Development, permanent, 8h, Mon–Fri.
-  - _Alex Rivera_ — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
-  - _Senior Designer_ — a **placeholder** (no name), Design, **bound to Project Lightning**. Shown
+  - _Bruce Wayne_ — Designer, Design, permanent, 8h, Mon–Fri.
+  - _Diana Prince_ — PR & Brand, Copywriting, permanent, 8h, Mon–Fri.
+  - _Clark Kent_ — Web Developer, Development, permanent, 8h, Mon–Fri.
+  - _Barry Allen_ — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
+  - _Senior Designer_ — a **placeholder** (no name), Design, **bound to Project Watchtower**. Shown
     as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
     are behind the per-account **Show placeholders** pref (Settings → Placeholders, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
-  - _Northstar Partners_ — an **external / 3rd party** (`r-ext-northstar`): a company, no discipline/
-    capacity, booked on Visual Design (Project Lightning) as a span only. **Hidden by default** —
+  - _Kord Industries_ — an **external / 3rd party** (`r-ext-northstar`): a company, no discipline/
+    capacity, booked on Visual Design (Project Watchtower) as a span only. **Hidden by default** —
     externals are behind the per-account **Show external resources** pref (Settings → External,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
-- **Clients:** Acme Inc., Globex. (**Internal** is the built-in, one per account — it is **HIDDEN
+- **Clients:** Queen Consolidated, LexCorp. (**Internal** is the built-in, one per account — it is **HIDDEN
   from the Clients management list**, but still selectable as a project's client and a "Filter by
   client" option; see the Internal-client appendix below.)
-- **Projects:** Project Lightning (Acme), Brand Themes (Globex).
-- **Phases (Project Lightning):** Discovery, Build.
+- **Projects:** Project Watchtower (Queen Consolidated), Metropolis Rebrand (LexCorp).
+- **Phases (Project Watchtower):** Discovery, Build.
 - **Activities** (every activity has a **kind**): _Project-specific_ — Wireframes, Visual Design, CMS Review
-  (Lightning), Brand System (Brand Themes); _Internal_ — Admin / Internal; _Cross-project_ —
-  Design, Workshop. "Design" is also booked for Alex (8–10 June) to demo the activity lens.
-- **Canonical allocations (June 2026):** Tyler is **over-allocated on 3–4 June** (8h + 4h > 8h).
-- **Canonical time off:** Tyler — 10–12 June (Holiday).
+  (Watchtower), Brand System (Metropolis Rebrand); _Internal_ — Admin / Internal; _Cross-project_ —
+  Design, Workshop. "Design" is also booked for Barry (8–10 June) to demo the activity lens.
+- **Canonical allocations (June 2026):** Bruce is **over-allocated on 3–4 June** (8h + 4h > 8h).
+- **Canonical time off:** Bruce — 10–12 June (Holiday).
 
 The canonical `seed()` fixture remains fixed to June 2026 for repeatable tests, screenshots and the
 exact dates in these stories. Runtime demo, access-lab and opt-in server seeding shift the same
-relative scenario onto the current Monday: Tyler's overlap remains Wednesday–Thursday and his time
+relative scenario onto the current Monday: Bruce's overlap remains Wednesday–Thursday and his time
 off remains the following Wednesday–Friday, so a new session opens populated without a date jump.
 The Playwright suite freezes the browser clock to **2026-06-03** in `e2e/helpers.ts` `openApp()`, so
 its runtime seed resolves to the canonical 1 June week and the literal story dates remain executable.
@@ -329,7 +329,7 @@ form-level alert), scroll it into view, and clear the stale error on the next ed
 `Start`, `End`, `Hours / day`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
-Turning it on reveals the required `Code name` field (placeholder `e.g. Northstar`) and the hint
+Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
 `Quotation marks are added automatically.` Non-owners editing an already-private row do not see the
 switch/code-name field; its redacted `Name` is disabled with `Only an account owner can change this
 private name.` An open client or project edit form never silently overwrites a newer copy loaded
@@ -916,7 +916,7 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
-`r-ph-designer`, `r-ext-northstar` (external party), `p-acme` (Project Lightning), `p-brand` (Brand Themes), `t-wires`.
+`r-ph-designer`, `r-ext-northstar` (external party), `p-acme` (Project Watchtower), `p-brand` (Metropolis Rebrand), `t-wires`.
 
 **Command palette:** `command-palette` (the palette panel), `command-palette-overlay` (the dismiss
 backdrop), `command-palette-input` (search field), `command-palette-option` (each result item;
@@ -931,7 +931,7 @@ multiple).
 - **Private client/project names.** A normal client or project may be marked private by an account
   **owner** and given a required code name. The real `name` and raw `codeName` remain persisted, but
   only owners receive them from the server. Admins, editors and viewers receive the code name in the
-  `name` field with exactly one pair of quotation marks (for example **`"Northstar"`**) and no raw
+  `name` field with exactly one pair of quotation marks (for example **`"Nightwing"`**) and no raw
   `codeName`, so the same quoted label flows through lists, filters, the scheduler, allocation bars,
   forms and the command palette. Non-owner writes pin the stored privacy fields, preventing a
   redacted sync round-trip from replacing the real name. Privacy is **off by default**, applies only
@@ -1001,7 +1001,7 @@ multiple).
 On the **Resources**, **Clients** and **Projects** management lists, the per-row destructive action
 is **Archive** (not a hard delete — the simplest coherent flow; soft-delete + permanent delete are
 reached later from Settings → Archived & deleted). The row's icon button has the accessible name
-**"Archive <name>"** (e.g. _Archive Alex Rivera_); clicking it opens a confirm dialog (title
+**"Archive <name>"** (e.g. _Archive Barry Rivera_); clicking it opens a confirm dialog (title
 **"Archive resource?" / "Archive client?" / "Archive project?"**, body _"Archive '<name>'? … You can
 restore it or permanently delete it from Settings → Archived & deleted."_, confirm button
 **"Archive"**). Confirming hides the row from the list **and** from the schedule (it becomes

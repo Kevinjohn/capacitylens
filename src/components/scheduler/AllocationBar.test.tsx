@@ -116,17 +116,17 @@ describe("AllocationBar rendering", () => {
 describe("AllocationBar client/project context", () => {
   const barWithContext = (): BarLayout => ({
     ...makeBar(makeAllocation()),
-    client: "Acme Inc.",
-    project: "Lightning",
+    client: "Queen Consolidated",
+    project: "Watchtower",
   });
 
   it("prefixes the label with client and project by default", () => {
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
-    expect(el).toHaveTextContent("Acme Inc. · Lightning · My Activity");
+    expect(el).toHaveTextContent("Queen Consolidated · Watchtower · My Activity");
     // The accessible name carries the same context.
-    expect(el.getAttribute("aria-label")).toContain("Acme Inc. · Lightning · My Activity");
+    expect(el.getAttribute("aria-label")).toContain("Queen Consolidated · Watchtower · My Activity");
   });
 
   it("omits the client when showClient is off", () => {
@@ -134,8 +134,8 @@ describe("AllocationBar client/project context", () => {
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
-    expect(el).toHaveTextContent("Lightning · My Activity");
-    expect(el).not.toHaveTextContent("Acme Inc.");
+    expect(el).toHaveTextContent("Watchtower · My Activity");
+    expect(el).not.toHaveTextContent("Queen Consolidated");
   });
 
   it("omits the project when showProject is off", () => {
@@ -143,8 +143,8 @@ describe("AllocationBar client/project context", () => {
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const el = screen.getByTestId("allocation-bar");
-    expect(el).toHaveTextContent("Acme Inc. · My Activity");
-    expect(el).not.toHaveTextContent("Lightning");
+    expect(el).toHaveTextContent("Queen Consolidated · My Activity");
+    expect(el).not.toHaveTextContent("Watchtower");
   });
 
   it("shows only the activity when both toggles are off", () => {
@@ -154,8 +154,8 @@ describe("AllocationBar client/project context", () => {
 
     const el = screen.getByTestId("allocation-bar");
     expect(el.textContent).toMatch(/^My Activity/);
-    expect(el).not.toHaveTextContent("Acme Inc.");
-    expect(el).not.toHaveTextContent("Lightning");
+    expect(el).not.toHaveTextContent("Queen Consolidated");
+    expect(el).not.toHaveTextContent("Watchtower");
   });
 });
 

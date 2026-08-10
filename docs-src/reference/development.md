@@ -47,8 +47,8 @@ configuration before bundling.
 
 The in-memory demo has no real membership roles. To inspect the implemented
 Owner/Admin/Editor/Viewer flows against the password-auth server, use the isolated access
-lab described below. It documents the local-only credentials, the prebuilt Studio North
-fixture, and the expected visibility matrix.
+lab described below. It documents the local-only credentials, the prebuilt Wayne
+Enterprises fixture, and the expected visibility matrix.
 
 ## The access lab
 
@@ -66,16 +66,16 @@ Never use these fictional credentials on a real installation.
    pnpm run dev:access
    ```
 
-2. Open <http://127.0.0.1:5473>. Studio North, a private client/project and a time-off
-   note are already present. Sign in with any persona; every persona uses
+2. Open <http://127.0.0.1:5473>. Wayne Enterprises, a private client/project and a
+   time-off note are already present. Sign in with any persona; every persona uses
    `access-lab-password-2026`:
 
-   | Persona      | Email                          | Role   |
-   | ------------ | ------------------------------ | ------ |
-   | Olivia Owner | `owner@capacitylens.dev`       | Owner  |
-   | Alex Admin   | `alex.admin@capacitylens.dev`  | Admin  |
-   | Erin Editor  | `erin.editor@capacitylens.dev` | Editor |
-   | Vic Viewer   | `vic.viewer@capacitylens.dev`  | Viewer |
+   | Persona           | Email                           | Role   |
+   | ----------------- | -------------------------------- | ------ |
+   | Lucius Fox        | `owner@capacitylens.dev`         | Owner  |
+   | Alfred Pennyworth  | `alex.admin@capacitylens.dev`    | Admin  |
+   | Barbara Gordon    | `erin.editor@capacitylens.dev`   | Editor |
+   | James Gordon      | `vic.viewer@capacitylens.dev`    | Viewer |
 
 3. Compare the sidebar role badge, **Team & access**, edit affordances, private names and
    time-off note against the [roles and permissions

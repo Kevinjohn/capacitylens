@@ -7,13 +7,13 @@ import { openApp } from "./helpers";
 // row hides it from the scheduler + lists immediately and surfaces it
 // in the admin view. Browser-agnostic — no UA branching.
 
-const RESOURCE = "Alex Rivera"; // seed `r-alex` (a freelancer; no over-marker entanglement)
+const RESOURCE = "Barry Allen"; // seed `r-alex` (a freelancer; no over-marker entanglement)
 
 test.describe("Archived & deleted (demo mode)", () => {
   test("archive a resource → it vanishes from the schedule + list → Settings shows it → restore → re-archive → delete → tombstone (purge locked)", async ({
     page,
   }) => {
-    await openApp(page, "Studio North", "/resources");
+    await openApp(page, "Wayne Enterprises", "/resources");
 
     // The seeded resource is in the list.
     const listRow = page.getByTestId("resource-row").filter({ hasText: RESOURCE });

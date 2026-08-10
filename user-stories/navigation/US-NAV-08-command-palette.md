@@ -14,14 +14,14 @@ couple of keystrokes navigate faster than any menu when you already know what yo
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at Schedule (`/`), Studio North tenant active.
+**Precondition:** Seeded app open at Schedule (`/`), Wayne Enterprises tenant active.
 
 1. Press **⌘K** (macOS) or **Ctrl+K** (Windows/Linux). The command palette opens centred near the top of the page. The search field is focused.
 2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (all 9 sidebar routes, including **Team & access**, listed with their paths).
-3. Type `Nix`. The palette shows a **People** section with _Tyler Nix_ as the first result.
-4. Press **ArrowDown** once, then **Enter** (or just click _Tyler Nix_). The palette closes.
-5. The scheduler scrolls so Tyler Nix's row is visible. Scroll elsewhere, then make an ordinary
-   schedule change; the grid keeps that newer position instead of jumping back to Tyler.
+3. Type `Wayne`. The palette shows a **People** section with _Bruce Wayne_ as the first result.
+4. Press **ArrowDown** once, then **Enter** (or just click _Bruce Wayne_). The palette closes.
+5. The scheduler scrolls so Bruce Wayne's row is visible. Scroll elsewhere, then make an ordinary
+   schedule change; the grid keeps that newer position instead of jumping back to Bruce.
 6. Press **⌘K** again. Type `2026-06-10`. An **Actions** entry "Go to date 2026-06-10" appears.
 7. Press **Enter**. The scheduler jumps to that week.
 8. Press **⌘K** again. Type `res`. The _Resources_ page option appears under **Pages**.

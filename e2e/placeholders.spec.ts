@@ -4,7 +4,7 @@ import { openApp } from "./helpers";
 // Covers US-SET-06. Placeholders are a PER-ACCOUNT view pref (`placeholdersEnabled` on the active
 // Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
 // untouched and returns when the switch goes on. The seed has one placeholder (r-ph-designer,
-// role "Senior Designer", bound to Project Lightning) so the toggle is demonstrable.
+// role "Senior Designer", bound to Project Watchtower) so the toggle is demonstrable.
 test.describe("Placeholders (per-account pref, default off)", () => {
   test("hidden by default: the seeded placeholder is absent from the schedule and Resources list", async ({ page }) => {
     await openApp(page);
@@ -22,7 +22,7 @@ test.describe("Placeholders (per-account pref, default off)", () => {
   test('turning it on in Settings reveals the placeholder with a "?" avatar and "Placeholder" name', async ({
     page,
   }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Show placeholders" });
     await expect(toggle).toHaveAttribute("aria-checked", "false"); // default off
     await toggle.click();
@@ -50,7 +50,7 @@ test.describe("Placeholders (per-account pref, default off)", () => {
   });
 
   test("the choice survives navigation in the current demo session", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show placeholders" }).click(); // → on
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByRole("link", { name: "Settings" }).click();

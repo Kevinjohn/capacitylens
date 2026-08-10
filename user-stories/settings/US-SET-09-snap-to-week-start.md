@@ -26,7 +26,7 @@ the always-on navigation snap — already land on a week start regardless of thi
 3. After a moment (the scroll settles), the left edge **floors back to Monday** — the same week's start, never a forward week.
 4. Open **Settings** (sidebar). In the **Schedule** section, find the **Snap to week start** switch — it's **on**, below **Minimise weekends**.
 5. Switch it **off**, return to **Schedule**, and nudge again the same way: this time the left edge **stays** on the mid-week day.
-6. (Optional) Reload the page and re-pick **Studio North**: the choice is remembered.
+6. (Optional) Reload the page and re-pick **Wayne Enterprises**: the choice is remembered.
 
 ## Acceptance criteria
 

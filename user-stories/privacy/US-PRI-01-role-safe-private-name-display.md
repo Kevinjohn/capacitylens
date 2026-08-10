@@ -20,7 +20,7 @@ individual screens to remember to hide names.
 ## How (end-to-end)
 
 **Precondition:** In an auth-enabled server account, the owner has created private client
-`Real Client Ltd` / code `Northstar` and private project `Secret Launch` / code `Aurora`, with an
+`Real Client Ltd` / code `Nightwing` and private project `Secret Launch` / code `Aurora`, with an
 activity and allocation under the project. The account also has an admin, editor and viewer.
 
 1. Sign in as the **owner** and inspect Clients, Projects, filters/pickers, Schedule, the command
@@ -37,7 +37,7 @@ activity and allocation under the project. The account also has an admin, editor
 - ✅ **PRI-DISPLAY-01 — Role matrix.**
   - **Owner:** receives and sees the real `name`, `isPrivate: true` and raw, unquoted `codeName`.
   - **Admin, editor and viewer:** receive `name` as exactly one straight-quoted code name
-    (`"Northstar"` / `"Aurora"`), keep `isPrivate: true`, receive no `codeName`, and receive no real
+    (`"Nightwing"` / `"Aurora"`), keep `isPrivate: true`, receive no `codeName`, and receive no real
     private name anywhere in the response body.
   - **Trusted local/demo and auth-off server:** are owner-equivalent because there is no membership
     identity to hide data from.
@@ -45,7 +45,7 @@ activity and allocation under the project. The account also has an admin, editor
   compound `Client / Project` labels; scheduler allocation bars/popovers; forms; command-palette
   results; active, archived and deleted views; and archive/delete/purge confirmation copy.
 - ✅ **PRI-DISPLAY-03 — Exactly one quote pair.** Display helpers never double-quote a projected name. A label or sentence that supplies its own
-  quotes strips the projection's outer pair first, so `"Northstar"` never becomes `""Northstar""`.
+  quotes strips the projection's outer pair first, so `"Nightwing"` never becomes `""Nightwing""`.
 - ✅ **PRI-DISPLAY-04 — Non-owner form.** An admin/editor editing an already-private row sees its quoted **Name** disabled, no privacy
   switch or raw code-name field, and `Only an account owner can change this private name.` Other
   fields remain editable according to the normal role tier. A viewer remains entirely read-only.

@@ -87,7 +87,7 @@ describe("server entrypoint startup refusals", () => {
     );
     db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
       "workspace-1",
-      "Studio North",
+      "Wayne Enterprises",
       "#3b82f6",
       timestamp,
       timestamp,

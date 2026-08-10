@@ -106,7 +106,7 @@ describe("AllocationBar interactions", () => {
     const a = seedAllocation();
     render(
       <AllocationBar
-        bar={{ ...barFor(a), project: "Project Lightning", client: "Acme" }}
+        bar={{ ...barFor(a), project: "Project Watchtower", client: "Acme" }}
         geom={GEOM}
         indexAtClientX={indexAtClientX}
         onEdit={vi.fn()}
@@ -117,7 +117,7 @@ describe("AllocationBar interactions", () => {
     expect(screen.queryByTestId("allocation-popover")).toBeNull();
     fireEvent.mouseEnter(bar);
     const pop = screen.getByTestId("allocation-popover");
-    expect(pop).toHaveTextContent("Project Lightning");
+    expect(pop).toHaveTextContent("Project Watchtower");
     expect(pop).toHaveTextContent("Acme");
     expect(pop).toHaveTextContent(/drag to move/i);
     fireEvent.mouseLeave(bar);
@@ -134,7 +134,7 @@ describe("AllocationBar interactions", () => {
       render(
         <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
           <AllocationBar
-            bar={{ ...barFor(a), project: "Project Lightning", client: "Acme" }}
+            bar={{ ...barFor(a), project: "Project Watchtower", client: "Acme" }}
             geom={GEOM}
             indexAtClientX={indexAtClientX}
             onEdit={onEdit}
@@ -145,7 +145,7 @@ describe("AllocationBar interactions", () => {
 
       expect(bar).toHaveAttribute("role", "img");
       expect(bar).toHaveAttribute("tabindex", "0");
-      expect(bar).not.toHaveTextContent("Project Lightning");
+      expect(bar).not.toHaveTextContent("Project Watchtower");
       expect(bar).not.toHaveTextContent("Acme");
       expect(screen.queryByTestId("resize-start")).toBeNull();
       expect(screen.queryByTestId("resize-end")).toBeNull();
@@ -153,12 +153,12 @@ describe("AllocationBar interactions", () => {
       await user.tab();
       expect(document.activeElement).toBe(bar);
       const popover = screen.getByTestId("allocation-popover");
-      expect(popover).toHaveTextContent("Project Lightning");
+      expect(popover).toHaveTextContent("Project Watchtower");
       expect(popover).toHaveTextContent("Call the client before kickoff");
       expect(popover).toHaveTextContent("Read-only allocation details");
       expect(popover).not.toHaveTextContent(/drag|resize|reassign/i);
       expect(bar).toHaveAccessibleName(
-        /Wires, Project Lightning · Acme, 8h per day, Confirmed, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
+        /Wires, Project Watchtower · Acme, 8h per day, Confirmed, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
       );
 
       await user.keyboard("{Escape}");
@@ -174,7 +174,7 @@ describe("AllocationBar interactions", () => {
       const a = seedAllocation();
       render(
         <AllocationBar
-          bar={{ ...barFor(a), project: "Project Lightning", client: "Acme" }}
+          bar={{ ...barFor(a), project: "Project Watchtower", client: "Acme" }}
           geom={GEOM}
           indexAtClientX={indexAtClientX}
           onEdit={vi.fn()}
@@ -603,7 +603,7 @@ describe("AllocationBar interactions", () => {
     const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
     const external = st.addResource({
       kind: "external",
-      name: "Northstar Partners",
+      name: "Kord Industries",
       role: "Partner studio",
       employmentType: "permanent",
       workingHoursPerDay: 8,

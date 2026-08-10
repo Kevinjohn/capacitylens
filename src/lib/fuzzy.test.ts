@@ -4,13 +4,13 @@ import { fuzzyScore, fuzzyFilter } from "./fuzzy";
 describe("fuzzyScore", () => {
   describe("Tier 0 — exact prefix", () => {
     it("scores 0 for exact prefix match", () => {
-      expect(fuzzyScore("ty", "Tyler Nix")).toBe(0);
+      expect(fuzzyScore("br", "Bruce Wayne")).toBe(0);
     });
     it("scores 0 for full match", () => {
-      expect(fuzzyScore("tyler nix", "Tyler Nix")).toBe(0);
+      expect(fuzzyScore("bruce wayne", "Bruce Wayne")).toBe(0);
     });
     it("is case-insensitive", () => {
-      expect(fuzzyScore("TY", "tyler nix")).toBe(0);
+      expect(fuzzyScore("BR", "bruce wayne")).toBe(0);
     });
     it("is diacritic-insensitive in either direction and across Unicode forms", () => {
       expect(fuzzyScore("jose", "José Alvarez")).toBe(0);
@@ -21,7 +21,7 @@ describe("fuzzyScore", () => {
 
   describe("Tier 1 — word-boundary prefix", () => {
     it("scores 1 for second-word prefix", () => {
-      expect(fuzzyScore("nix", "Tyler Nix")).toBe(1);
+      expect(fuzzyScore("way", "Bruce Wayne")).toBe(1);
     });
     it("scores 1 for word after a hyphen", () => {
       expect(fuzzyScore("end", "Front End")).toBe(1);
@@ -39,25 +39,25 @@ describe("fuzzyScore", () => {
 
   describe("Tier 2 — contiguous substring", () => {
     it("scores 2 for mid-word substring", () => {
-      expect(fuzzyScore("ler", "Tyler Nix")).toBe(2);
+      expect(fuzzyScore("uce", "Bruce Wayne")).toBe(2);
     });
     it("scores 2 for substring across boundary that is not a prefix", () => {
-      expect(fuzzyScore("er n", "Tyler Nix")).toBe(2);
+      expect(fuzzyScore("ce way", "Bruce Wayne")).toBe(2);
     });
   });
 
   describe("Tier 3 — subsequence", () => {
     it("scores 3 for scattered subsequence", () => {
-      expect(fuzzyScore("tnx", "Tyler Nix")).toBe(3);
+      expect(fuzzyScore("bwn", "Bruce Wayne")).toBe(3);
     });
     it("scores 3 when all chars appear in order but not contiguously", () => {
-      expect(fuzzyScore("tyn", "Tyler Nix")).toBe(3);
+      expect(fuzzyScore("brw", "Bruce Wayne")).toBe(3);
     });
   });
 
   describe("No match", () => {
     it("returns Infinity when query has characters not in text", () => {
-      expect(fuzzyScore("xyz", "Tyler Nix")).toBe(Infinity);
+      expect(fuzzyScore("xyz", "Bruce Wayne")).toBe(Infinity);
     });
     it("returns Infinity for empty text with non-empty query", () => {
       expect(fuzzyScore("a", "")).toBe(Infinity);
@@ -66,17 +66,17 @@ describe("fuzzyScore", () => {
 
   describe("Empty query", () => {
     it("returns 0 for empty query (shows everything)", () => {
-      expect(fuzzyScore("", "Tyler Nix")).toBe(0);
+      expect(fuzzyScore("", "Bruce Wayne")).toBe(0);
     });
   });
 });
 
 describe("fuzzyFilter", () => {
   const resources = [
-    { id: "r-tyler", name: "Tyler Nix" },
-    { id: "r-pam", name: "Pam Gonzalez" },
-    { id: "r-nike", name: "Nike Spiros" },
-    { id: "r-alex", name: "Alex Rivera" },
+    { id: "r-tyler", name: "Bruce Wayne" },
+    { id: "r-pam", name: "Diana Prince" },
+    { id: "r-nike", name: "Clark Kent" },
+    { id: "r-alex", name: "Barry Allen" },
   ];
   const getText = (r: { name: string }) => r.name;
 
@@ -90,32 +90,42 @@ describe("fuzzyFilter", () => {
   });
 
   it("ranks prefix match before subsequence match", () => {
-    // "nx" is a subsequence of "Tyler Nix"; "Nike" starts with "ni" but "nix" is longer
-    // Use "tyl" which is a prefix of "Tyler Nix"
-    const result = fuzzyFilter(resources, "tyl", getText);
+    // "bru" is a tier-0 prefix of "Bruce Wayne"; none of the other seeded names contain a
+    // "u" at all, so it's the only match.
+    const result = fuzzyFilter(resources, "bru", getText);
     expect(result[0].id).toBe("r-tyler");
   });
 
+  it("ranks a contiguous match before a scattered subsequence match", () => {
+    // "ay" is a contiguous substring of "Bruce Wayne" ("Wayne", tier 2). In "Barry Allen" the
+    // only "a"/"y" pair in order is the 'a' of "Barry" (index 1) and the 'y' of "Barry" (index
+    // 4), with an "rr" between them, so it only matches as a scattered subsequence (tier 3).
+    // Neither "Diana Prince" nor "Clark Kent" contains a "y" at all. The contiguous match sorts
+    // first.
+    const result = fuzzyFilter(resources, "ay", getText);
+    expect(result.map((r) => r.id)).toEqual(["r-tyler", "r-alex"]);
+  });
+
   it("sorts tier-0 before tier-1 before tier-3", () => {
-    // "alex" → tier 0 (prefix) for Alex Rivera
-    // "on" → tier 2 (substring) for Pam Gonzalez, Nike Spiros
-    const result = fuzzyFilter(resources, "alex", getText);
+    // "barry" → tier 0 (prefix) for Barry Allen. "Bruce Wayne" also starts with 'b' but has
+    // no 'a' immediately reachable to complete the subsequence "barry" (the only 'a' is in
+    // "Wayne", with no 'r' left after it), so it doesn't match at all; neither do the other
+    // two seeded names (no 'b').
+    const result = fuzzyFilter(resources, "barry", getText);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("r-alex");
   });
 
   it("stable tie-break: within same tier, shorter name first then alpha", () => {
-    // "a" is a subsequence/prefix of multiple names: Alex (prefix), Pam Gonzalez (subsequence via 'a'), etc.
-    // Actually "a" is a prefix of "Alex Rivera" (tier 0), and a subsequence/contained in others
-    // Let's just check ordering is stable
-    const result = fuzzyFilter(resources, "a", getText);
-    // Alex Rivera has 'a' as prefix (tier 0), others may have it as substring/subsequence
-    expect(result[0].id).toBe("r-alex"); // Alex starts with 'A' — tier 0
+    // "b" is a tier-0 prefix for both "Barry Allen" and "Bruce Wayne" — same length (11
+    // chars including the space), so the tie breaks alphabetically: "Barry" < "Bruce".
+    const result = fuzzyFilter(resources, "b", getText);
+    expect(result[0].id).toBe("r-alex");
   });
 
   it("is case-insensitive in matching", () => {
-    expect(fuzzyFilter(resources, "TYLER", getText)).toHaveLength(1);
-    expect(fuzzyFilter(resources, "TYLER", getText)[0].id).toBe("r-tyler");
+    expect(fuzzyFilter(resources, "BRUCE", getText)).toHaveLength(1);
+    expect(fuzzyFilter(resources, "BRUCE", getText)[0].id).toBe("r-tyler");
   });
 
   it("finds accented names from an unaccented query", () => {
@@ -132,9 +142,9 @@ describe("fuzzyFilter", () => {
   });
 
   it("trims the query before scoring, so surrounding whitespace does not defeat an exact match", () => {
-    // Untrimmed, the leading space would push 'Tyler Nix' out of every tier (no subsequence
+    // Untrimmed, the leading space would push 'Bruce Wayne' out of every tier (no subsequence
     // match for a leading space char), dropping it from the results entirely.
-    const result = fuzzyFilter(resources, " tyler", getText);
+    const result = fuzzyFilter(resources, " bruce", getText);
     expect(result.map((r) => r.id)).toContain("r-tyler");
   });
 

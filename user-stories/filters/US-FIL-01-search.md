@@ -17,12 +17,12 @@ click **Today** so the seeded people are visible. Placeholders and external reso
 their default-off account settings and are outside this search example.
 
 1. Click the **Search people…** box.
-2. Type `Tyler`.
+2. Type `Bruce`.
 3. Clear the box and type `Developer`.
 
 ## Acceptance criteria
 
-- ✅ Typing `Tyler` narrows the visible resource rows to **Tyler Nix** only; non-matching rows (Pam, Nike, Alex, the placeholder) are hidden.
-- ✅ Search matches on **role** too: typing `Developer` shows the resources whose role contains it (e.g. _Nike Spiros — Web Developer_, _Alex Rivera — Front End_).
+- ✅ Typing `Bruce` narrows the visible resource rows to **Bruce Wayne** only; non-matching rows (Diana, Clark, Barry, the placeholder) are hidden.
+- ✅ Search matches on **role** too: typing `Developer` shows the resources whose role contains it (e.g. _Clark Kent — Web Developer_, _Barry Allen — Front End_).
 - ✅ Clearing the search box restores all resource rows.
 - ✅ While a search is active, the **Clear** button is shown.

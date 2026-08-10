@@ -26,7 +26,7 @@ describe("access lab fixture", () => {
     expect(data.accounts).toEqual([
       expect.objectContaining({
         id: ACCESS_LAB_ACCOUNT_ID,
-        name: "Studio North",
+        name: "Wayne Enterprises",
       }),
     ]);
     expect(new Set(ACCESS_LAB_PERSONAS.map((persona) => persona.role))).toEqual(
@@ -34,14 +34,14 @@ describe("access lab fixture", () => {
     );
     expect(data.clients).toContainEqual(
       expect.objectContaining({
-        name: "Acme Inc.",
+        name: "Queen Consolidated",
         isPrivate: true,
-        codeName: "Northstar",
+        codeName: "Nightwing",
       }),
     );
     expect(data.projects).toContainEqual(
       expect.objectContaining({
-        name: "Project Lightning",
+        name: "Project Watchtower",
         isPrivate: true,
         codeName: "Aurora",
       }),

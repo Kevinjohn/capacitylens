@@ -100,8 +100,8 @@ describe("resourceDisplayName / placeholderDisplayName", () => {
   });
 
   it("shows the resource's own name for a non-placeholder resource", () => {
-    const r = makeResource({ kind: "person", name: "Tyler Nix" });
-    expect(resourceDisplayName(r)).toBe("Tyler Nix");
+    const r = makeResource({ kind: "person", name: "Bruce Wayne" });
+    expect(resourceDisplayName(r)).toBe("Bruce Wayne");
   });
 
   it("falls back to role when a non-placeholder resource is unnamed", () => {

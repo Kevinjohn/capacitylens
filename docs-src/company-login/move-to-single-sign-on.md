@@ -293,12 +293,12 @@ pnpm --filter capacitylens-server cutover:preflight -- /absolute/path/to/capacit
   "workspaces": [
     {
       "workspaceId": "a-studio",
-      "workspaceName": "Studio North",
+      "workspaceName": "Wayne Enterprises",
       "ready": true,
       "members": [
         {
           "email": "owner@example.com",
-          "displayName": "Olivia Owner",
+          "displayName": "Lucius Fox",
           "role": "owner",
           "linked": true,
           "blocking": false,
@@ -425,7 +425,7 @@ Company login only. One door.
 Sign in through the provider. You should land straight in the schedule, with your role
 intact:
 
-![The CapacityLens schedule after signing in through the company login, showing Studio North with the Owner badge and all allocations present](../screenshots/flows/sso-after-cutover.jpg)
+![The CapacityLens schedule after signing in through the company login, showing Wayne Enterprises with the Owner badge and all allocations present](../screenshots/flows/sso-after-cutover.jpg)
 
 Same company, same Owner badge, same allocations, same everything. Only the front door
 changed.
@@ -502,8 +502,8 @@ trail.
 Two of these commands (below) want a company's workspace id, not its name. The
 [preflight command from step 6](#step-6) already shows it to you — run it again and
 look at the `workspaceId` field for the company you're fixing. In the example output in
-step 6, `"workspaceId": "a-studio"` next to `"workspaceName": "Studio North"` means
-`a-studio` is what you'd pass to these commands for Studio North.
+step 6, `"workspaceId": "a-studio"` next to `"workspaceName": "Wayne Enterprises"` means
+`a-studio` is what you'd pass to these commands for Wayne Enterprises.
 
 ### A wrong provider link that predates the migration
 

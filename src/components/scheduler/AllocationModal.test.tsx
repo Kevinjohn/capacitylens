@@ -97,7 +97,7 @@ describe("AllocationModal create", () => {
     useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
     const resource = useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -126,7 +126,7 @@ describe("AllocationModal create", () => {
   it("creates an allocation for a person after picking project + activity", async () => {
     useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -158,7 +158,7 @@ describe("AllocationModal create", () => {
   it("rejects an empty date or zero hours instead of saving a broken allocation", async () => {
     useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -203,7 +203,7 @@ describe("AllocationModal create", () => {
     // carry a larger value the store would quietly clamp. The submit-path guard must reject it.
     useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -287,7 +287,7 @@ const person = (name: string) => ({
 
 describe("AllocationModal advisory work bounds", () => {
   it("does not recompute the advisory when only the note changes", () => {
-    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     render(
       <AllocationModal
         create={{
@@ -309,7 +309,7 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("skips the advisory and rejects an over-limit Hours-mode date span", async () => {
-    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -343,7 +343,7 @@ describe("AllocationModal advisory work bounds", () => {
   it("rejects the same over-limit date span for an External resource", async () => {
     const resource = useStore.getState().addResource({
       kind: "external",
-      name: "Northstar Partners",
+      name: "Kord Industries",
       role: "Partner studio",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -381,7 +381,7 @@ describe("AllocationModal days mode", () => {
 
   it("derives end date + hours/day from start, days of work and days over", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -421,7 +421,7 @@ describe("AllocationModal days mode", () => {
 
   it("rejects zero days of work", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -447,7 +447,7 @@ describe("AllocationModal days mode", () => {
 
   it("rejects a derived span that would leave the four-digit-year date domain", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -477,7 +477,7 @@ describe("AllocationModal days mode", () => {
     // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24 —
     // silently discarding the entered volume. The modal must reject so preview === saved.
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -511,7 +511,7 @@ describe("AllocationModal days mode", () => {
     // Enter directly from the field skips the blur-clamp, exercising exactly that path. The load
     // guard must reject (NaN fails Number.isFinite) and persist nothing.
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const addAllocation = vi.spyOn(useStore.getState(), "addAllocation");
     const user = userEvent.setup();
@@ -546,7 +546,7 @@ describe("AllocationModal days mode", () => {
 
   it("honours the drawn span when creating (days over = the dragged-out length)", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
     // The grid hands the modal a 5-working-day span (Mon 06-01 … Fri 06-05).
     render(
@@ -576,7 +576,7 @@ describe("AllocationModal days mode", () => {
 
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     // 5h/day over 3 working days = 1.875 days of work — a value 2-dp rounding would distort.
     const alloc = useStore.getState().addAllocation({
       resourceId: r.id,
@@ -597,7 +597,7 @@ describe("AllocationModal days mode", () => {
 
   it("preserves a stored non-working end date when an existing allocation is saved unchanged", async () => {
     enableDays();
-    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
       resourceId: resource.id,
       activityId: "t1",
@@ -618,7 +618,7 @@ describe("AllocationModal days mode", () => {
 
   it("seeds the days inputs by inverting an existing allocation", () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     // 4h/day over 2026-06-01..06-12 (10 working days) = 5 days of work.
     const alloc = useStore.getState().addAllocation({
       resourceId: r.id,
@@ -640,7 +640,7 @@ describe("AllocationModal blocks mode", () => {
 
   it("asks only for start + days over, and persists a zero-load span", async () => {
     enableBlocks();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -676,7 +676,7 @@ describe("AllocationModal blocks mode", () => {
   });
 
   it("counts the existing load through the blocks projection, like the grid and the drag path", () => {
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     // Legacy hourly allocation persisted BEFORE the account switched to blocks: it keeps its stored
     // 8h/day, and every capacity surface must read it as zero load while the account is in blocks.
     useStore.getState().addAllocation({
@@ -715,7 +715,7 @@ describe("AllocationModal blocks mode", () => {
 
   it("rejects a block span that would leave the four-digit-year date domain", async () => {
     enableBlocks();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -743,7 +743,7 @@ describe("AllocationModal blocks mode", () => {
 
   it("seeds days over from the drawn span and saves with start alone", async () => {
     enableBlocks();
-    const r = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
     // Grid hands a 5-working-day span (Mon 06-01 … Fri 06-05).
     render(
@@ -771,7 +771,7 @@ describe("AllocationModal blocks mode", () => {
   });
 
   it("preserves historical hours when editing an existing allocation", async () => {
-    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
       resourceId: resource.id,
       activityId: "t1",
@@ -796,7 +796,7 @@ describe("AllocationModal blocks mode", () => {
 
   it("rejects a fractional Days over value instead of rounding the saved span", async () => {
     enableBlocks();
-    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -940,7 +940,7 @@ describe("AllocationModal edit", () => {
     // external, book it, then assert the picker keeps it as an option even with the pref OFF.
     const ext = useStore.getState().addResource({
       kind: "external",
-      name: "Northstar Partners",
+      name: "Kord Industries",
       role: "Partner studio",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -961,11 +961,11 @@ describe("AllocationModal edit", () => {
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
-    expect(assignee).toHaveTextContent("Northstar Partners (external)");
-    // The external option is present (labelled "Northstar Partners (external)") even though externals are
+    expect(assignee).toHaveTextContent("Kord Industries (external)");
+    // The external option is present (labelled "Kord Industries (external)") even though externals are
     // hidden — without it the picker would silently reassign to another available option.
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: "Northstar Partners (external)" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });
 
   it("reopens a placeholder→general-activity allocation with the general activity still selected", async () => {
@@ -1067,7 +1067,7 @@ describe("AllocationModal inline activity creation pref", () => {
   const addPerson = () => {
     useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -1125,7 +1125,7 @@ describe("AllocationModal Enter key submission", () => {
   it("submits when Enter is pressed in the Hours/day input (hourly mode)", async () => {
     useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -1153,7 +1153,7 @@ describe("AllocationModal Enter key submission", () => {
   it("does NOT submit when Enter is pressed in the Note textarea", async () => {
     useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,
@@ -1184,7 +1184,7 @@ describe("AllocationModal Enter key submission", () => {
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
     useStore.getState().addResource({
       kind: "person",
-      name: "Tyler",
+      name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
       workingHoursPerDay: 8,

@@ -21,7 +21,7 @@ async function box(locator: Locator) {
 // thing under test (a resize / a minimise toggle), and we can prove that thing does NOT snap.
 async function openWithFreeScrollSnapOff(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1440, height: 800 });
-  await openApp(page, "Studio North", "/settings");
+  await openApp(page, "Wayne Enterprises", "/settings");
   const snap = page.getByRole("switch", { name: "Snap to week start" });
   await snap.click();
   await expect(snap).toHaveAttribute("aria-checked", "false");
@@ -55,7 +55,7 @@ test.describe("Minimise weekends", () => {
   // SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
   // REAL rendered geometry the build ships — a class rename that drops below 24px is caught here.
   test("the preference switch renders at least 24px tall (WCAG 2.5.8 target size)", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const sw = page.getByRole("switch", { name: "Minimise weekends" });
     const b = await box(sw);
     expect(b.height).toBeGreaterThanOrEqual(24);
@@ -63,7 +63,7 @@ test.describe("Minimise weekends", () => {
   });
 
   test("toggling it off in Settings restores full-width Sat/Sun columns", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Minimise weekends" });
     await expect(toggle).toHaveAttribute("aria-checked", "true"); // default on
 
@@ -86,11 +86,11 @@ test.describe("Minimise weekends", () => {
   });
 
   test("the choice survives a reload (device-global pref)", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Minimise weekends" }).click(); // → off
     await page.reload();
     // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
-    await page.getByRole("button", { name: "Studio North", exact: true }).click();
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page.getByRole("switch", { name: "Minimise weekends" })).toHaveAttribute("aria-checked", "false");
   });

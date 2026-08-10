@@ -28,7 +28,7 @@ off). Start from a clean state (DevTools → Console → `localStorage.clear()` 
    **Jordan Avery** account (avatar, name, email) and a **Use another account** row.
 2. Click the account. With no password and no popup, you advance to the **company picker**
    ("Choose a company"), which now reads **Signed in as Jordan Avery** with a **Sign out** link.
-3. Pick **Studio North** → the scheduler loads as normal.
+3. Pick **Wayne Enterprises** → the scheduler loads as normal.
 4. Reload the tab → you skip the demo sign-in and land straight on the company picker (the
    "signed in" choice persists per-browser).
 5. From the picker (or the sidebar's **Sign out** once in the app), click **Sign out** → you are

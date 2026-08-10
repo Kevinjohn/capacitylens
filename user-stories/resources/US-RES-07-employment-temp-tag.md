@@ -17,11 +17,11 @@ already dense roster or schedule; external suppliers remain a separate resource 
 
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
 
-1. On the **Tyler Nix** row (permanent), click the **Edit** (pencil) icon.
+1. On the **Bruce Wayne** row (permanent), click the **Edit** (pencil) icon.
 2. Observe the **Employment** select (Permanent / Freelancer / Contractor) — change it to
    _Freelancer_ and Save.
-3. Observe Tyler's list row: it looks unchanged — **no tag appears**.
-4. Edit **Tyler Nix** again: the select still shows _Freelancer_ (the value persisted).
+3. Observe Bruce's list row: it looks unchanged — **no tag appears**.
+4. Edit **Bruce Wayne** again: the select still shows _Freelancer_ (the value persisted).
    Set it back to _Permanent_; Save.
 
 ## Acceptance criteria
@@ -29,6 +29,6 @@ already dense roster or schedule; external suppliers remain a separate resource 
 - ✅ The **Employment** select exists on the person form and its value round-trips
   through Save/Edit.
 - ✅ **No "Temp" tag renders anywhere** — not in the Resources list, not on the schedule —
-  regardless of employment type. The seeded freelancer **Alex Rivera** shows no tag.
+  regardless of employment type. The seeded freelancer **Barry Allen** shows no tag.
 - ✅ For a **Placeholder** the **Employment** field is hidden in the dialog (placeholders
   are always permanent).

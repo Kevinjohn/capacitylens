@@ -12,11 +12,11 @@ Beyond a client view and a project view, managers want an **activity view**: "sh
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Seed books _Design_ (a cross-project activity) for Alex on 8–10 June. The toolbar shows a **Filter by activity** dropdown (grouped: _All activities_; an _Internal_ group with `Internal — All` + each internal activity; a _Cross-project_ group with `Cross-project — All` + each cross-project activity).
+**Precondition:** Seeded app open at **Schedule** (`/`). Seed books _Design_ (a cross-project activity) for Barry on 8–10 June. The toolbar shows a **Filter by activity** dropdown (grouped: _All activities_; an _Internal_ group with `Internal — All` + each internal activity; a _Cross-project_ group with `Cross-project — All` + each cross-project activity).
 
 1. Open **Filter by activity** and choose **Cross-project — All**.
 2. Note the schedule now shows only the _Design_ booking.
-3. Set **Filter by project** to **Brand Themes**, then re-open **Filter by activity** and choose **Cross-project — All** again.
+3. Set **Filter by project** to **Metropolis Rebrand**, then re-open **Filter by activity** and choose **Cross-project — All** again.
 
 ## Acceptance criteria
 

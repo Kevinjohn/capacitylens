@@ -17,7 +17,7 @@ there's no second place to keep in sync.
 
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
 
-1. On the **Nike Spiros** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens, pre-filled
+1. On the **Clark Kent** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens, pre-filled
    with the current values (Role _Web Developer_, Discipline _Development_, 8h, Mon–Fri).
 2. Change **Role** = `Lead Developer`.
 3. Change **Discipline** = _Design_.
@@ -28,9 +28,9 @@ there's no second place to keep in sync.
 
 - ✅ The dialog reused in edit mode is titled **"Edit resource"** and every field is
   pre-filled with the resource's existing values when it opens.
-- ✅ After Save, the Resources list row for **Nike Spiros** shows the new role
+- ✅ After Save, the Resources list row for **Clark Kent** shows the new role
   (_Lead Developer_) and _6h/day_.
-- ✅ On **Schedule**, the **Nike Spiros** row now appears under the **Design** group
+- ✅ On **Schedule**, the **Clark Kent** row now appears under the **Design** group
   (moved out of _Development_).
 - ✅ In the server-backed app, the changes persist across a page reload.
 - ✅ In the public demo, the change lasts for the current page only and reload restores the seed.

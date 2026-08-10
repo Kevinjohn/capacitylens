@@ -23,7 +23,7 @@ phone-ish size (≤ 767px wide, or ≤ 480px tall for landscape).
 1. Open the app on a phone held **portrait**. A small dialog titled **Best in landscape**
    appears over the company picker.
 2. Tap **Got it**. The dialog closes. Reload the page — it does not come back this session.
-3. Still in portrait, pick **Studio North** and activate the **Expand menu** trigger in the top bar.
+3. Still in portrait, pick **Wayne Enterprises** and activate the **Expand menu** trigger in the top bar.
    An off-canvas dialog named **Sidebar** opens with labelled navigation links.
 4. Choose **Projects**. The URL changes to `/projects` and the off-canvas sidebar closes.
 5. Rotate the phone to **landscape**. The persistent sidebar is a narrow icons-only mode: no link labels, no company block, no Data

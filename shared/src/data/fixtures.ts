@@ -48,7 +48,7 @@ export const FIXTURE_CLIENT: Client = {
   name: "Fixture Client",
   color: "#da2d92",
   isPrivate: true,
-  codeName: "Fixture Northstar",
+  codeName: "Fixture Nightwing",
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the account lifecycle path.
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
