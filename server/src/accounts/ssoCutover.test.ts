@@ -13,7 +13,7 @@ const provider: AuthProviderInfo = {
 
 const workspace: SsoCutoverWorkspaceFact = {
   workspaceId: "workspace-1",
-  workspaceName: "Studio North",
+  workspaceName: "Wayne Enterprises",
   members: [{ principalId: "owner-1", role: "owner", status: "active" }],
 };
 

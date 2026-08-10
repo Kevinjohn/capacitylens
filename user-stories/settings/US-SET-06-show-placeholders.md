@@ -18,16 +18,16 @@ when the switch goes back on, so it never breaks a dataset that already has plac
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open (clock inside the seed window — see _Seed data_ in REFERENCE.md). The seed contains one placeholder (_Senior Designer_, bound to Project Lightning), hidden by default.
+**Precondition:** Seeded app open (clock inside the seed window — see _Seed data_ in REFERENCE.md). The seed contains one placeholder (_Senior Designer_, bound to Project Watchtower), hidden by default.
 
-1. On the Schedule, note there is **no placeholder row** — only the real people (Tyler, Pam, Nike, Alex). (The External band is also hidden by default — it has its own _Show external resources_ pref, see US-SET-07.) The placeholder's bar (Visual Design) is not drawn.
+1. On the Schedule, note there is **no placeholder row** — only the real people (Bruce, Diana, Clark, Barry). (The External band is also hidden by default — it has its own _Show external resources_ pref, see US-SET-07.) The placeholder's bar (Visual Design) is not drawn.
 2. Open **Resources** (sidebar). There is **no "Placeholders" section** and **no "Add placeholder" button** — only the people list.
 3. Open **Settings** (sidebar). In the **Placeholders** section, find the **Show placeholders** switch — it's **off**.
 4. Switch it **on**.
 5. Return to **Resources**: the **Placeholders** section and its **Add placeholder** button now appear, with the seeded placeholder shown as **"Placeholder"** (its role _Senior Designer_ in the secondary text).
 6. Return to **Schedule**: a row now appears in the Design band showing the name **"Placeholder"** with a **"?"** avatar and its Visual Design bar.
 7. Switch it back **off** in Settings — the placeholder disappears again everywhere; its data is intact.
-8. (Optional) Reload the page and re-pick **Studio North**: the choice is remembered (it's stored on the company).
+8. (Optional) Reload the page and re-pick **Wayne Enterprises**: the choice is remembered (it's stored on the company).
 
 ## Acceptance criteria
 

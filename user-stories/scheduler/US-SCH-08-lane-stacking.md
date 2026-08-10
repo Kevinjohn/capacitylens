@@ -12,15 +12,15 @@ A person can legitimately be on two things at once (that's exactly how over-allo
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Tyler Nix** has two seed allocations that overlap on **3–4 June** (8h + 4h), which is what over-allocates him.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. **Bruce Wayne** has two seed allocations that overlap on **3–4 June** (8h + 4h), which is what over-allocates him.
 
-1. Look at Tyler's row in early June.
-2. Note the two bars that overlap on 3–4 June: they are drawn on **different vertical lanes** within Tyler's row, one above the other — not stacked on top of each other.
-3. Note that Tyler's row is **taller** than a row that has no overlapping work (e.g. a single-lane row like Pam's).
+1. Look at Bruce's row in early June.
+2. Note the two bars that overlap on 3–4 June: they are drawn on **different vertical lanes** within Bruce's row, one above the other — not stacked on top of each other.
+3. Note that Bruce's row is **taller** than a row that has no overlapping work (e.g. a single-lane row like Diana's).
 4. Compare with a resource whose allocations never overlap: those bars share a single lane and the row is the shorter, single-lane height.
 
 ## Acceptance criteria
 
-- ✅ Tyler's two overlapping seed bars (the 3–4 June pair) render on **different vertical lanes** within his row.
-- ✅ Tyler's row is **taller** than a single-lane row (it has grown to fit two stacked lanes).
+- ✅ Bruce's two overlapping seed bars (the 3–4 June pair) render on **different vertical lanes** within his row.
+- ✅ Bruce's row is **taller** than a single-lane row (it has grown to fit two stacked lanes).
 - ✅ A resource with no overlapping allocations keeps a single lane and the shorter row height.

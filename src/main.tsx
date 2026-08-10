@@ -44,7 +44,7 @@ function startPersistence(): void {
     // in-memory build has no server to own the data, so it seeds a demo dataset on each page load.
     // A server-backed instance (the default) must NOT auto-seed — the server owns its data, and a
     // fresh real deploy now deliberately starts EMPTY at the create-your-company picker rather than
-    // fabricating a "Studio North". `undefined` here means bootstrap() only loads whatever the
+    // fabricating a "Wayne Enterprises". `undefined` here means bootstrap() only loads whatever the
     // server already has (possibly nothing).
     seedIfEmpty: isDemoMode() ? seedForCurrentWeek() : undefined,
     // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and

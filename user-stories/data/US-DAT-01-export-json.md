@@ -13,7 +13,7 @@ preparation without exporting identity or authentication records.
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open with **Studio North** selected.
+**Precondition:** Seeded app open with **Wayne Enterprises** selected.
 
 1. Open **Settings** and scroll to the **Import & export** card at the bottom of the page. Click **Export JSON**.
 2. Wait for `capacitylens-data.json` to download.

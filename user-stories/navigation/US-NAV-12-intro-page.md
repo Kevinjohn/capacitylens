@@ -24,7 +24,7 @@ device so it never nags returning users.
 **Precondition:** Seeded app in the default deploy. Start from a clean state (DevTools → Console →
 `localStorage.clear()` → reload).
 
-1. Open the app, click through the demo sign-in (US-NAV-11), and pick **Studio North**.
+1. Open the app, click through the demo sign-in (US-NAV-11), and pick **Wayne Enterprises**.
 2. Instead of the schedule, the **Welcome to CapacityLens** page appears: a centred card explaining CapacityLens
    is a **resourcing tool** (bold) and **not a project management tool** (bold), with a single
    **Continue** button. The company picker and the app nav are not present behind it.

@@ -17,7 +17,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" }, viewport: { width: 1440,
 // navigation snap (zoom / Prev-Next / date-picker), which is not under test here.
 test.describe("Snap to week start", () => {
   test("the setting is on by default and persists across reload", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Snap to week start" });
     await expect(toggle).toHaveAttribute("aria-checked", "true"); // default on
 
@@ -26,7 +26,7 @@ test.describe("Snap to week start", () => {
 
     await page.reload();
     // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
-    await page.getByRole("button", { name: "Studio North", exact: true }).click();
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page.getByRole("switch", { name: "Snap to week start" })).toHaveAttribute("aria-checked", "false");
   });
@@ -79,7 +79,7 @@ test.describe("Snap to week start", () => {
     // capture Sunday at company creation via the onboarding form instead. With the snap ON, a free
     // nudge must then floor onto a SUNDAY — guarding against a hardcoded-Monday floor. (The snap pref
     // is device-global, default ON, so it needs no setup here.)
-    await openApp(page, "Studio North", "/settings"); // land in the app first
+    await openApp(page, "Wayne Enterprises", "/settings"); // land in the app first
     await page.getByRole("button", { name: "Switch company" }).click();
     await page.getByRole("button", { name: "New company" }).click();
     await page.getByLabel("Company name").fill("Sunday Co");
@@ -110,7 +110,7 @@ test.describe("Snap to week start", () => {
   });
 
   test("with the setting OFF, the nudge sticks (and so proves the nudge moves off Monday)", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Snap to week start" });
     await toggle.click(); // → off
     await expect(toggle).toHaveAttribute("aria-checked", "false");

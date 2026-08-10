@@ -5,7 +5,7 @@ import { openApp } from "./helpers";
 // disciplines across the whole app and render the schedule flat; on restores them.
 test.describe("Disciplines optional (account-level)", () => {
   test("turning disciplines off hides every surface; turning it back on restores them", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
 
     // Enable External (default off) so its band is present to prove the "external still segregates
     // in flat mode" exception below; it's an independent per-account pref.
@@ -34,7 +34,7 @@ test.describe("Disciplines optional (account-level)", () => {
     // Schedule renders flat: the rows are still there, but there are no discipline-group
     // bands and the discipline filter control is hidden.
     await page.getByRole("link", { name: "Schedule" }).click();
-    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Tyler Nix" })).toBeVisible();
+    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
     // The External band is the LAST item; scroll to the bottom so it's inside the virtualised
     // window before asserting (the grid drops off-screen rows from the DOM).
     await page.getByTestId("scheduler-grid").evaluate((el) => {
@@ -42,7 +42,7 @@ test.describe("Disciplines optional (account-level)", () => {
     });
     // Our people render flat — no Design/Development bands. The External band is the ONE
     // exception: it always keeps its header so outsourced work stays segregated, disciplines
-    // on or off (the seeded "Northstar Partners" makes the band present here).
+    // on or off (the seeded "Kord Industries" makes the band present here).
     await expect(page.getByTestId("discipline-group")).toHaveCount(1);
     await expect(page.getByTestId("discipline-group")).toContainText("External / 3rd party");
     await expect(page.getByLabel("Filter by discipline")).toHaveCount(0);

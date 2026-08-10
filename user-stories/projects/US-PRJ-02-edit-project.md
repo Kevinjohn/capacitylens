@@ -12,18 +12,18 @@ Projects get renamed, move between clients (a brand handed to a different accoun
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** belongs to _Acme Inc._ and has allocations in June 2026.
+**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Watchtower** belongs to _Queen Consolidated_ and has allocations in June 2026.
 
-1. On the **Project Lightning** row, click the **Edit** (pencil) icon. The dialog opens pre-filled.
+1. On the **Project Watchtower** row, click the **Edit** (pencil) icon. The dialog opens pre-filled.
 2. Change **Name** = `Project Thunder`.
-3. Change **Client** = _Globex_.
+3. Change **Client** = _LexCorp_.
 4. Change the **Colour** by opening it and picking a different swatch.
 5. Click **Save**. The dialog closes.
 6. Open the **Schedule** (`/`) and click **Today** to see this project's bars.
 
 ## Acceptance criteria
 
-- ✅ The Projects list row now reads **Project Thunder** and its "Client / Project" label shows _Globex_.
+- ✅ The Projects list row now reads **Project Thunder** and its "Client / Project" label shows _LexCorp_.
 - ✅ On the **Schedule**, the allocation bars that belonged to this project now render in the **new project colour**.
 - ✅ The project's activities and allocations are preserved through the edit — only name, client and colour changed.
 - ✅ Clearing **Name** to empty and clicking **Save** is rejected (required-field error, dialog stays open).

@@ -41,7 +41,7 @@ function dataset(): AppData {
         createdAt: "t",
         updatedAt: "t",
         kind: "person",
-        name: "Tyler",
+        name: "Bruce",
         role: "Designer",
         disciplineId: "d1",
         employmentType: "permanent",

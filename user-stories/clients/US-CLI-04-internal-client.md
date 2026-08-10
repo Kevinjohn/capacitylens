@@ -21,7 +21,7 @@ is actually used.
 
 **Precondition:** Seeded app open.
 
-1. Click **Clients** in the sidebar (`/clients`). The list shows _Acme Inc._ and _Globex_ (each with
+1. Click **Clients** in the sidebar (`/clients`). The list shows _Queen Consolidated_ and _LexCorp_ (each with
    Edit / Delete). **Internal does NOT appear here** — it's a hidden data anchor, not a managed client.
 2. Click **Projects** in the sidebar (`/projects`). Click **Add project**, set **Name** =
    `Quarterly planning`, open the **Client** picker — **Internal is offered** — choose it, and **Save**.
@@ -30,13 +30,13 @@ is actually used.
    `Team retro`, choose the **Internal** kind (the **Project** picker disappears), and **Save** — the
    activity lands in the **Internal activities** section with no project.
 4. Click **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and scroll to the start so the seed's project-less
-   cross-project _Design_ booking (Alex Rivera, 8–10 June) is visible.
+   cross-project _Design_ booking (Barry Allen, 8–10 June) is visible.
 5. Open **Filter by client** and choose **Internal** (it's still an option here).
 
 ## Acceptance criteria
 
 - ✅ **Internal does NOT appear** in the Clients management list (`/clients`); normal clients
-  (_Acme Inc._, _Globex_) are listed with their Edit/Delete controls.
+  (_Queen Consolidated_, _LexCorp_) are listed with their Edit/Delete controls.
 - ✅ Internal is still **selectable as a project's client** in the project form's **Client** picker,
   and a project bound to Internal resolves its client label to **Internal** in the Projects list.
 - ✅ Internal remains a valid **Filter by client → Internal** option and a **Clients** entry in the
@@ -45,4 +45,4 @@ is actually used.
   **Internal activities** — no error anywhere downstream.
 - ✅ **Filter by client → Internal** shows project-less (internal/cross-project) work AND any work under
   Internal-owned projects, while hiding project work owned by other clients (e.g. _Brand System_
-  under Globex disappears).
+  under LexCorp disappears).

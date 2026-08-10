@@ -19,12 +19,12 @@ the way on its own (or on demand) so the schedule stays the focus.
 **Precondition:** Seeded app open at Schedule (`/`). Set **Weeks visible** to **4 weeks** so more of the
 timeline is visible, then scroll the grid fully left if the seed bars aren't in view.
 
-1. Find the **Brand System** allocation bar (a _Brand Themes_ activity on _Pam Gonzalez_).
+1. Find the **Brand System** allocation bar (a _Metropolis Rebrand_ activity on _Diana Prince_).
 2. Drag it onto the **Senior Designer** row — the placeholder bound to _Project
-   Lightning_ (`data-resource-id="r-ph-designer"`). Its row highlights as a drop target
+   Watchtower_ (`data-resource-id="r-ph-designer"`). Its row highlights as a drop target
    mid-drag.
-3. Release. The reassignment is rejected (a Lightning-bound placeholder can't take a
-   _Brand Themes_ activity), and a dismissible notice appears at the bottom-centre reading
+3. Release. The reassignment is rejected (a Watchtower-bound placeholder can't take a
+   _Metropolis Rebrand_ activity), and a dismissible notice appears at the bottom-centre reading
    **"A placeholder can only be assigned to activities from its bound project."**
 4. This is an error notice, so it stays put rather than timing out — the reason remains
    readable until you act on it. Click its **✕** (aria-label "Close toast") and it

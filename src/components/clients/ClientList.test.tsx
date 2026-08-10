@@ -99,14 +99,14 @@ describe("ClientList archive flow", () => {
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
     const created = useStore.getState().addClient({ name: "Real client", color: "#111111" });
-    const client = { ...created, name: '"Northstar"', isPrivate: true, codeName: undefined };
+    const client = { ...created, name: '"Nightwing"', isPrivate: true, codeName: undefined };
     useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(<ClientList />);
 
-    await user.click(screen.getByRole("button", { name: 'Archive "Northstar"' }));
+    await user.click(screen.getByRole("button", { name: 'Archive "Nightwing"' }));
     const dialog = screen.getByRole("alertdialog", { name: "Archive client?" });
-    expect(dialog).toHaveTextContent('Archive "Northstar"?');
-    expect(dialog).not.toHaveTextContent('""Northstar""');
+    expect(dialog).toHaveTextContent('Archive "Nightwing"?');
+    expect(dialog).not.toHaveTextContent('""Nightwing""');
   });
 });
 

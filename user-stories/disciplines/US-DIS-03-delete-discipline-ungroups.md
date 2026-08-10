@@ -12,7 +12,7 @@ Reorganising the team should never cost you people. Deleting a discipline is int
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). _Design_ groups _Tyler Nix_ and the _Senior Designer_ placeholder.
+**Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). _Design_ groups _Bruce Wayne_ and the _Senior Designer_ placeholder.
 
 1. On the **Design** row, click the **Delete** (trash) icon. The "Delete discipline?" confirmation dialog opens.
 2. Read the dialog: it states that the discipline's resources will be **ungrouped (moved to "No discipline"), not deleted**.
@@ -24,6 +24,6 @@ Reorganising the team should never cost you people. Deleting a discipline is int
 
 - ✅ The confirmation dialog is titled **Delete discipline?** and clearly states the resources will be **ungrouped, not deleted**.
 - ✅ After confirming, the **Design** discipline is gone from the Disciplines list and from the schedule grouping (no Design group header).
-- ✅ **Tyler Nix** and the **Senior Designer** placeholder still exist as resources — they now appear under a **No discipline** group on the schedule, not removed.
-- ✅ Tyler's existing allocations and the placeholder's binding are untouched (only the grouping changed).
-- ✅ Pressing **⌘Z** restores the **Design** discipline and re-groups Tyler and the placeholder under it.
+- ✅ **Bruce Wayne** and the **Senior Designer** placeholder still exist as resources — they now appear under a **No discipline** group on the schedule, not removed.
+- ✅ Bruce's existing allocations and the placeholder's binding are untouched (only the grouping changed).
+- ✅ Pressing **⌘Z** restores the **Design** discipline and re-groups Bruce and the placeholder under it.

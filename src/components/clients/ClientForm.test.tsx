@@ -37,14 +37,14 @@ describe("ClientForm – add mode", () => {
 
     await user.type(screen.getByLabelText("Name"), "Real Client Ltd");
     await user.click(screen.getByRole("switch", { name: "Use a code name" }));
-    await user.type(screen.getByLabelText("Code name"), " “Northstar” ");
+    await user.type(screen.getByLabelText("Code name"), " “Nightwing” ");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(useStore.getState().data.clients[0]).toMatchObject({
       name: "Real Client Ltd",
       isPrivate: true,
-      codeName: "Northstar",
+      codeName: "Nightwing",
     });
   });
 
@@ -190,7 +190,7 @@ describe("ClientForm – Enter key submission", () => {
 describe("ClientForm – edit mode", () => {
   it("hides owner-only privacy controls and locks the redacted name for a non-owner", () => {
     const created = useStore.getState().addClient({ name: "Real client", color: "#ff0000" });
-    const client = { ...created, name: '"Northstar"', isPrivate: true, codeName: undefined };
+    const client = { ...created, name: '"Nightwing"', isPrivate: true, codeName: undefined };
     useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(
       <PermissionContext.Provider value={{ role: "editor" }}>

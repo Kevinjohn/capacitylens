@@ -16,16 +16,16 @@ the team and what they do. When the team is empty it should say so, not show a b
 
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
 
-1. Read the list against the seed: Tyler Nix, Pam Gonzalez, Nike Spiros, Alex Rivera, and
+1. Read the list against the seed: Bruce Wayne, Diana Prince, Clark Kent, Barry Allen, and
    the _Senior Designer_ placeholder.
 2. Check each row's avatar, role and any tag.
 3. (Empty-state check) In a clean profile with no resources, observe the empty message.
 
 ## Acceptance criteria
 
-- ✅ Each row shows a colour avatar whose **initials match the name** (e.g. _Tyler Nix_ → _TN_).
+- ✅ Each row shows a colour avatar whose **initials match the name** (e.g. _Bruce Wayne_ → _BW_).
 - ✅ Each row shows the resource's **role** and working hours (e.g. _Designer · 8h/day_).
-- ✅ **No "Temp" tag** renders for anyone — including the seeded freelancer _Alex Rivera_
+- ✅ **No "Temp" tag** renders for anyone — including the seeded freelancer _Barry Allen_
   (see US-RES-07 and `DECISIONS.md`).
 - ✅ The placeholder (_Senior Designer_) shows a "placeholder" tag and is labelled by its
   role (it has no name).

@@ -12,14 +12,14 @@ For a client review or billing check, the manager wants to see just that client'
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Seed clients are _Acme Inc._ (Project Lightning) and _Globex_ (Brand Themes).
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Seed clients are _Queen Consolidated_ (Project Watchtower) and _LexCorp_ (Metropolis Rebrand).
 
 1. Open the **Filter by client** select.
-2. Choose **Acme Inc.**.
+2. Choose **Queen Consolidated**.
 
 ## Acceptance criteria
 
-- ✅ Choosing **Acme Inc.** collapses the schedule to the allocations on _Project Lightning_ activities (e.g. _Wireframes_, _Visual Design_, _CMS Review_) — resources with no Acme work are **hidden by default**. Ticking **Show unallocated** (off by default) brings them back **visible but dimmed**, still showing their full real utilisation (so you can see who's free to staff).
+- ✅ Choosing **Queen Consolidated** collapses the schedule to the allocations on _Project Watchtower_ activities (e.g. _Wireframes_, _Visual Design_, _CMS Review_) — resources with no Queen Consolidated work are **hidden by default**. Ticking **Show unallocated** (off by default) brings them back **visible but dimmed**, still showing their full real utilisation (so you can see who's free to staff).
 - ✅ Capacity stays truthful: **over-markers** (`over-marker`) and the per-resource **utilisation %** (`utilization`) still reflect **all** of each resource's work, not just the filtered-in bars.
 - ✅ Setting the select back to **All clients** restores every bar.
 - ✅ While a client filter is active, the **Clear** button is shown.

@@ -67,7 +67,7 @@ const previewResponse = (role = "editor"): Response =>
     status: 200,
     headers: new Headers(),
     json: async () => ({
-      accountName: "Studio North",
+      accountName: "Wayne Enterprises",
       role,
       expiresAt: "2999-01-01T00:00:00.000Z",
     }),
@@ -148,7 +148,7 @@ describe("InviteAccept preview and acceptance", () => {
 
     renderInvite(undefined, true);
 
-    expect(await screen.findByTestId("invite-preview")).toHaveTextContent("Studio North");
+    expect(await screen.findByTestId("invite-preview")).toHaveTextContent("Wayne Enterprises");
   });
 
   it("previews the company and asks an unauthenticated invitee to sign in without consuming the invite", async () => {
@@ -158,7 +158,7 @@ describe("InviteAccept preview and acceptance", () => {
     renderInvite();
 
     const preview = await screen.findByTestId("invite-preview");
-    expect(preview).toHaveTextContent("Studio North");
+    expect(preview).toHaveTextContent("Wayne Enterprises");
     expect(preview).toHaveTextContent("Editor");
     expect(preview).toHaveTextContent("Invitation role");
     expect(preview).toHaveTextContent(/keeps your existing role/i);
@@ -343,7 +343,7 @@ describe("InviteAccept preview and acceptance", () => {
         "fetch",
         vi.fn().mockResolvedValue({
           ...previewResponse(),
-          json: async () => ({ accountName: "Studio North", role: "editor", expiresAt }),
+          json: async () => ({ accountName: "Wayne Enterprises", role: "editor", expiresAt }),
         }),
       );
       renderInvite();
@@ -377,7 +377,7 @@ describe("InviteAccept preview and acceptance", () => {
           ok: true,
           status: 200,
           headers: new Headers(),
-          json: async () => [{ id: "joined-account", name: "Studio North", role: "editor" }],
+          json: async () => [{ id: "joined-account", name: "Wayne Enterprises", role: "editor" }],
         } as Response;
       }
       throw new Error(`Unexpected request: ${url}`);
@@ -400,7 +400,7 @@ describe("InviteAccept preview and acceptance", () => {
     expect(refreshAuth).toHaveBeenCalledTimes(1);
     expect(useStore.getState().activeAccountId).toBe("joined-account");
     expect(useStore.getState().accountSummaries).toEqual([
-      { id: "joined-account", name: "Studio North", role: "editor" },
+      { id: "joined-account", name: "Wayne Enterprises", role: "editor" },
     ]);
   });
 
@@ -419,7 +419,7 @@ describe("InviteAccept preview and acceptance", () => {
           ok: true,
           status: 200,
           headers: new Headers(),
-          json: async () => [{ id: "account-1", name: "Studio North", role: "admin" }],
+          json: async () => [{ id: "account-1", name: "Wayne Enterprises", role: "admin" }],
         } as Response;
       }
       throw new Error(`Unexpected request: ${url}`);
@@ -440,7 +440,7 @@ describe("InviteAccept preview and acceptance", () => {
     expect(joining).toHaveFocus();
     resolveAccept(Response.json({ accountId: "account-1", role: "admin" }, { status: 200 }));
 
-    expect(await screen.findByText("You’ve joined Studio North as Admin.")).toBeInTheDocument();
+    expect(await screen.findByText("You’ve joined Wayne Enterprises as Admin.")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: m.invite_continue() })).toHaveFocus();
     expect(
       fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "POST"),
@@ -459,7 +459,7 @@ describe("InviteAccept preview and acceptance", () => {
         return Response.json({ accountId: "joined-account", role: "editor" });
       }
       if (url.endsWith("/api/accounts")) {
-        return Response.json([{ id: "joined-account", name: "Studio North", role: "editor" }]);
+        return Response.json([{ id: "joined-account", name: "Wayne Enterprises", role: "editor" }]);
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -469,7 +469,7 @@ describe("InviteAccept preview and acceptance", () => {
     renderInvite(signedInAuth);
     await user.click(await screen.findByRole("button", { name: "Accept invite" }));
 
-    expect(await screen.findByText("You’ve joined Studio North as Editor.")).toBeInTheDocument();
+    expect(await screen.findByText("You’ve joined Wayne Enterprises as Editor.")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: m.invite_continue() })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: m.invite_retry_accept() })).not.toBeInTheDocument();
   });
@@ -519,11 +519,11 @@ describe("InviteAccept preview and acceptance", () => {
 
     view.unmount();
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    resolveAccounts(Response.json([{ id: "joined-account", name: "Studio North", role: "editor" }]));
+    resolveAccounts(Response.json([{ id: "joined-account", name: "Wayne Enterprises", role: "editor" }]));
 
     await vi.waitFor(() => {
       expect(useStore.getState().accountSummaries).toEqual([
-        { id: "joined-account", name: "Studio North", role: "editor" },
+        { id: "joined-account", name: "Wayne Enterprises", role: "editor" },
       ]);
     });
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
@@ -543,7 +543,7 @@ describe("InviteAccept preview and acceptance", () => {
           : Response.json({ accountId: "account-1", role: "editor" });
       }
       if (url.endsWith("/api/accounts")) {
-        return Response.json(acceptAttempt > 1 ? [{ id: "account-1", name: "Studio North", role: "editor" }] : []);
+        return Response.json(acceptAttempt > 1 ? [{ id: "account-1", name: "Wayne Enterprises", role: "editor" }] : []);
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -556,7 +556,7 @@ describe("InviteAccept preview and acceptance", () => {
     expect(await screen.findByText((content) => content.includes(m.invite_unknown_refreshed()))).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: m.invite_retry_accept() }));
 
-    expect(await screen.findByText("You’ve joined Studio North as Editor.")).toBeInTheDocument();
+    expect(await screen.findByText("You’ve joined Wayne Enterprises as Editor.")).toBeInTheDocument();
     expect(acceptHeaders).toHaveLength(2);
     expect(acceptHeaders[1]!.get("x-account-command-id")).toBe(acceptHeaders[0]!.get("x-account-command-id"));
     expect(acceptHeaders[1]!.get("idempotency-key")).toBe(acceptHeaders[0]!.get("idempotency-key"));

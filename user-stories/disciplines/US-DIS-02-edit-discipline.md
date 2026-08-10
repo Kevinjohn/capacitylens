@@ -23,6 +23,6 @@ Studios rename and re-colour their categories as the business evolves (a "Develo
 ## Acceptance criteria
 
 - ✅ The Disciplines list row now reads **Engineering** with the new colour swatch.
-- ✅ On the **Schedule**, the group that held _Nike Spiros_ and _Alex Rivera_ now shows the header **Engineering** in the new colour.
-- ✅ The resources previously grouped under Development (Nike, Alex) are still under the renamed Engineering group — editing does not move or drop them.
+- ✅ On the **Schedule**, the group that held _Clark Kent_ and _Barry Allen_ now shows the header **Engineering** in the new colour.
+- ✅ The resources previously grouped under Development (Clark, Barry) are still under the renamed Engineering group — editing does not move or drop them.
 - ✅ Clearing **Name** to empty and clicking **Save** is rejected (required-field error, dialog stays open).

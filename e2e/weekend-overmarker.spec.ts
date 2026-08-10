@@ -6,13 +6,13 @@ import { openApp, selectShadOption, setZoom } from "./helpers";
 // work on a TIME-OFF working day still flags (a real conflict, distinct from a spanned weekend).
 //
 // Seed bars live 1–9 June 2026 (clock frozen to 2026-06-03), so a fresh allocation Fri 12 → Mon 15
-// June (spanning the empty weekend 13–14) collides with nothing. Nike Spiros is Mon–Fri. Over-marker
+// June (spanning the empty weekend 13–14) collides with nothing. Clark Kent is Mon–Fri. Over-marker
 // + unavailable-day cells render across the whole timeline DOM (absolutely positioned, both via the
 // SAME `left: geom.x(i)`), so the counts AND `style.left` comparisons below are scroll-independent.
 // The spec drives the modal in the seed's default HOURLY scheduling mode (Start/End + Hours / day).
 test.describe("Weekend over-marker", () => {
-  const nikeLane = (page: Page) => page.locator('[data-resource-id="r-nike"]');
-  const nikeOverMarkers = (page: Page) => nikeLane(page).getByTestId("over-marker");
+  const clarkLane = (page: Page) => page.locator('[data-resource-id="r-nike"]');
+  const clarkOverMarkers = (page: Page) => clarkLane(page).getByTestId("over-marker");
   // The inline `left` is the geom column offset — stable identity for "which day" a marker sits on.
   const leftsOf = (loc: ReturnType<Page["locator"]>) =>
     loc.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.left));
@@ -21,11 +21,11 @@ test.describe("Weekend over-marker", () => {
     await openApp(page);
     await setZoom(page, 2);
 
-    await expect(nikeOverMarkers(page)).toHaveCount(0); // Nike has no seed over-days
+    await expect(clarkOverMarkers(page)).toHaveCount(0); // Clark has no seed over-days
     const baseline = 0;
 
     // A fresh allocation spanning the weekend, default (weekend-aware).
-    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const create = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(create.getByLabel("Project", { exact: true }), "p-acme");
     await create.getByLabel("New activity name").fill("Weekend Verify");
@@ -39,8 +39,8 @@ test.describe("Weekend over-marker", () => {
     await expect(bar).toBeVisible();
 
     // Sat 13 / Sun 14 are merely spanned → NOT over (no new marker).
-    await expect(nikeOverMarkers(page)).toHaveCount(baseline);
-    const weekendAwareLefts = await leftsOf(nikeOverMarkers(page));
+    await expect(clarkOverMarkers(page)).toHaveCount(baseline);
+    const weekendAwareLefts = await leftsOf(clarkOverMarkers(page));
 
     // Opt into weekends → the two weekend days now carry work against 0 capacity → over.
     await bar.click();
@@ -49,13 +49,13 @@ test.describe("Weekend over-marker", () => {
     // The modal advisory must MIRROR the grid (not stay silent as it did before): Sat+Sun = 2 days.
     await expect(edit.getByText(/over capacity on 2 days/i)).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(nikeOverMarkers(page)).toHaveCount(baseline + 2);
+    await expect(clarkOverMarkers(page)).toHaveCount(baseline + 2);
     // POSITION (not just count): the two NEW markers sit on non-working (weekend) columns — the same
-    // `left` as Nike's grey unavailable-day cells — so a regression that flagged Fri/Mon instead would
+    // `left` as Clark's grey unavailable-day cells — so a regression that flagged Fri/Mon instead would
     // fail even though the count of 2 held.
-    const includeWeekendsLefts = await leftsOf(nikeOverMarkers(page));
+    const includeWeekendsLefts = await leftsOf(clarkOverMarkers(page));
     const newWeekendLefts = includeWeekendsLefts.filter((l) => !weekendAwareLefts.includes(l));
-    const unavailableLefts = await leftsOf(nikeLane(page).getByTestId("unavailable-day"));
+    const unavailableLefts = await leftsOf(clarkLane(page).getByTestId("unavailable-day"));
     expect(newWeekendLefts).toHaveLength(2);
     expect(newWeekendLefts.every((l) => unavailableLefts.includes(l))).toBe(true);
 
@@ -63,21 +63,21 @@ test.describe("Weekend over-marker", () => {
     await bar.click();
     await page.getByRole("dialog", { name: "Edit allocation" }).getByText("Include weekends as working days").click();
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(nikeOverMarkers(page)).toHaveCount(baseline);
+    await expect(clarkOverMarkers(page)).toHaveCount(baseline);
 
     // Time off on Mon 15 (a working day the allocation covers) → still over (a real conflict).
     await page.getByRole("link", { name: "Time off" }).click();
     await page.getByRole("button", { name: "Add time off" }).click();
     const timeOff = page.getByRole("dialog", { name: "Add time off" });
     await selectShadOption(timeOff.getByLabel("Resource"), {
-      label: "Nike Spiros",
+      label: "Clark Kent",
     });
     await timeOff.getByLabel("Start").fill("2026-06-15");
     await timeOff.getByLabel("End").fill("2026-06-15");
     await page.getByRole("button", { name: "Save" }).click();
 
     await page.getByRole("link", { name: "Schedule" }).click();
-    await expect(nikeOverMarkers(page)).toHaveCount(baseline + 1);
+    await expect(clarkOverMarkers(page)).toHaveCount(baseline + 1);
     // POSITION: the single new over-marker sits on the time-off day (Mon 15), not a weekend — assert
     // it shares the time-off block's column offset.
     //
@@ -90,8 +90,8 @@ test.describe("Weekend over-marker", () => {
     // them from one settled snapshot — they re-render to the final geometry in lockstep. Chromium/
     // Firefox pass on the first attempt; a real wrong-day regression still fails the inner toEqual.
     await expect(async () => {
-      const newTimeOffLefts = (await leftsOf(nikeOverMarkers(page))).filter((l) => !weekendAwareLefts.includes(l));
-      const timeOffBlockLeft = await nikeLane(page)
+      const newTimeOffLefts = (await leftsOf(clarkOverMarkers(page))).filter((l) => !weekendAwareLefts.includes(l));
+      const timeOffBlockLeft = await clarkLane(page)
         .getByTestId("timeoff-block")
         .first()
         .evaluate((e) => (e as HTMLElement).style.left);

@@ -12,7 +12,7 @@ A manager scanning the schedule needs to know which bookings are firm versus pen
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and reset the horizontal scroll. The seeded **Visual Design** bar on Tyler Nix is **tentative**.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and reset the horizontal scroll. The seeded **Visual Design** bar on Bruce Wayne is **tentative**.
 
 1. Look at the **Visual Design** bar: it has a **dashed border** and a faint **diagonal hatch** overlay, while its label text stays at full contrast.
 2. Click the **Wireframes** bar to open **Edit allocation**.

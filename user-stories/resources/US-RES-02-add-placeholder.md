@@ -10,7 +10,7 @@ can be blocked out before a real person is hired or assigned.
 ## Why
 
 A studio manager often needs to plan capacity for a role that isn't filled yet — "a senior
-designer on Project Lightning". A placeholder reserves that slot on the schedule and keeps
+designer on Project Watchtower". A placeholder reserves that slot on the schedule and keeps
 its allocations attached to a single project until a real resource takes over.
 
 ## How (end-to-end)
@@ -24,7 +24,7 @@ pref is on).
    _Name (optional)_, the **Employment** field is hidden, and a **Bound project** field
    appears.
 2. Leave **Name** empty (optional) and set **Role** = `Senior Developer`.
-3. Choose **Bound project** = _Acme Inc. / Project Lightning_.
+3. Choose **Bound project** = _Queen Consolidated / Project Watchtower_.
 4. Set **Working hours / day** = `8`; ensure Mon–Fri in **Working days**.
 5. Click **Save**. The dialog closes.
 

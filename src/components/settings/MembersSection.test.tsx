@@ -82,7 +82,7 @@ function mockFetch(members: RawMember[] | { status: number }) {
         json: async () => [
           {
             id: DEFAULT_ACCOUNT_ID,
-            name: "Studio North",
+            name: "Wayne Enterprises",
             role: self?.role ?? "owner",
           },
         ],
@@ -901,7 +901,7 @@ describe("MembersSection — transfer ownership", () => {
         return {
           ok: true,
           status: 200,
-          json: async () => [{ id: DEFAULT_ACCOUNT_ID, name: "Studio North", role: "editor" }],
+          json: async () => [{ id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "editor" }],
         } as unknown as Response;
       }
       if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {

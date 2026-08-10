@@ -14,13 +14,13 @@ Drawing on the lane (US-SCH-02) is great when you know exactly which days you wa
 
 **Precondition:** Seeded app open at **Schedule** (`/`).
 
-1. On a resource row (e.g. **Tyler Nix**), click its **"+"** button (labelled "Add allocation for Tyler Nix" / titled "Add allocation").
-2. A **"New allocation"** modal opens, titled **"New allocation for Tyler Nix"**.
-3. Confirm the assignee is fixed to that row's resource (**Tyler Nix**) — named in the dialog title, with **no Assignee select** to change (the row "+" already chose them).
+1. On a resource row (e.g. **Bruce Wayne**), click its **"+"** button (labelled "Add allocation for Bruce Wayne" / titled "Add allocation").
+2. A **"New allocation"** modal opens, titled **"New allocation for Bruce Wayne"**.
+3. Confirm the assignee is fixed to that row's resource (**Bruce Wayne**) — named in the dialog title, with **no Assignee select** to change (the row "+" already chose them).
 4. The Start/End dates are prefilled (see US-SCH-18 for which date) — pick a **Project** and **Activity** and **Save** to book it.
 
 ## Acceptance criteria
 
 - ✅ Clicking a row's **"+"** opens the **"New allocation"** modal.
-- ✅ The modal is fixed to that row's resource (e.g. **Tyler Nix**), named in the dialog title — there is **no Assignee select** in row-create mode.
+- ✅ The modal is fixed to that row's resource (e.g. **Bruce Wayne**), named in the dialog title — there is **no Assignee select** in row-create mode.
 - ✅ The flow lets you complete the booking for that person (project + activity + save) without re-choosing the assignee.

@@ -6,7 +6,7 @@ test.describe("Settings — Clear device data", () => {
   test("Cancel is a no-op; confirm clears owned device data, preserves unrelated data, and reloads", async ({
     page,
   }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
 
     await page.evaluate(() => {
       localStorage.setItem("capacitylens/test-owned", "remove me");
@@ -82,6 +82,6 @@ test.describe("Settings — Clear device data", () => {
     // The demo reload proves scheduling data is not browser-owned: the canonical company data is
     // still available after passing back through the cleared device gates.
     await openApp(page);
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 });

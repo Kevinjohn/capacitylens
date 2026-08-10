@@ -89,7 +89,7 @@ export function EditButton({
 
 /** Icon-only Delete button for a list row — the danger-variant twin of EditButton. `label`
  *  defaults to "Delete" (so per-row selectors keep matching); pass a contextual label where
- *  rows need to disambiguate (e.g. "Delete Studio North" on the company picker). It is hidden from
+ *  rows need to disambiguate (e.g. "Delete Wayne Enterprises" on the company picker). It is hidden from
  *  viewers. */
 export function DeleteButton({
   label = m.form_delete(),

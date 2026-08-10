@@ -3,7 +3,7 @@ import { openApp, selectShadOption } from "./helpers";
 
 // Covers US-SET-14: Internal work is neutral by default without discarding saved project colours.
 test("Internal work defaults grey and palette mode restores the project picker and colour", async ({ page }) => {
-  await openApp(page, "Studio North", "/settings");
+  await openApp(page, "Wayne Enterprises", "/settings");
 
   await expect(page.getByRole("radio", { name: "Grey" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("radio", { name: "Use colour palette" })).toHaveAttribute("aria-checked", "false");

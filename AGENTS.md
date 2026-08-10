@@ -25,6 +25,12 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Use “Utilisation”, never “Load”, in the schedule UI.
 - Activity `kind` is required. Only `project` activities may carry `projectId`/`phaseId`.
 - Colours come from preset swatches; a person's colour derives from discipline.
+- Invented people in seed data, demo logins, fixtures, tests and docs use comic-book character real
+  names — DC for the first account (`a-studio`, Wayne Enterprises), Marvel for the second (`a-loft`,
+  Stark Industries) — so no name can be mistaken for a real customer or colleague. Clients, projects
+  and partner studios follow the same universes. Ids, emails and test-ids are stable identifiers and
+  do not change when a display name does. `Northwind Identity`, the fictional identity provider in
+  `docs-src/company-login/`, is deliberately outside this scheme.
 - Forms reject invalid input; import/server sanitise and repair. Server imports are atomic.
 - Device preferences are not account data. Offline snapshots are opt-in, seven-day and read-only;
   never add queued offline writes.

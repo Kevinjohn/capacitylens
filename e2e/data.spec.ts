@@ -115,7 +115,7 @@ const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", 
 test.describe("Data import/export", () => {
   test("seeds a demo dataset on first load", async ({ page }) => {
     await openApp(page);
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 
   test("import shows a confirmation that replaces all data; Cancel keeps the data", async ({ page }) => {
@@ -136,12 +136,12 @@ test.describe("Data import/export", () => {
 
     // Data is untouched — the seeded resource is still there.
     await openSchedule(page);
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 
   test("confirming an import replaces the dataset and ⌘Z restores it", async ({ page }) => {
     await openApp(page);
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
     await page.getByRole("alertdialog", { name: "Import data?" }).getByRole("button", { name: "Replace data" }).click();
 
@@ -149,7 +149,7 @@ test.describe("Data import/export", () => {
     await openSchedule(page);
     await expect(page.getByText("Imported Person")).toBeVisible();
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Imported Activity" })).toBeVisible();
-    await expect(page.getByText("Tyler Nix")).toHaveCount(0);
+    await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
     await expect(page.getByText(/Imported 5 records\. Press .* to undo\./)).toBeVisible();
 
     await page.getByRole("link", { name: "Clients" }).click();
@@ -165,10 +165,10 @@ test.describe("Data import/export", () => {
     await expect(page.getByText("Imported Activity")).toHaveCount(0);
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByRole("button", { name: "Add client" })).toBeVisible();
-    await expect(page.getByText("Acme Inc.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Queen Consolidated", { exact: true })).toBeVisible();
     await expect(page.getByText("Imported Client")).toHaveCount(0);
     await page.getByRole("link", { name: "Schedule" }).click();
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 
   test("rejects a non-CapacityLens file with a notice and preserves existing data", async ({ page }) => {
@@ -180,7 +180,7 @@ test.describe("Data import/export", () => {
     // assert on the message text, which is Sonner-DOM-agnostic.
     await expect(page.getByText(/not CapacityLens data/i)).toBeVisible();
     await openSchedule(page);
-    await expect(page.getByText("Tyler Nix")).toBeVisible(); // data preserved, no dialog, no wipe
+    await expect(page.getByText("Bruce Wayne")).toBeVisible(); // data preserved, no dialog, no wipe
   });
 
   test("rejects an EMPTY CapacityLens file (would silently wipe the account) with a notice", async ({ page }) => {
@@ -193,7 +193,7 @@ test.describe("Data import/export", () => {
     await expect(page.getByText(/no CapacityLens records/i)).toBeVisible();
     await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
     await openSchedule(page);
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 
   const refusalCases: Array<{
@@ -253,7 +253,7 @@ test.describe("Data import/export", () => {
       await expect(page.getByText(refusal.message)).toBeVisible();
       await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
       await openSchedule(page);
-      await expect(page.getByText("Tyler Nix")).toBeVisible();
+      await expect(page.getByText("Bruce Wayne")).toBeVisible();
     });
   }
 });

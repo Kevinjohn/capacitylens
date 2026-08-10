@@ -76,24 +76,24 @@ test.describe("Command palette", () => {
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
 
-    // Type the resource name (seeded: "Tyler Nix")
-    await page.getByTestId("command-palette-input").fill("Tyler");
+    // Type the resource name (seeded: "Bruce Wayne")
+    await page.getByTestId("command-palette-input").fill("Bruce");
 
-    // Wait for People section with Tyler Nix option
+    // Wait for People section with Bruce Wayne option
     await expect(page.getByText("People")).toBeVisible();
-    const tylerOption = page.getByTestId("command-palette-option").filter({ hasText: "Tyler Nix" });
-    await expect(tylerOption).toBeVisible();
+    const bruceOption = page.getByTestId("command-palette-option").filter({ hasText: "Bruce Wayne" });
+    await expect(bruceOption).toBeVisible();
 
-    // Navigate to Tyler with ArrowDown and Enter (or just click)
-    await tylerOption.click();
+    // Navigate to Bruce with ArrowDown and Enter (or just click)
+    await bruceOption.click();
 
     // Palette should be closed
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
 
-    // Schedule should still be visible (we navigated to '/' and jumped to Tyler)
+    // Schedule should still be visible (we navigated to '/' and jumped to Bruce)
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-    // Tyler Nix's lane should be visible (scrolled into view)
+    // Bruce Wayne's lane should be visible (scrolled into view)
     await expect(page.locator('[data-resource-id="r-tyler"]')).toBeVisible();
   });
 
@@ -102,14 +102,14 @@ test.describe("Command palette", () => {
     await page.keyboard.press("ControlOrMeta+k");
 
     // Type to filter resources
-    await page.getByTestId("command-palette-input").fill("Nike");
+    await page.getByTestId("command-palette-input").fill("Clark");
 
-    // ArrowDown to first result (Nike Spiros should appear)
+    // ArrowDown to first result (Clark Kent should appear)
     await page.keyboard.press("ArrowDown");
     // The active option should advance
     const options = page.getByTestId("command-palette-option");
-    // Find the Nike Spiros option
-    await expect(options.filter({ hasText: "Nike Spiros" })).toBeVisible();
+    // Find the Clark Kent option
+    await expect(options.filter({ hasText: "Clark Kent" })).toBeVisible();
     const activeId = await page.getByTestId("command-palette-input").getAttribute("aria-activedescendant");
     expect(activeId).toBeTruthy();
     await expect(page.locator(`#${activeId}`)).toHaveAttribute("aria-selected", "true");
@@ -120,7 +120,7 @@ test.describe("Command palette", () => {
     // Palette closes
     await expect(page.getByTestId("command-palette")).not.toBeVisible();
 
-    // Nike Spiros's lane should be on the schedule
+    // Clark Kent's lane should be on the schedule
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect(page.locator('[data-resource-id="r-nike"]')).toBeVisible();
   });
@@ -163,9 +163,9 @@ test.describe("Command palette", () => {
     await openApp(page);
 
     await page.keyboard.press("ControlOrMeta+k");
-    await page.getByTestId("command-palette-input").fill("Acme Inc.");
-    await page.getByTestId("command-palette-option").filter({ hasText: "Acme Inc." }).click();
-    await expect(page.getByRole("combobox", { name: "Filter by client" })).toHaveText("Acme Inc.");
+    await page.getByTestId("command-palette-input").fill("Queen Consolidated");
+    await page.getByTestId("command-palette-option").filter({ hasText: "Queen Consolidated" }).click();
+    await expect(page.getByRole("combobox", { name: "Filter by client" })).toHaveText("Queen Consolidated");
 
     await page.keyboard.press("ControlOrMeta+k");
     await page.getByTestId("command-palette-input").fill("Brand System");
@@ -240,13 +240,13 @@ test.describe("Command palette", () => {
     const searchInput = page.getByPlaceholder("Search people…");
     await searchInput.fill("zzz-nobody-matches-zzz");
 
-    // Open palette and select a seeded project (Project Lightning)
+    // Open palette and select a seeded project (Project Watchtower)
     await page.keyboard.press("ControlOrMeta+k");
     await expect(page.getByTestId("command-palette")).toBeVisible();
 
-    await page.getByTestId("command-palette-input").fill("Lightning");
+    await page.getByTestId("command-palette-input").fill("Watchtower");
 
-    const projectOption = page.getByTestId("command-palette-option").filter({ hasText: "Project Lightning" });
+    const projectOption = page.getByTestId("command-palette-option").filter({ hasText: "Project Watchtower" });
     await expect(projectOption).toBeVisible();
     await projectOption.click();
 
@@ -257,8 +257,10 @@ test.describe("Command palette", () => {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
     await expect(page.getByTestId("scheduler-empty")).not.toBeVisible();
 
-    // The project filter must show Project Lightning and the stale search text must be gone.
-    await expect(page.getByRole("combobox", { name: "Filter by project" })).toHaveText("Acme Inc. / Project Lightning");
+    // The project filter must show Project Watchtower and the stale search text must be gone.
+    await expect(page.getByRole("combobox", { name: "Filter by project" })).toHaveText(
+      "Queen Consolidated / Project Watchtower",
+    );
     await expect(page.getByPlaceholder("Search people…")).toHaveValue("");
   });
 

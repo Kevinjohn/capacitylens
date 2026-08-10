@@ -10,14 +10,14 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 test.describe("Settings build stamp + feedback link", () => {
   test("no build stamp in the default dev build", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     // The page is fully rendered (last section visible) before asserting the absence.
     await expect(page.getByRole("radiogroup", { name: "Theme" })).toBeVisible();
     await expect(page.getByTestId("build-stamp")).toHaveCount(0);
   });
 
   test("no Send feedback link in the default dev build", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     await expect(page.getByRole("radiogroup", { name: "Theme" })).toBeVisible();
     await expect(page.getByTestId("send-feedback")).toHaveCount(0);
   });

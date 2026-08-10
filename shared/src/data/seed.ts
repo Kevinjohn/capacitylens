@@ -6,10 +6,10 @@ import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from "../lib/dateMath"
 import { isValidISODate } from "../lib/integrity";
 
 // Two demo companies, loaded on first run so the account picker isn't empty.
-// "Studio North" is the rich dataset (stacked/overlapping allocations, an
+// "Wayne Enterprises" is the rich dataset (stacked/overlapping allocations, an
 // over-allocated day, a limited-days freelancer, a project-bound placeholder, an
 // external partner and a block of time off). The placeholder and external rows are seeded but
-// hidden until their default-off per-account visibility settings are enabled. "Loft Digital" is a
+// hidden until their default-off per-account visibility settings are enabled. "Stark Industries" is a
 // small second tenant — enough to prove
 // switching companies swaps the whole dataset. Every scoped entity carries an
 // `accountId`; the store filters on it everywhere.
@@ -27,14 +27,14 @@ export function seed(): AppData {
         id: STUDIO,
         createdAt: TS,
         updatedAt: TS,
-        name: "Studio North",
+        name: "Wayne Enterprises",
         color: "#2d75da",
       },
       {
         id: LOFT,
         createdAt: TS,
         updatedAt: TS,
-        name: "Loft Digital",
+        name: "Stark Industries",
         color: "#2d75da",
       },
     ],
@@ -83,7 +83,7 @@ export function seed(): AppData {
         createdAt: TS,
         updatedAt: TS,
         kind: "person",
-        name: "Tyler Nix",
+        name: "Bruce Wayne",
         role: "Designer",
         disciplineId: "d-design",
         employmentType: "permanent",
@@ -97,7 +97,7 @@ export function seed(): AppData {
         createdAt: TS,
         updatedAt: TS,
         kind: "person",
-        name: "Pam Gonzalez",
+        name: "Diana Prince",
         role: "PR & Brand",
         disciplineId: "d-copy",
         employmentType: "permanent",
@@ -111,7 +111,7 @@ export function seed(): AppData {
         createdAt: TS,
         updatedAt: TS,
         kind: "person",
-        name: "Nike Spiros",
+        name: "Clark Kent",
         role: "Web Developer",
         disciplineId: "d-dev",
         employmentType: "permanent",
@@ -125,7 +125,7 @@ export function seed(): AppData {
         createdAt: TS,
         updatedAt: TS,
         kind: "person",
-        name: "Alex Rivera",
+        name: "Barry Allen",
         role: "Front End (freelance)",
         disciplineId: "d-dev",
         employmentType: "freelancer",
@@ -156,7 +156,7 @@ export function seed(): AppData {
         createdAt: TS,
         updatedAt: TS,
         kind: "external",
-        name: "Northstar Partners",
+        name: "Kord Industries",
         role: "Partner studio",
         ...externalCapacityDefaults(),
         color: NEUTRAL_COLOR,
@@ -167,7 +167,7 @@ export function seed(): AppData {
         createdAt: TS,
         updatedAt: TS,
         kind: "person",
-        name: "Jo Mensah",
+        name: "Steve Rogers",
         role: "Product Designer",
         disciplineId: "d-loft-design",
         employmentType: "permanent",
@@ -203,7 +203,7 @@ export function seed(): AppData {
         accountId: STUDIO,
         createdAt: TS,
         updatedAt: TS,
-        name: "Acme Inc.",
+        name: "Queen Consolidated",
         color: "#e02727",
       },
       {
@@ -211,7 +211,7 @@ export function seed(): AppData {
         accountId: STUDIO,
         createdAt: TS,
         updatedAt: TS,
-        name: "Globex",
+        name: "LexCorp",
         color: "#2d75da",
       },
       {
@@ -219,7 +219,7 @@ export function seed(): AppData {
         accountId: LOFT,
         createdAt: TS,
         updatedAt: TS,
-        name: "Northwind",
+        name: "Rand Corporation",
         color: "#34c7d4",
       },
     ],
@@ -229,7 +229,7 @@ export function seed(): AppData {
         accountId: STUDIO,
         createdAt: TS,
         updatedAt: TS,
-        name: "Project Lightning",
+        name: "Project Watchtower",
         clientId: "c-acme",
         color: "#da2d92",
       },
@@ -238,7 +238,7 @@ export function seed(): AppData {
         accountId: STUDIO,
         createdAt: TS,
         updatedAt: TS,
-        name: "Brand Themes",
+        name: "Metropolis Rebrand",
         clientId: "c-globex",
         color: "#34c7d4",
       },
@@ -247,7 +247,7 @@ export function seed(): AppData {
         accountId: LOFT,
         createdAt: TS,
         updatedAt: TS,
-        name: "Mobile App",
+        name: "Rand Mobile App",
         clientId: "c-loft-northwind",
         color: "#2d75da",
       },
@@ -347,7 +347,7 @@ export function seed(): AppData {
       },
     ],
     allocations: [
-      // Tyler: two overlapping bars on 06-03/06-04 -> stacks + over-allocated (8 + 4 > 8).
+      // Bruce: two overlapping bars on 06-03/06-04 -> stacks + over-allocated (8 + 4 > 8).
       {
         id: "a-tyler-1",
         accountId: STUDIO,
@@ -408,7 +408,7 @@ export function seed(): AppData {
         hoursPerDay: 8,
         status: "confirmed",
       },
-      // External partner studio booked on Acme's visual design — a span only, no hours (hoursPerDay 0).
+      // External partner studio booked on Queen Consolidated's visual design — a span only, no hours (hoursPerDay 0).
       {
         id: "a-ext-1",
         accountId: STUDIO,

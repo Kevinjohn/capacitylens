@@ -25,7 +25,7 @@ function dataset(): AppData {
         createdAt: "t",
         updatedAt: "t",
         kind: "person",
-        name: "Tyler",
+        name: "Bruce",
         role: "Designer",
         disciplineId: "d1",
         employmentType: "permanent",
@@ -39,7 +39,7 @@ function dataset(): AppData {
         createdAt: "t",
         updatedAt: "t",
         kind: "external",
-        name: "Northstar Partners",
+        name: "Kord Industries",
         role: "Partner studio",
         employmentType: "permanent",
         workingHoursPerDay: 8,
@@ -119,7 +119,7 @@ describe("SchedulerGrid", () => {
   it("groups resource rows under their discipline", () => {
     renderGrid();
     expect(screen.getByText("Design")).toBeInTheDocument();
-    expect(screen.getByText("Tyler")).toBeInTheDocument();
+    expect(screen.getByText("Bruce")).toBeInTheDocument();
     expect(screen.getByText(/Wireframes/)).toBeInTheDocument();
   });
 
@@ -170,7 +170,7 @@ describe("SchedulerGrid", () => {
     renderGrid();
     expect(screen.getByRole("grid", { name: "Resource schedule" })).toBeInTheDocument();
     expect(screen.getAllByRole("row").length).toBeGreaterThan(0);
-    expect(screen.getByRole("rowheader", { name: /Tyler/ })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: /Bruce/ })).toBeInTheDocument();
     expect(screen.getByText(/1 allocation\./)).toBeInTheDocument(); // sr-only row summary
   });
 
@@ -181,8 +181,8 @@ describe("SchedulerGrid", () => {
 
     expect(screen.getByTestId("scheduler-live-region")).toHaveTextContent(/Time-off mode/);
     expect(screen.queryByText(/1 allocation\./)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Add time off for Northstar Partners/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Add time off for Tyler" }));
+    expect(screen.queryByRole("button", { name: /Add time off for Kord Industries/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add time off for Bruce" }));
     expect(await screen.findByRole("heading", { name: "Add time off" })).toBeInTheDocument();
   });
 
@@ -194,7 +194,7 @@ describe("SchedulerGrid", () => {
   });
 
   it("marks over-allocated days and shows a utilization figure", () => {
-    // Tyler has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
+    // Bruce has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({
       resourceId: "r1",
       activityId: "t1",
@@ -274,7 +274,7 @@ describe("SchedulerGrid", () => {
 
     act(() => useStore.getState().jumpToResource("r-ext"));
     expect(useStore.getState().ui.collapsedGroups).not.toContain("external");
-    expect(screen.getByText("Northstar Partners")).toBeInTheDocument();
+    expect(screen.getByText("Kord Industries")).toBeInTheDocument();
     expect(grid.scrollTop).not.toBe(444);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
   });
@@ -506,9 +506,9 @@ describe("SchedulerGrid filters", () => {
 
   it("collapsing a discipline hides its rows but keeps the header", () => {
     renderGrid();
-    expect(screen.getByText("Tyler")).toBeInTheDocument();
+    expect(screen.getByText("Bruce")).toBeInTheDocument();
     act(() => useStore.getState().toggleGroup("d1"));
-    expect(screen.queryByText("Tyler")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bruce")).not.toBeInTheDocument();
     expect(screen.getByTestId("discipline-group")).toBeInTheDocument();
   });
 });

@@ -2,10 +2,10 @@
  * Dependency-free fuzzy scorer for the command palette.
  *
  * Scoring tiers (lower = better rank):
- *   0 — exact prefix match         "ty"    → "Tyler Nix"
- *   1 — word-boundary prefix match "nix"   → "Tyler Nix"
- *   2 — contiguous match anywhere  "ler"   → "Tyler Nix"
- *   3 — subsequence (scattered)    "tnx"   → "Tyler Nix"
+ *   0 — exact prefix match         "br"    → "Bruce Wayne"
+ *   1 — word-boundary prefix match "way"   → "Bruce Wayne"
+ *   2 — contiguous match anywhere  "uce"   → "Bruce Wayne"
+ *   3 — subsequence (scattered)    "bwn"   → "Bruce Wayne"
  *   Infinity — no match
  *
  * Within a tier, shorter names rank higher (tighter fit).

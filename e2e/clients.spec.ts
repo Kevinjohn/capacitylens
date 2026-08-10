@@ -4,7 +4,7 @@ import { openApp } from "./helpers";
 // Covers US-CLI-01..03.
 test.describe("Clients", () => {
   test("adds a client and makes it available as a schedule filter", async ({ page }) => {
-    await openApp(page, "Studio North", "/clients");
+    await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Initech");
     await page.getByRole("button", { name: "Save" }).click();
@@ -18,7 +18,7 @@ test.describe("Clients", () => {
   });
 
   test("an owner can add a private client with a code name", async ({ page }) => {
-    await openApp(page, "Studio North", "/clients");
+    await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Embargoed Client Ltd");
     await page.getByRole("switch", { name: "Use a code name" }).click();
@@ -27,18 +27,18 @@ test.describe("Clients", () => {
     await expect(page.getByRole("alert")).toContainText(/name is required/i);
     await expect(page.getByRole("dialog", { name: "Add client" })).toBeVisible();
 
-    await page.getByRole("textbox", { name: "Code name", exact: true }).fill('"Northstar"');
+    await page.getByRole("textbox", { name: "Code name", exact: true }).fill('"Nightwing"');
     await page.getByRole("button", { name: "Save" }).click();
 
     const row = page.getByTestId("client-row").filter({ hasText: "Embargoed Client Ltd" });
     await expect(row).toBeVisible(); // trusted-local/demo is owner-equivalent and sees the real name.
     await row.getByRole("button", { name: /^Edit / }).click();
     await expect(page.getByRole("switch", { name: "Use a code name" })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("textbox", { name: "Code name", exact: true })).toHaveValue("Northstar");
+    await expect(page.getByRole("textbox", { name: "Code name", exact: true })).toHaveValue("Nightwing");
   });
 
   test("rejects emoji / junk characters in a name and blocks the save", async ({ page }) => {
-    await openApp(page, "Studio North", "/clients");
+    await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
     // An emoji is rejected…
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Acme \u{1F389} Co");
@@ -52,10 +52,10 @@ test.describe("Clients", () => {
   });
 
   test("edits a client and the rename reflects in project labels", async ({ page }) => {
-    await openApp(page, "Studio North", "/clients");
+    await openApp(page, "Wayne Enterprises", "/clients");
     await page
       .getByTestId("client-row")
-      .filter({ hasText: "Acme Inc." })
+      .filter({ hasText: "Queen Consolidated" })
       .getByRole("button", { name: /^Edit / })
       .click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Acme Worldwide");
@@ -66,27 +66,27 @@ test.describe("Clients", () => {
     await page.getByRole("link", { name: "Activities" }).click();
     await page.getByRole("button", { name: "Add activity" }).click();
     await page.getByLabel("Project").click();
-    await expect(page.getByRole("option", { name: /Acme Worldwide \/ Project Lightning/ })).toBeVisible();
+    await expect(page.getByRole("option", { name: /Acme Worldwide \/ Project Watchtower/ })).toBeVisible();
   });
 
   // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
   // a hard cascade-delete). Its projects keep their OWN active status (archiving filters by each row's
   // own status, it does not cascade), so they stay visible; archiving is undoable via the local store.
   test("archiving a client hides it from the list, restorable with undo", async ({ page }) => {
-    await openApp(page, "Studio North", "/clients");
+    await openApp(page, "Wayne Enterprises", "/clients");
     await page
       .getByTestId("client-row")
-      .filter({ hasText: "Acme Inc." })
-      .getByRole("button", { name: "Archive Acme Inc." })
+      .filter({ hasText: "Queen Consolidated" })
+      .getByRole("button", { name: "Archive Queen Consolidated" })
       .click();
     await page
       .getByRole("alertdialog", { name: "Archive client?" })
       .getByRole("button", { name: "Archive", exact: true })
       .click();
-    await expect(page.getByTestId("client-row").filter({ hasText: "Acme Inc." })).toHaveCount(0);
+    await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toHaveCount(0);
 
     // Undo restores the archived client to the active list.
     await page.keyboard.press("Meta+z");
-    await expect(page.getByTestId("client-row").filter({ hasText: "Acme Inc." })).toBeVisible();
+    await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toBeVisible();
   });
 });

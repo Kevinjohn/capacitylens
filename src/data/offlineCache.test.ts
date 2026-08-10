@@ -464,7 +464,7 @@ describe("offline tenant cache", () => {
     await cacheAccountSlice("a-studio", accountSlice("a-studio"));
 
     const restored = await readCachedAccountSlice("a-studio");
-    expect(restored?.value.accounts[0]?.name).toBe("Studio North");
+    expect(restored?.value.accounts[0]?.name).toBe("Wayne Enterprises");
 
     clock.mockReturnValue(savedAt + 7 * DAY_MS + 1);
     await expect(readCachedAccountSlice("a-studio")).resolves.toBeNull();
@@ -682,7 +682,7 @@ describe("offline tenant cache", () => {
     await clearOfflineDataForCurrentUser();
     await cacheAuthSnapshot(authSnapshot("abc"));
 
-    expect((await readCachedAccountSlice("a-studio"))?.value.accounts[0]?.name).toBe("Studio North");
+    expect((await readCachedAccountSlice("a-studio"))?.value.accounts[0]?.name).toBe("Wayne Enterprises");
   });
 
   it("reports unavailable browser storage so sign-out can disable stale offline data", async () => {
