@@ -4,7 +4,7 @@ import { buildApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
 import { authFromEnv, runAuthMigrations, type Auth } from "./auth";
-import { PASSWORD_ENV, call, signUp } from "./testHelpers";
+import { PASSWORD_ENV, call, cookiesOf, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { recordSessionAssurance } from "./accounts/state";
 
@@ -32,17 +32,30 @@ function seedTwo(db: Db): void {
   insertAll(db, d as unknown as AppData);
 }
 
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
+async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth }), db };
+  return { app: buildApp(db, { authMode: mode, auth, ...options }), db };
 }
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, {
     method: "GET",
     url: `/api/accounts/${accountId}/members`,
+    headers,
+  });
+
+const memberSignInTrackingReq = (
+  app: FastifyInstance,
+  accountId: string,
+  enabled: unknown,
+  headers: Record<string, string> = {},
+) =>
+  call(app, {
+    method: "PUT",
+    url: `/api/accounts/${accountId}/member-sign-in-tracking`,
+    payload: { enabled },
     headers,
   });
 
@@ -956,7 +969,7 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
       error: "Member management is unavailable in trusted-local mode.",
     };
 
-    expect((await membersReq(app, "a1")).json()).toEqual({ members: [] });
+    expect((await membersReq(app, "a1")).json()).toEqual({ members: [], signInTrackingEnabled: false });
     expect((await invitesReq(app, "a1")).json()).toEqual({ invites: [] });
     // Trusted-local has no member model, so neither nonexistent nor manually seeded rows should
     // make an inert request look like a committed membership mutation.
@@ -1299,25 +1312,82 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
   });
 });
 
-describe("GET /api/accounts/:id/members — lastLoginAt", () => {
-  it("reports the newest retained session for each member, and null when none remains", async () => {
+describe("member sign-in confirmation", () => {
+  it("rate-limits repeated privacy-setting writes", async () => {
+    const { app, db } = await appWithAuth({ rateLimit: 100 });
+    seedTwo(db);
+    const owner = await signUp(app, "owner-sign-in-rate-limit@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+
+    for (let request = 0; request < 5; request += 1) {
+      expect((await memberSignInTrackingReq(app, "a1", request % 2 === 0, { cookie: owner.cookie })).statusCode).toBe(
+        200,
+      );
+    }
+    expect((await memberSignInTrackingReq(app, "a1", false, { cookie: owner.cookie })).statusCode).toBe(429);
+  });
+
+  it("is owner-controlled, default-off, timestamp-free, resettable and erased when disabled", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
-    const owner = await signUp(app, "owner-lastlogin@capacitylens.dev");
+    const owner = await signUp(app, "owner-sign-in-confirmation@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const ed = await signUp(app, "editor-lastlogin@capacitylens.dev");
+    const ed = await signUp(app, "editor-sign-in-confirmation@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-    // Sign-up created a session for each. Drop the editor's to model a member whose last session has
-    // aged out of retention — the column must degrade to "unknown", not to a wrong date.
-    db.prepare(`DELETE FROM session WHERE userId = ?`).run(ed.userId);
 
-    const res = await membersReq(app, "a1", { cookie: owner.cookie });
-    expect(res.statusCode).toBe(200);
-    const members = (res.json() as { members: Array<{ userId: string; lastLoginAt: string | null }> }).members;
-    const self = members.find((m) => m.userId === owner.userId)!;
-    expect(typeof self.lastLoginAt).toBe("string");
-    expect(Number.isFinite(Date.parse(self.lastLoginAt!))).toBe(true);
-    expect(members.find((m) => m.userId === ed.userId)!.lastLoginAt).toBeNull();
+    const initial = await membersReq(app, "a1", { cookie: owner.cookie });
+    expect(initial.statusCode).toBe(200);
+    const initialDirectory = initial.json() as {
+      signInTrackingEnabled: boolean;
+      members: Array<{ userId: string; signInConfirmed: boolean | null }>;
+    };
+    expect(initialDirectory.signInTrackingEnabled).toBe(false);
+    expect(initialDirectory.members.find((member) => member.userId === owner.userId)?.signInConfirmed).toBeNull();
+    expect(initialDirectory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBeNull();
+    expect((await memberSignInTrackingReq(app, "a1", true, { cookie: ed.cookie })).statusCode).toBe(403);
+    expect((await memberSignInTrackingReq(app, "a1", "true", { cookie: owner.cookie })).statusCode).toBe(400);
+
+    const enabled = await memberSignInTrackingReq(app, "a1", true, { cookie: owner.cookie });
+    expect(enabled.statusCode).toBe(200);
+    expect(enabled.json()).toEqual({ enabled: true });
+    let directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json() as {
+      signInTrackingEnabled: boolean;
+      members: Array<{ userId: string; signInConfirmed: boolean | null }>;
+    };
+    expect(directory.signInTrackingEnabled).toBe(true);
+    expect(directory.members.find((member) => member.userId === owner.userId)?.signInConfirmed).toBe(true);
+    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
+
+    const signedIn = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-in/email",
+      payload: { email: "editor-sign-in-confirmation@capacitylens.dev", password: "password-123456" },
+    });
+    expect(signedIn.statusCode).toBe(200);
+    expect(cookiesOf(signedIn)).not.toBe("");
+    directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
+    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(true);
+
+    expect((await revokeSessionsReq(app, "a1", ed.userId, { cookie: owner.cookie })).statusCode).toBe(204);
+    directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
+    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
+
+    db.prepare("UPDATE user SET twoFactorEnabled = 1 WHERE id = ?").run(ed.userId);
+    const awaitingMfa = await call(app, {
+      method: "POST",
+      url: "/api/auth/sign-in/email",
+      payload: { email: "editor-sign-in-confirmation@capacitylens.dev", password: "password-123456" },
+    });
+    expect(awaitingMfa.statusCode).toBe(200);
+    expect(awaitingMfa.json()).toMatchObject({ twoFactorRedirect: true });
+    directory = (await membersReq(app, "a1", { cookie: owner.cookie })).json();
+    expect(directory.members.find((member) => member.userId === ed.userId)?.signInConfirmed).toBe(false);
+
+    expect((await memberSignInTrackingReq(app, "a1", false, { cookie: owner.cookie })).statusCode).toBe(200);
+    expect(db.prepare("SELECT signInConfirmed FROM account_members WHERE accountId = 'a1'").all()).toEqual([
+      { signInConfirmed: null },
+      { signInConfirmed: null },
+    ]);
   });
 });
 

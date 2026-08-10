@@ -25,6 +25,23 @@ new features and **patch** versions carry fixes.
   the client-side app, which the published docs deliberately ship without, so every page carried the
   label with nothing after it. Showing a real date again means rendering it at build time (#187).
 
+## [0.39.0-alpha.1] — 2026-08-10
+
+Owners can now verify that an invitation or access reset resulted in a successful sign-in without
+collecting a last-login timestamp or tracking activity across the site. The setting is deliberately
+off by default, records only a per-membership yes/not-yet confirmation, and erases its observations
+when switched off.
+
+### Added
+
+- **Owners can optionally record whether each member has signed in.** The privacy setting is off by
+  default and stores only a yes/not-yet value per membership—never a sign-in time or activity
+  history. When enabled, the members table adds a **Signed in** column beside each person's name and
+  email, while the edit and settings controls remain separate at the right-hand edge. Turning the
+  setting off deletes every confirmation. Changing access state, issuing a password-reset link or
+  revoking sessions clears the affected confirmation until that member successfully signs in again
+  (#180).
+
 ## [0.38.2-alpha.1] — 2026-08-10
 
 ### Changed
@@ -3074,7 +3091,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.0-alpha.1...HEAD
+[0.39.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.2-alpha.1...v0.39.0-alpha.1
 [0.38.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.1-alpha.1...v0.38.2-alpha.1
 [0.38.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.0-alpha.1...v0.38.1-alpha.1
 [0.38.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.37.0-alpha.1...v0.38.0-alpha.1

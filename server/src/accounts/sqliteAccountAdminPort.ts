@@ -63,6 +63,7 @@ import { KeyedOperationLock } from "./operationLock";
 import { getSecurityRevision } from "./state";
 import { WriteOnceSecretReplay } from "./writeOnceSecretReplay";
 import { accountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
+import { confirmTrackedMemberSignIn } from "./memberSignInTracking";
 
 export const ACCOUNT_POLICY_VERSION = "account-policy-v1";
 export const MAX_INVITATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -562,6 +563,10 @@ export function sqliteAccountAdminPort(input: {
         createdAt: now,
       });
     }
+    // Invitation acceptance itself runs only for the verified/authenticated principal. If the
+    // membership is created after its session, the session hook could not have observed this
+    // account yet, so confirm it inside the same invitation transaction.
+    confirmTrackedMemberSignIn(db, input.principalId);
     try {
       markInviteUsed(db, input.token, now);
     } catch (error) {

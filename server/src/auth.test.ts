@@ -328,7 +328,7 @@ describe("startup configuration before database migration", () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 25 }));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 26 }));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -503,6 +503,7 @@ describe("startup configuration before database migration", () => {
       expect.objectContaining({ version: 23, name: "index-foreign-key-children" }),
       expect.objectContaining({ version: 24, name: "bound-used-invitation-history" }),
       expect.objectContaining({ version: 25, name: "secure-federated-identity-linking" }),
+      expect.objectContaining({ version: 26, name: "add-member-sign-in-confirmation" }),
     ]);
     const before = await planAuthSchemaMigrations(configured.auth!);
     expect(before.pending).toBe(true);
@@ -668,6 +669,47 @@ describe("external identity creation gate", () => {
     await expect(
       before!({ email: "new-social@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
     ).rejects.toMatchObject({ body: expect.objectContaining({ code: "STRICT_PROVIDER_REQUIRED" }) });
+  });
+
+  it("creates a strict-OIDC session without querying password-only MFA columns", async () => {
+    const db = openDb(":memory:");
+    const { auth } = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_AUTH: "sso",
+      CAPACITYLENS_SSO_CLIENT_ID: "strict-client",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "strict-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+    });
+    await runAuthMigrations(auth!);
+    expect(
+      (db.prepare("PRAGMA table_info(user)").all() as Array<{ name: string }>).some(
+        ({ name }) => name === "twoFactorEnabled",
+      ),
+    ).toBe(false);
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, image, createdAt, updatedAt)
+       VALUES (?, ?, ?, 1, NULL, ?, ?)`,
+    ).run(
+      "strict-principal",
+      "Strict Member",
+      "strict@example.com",
+      "2026-08-10T00:00:00.000Z",
+      "2026-08-10T00:00:00.000Z",
+    );
+
+    const after = auth!.options.databaseHooks?.session?.create?.after;
+    expect(after).toBeTypeOf("function");
+    await expect(
+      after!(
+        { token: "strict-session-token", userId: "strict-principal" } as never,
+        { path: "/oauth2/callback/:providerId", params: { providerId: "sso" } } as never,
+      ),
+    ).resolves.toBeUndefined();
+    expect(db.prepare("SELECT assurance, providerId FROM account_session_assurance").get()).toEqual({
+      assurance: "federated",
+      providerId: "sso",
+    });
   });
 
   it("keeps the first-external-identity claim control when email registration is open", () => {

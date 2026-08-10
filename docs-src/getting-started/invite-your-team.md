@@ -32,8 +32,6 @@ permissions](/getting-started/roles-and-permissions) for why.
 1. Open **Team & access**. Your own access is summarised at the top of the page; select
    **See full capabilities** if you want the full list of what your role can and can't do.
 
-   ![Team & access page showing your access summary, the members table and the No longer active group below it](../screenshots/flows/team-access.jpg)
-
 2. Choose a role in the "Invite someone" panel. The consequences of that role are spelled
    out in plain language underneath it, and you can optionally pre-authorise a specific
    email address.
@@ -68,8 +66,10 @@ see their own access.
 
 ## Managing someone who already joined
 
-Your members are listed in a table showing their name, role and last sign-in. Two controls
-sit at the end of each row:
+Your members are listed in a table showing their name and email, with their role beneath
+their name. Two controls sit at the end of each row:
+
+![Members table with the privacy-preserving sign-in setting enabled](../screenshots/flows/team-access.jpg)
 
 - The **pencil** changes that person's role, with the consequences spelled out before you
   save.
@@ -82,9 +82,13 @@ you need access shut off right now. They stay in the list with a badge, and **Re
 access** in the same menu puts them back exactly as they were. Removing someone, by
 contrast, is permanent: they'd need a fresh invitation to return.
 
-"Last login" reads **Unknown** when there's no recent sign-in on record. It's honest about
-what it knows: CapacityLens can't tell "hasn't signed in for a long time" apart from
-"never signed in", so it doesn't claim either.
+Owners can turn on **Record member sign-ins** above the table. It is off by default. When
+it is on, the columns are **Name**, **Email**, **Signed in**, **Edit member** and **Member
+settings**. The last two controls stay together at the right-hand edge. **Signed in**
+shows **Yes** or **Not yet** for each member. CapacityLens stores no sign-in date or
+activity history for this feature. Turning the setting off deletes every confirmation.
+Admins can see the column when an Owner enables it, but only the Owner can change the
+setting.
 
 ## Common questions
 

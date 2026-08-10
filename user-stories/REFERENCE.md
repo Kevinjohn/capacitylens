@@ -698,20 +698,26 @@ The management section has four parts:
   (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
   (`data-testid="sso-remove-link"`).
 
-- **Members table** (`data-testid="members-table"`) — columns **Name**, **Member role**, **Last
-  login** (`data-testid="member-last-login"`) and
-  **Actions**, one row per member (`data-testid="member-row"`); the caller's own row is
-  marked **(you)** and a non-active member's row carries a **Disabled** or **Archived** badge
+- **Members table** (`data-testid="members-table"`) — columns **Name**, **Email**, optional **Signed
+  in**, **Edit member** and **Member settings**, one row per member (`data-testid="member-row"`).
+  The role stays visible beneath the member's name. The caller's own row is marked **(you)** and a
+  non-active member's row carries a **Disabled** or **Archived** badge
   (`data-testid="member-status"`). Members are ordered by **join date, then name** (with the
   principal id as a final tie-break so the listing is stable between reads). The table itself lists
   only **active** members; disabled and archived memberships are grouped below it behind a
   collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
   reporting its state through `aria-expanded`) which reveals a second table of the same columns
   (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
-  state, and its rows carry the same badges, gear and confirmations as the main table. **Last
-  login** is derived from the retained session table, so a member with no retained session reads
-  **Unknown** — that read cannot distinguish "never signed in" from "session aged out", and the UI
-  never claims the stronger of the two. Each manageable **active** row ends in a pencil
+  state, and its rows carry the same badges, gear and confirmations as the main table. The
+  owner-only **Record member sign-ins** switch (`data-testid="member-sign-in-tracking"`) is off by
+  default. While it is on, the table adds **Signed in** (`data-testid="member-sign-in-confirmed"`),
+  showing **Yes** or **Not yet** for a successful sign-in during the current observation window.
+  CapacityLens stores only this per-membership boolean: no sign-in date, enablement date, session
+  history or site activity. Enabling starts a fresh window and confirms the signed-in Owner;
+  disabling deletes every confirmation. Changing a membership's access state, issuing a new
+  password-reset link or revoking a person's sessions clears their confirmation until they next
+  sign in. An Admin may see the column when the Owner enables it but cannot change the setting. Each
+  manageable **active** row ends in a pencil
   (`data-testid="member-edit"`) opening the **Change member role** dialog — a role select
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
   plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
@@ -781,8 +787,11 @@ index prevents multiple active owners for an account, and the server prevents re
 Owner outside transfer. The server remains the backstop: bypassing the UI cannot grant a second
 Owner, transfer as Admin, revoke another account's invite or read another account's member list.
 
-The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; each member carries `status` and a
-nullable `lastLoginAt` derived from retained sessions; OFF → `{members:[]}`),
+The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; returns
+`{members, signInTrackingEnabled}` and each member carries `status` plus nullable
+`signInConfirmed`; OFF → `{members:[], signInTrackingEnabled:false}`),
+`PUT /api/accounts/:accountId/member-sign-in-tracking {enabled}` (Owner only; desired-state and
+idempotent; disabling erases every observation),
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
 404 non-member, 403 by the role rules),
 `PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `disabled` | `archived`;

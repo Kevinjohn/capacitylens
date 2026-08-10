@@ -24,6 +24,7 @@ import { actorContextFromSession, localAccountFlows } from "./accounts/localAcco
 import { KeyedOperationLock } from "./accounts/operationLock";
 import { trustedLocalIdentityPort } from "./accounts/trustedLocalIdentityPort";
 import { registerAccountRoutes } from "./accounts/accountRoutes";
+import { memberSignInTrackingSnapshot, setMemberSignInTracking } from "./accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 // Every `accounts`-row write rule lives in ONE module (see its header). The generic /api/:entity
 // routes below refuse `accounts` outright; the batch loop shares these predicates so the sync path
@@ -1943,6 +1944,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       administration: accountAdminPort,
       identity: identityPort,
       flows: accountFlows,
+      memberSignInTracking: {
+        snapshot: (workspaceId) => memberSignInTrackingSnapshot(db, workspaceId),
+        set: (workspaceId, actorPrincipalId, enabled) =>
+          setMemberSignInTracking(db, workspaceId, actorPrincipalId, enabled),
+      },
       authorize,
       command: accountCommand,
       audit,

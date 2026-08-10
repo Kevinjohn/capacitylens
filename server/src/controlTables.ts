@@ -9,6 +9,7 @@ import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/acco
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
 import { revokeResetTokensForUser } from "./auth";
 import { bumpSecurityRevision } from "./accounts/state";
+import { migrateMemberSignInTrackingV26, removeMemberSignInTrackingForAccount } from "./accounts/memberSignInTracking";
 import type { Db } from "./db";
 import { tx } from "./txn";
 
@@ -99,7 +100,7 @@ export const USED_INVITATION_RETENTION_V24_DEFINITION = [
  * statement is `IF NOT EXISTS`, so this is safe to run on EVERY boot and on every opened DB
  * (including the `:memory:` databases tests open via openDb).
  *
- * Schema: `account_members(accountId, userId, role, status, createdAt)` with a composite
+ * Schema: `account_members(accountId, userId, role, status, createdAt, signInConfirmed?)` with a composite
  * PRIMARY KEY `(accountId, userId)` (a login has at most one role per account), plus a
  * by-`userId` index (P1.2's listAccounts: "which accounts can this login see?") and a
  * by-`accountId` index (member-management listing: "who is in this account?").
@@ -126,6 +127,7 @@ export function ensureControlTables(db: Db): void {
       role TEXT NOT NULL,
       status TEXT NOT NULL,
       createdAt TEXT NOT NULL,
+      signInConfirmed TEXT CHECK(signInConfirmed IS NULL OR signInConfirmed IN ('false', 'true')),
       PRIMARY KEY (accountId, userId)
     );
     CREATE INDEX IF NOT EXISTS idx_account_members_userId ON account_members(userId);
@@ -141,6 +143,9 @@ export function ensureControlTables(db: Db): void {
       createdAt TEXT NOT NULL
     );
   `);
+  // The v26 migration owns this additive shape. Repeating its guarded repair here keeps fresh and
+  // pre-ledger development databases on the same every-boot control-plane boundary as invites.
+  migrateMemberSignInTrackingV26(db);
   // ADDITIVE column for an ALREADY-CREATED dev DB (the `invites` table is new in P1.9; the `id`
   // column is added in P1.11). A DB that already has the table from P1.9 won't get `id` from the
   // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
@@ -249,6 +254,7 @@ export function ensureControlTables(db: Db): void {
  * AppData/TABLES, so schema.ts cannot cover them; without this companion assertion a missed future
  * control-table migration would otherwise surface only when an account or invite route is used. */
 export function assertControlTablesCurrent(db: Db): void {
+  const accountMemberColumns = db.prepare("PRAGMA table_info(account_members)").all() as Array<{ name: string }>;
   const expectedColumns: Record<string, Record<string, { notNull: boolean; primaryKey: number }>> = {
     account_members: {
       accountId: { notNull: true, primaryKey: 1 },
@@ -256,6 +262,9 @@ export function assertControlTablesCurrent(db: Db): void {
       role: { notNull: true, primaryKey: 0 },
       status: { notNull: true, primaryKey: 0 },
       createdAt: { notNull: true, primaryKey: 0 },
+      ...(accountMemberColumns.some(({ name }) => name === "signInConfirmed")
+        ? { signInConfirmed: { notNull: false, primaryKey: 0 } }
+        : {}),
     },
     invites: {
       tokenHash: { notNull: true, primaryKey: 1 },
@@ -413,11 +422,13 @@ export function upsertMember(db: Db, member: AccountMember): void {
     );
   }
   db.prepare(
-    `INSERT INTO account_members (accountId, userId, role, status, createdAt)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO account_members (accountId, userId, role, status, createdAt, signInConfirmed)
+     VALUES (?, ?, ?, ?, ?, CASE WHEN EXISTS (
+       SELECT 1 FROM account_member_sign_in_tracking WHERE accountId = ?
+     ) THEN 'false' ELSE NULL END)
      ON CONFLICT(accountId, userId) DO UPDATE SET
        role = excluded.role, status = excluded.status`,
-  ).run(member.accountId, member.userId, member.role, member.status, member.createdAt);
+  ).run(member.accountId, member.userId, member.role, member.status, member.createdAt, member.accountId);
   // P1.18 (TOCTOU close): a password-reset link is authorized at MINT time against the user's
   // membership snapshot THEN — so ANY membership write for this user (a role change, becoming the
   // owner of a new org, even a lateral move) invalidates that
@@ -464,7 +475,12 @@ export function setMemberStatus(
   // every time anyone re-applied a status the member already had.
   const changed =
     db
-      .prepare(`UPDATE account_members SET status = ? WHERE accountId = ? AND userId = ? AND status <> ?`)
+      .prepare(
+        `UPDATE account_members
+            SET status = ?,
+                signInConfirmed = CASE WHEN signInConfirmed IS NULL THEN NULL ELSE 'false' END
+          WHERE accountId = ? AND userId = ? AND status <> ?`,
+      )
       .run(status, accountId, userId, status).changes > 0;
   if (!changed) {
     // Matchless: either the membership is absent, or it already holds this status. Only the second
@@ -986,6 +1002,7 @@ export function removeAllMembersForAccount(db: Db, accountId: string): void {
   const affected = db
     .prepare(`SELECT DISTINCT userId FROM account_members WHERE accountId = ?`)
     .all(accountId) as Array<{ userId: string }>;
+  removeMemberSignInTrackingForAccount(db, accountId);
   db.prepare(`DELETE FROM account_members WHERE accountId = ?`).run(accountId);
   for (const { userId } of affected) {
     revokeResetTokensForUser(db, userId);

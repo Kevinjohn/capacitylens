@@ -30,7 +30,7 @@ interface RawMember {
   role: "owner" | "admin" | "editor" | "viewer";
   status?: string;
   createdAt?: string;
-  lastLoginAt?: string | null;
+  signInConfirmed?: boolean | null;
   name?: string | null;
   email?: string | null;
   isSelf?: boolean;
@@ -55,10 +55,11 @@ function mockFetch(members: RawMember[] | { status: number }) {
         ok: true,
         status: 200,
         json: async () => ({
+          signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
           members: members.map((m) => ({
             status: "active",
             createdAt: "2026-01-01T00:00:00.000Z",
-            lastLoginAt: null,
+            signInConfirmed: null,
             name: null,
             email: `${m.userId}@x.io`,
             isSelf: false,
@@ -366,6 +367,7 @@ describe("MembersSection — admin affordances", () => {
     expect(screen.getByRole("option", { name: "Admin" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Editor" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("member-sign-in-tracking")).not.toBeInTheDocument();
   });
 
   it("marks and describes an invalid invitation pre-authorisation email", async () => {
@@ -727,7 +729,7 @@ describe("MembersSection — owner affordances", () => {
       expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
 
-      const row = rows.find((candidate) => within(candidate).queryByText(member))!;
+      const row = rows.find((candidate) => within(candidate).queryByText(member.split(" (")[0]!))!;
       await openMemberMenu(user, row);
       for (const action of [
         `Reset password for ${member}`,
@@ -978,12 +980,12 @@ describe("MembersSection — member lifecycle", () => {
     expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
   });
 
-  it("renders a session-derived last login, and 'Unknown' when none is retained", async () => {
+  it("renders only coarse sign-in confirmation when the owner has enabled it", async () => {
     vi.stubGlobal(
       "fetch",
       mockFetch([
-        { userId: "me", role: "owner", isSelf: true, lastLoginAt: "2026-07-18T10:00:00.000Z" },
-        { userId: "ed", role: "editor", lastLoginAt: null },
+        { userId: "me", role: "owner", isSelf: true, signInConfirmed: true },
+        { userId: "ed", role: "editor", signInConfirmed: false },
       ]),
     );
     renderSection();
@@ -991,11 +993,90 @@ describe("MembersSection — member lifecycle", () => {
     const selfRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
     const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
 
-    expect(within(selfRow).getByTestId("member-last-login")).toHaveTextContent(
-      new Date("2026-07-18T10:00:00.000Z").toLocaleDateString(),
+    expect(within(selfRow).getByTestId("member-sign-in-confirmed")).toHaveTextContent(
+      m.settings_member_sign_in_confirmed(),
     );
-    // "Unknown", never "Never": a retained-session read cannot tell the two apart.
-    expect(within(edRow).getByTestId("member-last-login")).toHaveTextContent(m.settings_member_last_login_unknown());
+    expect(within(edRow).getByTestId("member-sign-in-confirmed")).toHaveTextContent(
+      m.settings_member_sign_in_not_confirmed(),
+    );
+    expect(screen.queryByText(/2026|unknown/i)).not.toBeInTheDocument();
+  });
+
+  it("lets only the owner opt in and keeps edit then settings in separate right-hand columns", async () => {
+    const user = userEvent.setup();
+    let trackingEnabled = false;
+    const members: RawMember[] = [
+      { userId: "me", role: "owner", isSelf: true },
+      { userId: "ed", name: "Clark Kent", email: "clark@example.test", role: "editor" },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const endpoint = String(url);
+        if (endpoint.endsWith("/member-sign-in-tracking") && init?.method === "PUT") {
+          trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ enabled: trackingEnabled }),
+          } as Response;
+        }
+        if (endpoint.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              signInTrackingEnabled: trackingEnabled,
+              members: members.map((member) => ({
+                status: "active",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                name: null,
+                email: `${member.userId}@x.io`,
+                isSelf: false,
+                mayResetPassword: false,
+                mayRevokeSessions: true,
+                ...member,
+                signInConfirmed: trackingEnabled ? member.isSelf === true : null,
+              })),
+            }),
+          } as Response;
+        }
+        if (endpoint.endsWith("/invites")) {
+          return { ok: true, status: 200, json: async () => ({ invites: [] }) } as Response;
+        }
+        return { ok: true, status: 204, json: async () => ({}) } as Response;
+      }),
+    );
+    renderSection();
+
+    const tracking = await screen.findByTestId("member-sign-in-tracking");
+    expect(tracking).not.toBeChecked();
+    expect(screen.getByText(/no dates or activity history are kept/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: m.settings_member_col_sign_in_confirmed() }),
+    ).not.toBeInTheDocument();
+
+    await user.click(tracking);
+    await waitFor(() => expect(tracking).toBeChecked());
+    const table = screen.getByTestId("members-table");
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual([
+      m.settings_member_col_name(),
+      m.settings_member_col_email(),
+      m.settings_member_col_sign_in_confirmed(),
+      m.settings_member_col_edit(),
+      m.settings_member_col_settings(),
+    ]);
+    const editorRow = within(table)
+      .getAllByTestId("member-row")
+      .find((row) => within(row).queryByText("Clark Kent"))!;
+    const cells = within(editorRow).getAllByRole("cell");
+    expect(cells).toHaveLength(5);
+    expect(within(cells[3]!).getByTestId("member-edit")).toBeInTheDocument();
+    expect(within(cells[4]!).getByTestId("member-menu")).toBeInTheDocument();
   });
 
   it("reconciles an unknown self-demotion even after member reads become forbidden", async () => {

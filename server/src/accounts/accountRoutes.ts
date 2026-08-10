@@ -14,8 +14,14 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { AuditRecord } from "../audit";
 import { wasAccountCommandReplayed } from "./commands";
+import type { MemberSignInTrackingSnapshot } from "./memberSignInTracking";
 
 const ISO_INSTANT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z$/;
+const MEMBER_SIGN_IN_TRACKING_RATE_LIMIT = {
+  max: 5,
+  timeWindow: "1 minute",
+  groupId: "member-sign-in-tracking",
+} as const;
 
 /** Parse the route's narrow UTC-instant format without accepting Date.parse calendar rollover. */
 function parseStrictIsoInstant(value: string): number | null {
@@ -49,6 +55,10 @@ export interface AccountRouteDependencies {
   administration: AccountAdminPort;
   identity: IdentityPort;
   flows: AccountFlows;
+  memberSignInTracking: {
+    snapshot(workspaceId: string): MemberSignInTrackingSnapshot;
+    set(workspaceId: string, actorPrincipalId: string, enabled: boolean): { enabled: boolean; changed: boolean };
+  };
   authorize(request: FastifyRequest, reply: FastifyReply, workspaceId: string, action: Action): boolean;
   command(request: FastifyRequest): CommandIdentity;
   audit(reply: FastifyReply, record: AuditRecord): void;
@@ -69,6 +79,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     administration: accountAdminPort,
     identity: identityPort,
     flows: accountFlows,
+    memberSignInTracking,
     authorize,
     command: accountCommand,
     audit,
@@ -436,8 +447,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     if (!authorize(req, reply, accountId, "manageMembers")) return;
     // OFF mode: no real member model (req.user is DEMO_USER, membership is unread) — return empty so
     // the shape is honest and nothing crashes. The UI is hidden in OFF, so this is belt-and-braces.
-    if (authMode === "off") return { members: [] };
+    if (authMode === "off") return { members: [], signInTrackingEnabled: false };
     try {
+      const tracking = memberSignInTracking.snapshot(accountId);
       const directory = await accountFlows!.listMemberDirectory({
         actor: req.accountActor!,
         workspaceId: accountId,
@@ -458,19 +470,50 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
           createdAt: member.joinedAt,
           name: principal?.displayName ?? null,
           email: principal?.email ?? null,
-          // Derived from the newest RETAINED session, so it silently becomes null once a member's
-          // last session ages out. It is a convenience column, never an authorization input.
-          lastLoginAt: principal?.lastAuthenticatedAt ?? null,
+          signInConfirmed: tracking.enabled ? (tracking.confirmations.get(member.principalId) ?? false) : null,
           isSelf: member.principalId === req.accountActor!.principalId,
           mayResetPassword: authMode === "password" && reset.allowed,
           mayRevokeSessions: revoke.allowed,
         };
       });
-      return { members };
+      return { members, signInTrackingEnabled: tracking.enabled };
     } catch (err) {
       return accountFail(reply, err);
     }
   });
+
+  // OWNER-only privacy control. The desired-state PUT is safely repeatable after a lost response:
+  // enabling an already-enabled account never resets its confirmations, and disabling is a no-op
+  // once the stored observations have been erased.
+  app.put(
+    "/api/accounts/:accountId/member-sign-in-tracking",
+    { config: { rateLimit: MEMBER_SIGN_IN_TRACKING_RATE_LIMIT } },
+    async (req, reply) => {
+      const { accountId } = req.params as { accountId: string };
+      if (!authorize(req, reply, accountId, "manageMemberSignInTracking")) return;
+      const body = req.body as { enabled?: unknown } | null;
+      if (!body || typeof body.enabled !== "boolean") {
+        return reply.code(400).send({ error: "enabled must be a boolean." });
+      }
+      try {
+        const result = memberSignInTracking.set(accountId, req.accountActor!.principalId, body.enabled);
+        if (result.changed) {
+          audit(reply, {
+            ts: new Date().toISOString(),
+            userId: req.accountActor!.principalId,
+            accountId,
+            action: "memberSignInTrackingChange",
+            entity: "account",
+            id: accountId,
+            changedFields: ["memberSignInTracking"],
+          });
+        }
+        return reply.code(200).send({ enabled: result.enabled });
+      } catch (err) {
+        return accountFail(reply, err);
+      }
+    },
+  );
 
   // CHANGE a non-owner member's ordinary role. Owner is rejected at shape/policy level for every
   // actor; the only ownership mutation is the explicit atomic transfer route below.

@@ -313,6 +313,15 @@ export const accountClient = {
     });
   },
 
+  setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
+    return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/member-sign-in-tracking`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+  },
+
   listInvitations(workspaceId: string): Promise<Response> {
     return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites`, {
       credentials: "include",
