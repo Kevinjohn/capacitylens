@@ -35,8 +35,8 @@ invited **Viewer V** and **Editor E** (both accepted).
 
 **As V (viewer):** sign in, pick the company, dismiss the intro.
 
-1. The sidebar footer shows a subtle **"View only"** badge (`data-testid="view-only"`) beside the
-   company name.
+1. The sidebar footer shows a subtle pill-shaped **"View only"** badge
+   (`data-testid="view-only"`) beside the company name.
 2. Open **Clients** (sidebar). There is **no "Add client"** button, and no client row carries an
    **Edit** or **Delete** button. (The same holds on every entity list — Resources, Projects,
    Activities, Disciplines, Time off — one gate covers them all.)
@@ -63,7 +63,7 @@ draggable/resizable.
   **Draw-mode** toggle and **Undo/Redo**; a **"View only"** badge (`data-testid="view-only"`) shows
   in the sidebar footer.
 - For an **Owner/Admin/Editor**: every permitted affordance is shown and the company footer displays
-  the effective role badge; only Viewer adds the **View only** qualifier.
+  the effective pill-shaped role badge; only Viewer adds the **View only** qualifier.
 - The **server 403** is the authoritative backstop: a direct scheduling write as a Viewer
   (`PUT /api/<entity>/<id>` with the account's `accountId`, write tier = editor+) is **403** even if
   the UI is bypassed. As a second local guard, the store no-ops a viewer's `add*`/`update*`/`delete*`/

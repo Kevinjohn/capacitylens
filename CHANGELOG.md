@@ -50,6 +50,20 @@ new features and **patch** versions carry fixes.
   now reads "Full company access. You are the single Owner of this company.", because promising a
   control that has no screen behind it is worse than saying nothing. (#175)
 
+## [0.36.0-alpha.1] — 2026-08-10
+
+The source-owned shadcn primitives now match the current registry where appropriate while keeping
+CapacityLens's documented behaviour, semantic colour language and accessibility guarantees.
+
+### Changed
+
+- Shared role and status badges now use the current shadcn pill silhouette, invalid-state styling
+  and link-aware variants while retaining CapacityLens's brand and contrast-tuned semantic colours
+  (#163).
+- Removed inert React Server Component directives from the Vite-owned UI primitives and documented
+  the sidebar's deliberate shortcut guards and omitted cookie persistence so future registry
+  comparisons preserve those choices (#162).
+
 ## [0.35.7-alpha.1] — 2026-08-10
 
 A demo-data rename: the seeded people, companies, clients and projects are now recognisable,
@@ -3012,7 +3026,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.36.0-alpha.1...HEAD
+[0.36.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...v0.36.0-alpha.1
 [0.35.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...v0.35.7-alpha.1
 [0.35.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...v0.35.6-alpha.1
 [0.35.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...v0.35.5-alpha.1

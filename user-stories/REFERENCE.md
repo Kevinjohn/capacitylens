@@ -192,6 +192,11 @@ otherwise, and the demo persona's face in the demo build. The row always reads *
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
 It appears on any auth-enabled deploy and in the demo build; an auth-off server shows no such row.
 
+**Badge shape.** Shared role and status badges use a compact pill silhouette. This applies to the
+company picker and sidebar roles, invite roles, Team & access posture, placeholder resources,
+company-login connection state and cutover readiness. Their semantic colour remains independent:
+brand/default, neutral, warning, danger and outline badges keep their existing meanings.
+
 **Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
 On small screens the matching top-bar control opens the sidebar sheet and exposes the same
