@@ -1,6 +1,7 @@
 // Turn the VitePress build in docs/ (built from the docs-src/ sources) into
 // standalone pages that open straight from disk (file://), with no web server
-// and no JavaScript.
+// and — bar one inline enhancement, see the data-cl-keep exception below — no
+// JavaScript.
 //
 // VitePress server-renders every page's full content into its HTML, so the
 // only things standing between the build and a double-clickable site are:
@@ -56,8 +57,12 @@ for (const file of files.filter((f) => f.endsWith(".html"))) {
   let html = readFileSync(file, "utf8");
 
   html = html
-    // All scripts go: the module entry point, inline helpers, everything.
-    .replace(/<script\b[\s\S]*?<\/script>/g, "")
+    // Every script goes — the module entry point, VitePress's inline helpers,
+    // everything — except one deliberate exception, tagged in config.mts with
+    // data-cl-keep. That exception is inline (no bundle to delete, no request to
+    // make under file://) and is a pure enhancement: the pages are built to work
+    // with it removed, which is what everything else here assumes.
+    .replace(/<script\b([^>]*)>[\s\S]*?<\/script>/g, (tag, attrs) => (attrs.includes("data-cl-keep") ? tag : ""))
     // Preloads for assets the scripts would have used.
     .replace(/<link rel="modulepreload"[^>]*>/g, "")
     .replace(/<link rel="preload"[^>]*>/g, "")

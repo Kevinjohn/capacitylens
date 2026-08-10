@@ -5,6 +5,19 @@ on:
     branches: [main]
     paths:
       - "docs-src/**"
+      - "docs/**"
+      - "scripts/docs-standalone.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/docs.yml"
+  # Also on PRs: the committed docs/ is the artifact people read, and the
+  # freshness check below is the only thing that catches a source change whose
+  # rebuild was never committed. (Duplicated rather than a YAML anchor —
+  # GitHub Actions does not expand anchors.)
+  pull_request:
+    paths:
+      - "docs-src/**"
+      - "docs/**"
       - "scripts/docs-standalone.mjs"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -37,3 +50,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run docs:build
+      - name: Check the committed site matches its sources
+        # docs/ is committed, and it is what readers open — the build is not
+        # deployed from here. A source change whose rebuild was never committed
+        # would otherwise ship silently: the site still builds, and the unit
+        # tests that inspect docs/ would keep passing against the stale HTML.
+        run: |
+          if ! git diff --quiet -- docs; then
+            # The actual hunks, not just a file list: "36 files changed" says
+            # nothing about whether the cause is a real staleness or a build
+            # input that differs between this runner and the author's machine.
+            git diff --stat -- docs
+            git diff -- docs | head -100
+            echo "::error::docs/ is out of date. Run 'pnpm run docs:build' and commit the result."
+            exit 1
+          fi

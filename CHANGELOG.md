@@ -10,6 +10,21 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- **Documentation screenshots open full size when clicked.** Every screenshot in the docs is now a
+  lightbox: click it to see it filling the window, then click anywhere — or press Escape — to
+  close. The screenshots are captured well above the width of the text column, so this shows detail
+  that was previously only legible by opening the image file directly. Opening and closing is pure
+  CSS, because the published docs are built to open straight from disk; the Escape key is handled by
+  the one small inline script the build keeps, and the lightbox still works without it (#187).
+
+### Fixed
+
+- **Documentation pages no longer show an empty "Last updated:" label.** The date was filled in by
+  the client-side app, which the published docs deliberately ship without, so every page carried the
+  label with nothing after it. Showing a real date again means rendering it at build time (#187).
+
 ## [0.39.0-alpha.1] — 2026-08-10
 
 Owners can now verify that an invitation or access reset resulted in a successful sign-in without

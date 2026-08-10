@@ -1,9 +1,28 @@
 import { defineConfig } from "vitepress";
+import { imageLightbox } from "./lightbox.mts";
 
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
 // Sidebar order is the reading order: sections run from "never seen it" to
 // "operating it in production" to "reference".
+// Escape closes an open screenshot lightbox. Opening, closing by click, and all
+// the styling are pure CSS (see lightbox.mts); this one keystroke is the only
+// part CSS cannot express, so it is the only script the standalone build keeps —
+// hence the data-cl-keep marker that scripts/docs-standalone.mjs looks for.
+//
+// It is a pure enhancement, deliberately: it adds a way to close the lightbox
+// and takes nothing away, so a reader with JavaScript off, or a copy of the
+// pages that lost the script somewhere, still gets the click-to-close lightbox
+// exactly as before. Inline rather than a bundle, because a separate .js file
+// would be a network request the file:// build cannot rely on.
+const escapeClosesLightbox = `document.addEventListener("keydown", function (event) {
+  if (event.key !== "Escape") return;
+  document.querySelectorAll(".cl-toggle:checked").forEach(function (toggle) {
+    toggle.checked = false;
+  });
+});`;
+
 export default defineConfig({
+  head: [["script", { "data-cl-keep": "" }, escapeClosesLightbox]],
   title: "CapacityLens",
   description:
     "Documentation for CapacityLens — a self-hosted helicopter view of who is busy, free, or overworked, week by week.",
@@ -17,7 +36,19 @@ export default defineConfig({
   // not an ignored .vitepress/dist — rebuild with `pnpm run docs:build` after
   // editing anything under docs-src/.
   outDir: "../docs",
-  lastUpdated: true,
+  // Off, because it cannot work in this build and was rendering as a defect:
+  // VitePress emits `Last updated: <time datetime="…"></time>` and fills the
+  // text in client-side, but docs-standalone.mjs strips every script — so each
+  // page shipped a "Last updated:" label followed by nothing at all.
+  //
+  // It also made the build unreproducible: the baked timestamp is the last
+  // commit touching that page's .md, so the same sources built on a CI runner
+  // (where the checkout is shallow and every file maps to one ephemeral merge
+  // commit) produced different bytes than the same build run locally. That is
+  // what the docs workflow's freshness check exists to catch, and it cannot
+  // distinguish a genuinely stale commit from this. Restoring the date means
+  // rendering it at build time, not turning this back on.
+  lastUpdated: false,
 
   // Deliberately light-only: plain white page, dark text, like classic docs sites.
   appearance: false,
@@ -25,7 +56,9 @@ export default defineConfig({
   // Code blocks are the one dark element on the light page: terminals and code
   // read as terminals. The background/label colours to match live in
   // theme/custom.css (--vp-code-block-bg and friends).
-  markdown: { theme: "github-dark" },
+  // Screenshots get a JavaScript-free click-to-enlarge lightbox; see lightbox.mts
+  // for why it has to be build-time markup rather than a library.
+  markdown: { theme: "github-dark", config: imageLightbox },
 
   // Internal records that live in docs-src/ but are not part of the site.
   srcExclude: ["STYLE.md", "sso-cutover-design.md", "account-boundary.md", "README.md"],
