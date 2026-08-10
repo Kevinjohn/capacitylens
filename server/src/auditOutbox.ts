@@ -63,6 +63,7 @@ const PRODUCT_ACTION_VALUES = [
   "purge",
   "memberRole",
   "memberStatus",
+  "memberSignInTrackingChange",
   "memberRemove",
   "ownershipTransfer",
   "inviteCreate",

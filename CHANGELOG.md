@@ -10,6 +10,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- **Owners can optionally record whether each member has signed in.** The privacy setting is off by
+  default and stores only a yes/not-yet value per membership—never a sign-in time or activity
+  history. Turning it off deletes every confirmation. When enabled, the members table shows the
+  status beside each person's name and email, with edit and settings actions kept in separate
+  right-aligned columns (#180).
+
 ## [0.38.2-alpha.1] — 2026-08-10
 
 ### Changed

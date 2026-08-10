@@ -4,6 +4,7 @@ import type { ActorContext } from "@capacitylens/shared/account/types";
 import { createInvite, getInvite, upsertMember } from "../controlTables";
 import { openDb, insertRow, type Db } from "../db";
 import { KeyedOperationLock } from "./operationLock";
+import { memberSignInTrackingSnapshot, setMemberSignInTracking } from "./memberSignInTracking";
 import { hasLivePreauthorizedInvitation, sqliteAccountAdminPort } from "./sqliteAccountAdminPort";
 import { WRITE_ONCE_SECRET_REPLAY_WINDOW_MS } from "./writeOnceSecretReplay";
 
@@ -401,6 +402,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
       command,
     };
+    setMemberSignInTracking(db, "workspace-1", actor.principalId, true);
     const created = await port.createInvitation(createInput);
     await port.claimInvitationForPrincipal({
       token: created.token,
@@ -410,6 +412,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       passwordMode: true,
       command: { commandId: "claim-command", idempotencyKey: "claim-idempotency" },
     });
+    expect(memberSignInTrackingSnapshot(db, "workspace-1").confirmations.get("invitee-1")).toBe(true);
 
     await expect(port.createInvitation(createInput)).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
   });

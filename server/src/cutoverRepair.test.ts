@@ -69,7 +69,7 @@ describe("stopped-server SSO cutover repair", () => {
       DROP INDEX idx_account_provider_subject_unique;
       DROP TRIGGER capacitylens_observe_federated_account;
       DELETE FROM capacitylens_federated_link_observations;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
       PRAGMA user_version = 24;
     `);
     insertAccount(prepared.db, "right-link", "workforce", "duplicate-subject", "right-principal");
@@ -98,7 +98,7 @@ describe("stopped-server SSO cutover repair", () => {
     expect(verified.prepare(`SELECT id, userId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
       { id: "right-link", userId: "right-principal" },
     ]);
-    expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: 25 });
+    expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: 26 });
     verified.close();
   });
 
@@ -169,7 +169,7 @@ describe("stopped-server SSO cutover repair", () => {
     prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-link");
     prepared.db.exec(`
       DROP INDEX idx_account_principal_provider_unique;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
       PRAGMA user_version = 24;
     `);
     insertAccount(prepared.db, "keep-link", "workforce", "subject-correct", "principal-1");

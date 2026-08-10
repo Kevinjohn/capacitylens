@@ -37,6 +37,7 @@ import {
 import { WorkQueueFullError } from "./workQueue";
 import { bindFederatedProvider, recordSessionAssurance, removeSessionAssurance } from "./accounts/state";
 import { applicationSessionHandle } from "./accounts/sessionHandle";
+import { confirmTrackedMemberSignIn } from "./accounts/memberSignInTracking";
 import { tx } from "./txn";
 import {
   createFederatedLinkCeremony,
@@ -1083,6 +1084,7 @@ export function authFromEnv(
   }).env;
   const mode = parseAuthMode(env.CAPACITYLENS_AUTH);
   if (mode === "off") return { mode, auth: null };
+  const requirePasswordMfa = mode === "password" && env.CAPACITYLENS_REQUIRE_MFA === "1";
   const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION;
   const applicationFailure = boundApplicationFailure(application);
   if (applicationFailure) throw new AuthConfigError(applicationFailure);
@@ -1491,6 +1493,17 @@ export function authFromEnv(
               assurance,
               providerId,
             );
+            const enrolledMfa = (
+              db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?").get(String(session.userId)) as
+                { twoFactorEnabled?: unknown } | undefined
+            )?.twoFactorEnabled;
+            const passwordSessionAwaitsMfa =
+              assurance === "password" &&
+              (requirePasswordMfa || enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");
+            // Privacy-preserving account opt-in: record only the boolean fact that this identity
+            // completed authentication. A password session that still owes an MFA challenge does
+            // not count; the replacement MFA session confirms the sign-in after verification.
+            if (!passwordSessionAwaitsMfa) confirmTrackedMemberSignIn(db, String(session.userId));
           },
         },
         delete: {

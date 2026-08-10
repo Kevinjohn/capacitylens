@@ -16,6 +16,13 @@ The SQLite database can contain company names, member names and email addresses,
 projects, activities, allocations, time off and free-text notes. The authentication tables
 contain identities, linked sign-in providers, sessions, invitations and password-reset state.
 
+An Owner can optionally record whether each company member successfully signs in. This setting is
+off by default. When it is on, CapacityLens stores one yes-or-no confirmation on each membership,
+not the sign-in time or any site activity. Turning the setting off removes every live confirmation.
+Changing a membership's access state, revoking a person's sessions or issuing a new password-reset
+link clears their confirmation until they sign in again. Like other database data, an older backup
+may still contain the value it held when that backup was made.
+
 Used invitations are kept as bounded history: at most the newest 200 per company and no longer
 than 365 days. A live, unused invitation instead follows its own expiry and can be revoked at any
 time. Invitation links are stored only as digests and are never shown again once created.

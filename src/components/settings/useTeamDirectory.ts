@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import { errorMessage } from "../../lib/errorMessage";
-import { teamAccessClient, type TeamInvitation, type TeamMember } from "../../account/teamAccessClient";
+import {
+  teamAccessClient,
+  type TeamDirectory,
+  type TeamInvitation,
+  type TeamMember,
+} from "../../account/teamAccessClient";
 import type { FieldError } from "../../hooks/useFieldError";
 
 interface TeamDirectoryOptions {
@@ -24,8 +29,9 @@ export function useTeamDirectory({
     accountId: string | null;
     members: TeamMember[] | null;
     invites: TeamInvitation[];
+    signInTrackingEnabled: boolean;
     gate: "loading" | "shown" | "hidden" | "error";
-  }>({ accountId: null, members: null, invites: [], gate: "loading" });
+  }>({ accountId: null, members: null, invites: [], signInTrackingEnabled: false, gate: "loading" });
   const directoryRef = useRef(directory);
   const [reloadKey, setReloadKey] = useState(0);
   const requestGeneration = useRef(0);
@@ -69,7 +75,13 @@ export function useTeamDirectory({
               setDirectory((previous) => ({ ...previous, gate: "error" }));
               fail(null, m.settings_members_err_access_changed());
             } else {
-              setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: "hidden" });
+              setDirectory({
+                accountId: activeAccountId,
+                members: null,
+                invites: [],
+                signInTrackingEnabled: false,
+                gate: "hidden",
+              });
             }
           }
           return;
@@ -79,7 +91,13 @@ export function useTeamDirectory({
         }
         if (membersResult.kind !== "ok") {
           if (!current()) return;
-          setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: "error" });
+          setDirectory({
+            accountId: activeAccountId,
+            members: null,
+            invites: [],
+            signInTrackingEnabled: false,
+            gate: "error",
+          });
           fail(
             null,
             membersResult.kind === "rejected" && membersResult.message
@@ -91,7 +109,8 @@ export function useTeamDirectory({
         if (!current()) return;
         setDirectory((previous) => ({
           accountId: activeAccountId,
-          members: membersResult.value,
+          members: membersResult.value.members,
+          signInTrackingEnabled: membersResult.value.signInTrackingEnabled,
           // Preserve the last authoritative invitation list while a same-account refresh is in
           // flight. On an account switch, the old list is both hidden by the account key below and
           // discarded here before this account's separately-authorized invite read completes.
@@ -123,7 +142,13 @@ export function useTeamDirectory({
       } catch (error) {
         if (!current()) return;
         if (!membersLoaded) {
-          setDirectory({ accountId: activeAccountId, members: null, invites: [], gate: "error" });
+          setDirectory({
+            accountId: activeAccountId,
+            members: null,
+            invites: [],
+            signInTrackingEnabled: false,
+            gate: "error",
+          });
         }
         fail(null, m.settings_err_server({ error: errorMessage(error) }));
       }
@@ -136,13 +161,19 @@ export function useTeamDirectory({
 
   const currentAccountLoaded = directory.accountId === activeAccountId;
 
-  const replaceDirectory = useCallback((members: TeamMember[], invites: TeamInvitation[]) => {
-    setDirectory((previous) => ({ ...previous, members, invites }));
+  const replaceDirectory = useCallback((next: TeamDirectory, invites: TeamInvitation[]) => {
+    setDirectory((previous) => ({
+      ...previous,
+      members: next.members,
+      signInTrackingEnabled: next.signInTrackingEnabled,
+      invites,
+    }));
   }, []);
 
   return {
     members: currentAccountLoaded ? directory.members : null,
     invites: currentAccountLoaded ? directory.invites : [],
+    signInTrackingEnabled: currentAccountLoaded ? directory.signInTrackingEnabled : false,
     gate: currentAccountLoaded ? directory.gate : "loading",
     replaceDirectory,
     reload,
