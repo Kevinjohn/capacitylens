@@ -254,7 +254,9 @@ primitive, certificate/key path or TLS configuration must be reviewed into
 `docs-src/security/crypto-inventory.json`. The hard gate inventories tracked working-tree
 files and fails separately when a crypto-like source file is still untracked — an
 inventory entry can't bless a file that exists only in one checkout, so add an intended
-source file to Git before reviewing it into the inventory.
+source file to Git before reviewing it into the inventory. Generated output is skipped —
+including the committed `docs/` build — because those files are copies of sources the
+check already scans.
 
 ### Mutation testing
 
