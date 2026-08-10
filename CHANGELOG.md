@@ -21,6 +21,16 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- **Documentation breadcrumb links work again.** The trail above each page linked to addresses
+  without a `.html` on the end, which only a web server can resolve — so in the published docs,
+  which are built to open straight from disk, every breadcrumb link led nowhere. Pages filed under
+  a sub-section (the security review records) also showed a bare "Home / Page" trail instead of
+  naming the section they belong to (#184).
+- **The security review records are reachable from the sidebar again.** Their group was set to
+  start collapsed, and expanding it needs JavaScript the published docs deliberately ship without
+  — so six pages sat behind a control that could never open. The group now starts expanded (#184).
+- **The machine-readable cryptography inventory linked from "Control inventories" is now published
+  with the docs.** The link pointed at a file the build never copied into the site (#184).
 - **Documentation pages no longer show an empty "Last updated:" label.** The date was filled in by
   the client-side app, which the published docs deliberately ship without, so every page carried the
   label with nothing after it. Showing a real date again means rendering it at build time (#187).

@@ -1,5 +1,6 @@
 import { defineConfig } from "vitepress";
 import { imageLightbox } from "./lightbox.mts";
+import { BASE } from "./base.mjs";
 
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
 // Sidebar order is the reading order: sections run from "never seen it" to
@@ -27,7 +28,7 @@ export default defineConfig({
   description:
     "Documentation for CapacityLens — a self-hosted helicopter view of who is busy, free, or overworked, week by week.",
   lang: "en-GB",
-  base: "/capacitylens/",
+  base: BASE,
   // Keep real .html extensions in links: the postbuild step (scripts/docs-standalone.mjs)
   // turns the build into standalone pages that open straight from disk, where
   // extensionless URLs would need a server to rewrite them.
@@ -128,8 +129,11 @@ export default defineConfig({
           { text: "Privacy", link: "/security/privacy" },
           { text: "Reviews and compliance", link: "/security/reviews" },
           {
+            // Not collapsed: VitePress expands a collapsed group client-side,
+            // and the shipped pages have no JavaScript (see docs-standalone.mjs),
+            // so a collapsed group would put these six pages behind a control
+            // that can never open.
             text: "Review records",
-            collapsed: true,
             items: [
               { text: "Threat model", link: "/security/threat-model" },
               { text: "OWASP ASVS 5.0.0 mapping", link: "/security/owasp-asvs-5.0.0" },
