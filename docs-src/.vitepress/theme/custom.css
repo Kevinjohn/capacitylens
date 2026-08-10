@@ -88,10 +88,10 @@
   z-index: 200;
   align-items: center;
   justify-content: center;
-  /* A tall capture can be taller than the window even at 1:1, and the point of
-     the lightbox is to read the detail — so let the overlay scroll rather than
-     shrinking the image to fit. `safe` keeps the top of an overflowing image
-     reachable; browsers without it just centre, as before. */
+  /* The image below is capped to this box, so nothing should overflow. These are
+     a safety net for the case where it does anyway (a viewport shorter than the
+     minimum padding, say): scroll to the rest rather than clipping it, and
+     `safe` keeps the top reachable instead of centring it out of view. */
   overflow: auto;
   align-items: safe center;
   padding: clamp(1rem, 4vw, 3rem);
@@ -113,11 +113,18 @@ html:has(.cl-toggle:checked) {
   overflow: hidden;
 }
 
-/* Natural size where it fits, narrowed to the viewport where it does not —
-   never stretched past 1:1, which would only blur the detail being sought.
-   Height is deliberately unconstrained; the overlay scrolls instead. */
+/* Natural size where it fits, shrunk to the window where it does not — never
+   stretched past 1:1, which would only blur the detail being sought.
+   Both axes are capped, and to the padded box rather than the raw viewport, so
+   the enlarged image is always visible in one go. Letting it overflow instead
+   turns the lightbox into a surface you have to pan around, which is the one
+   thing a reader who clicked a screenshot did not ask for — and the padding
+   made even an image the exact size of the screen overflow.
+   Our captures are viewport-shaped, so fitting costs little: they still land
+   near 1:1, and vastly wider than the ~690px text column. */
 .cl-lightbox img {
   max-width: 100%;
+  max-height: 100%;
   width: auto;
   height: auto;
   border: 0;
