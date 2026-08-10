@@ -38,9 +38,20 @@
 // Known keyboard limitation: opening leaves focus on the checkbox, so Space
 // closes again — but the overlay is not a modal. Tabbing while it is open moves
 // focus into the article behind the backdrop, where the focus ring cannot be
-// seen, and there is no Escape binding. Both fixes (focus trapping, a key
-// handler) need JavaScript, which the standalone build strips, so the escape
-// hatch is Shift+Tab back to the checkbox and Space.
+// seen, and there is no Escape binding.
+//
+// To be accurate about why, since the two halves have different answers: the
+// Popover API (`<button popovertarget>` plus a `popover` element) would give
+// Escape-to-close, light dismiss and top-layer rendering with no script at all,
+// so Escape is NOT blocked by the no-JavaScript constraint. What it would not
+// give is inertness — only `dialog.showModal()` makes the background
+// unreachable, and that is a JS call the standalone build strips. Popover is
+// also still short of the "Baseline widely available" bar AGENTS.md sets, and a
+// browser that does not know the attribute renders the overlay as a plain,
+// permanently visible div, so adopting it means carrying an
+// `@supports selector(:popover-open)` fallback. That trade was judged not worth
+// it for a docs lightbox; the escape hatch today is Space, or Shift+Tab back to
+// the checkbox and Space.
 //
 // Both <img> tags carry the same src, so the browser reuses the one download —
 // the overlay shows the image at its natural size, which for our screenshots

@@ -18,7 +18,19 @@ export default defineConfig({
   // not an ignored .vitepress/dist — rebuild with `pnpm run docs:build` after
   // editing anything under docs-src/.
   outDir: "../docs",
-  lastUpdated: true,
+  // Off, because it cannot work in this build and was rendering as a defect:
+  // VitePress emits `Last updated: <time datetime="…"></time>` and fills the
+  // text in client-side, but docs-standalone.mjs strips every script — so each
+  // page shipped a "Last updated:" label followed by nothing at all.
+  //
+  // It also made the build unreproducible: the baked timestamp is the last
+  // commit touching that page's .md, so the same sources built on a CI runner
+  // (where the checkout is shallow and every file maps to one ephemeral merge
+  // commit) produced different bytes than the same build run locally. That is
+  // what the docs workflow's freshness check exists to catch, and it cannot
+  // distinguish a genuinely stale commit from this. Restoring the date means
+  // rendering it at build time, not turning this back on.
+  lastUpdated: false,
 
   // Deliberately light-only: plain white page, dark text, like classic docs sites.
   appearance: false,
