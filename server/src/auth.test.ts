@@ -671,6 +671,47 @@ describe("external identity creation gate", () => {
     ).rejects.toMatchObject({ body: expect.objectContaining({ code: "STRICT_PROVIDER_REQUIRED" }) });
   });
 
+  it("creates a strict-OIDC session without querying password-only MFA columns", async () => {
+    const db = openDb(":memory:");
+    const { auth } = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_AUTH: "sso",
+      CAPACITYLENS_SSO_CLIENT_ID: "strict-client",
+      CAPACITYLENS_SSO_CLIENT_SECRET: "strict-secret",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+    });
+    await runAuthMigrations(auth!);
+    expect(
+      (db.prepare("PRAGMA table_info(user)").all() as Array<{ name: string }>).some(
+        ({ name }) => name === "twoFactorEnabled",
+      ),
+    ).toBe(false);
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, image, createdAt, updatedAt)
+       VALUES (?, ?, ?, 1, NULL, ?, ?)`,
+    ).run(
+      "strict-principal",
+      "Strict Member",
+      "strict@example.com",
+      "2026-08-10T00:00:00.000Z",
+      "2026-08-10T00:00:00.000Z",
+    );
+
+    const after = auth!.options.databaseHooks?.session?.create?.after;
+    expect(after).toBeTypeOf("function");
+    await expect(
+      after!(
+        { token: "strict-session-token", userId: "strict-principal" } as never,
+        { path: "/oauth2/callback/:providerId", params: { providerId: "sso" } } as never,
+      ),
+    ).resolves.toBeUndefined();
+    expect(db.prepare("SELECT assurance, providerId FROM account_session_assurance").get()).toEqual({
+      assurance: "federated",
+      providerId: "sso",
+    });
+  });
+
   it("keeps the first-external-identity claim control when email registration is open", () => {
     const db = openDb(":memory:");
     const env = {

@@ -1493,10 +1493,16 @@ export function authFromEnv(
               assurance,
               providerId,
             );
-            const enrolledMfa = (
-              db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?").get(String(session.userId)) as
-                { twoFactorEnabled?: unknown } | undefined
-            )?.twoFactorEnabled;
+            // Strict-SSO schemas deliberately omit Better Auth's password/MFA columns. Only the
+            // password deployment needs to inspect enrolment before deciding whether this newly
+            // created session still owes an MFA challenge.
+            const enrolledMfa =
+              mode === "password"
+                ? (
+                    db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?").get(String(session.userId)) as
+                      { twoFactorEnabled?: unknown } | undefined
+                  )?.twoFactorEnabled
+                : false;
             const passwordSessionAwaitsMfa =
               assurance === "password" &&
               (requirePasswordMfa || enrolledMfa === true || enrolledMfa === 1 || enrolledMfa === "1");

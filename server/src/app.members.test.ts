@@ -32,11 +32,11 @@ function seedTwo(db: Db): void {
   insertAll(db, d as unknown as AppData);
 }
 
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
+async function appWithAuth(options: { rateLimit?: number } = {}): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
-  return { app: buildApp(db, { authMode: mode, auth }), db };
+  return { app: buildApp(db, { authMode: mode, auth, ...options }), db };
 }
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
@@ -1313,6 +1313,20 @@ describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", 
 });
 
 describe("member sign-in confirmation", () => {
+  it("rate-limits repeated privacy-setting writes", async () => {
+    const { app, db } = await appWithAuth({ rateLimit: 100 });
+    seedTwo(db);
+    const owner = await signUp(app, "owner-sign-in-rate-limit@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+
+    for (let request = 0; request < 5; request += 1) {
+      expect((await memberSignInTrackingReq(app, "a1", request % 2 === 0, { cookie: owner.cookie })).statusCode).toBe(
+        200,
+      );
+    }
+    expect((await memberSignInTrackingReq(app, "a1", false, { cookie: owner.cookie })).statusCode).toBe(429);
+  });
+
   it("is owner-controlled, default-off, timestamp-free, resettable and erased when disabled", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);

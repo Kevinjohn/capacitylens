@@ -17,6 +17,11 @@ import { wasAccountCommandReplayed } from "./commands";
 import type { MemberSignInTrackingSnapshot } from "./memberSignInTracking";
 
 const ISO_INSTANT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z$/;
+const MEMBER_SIGN_IN_TRACKING_RATE_LIMIT = {
+  max: 5,
+  timeWindow: "1 minute",
+  groupId: "member-sign-in-tracking",
+} as const;
 
 /** Parse the route's narrow UTC-instant format without accepting Date.parse calendar rollover. */
 function parseStrictIsoInstant(value: string): number | null {
@@ -480,31 +485,35 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // OWNER-only privacy control. The desired-state PUT is safely repeatable after a lost response:
   // enabling an already-enabled account never resets its confirmations, and disabling is a no-op
   // once the stored observations have been erased.
-  app.put("/api/accounts/:accountId/member-sign-in-tracking", async (req, reply) => {
-    const { accountId } = req.params as { accountId: string };
-    if (!authorize(req, reply, accountId, "manageMemberSignInTracking")) return;
-    const body = req.body as { enabled?: unknown } | null;
-    if (!body || typeof body.enabled !== "boolean") {
-      return reply.code(400).send({ error: "enabled must be a boolean." });
-    }
-    try {
-      const result = memberSignInTracking.set(accountId, req.accountActor!.principalId, body.enabled);
-      if (result.changed) {
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.accountActor!.principalId,
-          accountId,
-          action: "memberSignInTrackingChange",
-          entity: "account",
-          id: accountId,
-          changedFields: ["memberSignInTracking"],
-        });
+  app.put(
+    "/api/accounts/:accountId/member-sign-in-tracking",
+    { config: { rateLimit: MEMBER_SIGN_IN_TRACKING_RATE_LIMIT } },
+    async (req, reply) => {
+      const { accountId } = req.params as { accountId: string };
+      if (!authorize(req, reply, accountId, "manageMemberSignInTracking")) return;
+      const body = req.body as { enabled?: unknown } | null;
+      if (!body || typeof body.enabled !== "boolean") {
+        return reply.code(400).send({ error: "enabled must be a boolean." });
       }
-      return reply.code(200).send({ enabled: result.enabled });
-    } catch (err) {
-      return accountFail(reply, err);
-    }
-  });
+      try {
+        const result = memberSignInTracking.set(accountId, req.accountActor!.principalId, body.enabled);
+        if (result.changed) {
+          audit(reply, {
+            ts: new Date().toISOString(),
+            userId: req.accountActor!.principalId,
+            accountId,
+            action: "memberSignInTrackingChange",
+            entity: "account",
+            id: accountId,
+            changedFields: ["memberSignInTracking"],
+          });
+        }
+        return reply.code(200).send({ enabled: result.enabled });
+      } catch (err) {
+        return accountFail(reply, err);
+      }
+    },
+  );
 
   // CHANGE a non-owner member's ordinary role. Owner is rejected at shape/policy level for every
   // actor; the only ownership mutation is the explicit atomic transfer route below.
