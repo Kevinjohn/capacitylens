@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.36.0-alpha.1] — 2026-08-10
+
+The source-owned shadcn primitives now match the current registry where appropriate while keeping
+CapacityLens's documented behaviour, semantic colour language and accessibility guarantees.
+
 ### Changed
 
 - Shared role and status badges now use the current shadcn pill silhouette, invalid-state styling
@@ -2981,7 +2986,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.36.0-alpha.1...HEAD
+[0.36.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...v0.36.0-alpha.1
 [0.35.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...v0.35.7-alpha.1
 [0.35.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...v0.35.6-alpha.1
 [0.35.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...v0.35.5-alpha.1
