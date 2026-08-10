@@ -12,16 +12,16 @@ Re-balancing the team is a constant: someone is overbooked, someone else has sla
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01`. Scroll the timeline fully to the left.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Scroll the timeline fully to the left.
 
 1. Find the **Brand System** bar (currently on its seeded resource's lane).
 2. Press down on the middle of the bar.
-3. Drag it down (or up) until the pointer is over **Nike Spiros**'s lane (`data-resource-id="r-nike"`).
-4. While the pointer is over Nike's lane, that lane highlights as the drop target.
-5. Release. The bar now lives in Nike's lane, and the highlight clears.
+3. Drag it down (or up) until the pointer is over **Clark Kent**'s lane (`data-resource-id="r-nike"`).
+4. While the pointer is over Clark's lane, that lane highlights as the drop target.
+5. Release. The bar now lives in Clark's lane, and the highlight clears.
 
 ## Acceptance criteria
 
 - ✅ During the drag, the target lane carries `data-droptarget` (it is highlighted).
-- ✅ After dropping, the **Brand System** bar is inside Nike's lane (`[data-resource-id="r-nike"]`).
+- ✅ After dropping, the **Brand System** bar is inside Clark's lane (`[data-resource-id="r-nike"]`).
 - ✅ Once the drop completes, the `data-droptarget` highlight is cleared from the lane.

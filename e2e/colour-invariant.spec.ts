@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp, setZoom } from "./helpers";
 
 // The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be
 // set ONLY by picking a preset swatch (no hex/RGB entry — see ColorField + the "preset
@@ -46,9 +46,9 @@ function rowAvatar(row: Locator): Locator {
 
 test.describe("Colour invariant (preset swatch → renders on the scheduler)", () => {
   test("a discipline colour pick tints its group dot + member avatars", async ({ page }) => {
-    await openApp(page, "Studio North", "/disciplines");
+    await openApp(page, "Wayne Enterprises", "/disciplines");
 
-    // Edit the seeded "Design" discipline (Tyler Nix belongs to it) and pick a new swatch.
+    // Edit the seeded "Design" discipline (Bruce Wayne belongs to it) and pick a new swatch.
     await page
       .getByTestId("discipline-row")
       .filter({ hasText: "Design" })
@@ -61,24 +61,24 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
     await page.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toBeHidden();
 
-    // On the schedule the Design group-header dot AND Tyler's avatar must show the picked hex.
+    // On the schedule the Design group-header dot AND Bruce's avatar must show the picked hex.
     await page.getByRole("link", { name: "Schedule" }).click();
     const designGroup = page.getByTestId("discipline-group").filter({ hasText: "Design" });
     await expect(designGroup).toBeVisible();
     await expect(disciplineDot(designGroup)).toHaveCSS("background-color", PICK_RGB);
 
-    const tylerRow = page.getByTestId("scheduler-row").filter({ hasText: "Tyler Nix" });
-    await expect(rowAvatar(tylerRow)).toHaveCSS("background-color", PICK_RGB);
+    const bruceRow = page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" });
+    await expect(rowAvatar(bruceRow)).toHaveCSS("background-color", PICK_RGB);
   });
 
   test("a project colour pick tints its allocation bars", async ({ page }) => {
-    await openApp(page, "Studio North", "/projects");
+    await openApp(page, "Wayne Enterprises", "/projects");
 
-    // Edit the seeded "Project Lightning" (p-acme) — Tyler's "Wireframes" bar is one of its
+    // Edit the seeded "Project Watchtower" (p-acme) — Bruce's "Wireframes" bar is one of its
     // allocations — and pick a new swatch.
     await page
       .getByTestId("project-row")
-      .filter({ hasText: "Project Lightning" })
+      .filter({ hasText: "Project Watchtower" })
       .getByRole("button", { name: /^Edit / })
       .click();
     const dialog = page.getByRole("dialog", { name: "Edit project" });
@@ -87,10 +87,10 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
     await page.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toBeHidden();
 
-    // The "Wireframes" bar (a Project Lightning activity) must render the picked hex. Seed bars
+    // The "Wireframes" bar (a Project Watchtower activity) must render the picked hex. Seed bars
     // sit in early June and are visible at 4w with the grid scrolled fully left.
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });

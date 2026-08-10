@@ -31,17 +31,17 @@ export const ACCESS_LAB_PERSONAS: ReadonlyArray<{
   email: string;
   role: Role;
 }> = [
-  { name: "Olivia Owner", email: "owner@capacitylens.dev", role: "owner" },
-  { name: "Alex Admin", email: "alex.admin@capacitylens.dev", role: "admin" },
+  { name: "Lucius Fox", email: "owner@capacitylens.dev", role: "owner" },
+  { name: "Alfred Pennyworth", email: "alex.admin@capacitylens.dev", role: "admin" },
   {
-    name: "Erin Editor",
+    name: "Barbara Gordon",
     email: "erin.editor@capacitylens.dev",
     role: "editor",
   },
-  { name: "Vic Viewer", email: "vic.viewer@capacitylens.dev", role: "viewer" },
+  { name: "James Gordon", email: "vic.viewer@capacitylens.dev", role: "viewer" },
 ];
 
-/** The normal Studio North demo slice, narrowed to one company and made access-control-visible. */
+/** The normal Wayne Enterprises demo slice, narrowed to one company and made access-control-visible. */
 export function buildAccessLabData(): AppData {
   const source = seedForCurrentWeek();
   return {
@@ -50,7 +50,7 @@ export function buildAccessLabData(): AppData {
     resources: source.resources.filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID),
     clients: source.clients
       .filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID)
-      .map((row) => (row.id === "c-acme" ? { ...row, isPrivate: true, codeName: "Northstar" } : row)),
+      .map((row) => (row.id === "c-acme" ? { ...row, isPrivate: true, codeName: "Nightwing" } : row)),
     projects: source.projects
       .filter((row) => row.accountId === ACCESS_LAB_ACCOUNT_ID)
       .map((row) => (row.id === "p-acme" ? { ...row, isPrivate: true, codeName: "Aurora" } : row)),

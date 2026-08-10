@@ -78,16 +78,16 @@ function renderShell() {
 
 describe("AppShell account gate", () => {
   it("shows the AccountPicker (not the nav) when hydrated with no active account", () => {
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     renderShell();
     expect(screen.getByText("Choose a company")).toBeInTheDocument();
-    expect(screen.getByText("Studio North")).toBeInTheDocument();
+    expect(screen.getByText("Wayne Enterprises")).toBeInTheDocument();
     // The main nav is gated away until a company is chosen.
     expect(screen.queryByRole("link", { name: "Schedule" })).not.toBeInTheDocument();
   });
 
   it("renders store notices as Sonner toasts while the account picker is visible", async () => {
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     renderShell();
 
     act(() => {
@@ -99,18 +99,18 @@ describe("AppShell account gate", () => {
   });
 
   it("shows the shell (with the active company + Switch company) once an account is active", () => {
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
     renderShell();
     expect(screen.queryByText("Choose a company")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
-    expect(screen.getByText("Studio North")).toBeInTheDocument();
+    expect(screen.getByText("Wayne Enterprises")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
   });
 
   it('"Switch company" returns to the picker', async () => {
     const user = userEvent.setup();
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
     renderShell();
     await user.click(screen.getByRole("button", { name: "Switch company" }));
@@ -126,12 +126,12 @@ describe("AccountPicker create + open + delete", () => {
 
     await user.click(screen.getByRole("button", { name: "New company" }));
     const nameInput = screen.getByLabelText("Company name");
-    await user.type(nameInput, "Loft Digital");
+    await user.type(nameInput, "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
-    expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Loft Digital");
+    expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Stark Industries");
     // Creating activates it.
-    const created = useStore.getState().data.accounts.find((a) => a.name === "Loft Digital")!;
+    const created = useStore.getState().data.accounts.find((a) => a.name === "Stark Industries")!;
     expect(useStore.getState().activeAccountId).toBe(created.id);
   });
 
@@ -190,9 +190,9 @@ describe("AccountPicker create + open + delete", () => {
 
   it("opens an existing company by clicking it", async () => {
     const user = userEvent.setup();
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     render(<AccountPicker />);
-    await user.click(screen.getByRole("button", { name: "Studio North" }));
+    await user.click(screen.getByRole("button", { name: "Wayne Enterprises" }));
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
   });
 
@@ -211,10 +211,10 @@ describe("AccountPicker create + open + delete", () => {
 
   it("deletes a company only after typing its name to confirm", async () => {
     const user = userEvent.setup();
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "Delete Studio North" }));
+    await user.click(screen.getByRole("button", { name: "Delete Wayne Enterprises" }));
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent(/Delete company\?/i);
 
@@ -223,7 +223,7 @@ describe("AccountPicker create + open + delete", () => {
     const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
     expect(deleteBtn).toBeEnabled();
     expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
-    await user.type(within(dialog).getByLabelText(/Type/i), "Studio North");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Wayne Enterprises");
     expect(deleteBtn).toBeEnabled();
     expect(deleteBtn).not.toHaveAttribute("aria-disabled");
     await user.click(deleteBtn);
@@ -364,11 +364,11 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
   it("creates via POST /api/orgs (the atomic org path — NOT the local addAccount), seeds the summary, activates", async () => {
     serverFlag.on = true;
     const user = userEvent.setup();
-    const fetchMock = stubFetch({ ok: true, status: 201, body: { id: "org-1", name: "Loft Digital" } });
+    const fetchMock = stubFetch({ ok: true, status: 201, body: { id: "org-1", name: "Stark Industries" } });
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "New company" }));
-    await user.type(screen.getByLabelText("Company name"), "Loft Digital");
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
@@ -378,7 +378,7 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     expect(init.credentials).toBe("include");
     // The three frozen fields ride in the body as concrete values (P1.14).
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
-    expect(body.name).toBe("Loft Digital");
+    expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);
     expect(body.timezone).toBe("Etc/GMT");
     expect(body.internalColourMode).toBe("grey");
@@ -397,17 +397,17 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (url: string) => {
       if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) }; // no id/name
-      return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Loft Digital", role: "owner" }] };
+      return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Stark Industries", role: "owner" }] };
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "New company" }));
-    await user.type(screen.getByLabelText("Company name"), "Loft Digital");
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     // The company appears via the refetch (the picker list), the form is gone, and no error shows.
-    expect(await screen.findByText("Loft Digital")).toBeInTheDocument();
+    expect(await screen.findByText("Stark Industries")).toBeInTheDocument();
     expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map((c) => c[0] as unknown as string)).toContain("/api/accounts");
@@ -417,23 +417,23 @@ describe("AccountPicker server-mode create/delete (P1.13 client migration)", () 
   });
 
   it.each([
-    { id: " ", name: "Loft Digital" },
+    { id: " ", name: "Stark Industries" },
     { id: "org-9", name: "\t" },
   ])("recovers authoritatively from a whitespace-only created-company field", async (createdBody) => {
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (url: string) => {
       if (url === "/api/orgs") return { ok: true, status: 201, json: async () => createdBody };
-      return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Loft Digital", role: "owner" }] };
+      return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Stark Industries", role: "owner" }] };
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "New company" }));
-    await user.type(screen.getByLabelText("Company name"), "Loft Digital");
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
-    expect(await screen.findByText("Loft Digital")).toBeInTheDocument();
+    expect(await screen.findByText("Stark Industries")).toBeInTheDocument();
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().accountSummaries.map((account) => account.id)).toEqual(["org-9"]);
   });
@@ -722,7 +722,8 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
         // Single-company instance the other way round: creatable at zero accounts, capped after.
         return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls === 1, multiAccount: false });
       }
-      if (url === "/api/orgs" && init?.method === "POST") return jsonRes(201, { id: "org-1", name: "Loft Digital" });
+      if (url === "/api/orgs" && init?.method === "POST")
+        return jsonRes(201, { id: "org-1", name: "Stark Industries" });
       throw new Error(`unexpected fetch: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -733,7 +734,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     );
 
     await user.click(await screen.findByTestId("new-company-button"));
-    await user.type(screen.getByLabelText("Company name"), "Loft Digital");
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
@@ -745,7 +746,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
 
 describe("AccountPicker — single-company-per-instance policy (canCreateAccount)", () => {
   it('hides the "New company" button when the auth context reports the cap is reached', () => {
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     withCanCreateAccount(false, <AccountPicker />);
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New company" })).not.toBeInTheDocument();
@@ -755,14 +756,14 @@ describe("AccountPicker — single-company-per-instance policy (canCreateAccount
   });
 
   it('shows the "New company" button when the auth context allows another company', () => {
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     withCanCreateAccount(true, <AccountPicker />);
     expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
     expect(screen.getByText("Choose a company to plan, or create another one.")).toBeInTheDocument();
   });
 
   it("REGRESSION GUARD: no AuthContext provider (demo build / older callers) fails OPEN — button stays visible", () => {
-    seedAccounts(makeAccount({ name: "Studio North" }));
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     render(<AccountPicker />);
     expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
   });

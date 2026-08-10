@@ -84,7 +84,7 @@ function mockFetch(members: RawMember[] | { status: number }) {
         json: async () => [
           {
             id: DEFAULT_ACCOUNT_ID,
-            name: "Studio North",
+            name: "Wayne Enterprises",
             role: self?.role ?? "owner",
           },
         ],
@@ -701,7 +701,7 @@ describe("MembersSection — owner affordances", () => {
       { userId: "me", role: "owner", isSelf: true },
       {
         userId: "alice",
-        name: "Alice Editor",
+        name: "Barbara Gordon",
         email: "alice@example.test",
         role: "editor",
         mayResetPassword: true,
@@ -709,7 +709,7 @@ describe("MembersSection — owner affordances", () => {
       },
       {
         userId: "bob",
-        name: "Bob Viewer",
+        name: "James Gordon",
         email: "bob@example.test",
         role: "viewer",
         mayResetPassword: true,
@@ -722,7 +722,7 @@ describe("MembersSection — owner affordances", () => {
 
     const user = userEvent.setup();
     const rows = screen.getAllByTestId("member-row");
-    for (const member of ["Alice Editor (alice@example.test)", "Bob Viewer (bob@example.test)"]) {
+    for (const member of ["Barbara Gordon (alice@example.test)", "James Gordon (bob@example.test)"]) {
       // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
       expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
@@ -1012,7 +1012,7 @@ describe("MembersSection — member lifecycle", () => {
         return {
           ok: true,
           status: 200,
-          json: async () => [{ id: DEFAULT_ACCOUNT_ID, name: "Studio North", role: "editor" }],
+          json: async () => [{ id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "editor" }],
         } as unknown as Response;
       }
       if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {

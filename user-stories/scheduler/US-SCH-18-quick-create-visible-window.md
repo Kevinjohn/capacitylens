@@ -12,13 +12,13 @@ If quick-create always defaulted to today, then after scrolling out to plan, say
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w**. (Note: **Jump to date** recenters the chosen date rather than pinning it to the left edge, so read the left-edge date from the timeline header — don't assume it equals the date you jumped to.)
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks**. (Note: panning with **Next ›** advances the visible window by whole weeks rather than pinning to a specific date, so read the left-edge date from the timeline header — don't assume it equals a date you have in mind.)
 
-1. **Jump to date** → `2026-06-01` so you're looking at a date range well away from today. Read the date now sitting at the **left edge** of the visible range from the timeline header.
+1. Click **Next ›** several times so you're looking at a date range well away from today. Read the date now sitting at the **left edge** of the visible range from the timeline header.
 2. On a resource row, click its **"+"** button.
 3. In the **"New allocation"** modal, read the prefilled **Start** date.
 4. Confirm **Start** matches the date at the **left of the viewport** you read in step 1 — not today's date.
-5. Jump to a different month (e.g. `2026-08-01`) and click **"+"** again: the prefilled **Start** now matches _that_ range's visible-left date, proving the default tracks the viewport rather than today.
+5. Click **Next ›** further to reach a different month and click **"+"** again: the prefilled **Start** now matches _that_ range's visible-left date, proving the default tracks the viewport rather than today.
 
 ## Acceptance criteria
 

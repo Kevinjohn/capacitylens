@@ -12,15 +12,15 @@ Work gets handed over — someone goes on leave, a freelancer takes an activity,
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a _Brand System_ bar on the **Pam Gonzalez** row.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Brand System_ bar on the **Diana Prince** row.
 
-1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = _Pam Gonzalez_.
-2. Change **Assignee** to _Nike Spiros_.
+1. Click the **Brand System** bar. The **Edit allocation** dialog opens with **Assignee** = _Diana Prince_.
+2. Change **Assignee** to _Clark Kent_.
 3. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
 
-- ✅ After Save, the **Brand System** bar no longer appears on the **Pam Gonzalez** row and now appears on the **Nike Spiros** row (`data-resource-id="r-nike"`).
+- ✅ After Save, the **Brand System** bar no longer appears on the **Diana Prince** row and now appears on the **Clark Kent** row (`data-resource-id="r-nike"`).
 - ✅ The bar keeps its activity, dates, hours/day, status and note — only the resource changed.
-- ✅ Pressing **⌘Z** moves the bar back to **Pam Gonzalez**.
+- ✅ Pressing **⌘Z** moves the bar back to **Diana Prince**.
 - ✅ Selecting a placeholder as the new Assignee locks Project to its bound project and clears Activity — you must pick one of that project's activities before Save (see US-ALL-07).

@@ -15,7 +15,7 @@ A vertical line marks today's date on the timeline whenever today falls within t
 **Precondition:** Seeded app open at **Schedule** (`/`). The app auto-scrolls to today on load.
 
 1. With the timeline showing the range around today, observe a vertical line marking today's column.
-2. Use **Jump to date** / **Next ›** to pan to a range that does **not** contain today (e.g. jump well into a future month).
+2. Use **Next ›** to pan to a range that does **not** contain today (e.g. click it repeatedly to reach a future month).
 3. Observe the today line is no longer drawn — there's no spurious line on a range that doesn't include today.
 4. Pan back so today is in range again (e.g. click **Today**) — the line reappears.
 

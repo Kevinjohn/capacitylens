@@ -12,7 +12,7 @@ Clients are the top of the work hierarchy: every project belongs to one. Onboard
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). The list shows _Acme Inc._ and _Globex_.
+**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). The list shows _Queen Consolidated_ and _LexCorp_.
 
 1. Click **Add client**. The "Add client" dialog opens.
 2. Fill **Name** = `Initech`.

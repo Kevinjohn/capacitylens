@@ -12,14 +12,14 @@ Managers often plan one discipline at a time — "how booked is Design this fort
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. Seed disciplines are Design, Development, Copywriting.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Seed disciplines are Design, Development, Copywriting.
 
 1. Open the **Filter by discipline** select.
 2. Choose **Development**.
 
 ## Acceptance criteria
 
-- ✅ Choosing **Development** shows only that group's resources (_Nike Spiros_, _Alex Rivera_); Design and Copywriting rows/groups are hidden.
+- ✅ Choosing **Development** shows only that group's resources (_Clark Kent_, _Barry Allen_); Design and Copywriting rows/groups are hidden.
 - ✅ The **Design** and **Copywriting** discipline group headers are no longer shown.
 - ✅ Setting the select back to **All disciplines** restores every group.
 - ✅ While a discipline filter is active, the **Clear** button is shown.

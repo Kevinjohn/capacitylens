@@ -12,18 +12,18 @@ A booked holiday gets cancelled. The manager deletes the entry so the schedule f
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed has **Tyler Nix** off **10–12 June (Holiday)**.
+**Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed has **Bruce Wayne** off **10–12 June (Holiday)**.
 
-1. On the **Tyler Nix** row (reading _Wed 10th Jun · 3 days_), click the **Delete** (trash) icon. The "Delete time off?" confirmation dialog opens.
+1. On the **Bruce Wayne** row (reading _Wed 10th Jun · 3 days_), click the **Delete** (trash) icon. The "Delete time off?" confirmation dialog opens.
 2. Read the dialog message: "Remove this time-off entry?".
 3. Click **Cancel** — the dialog closes and the row is unchanged (proves Cancel is safe).
 4. Click the **Delete** (trash) icon on the row again, then click **Delete** in the dialog to confirm. The dialog closes.
-5. Go to **Schedule** (`/`), **Jump to date** → `2026-06-01`, zoom **1w**, to confirm the block is gone.
+5. Go to **Schedule** (`/`), click **Today** so the seed bars are in view, **Weeks visible** = **1 week**, to confirm the block is gone.
 6. Press **⌘Z** (Undo) to restore the entry.
 
 ## Acceptance criteria
 
 - ✅ The confirmation dialog is titled **Delete time off?** with the message "Remove this time-off entry?" and **Delete** / **Cancel** buttons.
-- ✅ **Cancel** closes the dialog and leaves the `timeoff-row` (and Tyler's timeline block) in place.
-- ✅ After confirming **Delete**, Tyler's `timeoff-row` is removed from the list and his 10–12 June `timeoff-block` disappears from the Schedule (those days are no longer unavailable).
+- ✅ **Cancel** closes the dialog and leaves the `timeoff-row` (and Bruce's timeline block) in place.
+- ✅ After confirming **Delete**, Bruce's `timeoff-row` is removed from the list and his 10–12 June `timeoff-block` disappears from the Schedule (those days are no longer unavailable).
 - ✅ Pressing **⌘Z** restores the deleted entry — the row reappears and the timeline block returns over 10–12 June.

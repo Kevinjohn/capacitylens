@@ -19,21 +19,21 @@ reversible, so the action is undoable.
 ## How (end-to-end)
 
 **Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project
-Lightning** has phases (_Discovery_, _Build_), activities (_Wireframes_, _Visual Design_, _CMS
+Watchtower** has phases (_Discovery_, _Build_), activities (_Wireframes_, _Visual Design_, _CMS
 Review_) and allocations.
 
-1. On the **Project Lightning** row, click the **Archive Project Lightning** (trash) icon. The
+1. On the **Project Watchtower** row, click the **Archive Project Watchtower** (trash) icon. The
    "Archive project?" confirmation dialog opens.
 2. Read the dialog: it explains the project will be hidden from the schedule and can be restored or
    permanently deleted from **Settings → Archived & deleted**.
-3. Click **Archive** to confirm. The dialog closes and **Project Lightning** leaves the Projects list.
-4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Project Lightning returns to the list.
+3. Click **Archive** to confirm. The dialog closes and **Project Watchtower** leaves the Projects list.
+4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Project Watchtower returns to the list.
 
 ## Acceptance criteria
 
 - ✅ The confirmation dialog is titled **Archive project?** and explains the project is hidden from the
   schedule and is restorable from Settings → Archived & deleted.
-- ✅ After confirming, **Project Lightning** is gone from the Projects management list (archived, not
+- ✅ After confirming, **Project Watchtower** is gone from the Projects management list (archived, not
   destroyed).
 - ✅ The project, its phases, activities and allocations are **retained** in the data — archiving
   filters each row by its OWN status (it does not cascade-delete the children).

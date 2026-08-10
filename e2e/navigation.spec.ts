@@ -63,7 +63,7 @@ test.describe("Navigation & shell", () => {
   });
 
   test("settings toggles the colour theme", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     // Light is the default preference.
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "true");
@@ -130,7 +130,7 @@ test.describe("Navigation & shell", () => {
     await openApp(page);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 
   // The sidebar collapse toggle's hover label is the shadcn Radix Tooltip (ui/tooltip.tsx),

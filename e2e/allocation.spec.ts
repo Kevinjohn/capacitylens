@@ -1,12 +1,12 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026 and are visible at 4w with scroll reset.
 test.describe("Allocation editor", () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -15,11 +15,11 @@ test.describe("Allocation editor", () => {
   test("creates an allocation from the row + button (assignee preselected)", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
-    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     // In row-create mode the assignee is fixed to the clicked row, so there's no
     // Assignee select — the dialog title names them instead.
-    await expect(dialog.getByRole("heading")).toContainText("Nike Spiros");
+    await expect(dialog.getByRole("heading")).toContainText("Clark Kent");
     await expect(dialog.getByLabel("Assignee")).toHaveCount(0);
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
@@ -87,7 +87,7 @@ test.describe("Allocation editor", () => {
   });
 
   test("adds a new activity inline and uses it for the allocation", async ({ page }) => {
-    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await dialog.getByLabel("New activity name").fill("Inline Activity");
@@ -112,7 +112,7 @@ test.describe("Allocation editor", () => {
     await page.getByRole("link", { name: "Settings" }).click();
     await page.getByRole("switch", { name: "Show placeholders" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -121,10 +121,10 @@ test.describe("Allocation editor", () => {
     await page.getByRole("button", { name: "Add allocation for Placeholder" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
-    await expect(project).toHaveText(/Project Lightning/); // bound project preselected
+    await expect(project).toHaveText(/Project Watchtower/); // bound project preselected
     // "Locked" = restricted to the bound project + the project-less option, but the select
     // stays ENABLED so a placeholder can still take project-less (internal/cross-project) activities. A
-    // non-bound project ("Brand Themes") is not offered.
+    // non-bound project ("Metropolis Rebrand") is not offered.
     await expect(project).toBeEnabled();
     await project.click();
     await expect(
@@ -132,11 +132,11 @@ test.describe("Allocation editor", () => {
         name: "No project (internal / cross-project)",
       }),
     ).toBeVisible();
-    await expect(page.getByRole("option", { name: /Brand Themes/ })).toHaveCount(0);
+    await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 
   test("rejects empty dates and zero hours with a field-associated error", async ({ page }) => {
-    await page.getByRole("button", { name: "Add allocation for Nike Spiros" }).click();
+    await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");

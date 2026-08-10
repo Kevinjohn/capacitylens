@@ -4,7 +4,7 @@
 
 ## Goal
 
-Move the visible window one week earlier or later with the ‹ Prev / Next › buttons.
+Move the visible window one week earlier or later with the icon-only **Prev** / **Next** buttons.
 
 ## Why
 
@@ -12,14 +12,15 @@ Once zoomed in, the manager steps through the calendar a week at a time to revie
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. Note the dates shown in the timeline header.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Note the dates shown in the timeline header.
 
-1. Click **Next ›**. Observe the header dates.
-2. Click **‹ Prev** twice. Observe the header dates.
+1. Click the **Next** chevron button. Observe the header dates.
+2. Click the **Prev** chevron button twice. Observe the header dates.
 
 ## Acceptance criteria
 
-- ✅ Clicking **Next ›** shifts the visible window so the header dates move **7 days later**.
-- ✅ Clicking **‹ Prev** shifts the window so the header dates move **7 days earlier**.
+- ✅ **Prev** and **Next** are icon-only buttons (left/right chevrons, no visible words) with accessible names "Prev"/"Next" (via `aria-label`) and hover titles "Back one week"/"Forward one week".
+- ✅ Clicking **Next** shifts the visible window so the header dates move **7 days later**.
+- ✅ Clicking **Prev** shifts the window so the header dates move **7 days earlier**.
 - ✅ After Next then two Prev, the window sits one week earlier than the starting position (each click is exactly one week, and they compose).
-- ✅ Panning does not change the zoom level (still 4w) or alter any allocation.
+- ✅ Panning does not change the **Weeks visible** level (still 4 weeks) or alter any allocation.

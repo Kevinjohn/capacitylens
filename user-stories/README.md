@@ -22,9 +22,9 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
-are covered by **unit tests and/or the manual script** instead, and are flagged as such. Two
-stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04) are marked
-**not runnable** until that UI returns.
+are covered by **unit tests and/or the manual script** instead, and are flagged as such. Three
+stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04; the jump-to-date
+picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ---
 
@@ -156,16 +156,16 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 
 ## Toolbar — `toolbar/`
 
-| Story                                                | Title                                         | Automated coverage                              |
-| ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------- |
-| [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Zoom (1/2/4/6/8 weeks)                        | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
-| [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week                                    | `e2e/toolbar.spec.ts`                           |
-| [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                            | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
-| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a date                                | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
-| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Work / Time-off draw mode                     | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts`  |
-| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Undo/redo toolbar buttons + keyboard          | `e2e/toolbar.spec.ts`                           |
-| [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo/redo (⌘Z / ⌘⇧Z)                          | `e2e/toolbar.spec.ts`                           |
-| [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md)    | Navigation re-anchors left edge to week start | `e2e/scheduler.spec.ts` + `e2e/toolbar.spec.ts` |
+| Story                                                | Title                                         | Automated coverage                                                       |
+| ---------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
+| [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Weeks visible (1/2/4/6/8 weeks)               | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts`                          |
+| [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week (icon-only Prev/Next)              | `e2e/toolbar.spec.ts`                                                    |
+| [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                            | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts`                          |
+| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a date (hidden from toolbar — #173)   | `src/components/scheduler/JumpToDateInput.test.tsx` + `useStore.test.ts` |
+| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Work / Time-off draw mode                     | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts`                           |
+| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Undo/redo toolbar buttons + keyboard          | `e2e/toolbar.spec.ts`                                                    |
+| [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo/redo (⌘Z / ⌘⇧Z)                          | `e2e/toolbar.spec.ts`                                                    |
+| [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md)    | Navigation re-anchors left edge to week start | `e2e/scheduler.spec.ts` + `e2e/toolbar.spec.ts`                          |
 
 ## Filters — `filters/`
 

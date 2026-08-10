@@ -1,20 +1,20 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-CLI-04 — the built-in "Internal" pseudo-client.
 test.describe("Internal client", () => {
   test("Internal is HIDDEN from the Clients management list, but stays selectable + a binding target", async ({
     page,
   }) => {
-    await openApp(page, "Studio North", "/clients");
+    await openApp(page, "Wayne Enterprises", "/clients");
     // Internal is a behind-the-scenes data anchor — it does NOT appear in the management list…
     await expect(page.getByTestId("client-row").filter({ hasText: "Internal" })).toHaveCount(0);
     // …while normal clients are listed with their Edit/Archive affordances (P2.5b: the row's
     // destructive action archives — Internal has no such row, so it can't be archived from here).
-    const acmeRow = page.getByTestId("client-row").filter({ hasText: "Acme" });
-    await expect(acmeRow).toBeVisible();
-    await expect(acmeRow.getByRole("button", { name: /^Edit / })).toBeVisible();
-    await expect(acmeRow.getByRole("button", { name: "Archive Acme Inc." })).toBeVisible();
+    const queenRow = page.getByTestId("client-row").filter({ hasText: "Queen" });
+    await expect(queenRow).toBeVisible();
+    await expect(queenRow.getByRole("button", { name: /^Edit / })).toBeVisible();
+    await expect(queenRow.getByRole("button", { name: "Archive Queen Consolidated" })).toBeVisible();
 
     // It is still SELECTABLE as a project's client in ProjectForm's client picker (name chosen
     // WITHOUT "Internal" in it, so the client-label assertion below can't pass by accident).
@@ -32,7 +32,7 @@ test.describe("Internal client", () => {
   });
 
   test("an activity can be created under Internal with no project (internal kind)", async ({ page }) => {
-    await openApp(page, "Studio North", "/activities");
+    await openApp(page, "Wayne Enterprises", "/activities");
     await page.getByRole("button", { name: "Add activity" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Team retro");
     // Internal kind → project picker is hidden; the activity is project-less and buckets under Internal.
@@ -46,20 +46,20 @@ test.describe("Internal client", () => {
 
   test("Filter by client → Internal shows project-less (Internal-bucketed) work", async ({ page }) => {
     await openApp(page);
-    // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Alex,
+    // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Barry,
     // 8–10 June) is on-screen.
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
-    // A clearly project-owned bar (Globex / Brand Themes) is visible before filtering…
+    // A clearly project-owned bar (LexCorp / Metropolis Rebrand) is visible before filtering…
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
-    // …and the project-less cross-project "Design" booking is too (assigned to Alex Rivera's row).
-    const alexRow = page.getByTestId("scheduler-row").filter({ hasText: "Alex Rivera" });
-    const internalDesignBar = alexRow.getByTestId("allocation-bar").filter({ hasText: "Design" });
+    // …and the project-less cross-project "Design" booking is too (assigned to Barry Allen's row).
+    const barryRow = page.getByTestId("scheduler-row").filter({ hasText: "Barry Allen" });
+    const internalDesignBar = barryRow.getByTestId("allocation-bar").filter({ hasText: "Design" });
     await expect(internalDesignBar).toBeVisible();
     // Filtering by the Internal client KEEPS the project-less work (it derives client = Internal)
-    // and HIDES project work owned by other clients (Brand System under Globex is gone).
+    // and HIDES project work owned by other clients (Brand System under LexCorp is gone).
     await selectShadOption(page.getByLabel("Filter by client"), {
       label: "Internal",
     });

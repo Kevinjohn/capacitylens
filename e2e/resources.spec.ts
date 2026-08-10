@@ -1,12 +1,12 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { goToSeedWeek, openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-RES-01..10 (Resources area). Each test starts from the seeded app
 // (Playwright gives every test a fresh page → fresh in-memory seed).
 
 test.describe("Resources", () => {
   test("adds a person and shows them in the list and schedule", async ({ page }) => {
-    await openApp(page, "Studio North", "/resources");
+    await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
 
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Dana Lee");
@@ -21,7 +21,7 @@ test.describe("Resources", () => {
   });
 
   test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — turn them on so the management
     // section + "Add placeholder" button appear on the Resources page.
     await page.getByRole("switch", { name: "Show placeholders" }).click();
@@ -29,7 +29,7 @@ test.describe("Resources", () => {
     await page.getByRole("button", { name: "Add placeholder" }).click();
 
     await page.getByLabel("Role").fill("Junior Dev");
-    await selectShadOption(page.getByLabel("Bound project"), "p-acme"); // Acme Inc. / Project Lightning
+    await selectShadOption(page.getByLabel("Bound project"), "p-acme"); // Queen Consolidated / Project Watchtower
     await page.getByRole("button", { name: "Save" }).click();
 
     await page.getByRole("link", { name: "Schedule" }).click();
@@ -40,7 +40,7 @@ test.describe("Resources", () => {
   });
 
   test("rejects a placeholder with no bound project", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show placeholders" }).click();
     await page.getByRole("link", { name: "Resources" }).click();
     await page.getByRole("button", { name: "Add placeholder" }).click();
@@ -50,10 +50,10 @@ test.describe("Resources", () => {
   });
 
   test("edits a resource and the change persists", async ({ page }) => {
-    await openApp(page, "Studio North", "/resources");
+    await openApp(page, "Wayne Enterprises", "/resources");
     await page
       .getByTestId("resource-row")
-      .filter({ hasText: "Nike Spiros" })
+      .filter({ hasText: "Clark Kent" })
       .getByRole("button", { name: /^Edit / })
       .click();
     const role = page.getByLabel("Role");
@@ -66,30 +66,30 @@ test.describe("Resources", () => {
   // not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
   test("archiving a resource hides it from the list + schedule, and undo restores it", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
-    await page.getByLabel("Jump to date").fill("2026-06-01");
-    const tylerBars = page.locator('[data-resource-id="r-tyler"]').getByTestId("allocation-bar");
-    await expect(tylerBars.first()).toBeVisible();
+    await setZoom(page, 4);
+    await goToSeedWeek(page);
+    const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId("allocation-bar");
+    await expect(bruceBars.first()).toBeVisible();
 
     await page.getByRole("link", { name: "Resources" }).click();
     await page
       .getByTestId("resource-row")
-      .filter({ hasText: "Tyler Nix" })
-      .getByRole("button", { name: "Archive Tyler Nix" })
+      .filter({ hasText: "Bruce Wayne" })
+      .getByRole("button", { name: "Archive Bruce Wayne" })
       .click();
     await page
       .getByRole("alertdialog", { name: "Archive resource?" })
       .getByRole("button", { name: "Archive", exact: true })
       .click();
-    await expect(page.getByTestId("resource-row").filter({ hasText: "Tyler Nix" })).toHaveCount(0);
+    await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
 
     // Undo restores the resource (back to active → reappears in the list + schedule).
     await page.keyboard.press("Meta+z");
-    await expect(page.getByTestId("resource-row").filter({ hasText: "Tyler Nix" })).toBeVisible();
+    await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
   });
 
   test("rejects zero working hours", async ({ page }) => {
-    await openApp(page, "Studio North", "/resources");
+    await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Edge Case");
     await page.getByLabel("Role").fill("Tester");
@@ -102,9 +102,9 @@ test.describe("Resources", () => {
   test("the Temp tag is parked: freelancers render untagged", async ({ page }) => {
     // Employment type is still captured on the form, but the visual pill is hidden
     // Employment type is recorded without adding a roster badge (DECISIONS.md).
-    await openApp(page, "Studio North", "/resources");
-    // Alex Rivera is a seeded freelancer — visible, but with no Temp tag anywhere.
-    await expect(page.getByTestId("resource-row").filter({ hasText: "Alex Rivera" })).toBeVisible();
+    await openApp(page, "Wayne Enterprises", "/resources");
+    // Barry Allen is a seeded freelancer — visible, but with no Temp tag anywhere.
+    await expect(page.getByTestId("resource-row").filter({ hasText: "Barry Allen" })).toBeVisible();
     await expect(page.getByText("Temp", { exact: true })).toHaveCount(0);
   });
 });

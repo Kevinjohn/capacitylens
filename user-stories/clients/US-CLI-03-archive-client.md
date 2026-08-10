@@ -17,22 +17,22 @@ reached from Settings → Archived & deleted. Because archiving is reversible, t
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). _Acme Inc._ owns
-**Project Lightning**, which has activities (_Wireframes_, _Visual Design_, _CMS Review_) and
+**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). _Queen Consolidated_ owns
+**Project Watchtower**, which has activities (_Wireframes_, _Visual Design_, _CMS Review_) and
 allocations.
 
-1. On the **Acme Inc.** row, click the **Archive Acme Inc.** (trash) icon. The "Archive client?"
+1. On the **Queen Consolidated** row, click the **Archive Queen Consolidated** (trash) icon. The "Archive client?"
    confirmation dialog opens.
 2. Read the dialog: it explains the client's work will be hidden from the schedule and can be restored
    or permanently deleted from **Settings → Archived & deleted**.
-3. Click **Archive** to confirm. The dialog closes and **Acme Inc.** leaves the Clients list.
-4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Acme Inc. returns to the Clients list.
+3. Click **Archive** to confirm. The dialog closes and **Queen Consolidated** leaves the Clients list.
+4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Queen Consolidated returns to the Clients list.
 
 ## Acceptance criteria
 
 - ✅ The confirmation dialog is titled **Archive client?** and explains the client is hidden from the
   schedule and is restorable from Settings → Archived & deleted.
-- ✅ After confirming, **Acme Inc.** is gone from the Clients management list (archived, not destroyed).
+- ✅ After confirming, **Queen Consolidated** is gone from the Clients management list (archived, not destroyed).
 - ✅ The client, its projects, activities and allocations are **retained** in the data — archiving
   filters each row by its OWN status (it does not cascade-delete the children), so a project under the
   archived client keeps its own active status.

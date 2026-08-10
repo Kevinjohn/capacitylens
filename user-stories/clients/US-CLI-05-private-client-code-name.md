@@ -25,9 +25,9 @@ owner-equivalent. For a real role check, use an auth-enabled server and sign in 
 2. Enter **Name** = `Embargoed Client Ltd`, enable **Use a code name**, and read the owner-only
    explanation and `Quotation marks are added automatically.` hint.
 3. Enter `""` as **Code name** and click **Save**. Confirm the dialog remains open with a field error.
-4. Enter `“Northstar”` and save again.
+4. Enter `“Nightwing”` and save again.
 5. Confirm the owner-facing list still reads **Embargoed Client Ltd**, then edit that row.
-6. Confirm privacy is on and **Code name** contains `Northstar` without quotation marks.
+6. Confirm privacy is on and **Code name** contains `Nightwing` without quotation marks.
 7. Turn privacy off and save; reopen the row to confirm it is public and the stale code name is gone.
 
 ## Acceptance criteria
@@ -35,11 +35,11 @@ owner-equivalent. For a real role check, use an auth-enabled server and sign in 
 - ✅ **CLI-PRIV-01 — Public default.** New clients are public by default: `isPrivate` and `codeName` are absent until an owner enables
   the switch.
 - ✅ **CLI-PRIV-02 — Owner control.** Only an account owner (plus trusted local/auth-off owner-equivalent mode) is offered **Use a
-  code name**. Enabling it reveals a required **Code name** field with placeholder `e.g. Northstar`.
+  code name**. Enabling it reveals a required **Code name** field with placeholder `e.g. Nightwing`.
 - ✅ **CLI-PRIV-03 — Required safe identity.** A missing, whitespace-only or quote-only code name is rejected, keeps the dialog open and marks
   **Code name** `aria-invalid`; the client is not created or partially saved.
 - ✅ **CLI-PRIV-04 — Normalised storage.** Straight/curly outer quotation marks and surrounding whitespace are removed before storage.
-  `name` remains `Embargoed Client Ltd`, `isPrivate` is `true`, and raw `codeName` is `Northstar`.
+  `name` remains `Embargoed Client Ltd`, `isPrivate` is `true`, and raw `codeName` is `Nightwing`.
 - ✅ **CLI-PRIV-05 — Owner fidelity.** The owner continues to see the real client name and may edit either identity. Quotation marks are
   presentation only and are never stored in `codeName`.
 - ✅ **CLI-PRIV-06 — Safe declassification.** Turning privacy off removes both optional privacy fields while preserving the real name, colour,

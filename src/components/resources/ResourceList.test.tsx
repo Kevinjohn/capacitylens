@@ -71,11 +71,11 @@ describe("ResourceList display", () => {
 
   it("gives repeated external-party edit controls distinct contextual names", () => {
     setExternalEnabled(true);
-    useStore.getState().addResource({ ...personDraft("Northstar"), kind: "external", role: "Partner studio" });
+    useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
     useStore.getState().addResource({ ...personDraft("Pixel Forge"), kind: "external", role: "Print partner" });
     render(<ResourceList />);
 
-    expect(screen.getByRole("button", { name: "Edit Northstar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Kord Industries" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Pixel Forge" })).toBeInTheDocument();
   });
 

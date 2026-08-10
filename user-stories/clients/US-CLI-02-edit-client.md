@@ -12,19 +12,19 @@ Clients rebrand, merge or get renamed. A single edit must ripple to every projec
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). _Acme Inc._ owns _Project Lightning_.
+**Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). _Queen Consolidated_ owns _Project Watchtower_.
 
-1. On the **Acme Inc.** row, click the **Edit** (pencil) icon. The dialog opens pre-filled.
-2. Change **Name** = `Acme Corp`.
+1. On the **Queen Consolidated** row, click the **Edit** (pencil) icon. The dialog opens pre-filled.
+2. Change **Name** = `Queen Industries`.
 3. Change the **Colour** by opening it and picking a different swatch.
 4. Click **Save**. The dialog closes.
-5. Click **Projects** in the sidebar and find **Project Lightning**.
+5. Click **Projects** in the sidebar and find **Project Watchtower**.
 6. Click **Schedule** in the sidebar (`/`) and open **Filter by client**.
 
 ## Acceptance criteria
 
-- ✅ The Clients list row now reads **Acme Corp** with the new colour swatch.
-- ✅ On the Projects screen, **Project Lightning** now shows the client as **Acme Corp** in its "Client / Project" label.
-- ✅ On the **Schedule**, **Filter by client** now lists **Acme Corp** (not "Acme Inc.").
-- ✅ The rename does not alter Project Lightning's own data (its phases, activities and allocations are unchanged).
+- ✅ The Clients list row now reads **Queen Industries** with the new colour swatch.
+- ✅ On the Projects screen, **Project Watchtower** now shows the client as **Queen Industries** in its "Client / Project" label.
+- ✅ On the **Schedule**, **Filter by client** now lists **Queen Industries** (not "Queen Consolidated").
+- ✅ The rename does not alter Project Watchtower's own data (its phases, activities and allocations are unchanged).
 - ✅ Clearing **Name** to empty and clicking **Save** is rejected (required-field error, dialog stays open).

@@ -5,6 +5,7 @@ import {
   openApp,
   probeSchedulerGeometry as probe,
   settledSchedulerLeftDate as settledLeftDate,
+  setZoom,
   waitForWeekSnap,
 } from "./helpers";
 
@@ -16,7 +17,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" }, viewport: { width: 1440,
 // navigation snap (zoom / Prev-Next / date-picker), which is not under test here.
 test.describe("Snap to week start", () => {
   test("the setting is on by default and persists across reload", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Snap to week start" });
     await expect(toggle).toHaveAttribute("aria-checked", "true"); // default on
 
@@ -25,14 +26,14 @@ test.describe("Snap to week start", () => {
 
     await page.reload();
     // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
-    await page.getByRole("button", { name: "Studio North", exact: true }).click();
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page.getByRole("switch", { name: "Snap to week start" })).toHaveAttribute("aria-checked", "false");
   });
 
   test("with the setting ON, a stray scroll nudge snaps back to the week start", async ({ page }) => {
     await openApp(page); // snap on by default
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on the week start (Monday, default weekStartsOn).
     // Poll, not a single read: under parallel load (Firefox especially) the zoom-click scroll +
@@ -51,7 +52,7 @@ test.describe("Snap to week start", () => {
 
   test("the snap FLOORS to the current week (not NEAREST), even past the half-week", async ({ page }) => {
     await openApp(page); // snap on by default
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     // Pre-condition: the left edge opens flush on this week's Monday. Frozen clock 2026-06-03 (Wed),
     // week origin Monday 2026-06-01 → the leading day NUMBER here is "1". Read it only once the zoom-
@@ -78,7 +79,7 @@ test.describe("Snap to week start", () => {
     // capture Sunday at company creation via the onboarding form instead. With the snap ON, a free
     // nudge must then floor onto a SUNDAY — guarding against a hardcoded-Monday floor. (The snap pref
     // is device-global, default ON, so it needs no setup here.)
-    await openApp(page, "Studio North", "/settings"); // land in the app first
+    await openApp(page, "Wayne Enterprises", "/settings"); // land in the app first
     await page.getByRole("button", { name: "Switch company" }).click();
     await page.getByRole("button", { name: "New company" }).click();
     await page.getByLabel("Company name").fill("Sunday Co");
@@ -95,7 +96,7 @@ test.describe("Snap to week start", () => {
 
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByTestId("getting-started-dismiss").click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     // The left edge now opens flush on a Sunday (the week start), not a Monday.
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Sun");
@@ -109,13 +110,13 @@ test.describe("Snap to week start", () => {
   });
 
   test("with the setting OFF, the nudge sticks (and so proves the nudge moves off Monday)", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Snap to week start" });
     await toggle.click(); // → off
     await expect(toggle).toHaveAttribute("aria-checked", "false");
 
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
     // Poll the open-flush precondition until the zoom-click scroll settles on Monday (parallel-load
     // Firefox can still be settling on a single read).
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Mon");

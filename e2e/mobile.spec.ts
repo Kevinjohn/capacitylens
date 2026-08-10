@@ -25,7 +25,7 @@ test.describe("portrait phone", () => {
     // persists; the session-scoped hint dismissal must still hold).
     await page.getByTestId("fake-sign-in").click();
     await page.reload();
-    await expect(page.getByRole("button", { name: "Studio North", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Wayne Enterprises", exact: true })).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Best in landscape" })).toBeHidden();
   });
 
@@ -88,7 +88,7 @@ test.describe("landscape phone", () => {
 
     // Icon mode remains device-global after reload and account selection.
     await page.reload();
-    await page.getByRole("button", { name: "Studio North", exact: true }).click();
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
     await expect(page.getByRole("link", { name: "Projects" })).toBeVisible();
   });

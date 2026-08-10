@@ -14,11 +14,11 @@ them.
 
 ## How (end-to-end)
 
-**Precondition:** Open the in-memory demo and select **Studio North**.
+**Precondition:** Open the in-memory demo and select **Wayne Enterprises**.
 
-1. Confirm a canonical seeded row such as **Tyler Nix** is present.
+1. Confirm a canonical seeded row such as **Bruce Wayne** is present.
 2. Make a visible change during the current page session and confirm it remains while navigating.
-3. Reload the page, pass through the entry gates, and select **Studio North** again.
+3. Reload the page, pass through the entry gates, and select **Wayne Enterprises** again.
 4. Confirm the canonical seed has replaced the temporary edit.
 
 ## Acceptance criteria

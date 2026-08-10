@@ -11,7 +11,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // the server 409 in onboarding.db.spec.ts.)
 test.describe("Calendar settings (frozen after creation)", () => {
   test("week-start and timezone render the chosen values but are disabled", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
 
     // The seeded company starts Monday / GMT — the values still SHOW.
     const mondayBtn = page.getByRole("radio", { name: "Monday" });
@@ -32,7 +32,7 @@ test.describe("Calendar settings (frozen after creation)", () => {
   });
 
   test("clicking a disabled week-start segment cannot change the selection", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const mondayBtn = page.getByRole("radio", { name: "Monday" });
     const sundayBtn = page.getByRole("radio", { name: "Sunday" });
     // force past the disabled-pointer guard; the value must still not move.
@@ -42,7 +42,7 @@ test.describe("Calendar settings (frozen after creation)", () => {
   });
 
   test("Settings page passes axe accessibility check", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const results = await new AxeBuilder({ page }).analyze();
     const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(

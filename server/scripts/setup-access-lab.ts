@@ -53,4 +53,4 @@ try {
   db.close();
 }
 
-console.log("Access lab ready: Studio North with Owner, Admin, Editor, and Viewer personas.");
+console.log("Access lab ready: Wayne Enterprises with Owner, Admin, Editor, and Viewer personas.");

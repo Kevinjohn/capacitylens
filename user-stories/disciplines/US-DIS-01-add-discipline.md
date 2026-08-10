@@ -18,7 +18,7 @@ Disciplines are how the studio organises its people on the timeline (Design, Dev
 2. Fill **Name** = `Strategy`.
 3. Open **Colour** and pick a swatch from the preset grid.
 4. Click **Save**. The dialog closes. (Sort order is assigned automatically — a new discipline lands after the existing ones.)
-5. Click **Schedule** in the sidebar (`/`); if seed bars are needed for orientation use **Jump to date** → `2026-06-01`.
+5. Click **Schedule** in the sidebar (`/`); if seed bars are needed for orientation click **Today**.
 
 ## Acceptance criteria
 

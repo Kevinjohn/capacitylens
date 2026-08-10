@@ -16,7 +16,7 @@ that prevents an accidental click, and undo in case the confirmed removal was st
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a _Brand System_ bar (on **Pam Gonzalez**).
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The seed has a _Brand System_ bar (on **Diana Prince**).
 
 1. Click the **Brand System** bar. The **Edit allocation** dialog opens.
 2. Click **Delete**. A **Delete allocation?** confirmation dialog opens.

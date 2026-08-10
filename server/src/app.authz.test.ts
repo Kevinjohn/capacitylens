@@ -80,7 +80,7 @@ function seedPrivateNames(db: Db): void {
   db.prepare("UPDATE clients SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?").run(
     REAL_CLIENT_NAME,
     JSON.stringify(true),
-    "Northstar",
+    "Nightwing",
     "c1",
   );
   db.prepare("UPDATE projects SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?").run(
@@ -902,7 +902,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
     const exported = await getState(app, "a1", cookie);
     expect(exported.statusCode).toBe(200);
     expect(exported.json().clients.find((row: { id: string }) => row.id === "c1")).toMatchObject({
-      name: '"Northstar"',
+      name: '"Nightwing"',
       isPrivate: true,
     });
 
@@ -916,7 +916,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
     expect(res.json().error).toMatch(/account owner/i);
     expect(getRow(db, "clients", "c1")).toMatchObject({
       name: REAL_CLIENT_NAME,
-      codeName: "Northstar",
+      codeName: "Nightwing",
     });
     expect(getRow(db, "projects", "p1")).toMatchObject({
       name: REAL_PROJECT_NAME,
@@ -1043,9 +1043,9 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 describe("private client/project names — owner-only server projection", () => {
   it.each([
     ["owner", REAL_CLIENT_NAME, REAL_PROJECT_NAME, true],
-    ["admin", '"Northstar"', '"Aurora"', false],
-    ["editor", '"Northstar"', '"Aurora"', false],
-    ["viewer", '"Northstar"', '"Aurora"', false],
+    ["admin", '"Nightwing"', '"Aurora"', false],
+    ["editor", '"Nightwing"', '"Aurora"', false],
+    ["viewer", '"Nightwing"', '"Aurora"', false],
   ] as const)(
     "%s receives the correct client/project identity fields",
     async (role, clientName, projectName, seesCodeNameField) => {
@@ -1081,7 +1081,7 @@ describe("private client/project names — owner-only server projection", () => 
       headers: { cookie },
     });
     expect(patched.statusCode).toBe(200);
-    expect(patched.json()).toMatchObject({ name: '"Northstar"', isPrivate: true });
+    expect(patched.json()).toMatchObject({ name: '"Nightwing"', isPrivate: true });
     expect(patched.body).not.toContain(REAL_CLIENT_NAME);
 
     const visible = (await getState(app, "a1", cookie)).json() as AppData;
@@ -1103,7 +1103,7 @@ describe("private client/project names — owner-only server projection", () => 
     expect(getRow(db, "clients", "c1")).toMatchObject({
       name: REAL_CLIENT_NAME,
       isPrivate: true,
-      codeName: "Northstar",
+      codeName: "Nightwing",
       color: "#da2d92",
     });
     expect(getRow(db, "projects", "p1")).toMatchObject({
@@ -1147,7 +1147,7 @@ describe("private client/project names — owner-only server projection", () => 
       headers: { cookie },
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().current).toMatchObject({ name: '"Northstar"', isPrivate: true });
+    expect(res.json().current).toMatchObject({ name: '"Nightwing"', isPrivate: true });
     expect(res.json().current).not.toHaveProperty("codeName");
     expect(res.body).not.toContain(REAL_CLIENT_NAME);
   });

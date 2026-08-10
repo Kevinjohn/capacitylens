@@ -1,11 +1,11 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp, setZoom } from "./helpers";
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
 test.describe("Keyboard & accessibility", () => {
   test("an allocation bar is focusable and Enter opens the editor", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -17,7 +17,7 @@ test.describe("Keyboard & accessibility", () => {
 
   test("arrow keys move a focused bar by a day", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -29,7 +29,7 @@ test.describe("Keyboard & accessibility", () => {
   });
 
   test("a modal traps focus, closes on Escape, and restores its trigger", async ({ page }) => {
-    await openApp(page, "Studio North", "/resources");
+    await openApp(page, "Wayne Enterprises", "/resources");
     const trigger = page.getByRole("button", { name: "Add resource" });
     await trigger.focus();
     await page.keyboard.press("Enter");
@@ -61,17 +61,17 @@ test.describe("Keyboard & accessibility", () => {
     // The grid honestly declares its 2-column structure (WCAG 1.3.1): col 1 = the sticky
     // resource/utilisation column, col 2 = the timeline lane.
     await expect(grid).toHaveAttribute("aria-colcount", "2");
-    await expect(page.getByRole("rowheader", { name: /Tyler Nix/ })).toBeVisible();
+    await expect(page.getByRole("rowheader", { name: /Bruce Wayne/ })).toBeVisible();
     // The lane cell (col 2) carries an accessible name ("<name> timeline") so it isn't an
     // unnamed gridcell, and exposes aria-colindex=2 to match the declared columns.
-    const lane = page.getByRole("gridcell", { name: /Tyler Nix timeline/ });
+    const lane = page.getByRole("gridcell", { name: /Bruce Wayne timeline/ });
     await expect(lane).toBeVisible();
     await expect(lane).toHaveAttribute("aria-colindex", "2");
     await expect(page.getByText(/\d+ allocation/).first()).toBeAttached(); // sr-only summary
   });
 
   test("an invalid field is marked aria-invalid and described by the error", async ({ page }) => {
-    await openApp(page, "Studio North", "/resources");
+    await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
     await page.getByRole("button", { name: "Save" }).click(); // blank name
 

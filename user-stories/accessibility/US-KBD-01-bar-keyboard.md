@@ -16,9 +16,9 @@ dates plus the available shortcuts — so the timeline is fully operable without
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at Schedule (`/`). Click **4w** and scroll the grid
+**Precondition:** Seeded app open at Schedule (`/`). Set **Weeks visible** to **4 weeks** and scroll the grid
 left if needed so the seed bars are visible (running near the seed dates; otherwise
-**Jump to date → 2026-06-01**). Use the **Wireframes** bar (4 days) — its right edge
+click **Today** to bring the seed bars into view). Use the **Wireframes** bar (4 days) — its right edge
 stays on screen.
 
 1. Press **Tab** repeatedly until the **Wireframes** allocation bar is focused

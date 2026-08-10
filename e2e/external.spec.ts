@@ -1,11 +1,11 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
 // active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
 // untouched and returns when the switch goes on. They moved from a standalone /external tab INTO a
 // gated **External** section under the Resources tab. The seed has one external party
-// (r-ext-northstar, "Northstar Partners", booked on Visual Design) so the toggle is demonstrable.
+// (r-ext-northstar, "Kord Industries", booked on Visual Design) so the toggle is demonstrable.
 
 // Turn the External feature on via Settings, then return to the Schedule. Used by the tests that
 // exercise the band / assignee behaviour, which all need externals visible first.
@@ -33,7 +33,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
 
   test("the old /external URL redirects to the Resources tab", async ({ page }) => {
     // External no longer has its own tab — a saved bookmark must not 404; it redirects to /resources.
-    await openApp(page, "Studio North", "/external");
+    await openApp(page, "Wayne Enterprises", "/external");
     await expect(page).toHaveURL(/\/resources$/);
     await expect(page.getByRole("heading", { name: "Resources", exact: true })).toBeVisible();
   });
@@ -52,13 +52,13 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(page.getByRole("heading", { name: "External", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add external party" })).toBeVisible();
     await expect(page.getByText(/never count toward your team’s capacity or utilisation/i)).toBeVisible();
-    await expect(page.getByTestId("external-row").filter({ hasText: "Northstar Partners" })).toBeVisible();
+    await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toBeVisible();
     // Externals are NOT mixed into the people rows.
-    await expect(page.getByTestId("resource-row").filter({ hasText: "Northstar Partners" })).toHaveCount(0);
+    await expect(page.getByTestId("resource-row").filter({ hasText: "Kord Industries" })).toHaveCount(0);
 
     // Schedule now shows the neutral External band at the very bottom.
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -74,12 +74,12 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(extBar).not.toContainText(/\b\d+(?:\.\d+)?h\b/); // an external bar suppresses every hours figure
     // No per-row utilisation chip on the external row.
     await expect(
-      page.getByTestId("scheduler-row").filter({ hasText: "Northstar Partners" }).getByTestId("utilization"),
+      page.getByTestId("scheduler-row").filter({ hasText: "Kord Industries" }).getByTestId("utilization"),
     ).toHaveCount(0);
   });
 
   test("the choice survives navigation in the current demo session", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click(); // → on
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByRole("link", { name: "Settings" }).click();
@@ -106,7 +106,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await openApp(page);
     await enableExternal(page);
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -114,9 +114,9 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
       (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
     });
 
-    await page.getByRole("button", { name: "Add allocation for Northstar Partners" }).click();
+    await page.getByRole("button", { name: "Add allocation for Kord Industries" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
-    await expect(dialog.getByRole("heading")).toContainText("Northstar Partners");
+    await expect(dialog.getByRole("heading")).toContainText("Kord Industries");
     // External work carries no load — the modal collects a date span only.
     await expect(dialog.getByLabel("Hours / day")).toHaveCount(0);
     // Externals have no working week — the weekend toggle is hidden too.
@@ -144,9 +144,9 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await page.getByRole("button", { name: "Add time off" }).click();
     const resource = page.getByRole("dialog").getByLabel("Resource");
     await resource.click();
-    await expect(page.getByRole("option", { name: "Northstar Partners" })).toHaveCount(0);
+    await expect(page.getByRole("option", { name: "Kord Industries" })).toHaveCount(0);
     // Sanity: a real person IS offered.
-    await expect(page.getByRole("option", { name: "Tyler Nix" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Bruce Wayne" })).toBeVisible();
   });
 
   test("time-off draw mode is a no-op on an external lane (no orphan time-off)", async ({ page }) => {
@@ -154,7 +154,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await openApp(page);
     await enableExternal(page);
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
       (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
@@ -185,16 +185,16 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
 
     await page
       .getByTestId("external-row")
-      .filter({ hasText: "Northstar Partners" })
-      .getByRole("button", { name: "Archive Northstar Partners" })
+      .filter({ hasText: "Kord Industries" })
+      .getByRole("button", { name: "Archive Kord Industries" })
       .click();
     await page
       .getByRole("alertdialog", { name: "Archive resource?" })
       .getByRole("button", { name: "Archive", exact: true })
       .click();
-    await expect(page.getByTestId("external-row").filter({ hasText: "Northstar Partners" })).toHaveCount(0);
+    await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
-    await expect(page.getByTestId("external-row").filter({ hasText: "Northstar Partners" })).toBeVisible();
+    await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toBeVisible();
   });
 });

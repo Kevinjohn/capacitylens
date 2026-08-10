@@ -18,17 +18,17 @@ Phases (Discovery, Build…) are how a single project's work is staged. They liv
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** has phases _Discovery_ and _Build_. The activity _Wireframes_ belongs to Project Lightning.
+**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Watchtower** has phases _Discovery_ and _Build_. The activity _Wireframes_ belongs to Project Watchtower.
 
-1. On the **Project Lightning** row, click the **Edit** (pencil) icon. The dialog opens and shows its phases _Discovery_ and _Build_.
+1. On the **Project Watchtower** row, click the **Edit** (pencil) icon. The dialog opens and shows its phases _Discovery_ and _Build_.
 2. Add a new phase named `Launch`. **Save** the dialog.
-3. Go to **Activities**, **Edit** _Wireframes_, ensure its **Project** is _Project Lightning_, open the **Phase** picker, set **Phase** = _Discovery_, and **Save**.
-4. Re-open **Project Lightning** in **Projects**, and remove the **Discovery** phase. **Save**.
+3. Go to **Activities**, **Edit** _Wireframes_, ensure its **Project** is _Project Watchtower_, open the **Phase** picker, set **Phase** = _Discovery_, and **Save**.
+4. Re-open **Project Watchtower** in **Projects**, and remove the **Discovery** phase. **Save**.
 5. Go back to **Activities** and inspect _Wireframes_ (which you assigned to _Discovery_).
 
 ## Acceptance criteria
 
 - ✅ After adding **Launch** and saving, the project's phase set includes _Discovery_, _Build_ and **Launch**.
-- ✅ When editing an activity whose **Project** is _Project Lightning_, **Launch** is offered in the **Phase** picker (alongside _Discovery_ and _Build_ and the "— No phase —" option).
+- ✅ When editing an activity whose **Project** is _Project Watchtower_, **Launch** is offered in the **Phase** picker (alongside _Discovery_ and _Build_ and the "— No phase —" option).
 - ✅ Removing the **Discovery** phase does **not** delete the activities that were in it — _Wireframes_ (which you put in _Discovery_ at step 3) remains in the Activities list, now **ungrouped** (no phase, i.e. "— No phase —").
-- ✅ Phases of **Project Lightning** are only offered for _Project Lightning_'s activities/allocations — they are not offered when the selected project is _Brand Themes_.
+- ✅ Phases of **Project Watchtower** are only offered for _Project Watchtower_'s activities/allocations — they are not offered when the selected project is _Metropolis Rebrand_.

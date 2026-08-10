@@ -16,13 +16,13 @@ be zero or blank.
 
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
 
-1. On the **Tyler Nix** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens (8h).
+1. On the **Bruce Wayne** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens (8h).
 2. Change **Working hours / day** = `6`.
 3. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
 
-- ✅ After Save, the **Tyler Nix** list row shows _6h/day_.
+- ✅ After Save, the **Bruce Wayne** list row shows _6h/day_.
 - ✅ On **Schedule** the resource's available hours per working day are now 6, so a working
   day allocated more than 6h reads as over-allocated (red `over-marker` / red `utilization`).
 - ✅ Saving with **Working hours / day** = `0` keeps the dialog open and is rejected with

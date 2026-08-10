@@ -12,15 +12,15 @@ The list answers one question — who is out and how long — so it stays delibe
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed has **Tyler Nix** off **10–12 June** with type _Holiday_.
+**Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed has **Bruce Wayne** off **10–12 June** with type _Holiday_.
 
-1. Read the **Tyler Nix** row — it reads **Wed 10th Jun · 3 days**. There is no end date, type or note in the row.
-2. Go to **Schedule** (`/`), zoom **1w** (so day columns are wide enough to render the block's label text), **Jump to date** → `2026-06-01`.
-3. Read the label inside Tyler's `timeoff-block`.
+1. Read the **Bruce Wayne** row — it reads **Wed 10th Jun · 3 days**. There is no end date, type or note in the row.
+2. Go to **Schedule** (`/`), set **Weeks visible** to **1 week** (so day columns are wide enough to render the block's label text), and click **Today** so the seed bars are in view.
+3. Read the label inside Bruce's `timeoff-block`.
 
 ## Acceptance criteria
 
-- ✅ The Tyler Nix `timeoff-row` shows the resource name, the start date **Wed 10th Jun**, and **3 days** — and does **not** show the end date, the type ("Holiday"/`holiday`) or any note.
+- ✅ The Bruce Wayne `timeoff-row` shows the resource name, the start date **Wed 10th Jun**, and **3 days** — and does **not** show the end date, the type ("Holiday"/`holiday`) or any note.
 - ✅ The duration is carried by the day count alone (a one-day entry reads "… · 1 day", singular); the end date is never spelled out in the row.
 - ✅ The timeline `timeoff-block` for that entry still carries the human type label **Holiday** (CSS-uppercased on the bar to `HOLIDAY` — same value, styled; not a defect), never the raw value `holiday`.
 - ✅ Each type maps to its label consistently on the timeline: `holiday → Holiday`, `sick → Sick`, `unpaid → Unpaid`, `other → Other`.

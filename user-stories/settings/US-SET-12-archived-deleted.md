@@ -25,16 +25,16 @@ deleted.
 lifecycle store actions mutate temporary demo data, so an archived row hides immediately and
 surfaces here.
 
-1. On **Resources**, archive **Alex Rivera** via the row's **Archive Alex Rivera** button → confirm
+1. On **Resources**, archive **Barry Allen** via the row's **Archive Barry Allen** button → confirm
    **Archive** in the _"Archive resource?"_ dialog. The row disappears from Resources and from the
    **Schedule**.
-2. Open **Settings**. The **Archived & deleted** section (`data-testid="archived-section"`) lists Alex
+2. Open **Settings**. The **Archived & deleted** section (`data-testid="archived-section"`) lists Barry
    under **Archived** (`data-testid="archived-row"`) with a type tag (**Resource**).
-3. Click **Restore Alex Rivera** — the row leaves the section and Alex reappears on the Schedule and
+3. Click **Restore Barry Allen** — the row leaves the section and Barry reappears on the Schedule and
    the Resources list.
-4. Re-archive Alex from Resources, return to Settings, and on the archived row click **Delete Alex
-   Rivera** → confirm **Delete** in the _"Delete this item?"_ dialog.
-5. Alex now appears under **Deleted** (`data-testid="deleted-row"`) with the obfuscated name
+4. Re-archive Barry from Resources, return to Settings, and on the archived row click **Delete Barry
+   Allen** → confirm **Delete** in the _"Delete this item?"_ dialog.
+5. Barry now appears under **Deleted** (`data-testid="deleted-row"`) with the obfuscated name
    **"Removed person #…"** (the original name is gone). Its **Delete permanently**
    (`data-testid="archived-purge"`) button is **disabled**, with the hint _"Can be permanently deleted
    30 days after deletion"_ (the tombstone is brand-new, < 30 days).

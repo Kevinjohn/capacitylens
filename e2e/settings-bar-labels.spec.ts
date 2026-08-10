@@ -7,13 +7,13 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // device-global Settings toggles (Allocation bars section), both on by default.
 test.describe("Allocation bar labels", () => {
   test("bars show client and project before the activity by default", async ({ page }) => {
-    await openApp(page, "Studio North");
+    await openApp(page, "Wayne Enterprises");
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
-    await expect(bar).toContainText("Acme Inc. · Project Lightning · Wireframes");
+    await expect(bar).toContainText("Queen Consolidated · Project Watchtower · Wireframes");
   });
 
   test("switches in Settings default on and strip the client, then the project, from bars", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const clientSwitch = page.getByRole("switch", { name: "Show client name" });
     const projectSwitch = page.getByRole("switch", { name: "Show project name" });
     await expect(clientSwitch).toHaveAttribute("aria-checked", "true");
@@ -24,14 +24,14 @@ test.describe("Allocation bar labels", () => {
     await expect(clientSwitch).toHaveAttribute("aria-checked", "false");
     await page.getByRole("link", { name: "Schedule" }).click();
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
-    await expect(bar).toContainText("Project Lightning · Wireframes");
-    await expect(bar).not.toContainText("Acme Inc.");
+    await expect(bar).toContainText("Project Watchtower · Wireframes");
+    await expect(bar).not.toContainText("Queen Consolidated");
 
     // Project off too → just the activity name.
     await page.getByRole("link", { name: "Settings" }).click();
     await page.getByRole("switch", { name: "Show project name" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(bar).toBeVisible();
-    await expect(bar).not.toContainText("Project Lightning");
+    await expect(bar).not.toContainText("Project Watchtower");
   });
 });

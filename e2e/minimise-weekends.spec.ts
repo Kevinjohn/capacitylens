@@ -4,6 +4,7 @@ import {
   openApp,
   probeSchedulerGeometry as probe,
   settledSchedulerLeftDate as settledLeftDate,
+  setZoom,
   waitForWeekSnap,
 } from "./helpers";
 
@@ -20,12 +21,12 @@ async function box(locator: Locator) {
 // thing under test (a resize / a minimise toggle), and we can prove that thing does NOT snap.
 async function openWithFreeScrollSnapOff(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1440, height: 800 });
-  await openApp(page, "Studio North", "/settings");
+  await openApp(page, "Wayne Enterprises", "/settings");
   const snap = page.getByRole("switch", { name: "Snap to week start" });
   await snap.click();
   await expect(snap).toHaveAttribute("aria-checked", "false");
   await page.getByRole("link", { name: "Schedule" }).click();
-  await page.getByRole("radio", { name: "1w", exact: true }).click();
+  await setZoom(page, 1);
 }
 
 // Covers US-SET-05. "Minimise weekends" (device-global, default ON) shrinks the
@@ -35,7 +36,7 @@ async function openWithFreeScrollSnapOff(page: import("@playwright/test").Page) 
 test.describe("Minimise weekends", () => {
   test('ON by default: weekend columns are narrow and labelled "S"', async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
     const header = page.getByRole("columnheader", { name: "Dates" });
 
     // Weekdays keep their three-letter label; both weekend days collapse to a single "S".
@@ -54,7 +55,7 @@ test.describe("Minimise weekends", () => {
   // SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
   // REAL rendered geometry the build ships — a class rename that drops below 24px is caught here.
   test("the preference switch renders at least 24px tall (WCAG 2.5.8 target size)", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const sw = page.getByRole("switch", { name: "Minimise weekends" });
     const b = await box(sw);
     expect(b.height).toBeGreaterThanOrEqual(24);
@@ -62,7 +63,7 @@ test.describe("Minimise weekends", () => {
   });
 
   test("toggling it off in Settings restores full-width Sat/Sun columns", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Minimise weekends" });
     await expect(toggle).toHaveAttribute("aria-checked", "true"); // default on
 
@@ -70,7 +71,7 @@ test.describe("Minimise weekends", () => {
     await expect(toggle).toHaveAttribute("aria-checked", "false");
 
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
     const header = page.getByRole("columnheader", { name: "Dates" });
 
     // Weekends now read Sat/Sun, and nothing is collapsed to "S".
@@ -85,11 +86,11 @@ test.describe("Minimise weekends", () => {
   });
 
   test("the choice survives a reload (device-global pref)", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Minimise weekends" }).click(); // → off
     await page.reload();
     // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
-    await page.getByRole("button", { name: "Studio North", exact: true }).click();
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page.getByRole("switch", { name: "Minimise weekends" })).toHaveAttribute("aria-checked", "false");
   });
@@ -97,7 +98,7 @@ test.describe("Minimise weekends", () => {
   test("a 1-week zoom shows ~1 week (weekend-aware fit), not ~1.5", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     await openApp(page); // minimise on by default
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
     const { visibleDays } = await probe(page);
     // With the fit, the working week fills the viewport: ~7 days. The narrow-weekend under-fill
     // bug showed ~11–12. A 2-week zoom of the same width would show ~14, so <=9 pins "~1 week".
@@ -107,13 +108,13 @@ test.describe("Minimise weekends", () => {
 
   test("zoom flips preserve the left-edge date (no drift onto the weekend)", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
     // Read `before` only once the 1w zoom-click scroll has come to rest, so it's the real settled
     // Monday and not a transient mid-scroll cell (which the equality below would then chase forever).
     const before = await settledLeftDate(page);
     // Round-trip the zoom; the integer-pixel geometry must round-trip the left-edge date exactly.
-    await page.getByRole("radio", { name: "2w", exact: true }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 2);
+    await setZoom(page, 1);
     // After the flip settles, the left-edge date must return to `before` (the known-correct value),
     // so a genuinely drifted grid times out and fails — not vacuous. Replaces the bare single read
     // that flaked under parallel load on Firefox/WebKit.
@@ -124,7 +125,7 @@ test.describe("Minimise weekends", () => {
 
   test("a bar dragged across the narrowed weekend commits a later date (no crash)", async ({ page }) => {
     await openApp(page); // minimise on by default
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
     await bar.click();
@@ -181,7 +182,7 @@ test.describe("Minimise weekends", () => {
     await page.getByRole("link", { name: "Settings" }).click();
     await page.getByRole("switch", { name: "Minimise weekends" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("radio", { name: "1w", exact: true }).click();
+    await setZoom(page, 1);
 
     await nudge(page, 2.5); // → a mid-week weekday
     const leftDate = (await probe(page)).leftDate;

@@ -12,9 +12,9 @@ After narrowing the view several ways, getting back to the full schedule one con
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
-1. Type `Nike` in **Search people…**.
+1. Type `Clark` in **Search people…**.
 2. Choose a **Filter by discipline** (e.g. _Development_).
 3. Choose a **Filter by client** and a **Filter by project**.
 4. Tick **Hide tentative**.

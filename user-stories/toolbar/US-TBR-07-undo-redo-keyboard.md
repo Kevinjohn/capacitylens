@@ -12,7 +12,7 @@ Power users expect the standard keyboard undo/redo. But those keys must not stea
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. Make one reversible edit — e.g. click a bar and **Delete** it.
 2. Press **⌘Z**. Then press **⌘⇧Z**.

@@ -12,9 +12,9 @@ Plans slip. When a piece of work needs to start a few days later — or can be p
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01` so the seed bars are in view.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
-1. Find the **Brand System** bar (the 9-day allocation on Brand Themes).
+1. Find the **Brand System** bar (the 9-day allocation on Metropolis Rebrand).
 2. Note its current left edge (start) position.
 3. Press down on the middle of the bar's body, drag right by roughly one day-column, and release.
 4. The whole bar shifts right: both its start and end dates move later by one day, and the bar's left edge lands at a new x.

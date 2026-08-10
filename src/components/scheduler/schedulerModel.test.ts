@@ -201,7 +201,7 @@ function withExternal(): AppData {
     createdAt: "t",
     updatedAt: "t",
     kind: "external",
-    name: "Northstar Partners",
+    name: "Kord Industries",
     role: "Partner studio",
     employmentType: "permanent",
     workingHoursPerDay: 8,

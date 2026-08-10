@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp, setZoom } from "./helpers";
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
@@ -12,19 +12,23 @@ async function box(locator: Locator) {
 test.describe("Toolbar", () => {
   test("zooms the timeline and tracks the active level", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "6w", exact: true }).click();
-    await expect(page.getByRole("radio", { name: "6w", exact: true })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("radio", { name: "1w", exact: true })).toHaveAttribute("aria-checked", "false");
+    // #173: the weeks dropdown replaced the 1w..8w segments — the current span is the closed
+    // trigger's own text, so "which level is active" is readable without opening anything.
+    const weeks = page.getByRole("combobox", { name: "Weeks visible" });
+    await setZoom(page, 6);
+    await expect(weeks).toHaveText("6 weeks");
     await expect(page.getByText("Utilisation · 6w")).toBeVisible();
 
-    await page.getByRole("radio", { name: "8w", exact: true }).click();
-    await expect(page.getByRole("radio", { name: "8w", exact: true })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("radio", { name: "1w", exact: true })).toHaveAttribute("aria-checked", "false");
+    await setZoom(page, 8);
+    await expect(weeks).toHaveText("8 weeks");
+
+    await setZoom(page, 1);
+    await expect(weeks).toHaveText("1 week");
   });
 
   test("pans the window a week with Prev and Next", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -52,13 +56,14 @@ test.describe("Toolbar", () => {
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(4000);
   });
 
-  test("jumps to a chosen date", async ({ page }) => {
+  // The jump-to-date picker is hidden from the toolbar (#173), so there is nothing to drive here.
+  // Its coverage lives at the two levels that still exercise it: the component
+  // (src/components/scheduler/JumpToDateInput.test.tsx) and the week-start snap it triggers
+  // (goToDate in src/store/useStore.test.ts). This test asserts only that it is gone from the bar.
+  test("does not expose the jump-to-date picker", async ({ page }) => {
     await openApp(page);
-    // 2026-09-10 is a Thursday; the picker re-anchors the left edge to the week start, so the
-    // input reflects the snapped Monday (2026-09-07) and the grid opens on a week boundary.
-    await page.getByLabel("Jump to date").fill("2026-09-10");
-    await expect(page.getByText("Sep 2026")).toBeVisible();
-    await expect(page.getByLabel("Jump to date")).toHaveValue("2026-09-07");
+    await expect(page.getByTestId("scheduler-toolbar")).toBeVisible();
+    await expect(page.getByLabel("Jump to date")).toHaveCount(0);
   });
 
   test("switches draw mode between Work and Time off", async ({ page }) => {
@@ -114,7 +119,7 @@ test.describe("Toolbar", () => {
     await expect(redoBtn).toBeDisabled();
 
     // Make a mutation (delete an allocation) → Undo becomes available.
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });
@@ -138,7 +143,7 @@ test.describe("Toolbar", () => {
 
   test("undoes/redoes with the keyboard and ignores the shortcut while typing", async ({ page }) => {
     await openApp(page);
-    await page.getByRole("radio", { name: "4w", exact: true }).click();
+    await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
     });

@@ -108,7 +108,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
       .fn()
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Studio North", role: "owner" }]),
+          JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Wayne Enterprises", role: "owner" }]),
           { status: 200 },
         ),
       )
@@ -129,9 +129,12 @@ describe("PermissionProvider authenticated lookup posture", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     resolveRefresh(
-      new Response(JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Studio North", role: "admin" }]), {
-        status: 200,
-      }),
+      new Response(
+        JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Wayne Enterprises", role: "admin" }]),
+        {
+          status: 200,
+        },
+      ),
     );
     expect(await screen.findByText("resolved:admin:edit")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("admin");
@@ -145,7 +148,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
           JSON.stringify([
             {
               id: useStore.getState().activeAccountId,
-              name: "Studio North",
+              name: "Wayne Enterprises",
               role: "editor",
             },
           ]),
@@ -168,7 +171,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
           JSON.stringify([
             {
               id: useStore.getState().activeAccountId,
-              name: "Studio North",
+              name: "Wayne Enterprises",
               role,
             },
           ]),
@@ -196,7 +199,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
           JSON.stringify([
             {
               id: useStore.getState().activeAccountId,
-              name: "Studio North",
+              name: "Wayne Enterprises",
               role,
             },
           ]),

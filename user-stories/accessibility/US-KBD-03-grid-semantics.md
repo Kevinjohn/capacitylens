@@ -27,7 +27,7 @@ and every right cell `aria-colindex=2`; and the lane `gridcell` has an accessibl
 
 **Precondition:** Seeded app open at Schedule (`/`). The capacity wording is
 time-relative (it keys off _today_'s 14-day forward window). Running near the seed
-dates, _Tyler Nix_'s 3–4 June over-allocation falls inside that window; otherwise the
+dates, _Bruce Wayne_'s 3–4 June over-allocation falls inside that window; otherwise the
 "Overbooked…" phrase may not apply, but the summary still renders.
 
 1. Open the accessibility tree (DevTools → Accessibility pane, or a screen reader).
@@ -38,7 +38,7 @@ dates, _Tyler Nix_'s 3–4 June over-allocation falls inside that window; otherw
    are `role="gridcell"` with `aria-colindex="2"` and an accessible name
    ("<resource> timeline"). The header row's left cell is `role="columnheader"`
    (`aria-colindex="1"`) and the date strip is `role="columnheader"` (`aria-colindex="2"`).
-4. Inspect _Tyler Nix_'s row header — it contains an `sr-only` summary that reads (near
+4. Inspect _Bruce Wayne_'s row header — it contains an `sr-only` summary that reads (near
    the seed dates): **"Overbooked in the next two weeks. 1 time-off period.
    2 allocations."**
 5. Inspect a row with no over-allocation and no time off — its summary omits those

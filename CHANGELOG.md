@@ -50,6 +50,59 @@ new features and **patch** versions carry fixes.
   now reads "Full company access. You are the single Owner of this company.", because promising a
   control that has no screen behind it is worse than saying nothing. (#175)
 
+## [0.35.7-alpha.1] — 2026-08-10
+
+A demo-data rename: the seeded people, companies, clients and projects are now recognisable,
+obviously-fictional comic-book names, and every documentation screenshot was recaptured to match.
+Display strings only — no schema change, no API change, no identifier change.
+
+### Changed
+
+- **The demo dataset's people, companies, clients and projects were renamed.** The two seeded
+  companies are now **Wayne Enterprises** (Bruce Wayne, Diana Prince, Clark Kent, Barry Allen, with
+  Kord Industries as the external partner) and **Stark Industries** (Steve Rogers) — recognisable,
+  obviously-fictional names in place of the previous invented ones, so nobody mistakes a demo row
+  for a real person. Clients and projects moved with them (Queen Consolidated, LexCorp, Rand
+  Corporation; Project Watchtower, Metropolis Rebrand, Rand Mobile App), and the access lab's four
+  demo sign-ins are now Lucius Fox, Alfred Pennyworth, Barbara Gordon and James Gordon. Their
+  sign-in **email addresses are unchanged** (`owner@`, `alex.admin@`, `erin.editor@`, `vic.viewer@`),
+  so every documented credential still works.
+- **The private-client code-name example is now "Nightwing".** The `Code name` field's placeholder
+  read `e.g. Northstar`, which collided with the demo dataset's former external partner; the
+  example is now `e.g. Nightwing` and the same name is used consistently wherever the private-names
+  feature is documented or tested.
+- No identifiers changed. Seed ids, `data-testid` values, routes, the export schema and the database
+  schema are all untouched, and the released database fixtures keep the names they shipped with —
+  this is a display-string change only. Existing installations are unaffected: the seed only runs
+  on first start, and no migration renames anything.
+- Every documentation screenshot was recaptured from the running app against the new dataset.
+
+## [0.35.6-alpha.1] — 2026-08-09
+
+The schedule's top bar: one **Weeks visible** dropdown in place of five week buttons, icon-only
+Prev/Next, and the jump-to-date picker hidden pending a better far-ahead affordance. No schema
+change, no API change.
+
+### Changed
+
+- **The schedule's week range is now a dropdown.** The row of `1w` / `2w` / `4w` / `6w` / `8w`
+  buttons is replaced by a single **Weeks visible** dropdown offering the same five spans, written
+  out ("4 weeks") rather than abbreviated. Nothing about the spans or the week-start snap changed —
+  the control is just one thing instead of five, and the closed dropdown states which span you are
+  looking at (#173).
+- **Prev and Next are now icon-only chevrons.** The words are gone; the left/right chevrons carry
+  the meaning, with the same "Back one week" / "Forward one week" tooltips. **Today** is unchanged
+  (#173).
+- **The jump-to-date picker is no longer shown on the schedule.** People rarely look far ahead, and
+  when they do a month list is likely the better answer than a date field — so the picker is hidden
+  while that design is worked out. Navigate with **Today** and the chevrons. Nothing was removed
+  from the product: the control's code is retained and still covered by tests (#173).
+- The **Weeks visible** dropdown announces itself as "Weeks visible, 4 weeks" — the words you can
+  see are part of its accessible name, so voice control can act on what is on screen
+  (WCAG 2.5.3 Label in Name).
+- Every documentation screenshot of the schedule was recaptured from the running app, and the
+  Schedule guide, the user stories and `DECISIONS.md` were rewritten around the new top bar.
+
 ## [0.35.5-alpha.1] — 2026-08-09
 
 Sidebar rework: the administration destinations move out of the day-to-day list, and
@@ -2959,7 +3012,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.7-alpha.1...HEAD
+[0.35.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.6-alpha.1...v0.35.7-alpha.1
+[0.35.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.5-alpha.1...v0.35.6-alpha.1
 [0.35.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.4-alpha.1...v0.35.5-alpha.1
 [0.35.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.3-alpha.1...v0.35.4-alpha.1
 [0.35.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.35.2-alpha.1...v0.35.3-alpha.1

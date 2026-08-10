@@ -66,6 +66,21 @@ export async function selectShadOption(trigger: Locator, option: string | { labe
   } else {
     await content.getByRole("option", { name: option.label, exact: true }).click();
   }
+  // Don't hand back control until the popup has actually gone: while it is open Radix puts
+  // `pointer-events: none` on the body, so the caller's very next click can silently miss.
+  await expect(content).toHaveCount(0);
+}
+
+/** Set the schedule toolbar's "Weeks visible" dropdown. Centralised so every zoom-dependent spec
+ *  goes through one locator. */
+export async function setZoom(page: Page, weeks: 1 | 2 | 4 | 6 | 8): Promise<void> {
+  await selectShadOption(page.getByRole("combobox", { name: "Weeks visible" }), String(weeks));
+}
+
+/** Re-anchor the schedule on the seeded week. `freezeBrowserDate` pins the clock to 2026-06-03,
+ *  whose week start is 2026-06-01, so **Today** puts the seed week's Monday at the left edge. */
+export async function goToSeedWeek(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Today", exact: true }).click();
 }
 
 /** Click through the once-per-device "What CapacityLens is" intro page if this load shows it
@@ -90,7 +105,7 @@ export async function dismissIntroIfPresent(page: Page, landedOn: Locator): Prom
 // Multi-tenancy shows a full-screen account picker on every load (the active
 // account is never persisted). Almost every spec wants to land in the app for
 // the seeded company, so they navigate through `openApp` instead of `goto('/')`.
-export async function openApp(page: Page, company = "Studio North", path = "/"): Promise<void> {
+export async function openApp(page: Page, company = "Wayne Enterprises", path = "/"): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
   await page.goto(path);
@@ -213,6 +228,23 @@ export async function nudgeScheduler(page: Page, columns: number): Promise<void>
     },
     Math.round(weekdayWidth * columns),
   );
+}
+
+/** The month label covering the left edge of the visible timeline (e.g. "Jun 2026"). The date header
+ * always renders EVERY month in the window, so `getByText("Jul 2026")` proves nothing about where
+ * the window sits — this reads the month block that actually spans the first visible column. */
+export async function schedulerLeftMonthLabel(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    const header = document.querySelector('[role="columnheader"][aria-colindex="2"]') as HTMLElement;
+    const resourceHeader = document.querySelector('[data-testid="scheduler-resource-header"]') as HTMLElement;
+    const laneLeft = resourceHeader.getBoundingClientRect().right;
+    const monthTier = header.firstElementChild as HTMLElement;
+    for (const block of Array.from(monthTier.children)) {
+      if (block.getBoundingClientRect().right > laneLeft + 1) return (block.textContent || "").trim();
+    }
+    return "";
+  });
 }
 
 /** Leave the production idle timer plus layout/paint margin before asserting snap or no-snap. */

@@ -1566,7 +1566,7 @@ describe("member listing order (#175)", () => {
     // Three members sharing ONE joinedAt, seeded in an order that is neither alphabetical nor the
     // one the id happens to produce, so a passing assertion cannot be an accident of insertion.
     const later = "2026-02-01T00:00:00.000Z";
-    for (const name of ["Carol Third", "alice First", "Bob Second"]) {
+    for (const name of ["Clark Kent", "alfred Pennyworth", "Barry Allen"]) {
       const user = await signUp(app, `${name.split(" ")[0].toLowerCase()}-order@capacitylens.dev`);
       db.prepare(`UPDATE user SET name = ? WHERE id = ?`).run(name, user.userId);
       upsertMember(db, { accountId: "a1", userId: user.userId, role: "editor", status: "active", createdAt: later });
@@ -1576,7 +1576,7 @@ describe("member listing order (#175)", () => {
     expect(res.statusCode).toBe(200);
     const listed = (res.json() as { members: Array<{ name: string | null }> }).members.map((row) => row.name);
     // The owner joined first and stays first regardless of name; the rest sort case-insensitively,
-    // so "alice" is not exiled past "Bob" by a raw byte comparison.
-    expect(listed).toEqual(["Tester", "alice First", "Bob Second", "Carol Third"]);
+    // so "alfred" is not exiled past "Barry" by a raw byte comparison.
+    expect(listed).toEqual(["Tester", "alfred Pennyworth", "Barry Allen", "Clark Kent"]);
   });
 });

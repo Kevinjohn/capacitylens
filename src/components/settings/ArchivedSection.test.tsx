@@ -189,7 +189,7 @@ describe("ArchivedSection — demo build (store source)", () => {
     seed({
       clients: [
         client({
-          name: '"Northstar"',
+          name: '"Nightwing"',
           isPrivate: true,
           codeName: undefined,
           archivedAt: TS,
@@ -198,12 +198,12 @@ describe("ArchivedSection — demo build (store source)", () => {
     });
     render(<ArchivedSection />);
 
-    await user.click(screen.getByRole("button", { name: 'Delete "Northstar"' }));
+    await user.click(screen.getByRole("button", { name: 'Delete "Nightwing"' }));
     const dialog = screen.getByRole("alertdialog", {
       name: "Delete this item?",
     });
-    expect(dialog).toHaveTextContent('Delete "Northstar"?');
-    expect(dialog).not.toHaveTextContent('""Northstar""');
+    expect(dialog).toHaveTextContent('Delete "Nightwing"?');
+    expect(dialog).not.toHaveTextContent('""Nightwing""');
   });
 
   // A RENDER test, not an obfuscation proof: that the admin view DISPLAYS a resource tombstone's
