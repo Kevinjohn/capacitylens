@@ -10,6 +10,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Shared role and status badges now use the current shadcn pill silhouette, invalid-state styling
+  and link-aware variants while retaining CapacityLens's brand and contrast-tuned semantic colours
+  (#163).
+- Removed inert React Server Component directives from the Vite-owned UI primitives and documented
+  the sidebar's deliberate shortcut guards and omitted cookie persistence so future registry
+  comparisons preserve those choices (#162).
+
 ## [0.35.7-alpha.1] — 2026-08-10
 
 A demo-data rename: the seeded people, companies, clients and projects are now recognisable,

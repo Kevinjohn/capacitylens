@@ -209,6 +209,12 @@ complete diff and retaining the documented product behavior. The committed shadc
 an approved equivalent inspection path; `ui:check` requires its CLI version to match
 `ui:registry` so both compare against the same upstream baseline.
 
+The shared Badge follows the registry's compact pill shape, invalid-state treatment and
+link-aware variants. Its brand default/link colours and AA-tuned warning and danger variants
+are CapacityLens-owned deviations and must survive a future refresh. Button deliberately keeps
+colour-only transitions so disabled opacity clears immediately, and Alert keeps opaque
+destructive description text for the verified contrast boundary.
+
 ### What `gate:server` checks
 
 `gate:server` checks the Node/SQLite workspace.
