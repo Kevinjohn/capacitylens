@@ -17,10 +17,10 @@ theme), not shared account data.
 
 **Precondition:** Seeded app open on the Schedule (clock inside the seed window — see _Seed data_ in REFERENCE.md).
 
-1. Find Tyler's **Wireframes** bar. Its label reads **Acme Inc. · Project Lightning · Wireframes · 8h**.
+1. Find Bruce's **Wireframes** bar. Its label reads **Queen Consolidated · Project Watchtower · Wireframes · 8h**.
 2. Open **Settings** (sidebar). In the **Allocation bars** section, find the **Show client name** and **Show project name** switches — both on.
 3. Switch **Show client name** off.
-4. Return to **Schedule**. The bar now reads **Project Lightning · Wireframes · 8h**.
+4. Return to **Schedule**. The bar now reads **Project Watchtower · Wireframes · 8h**.
 5. Back in **Settings**, switch **Show project name** off too.
 6. Return to **Schedule**. The bar now reads just **Wireframes · 8h**.
 

@@ -14,8 +14,8 @@ Scheduling work is the core job of the app. A studio manager plans who does what
 
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the June bars are visible.
 
-1. On the **Tyler Nix** row, click the **+** (`Add allocation`) button at the right of the name column. The **New allocation** dialog opens; in row-create mode the assignee is fixed to that row, so there is no **Assignee** select — the dialog title names them ("New allocation for _Tyler Nix_").
-2. Choose **Project** = _Acme Inc. / Project Lightning_.
+1. On the **Bruce Wayne** row, click the **+** (`Add allocation`) button at the right of the name column. The **New allocation** dialog opens; in row-create mode the assignee is fixed to that row, so there is no **Assignee** select — the dialog title names them ("New allocation for _Bruce Wayne_").
+2. Choose **Project** = _Queen Consolidated / Project Watchtower_.
 3. Choose **Activity** = _Wireframes_.
 4. Set **Start** = `2026-06-16` and **End** = `2026-06-18`.
 5. Set **Hours / day** = `6`.
@@ -25,8 +25,8 @@ Scheduling work is the core job of the app. A studio manager plans who does what
 
 ## Acceptance criteria
 
-- ✅ After Save, a new `allocation-bar` appears on the **Tyler Nix** row spanning 16–18 June, labelled with the activity (_Wireframes_) and `· 6h`.
+- ✅ After Save, a new `allocation-bar` appears on the **Bruce Wayne** row spanning 16–18 June, labelled with the activity (_Wireframes_) and `· 6h`.
 - ✅ The bar carries `data-status="confirmed"`.
-- ✅ When the modal is opened from the row **+**, the assignee is fixed to that row's resource (here _Tyler Nix_): there is no **Assignee** select in create mode — the dialog title names the resource instead.
+- ✅ When the modal is opened from the row **+**, the assignee is fixed to that row's resource (here _Bruce Wayne_): there is no **Assignee** select in create mode — the dialog title names the resource instead.
 - ✅ Choosing a **Project** repopulates **Activity** to that project; **Activity** only lists that project's activities.
 - ✅ Drawing a left-to-right gesture on an empty part of a lane (in **Work** draw mode) instead opens the same **New allocation** dialog, preset to that lane's resource and the drawn dates.

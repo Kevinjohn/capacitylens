@@ -15,7 +15,7 @@ When booking work, the right activity often doesn't exist yet. Forcing the manag
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. On any row, click **+** to open **New allocation** (or draw on a lane in Work mode).
-2. Choose **Project** = _Acme Inc. / Project Lightning_. (The inline activity field is always present; with a project chosen its placeholder reads _…or add a new activity_.)
+2. Choose **Project** = _Queen Consolidated / Project Watchtower_. (The inline activity field is always present; with a project chosen its placeholder reads _…or add a new activity_.)
 3. In the **…or add a new activity** field (accessible name _New activity name_), type `Accessibility Audit`.
 4. Click **Add activity**.
 5. Fill the remaining fields (dates, Hours / day) and click **Save**.

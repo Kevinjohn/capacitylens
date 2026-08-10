@@ -59,7 +59,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
 });
 
 // Client half of the single-company-per-instance policy. This server (`start:e2e`) runs WITHOUT
-// CAPACITYLENS_MULTI_ACCOUNT, so the cap is ACTIVE; resetServer's seed (Studio North + Loft
+// CAPACITYLENS_MULTI_ACCOUNT, so the cap is ACTIVE; resetServer's seed (Wayne Enterprises + Loft
 // Digital) is exempt from it (the reset route bypasses the create-time gate), giving a
 // deterministic "already at the cap" instance to assert the client's affordance-hiding against.
 // The server 403 (asserted below via a direct API call) is the real backstop — the picker's
@@ -73,15 +73,15 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
     await page.goto("/");
     // Clear the cosmetic demo sign-in gate if it's up (this server reports authMode 'off').
     const signIn = page.getByTestId("fake-sign-in");
-    const studioNorth = page.getByRole("button", {
-      name: "Studio North",
+    const wayneEnterprises = page.getByRole("button", {
+      name: "Wayne Enterprises",
       exact: true,
     });
-    await signIn.or(studioNorth).first().waitFor();
+    await signIn.or(wayneEnterprises).first().waitFor();
     if (await signIn.isVisible()) await signIn.click();
 
-    await expect(studioNorth).toBeVisible();
-    await expect(page.getByRole("button", { name: "Loft Digital", exact: true })).toBeVisible();
+    await expect(wayneEnterprises).toBeVisible();
+    await expect(page.getByRole("button", { name: "Stark Industries", exact: true })).toBeVisible();
     // GET /api/auth/me reports canCreateAccount: false once ≥1 account exists and
     // CAPACITYLENS_MULTI_ACCOUNT is unset — the button is HIDDEN entirely, not merely disabled.
     await expect(page.getByTestId("new-company-button")).toHaveCount(0);

@@ -21,16 +21,16 @@ old URL now redirects to `/resources`.)
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open (clock inside the seed window — see _Seed data_ in REFERENCE.md). The seed contains one external party (_Northstar Partners_, booked on Visual Design), hidden by default.
+**Precondition:** Seeded app open (clock inside the seed window — see _Seed data_ in REFERENCE.md). The seed contains one external party (_Kord Industries_, booked on Visual Design), hidden by default.
 
 1. On the Schedule, note there is **no External band** at the bottom — only the real people. The external's bar (Visual Design) is not drawn.
 2. Open **Resources** (sidebar). There is **no "External" section** and **no "Add external party" button** — only the people list.
 3. Open **Settings** (sidebar). In the **External** section, read the explainer copy and find the **Show external resources** switch — it's **off**.
 4. Switch it **on**.
-5. Return to **Resources**: the **External** section now appears (with the same explainer copy and an **Add external party** button), showing the seeded external _Northstar Partners_.
-6. Return to **Schedule**: a neutral **External / 3rd party** band now appears at the very bottom with _Northstar Partners_'s Visual Design bar (no hours, no utilisation chip).
+5. Return to **Resources**: the **External** section now appears (with the same explainer copy and an **Add external party** button), showing the seeded external _Kord Industries_.
+6. Return to **Schedule**: a neutral **External / 3rd party** band now appears at the very bottom with _Kord Industries_'s Visual Design bar (no hours, no utilisation chip).
 7. Switch it back **off** in Settings — the external disappears again everywhere; its data is intact.
-8. (Optional) Reload the page and re-pick **Studio North**: the choice is remembered (it's stored on the company).
+8. (Optional) Reload the page and re-pick **Wayne Enterprises**: the choice is remembered (it's stored on the company).
 
 ## Acceptance criteria
 

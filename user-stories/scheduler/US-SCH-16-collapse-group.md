@@ -12,16 +12,16 @@ A busy studio has more rows than fit on one screen. When the manager is focused 
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). **Tyler Nix** sits under the **Design** group.
+**Precondition:** Seeded app open at **Schedule** (`/`). **Bruce Wayne** sits under the **Design** group.
 
 1. Click the **Design** discipline group header (its chevron toggles it).
-2. The resource rows under Design hide — **Tyler Nix**'s row disappears from the grid.
+2. The resource rows under Design hide — **Bruce Wayne**'s row disappears from the grid.
 3. The **Design** group header itself remains (`data-testid="discipline-group"`), now showing an **"N hidden"** count of its folded rows (see US-SCH-14).
-4. Click the **Design** header again. The group expands and **Tyler Nix**'s row returns.
+4. Click the **Design** header again. The group expands and **Bruce Wayne**'s row returns.
 
 ## Acceptance criteria
 
-- ✅ Clicking the group header hides that group's resource rows (e.g. **Tyler Nix** is no longer in the grid).
+- ✅ Clicking the group header hides that group's resource rows (e.g. **Bruce Wayne** is no longer in the grid).
 - ✅ The **discipline-group** header itself remains visible after collapsing.
 - ✅ The collapsed header shows an **"N hidden"** count.
 - ✅ Clicking the header again expands the group and restores its rows.

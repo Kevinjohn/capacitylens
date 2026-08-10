@@ -64,7 +64,7 @@ no configuration, no install.
    its built-in "Internal" client and your Owner [membership](/reference/glossary) in
    the same step.
 
-   ![Choose a company screen listing Studio North with an Owner badge](../screenshots/flows/choose-company.jpg)
+   ![Choose a company screen listing Wayne Enterprises with an Owner badge](../screenshots/flows/choose-company.jpg)
 
 5. **Read the 20-second orientation** (~20 seconds). Once per device, CapacityLens
    explains what it is — and what it isn't.

@@ -46,7 +46,7 @@ describe("ExternalForm", () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource({
       kind: "external",
-      name: "Northstar Partners",
+      name: "Kord Industries",
       role: "Visual design",
       employmentType: "contractor",
       workingHoursPerDay: 8,
@@ -56,10 +56,10 @@ describe("ExternalForm", () => {
     const onClose = vi.fn();
     render(<ExternalForm resource={resource} onClose={onClose} />);
 
-    expect(screen.getByLabelText("Company")).toHaveValue("Northstar Partners");
+    expect(screen.getByLabelText("Company")).toHaveValue("Kord Industries");
     expect(screen.getByLabelText("Descriptor")).toHaveValue("Visual design");
     await user.clear(screen.getByLabelText("Company"));
-    await user.type(screen.getByLabelText("Company"), "Northstar Studio");
+    await user.type(screen.getByLabelText("Company"), "Kord Studio");
     await user.clear(screen.getByLabelText("Descriptor"));
     await user.type(screen.getByLabelText("Descriptor"), "Brand partner");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -69,7 +69,7 @@ describe("ExternalForm", () => {
     expect(useStore.getState().data.resources[0]).toMatchObject({
       id: resource.id,
       kind: "external",
-      name: "Northstar Studio",
+      name: "Kord Studio",
       role: "Brand partner",
     });
   });
@@ -78,7 +78,7 @@ describe("ExternalForm", () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource({
       kind: "external",
-      name: "Northstar Partners",
+      name: "Kord Industries",
       role: "Visual design",
       employmentType: "contractor",
       workingHoursPerDay: 8,
@@ -90,13 +90,13 @@ describe("ExternalForm", () => {
 
     useStore.getState().updateResource(resource.id, { role: "Brand lead" });
     await user.clear(screen.getByLabelText("Company"));
-    await user.type(screen.getByLabelText("Company"), "Northstar Studio");
+    await user.type(screen.getByLabelText("Company"), "Kord Studio");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(/external party changed while you were editing/i);
     expect(onClose).not.toHaveBeenCalled();
     expect(useStore.getState().data.resources[0]).toMatchObject({
-      name: "Northstar Partners",
+      name: "Kord Industries",
       role: "Brand lead",
     });
   });

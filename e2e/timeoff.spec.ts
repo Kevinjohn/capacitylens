@@ -4,17 +4,17 @@ import { goToSeedWeek, openApp, selectShadOption, setZoom } from "./helpers";
 // Covers US-TOF-01..04.
 test.describe("Time off", () => {
   test("books time off and shows it as a labelled block on the schedule", async ({ page }) => {
-    await openApp(page, "Studio North", "/timeoff");
+    await openApp(page, "Wayne Enterprises", "/timeoff");
     await page.getByRole("button", { name: "Add time off" }).click();
     const dialog = page.getByRole("dialog", { name: "Add time off" });
-    await selectShadOption(dialog.getByLabel("Resource"), { label: "Nike Spiros" });
+    await selectShadOption(dialog.getByLabel("Resource"), { label: "Clark Kent" });
     await dialog.getByLabel("Start").fill("2026-06-17");
     await dialog.getByLabel("End").fill("2026-06-19");
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByTestId("timeoff-row").filter({ hasText: "Nike Spiros" })).toBeVisible();
+    await expect(page.getByTestId("timeoff-row").filter({ hasText: "Clark Kent" })).toBeVisible();
 
-    // It renders as a labelled block on Nike's lane.
+    // It renders as a labelled block on Clark's lane.
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
@@ -24,10 +24,10 @@ test.describe("Time off", () => {
   });
 
   test("keeps the list row terse (start date + day count); the type label stays on the timeline", async ({ page }) => {
-    await openApp(page, "Studio North", "/timeoff");
-    const row = page.getByTestId("timeoff-row").filter({ hasText: "Tyler Nix" });
+    await openApp(page, "Wayne Enterprises", "/timeoff");
+    const row = page.getByTestId("timeoff-row").filter({ hasText: "Bruce Wayne" });
     // The list row is intentionally terse: the start date and how many days — no end date, no type.
-    // (Seed: Tyler off 10–12 June, starting a Wednesday, three inclusive days.)
+    // (Seed: Bruce off 10–12 June, starting a Wednesday, three inclusive days.)
     await expect(row).toContainText("Wed 10th Jun");
     await expect(row).toContainText("3 days");
     await expect(row).not.toContainText("Holiday");
@@ -42,8 +42,8 @@ test.describe("Time off", () => {
   });
 
   test("edits a time-off entry and the list reflects the change", async ({ page }) => {
-    await openApp(page, "Studio North", "/timeoff");
-    const row = page.getByTestId("timeoff-row").filter({ hasText: "Tyler Nix" });
+    await openApp(page, "Wayne Enterprises", "/timeoff");
+    const row = page.getByTestId("timeoff-row").filter({ hasText: "Bruce Wayne" });
     await row.getByRole("button", { name: /^Edit / }).click();
     const dialog = page.getByRole("dialog", { name: "Edit time off" });
     await selectShadOption(dialog.getByLabel("Type"), { label: "Sick" });
@@ -62,8 +62,8 @@ test.describe("Time off", () => {
   });
 
   test("deletes a time-off entry after confirmation and restores it with undo", async ({ page }) => {
-    await openApp(page, "Studio North", "/timeoff");
-    const row = page.getByTestId("timeoff-row").filter({ hasText: "Tyler Nix" });
+    await openApp(page, "Wayne Enterprises", "/timeoff");
+    const row = page.getByTestId("timeoff-row").filter({ hasText: "Bruce Wayne" });
 
     // The same record exists on the schedule before deletion.
     await page.getByRole("link", { name: "Schedule" }).click();
@@ -88,6 +88,6 @@ test.describe("Time off", () => {
     await page.keyboard.press("Meta+z");
     await expect(block).toContainText("Holiday");
     await page.getByRole("link", { name: "Time off" }).click();
-    await expect(page.getByTestId("timeoff-row").filter({ hasText: "Tyler Nix" })).toBeVisible();
+    await expect(page.getByTestId("timeoff-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
   });
 });

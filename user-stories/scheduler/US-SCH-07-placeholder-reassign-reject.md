@@ -15,11 +15,11 @@ Placeholders stand in for a yet-to-be-hired role on **one specific project**, so
 **Precondition:** Seeded app open. In **Settings**, enable **Show placeholders**, then return to
 **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in
 view. Scroll the timeline fully to the left. The **Senior Designer** placeholder (`data-resource-id="r-ph-designer"`) is bound to
-**Project Lightning**; the **Brand System** bar belongs to an activity on **Brand Themes**.
+**Project Watchtower**; the **Brand System** bar belongs to an activity on **Metropolis Rebrand**.
 
 1. Find the **Brand System** bar and note its current resource (its lane) and dates.
 2. Press down on the bar and drag it onto the **Senior Designer** placeholder lane (`data-resource-id="r-ph-designer"`).
-3. Release. Because Brand System's activity is from Brand Themes — not the placeholder's bound Project Lightning — the reassignment is rejected.
+3. Release. Because Brand System's activity is from Metropolis Rebrand — not the placeholder's bound Project Watchtower — the reassignment is rejected.
 4. Observe: the bar is **not** in the placeholder's lane; it remains on its original resource. A toast appears explaining the placeholder rule.
 
 ## Acceptance criteria

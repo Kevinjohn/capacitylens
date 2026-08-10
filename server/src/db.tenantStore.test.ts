@@ -486,7 +486,7 @@ describe("readSlice — private client/project name redaction", () => {
         ...client("c1", "a1"),
         name: "Real Client",
         isPrivate: true,
-        codeName: "Northstar",
+        codeName: "Nightwing",
       },
       client("c2", "a2"),
     ];
@@ -508,7 +508,7 @@ describe("readSlice — private client/project name redaction", () => {
     expect(slice.clients[0]).toMatchObject({
       name: "Real Client",
       isPrivate: true,
-      codeName: "Northstar",
+      codeName: "Nightwing",
     });
     expect(slice.projects[0]).toMatchObject({
       name: "Real Project",
@@ -523,7 +523,7 @@ describe("readSlice — private client/project name redaction", () => {
       includePrivateNames: false,
     });
     expect(slice.clients[0]).toMatchObject({
-      name: '"Northstar"',
+      name: '"Nightwing"',
       isPrivate: true,
     });
     expect(slice.projects[0]).toMatchObject({

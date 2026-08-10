@@ -15,7 +15,7 @@ People take holidays, get sick and book unpaid days. The manager records that on
 **Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`).
 
 1. Click **Add time off**. The "Add time off" dialog opens.
-2. Choose **Resource** = _Nike Spiros_ (`r-nike`).
+2. Choose **Resource** = _Clark Kent_ (`r-nike`).
 3. Set **Start** = `2026-06-17` and **End** = `2026-06-19` (both in the seed's June window).
 4. Set **Type** = _Holiday_.
 5. Optionally type a **Note** (e.g. `Long weekend`).
@@ -24,9 +24,9 @@ People take holidays, get sick and book unpaid days. The manager records that on
 
 ## Acceptance criteria
 
-- ✅ After Save, the dialog closes and a `timeoff-row` for **Nike Spiros** appears in the Time off list, reading **Nike Spiros · Wed 17th Jun · 3 days**. (The list is deliberately terse — the end date, the type and any note are stored and shown on the timeline block, not in this row; see US-TOF-04.)
-- ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Nike's lane shows a labelled `timeoff-block` over 17–19 June carrying the type label (the block label renders once a column is wide enough — use 1 week).
-- ✅ Those days read as unavailable: each covered day in Nike's lane is greyed (`data-testid="unavailable-day"`), reflecting 0 available hours.
+- ✅ After Save, the dialog closes and a `timeoff-row` for **Clark Kent** appears in the Time off list, reading **Clark Kent · Wed 17th Jun · 3 days**. (The list is deliberately terse — the end date, the type and any note are stored and shown on the timeline block, not in this row; see US-TOF-04.)
+- ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Clark's lane shows a labelled `timeoff-block` over 17–19 June carrying the type label (the block label renders once a column is wide enough — use 1 week).
+- ✅ Those days read as unavailable: each covered day in Clark's lane is greyed (`data-testid="unavailable-day"`), reflecting 0 available hours.
 - ✅ Saving with **no Resource** selected keeps the dialog open and is rejected with the inline error "Choose a resource." (`aria-invalid` on the Resource field).
 - ✅ Clearing **Start** or **End** so a date is empty keeps the dialog open and is rejected with "Start and end dates are required." (`aria-invalid` on the date fields).
 - ✅ Saving with **End** before **Start** (e.g. End `2026-06-15`, Start `2026-06-17`) keeps the dialog open and is rejected with "End date cannot be before the start date."

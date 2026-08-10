@@ -10,6 +10,27 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **The demo dataset's people, companies, clients and projects were renamed.** The two seeded
+  companies are now **Wayne Enterprises** (Bruce Wayne, Diana Prince, Clark Kent, Barry Allen, with
+  Kord Industries as the external partner) and **Stark Industries** (Steve Rogers) — recognisable,
+  obviously-fictional names in place of the previous invented ones, so nobody mistakes a demo row
+  for a real person. Clients and projects moved with them (Queen Consolidated, LexCorp, Rand
+  Corporation; Project Watchtower, Metropolis Rebrand, Rand Mobile App), and the access lab's four
+  demo sign-ins are now Lucius Fox, Alfred Pennyworth, Barbara Gordon and James Gordon. Their
+  sign-in **email addresses are unchanged** (`owner@`, `alex.admin@`, `erin.editor@`, `vic.viewer@`),
+  so every documented credential still works.
+- **The private-client code-name example is now "Nightwing".** The `Code name` field's placeholder
+  read `e.g. Northstar`, which collided with the demo dataset's former external partner; the
+  example is now `e.g. Nightwing` and the same name is used consistently wherever the private-names
+  feature is documented or tested.
+- No identifiers changed. Seed ids, `data-testid` values, routes, the export schema and the database
+  schema are all untouched, and the released database fixtures keep the names they shipped with —
+  this is a display-string change only. Existing installations are unaffected: the seed only runs
+  on first start, and no migration renames anything.
+- Every documentation screenshot was recaptured from the running app against the new dataset.
+
 ## [0.35.6-alpha.1] — 2026-08-09
 
 The schedule's top bar: one **Weeks visible** dropdown in place of five week buttons, icon-only

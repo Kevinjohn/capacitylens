@@ -105,7 +105,7 @@ export async function dismissIntroIfPresent(page: Page, landedOn: Locator): Prom
 // Multi-tenancy shows a full-screen account picker on every load (the active
 // account is never persisted). Almost every spec wants to land in the app for
 // the seeded company, so they navigate through `openApp` instead of `goto('/')`.
-export async function openApp(page: Page, company = "Studio North", path = "/"): Promise<void> {
+export async function openApp(page: Page, company = "Wayne Enterprises", path = "/"): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
   await page.goto(path);

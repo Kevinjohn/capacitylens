@@ -56,10 +56,10 @@ describe("P3.3 restore drill", () => {
     const livePath = join(work, "capacitylens.db");
     const backupsDir = join(work, "backups");
 
-    // 1. Seed the live DB on disk (sanity: the seeded 'Studio North' account is present).
+    // 1. Seed the live DB on disk (sanity: the seeded 'Wayne Enterprises' account is present).
     const live = openDb(livePath);
     insertAll(live, seed());
-    expect(loadState(live).accounts.map((a) => a.name)).toContain("Studio North");
+    expect(loadState(live).accounts.map((a) => a.name)).toContain("Wayne Enterprises");
 
     // 2. Snapshot S1 — the point we will recover to. Then stop the daemon's timer.
     const backups = startBackups(live, { dir: backupsDir, intervalMin: 60, keep: 48 }, () => {}, tickingClock());
@@ -68,10 +68,10 @@ describe("P3.3 restore drill", () => {
     expect(existsSync(snapshot)).toBe(true);
 
     // 3. An edit made AFTER the snapshot — work the backup cannot have captured (the RPO loss).
-    live.exec("UPDATE accounts SET name = 'POST-SNAPSHOT-EDIT' WHERE name = 'Studio North'");
+    live.exec("UPDATE accounts SET name = 'POST-SNAPSHOT-EDIT' WHERE name = 'Wayne Enterprises'");
     const afterEdit = loadState(live).accounts.map((a) => a.name);
     expect(afterEdit).toContain("POST-SNAPSHOT-EDIT");
-    expect(afterEdit).not.toContain("Studio North");
+    expect(afterEdit).not.toContain("Wayne Enterprises");
 
     // 4. Close the live handle and clear its WAL/SHM sidecars so the corruption below is unambiguous
     //    (a stale WAL must not replay old frames over the garbage we are about to write).
@@ -109,7 +109,7 @@ describe("P3.3 restore drill", () => {
     const quickCheck = restored.prepare("PRAGMA quick_check").all();
     const foreignKeyViolations = restored.prepare("PRAGMA foreign_key_check").all();
     restored.close(); // on-disk handle — close it to be tidy (unlike the :memory: handles in backup.test.ts)
-    expect(names).toContain("Studio North");
+    expect(names).toContain("Wayne Enterprises");
     expect(names).not.toContain("POST-SNAPSHOT-EDIT");
     expect(quickCheck).toEqual([{ quick_check: "ok" }]);
     expect(foreignKeyViolations).toEqual([]);

@@ -12,16 +12,16 @@ Availability isn't uniform: a freelancer might work Mon–Wed, everyone has week
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **1 week** (or **2 weeks**) and click **Today** so the seed bars are in view. **Alex Rivera** is a freelancer working **Mon–Wed only**; **Tyler Nix** has time off **10–12 June**.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **1 week** (or **2 weeks**) and click **Today** so the seed bars are in view. **Barry Allen** is a freelancer working **Mon–Wed only**; **Bruce Wayne** has time off **10–12 June**.
 
 1. Look across any row: **weekend** columns (Sat/Sun) carry the **unavailable-day** grey tint.
-2. Look at **Alex Rivera**'s row: their **Thursday and Friday** columns are greyed (non-working weekdays for a Mon–Wed freelancer).
-3. Look at **Tyler Nix**'s row on **10–12 June**: those days are greyed as unavailable (his booked time off).
+2. Look at **Barry Allen**'s row: their **Thursday and Friday** columns are greyed (non-working weekdays for a Mon–Wed freelancer).
+3. Look at **Bruce Wayne**'s row on **10–12 June**: those days are greyed as unavailable (his booked time off).
 4. Set **Weeks visible** to **4 weeks** and note the greying no longer paints (expected — it's a fine-zoom cue).
 
 ## Acceptance criteria
 
 - ✅ At **1 week/2 weeks**, weekend columns show the **unavailable-day** tint (`data-testid="unavailable-day"`).
-- ✅ At **1 week/2 weeks**, Alex Rivera's **Thu/Fri** columns are greyed (non-working days for a Mon–Wed freelancer).
-- ✅ At **1 week/2 weeks**, Tyler's **10–12 June** time-off days are greyed.
+- ✅ At **1 week/2 weeks**, Barry Allen's **Thu/Fri** columns are greyed (non-working days for a Mon–Wed freelancer).
+- ✅ At **1 week/2 weeks**, Bruce's **10–12 June** time-off days are greyed.
 - ✅ At **4 weeks** (and coarser) the greying does **not** render — it is a fine-zoom-only cue.

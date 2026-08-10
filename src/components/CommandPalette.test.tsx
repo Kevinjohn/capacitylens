@@ -57,7 +57,7 @@ function addInternalSearchItems({
 }
 
 function addOptionalResources() {
-  const client = useStore.getState().data.clients.find((candidate) => candidate.name === "Acme Inc.")!;
+  const client = useStore.getState().data.clients.find((candidate) => candidate.name === "Queen Consolidated")!;
   const project = useStore.getState().addProject({
     name: "Placeholder Project",
     clientId: client.id,
@@ -74,7 +74,7 @@ function addOptionalResources() {
   useStore.getState().addResource(
     makeResourceDraft({
       kind: "external",
-      name: "Northstar Partners",
+      name: "Kord Industries",
       role: "Partner studio",
     }),
   );
@@ -88,9 +88,9 @@ beforeEach(() => {
   );
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   // Add some resources, clients, projects for search tests
-  useStore.getState().addClient({ name: "Acme Inc.", color: "#6366f1" });
-  useStore.getState().addResource(makeResourceDraft({ name: "Tyler Nix", role: "Designer" }));
-  useStore.getState().addResource(makeResourceDraft({ name: "Pam Gonzalez", role: "Copywriter" }));
+  useStore.getState().addClient({ name: "Queen Consolidated", color: "#6366f1" });
+  useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne", role: "Designer" }));
+  useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince", role: "Copywriter" }));
 });
 
 describe("CommandPalette", () => {
@@ -146,11 +146,11 @@ describe("CommandPalette", () => {
     renderPalette();
 
     const input = screen.getByTestId("command-palette-input");
-    fireEvent.change(input, { target: { value: "Tyler" } });
+    fireEvent.change(input, { target: { value: "Bruce" } });
 
     expect(screen.getByText("People")).toBeInTheDocument();
     const options = screen.getAllByTestId("command-palette-option");
-    const tylerOption = options.find((o) => o.textContent?.includes("Tyler Nix"));
+    const tylerOption = options.find((o) => o.textContent?.includes("Bruce Wayne"));
     expect(tylerOption).toBeTruthy();
   });
 
@@ -162,8 +162,8 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Placeholder" } });
     expect(screen.queryByText("Placeholder")).not.toBeInTheDocument();
 
-    fireEvent.change(input, { target: { value: "Northstar" } });
-    expect(screen.queryByText(/Northstar Partners/)).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "Kord" } });
+    expect(screen.queryByText(/Kord Industries/)).not.toBeInTheDocument();
   });
 
   it("includes enabled optional resources and labels an external jump target", () => {
@@ -176,8 +176,8 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Placeholder" } });
     expect(screen.getByText("Placeholder")).toBeInTheDocument();
 
-    fireEvent.change(input, { target: { value: "Northstar" } });
-    expect(screen.getByText("Northstar Partners (external)")).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "Kord" } });
+    expect(screen.getByText("Kord Industries (external)")).toBeInTheDocument();
   });
 
   it("finds an accented resource name from its unaccented spelling", () => {
@@ -347,10 +347,10 @@ describe("CommandPalette", () => {
     renderPalette();
 
     const input = screen.getByTestId("command-palette-input");
-    fireEvent.change(input, { target: { value: "Tyler" } });
+    fireEvent.change(input, { target: { value: "Bruce" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const tylerOption = options.find((o) => o.textContent?.includes("Tyler Nix"));
+    const tylerOption = options.find((o) => o.textContent?.includes("Bruce Wayne"));
     expect(tylerOption).toBeTruthy();
 
     // Click it — should call jumpToResource (store action). cmdk's onSelect fires on click (and
@@ -372,7 +372,7 @@ describe("CommandPalette", () => {
     const client = clients[0];
     act(() => {
       useStore.getState().addProject({
-        name: "Project Lightning",
+        name: "Project Watchtower",
         clientId: client.id,
         color: "#6366f1",
       });
@@ -381,10 +381,10 @@ describe("CommandPalette", () => {
     renderPalette();
 
     const input = screen.getByTestId("command-palette-input");
-    fireEvent.change(input, { target: { value: "Lightning" } });
+    fireEvent.change(input, { target: { value: "Watchtower" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const projectOption = options.find((o) => o.textContent?.includes("Project Lightning"));
+    const projectOption = options.find((o) => o.textContent?.includes("Project Watchtower"));
     expect(projectOption).toBeTruthy();
 
     act(() => {

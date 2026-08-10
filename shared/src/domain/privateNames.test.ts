@@ -16,7 +16,7 @@ const privateClient: Client = {
   name: "Real Client",
   color: "#112233",
   isPrivate: true,
-  codeName: "Northstar",
+  codeName: "Nightwing",
 };
 const privateProject: Project = {
   ...meta,
@@ -30,29 +30,29 @@ const privateProject: Project = {
 
 describe("private-name projection", () => {
   it("stores code names without user-supplied outer quotes and displays one consistent quote pair", () => {
-    expect(normalizeCodeName("  “Northstar”  ")).toBe("Northstar");
-    expect(normalizeCodeName("““  Northstar  ””")).toBe("Northstar");
+    expect(normalizeCodeName("  “Nightwing”  ")).toBe("Nightwing");
+    expect(normalizeCodeName("““  Nightwing  ””")).toBe("Nightwing");
     expect(normalizeCodeName('North"star')).toBe('North"star');
-    expect(quoteCodeName('"Northstar"')).toBe('"Northstar"');
-    expect(nameForQuotedContext('"Northstar"')).toBe("Northstar");
+    expect(quoteCodeName('"Nightwing"')).toBe('"Nightwing"');
+    expect(nameForQuotedContext('"Nightwing"')).toBe("Nightwing");
   });
 
   it("redacts a private row without mutating it and removes the raw codeName field", () => {
     const redacted = redactPrivateName(privateClient);
-    expect(redacted.name).toBe('"Northstar"');
+    expect(redacted.name).toBe('"Nightwing"');
     expect(redacted).not.toHaveProperty("codeName");
-    expect(privateClient).toMatchObject({ name: "Real Client", codeName: "Northstar" });
+    expect(privateClient).toMatchObject({ name: "Real Client", codeName: "Nightwing" });
   });
 
   it("is idempotent for both a projected row and a projected slice", () => {
     const once = redactPrivateName(privateClient);
     expect(redactPrivateName(once)).toBe(once);
-    expect(redactPrivateName(once).name).toBe('"Northstar"');
+    expect(redactPrivateName(once).name).toBe('"Nightwing"');
 
     const data = { ...emptyAppData(), clients: [privateClient], projects: [privateProject] };
     const projected = redactPrivateNames(data);
     const projectedAgain = redactPrivateNames(projected);
-    expect(projectedAgain.clients[0].name).toBe('"Northstar"');
+    expect(projectedAgain.clients[0].name).toBe('"Nightwing"');
     expect(projectedAgain.projects[0].name).toBe('"Aurora"');
   });
 
@@ -87,7 +87,7 @@ describe("private-name projection", () => {
   it.each([1, "true", "yes"])("fails closed for a truthy non-boolean privacy flag (%j)", (isPrivate) => {
     const malformed = { ...privateClient, isPrivate } as unknown as Client;
     const redacted = redactPrivateName(malformed);
-    expect(redacted.name).toBe('"Northstar"');
+    expect(redacted.name).toBe('"Nightwing"');
     expect(redacted).not.toHaveProperty("codeName");
   });
 
@@ -111,7 +111,7 @@ describe("private-name projection", () => {
       projects: [privateProject],
     };
     const visible = redactPrivateNames(data);
-    expect(visible.clients.map((c) => c.name)).toEqual(['"Northstar"', "Public Client"]);
+    expect(visible.clients.map((c) => c.name)).toEqual(['"Nightwing"', "Public Client"]);
     expect(visible.projects[0].name).toBe('"Aurora"');
     expect(visible.accounts).toBe(data.accounts);
   });

@@ -413,7 +413,7 @@
   "form_private_toggle_label": "Use a code name",
   "form_private_toggle_description": "Only account owners can see the real name. Everyone else sees the code name.",
   "form_private_code_name_label": "Code name",
-  "form_private_code_name_placeholder": "e.g. Northstar",
+  "form_private_code_name_placeholder": "e.g. Nightwing",
   "form_private_code_name_hint": "Quotation marks are added automatically.",
   "form_private_owner_only_hint": "Only an account owner can change this private name.",
   "form_project_edit_title": "Edit project",

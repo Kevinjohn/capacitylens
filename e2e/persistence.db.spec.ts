@@ -15,9 +15,9 @@ test.describe("database-backed persistence", () => {
   });
 
   test("hydrates the seeded dataset from the server on load", async ({ page }) => {
-    await openApp(page); // picks "Studio North" from the server-seeded accounts
-    // "Tyler Nix" is part of the server seed; seeing it proves GET /api/state → UI.
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await openApp(page); // picks "Wayne Enterprises" from the server-seeded accounts
+    // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 
   test("create + reload: a new client round-trips through the DB", async ({ page, request }) => {

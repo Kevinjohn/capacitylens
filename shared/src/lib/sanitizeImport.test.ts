@@ -222,9 +222,9 @@ describe("sanitizeImportedRecord", () => {
       sanitizeImportedRecord(key, {
         name: "Real name",
         isPrivate: true,
-        codeName: "  “Northstar”  ",
+        codeName: "  “Nightwing”  ",
       }),
-    ).toMatchObject({ isPrivate: true, codeName: "Northstar" });
+    ).toMatchObject({ isPrivate: true, codeName: "Nightwing" });
 
     const publicRow = sanitizeImportedRecord(key, {
       name: "Public name",

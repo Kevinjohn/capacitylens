@@ -82,7 +82,7 @@ export const ResourceLane = memo(function ResourceLane({
   onDraw,
 }: {
   resourceId: ID;
-  /** Accessible name for the lane's role="gridcell" (e.g. "Tyler Nix timeline"). The cell is
+  /** Accessible name for the lane's role="gridcell" (e.g. "Bruce Wayne timeline"). The cell is
    *  column 2 of the grid; naming it keeps the 2-column structure honest (WCAG 1.3.1) without
    *  echoing the rowheader's sr-only capacity summary. */
   ariaLabel: string;

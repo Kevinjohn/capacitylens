@@ -51,8 +51,8 @@ test("scheduler in dark mode has no serious or critical violations", async ({ pa
 
 // Time-off draw mode recedes the work bars (dimmed neutral fill) and makes booked time-off
 // glow. That re-skin must stay a11y-clean too: the receded bars and the amber glow are new
-// colour treatments axe has never sampled. Studio North's seed carries one time-off block
-// (Tyler Nix, 10-12 Jun); 4w + scrollLeft=0 brings both it and the work bars into view, the
+// colour treatments axe has never sampled. Wayne Enterprises's seed carries one time-off block
+// (Bruce Wayne, 10-12 Jun); 4w + scrollLeft=0 brings both it and the work bars into view, the
 // same way timeoff.spec proves the block renders.
 async function openDrawMode(page: import("@playwright/test").Page): Promise<void> {
   await openApp(page);
@@ -155,7 +155,7 @@ test("the allocation editor modal (dark) has no serious or critical violations",
 });
 
 test("a resource form modal has no serious or critical violations", async ({ page }) => {
-  await openApp(page, "Studio North", "/resources");
+  await openApp(page, "Wayne Enterprises", "/resources");
   await page.getByRole("button", { name: "Add resource" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.waitForTimeout(350); // let the entrance animation settle (mid-fade colours read as false low-contrast)
@@ -178,14 +178,14 @@ test("a resource form modal has no serious or critical violations", async ({ pag
 // can't silently regress to the failing solid fill.
 test("a confirm dialog (dark) danger button has no serious or critical violations", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
-  await openApp(page, "Studio North", "/clients");
+  await openApp(page, "Wayne Enterprises", "/clients");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   // P2.5b: the row's destructive action archives; the confirm dialog's "Archive" button is still the
   // danger variant (ConfirmDialog renders confirm as danger regardless of label), so this scan covers it.
   await page
     .getByTestId("client-row")
-    .filter({ hasText: "Acme Inc." })
-    .getByRole("button", { name: "Archive Acme Inc." })
+    .filter({ hasText: "Queen Consolidated" })
+    .getByRole("button", { name: "Archive Queen Consolidated" })
     .click();
   const dialog = page.getByRole("alertdialog", { name: "Archive client?" });
   await expect(dialog).toBeVisible();
@@ -271,7 +271,7 @@ test("the scheduler toolbar reflows without horizontal scroll at 320px", async (
 // REAL measured height via --sched-sticky-top, left = the leftColWidth constant) must stop it clear
 // of BOTH. We force the obscured case: a SHORT viewport gives the few-row grid genuine vertical
 // scroll range, then we scroll the grid to its far BOTTOM-RIGHT corner so the top-left seed bar
-// (Tyler's first allocation — row 1, the timeline's earliest day) ends up off-screen ABOVE the
+// (Bruce's first allocation — row 1, the timeline's earliest day) ends up off-screen ABOVE the
 // header AND LEFT of the utilisation column. Focusing it must then scroll UP and LEFT to surface it
 // clear of both. We assert (a) the focus actually MOVED the scroll (proving a scroll-into-view ran —
 // without this the test false-passes on an already-visible bar) and (b) the bar's box clears the
@@ -279,7 +279,7 @@ test("the scheduler toolbar reflows without horizontal scroll at 320px", async (
 // hardcoded, so the check tracks the header even as it grows with zoom/font-size — and FAILS if the
 // reserved margin shrinks below the header's real height (verified by temporarily zeroing it).
 test("a focused allocation bar is not obscured by the sticky header or left column", async ({ page }) => {
-  // The Studio North seed has only a handful of rows, so at a tall desktop viewport the grid never
+  // The Wayne Enterprises seed has only a handful of rows, so at a tall desktop viewport the grid never
   // overflows VERTICALLY (maxScrollTop ≈ 0) and the header-obscured case can't be reached. A short
   // viewport forces vertical scroll range. 480px height keeps it portrait, so pre-dismiss the
   // session rotate hint (it would otherwise cover the grid). Width stays wide so the timeline still
@@ -291,7 +291,7 @@ test("a focused allocation bar is not obscured by the sticky header or left colu
   const grid = page.getByTestId("scheduler-grid");
   await expect(grid).toBeVisible();
 
-  // The top-left seed bar: Tyler Nix's first allocation (a-tyler-1, the Wireframes bar) is in the
+  // The top-left seed bar: Bruce Wayne's first allocation (a-tyler-1, the Wireframes bar) is in the
   // FIRST resource row and starts on the timeline's earliest seeded day — so scrolling to the
   // bottom-right corner pushes it off-screen up AND left, and focusing it requires an upward +
   // leftward scroll-into-view (the exact path 2.4.11 governs). data-alloc-id is the stable hook.

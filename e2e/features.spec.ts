@@ -50,12 +50,12 @@ test.describe("Feature flows", () => {
     await page.getByRole("link", { name: "Time off" }).click();
     await page.getByRole("button", { name: "Add time off" }).click();
     await selectShadOption(page.getByLabel("Resource"), {
-      label: "Nike Spiros",
+      label: "Clark Kent",
     });
     await page.getByLabel("Start").fill("2026-06-18");
     await page.getByLabel("End").fill("2026-06-20");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByTestId("timeoff-row")).toHaveCount(2); // seed Tyler + new Nike
+    await expect(page.getByTestId("timeoff-row")).toHaveCount(2); // seed Bruce + new Clark
 
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -64,9 +64,9 @@ test.describe("Feature flows", () => {
 
   test("clicking a discipline header collapses its rows", async ({ page }, testInfo) => {
     await openApp(page);
-    await expect(page.getByText("Tyler Nix")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await page.getByRole("button", { name: "Design", exact: true }).click();
-    await expect(page.getByText("Tyler Nix")).toHaveCount(0); // rows removed
+    await expect(page.getByText("Bruce Wayne")).toHaveCount(0); // rows removed
     await expect(page.getByTestId("discipline-group").first()).toBeVisible(); // header stays
     await page.screenshot({
       path: testInfo.outputPath("capacitylens_collapsed.png"),
@@ -82,24 +82,24 @@ test.describe("Feature flows", () => {
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
     const b0 = await box(bar);
     // Address the target row by identity, not position — robust to seed re-ordering.
-    const nikeLane = page.locator('[data-resource-id="r-nike"]');
-    const nike = await box(nikeLane);
+    const clarkLane = page.locator('[data-resource-id="r-nike"]');
+    const clark = await box(clarkLane);
     const cx = b0.x + b0.width / 2;
 
     await page.mouse.move(cx, b0.y + b0.height / 2);
     await page.mouse.down();
-    await page.mouse.move(cx, nike.y + nike.height / 2, { steps: 10 });
-    // Nike's row is highlighted as the drop target mid-drag.
-    await expect(nikeLane).toHaveAttribute("data-droptarget", "");
+    await page.mouse.move(cx, clark.y + clark.height / 2, { steps: 10 });
+    // Clark's row is highlighted as the drop target mid-drag.
+    await expect(clarkLane).toHaveAttribute("data-droptarget", "");
     await page.screenshot({
       path: testInfo.outputPath("capacitylens_drophighlight.png"),
     });
     await page.mouse.up();
 
-    // Assert the resulting state, not a pixel delta: the bar now lives inside Nike's lane.
-    await expect(nikeLane.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
+    // Assert the resulting state, not a pixel delta: the bar now lives inside Clark's lane.
+    await expect(clarkLane.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
     // Highlight cleared after drop.
-    await expect(nikeLane).not.toHaveAttribute("data-droptarget", "");
+    await expect(clarkLane).not.toHaveAttribute("data-droptarget", "");
   });
 
   test("drawing in Time off mode opens a prefilled time-off form", async ({ page }) => {
@@ -111,7 +111,7 @@ test.describe("Feature flows", () => {
     const lane = page.locator('[data-resource-id="r-nike"]');
     const b = await box(lane);
     const y = b.y + b.height / 2;
-    // Draw on EMPTY lane space, just right of Nike's seeded allocation. A gesture
+    // Draw on EMPTY lane space, just right of Clark's seeded allocation. A gesture
     // started on the bar drags/resizes it (the bar stops propagation) instead of
     // drawing — anchor to the bar's measured box so this is robust to zoom/origin.
     const seededBar = await box(lane.getByTestId("allocation-bar"));
@@ -124,13 +124,13 @@ test.describe("Feature flows", () => {
     // Opens the time-off form (not the allocation modal), prefilled with the row's resource.
     const dialog = page.getByRole("dialog", { name: "Add time off" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel("Resource")).toHaveText("Nike Spiros");
+    await expect(dialog.getByLabel("Resource")).toHaveText("Clark Kent");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("dialog", { name: "Add time off" })).toHaveCount(0);
   });
 
   test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
-    await openApp(page, "Studio North", "/settings");
+    await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
     await page.getByRole("switch", { name: "Show placeholders" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
@@ -153,10 +153,10 @@ test.describe("Feature flows", () => {
     const project = page.getByLabel("Project", { exact: true });
     // "Locked" = the bound project is preselected and the choices are restricted to it
     // (+ the general option), but the select stays ENABLED so the placeholder can still
-    // take general activities. A non-bound project ("Brand Themes") is not offered.
-    await expect(project).toHaveText(/Project Lightning/);
+    // take general activities. A non-bound project ("Metropolis Rebrand") is not offered.
+    await expect(project).toHaveText(/Project Watchtower/);
     await expect(project).toBeEnabled();
     await project.click();
-    await expect(page.getByRole("option", { name: /Brand Themes/ })).toHaveCount(0);
+    await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 });

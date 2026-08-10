@@ -12,7 +12,7 @@ Studios often repeat a booking — the same person on the same activity for the 
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Note the current count of bars on the **Tyler Nix** row.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Note the current count of bars on the **Bruce Wayne** row.
 
 1. Click the **Wireframes** bar. The **Edit allocation** dialog opens.
 2. Click **Duplicate**. The dialog closes immediately (no confirmation).
