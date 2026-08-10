@@ -11,9 +11,10 @@ import { cwd } from "node:process";
 //
 // The mechanism is fragile in one way that is invisible on inspection:
 // scripts/docs-standalone.mjs strips every <script> and .js file out of the shipped
-// docs/, so anything JavaScript-driven silently stops working in the artifact people
-// actually read. These assertions run against the committed build and fail if someone
-// swaps in a JS lightbox library, or if the plugin stops wrapping some images.
+// docs/ bar one allowlisted inline handler, so anything else JavaScript-driven silently
+// stops working in the artifact people actually read. These assertions run against the
+// committed build and fail if someone swaps in a JS lightbox library, if the allowlist
+// grows, or if the plugin stops wrapping some images.
 //
 // What this does NOT check: that docs/ is up to date with docs-src/. Rebuilding and
 // diffing here would be far too slow for a unit test — that is why
@@ -109,10 +110,23 @@ describe("docs image lightbox", () => {
     expect(broken).toEqual([]);
   });
 
-  it("ships no JavaScript that a lightbox could have depended on", () => {
-    // docs-standalone.mjs strips these; if any come back, a script-based lightbox
-    // could look like it works locally while being deleted from the real artifact.
-    const withScript = pages.filter((page) => page.html.includes("<script"));
-    expect(withScript.map((page) => page.name)).toEqual([]);
+  it("ships no JavaScript beyond the one inline Escape handler", () => {
+    // docs-standalone.mjs strips every script except the data-cl-keep one; if others
+    // come back, a script-based lightbox could look like it works locally while being
+    // deleted from the real artifact. The allowlist is checked strictly — an external
+    // src would be a request the file:// build cannot make, and a second inline script
+    // means the exception has quietly become a general-purpose escape hatch.
+    const offenders = pages.flatMap((page) => {
+      const scripts = [...page.html.matchAll(/<script\b([^>]*)>/g)].map((m) => m[1]);
+      const unexpected = scripts.filter((attrs) => !attrs.includes("data-cl-keep") || attrs.includes("src="));
+      return scripts.length > 1 || unexpected.length > 0 ? [{ name: page.name, scripts }] : [];
+    });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the Escape handler on every page, since the lightbox is on every page", () => {
+    const missing = withScreenshots.filter((page) => !page.html.includes(".cl-toggle:checked"));
+    expect(missing.map((page) => page.name)).toEqual([]);
   });
 });

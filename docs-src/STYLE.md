@@ -54,9 +54,9 @@ other page uses the standard numbered-list-under-`## Steps` pattern.
   is only ~690px, and the enlarged view is the whole point. Nothing to write in the
   Markdown, and nothing to opt into. The one image that does not get it is one you have
   made a link yourself (`[![alt](path)](target)`), since the click has to mean one thing
-  or the other. The mechanism is CSS-only by necessity
-  (`docs-src/.vitepress/lightbox.mts` explains why); the published docs ship with no
-  JavaScript at all, so never reach for a lightbox library.
+  or the other. The mechanism is CSS by necessity
+  (`docs-src/.vitepress/lightbox.mts` explains why): the published docs ship no JavaScript
+  beyond one inline handler for the Escape key, so never reach for a lightbox library.
 - **Commands are copy-pasteable.** One command per block, no `$` prompts, and the
   expected output (or the relevant part of it) shown after.
 - **No cards.** Prose, lists, tables and steps only. Tables are for genuinely tabular

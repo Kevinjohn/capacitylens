@@ -4,7 +4,25 @@ import { imageLightbox } from "./lightbox.mts";
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
 // Sidebar order is the reading order: sections run from "never seen it" to
 // "operating it in production" to "reference".
+// Escape closes an open screenshot lightbox. Opening, closing by click, and all
+// the styling are pure CSS (see lightbox.mts); this one keystroke is the only
+// part CSS cannot express, so it is the only script the standalone build keeps —
+// hence the data-cl-keep marker that scripts/docs-standalone.mjs looks for.
+//
+// It is a pure enhancement, deliberately: it adds a way to close the lightbox
+// and takes nothing away, so a reader with JavaScript off, or a copy of the
+// pages that lost the script somewhere, still gets the click-to-close lightbox
+// exactly as before. Inline rather than a bundle, because a separate .js file
+// would be a network request the file:// build cannot rely on.
+const escapeClosesLightbox = `document.addEventListener("keydown", function (event) {
+  if (event.key !== "Escape") return;
+  document.querySelectorAll(".cl-toggle:checked").forEach(function (toggle) {
+    toggle.checked = false;
+  });
+});`;
+
 export default defineConfig({
+  head: [["script", { "data-cl-keep": "" }, escapeClosesLightbox]],
   title: "CapacityLens",
   description:
     "Documentation for CapacityLens — a self-hosted helicopter view of who is busy, free, or overworked, week by week.",

@@ -13,10 +13,11 @@ new features and **patch** versions carry fixes.
 ### Added
 
 - **Documentation screenshots open full size when clicked.** Every screenshot in the docs is now a
-  lightbox: click it to see it filling the window, then click anywhere to close. The
-  screenshots are captured well above the width of the text column, so this shows detail that was
-  previously only legible by opening the image file directly. The lightbox is pure CSS — the
-  published docs deliberately ship without JavaScript so they open straight from disk (#187).
+  lightbox: click it to see it filling the window, then click anywhere — or press Escape — to
+  close. The screenshots are captured well above the width of the text column, so this shows detail
+  that was previously only legible by opening the image file directly. Opening and closing is pure
+  CSS, because the published docs are built to open straight from disk; the Escape key is handled by
+  the one small inline script the build keeps, and the lightbox still works without it (#187).
 
 ### Fixed
 
