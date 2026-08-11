@@ -54,6 +54,9 @@ export interface BuildGeometryOpts {
   minimiseWeekends: boolean;
   /** Resolved px width for a narrowed weekend column (e.g. WEEKEND_COLUMN_REM × root font px). */
   weekendWidth: number;
+  /** Integer width assigned to every calendar week by the viewport fit. Any pixels left after
+   *  the base day/weekend widths are spread across individual columns, keeping integer offsets. */
+  targetWeekWidth?: number;
 }
 
 /**
@@ -73,9 +76,18 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: Bui
   // whole pixel so every offset is an integer: a fractional weekend width (e.g. 22.39) makes
   // fractional offsets, but the browser stores scrollLeft as a whole number — the mismatch made
   // the zoom scroll-anchor's indexAt() floor to the previous (weekend) column, drifting the
-  // left-edge date back a day on every zoom flip. dayWidth is already integer (resolveDayWidth).
+  // left-edge date back a day on every zoom flip. dayWidth is already integer (resolveColumnFit).
   const rawNarrow = Math.round(Math.min(opts.weekendWidth, dayWidth));
   const narrowWidth = Number.isFinite(rawNarrow) && rawNarrow > 0 ? rawNarrow : dayWidth;
+  const baseWeekWidth = minimiseActive ? 5 * dayWidth + 2 * narrowWidth : 7 * dayWidth;
+  const requestedWeekWidth = Math.round(opts.targetWeekWidth ?? baseWeekWidth);
+  // resolveColumnFit floors the base width, so this is normally 0..4 (minimised) or 0..6
+  // (uniform). Clamp defensive callers to the available columns: distributing more than one extra
+  // pixel per column would obscure what `dayWidth` means and is never needed by the real fit.
+  const extraPixels = Math.min(
+    minimiseActive ? 5 : 7,
+    Math.max(0, Number.isFinite(requestedWeekWidth) ? requestedWeekWidth - baseWeekWidth : 0),
+  );
 
   const widths: number[] = new Array(n);
   const offsets: number[] = new Array(n + 1);
@@ -83,7 +95,8 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: Bui
   for (let i = 0; i < n; i++) {
     const wd = weekdayOf(days[i]);
     const isWeekend = wd === 0 || wd === 6;
-    widths[i] = minimiseActive && isWeekend ? narrowWidth : dayWidth;
+    const extra = minimiseActive ? !isWeekend && wd - 1 < extraPixels : wd < extraPixels;
+    widths[i] = minimiseActive && isWeekend ? narrowWidth : dayWidth + (extra ? 1 : 0);
     offsets[i + 1] = offsets[i] + widths[i];
   }
   const totalWidth = offsets[n];

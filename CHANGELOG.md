@@ -10,6 +10,17 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.39.2-alpha.1] — 2026-08-11
+
+Schedule zoom levels now end at the selected calendar-week boundary. Wide one-week views and zoom
+levels whose day widths do not divide evenly into the viewport no longer reveal the following date.
+
+### Fixed
+
+- **Schedule zooms no longer show a date beyond the selected range.** Week columns now cover the
+  viewport at every zoom by distributing leftover pixels within each week. This preserves integer
+  scroll positions while preventing part or all of the following day from appearing (#197).
+
 ## [0.39.1-alpha.1] — 2026-08-10
 
 ### Added
@@ -3103,7 +3114,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.2-alpha.1...HEAD
+[0.39.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.1-alpha.1...v0.39.2-alpha.1
 [0.39.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.0-alpha.1...v0.39.1-alpha.1
 [0.39.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.2-alpha.1...v0.39.0-alpha.1
 [0.38.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.1-alpha.1...v0.38.2-alpha.1
