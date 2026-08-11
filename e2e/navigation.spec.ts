@@ -37,7 +37,10 @@ test.describe("Navigation & shell", () => {
       await expect(destinationHeading).toBeVisible();
 
       const reloadResponse = await page.reload();
-      expect(reloadResponse?.status()).toBe(200);
+      // Firefox exposes a successful cache revalidation as 304 here, while Chromium and WebKit
+      // report the cached shell as 200. In both cases the browser has loaded the SPA document; the
+      // URL, company gate and resumed destination assertions below verify the observable contract.
+      expect([200, 304]).toContain(reloadResponse?.status());
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
 
