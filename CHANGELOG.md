@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Buttons now visibly respond while pressed.** Primary, outline, secondary, ghost, destructive,
+  soft-danger and icon buttons briefly compress when clicked or keyboard-activated. Button-backed
+  toggles use the same momentary feedback without obscuring their persistent selected state (#215).
+
 ## [0.39.4-alpha.1] — 2026-08-11
 
 The schedule now opens with more room for planning while keeping every filter close at hand.
