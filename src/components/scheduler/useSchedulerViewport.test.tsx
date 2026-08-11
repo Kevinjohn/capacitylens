@@ -33,14 +33,13 @@ function Harness({
       <div data-testid="left-edge-idx">{leftEdgeIdx}</div>
       <div data-testid="visible-start">{visibleStartDate()}</div>
       <div data-testid="focus-x">{geom.xForDateInGeom(ui.focusDate)}</div>
+      <div data-testid="boundary-2">{geom.x(2)}</div>
+      <div data-testid="boundary-3">{geom.x(3)}</div>
     </div>
   );
 }
 
 describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
-  // Uniform columns (minimise off): availableWidth 944 / 7 = 134, matching SchedulerGrid.test.tsx's
-  // "Feature 2" DAY_WIDTH so the boundary math below is a known, previously-pinned constant.
-  const DAY_WIDTH = 134;
   let rafSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -67,7 +66,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
   it("onScroll resolves a scrollLeft fractionally below a column boundary to that column, not the previous one", () => {
     render(<Harness />);
     const grid = screen.getByTestId("scroll");
-    const boundary = 2 * DAY_WIDTH; // index 2 → 2026-06-03
+    const boundary = Number(screen.getByTestId("boundary-2").textContent); // index 2 → 2026-06-03
 
     act(() => {
       grid.scrollLeft = boundary - 0.4;
@@ -83,7 +82,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
   it("onScroll still resolves an exact boundary scrollLeft to that column (rounding is a no-op there)", () => {
     render(<Harness />);
     const grid = screen.getByTestId("scroll");
-    const boundary = 2 * DAY_WIDTH;
+    const boundary = Number(screen.getByTestId("boundary-2").textContent);
 
     act(() => {
       grid.scrollLeft = boundary;
@@ -100,7 +99,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
     useStore.setState({ draggingAllocationId: "a1" });
     render(<Harness />);
     const grid = screen.getByTestId("scroll");
-    const boundary = 3 * DAY_WIDTH; // index 3 → 2026-06-04
+    const boundary = Number(screen.getByTestId("boundary-3").textContent); // index 3 → 2026-06-04
 
     act(() => {
       grid.scrollLeft = boundary - 0.4;

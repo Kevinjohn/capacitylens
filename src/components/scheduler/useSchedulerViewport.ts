@@ -5,7 +5,7 @@ import {
   FALLBACK_TIMELINE_WIDTH,
   WEEK_SNAP_IDLE_MS,
   WEEKEND_COLUMN_REM,
-  resolveDayWidth,
+  resolveColumnFit,
 } from "../../lib/schedulerConfig";
 import { visibleRange } from "../../store/selectors";
 import { useStore, type SchedulerUI } from "../../store/useStore";
@@ -122,16 +122,22 @@ export function useSchedulerViewport({
 
   const availableWidth = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth;
   const weekendWidth = Math.round(WEEKEND_COLUMN_REM * rootFontSizePx);
-  const uniformDayWidth = resolveDayWidth(availableWidth, ui.zoom);
-  const dayWidth =
-    minimiseWeekends && uniformDayWidth > weekendWidth
-      ? resolveDayWidth(availableWidth, ui.zoom, weekendWidth)
-      : uniformDayWidth;
+  const uniformFit = resolveColumnFit(availableWidth, ui.zoom);
+  const fit =
+    minimiseWeekends && uniformFit.dayWidth > weekendWidth
+      ? resolveColumnFit(availableWidth, ui.zoom, weekendWidth)
+      : uniformFit;
+  const dayWidth = fit.dayWidth;
   const { start, end } = visibleRange(ui);
   const days = useMemo(() => eachDayISO(start, end), [start, end]);
   const geom = useMemo(
-    () => buildColumnGeometry(days, dayWidth, { minimiseWeekends, weekendWidth }),
-    [days, dayWidth, minimiseWeekends, weekendWidth],
+    () =>
+      buildColumnGeometry(days, dayWidth, {
+        minimiseWeekends,
+        weekendWidth,
+        targetWeekWidth: fit.weekWidth,
+      }),
+    [days, dayWidth, minimiseWeekends, weekendWidth, fit.weekWidth],
   );
 
   const focusX = geom.xForDateInGeom(ui.focusDate);

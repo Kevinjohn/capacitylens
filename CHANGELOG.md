@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Schedule zooms no longer show a date beyond the selected range.** Week columns now cover the
+  viewport at every zoom, including wide one-week views, instead of exposing part or all of the
+  following day (#197).
+
 ## [0.39.1-alpha.1] — 2026-08-10
 
 ### Added

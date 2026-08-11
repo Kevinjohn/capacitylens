@@ -1,6 +1,6 @@
 // Shared scheduler tuning. The timeline shows a preset number of WEEKS; the
 // day-column width is derived to fit that many weeks into the available width
-// (see resolveDayWidth). Pixel row geometry lives in components/scheduler/layout.ts.
+// (see resolveColumnFit). Pixel row geometry lives in components/scheduler/layout.ts.
 
 export type WeeksZoom = 1 | 2 | 4 | 6 | 8;
 
@@ -8,10 +8,6 @@ export const ZOOM_LEVELS: WeeksZoom[] = [1, 2, 4, 6, 8];
 export const DEFAULT_ZOOM: WeeksZoom = 2;
 
 export const MIN_DAY_WIDTH = 8;
-// Generous cap so a 1-week view genuinely fills a normal screen — including the weekend-aware
-// fit, which widens the weekday columns to make up for the narrowed Sat/Sun (a "1-week" view
-// must show ~1 week, not 1.5). Only bites past ~1920px-wide screens.
-export const MAX_DAY_WIDTH = 240;
 /** Used when the real timeline width can't be measured (tests / first paint / SSR). */
 export const FALLBACK_TIMELINE_WIDTH = 1000;
 
@@ -56,7 +52,7 @@ export const PAST_BUFFER_DAYS = 28;
 export const UTILIZATION_WINDOW_DAYS = 14;
 
 /**
- * Day-column width (px) that fits `weeks` weeks into `availableWidth`, clamped legible.
+ * Integer column fit for one of the scheduler's week zooms.
  *
  * `weekendWidth` (optional) is the px width of a minimised Sat/Sun column. When given, the fit
  * accounts for the narrowed weekends — a week of viewport is then 5 weekday columns + 2 narrow
@@ -64,23 +60,39 @@ export const UTILIZATION_WINDOW_DAYS = 14;
  * narrow weekends leave the right edge under-filled and a "1-week" view shows ~1.5 weeks). The
  * caller passes it ONLY when minimise is actually narrowing (weekday width > weekendWidth);
  * omit it (or pass a non-positive / non-finite value) for the uniform 7-equal-columns fit.
+ *
+ * `dayWidth` is the base width. ColumnGeometry distributes the remainder up to `weekWidth`
+ * across individual columns, keeping every offset on an integer pixel without leaving enough
+ * slack to reveal the following date.
  */
-export function resolveDayWidth(availableWidth: number, weeks: WeeksZoom, weekendWidth?: number): number {
+export function resolveColumnFit(
+  availableWidth: number,
+  weeks: WeeksZoom,
+  weekendWidth?: number,
+): { dayWidth: number; weekWidth: number } {
   // `availableWidth` comes from a measured DOM rect, which can be NaN (unmeasured / detached
   // element). Treat non-finite the same as <= 0: a NaN would slip past the `<= 0` check
-  // (NaN <= 0 is false) and Math.floor(NaN/…) → NaN → Math.min/max(NaN) → NaN, propagating a
+  // (NaN <= 0 is false) and Math.ceil(NaN/…) → NaN, propagating a
   // NaN width into layout. Fall back to the minimum legible width instead.
-  if (!Number.isFinite(availableWidth) || availableWidth <= 0) return MIN_DAY_WIDTH;
-  const uniformRaw = Math.floor(availableWidth / (weeks * 7));
+  if (!Number.isFinite(availableWidth) || availableWidth <= 0) {
+    return { dayWidth: MIN_DAY_WIDTH, weekWidth: MIN_DAY_WIDTH * 7 };
+  }
+  // Each calendar week gets an integer target. Across the selected span this can exceed the
+  // viewport by at most `weeks - 1` pixels, so the final selected column remains visible while
+  // the next column begins beyond the right edge.
+  const weekWidth = Math.ceil(availableWidth / weeks);
+  const uniformRaw = Math.floor(weekWidth / 7);
   const weekendAwareRaw =
     Number.isFinite(weekendWidth) && (weekendWidth as number) > 0
       ? // 5 weekday columns + 2 weekend columns per week fill `availableWidth`:
-        // weeks·(5·dayWidth + 2·weekendWidth) = availableWidth.
-        Math.floor((availableWidth - weeks * 2 * (weekendWidth as number)) / (weeks * 5))
+        // 5·dayWidth + 2·weekendWidth = weekWidth.
+        Math.floor((weekWidth - 2 * (weekendWidth as number)) / 5)
       : null;
   // Geometry narrows weekends only at the per-day-column threshold. Below it, use the same
   // uniform fit geometry will render; otherwise the fit assumes narrow weekends that are later
   // refused, which can overflow and even make the timeline shrink as the viewport widens.
   const raw = weekendAwareRaw !== null && weekendAwareRaw >= DAY_COLUMN_MIN_WIDTH ? weekendAwareRaw : uniformRaw;
-  return Math.min(MAX_DAY_WIDTH, Math.max(MIN_DAY_WIDTH, raw));
+  // Do not cap wide one-week views: a maximum would deliberately under-fill the viewport and
+  // reveal later dates, contradicting the selected zoom.
+  return { dayWidth: Math.max(MIN_DAY_WIDTH, raw), weekWidth };
 }

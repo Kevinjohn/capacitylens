@@ -95,15 +95,16 @@ test.describe("Minimise weekends", () => {
     await expect(page.getByRole("switch", { name: "Minimise weekends" })).toHaveAttribute("aria-checked", "false");
   });
 
-  test("a 1-week zoom shows ~1 week (weekend-aware fit), not ~1.5", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 800 });
+  test("every zoom fits its selected weeks without exposing a trailing day", async ({ page }) => {
+    // Keep even the 8-week zoom above the per-day-column threshold so the probe can count the
+    // same date cells shown in the wide-screen reproduction screenshots.
+    await page.setViewportSize({ width: 1920, height: 800 });
     await openApp(page); // minimise on by default
-    await setZoom(page, 1);
-    const { visibleDays } = await probe(page);
-    // With the fit, the working week fills the viewport: ~7 days. The narrow-weekend under-fill
-    // bug showed ~11–12. A 2-week zoom of the same width would show ~14, so <=9 pins "~1 week".
-    expect(visibleDays).toBeGreaterThanOrEqual(6);
-    expect(visibleDays).toBeLessThanOrEqual(9);
+    for (const weeks of [1, 2, 4, 6, 8] as const) {
+      await setZoom(page, weeks);
+      const { visibleDays } = await probe(page);
+      expect(visibleDays, `${weeks}-week zoom`).toBe(weeks * 7);
+    }
   });
 
   test("zoom flips preserve the left-edge date (no drift onto the weekend)", async ({ page }) => {

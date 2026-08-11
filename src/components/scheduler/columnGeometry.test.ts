@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO, xForDate, widthForRange } from "@capacitylens/shared/lib/dateMath";
-import { resolveDayWidth } from "../../lib/schedulerConfig";
+import { resolveColumnFit } from "../../lib/schedulerConfig";
 
 // A full week: 2026-06-01 (Mon) … 2026-06-07 (Sun). 06-06 = Sat, 06-07 = Sun.
 const WEEK = eachDayISO("2026-06-01", "2026-06-07");
@@ -90,6 +90,23 @@ describe("buildColumnGeometry — minimise ON narrows the weekend columns", () =
   });
 });
 
+describe("buildColumnGeometry — viewport fit remainder", () => {
+  it("distributes spare pixels within each week instead of exposing the following date", () => {
+    const twoWeeks = eachDayISO("2026-06-01", "2026-06-14");
+    const geom = buildColumnGeometry(twoWeeks, 97, {
+      minimiseWeekends: true,
+      weekendWidth: 22,
+      targetWeekWidth: 532,
+    });
+
+    expect(geom.widths.slice(0, 7)).toEqual([98, 98, 98, 97, 97, 22, 22]);
+    expect(geom.spanWidth(0, 6)).toBe(532);
+    expect(geom.spanWidth(7, 13)).toBe(532);
+    expect(geom.totalWidth).toBe(1064);
+    expect(geom.offsets.every(Number.isInteger)).toBe(true);
+  });
+});
+
 describe("buildColumnGeometry — indexAt is the exact inverse of x() at every boundary", () => {
   for (const opts of [OFF, ON]) {
     const label = opts.minimiseWeekends ? "minimise ON" : "minimise OFF";
@@ -159,11 +176,15 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
 
   it("keeps the complete fit monotonic when weekend-aware width crosses the narrowing threshold", () => {
     const totalWidths = [110, 112, 114, 116, 118, 120].map((availableWidth) => {
-      const dayWidth = resolveDayWidth(availableWidth, 1, 13);
-      return buildColumnGeometry(WEEK, dayWidth, { minimiseWeekends: true, weekendWidth: 13 }).totalWidth;
+      const fit = resolveColumnFit(availableWidth, 1, 13);
+      return buildColumnGeometry(WEEK, fit.dayWidth, {
+        minimiseWeekends: true,
+        weekendWidth: 13,
+        targetWeekWidth: fit.weekWidth,
+      }).totalWidth;
     });
 
-    expect(totalWidths).toEqual([105, 112, 112, 116, 116, 116]);
+    expect(totalWidths).toEqual([110, 112, 114, 116, 118, 120]);
     expect(totalWidths.every((width, index) => index === 0 || width >= totalWidths[index - 1])).toBe(true);
   });
 });
