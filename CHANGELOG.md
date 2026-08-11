@@ -15,6 +15,20 @@ new features and **patch** versions carry fixes.
 - **Resources, Disciplines, Clients and Projects are now alphabetical in their management lists.**
   The display-only ordering keeps resource sections separate and leaves schedule grouping and stored
   data order unchanged (#204).
+- **Schedule filters are easier to find without crowding the page title.** The Show/Hide Filters
+  button now sits at the right of the toolbar after Undo/Redo, and the expanded filter controls are
+  centred while retaining their narrow-screen wrapping. The first-run checklist stays below the
+  toolbar so those actions remain available (#214).
+- **Buttons now visibly respond while pressed.** Primary, outline, secondary, ghost, destructive,
+  soft-danger and icon buttons briefly compress when clicked or keyboard-activated. Button-backed
+  toggles use the same momentary feedback without obscuring their persistent selected state (#215).
+
+### Fixed
+
+- **Month and year labels are vertically centred in the schedule header.** Labels retain their
+  sticky positioning and truncation while sitting centrally within the month tier (#218).
+- **Selected segmented controls now have an even outline on every side.** Choosing a middle or last
+  option no longer leaves its shared left edge looking half as thick as the other edges (#217).
 
 ## [0.39.4-alpha.1] — 2026-08-11
 

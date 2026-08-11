@@ -27,6 +27,14 @@ describe("DateHeader", () => {
     expect(screen.getByText("Jun 2026")).toBeInTheDocument();
   });
 
+  it("centres the month label while preserving its sticky, truncated treatment", () => {
+    renderHeader(48);
+    const label = screen.getByText("Jun 2026");
+
+    expect(label.parentElement).toHaveClass("flex", "items-center", "py-0.75");
+    expect(label).toHaveClass("sticky", "max-w-full", "truncate", "bg-surface");
+  });
+
   describe("at a coarse zoom (dayWidth < 18)", () => {
     it("shows week-start labels instead of day numbers", () => {
       const { container } = renderHeader(17);

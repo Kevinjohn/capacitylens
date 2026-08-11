@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from "./fixtures";
+import { test, expect, type Locator, type Page } from "./fixtures";
 import {
   goToSeedWeek,
   openApp,
@@ -14,6 +14,39 @@ async function box(locator: Locator) {
   const b = await locator.boundingBox();
   if (!b) throw new Error("no bounding box");
   return b;
+}
+
+async function expectMonthLabelsVerticallyCentred(page: Page) {
+  const dateHeader = page.getByRole("columnheader", { name: "Dates" });
+  const monthTier = dateHeader.locator(":scope > div").first();
+  const lowerTier = dateHeader.locator(":scope > div").nth(1);
+  await expect(monthTier).toBeVisible();
+
+  const samples = await monthTier.locator(":scope > div").evaluateAll((monthBoxes) =>
+    monthBoxes.map((monthBox) => {
+      const boxRect = monthBox.getBoundingClientRect();
+      const label = monthBox.querySelector("span");
+      if (!label) throw new Error("month box has no label");
+      const labelRect = label.getBoundingClientRect();
+      return {
+        label: label.textContent?.trim() ?? "",
+        centreDelta: labelRect.top + labelRect.height / 2 - (boxRect.top + boxRect.height / 2),
+        contained: labelRect.top >= boxRect.top && labelRect.bottom <= boxRect.bottom,
+      };
+    }),
+  );
+
+  expect(samples.length).toBeGreaterThan(0);
+  for (const sample of samples) {
+    expect(sample.label).toMatch(/^[A-Z][a-z]{2} \d{4}$/);
+    expect(Math.abs(sample.centreDelta)).toBeLessThanOrEqual(0.5);
+    expect(sample.contained).toBe(true);
+  }
+
+  const monthBox = await box(monthTier);
+  const lowerBox = await box(lowerTier);
+  expect(monthBox.y + monthBox.height).toBeLessThanOrEqual(lowerBox.y + 0.5);
+  return monthBox.height;
 }
 
 test.describe("Scheduler", () => {
@@ -203,6 +236,38 @@ test.describe("Scheduler", () => {
     for (let week = 0; week < 5; week += 1) await page.getByRole("button", { name: "Next" }).click();
     await expect.poll(() => schedulerLeftMonthLabel(page)).toBe("Jul 2026");
     expect(await settledSchedulerLeftDate(page)).toContain("Mon");
+  });
+
+  test("centres month labels across zoom and density settings", async ({ page }) => {
+    await openApp(page);
+    await goToSeedWeek(page);
+
+    await setZoom(page, 1);
+    const defaultTierHeight = await expectMonthLabelsVerticallyCentred(page);
+    for (const weeks of [2, 4, 6, 8] as const) {
+      await setZoom(page, weeks);
+      const tierHeight = await expectMonthLabelsVerticallyCentred(page);
+      expect(tierHeight).toBe(defaultTierHeight);
+    }
+    await expect(page.getByText("Jun 2026")).toBeVisible();
+    await expect(page.getByText("Jul 2026")).toBeVisible();
+
+    await page.getByRole("link", { name: "Settings" }).click();
+    const compactView = page.getByRole("switch", { name: "Compact view" });
+    await compactView.click();
+    await expect(compactView).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await goToSeedWeek(page);
+
+    for (const weeks of [1, 2, 4, 6, 8] as const) {
+      await setZoom(page, weeks);
+      expect(await expectMonthLabelsVerticallyCentred(page)).toBe(defaultTierHeight);
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "20px";
+    });
+    expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
   });
 
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {

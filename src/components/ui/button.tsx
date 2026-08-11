@@ -4,8 +4,9 @@ import { Slot } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 
-// Local shadcn deviation: preserve the AA-tuned green default, danger-soft action, and compact/icon
-// sizes (including their icon retinting) when comparing or refreshing this source-owned primitive.
+// Local shadcn deviation: preserve the AA-tuned green default, danger-soft action, enabled-only
+// pressed feedback, and compact/icon sizes (including their icon retinting) when comparing or
+// refreshing this source-owned primitive.
 // Keep transition-colors rather than upstream transition-all so disabled opacity clears immediately;
 // otherwise an enabled button can remain semi-transparent long enough to fail text contrast.
 const buttonVariants = cva(
@@ -37,6 +38,19 @@ const buttonVariants = cva(
         "icon-lg": "size-10",
       },
     },
+    compoundVariants: [
+      {
+        variant: [
+          "default",
+          "danger-soft",
+          "destructive",
+          "outline",
+          "secondary",
+          "ghost",
+        ],
+        className: "enabled:active:scale-95",
+      },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",
