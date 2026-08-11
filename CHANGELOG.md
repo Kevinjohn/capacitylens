@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Month and year labels are vertically centred in the schedule header.** Labels retain their
+  sticky positioning and truncation while sitting centrally within the month tier (#218).
+
 ## [0.39.4-alpha.1] — 2026-08-11
 
 The schedule now opens with more room for planning while keeping every filter close at hand.
