@@ -11,6 +11,10 @@ export function isDcoExemptPullRequestAuthor(author) {
   return author === "dependabot[bot]";
 }
 
+export function isMergeCommit(parents) {
+  return parents.trim().split(/\s+/).filter(Boolean).length > 1;
+}
+
 export function evaluateDcoCommit({ authorEmail, committerEmail, message }) {
   const permittedEmails = new Set([authorEmail, committerEmail].map(normalizedEmail));
   const signatories = [...message.matchAll(SIGN_OFF_PATTERN)]
@@ -43,6 +47,10 @@ export function verifyDcoRange(base, head, pullRequestAuthor) {
   let valid = true;
 
   for (const commit of commits) {
+    if (isMergeCommit(git(["show", "-s", "--format=%P", commit]))) {
+      console.log(`Skipping generated merge commit ${commit}; its feature commits carry the DCO sign-offs.`);
+      continue;
+    }
     // Uppercase placeholders apply .mailmap, so contributors can use an established canonical
     // address without weakening the identity comparison.
     const [authorEmail, committerEmail, message] = git([

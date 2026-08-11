@@ -26,6 +26,20 @@ test.describe("Toolbar", () => {
     await expect(weeks).toHaveText("1 week");
   });
 
+  test("shows every zoom level when the dropdown opens", async ({ page }) => {
+    await openApp(page);
+    const weeks = page.getByRole("combobox", { name: "Weeks visible" });
+    await weeks.click();
+
+    const popup = page.locator('[data-slot="select-content"][data-state="open"]');
+    const popupBox = await box(popup);
+    const firstOptionBox = await box(popup.getByRole("option", { name: "1 week" }));
+    const lastOptionBox = await box(popup.getByRole("option", { name: "8 weeks" }));
+
+    expect(firstOptionBox.y).toBeGreaterThanOrEqual(popupBox.y);
+    expect(lastOptionBox.y + lastOptionBox.height).toBeLessThanOrEqual(popupBox.y + popupBox.height);
+  });
+
   test("pans the window a week with Prev and Next", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);

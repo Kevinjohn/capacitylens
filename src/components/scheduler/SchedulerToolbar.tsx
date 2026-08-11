@@ -197,7 +197,7 @@ export function SchedulerToolbar() {
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper">
             <SelectGroup>
               {ZOOM_LEVELS.map((w) => (
                 <SelectItem key={w} value={String(w)}>

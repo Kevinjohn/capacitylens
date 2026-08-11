@@ -393,6 +393,8 @@ affordance); its component (`src/components/scheduler/JumpToDateInput.tsx`) is r
 behind `SHOW_JUMP_TO_DATE` in `SchedulerToolbar.tsx`, and its behaviour is covered by
 `src/components/scheduler/JumpToDateInput.test.tsx` plus the `goToDate` tests in
 `src/store/useStore.test.ts` rather than through the toolbar UI.
+The week dropdown opens below its trigger so all five options, including **1 week**, are immediately
+visible without scrolling.
 **Navigation always re-anchors the grid's left edge to the week start** (the account
 `weekStartsOn`, default Monday): choosing a **Weeks visible** level, a **Prev/Next** pan, and
 **Today** all snap the leftmost column to that week's Monday so the helicopter view always
@@ -406,9 +408,10 @@ visible counterpart to the global Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z shortcuts; the
 the current platform's conventional labels. The expanded filter row starts with the draw-mode
 radiogroup `Work`/`Time off` (radios using `aria-checked` — note "Time off" here is the _toggle_,
 distinct from the "Time off" _nav link_). **In `Time off` mode the grid signals the mode whole-view:
-work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
-clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks glow
-amber — so a lane draw books time off without the bars intercepting the gesture (a draw started
+work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted-foreground)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
+clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks use the
+same vivid yellow background and dark label ink in both themes, retain their light-grey diagonal
+hatch and carry only a tight glow — so a lane draw books time off without the bars intercepting the gesture (a draw started
 over an existing allocation falls through to the lane). The grid carries
 `data-draw-mode="work"|"timeoff"`; nothing about the underlying data changes.**
 Switching modes is announced in the scheduler's polite live region. In Time-off mode row summaries

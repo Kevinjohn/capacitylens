@@ -63,10 +63,9 @@ jobs:
 
   dco:
     name: DCO sign-off
-    # Checks the commits a push added to `main`. A squash merge lands one commit, so its
-    # sign-off has to be in the squash body — `gh pr merge --squash --body "$(git log -1
-    # --format=%b)"` carries it over. Skipped when `before` is the all-zero SHA (branch
-    # creation and force pushes leave no range to verify).
+    # Checks every feature commit a push added to `main`; generated merge commits are exempt because
+    # their parent commits carry the contributor sign-offs. Skipped when `before` is the all-zero SHA
+    # (branch creation and force pushes leave no range to verify).
     if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
     runs-on: ubuntu-latest
     timeout-minutes: 5

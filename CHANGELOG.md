@@ -17,6 +17,19 @@ new features and **patch** versions carry fixes.
   Time off draw-mode control now lives with those filters while navigation and history controls
   remain immediately available (#196).
 
+## [0.39.3-alpha.1] — 2026-08-11
+
+Schedule controls and time-off selection cues are now clearer and immediately visible.
+
+### Fixed
+
+- **The 1-week schedule option is visible as soon as the Weeks visible dropdown opens.** The menu now
+  opens below its trigger instead of aligning the selected row over it and hiding the preceding
+  option behind a scroll control (#195).
+- **Selected time off is now highlighted without losing its striped texture.** Time-off draw mode
+  uses the same vivid yellow background in light and dark themes, keeps the existing grey diagonal
+  hatch and replaces the oversized glow with a tighter highlight (#202).
+
 ## [0.39.2-alpha.1] — 2026-08-11
 
 Schedule zoom levels now end at the selected calendar-week boundary. Wide one-week views and zoom
@@ -3121,7 +3134,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.3-alpha.1...HEAD
+[0.39.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.2-alpha.1...v0.39.3-alpha.1
 [0.39.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.1-alpha.1...v0.39.2-alpha.1
 [0.39.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.0-alpha.1...v0.39.1-alpha.1
 [0.39.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.2-alpha.1...v0.39.0-alpha.1
