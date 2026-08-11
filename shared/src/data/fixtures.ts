@@ -104,6 +104,7 @@ export const FIXTURE_RESOURCE: Resource = {
   employmentType: "contractor",
   workingHoursPerDay: 6,
   workingDays: [1, 2, 3],
+  halfDays: [2],
   projectId: "fix-p1",
   color: "#3ace6b",
   isFavourite: true,

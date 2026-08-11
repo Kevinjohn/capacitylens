@@ -46,6 +46,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
     color: "#2d75da",
     isFavourite: false,
     ...overrides,
+    halfDays: overrides.halfDays ?? [],
   };
 }
 

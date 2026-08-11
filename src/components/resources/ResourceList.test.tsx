@@ -23,6 +23,7 @@ const personDraft = (name: string) => ({
   employmentType: "permanent" as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
+  halfDays: [],
   color: "#3b82f6",
 });
 
@@ -33,6 +34,7 @@ const freelancerDraft = (name: string) => ({
   employmentType: "freelancer" as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
+  halfDays: [],
   color: "#f59e0b",
 });
 
@@ -168,6 +170,7 @@ describe("ResourceList display", () => {
       employmentType: "permanent" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
+      halfDays: [],
       color: "#a855f7",
       projectId: project.id,
     });
@@ -193,6 +196,7 @@ describe("ResourceList display", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
+      halfDays: [],
       color: "#a855f7",
       projectId: project.id,
     });
@@ -215,6 +219,7 @@ describe("ResourceList display", () => {
       employmentType: "permanent" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
+      halfDays: [],
       color: "#a855f7",
       projectId: project.id,
     });
@@ -241,6 +246,7 @@ describe("ResourceList display", () => {
       employmentType: "permanent" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
+      halfDays: [],
       color: "#a855f7",
       projectId: project.id,
     });
@@ -363,6 +369,7 @@ describe("ResourceList archive flow", () => {
       employmentType: "permanent" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
+      halfDays: [],
       color: "#a855f7",
       projectId: project.id,
     });

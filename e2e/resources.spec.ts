@@ -62,6 +62,30 @@ test.describe("Resources", () => {
     await expect(page.getByText("Lead Developer")).toBeVisible();
   });
 
+  test("persists a mixed full, half and non-working weekday pattern", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/resources");
+    await page.getByRole("button", { name: "Add resource" }).click();
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Barbara Gordon");
+    await page.getByRole("radiogroup", { name: "Tuesday" }).getByRole("radio", { name: "Half day" }).click();
+    await page.getByRole("radiogroup", { name: "Friday" }).getByRole("radio", { name: "Not working" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await page
+      .getByTestId("resource-row")
+      .filter({ hasText: "Barbara Gordon" })
+      .getByRole("button", { name: /^Edit / })
+      .click();
+    await expect(
+      page.getByRole("radiogroup", { name: "Monday" }).getByRole("radio", { name: "Full day" }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole("radiogroup", { name: "Tuesday" }).getByRole("radio", { name: "Half day" }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole("radiogroup", { name: "Friday" }).getByRole("radio", { name: "Not working" }),
+    ).toBeChecked();
+  });
+
   test("favourites a person and keeps them first in the resource list and discipline group", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
 

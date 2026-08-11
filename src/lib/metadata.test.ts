@@ -24,6 +24,7 @@ const makeResource = (over: Partial<Resource> = {}): Resource => ({
   employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#000",
   ...over,
 });

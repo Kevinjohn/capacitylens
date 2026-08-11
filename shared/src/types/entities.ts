@@ -6,6 +6,8 @@ export type ISOTimestamp = string; // full ISO datetime, e.g. new Date().toISOSt
 
 /** 0 = Sunday … 6 = Saturday (matches JS Date.getDay()). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** Fixed capacity of a resource weekday marked as a half day. */
+export const HALF_DAY_HOURS = 4;
 
 export type AllocationStatus = "confirmed" | "tentative" | "completed";
 /** How allocations are entered: by daily load against a fixed end date ('hourly',
@@ -27,7 +29,7 @@ export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1];
  * - `external`    — an outsourced 3rd-party company. Can be assigned activities, but has NO
  *   hours/capacity/utilisation and is EXCLUDED from all capacity math; it renders in its own
  *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
- *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays` are unused silent
+ *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
  *   defaults. See the external-resource rule in DECISIONS.md.
  */
 export type ResourceKind = "person" | "placeholder" | "external";
@@ -119,6 +121,8 @@ export interface Resource extends ScopedEntity {
   workingHoursPerDay: number;
   /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. */
   workingDays: Weekday[];
+  /** Working weekdays whose capacity is the fixed four-hour half day. Always a subset of workingDays. */
+  halfDays: Weekday[];
   /** PLACEHOLDERS ONLY: the single project a placeholder is bound to. */
   projectId?: ID;
   color: string;
@@ -364,10 +368,13 @@ export function isCapacityTracked(r: { kind: ResourceKind }): boolean {
 
 /** The unused silent-default capacity fields every `external` resource is created with: externals
  *  have no capacity, but the Resource type + store still require a positive working day and a
- *  non-empty week. A FACTORY (not a shared object) so each call gets its own `workingDays` array —
- *  no aliasing if a consumer mutates it. One source for the External form, seed, and fixtures. */
-export function externalCapacityDefaults(): Pick<Resource, "employmentType" | "workingHoursPerDay" | "workingDays"> {
-  return { employmentType: "permanent", workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5] };
+ *  non-empty week. A FACTORY (not a shared object) so each call gets its own weekday arrays — no
+ *  aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
+export function externalCapacityDefaults(): Pick<
+  Resource,
+  "employmentType" | "workingHoursPerDay" | "workingDays" | "halfDays"
+> {
+  return { employmentType: "permanent", workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], halfDays: [] };
 }
 
 /** JSON/export format version. Bump when the portable AppData shape changes; drives
@@ -380,8 +387,9 @@ export function externalCapacityDefaults(): Pick<Resource, "employmentType" | "w
  *  per-account Internal work colour mode, whose absence means grey; v9 adds the optional per-account
  *  schedule view prefs showInternalProjects / showInternalActivities / inlineActivityCreateEnabled,
  *  whose absence means shown/enabled — read at `?? true`; v10 adds optional Resource.isFavourite,
- *  whose absence means not favourite.) */
-export const EXPORT_SCHEMA_VERSION = 10;
+ *  whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
+ *  legacy resources so every previously selected weekday remains a full day.) */
+export const EXPORT_SCHEMA_VERSION = 11;
 
 export interface PersistedState {
   schemaVersion: number;

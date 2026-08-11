@@ -23,6 +23,7 @@ const personDraft = {
   employmentType: "permanent" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#1",
 };
 
@@ -313,6 +314,7 @@ describe("allocation integrity at the store boundary", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#1",
       projectId: p1.id,
     });
@@ -440,6 +442,16 @@ describe("date-range + reference guards at the store boundary", () => {
     expect(() => s().updateResource(r.id, { name: "Renamed" })).not.toThrow();
   });
 
+  it("requires half days to be a unique subset of the working week", () => {
+    expect(() => s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [3] })).toThrow(
+      /half days must be.*contained/i,
+    );
+    const resource = s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [2] });
+    expect(resource.halfDays).toEqual([2]);
+    expect(() => s().updateResource(resource.id, { workingDays: [1] })).toThrow(/half days must be.*contained/i);
+    expect(() => s().updateResource(resource.id, { halfDays: [2, 2] })).toThrow(/half days must be unique/i);
+  });
+
   it("clamps resource workingHoursPerDay to (0, 24] on add and update (0/junk → 8, >24 → 24)", () => {
     // The store is the last line for the resource path too (the form caps it, but a non-form
     // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is NOT legal for a
@@ -537,6 +549,7 @@ describe("update* re-validates the merged row so the store + server agree", () =
     employmentType: "permanent",
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
     color: "#333333",
   });
 

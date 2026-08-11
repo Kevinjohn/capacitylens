@@ -539,7 +539,7 @@ function shortResourceTag(id: string): string {
  * carry NO original personal data while it waits to be purged. A Resource TODAY has NO email and NO
  * SSO link. Both `name` and the unconstrained display-label `role` can contain identifying text, so
  * both are scrubbed. id/accountId/kind/disciplineId/employmentType/
- * workingHoursPerDay/workingDays/projectId/color and the lifecycle tombstones (archivedAt/deletedAt)
+ * workingHoursPerDay/workingDays/halfDays/projectId/color and the lifecycle tombstones (archivedAt/deletedAt)
  * and audit timestamps (createdAt/updatedAt).
  *
  * The token is `Removed person #<tag>`, where `<tag>` is a short stable marker from the id (see

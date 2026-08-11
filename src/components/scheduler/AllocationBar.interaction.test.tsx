@@ -39,6 +39,7 @@ function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
     employmentType: "permanent",
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
     color: "#3",
   });
   return s.addAllocation({
@@ -67,6 +68,7 @@ function seedVisibleAllocationWithHiddenCapacity(): Allocation {
     employmentType: "permanent",
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
     color: "#5",
   });
   st.addAllocation({
@@ -403,6 +405,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#3",
     });
     // A placeholder bound to p2 cannot take a p1 activity — dropping onto it must be rejected.
@@ -412,6 +415,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#4",
       projectId: p2.id,
     });
@@ -476,6 +480,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#3",
     });
     const r2 = st.addResource({
@@ -485,6 +490,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#4",
     });
     const a = st.addAllocation({
@@ -543,6 +549,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#3",
     });
     const destination = st.addResource({
@@ -552,6 +559,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#4",
     });
     const allocation = st.addAllocation({
@@ -608,6 +616,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#3",
     });
     const person = st.addResource({
@@ -617,6 +626,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#4",
     });
     const allocation = st.addAllocation({
@@ -684,6 +694,7 @@ describe("AllocationBar interactions", () => {
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#3",
         });
         const r2 = st.addResource({
@@ -693,6 +704,7 @@ describe("AllocationBar interactions", () => {
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#4",
         });
         const a = st.addAllocation({
@@ -802,6 +814,7 @@ describe("AllocationBar interactions", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#3",
       });
       // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
@@ -861,6 +874,7 @@ describe("AllocationBar interactions", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#3",
       });
       // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h. Dragging the end grip inward to a
@@ -937,6 +951,7 @@ describe("AllocationBar interactions", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#3",
       });
       st.addAllocation({
@@ -1019,6 +1034,7 @@ describe("AllocationBar interactions", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#3",
       });
       // A fixed on Wed 2026-09-02; B starts Tue 09-01 (no overlap). ArrowRight slides B onto 09-02 →
@@ -1137,6 +1153,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [0, 1, 2, 3, 4, 5, 6],
+      halfDays: [],
       color: "#3",
     });
     const dst = st.addResource({
@@ -1146,6 +1163,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#4",
     });
     // A single-day allocation on Friday 2026-06-05, on the source resource.
@@ -1209,6 +1227,7 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#3",
     });
     // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.

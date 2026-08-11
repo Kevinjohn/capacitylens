@@ -85,6 +85,7 @@ const person = (id: string, accountId: string, disciplineId?: string) => ({
   workingHoursPerDay: 8,
   // json column — must round-trip through the codec.
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [2],
   color: "#3b82f6",
   ...meta(),
 });
@@ -197,7 +198,7 @@ describe("readSlice — tenant isolation", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
     const slice = readSlice(db, "a1", FULL);
-    // workingDays json + omitted optionals survive exactly (deep-equals the seeded object).
+    // Both weekday JSON arrays + omitted optionals survive exactly (deep-equals the seeded object).
     expect(slice.resources[0]).toEqual(person("r1", "a1", "d1"));
     // optional note + json ignoreWeekends survive.
     expect(slice.allocations[0]).toEqual(allocation("al1", "a1", "r1", "act1"));

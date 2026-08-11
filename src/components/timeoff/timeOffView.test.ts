@@ -16,6 +16,7 @@ function resource(id: string, name: string, kind: Resource["kind"] = "person"): 
     employmentType: "permanent",
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
     color: "#2d75da",
   };
 }

@@ -12,6 +12,11 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- **Working patterns now support full days, half days and non-working days.** Resource create and
+  edit forms show one explicit choice for every Monday–Sunday row, and the schedule treats half
+  days as four hours of capacity while preserving existing full-day and non-working selections
+  (#211). Self-hosted databases advance to schema v28; startup creates the normal verified
+  pre-migration snapshot, which must be restored before rolling back to an older server image.
 - **People and external partners can be marked as favourites for quicker scheduling.** Favourites
   stay alphabetically at the top of their Resources section and their existing schedule group,
   without breaking discipline or placeholder grouping (#208).

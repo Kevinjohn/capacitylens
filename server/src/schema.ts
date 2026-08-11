@@ -97,6 +97,16 @@ ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;
 ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
+// v27 is the current entity contract immediately before required resources.halfDays. Keep this
+// historical assertion separate so the released v27 migration can still validate its own result
+// before v28 adds the new NOT NULL column.
+const V27_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  resources: {
+    ...TABLES.resources,
+    columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays"),
+  },
+};
 
 /**
  * Legacy rename: the domain concept "Task" was renamed "Activity" (schema v5), so an on-disk DB
@@ -465,6 +475,11 @@ export function assertSchemaV9(db: Db): void {
 /** Assert the immutable v16 entity-table shape without requiring fields from later migrations. */
 export function assertSchemaV16(db: Db): void {
   assertSchemaVersion(db, V16_TABLES, false);
+}
+
+/** Assert the released v27 shape without requiring the v28 resource half-day column. */
+export function assertSchemaV27(db: Db): void {
+  assertSchemaVersion(db, V27_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

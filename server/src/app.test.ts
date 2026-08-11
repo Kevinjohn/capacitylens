@@ -120,6 +120,7 @@ const person = (id: string, accountId: string) => ({
   employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#5c34d4",
   ...meta(),
 });
@@ -243,7 +244,7 @@ describe("CRUD round-trip", () => {
     expect(s.activities).toHaveLength(1);
     expect(s.resources).toHaveLength(1);
     expect(s.allocations).toHaveLength(1);
-    // Round-trips exactly: workingDays json + omitted optionals survive.
+    // Round-trips exactly: both weekday JSON arrays + omitted optionals survive.
     expect(withoutRevision(s.resources[0])).toEqual(
       withoutRevision({
         ...person("r1", "a1"),
@@ -251,6 +252,18 @@ describe("CRUD round-trip", () => {
       }),
     );
     expect(withoutRevision(s.allocations[0])).toEqual(withoutRevision(allocation("al1", "a1", "r1", "t1")));
+  });
+
+  it("persists an explicit mixed full and half-day resource pattern", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+    const response = await post(app, "resources", { ...person("r1", "a1"), halfDays: [2, 4] });
+
+    expect(response.statusCode).toBe(201);
+    expect((await state(app)).resources[0]).toMatchObject({
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [2, 4],
+    });
   });
 
   it("PATCH updates fields; DELETE removes a non-lifecycle row", async () => {
@@ -1505,7 +1518,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect((await state(app)).resources[0].color).toBe("#eb7272");
   });
 
-  it("repairs junk enums / colour / hours / workingDays on POST instead of persisting them", async () => {
+  it("repairs junk fields and a missing legacy halfDays array on POST", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     // A hand-crafted request that bypasses the UI forms with every value-field wrong.
@@ -1526,6 +1539,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect(r.employmentType).toBe("permanent");
     expect(r.workingHoursPerDay).toBe(8);
     expect(r.workingDays).toEqual([1, 2, 3, 4, 5]);
+    expect(r.halfDays).toEqual([]);
     expect(r.color).toBe("#5c34d4");
   });
 

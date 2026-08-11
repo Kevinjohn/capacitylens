@@ -16,6 +16,7 @@ const personDraft = {
   employmentType: "permanent" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5] as const,
+  halfDays: [],
   color: "#1",
 };
 
@@ -100,6 +101,7 @@ describe("store CRUD", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#1",
       projectId: p1.id,
     });

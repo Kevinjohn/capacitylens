@@ -44,6 +44,7 @@ const person = (id: string, accountId: string) => ({
   employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#5c34d4",
   ...meta(),
 });

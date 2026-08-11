@@ -51,6 +51,7 @@ describe("ExternalForm", () => {
       employmentType: "contractor",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#737373",
     });
     const onClose = vi.fn();
@@ -83,6 +84,7 @@ describe("ExternalForm", () => {
       employmentType: "contractor",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#737373",
     });
     const onClose = vi.fn();

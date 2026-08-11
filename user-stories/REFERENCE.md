@@ -329,8 +329,10 @@ to its own month so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Employment`, `Bound project`, `Working hours / day`, `Working days` (Mon…Sun toggle
-buttons), `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
+`Employment`, `Bound project`, `Working hours / day`, `Working days` (a Monday–Sunday table whose
+rows each contain a labelled `radiogroup` offering the mutually exclusive `Full day`, `Half day`
+and `Not working` choices),
+`Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
 `Colour (Blue dark)` for a known swatch, else the raw hex — that opens a `radiogroup` of preset
 colour swatches, each `radio` labelled by a human-readable name like `Blue dark` /
 `Red bright`, not a hex). The selected swatch is the group's single Tab stop; arrow keys move and
@@ -1216,8 +1218,10 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
   renders flat — see the _Disciplines (account-level)_ note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
-- **Capacity:** a day's available hours = the resource's working hours, but **0** on a
-  non-working weekday or a time-off day. A day is **over-allocated** when allocated > available
+- **Capacity:** a full day's available hours = the resource's configured working hours, a half
+  day is always **4 hours**, and a non-working weekday or time-off day is **0 hours**. Existing
+  working-day patterns migrate to full days and existing non-working weekdays remain non-working.
+  A day is **over-allocated** when allocated > available
   (STRICTLY greater — exactly at capacity is NOT over). Allocated hours are **weekend-aware**: a
   normal allocation does no work on the resource's non-working weekdays, so a weekend a bar merely
   **spans** is NOT over (it keeps only the grey unavailable tint). The zero-capacity days that DO

@@ -42,6 +42,7 @@ const IMPORTED_FIELDS = {
     "employmentType",
     "workingHoursPerDay",
     "workingDays",
+    "halfDays",
     "projectId",
     "color",
     "isFavourite",
@@ -122,6 +123,15 @@ const safeWorkingDays = (v: unknown): Weekday[] => {
   const days = v.filter((d): d is Weekday => Number.isInteger(d) && d >= 0 && d <= 6);
   const unique = [...new Set(days)].sort((a, b) => a - b);
   return unique.length ? unique : [1, 2, 3, 4, 5];
+};
+
+/** Repair half days to distinct weekdays that also occur in the resource's working week. */
+const safeHalfDays = (v: unknown, workingDays: Weekday[]): Weekday[] => {
+  if (!Array.isArray(v)) return [];
+  const working = new Set(workingDays);
+  return [...new Set(v.filter((d): d is Weekday => Number.isInteger(d) && d >= 0 && d <= 6 && working.has(d)))].sort(
+    (a, b) => a - b,
+  );
 };
 
 // Strip emoji / control / zero-width junk from a free-text field in place (the forms
@@ -252,6 +262,7 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
         rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, "permanent");
         rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay);
         rec.workingDays = safeWorkingDays(rec.workingDays);
+        rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);
         rec.color = snapToPresetColor(rec.color);
         if (rec.kind !== "placeholder") delete rec.projectId;
       }

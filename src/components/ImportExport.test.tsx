@@ -254,6 +254,7 @@ describe("ImportExport – Import", () => {
             employmentType: "permanent",
             workingHoursPerDay: 8,
             workingDays: [1],
+            halfDays: [],
             color: "#123456",
           },
         ],
@@ -294,6 +295,7 @@ describe("ImportExport – Import", () => {
           accountId: "X",
           createdAt: "t",
           updatedAt: "t",
+          halfDays: [],
         },
       ],
     });
@@ -412,6 +414,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
           accountId: "X",
           createdAt: "t",
           updatedAt: "t",
+          halfDays: [],
         },
       ],
     });

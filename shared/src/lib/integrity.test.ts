@@ -33,6 +33,7 @@ const placeholder = (over: Partial<Resource> = {}): Resource => ({
   color: "#000",
   projectId: "p1",
   ...over,
+  halfDays: over.halfDays ?? [],
 });
 
 const person = (over: Partial<Resource> = {}): Resource => ({

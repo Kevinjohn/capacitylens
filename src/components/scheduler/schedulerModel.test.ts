@@ -102,6 +102,7 @@ function dataset(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#4",
       },
       {
@@ -116,6 +117,7 @@ function dataset(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#5",
       },
     ],
@@ -248,6 +250,7 @@ function withExternal(): AppData {
     employmentType: "permanent",
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
     color: "#9ca3af",
   });
   // 6/05 Fri–6/07 Sun: spans 2 zero-capacity days that WOULD flag over for a person. hoursPerDay 0.
@@ -302,6 +305,7 @@ describe("buildSchedulerModel", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#9",
       },
       ...d.resources, // r1 (person, Design), r2 (person, Dev)
@@ -338,6 +342,7 @@ describe("buildSchedulerModel", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#9",
       projectId: "p1",
     });
@@ -886,6 +891,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#4",
         },
       ],
@@ -1478,6 +1484,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#6",
       },
       // soft-deleted (deletedAt set) — must NOT render.
@@ -1495,6 +1502,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#7",
       },
     );
@@ -1653,6 +1661,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#a",
     });
     const model = buildSchedulerModel({
@@ -1706,6 +1715,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#b",
     });
     const model = buildSchedulerModel({
@@ -2001,6 +2011,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#c",
     });
     const model = buildSchedulerModel({
@@ -2055,6 +2066,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#9",
       },
       {
@@ -2069,6 +2081,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#4",
       },
       {
@@ -2082,6 +2095,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#8",
       },
       {
@@ -2096,6 +2110,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#5",
       },
     ];
@@ -2273,6 +2288,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       employmentType: "permanent",
       workingHoursPerDay: 6,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#6",
     });
     d.allocations.push({

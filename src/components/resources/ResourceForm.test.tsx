@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceForm } from "./ResourceForm";
 import { useStore } from "../../store/useStore";
@@ -18,6 +18,7 @@ describe("ResourceForm placeholder binding", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#737373",
     });
     render(<ResourceForm resource={resource} onClose={onClose} />);
@@ -79,6 +80,7 @@ describe("ResourceForm placeholder binding", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       projectId: project.id,
       color: "#333",
     });
@@ -104,6 +106,32 @@ describe("ResourceForm placeholder binding", () => {
 });
 
 describe("ResourceForm working days", () => {
+  it("opens legacy working days as full days and unselected weekdays as not working", () => {
+    render(<ResourceForm kind="person" onClose={vi.fn()} />);
+
+    expect(
+      within(screen.getByRole("row", { name: /Monday/ })).getByRole("radio", { name: "Full day" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Not working" }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("persists a mutually exclusive mixed full, half and non-working pattern", async () => {
+    const user = userEvent.setup();
+    render(<ResourceForm kind="person" onClose={vi.fn()} />);
+
+    await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
+    await user.click(within(screen.getByRole("row", { name: /Tuesday/ })).getByRole("radio", { name: "Half day" }));
+    await user.click(within(screen.getByRole("row", { name: /Friday/ })).getByRole("radio", { name: "Not working" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      workingDays: [1, 2, 3, 4],
+      halfDays: [2],
+    });
+  });
+
   it("rejects working hours above the shared daily maximum", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -124,9 +152,11 @@ describe("ResourceForm working days", () => {
     render(<ResourceForm kind="person" onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Alice");
-    // Deselect the default Mon–Fri set entirely.
-    for (const day of ["Mon", "Tue", "Wed", "Thu", "Fri"]) {
-      await user.click(screen.getByRole("button", { name: day }));
+    // Mark the default full Monday–Friday set as non-working.
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
+      await user.click(
+        within(screen.getByRole("row", { name: new RegExp(day) })).getByRole("radio", { name: "Not working" }),
+      );
     }
     await user.click(screen.getByRole("button", { name: "Save" }));
 

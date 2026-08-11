@@ -24,6 +24,7 @@ describe("sanitizeImportedRecord", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: FALLBACK_PRESET_COLOR,
     });
   });
@@ -51,6 +52,16 @@ describe("sanitizeImportedRecord", () => {
     // week and flips weekend-awareness off) — a Monday-only resource stays Monday-only.
     expect(sanitizeImportedRecord("resources", { workingDays: [1, 1, 1, 1, 1, 1, 1] }).workingDays).toEqual([1]);
     expect(sanitizeImportedRecord("resources", { workingDays: [5, 1, 3, 1, 5] }).workingDays).toEqual([1, 3, 5]);
+  });
+
+  it("keeps only distinct half days contained in the repaired working week", () => {
+    expect(
+      sanitizeImportedRecord("resources", {
+        workingDays: [1, 2, 3],
+        halfDays: [3, 2, 2, 5, -1, "2"],
+      }).halfDays,
+    ).toEqual([2, 3]);
+    expect(sanitizeImportedRecord("resources", { workingDays: [1], halfDays: "nope" }).halfDays).toEqual([]);
   });
 
   it("repairs a discipline sortOrder: junk / NaN → 0, keeps a valid integer", () => {
@@ -105,6 +116,7 @@ describe("sanitizeImportedRecord", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#9ca3af",
     });
     expect(external.disciplineId).toBeUndefined();

@@ -449,68 +449,110 @@ export function ColorField({
   );
 }
 
-// Picker order: Monday-first, Sunday last. The 3-letter LABELS resolve through Paraglide at render
-// (weekdayShortLabel) so they localise AND follow a locale switch without a reload (mirrors
-// metadata.ts) — and each label doubles as the chip's accessible name, so a screen-reader user hears
-// the localised day too. Kept separate from the model order so the order isn't re-stated per locale.
+// Picker order: Monday-first, Sunday last. Labels resolve through Paraglide at render so they
+// localise and follow a locale switch without a reload. Kept separate from the model order so the
+// order isn't re-stated per locale.
 const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
-/** The localised 3-letter label for a weekday (Sun=0 … Sat=6). Exhaustive over Weekday. */
-function weekdayShortLabel(day: Weekday): string {
+/** The localised full label for a weekday (Sun=0 … Sat=6). Exhaustive over Weekday. */
+function weekdayLabel(day: Weekday): string {
   switch (day) {
     case 1:
-      return m.weekday_short_mon();
+      return m.weekday_long_mon();
     case 2:
-      return m.weekday_short_tue();
+      return m.weekday_long_tue();
     case 3:
-      return m.weekday_short_wed();
+      return m.weekday_long_wed();
     case 4:
-      return m.weekday_short_thu();
+      return m.weekday_long_thu();
     case 5:
-      return m.weekday_short_fri();
+      return m.weekday_long_fri();
     case 6:
-      return m.weekday_short_sat();
+      return m.weekday_long_sat();
     case 0:
-      return m.weekday_short_sun();
+      return m.weekday_long_sun();
   }
 }
 
-export function WeekdayPicker({
+type WorkingDayOption = "full" | "half" | "off";
+
+export function WorkingDayPicker({
   label,
-  value,
+  workingDays,
+  halfDays,
   onChange,
   invalid,
   describedById,
 }: {
   label: string;
-  value: Weekday[];
-  onChange: (v: Weekday[]) => void;
+  workingDays: Weekday[];
+  halfDays: Weekday[];
+  onChange: (workingDays: Weekday[], halfDays: Weekday[]) => void;
   // Mirror the sibling fields (TextField/SelectField/NumberField): mark the GROUP errored so the
   // required-error (no day selected) re-announces when a SR navigates to the fieldset (WCAG 3.3.1).
   invalid?: boolean;
   describedById?: string;
 }) {
   const markDirty = useMarkFormDirty();
+  const groupId = useId();
+  const optionFor = (day: Weekday): WorkingDayOption =>
+    !workingDays.includes(day) ? "off" : halfDays.includes(day) ? "half" : "full";
+  const choose = (day: Weekday, option: WorkingDayOption) => {
+    const nextWorkingDays =
+      option === "off"
+        ? workingDays.filter((candidate) => candidate !== day)
+        : [...new Set([...workingDays, day])].sort((a, b) => a - b);
+    const nextHalfDays =
+      option === "half"
+        ? [...new Set([...halfDays, day])]
+            .filter((candidate) => nextWorkingDays.includes(candidate))
+            .sort((a, b) => a - b)
+        : halfDays.filter((candidate) => candidate !== day);
+    markDirty();
+    onChange(nextWorkingDays, nextHalfDays);
+  };
+
   return (
     <FieldSet aria-invalid={invalid || undefined} aria-describedby={invalid ? describedById : undefined}>
       <FieldLegend variant="label">{label}</FieldLegend>
-      <ToggleGroup
-        type="multiple"
-        variant="outline"
-        size="sm"
-        spacing={2}
-        value={value.map(String)}
-        onValueChange={(next) => {
-          markDirty();
-          onChange(next.map(Number) as Weekday[]);
-        }}
-      >
-        {WEEKDAY_ORDER.map((day) => (
-          <ToggleGroupItem key={day} value={String(day)} aria-label={weekdayShortLabel(day)}>
-            {weekdayShortLabel(day)}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sr-only">
+            <tr>
+              <th scope="col">{m.form_resource_working_day_weekday()}</th>
+              <th scope="col">{m.form_resource_working_day_availability()}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {WEEKDAY_ORDER.map((day) => {
+              const rowId = `${groupId}-${day}`;
+              return (
+                <tr key={day} className="border-b last:border-b-0">
+                  <th id={rowId} scope="row" className="px-3 py-2 text-left font-medium">
+                    {weekdayLabel(day)}
+                  </th>
+                  <td className="px-2 py-1.5">
+                    <ToggleGroup
+                      type="single"
+                      variant="outline"
+                      size="sm"
+                      value={optionFor(day)}
+                      aria-labelledby={rowId}
+                      onValueChange={(next) => {
+                        if (next) choose(day, next as WorkingDayOption);
+                      }}
+                    >
+                      <ToggleGroupItem value="full">{m.form_resource_working_day_full()}</ToggleGroupItem>
+                      <ToggleGroupItem value="half">{m.form_resource_working_day_half()}</ToggleGroupItem>
+                      <ToggleGroupItem value="off">{m.form_resource_working_day_off()}</ToggleGroupItem>
+                    </ToggleGroup>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </FieldSet>
   );
 }

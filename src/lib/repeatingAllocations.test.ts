@@ -157,6 +157,7 @@ const fullResource = (overrides: Partial<Resource> = {}): Resource => ({
   employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#111111",
   ...overrides,
 });
@@ -199,9 +200,24 @@ describe("repeatingAllocationAdvisory", () => {
     });
   });
 
-  it("keeps zero-load Blocks clean and skips External resources", () => {
+  it("uses the fixed four-hour half-day boundary for every repeated occurrence", () => {
+    const resource = fullResource({ halfDays: [2] });
+    const exactCapacity = baseDraft({ startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4 });
+    const overCapacity = baseDraft({ startDate: "2026-06-09", endDate: "2026-06-09", hoursPerDay: 5 });
+
+    expect(repeatingAllocationAdvisory(resource, [], [], [exactCapacity])).toEqual({
+      overCapacityAllocations: 0,
+      timeOffAllocations: 0,
+    });
+    expect(repeatingAllocationAdvisory(resource, [], [], [overCapacity])).toEqual({
+      overCapacityAllocations: 1,
+      timeOffAllocations: 0,
+    });
+  });
+
+  it("keeps zero-load Blocks clean on half days and skips External resources", () => {
     const zeroDraft = baseDraft({ hoursPerDay: 0 });
-    expect(repeatingAllocationAdvisory(fullResource(), [], [], [zeroDraft])).toEqual({
+    expect(repeatingAllocationAdvisory(fullResource({ halfDays: [1] }), [], [], [zeroDraft])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
     });

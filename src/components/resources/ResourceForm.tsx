@@ -6,7 +6,15 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import { m } from "@/i18n";
-import { Modal, NumberField, RequiredLegend, SelectField, TextField, WeekdayPicker, type Option } from "../common/ui";
+import {
+  Modal,
+  NumberField,
+  RequiredLegend,
+  SelectField,
+  TextField,
+  WorkingDayPicker,
+  type Option,
+} from "../common/ui";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import { employmentTypeOptions } from "../../lib/metadata";
@@ -65,6 +73,7 @@ export function ResourceForm({
   const [employmentType, setEmploymentType] = useState<EmploymentType>(resource?.employmentType ?? "permanent");
   const [hours, setHours] = useState(resource?.workingHoursPerDay ?? 8);
   const [workingDays, setWorkingDays] = useState<Weekday[]>(resource?.workingDays ?? [1, 2, 3, 4, 5]);
+  const [halfDays, setHalfDays] = useState<Weekday[]>(resource?.halfDays ?? []);
   const [projectId, setProjectId] = useState(resource?.projectId ?? "");
   const { error, errorField, errorId, fail } = useFieldError();
 
@@ -120,6 +129,7 @@ export function ResourceForm({
       employmentType: isPlaceholder ? ("permanent" as const) : employmentType,
       workingHoursPerDay: hours,
       workingDays,
+      halfDays,
       projectId: isPlaceholder ? projectId : undefined,
       // Resources no longer carry their own colour — the scheduler/list derive it
       // from the discipline. Keep a stable fallback so the entity stays valid.
@@ -221,10 +231,14 @@ export function ResourceForm({
         invalid={errorField === "hours"}
         describedById={errorId}
       />
-      <WeekdayPicker
+      <WorkingDayPicker
         label={m.form_resource_working_days_label()}
-        value={workingDays}
-        onChange={setWorkingDays}
+        workingDays={workingDays}
+        halfDays={halfDays}
+        onChange={(nextWorkingDays, nextHalfDays) => {
+          setWorkingDays(nextWorkingDays);
+          setHalfDays(nextHalfDays);
+        }}
         invalid={errorField === "workingDays"}
         describedById={errorId}
       />

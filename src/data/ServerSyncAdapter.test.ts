@@ -667,6 +667,7 @@ describe("ServerSyncAdapter.loadAll", () => {
             employmentType: "permanent" as const,
             workingHoursPerDay: 8,
             workingDays: [1, 2, 3, 4, 5] as const,
+            halfDays: [],
             projectId: "p1",
             color: "#3b82f6",
             createdAt: TS1,
