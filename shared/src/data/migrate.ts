@@ -258,6 +258,12 @@ function migrateV8toV9(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }
 
+// v9 → v10 added optional Resource.isFavourite. No transform is needed: legacy resources with no
+// value deliberately read as not favourite, while import sanitisation rejects malformed values.
+function migrateV9toV10(data: Record<string, unknown>): Record<string, unknown> {
+  return data;
+}
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -307,6 +313,9 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   }
   if (data && typeof data === "object" && version < 9) {
     data = migrateV8toV9(data);
+  }
+  if (data && typeof data === "object" && version < 10) {
+    data = migrateV9toV10(data);
   }
 
   return {

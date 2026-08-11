@@ -249,6 +249,30 @@ describe("migrate", () => {
     expect(out.accounts[0].inlineActivityCreateEnabled).toBe(false);
   });
 
+  it("leaves legacy resources not favourite unless the optional flag is present (v9 → v10)", () => {
+    const data = {
+      ...emptyAppData(),
+      resources: [
+        {
+          id: "r1",
+          accountId: "a1",
+          createdAt: "t",
+          updatedAt: "t",
+          kind: "person" as const,
+          name: "Bruce Wayne",
+          role: "Director",
+          employmentType: "permanent" as const,
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5] as const,
+          color: "#2d75da",
+        },
+      ],
+    };
+
+    const out = migrate({ schemaVersion: 9, data });
+    expect(out.resources[0].isFavourite).toBeUndefined();
+  });
+
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {
     // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
     // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.

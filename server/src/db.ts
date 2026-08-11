@@ -75,7 +75,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 26;
+export const DB_SCHEMA_VERSION = 27;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -586,6 +586,23 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     migrateMemberSignInTrackingV26(db);
     assertMemberSignInTrackingSchemaCurrent(db);
   }),
+  defineMigration(
+    27,
+    "add-resource-favourites",
+    [
+      "guard:PRAGMA table_info(resources):isFavourite-missing",
+      "ALTER TABLE resources ADD COLUMN isFavourite TEXT;",
+    ].join("\n"),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(resources)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "isFavourite");
+      if (!exists) db.exec("ALTER TABLE resources ADD COLUMN isFavourite TEXT;");
+      assertSchemaCurrent(db);
+    },
+  ),
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {

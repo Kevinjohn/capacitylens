@@ -674,6 +674,8 @@
   "list_resources_archive_title": "Archive resource?",
   "list_resources_archive_message": "Archive \"{name}\"? They will be hidden from the schedule. You can restore them or permanently delete them from Settings → Archived & deleted.",
   "list_resources_archive_aria": "Archive {name}",
+  "list_resources_favourite_aria": "Add {name} to favourites",
+  "list_resources_unfavourite_aria": "Remove {name} from favourites",
   "list_clients_archive_title": "Archive client?",
   "list_clients_archive_message": "Archive \"{name}\"? Its projects and work will be hidden from the schedule. You can restore it or permanently delete it from Settings → Archived & deleted.",
   "list_clients_archive_aria": "Archive {name}",

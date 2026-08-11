@@ -145,6 +145,7 @@ const COLS_resources = [
   { name: "workingDays", json: true },
   { name: "projectId", optional: true },
   { name: "color" },
+  { name: "isFavourite", json: true, optional: true },
   // Lifecycle timestamps (P2.1) — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
   { name: "archivedAt", optional: true },
   { name: "deletedAt", optional: true },
@@ -359,6 +360,9 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   "placeholdersEnabled TEXT, externalEnabled TEXT,",
   "placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, " +
     "showInternalProjects TEXT, showInternalActivities TEXT, inlineActivityCreateEnabled TEXT,",
+).replace(
+  "  color TEXT NOT NULL,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
+  "  color TEXT NOT NULL, isFavourite TEXT,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
 )}\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */

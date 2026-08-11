@@ -24,4 +24,12 @@ export function displayNameComparator<T extends Identified>(displayName: (item: 
   return (left: T, right: T): number => compareDisplayNames(displayName(left), left.id, displayName(right), right.id);
 }
 
+export function favouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean }>(
+  displayName: (item: T) => string,
+) {
+  const byDisplayName = displayNameComparator(displayName);
+  return (left: T, right: T): number =>
+    Number(right.isFavourite === true) - Number(left.isFavourite === true) || byDisplayName(left, right);
+}
+
 export const byName = displayNameComparator<Named>((item) => item.name);
