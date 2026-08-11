@@ -22,4 +22,4 @@ Managers often plan one discipline at a time — "how booked is Design this fort
 - ✅ Choosing **Development** shows only that group's resources (_Clark Kent_, _Barry Allen_); Design and Copywriting rows/groups are hidden.
 - ✅ The **Design** and **Copywriting** discipline group headers are no longer shown.
 - ✅ Setting the select back to **All disciplines** restores every group.
-- ✅ While a discipline filter is active, the **Clear** button is shown.
+- ✅ While a discipline filter is active, the **Clear Filters** button is enabled.

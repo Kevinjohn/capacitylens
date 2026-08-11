@@ -300,7 +300,7 @@
   "scheduler_hide_tentative": "Hide tentative",
   "scheduler_show_unallocated_title": "Show resources with no work on this filter (dimmed) so you can staff them",
   "scheduler_show_unallocated": "Show unallocated",
-  "scheduler_clear": "Clear",
+  "scheduler_clear": "Clear Filters",
   "scheduler_dates_aria": "Dates",
   "scheduler_lane_aria": "{name} timeline",
   "scheduler_weekday_narrow_weekend": "S",
