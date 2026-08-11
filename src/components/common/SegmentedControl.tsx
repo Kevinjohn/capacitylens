@@ -48,9 +48,10 @@ export function SegmentedControl<T extends string | number>({
   // connected-control CSS strips each item's left border (`data-[spacing=0]:…:border-l-0`) so
   // adjacent segments share one hairline — re-adding `border-l` would both lose on specificity (two
   // data-attributes to one) and widen the group by 1px whenever the selection moves. So the left
-  // edge comes from an inset ring instead: it costs no layout, and because a border paints OVER an
-  // inset shadow it shows through only on the side that has no border. z-10 lifts the selected
-  // segment above the neighbour whose right border would otherwise overdraw its left edge. The ring
+  // edge comes from an inset shadow instead: it costs no layout. Only non-first segments need that
+  // shadow because the first retains its real left border, and the shadow is left-only so it does
+  // not double the weight of the real top/right/bottom borders. z-10 lifts the selected segment
+  // above the neighbour whose right border would otherwise overdraw its left edge. The shadow
   // carries both data-attributes so it outranks the primitive's `data-[spacing=0]:shadow-none`.
   //
   // The `data-[state=on]:hover:*` pair re-pins the colours because the outline variant's
@@ -59,7 +60,7 @@ export function SegmentedControl<T extends string | number>({
     "data-[state=on]:bg-brand-soft data-[state=on]:text-brand-soft-ink",
     "data-[state=on]:hover:bg-brand-soft data-[state=on]:hover:text-brand-soft-ink",
     "data-[state=on]:border-brand data-[state=on]:z-10",
-    "data-[spacing=0]:data-[state=on]:shadow-[inset_0_0_0_1px_var(--color-brand)]",
+    "data-[spacing=0]:not-first:data-[state=on]:shadow-[inset_1px_0_0_var(--color-brand)]",
   ].join(" ");
   return (
     <ToggleGroup
