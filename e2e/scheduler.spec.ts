@@ -25,7 +25,7 @@ async function expectMonthLabelsVerticallyCentred(page: Page) {
   const samples = await monthTier.locator(":scope > div").evaluateAll((monthBoxes) =>
     monthBoxes.map((monthBox) => {
       const boxRect = monthBox.getBoundingClientRect();
-      const label = monthBox.querySelector("span");
+      const label = monthBox.querySelector("[data-month-label]");
       if (!label) throw new Error("month box has no label");
       const labelRect = label.getBoundingClientRect();
       return {
@@ -47,6 +47,64 @@ async function expectMonthLabelsVerticallyCentred(page: Page) {
   const lowerBox = await box(lowerTier);
   expect(monthBox.y + monthBox.height).toBeLessThanOrEqual(lowerBox.y + 0.5);
   return monthBox.height;
+}
+
+async function expectWideMonthLabelsCentredInVisibleSegments(page: Page) {
+  const grid = await box(page.getByTestId("scheduler-grid"));
+  const resourceHeader = await box(page.getByTestId("scheduler-resource-header"));
+  const timelineLeft = resourceHeader.x + resourceHeader.width;
+  const timelineRight = grid.x + grid.width;
+  const monthBoxes = page.getByRole("columnheader", { name: "Dates" }).locator(":scope > div").first();
+  const samples = await monthBoxes.locator(":scope > div").evaluateAll(
+    (boxes, viewport) =>
+      boxes.map((monthBox) => {
+        const monthRect = monthBox.getBoundingClientRect();
+        const placement = monthBox.querySelector<HTMLElement>('[data-month-placement="visible-segment"]');
+        const label = placement?.querySelector("[data-month-label]");
+        const placementRect = placement?.getBoundingClientRect();
+        const labelRect = label?.getBoundingClientRect();
+        const visibleLeft = Math.max(monthRect.left, viewport.left);
+        const visibleRight = Math.min(monthRect.right, viewport.right);
+        return {
+          label: label?.textContent?.trim() ?? "",
+          visibleWidth: Math.max(0, visibleRight - visibleLeft),
+          leftDelta: placementRect ? placementRect.left - visibleLeft : Number.POSITIVE_INFINITY,
+          rightDelta: placementRect ? placementRect.right - visibleRight : Number.POSITIVE_INFINITY,
+          centreDelta:
+            labelRect && visibleRight > visibleLeft
+              ? labelRect.left + labelRect.width / 2 - (visibleLeft + visibleRight) / 2
+              : Number.POSITIVE_INFINITY,
+        };
+      }),
+    { left: timelineLeft, right: timelineRight },
+  );
+
+  const visible = samples.filter((sample) => sample.visibleWidth > 1);
+  expect(visible.length).toBeGreaterThanOrEqual(2);
+  for (const sample of visible) {
+    expect(sample.label).toMatch(/^[A-Z][a-z]{2} \d{4}$/);
+    expect(Math.abs(sample.leftDelta)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sample.rightDelta)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sample.centreDelta)).toBeLessThanOrEqual(1);
+  }
+}
+
+async function expectCompactMonthLabelsDoNotOverlap(page: Page) {
+  const dateHeader = page.getByRole("columnheader", { name: "Dates" });
+  const labels = await dateHeader.locator('[data-month-placement="sticky-start"]').evaluateAll((elements) =>
+    elements
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { label: element.textContent?.trim() ?? "", left: rect.left, right: rect.right, width: rect.width };
+      })
+      .filter((label) => label.width > 0 && label.right > 0 && label.left < window.innerWidth)
+      .sort((a, b) => a.left - b.left),
+  );
+
+  expect(labels.length).toBeGreaterThan(0);
+  for (let index = 1; index < labels.length; index += 1) {
+    expect(labels[index - 1].right).toBeLessThanOrEqual(labels[index].left + 0.5);
+  }
 }
 
 test.describe("Scheduler", () => {
@@ -268,6 +326,29 @@ test.describe("Scheduler", () => {
       document.documentElement.style.fontSize = "20px";
     });
     expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
+  });
+
+  test("centres wide month labels over their visible days and keeps compact labels separate", async ({ page }) => {
+    await openApp(page);
+    await goToSeedWeek(page);
+    // Mon 29 Jun gives both June and July a meaningful visible segment at 1- and 2-week zoom.
+    for (let week = 0; week < 4; week += 1) await page.getByRole("button", { name: "Next" }).click();
+
+    for (const weeks of [1, 2] as const) {
+      await setZoom(page, weeks);
+      await expectWideMonthLabelsCentredInVisibleSegments(page);
+    }
+
+    for (const weeks of [4, 6, 8] as const) {
+      await setZoom(page, weeks);
+      await expectCompactMonthLabelsDoNotOverlap(page);
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "20px";
+    });
+    await setZoom(page, 2);
+    await expectWideMonthLabelsCentredInVisibleSegments(page);
   });
 
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {

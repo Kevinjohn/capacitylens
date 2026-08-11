@@ -20,6 +20,15 @@ interface SchedulerViewportOptions {
   calendarWeekStartsOn: 0 | 1;
 }
 
+const publishScrollLeft = (element: HTMLElement) => {
+  element.style.setProperty("--sched-scroll-left", `${element.scrollLeft}px`);
+};
+
+const setScrollLeft = (element: HTMLElement, value: number) => {
+  element.scrollLeft = value;
+  publishScrollLeft(element);
+};
+
 /**
  * Owns the scheduler's DOM viewport protocol: measurement, column geometry,
  * horizontal date anchoring, vertical scroll state and idle week snapping.
@@ -178,21 +187,23 @@ export function useSchedulerViewport({
     const leftDate = days[previousGeom.indexAt(Math.round(el.scrollLeft))] ?? days[0];
     const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
     const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
-    el.scrollLeft = Math.max(0, geom.xForDateInGeom(targetDate));
+    setScrollLeft(el, Math.max(0, geom.xForDateInGeom(targetDate)));
   }, [geom, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn]);
 
   useEffect(() => {
     if (didScroll.current || !scrollRef.current || timelineWidth === 0) return;
-    scrollRef.current.scrollLeft = focusXRef.current;
+    setScrollLeft(scrollRef.current, focusXRef.current);
     didScroll.current = true;
   }, [timelineWidth]);
 
   useLayoutEffect(() => {
     if (ui.recenterToken === 0 || !scrollRef.current) return;
-    scrollRef.current.scrollLeft = focusXRef.current;
+    setScrollLeft(scrollRef.current, focusXRef.current);
   }, [ui.recenterToken]);
 
   const onScroll = useCallback(() => {
+    const current = scrollRef.current;
+    if (current) publishScrollLeft(current);
     if (scrollRaf.current) return;
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0;
@@ -217,7 +228,7 @@ export function useSchedulerViewport({
         const node = scrollRef.current;
         if (!node || useStore.getState().draggingAllocationId !== null) return;
         const target = weekStartSnapTarget(geom, days, node.scrollLeft, calendarWeekStartsOn);
-        if (target !== null) node.scrollLeft = target;
+        if (target !== null) setScrollLeft(node, target);
       }, WEEK_SNAP_IDLE_MS);
     });
   }, [geom, days, snapToWeekStart, calendarWeekStartsOn]);
