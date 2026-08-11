@@ -21,8 +21,8 @@ test.describe("getting started checklist", () => {
     await openNewCompany(page, "Fresh Co");
     const card = page.getByTestId("getting-started");
     await expect(card).toBeVisible();
-    // The checklist floats over the scheduler chrome; it must not consume a row in the schedule
-    // layout or push the toolbar/grid down on a first visit.
+    // The checklist floats over the grid; it must not consume a row in the schedule layout, push
+    // the toolbar/grid down, or cover the right-hand toolbar actions on a first visit.
     await expect(card).toHaveCSS("position", "absolute");
     const toolbarBefore = await page.getByTestId("scheduler-toolbar").boundingBox();
     const gridBefore = await page.getByTestId("scheduler-grid").boundingBox();
@@ -32,6 +32,11 @@ test.describe("getting started checklist", () => {
     const gridAfter = await page.getByTestId("scheduler-grid").boundingBox();
     expect(toolbarAfter?.y).toBe(toolbarBefore?.y);
     expect(gridAfter?.y).toBe(gridBefore?.y);
+    const cardBox = await card.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(cardBox!.y).toBeGreaterThanOrEqual(gridAfter!.y);
+    await page.getByRole("button", { name: "Show filters" }).click();
+    await expect(page.getByRole("button", { name: "Hide filters" })).toBeVisible();
 
     // All four steps are pending — the first three are links to where the step happens.
     // (The account's built-in Internal client must NOT tick the client step.)
