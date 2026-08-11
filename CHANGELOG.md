@@ -22,6 +22,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- **Month and year labels are vertically centred in the schedule header.** Labels retain their
+  sticky positioning and truncation while sitting centrally within the month tier (#218).
 - **Selected segmented controls now have an even outline on every side.** Choosing a middle or last
   option no longer leaves its shared left edge looking half as thick as the other edges (#217).
 
