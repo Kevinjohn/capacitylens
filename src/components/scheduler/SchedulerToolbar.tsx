@@ -15,6 +15,7 @@ import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
+import { Separator } from "../ui/separator";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
 
 /**
@@ -148,19 +149,7 @@ export function SchedulerToolbar() {
         className="flex flex-wrap items-center gap-x-2 px-4"
         style={{ paddingBlock: density.toolbarPadY, rowGap: density.toolbarGapY }}
       >
-        <div className="mr-auto flex items-center gap-1">
-          <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setFiltersOpen((open) => !open)}
-            aria-expanded={filtersOpen}
-            aria-controls="scheduler-filters"
-          >
-            <ListFilter data-icon="inline-start" />
-            {filtersOpen ? m.scheduler_hide_filters() : m.scheduler_show_filters()}
-          </Button>
-        </div>
+        <h1 className="mr-auto text-xl font-semibold">{m.scheduler_title()}</h1>
         {/* Prev/Next are icon-only: the chevrons carry the meaning. There is no visible text to
             contradict it, so aria-label alone names them "Prev"/"Next". */}
         <Button
@@ -207,40 +196,56 @@ export function SchedulerToolbar() {
             </SelectGroup>
           </SelectContent>
         </Select>
-        {/* Undo/Redo: editor-only (P1.12). A viewer can't mutate, so the history affordances are
-            hidden (nothing to undo). The draw-mode toggle lives with the filters below. */}
-        {canEdit && (
-          <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
-            <Button
-              size="icon-sm"
-              variant="outline"
-              onClick={() => runHistoryAction(undo)}
-              disabled={!canUndo}
-              aria-label={m.scheduler_undo()}
-              title={m.scheduler_undo_title({ shortcut: undoShortcut() })}
-              data-testid="undo-button"
-            >
-              <Undo2 />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="outline"
-              onClick={() => runHistoryAction(redo)}
-              disabled={!canRedo}
-              aria-label={m.scheduler_redo()}
-              title={m.scheduler_redo_title({ shortcut: redoShortcut() })}
-              data-testid="redo-button"
-            >
-              <Redo2 />
-            </Button>
-          </div>
-        )}
+        <div data-testid="scheduler-toolbar-actions" className="ml-2 flex items-center gap-2">
+          <Separator orientation="vertical" className="data-[orientation=vertical]:h-6" />
+          {/* Undo/Redo: editor-only (P1.12). A viewer can't mutate, so the history affordances are
+              hidden (nothing to undo). The draw-mode toggle lives with the filters below. */}
+          {canEdit && (
+            <>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={() => runHistoryAction(undo)}
+                  disabled={!canUndo}
+                  aria-label={m.scheduler_undo()}
+                  title={m.scheduler_undo_title({ shortcut: undoShortcut() })}
+                  data-testid="undo-button"
+                >
+                  <Undo2 />
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={() => runHistoryAction(redo)}
+                  disabled={!canRedo}
+                  aria-label={m.scheduler_redo()}
+                  title={m.scheduler_redo_title({ shortcut: redoShortcut() })}
+                  data-testid="redo-button"
+                >
+                  <Redo2 />
+                </Button>
+              </div>
+              <Separator orientation="vertical" className="data-[orientation=vertical]:h-6" />
+            </>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-controls="scheduler-filters"
+          >
+            <ListFilter data-icon="inline-start" />
+            {filtersOpen ? m.scheduler_hide_filters() : m.scheduler_show_filters()}
+          </Button>
+        </div>
       </div>
 
       {filtersOpen && (
         <div
           id="scheduler-filters"
-          className={`flex flex-wrap items-center gap-x-2 px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
+          className={`flex flex-wrap items-center justify-center gap-x-2 px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
         >
           {canEdit && (
             <SegmentedControl

@@ -347,10 +347,10 @@ input[type="radio"] {
   }
 }
 
-/* First-run guidance floats over the scheduler chrome so it is useful without stealing vertical
-   space from the grid. The panel is intentionally non-modal: the schedule remains interactive
-   outside its opaque card, while the card itself receives pointer input so short viewports can
-   wheel- or touch-scroll its bounded content. */
+/* First-run guidance floats over the scheduler grid so it is useful without stealing vertical
+   space or covering toolbar actions. The panel is intentionally non-modal: the schedule remains
+   interactive outside its opaque card, while the card itself receives pointer input so short
+   viewports can wheel- or touch-scroll its bounded content. */
 .getting-started-popover {
   position: absolute;
   z-index: var(--z-index-popover);

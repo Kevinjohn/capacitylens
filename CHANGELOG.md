@@ -10,6 +10,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Schedule filters are easier to find without crowding the page title.** The Show/Hide Filters
+  button now sits at the right of the toolbar after Undo/Redo, and the expanded filter controls are
+  centred while retaining their narrow-screen wrapping. The first-run checklist stays below the
+  toolbar so those actions remain available (#214).
+
 ## [0.39.4-alpha.1] — 2026-08-11
 
 The schedule now opens with more room for planning while keeping every filter close at hand.
