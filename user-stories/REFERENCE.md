@@ -378,7 +378,10 @@ allocations in the same generated batch.
 `Cancel`. Dialog/footer action buttons keep their text — only the list-row actions are icon-only.
 The archive flow is reversible and retains children; it must not be described as cascade deletion.
 
-**Scheduler toolbar.** A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
+**Scheduler toolbar.** A filter-icon button beside **Schedule** starts as **Show filters** with
+`aria-expanded="false"`; it becomes **Hide filters** with `aria-expanded="true"` while the secondary
+filter row is present. Opening and closing the row moves the schedule body down and back up without
+changing any filter or draw-mode state. A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
 carries its visible text — "Weeks visible, 4 weeks" — so voice control can act on the words on
 screen, WCAG 2.5.3) replaces the former zoom radiogroup (#173): its five options read "1 week", "2
 weeks", "4 weeks", "6 weeks", "8 weeks", and the closed trigger displays the current one (e.g. "4
@@ -397,12 +400,12 @@ opens on a week boundary. (The hidden **Jump to date** picker snaps the same way
 see the tests above.)
 A pure window resize / Minimise-weekends toggle does NOT re-anchor — it preserves the exact
 left-edge date. (This is ALWAYS on; there is no setting.)
-A
-draw-mode radiogroup `Work`/`Time off` (radios using `aria-checked` — note "Time off" here is the _toggle_, distinct
-from the "Time off" _nav link_). Then **Undo**/**Redo** icon buttons (`undo-button` /
+**Undo**/**Redo** icon buttons (`undo-button` /
 `redo-button`, `aria-label` "Undo"/"Redo", disabled when the history stack is empty) — the
 visible counterpart to the global Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z shortcuts; their title hints use
-the current platform's conventional labels. **In `Time off` mode the grid signals the mode whole-view:
+the current platform's conventional labels. The expanded filter row starts with the draw-mode
+radiogroup `Work`/`Time off` (radios using `aria-checked` — note "Time off" here is the _toggle_,
+distinct from the "Time off" _nav link_). **In `Time off` mode the grid signals the mode whole-view:
 work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
 clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks glow
 amber — so a lane draw books time off without the bars intercepting the gesture (a draw started
@@ -413,7 +416,8 @@ omit work-allocation counts, and each eligible non-external resource row exposes
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
 Undo/redo run
-from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts. Filter row:
+from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
+The rest of the expanded filter row follows the draw-mode control:
 `Search people…` matches accent-insensitively across the displayed name, stored name and role as
 one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`,
 `Filter by client`, `Filter by project`,
@@ -940,8 +944,9 @@ Mouse hover sets the active option; mouse click selects.
 
 ## `data-testid`s (for automated checks)
 
-`scheduler-grid`, `scheduler-toolbar` (the two-row scheduler chrome wrapper — title/nav/zoom/draw
-row + filters row; the WCAG 1.4.10 reflow check asserts it doesn't overflow at 320 CSS px),
+`scheduler-grid`, `scheduler-toolbar` (the scheduler chrome wrapper — title/filter-toggle/nav/zoom/history
+row plus the expandable draw-mode/filter row; the WCAG 1.4.10 reflow check asserts the expanded
+state doesn't overflow at 320 CSS px),
 `scheduler-row`, `discipline-group`, `resource-lane`,
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
 `scheduler-live-region` (a grid-level visually-hidden `role="status"` `aria-live="polite"` region —

@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { disableCssMotion, openApp } from "./helpers";
+import { disableCssMotion, openApp, showScheduleFilters } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -58,6 +58,7 @@ test.describe("Command palette", () => {
 
   test("opens from an input field (Ctrl+K fires even while typing)", async ({ page }) => {
     await openApp(page);
+    await showScheduleFilters(page);
     // Focus the "Search people…" input on the scheduler
     const searchInput = page.getByPlaceholder("Search people…");
     await searchInput.click();
@@ -165,6 +166,7 @@ test.describe("Command palette", () => {
     await page.keyboard.press("ControlOrMeta+k");
     await page.getByTestId("command-palette-input").fill("Queen Consolidated");
     await page.getByTestId("command-palette-option").filter({ hasText: "Queen Consolidated" }).click();
+    await showScheduleFilters(page);
     await expect(page.getByRole("combobox", { name: "Filter by client" })).toHaveText("Queen Consolidated");
 
     await page.keyboard.press("ControlOrMeta+k");
@@ -234,6 +236,7 @@ test.describe("Command palette", () => {
 
   test("palette project selection replaces stale schedule filters", async ({ page }) => {
     await openApp(page);
+    await showScheduleFilters(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
     // Pre-set a stale search filter that would leave the schedule empty

@@ -153,6 +153,7 @@ test.describe("viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // Scheduler: the draw-mode toggle + Undo/Redo are hidden.
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+    await page.getByRole("button", { name: "Show filters" }).click();
     await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toHaveCount(0);
     await expect(page.getByTestId("undo-button")).toHaveCount(0);
     await expect(page.getByTestId("redo-button")).toHaveCount(0);
@@ -189,6 +190,7 @@ test.describe("viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)", () => {
     await expect(editorClientRow.getByRole("button", { name: "Archive Viewer-visible client" })).toBeVisible();
 
     await page.getByRole("link", { name: "Schedule" }).click();
+    await page.getByRole("button", { name: "Show filters" }).click();
     await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
     await expect(page.getByTestId("undo-button")).toBeVisible();
   });

@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-119 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
+120 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -180,6 +180,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-FIL-06](filters/US-FIL-06-clear-filters.md)     | Clear all filters    | `e2e/filters.spec.ts`                          |
 | [US-FIL-07](filters/US-FIL-07-empty-state.md)       | Filtered empty state | `e2e/filters.spec.ts`                          |
 | [US-FIL-08](filters/US-FIL-08-filter-activity.md)   | Filter by activity   | `e2e/filters.spec.ts`                          |
+| [US-FIL-09](filters/US-FIL-09-toggle-filter-row.md) | Toggle filter row    | `e2e/toolbar.spec.ts`                          |
 
 ## Settings — `settings/`
 

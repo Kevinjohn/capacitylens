@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { disableCssMotion, openApp, setZoom } from "./helpers";
+import { disableCssMotion, openApp, setZoom, showScheduleFilters } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -56,6 +56,7 @@ test("scheduler in dark mode has no serious or critical violations", async ({ pa
 // same way timeoff.spec proves the block renders.
 async function openDrawMode(page: import("@playwright/test").Page): Promise<void> {
   await openApp(page);
+  await showScheduleFilters(page);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
   await setZoom(page, 4);
   await page.getByTestId("scheduler-grid").evaluate((el) => {
@@ -209,6 +210,7 @@ test("a confirm dialog (dark) danger button has no serious or critical violation
 // card's contrast in both themes so the empty state can't silently regress.
 test("the empty schedule has no serious or critical violations", async ({ page }) => {
   await openApp(page);
+  await showScheduleFilters(page);
   await page.getByLabel("Search people").fill("zzznobody");
   await expect(page.getByTestId("scheduler-empty")).toBeVisible();
   await page.waitForTimeout(200);
@@ -227,6 +229,7 @@ test("the empty schedule has no serious or critical violations", async ({ page }
 test("the empty schedule (dark) has no serious or critical violations", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
   await openApp(page);
+  await showScheduleFilters(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByLabel("Search people").fill("zzznobody");
   await expect(page.getByTestId("scheduler-empty")).toBeVisible();
@@ -256,6 +259,7 @@ test("the scheduler toolbar reflows without horizontal scroll at 320px", async (
   await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
   await page.setViewportSize({ width: 320, height: 480 });
   await openApp(page);
+  await showScheduleFilters(page);
   const toolbar = page.getByTestId("scheduler-toolbar");
   await expect(toolbar).toBeVisible();
   const overflow = await toolbar.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));

@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, setZoom } from "./helpers";
+import { openApp, setZoom, showScheduleFilters } from "./helpers";
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
@@ -66,8 +66,27 @@ test.describe("Toolbar", () => {
     await expect(page.getByLabel("Jump to date")).toHaveCount(0);
   });
 
+  test("shows and hides the secondary filter row beside the schedule title", async ({ page }) => {
+    await openApp(page);
+    const show = page.getByRole("button", { name: "Show filters" });
+
+    await expect(show).toHaveAttribute("aria-expanded", "false");
+    await expect(show.locator("svg")).toHaveCount(1);
+    await expect(page.getByLabel("Search people")).toHaveCount(0);
+    await show.click();
+
+    const hide = page.getByRole("button", { name: "Hide filters" });
+    await expect(hide).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByLabel("Search people")).toBeVisible();
+    await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
+
+    await hide.click();
+    await expect(page.getByLabel("Search people")).toHaveCount(0);
+  });
+
   test("switches draw mode between Work and Time off", async ({ page }) => {
     await openApp(page);
+    await showScheduleFilters(page);
     const work = page.getByRole("radio", { name: "Work", exact: true });
     const timeoff = page.getByRole("radio", { name: "Time off", exact: true });
     await expect(work).toHaveAttribute("aria-checked", "true");
@@ -143,6 +162,7 @@ test.describe("Toolbar", () => {
 
   test("undoes/redoes with the keyboard and ignores the shortcut while typing", async ({ page }) => {
     await openApp(page);
+    await showScheduleFilters(page);
     await setZoom(page, 4);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;

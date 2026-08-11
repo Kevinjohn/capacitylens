@@ -12,7 +12,7 @@ When focused on one project's delivery, the manager wants the schedule reduced t
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so more than one project's bars are visible.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so more than one project's bars and the filter row are visible.
 
 1. Open the **Filter by project** select.
 2. Choose **Metropolis Rebrand** (`p-brand`).

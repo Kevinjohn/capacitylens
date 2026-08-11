@@ -10,6 +10,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Schedule filters now stay out of the way until needed.** A filter-icon button beside the
+  Schedule heading expands and collapses the existing filter row, which starts hidden. The Work /
+  Time off draw-mode control now lives with those filters while navigation and history controls
+  remain immediately available (#196).
+
 ## [0.39.2-alpha.1] — 2026-08-11
 
 Schedule zoom levels now end at the selected calendar-week boundary. Wide one-week views and zoom

@@ -12,7 +12,7 @@ The same drag-on-a-lane gesture is the fastest way to block out either work or a
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. The draw-mode toggle is a pair of buttons **Work** / **Time off** (distinct from the **Time off** nav link in the sidebar).
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view. The draw-mode toggle is a pair of buttons **Work** / **Time off** (distinct from the **Time off** nav link in the sidebar).
 
 1. With **Work** active, draw a left-to-right gesture on the **Clark Kent** lane.
 2. Cancel that dialog. Click the **Time off** toggle button so it becomes active.

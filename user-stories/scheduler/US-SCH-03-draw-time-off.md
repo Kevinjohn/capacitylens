@@ -12,7 +12,7 @@ Holidays, sick days and other absences are part of capacity, and the manager wan
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Scroll the timeline fully to the left.
+**Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view. Scroll the timeline fully to the left.
 
 1. In the toolbar, click the **Time off** draw-mode toggle (the button, not the sidebar link).
 2. On a resource's lane — e.g. **Clark Kent** (`data-resource-id="r-nike"`) — press down near the left of the lane, drag right a short distance, and release.

@@ -263,6 +263,8 @@
   "settings_invites_outstanding_heading": "Outstanding invites",
   "settings_invite_revoke": "Revoke",
   "scheduler_title": "Schedule",
+  "scheduler_show_filters": "Show filters",
+  "scheduler_hide_filters": "Hide filters",
   "scheduler_nav_prev": "Prev",
   "scheduler_nav_prev_title": "Back one week",
   "scheduler_nav_today": "Today",

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import { openApp, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
 
 // Covers US-CLI-04 — the built-in "Internal" pseudo-client.
 test.describe("Internal client", () => {
@@ -46,6 +46,7 @@ test.describe("Internal client", () => {
 
   test("Filter by client → Internal shows project-less (Internal-bucketed) work", async ({ page }) => {
     await openApp(page);
+    await showScheduleFilters(page);
     // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Barry,
     // 8–10 June) is on-screen.
     await setZoom(page, 4);
