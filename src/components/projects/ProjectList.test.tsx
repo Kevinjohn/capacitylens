@@ -17,6 +17,24 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("ProjectList", () => {
+  it("sorts by project name rather than client label without changing stored order", () => {
+    const alphaClient = useStore.getState().addClient({ name: "Alpha Client", color: "#111111" });
+    const zuluClient = useStore.getState().addClient({ name: "Zulu Client", color: "#222222" });
+    useStore.getState().addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#333333" });
+    useStore.getState().addProject({ name: "alpha project", clientId: zuluClient.id, color: "#444444" });
+    useStore.getState().addProject({ name: "Bravo Project", clientId: alphaClient.id, color: "#555555" });
+    const storedIds = useStore.getState().data.projects.map((project) => project.id);
+
+    render(<ProjectList />);
+
+    expect(screen.getAllByTestId("project-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "alpha project",
+      "Bravo Project",
+      "Zulu Project",
+    ]);
+    expect(useStore.getState().data.projects.map((project) => project.id)).toEqual(storedIds);
+  });
+
   it("shows empty state when there are no projects", () => {
     render(<ProjectList />);
     expect(screen.getByText("No projects yet.")).toBeInTheDocument();

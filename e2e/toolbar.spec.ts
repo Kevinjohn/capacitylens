@@ -80,12 +80,19 @@ test.describe("Toolbar", () => {
     await expect(page.getByLabel("Jump to date")).toHaveCount(0);
   });
 
-  test("shows and hides the secondary filter row beside the schedule title", async ({ page }) => {
+  test("shows and hides the centred filter row from the right-hand toolbar actions", async ({ page }) => {
     await openApp(page);
     const show = page.getByRole("button", { name: "Show filters" });
+    const actions = page.getByTestId("scheduler-toolbar-actions");
+    const redo = page.getByTestId("redo-button");
 
     await expect(show).toHaveAttribute("aria-expanded", "false");
     await expect(show.locator("svg")).toHaveCount(1);
+    await expect(actions.locator('[data-slot="separator"]')).toHaveCount(2);
+    const [redoBox, showBox] = await Promise.all([redo.boundingBox(), show.boundingBox()]);
+    expect(redoBox).not.toBeNull();
+    expect(showBox).not.toBeNull();
+    expect(showBox!.x).toBeGreaterThan(redoBox!.x);
     await expect(page.getByLabel("Search people")).toHaveCount(0);
     await show.click();
 

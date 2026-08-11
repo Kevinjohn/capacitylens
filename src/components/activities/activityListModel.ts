@@ -1,4 +1,5 @@
 import type { Activity, Client, Project } from "@capacitylens/shared/types/entities";
+import { compareDisplayNames } from "../../lib/displayOrder";
 
 type NamedEntity = { name: string } & ({ id: string } | { key: string });
 
@@ -22,12 +23,10 @@ export interface ActivityListModel {
   clients: ClientActivityGroup[];
 }
 
-const nameCollator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
-
 function compareNamed(left: NamedEntity, right: NamedEntity): number {
   const leftKey = "id" in left ? left.id : left.key;
   const rightKey = "id" in right ? right.id : right.key;
-  return nameCollator.compare(left.name, right.name) || (leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0);
+  return compareDisplayNames(left.name, leftKey, right.name, rightKey);
 }
 
 function compareGroups<T extends NamedEntity & { unavailable: boolean }>(left: T, right: T): number {

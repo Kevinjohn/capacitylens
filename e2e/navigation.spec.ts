@@ -1,9 +1,59 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { freezeBrowserDate, openApp } from "./helpers";
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
 // boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)
+const deepDestinations = [
+  ["/resources", "Resources"],
+  ["/disciplines", "Disciplines"],
+  ["/clients", "Clients"],
+  ["/projects", "Projects"],
+  ["/activities", "Activities"],
+  ["/timeoff", "Time off"],
+  ["/team", "Team & access"],
+  ["/settings", "Settings"],
+] as const;
+
 test.describe("Navigation & shell", () => {
+  // #216: exercise real document navigations, not React Router transitions. The Vite history
+  // fallback must serve index.html, then the session-only company gate must preserve the URL.
+  for (const [path, heading] of deepDestinations) {
+    test(`valid deep link ${path} survives a browser reload`, async ({ page }) => {
+      await freezeBrowserDate(page);
+      const directResponse = await page.goto(path);
+      expect(directResponse?.status()).toBe(200);
+      expect(directResponse?.headers()["content-type"]).toContain("text/html");
+
+      const signIn = page.getByTestId("fake-sign-in");
+      const company = page.getByRole("button", { name: "Wayne Enterprises", exact: true });
+      await signIn.or(company).first().waitFor();
+      if (await signIn.isVisible()) await signIn.click();
+      await company.click();
+
+      const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
+      const intro = page.getByTestId("intro-continue");
+      await intro.or(destinationHeading).first().waitFor();
+      if (await intro.isVisible()) await intro.click();
+      await expect(destinationHeading).toBeVisible();
+
+      const reloadResponse = await page.reload();
+      expect(reloadResponse?.status()).toBe(200);
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+      await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
+
+      await company.click();
+      await expect(destinationHeading).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+    });
+  }
+
+  test("an unknown extensionless path reaches the application's Not Found screen", async ({ page }) => {
+    await openApp(page);
+    const unknownResponse = await page.goto("/stale-bookmark-that-does-not-exist");
+    expect(unknownResponse?.status()).toBe(200);
+    await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+  });
+
   test("sidebar links route to each section", async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
