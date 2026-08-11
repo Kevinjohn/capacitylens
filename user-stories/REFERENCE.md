@@ -390,6 +390,8 @@ affordance); its component (`src/components/scheduler/JumpToDateInput.tsx`) is r
 behind `SHOW_JUMP_TO_DATE` in `SchedulerToolbar.tsx`, and its behaviour is covered by
 `src/components/scheduler/JumpToDateInput.test.tsx` plus the `goToDate` tests in
 `src/store/useStore.test.ts` rather than through the toolbar UI.
+The week dropdown opens below its trigger so all five options, including **1 week**, are immediately
+visible without scrolling.
 **Navigation always re-anchors the grid's left edge to the week start** (the account
 `weekStartsOn`, default Monday): choosing a **Weeks visible** level, a **Prev/Next** pan, and
 **Today** all snap the leftmost column to that week's Monday so the helicopter view always
