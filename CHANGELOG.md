@@ -25,6 +25,9 @@ new features and **patch** versions carry fixes.
   button now sits at the right of the toolbar after Undo/Redo, and the expanded filter controls are
   centred while retaining their narrow-screen wrapping. The first-run checklist stays below the
   toolbar so those actions remain available (#214).
+- **Clearing schedule filters is always within reach.** The expanded filter row now keeps a
+  **Clear Filters** button at the far right: it stays quiet and disabled until a filter is active,
+  then turns red with a bin icon and resets every filter in one click (#220).
 - **Buttons now visibly respond while pressed.** Primary, outline, secondary, ghost, destructive,
   soft-danger and icon buttons briefly compress when clicked or keyboard-activated. Button-backed
   toggles use the same momentary feedback without obscuring their persistent selected state (#215).

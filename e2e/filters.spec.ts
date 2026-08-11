@@ -56,15 +56,23 @@ test.describe("Filters", () => {
     await expect(page.getByTestId("over-marker").first()).toBeVisible();
   });
 
-  test("clears all active filters with the Clear button", async ({ page }) => {
+  test("clears all active filters with the Clear Filters button", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const all = await page.getByTestId("allocation-bar").count();
+    const clear = page.getByRole("button", { name: "Clear Filters" });
+    await expect(clear).toBeVisible();
+    await expect(clear).toBeDisabled();
+    await expect(clear).toHaveAttribute("data-variant", "outline");
     await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(1);
-    await page.getByRole("button", { name: "Clear" }).click();
+    await expect(clear).toBeEnabled();
+    await expect(clear).toHaveAttribute("data-variant", "danger-soft");
+    await expect(clear.locator(".lucide-trash-2")).toHaveAttribute("aria-hidden", "true");
+    await clear.click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(all);
+    await expect(clear).toBeDisabled();
   });
 
   test("shows the filtered empty state when nothing matches", async ({ page }) => {
