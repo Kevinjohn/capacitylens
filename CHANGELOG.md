@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Selected time off is now highlighted without losing its striped texture.** Time-off draw mode
+  uses the same vivid yellow background in light and dark themes, keeps the existing grey diagonal
+  hatch and replaces the oversized glow with a tighter highlight (#202).
+
 ## [0.39.2-alpha.1] — 2026-08-11
 
 Schedule zoom levels now end at the selected calendar-week boundary. Wide one-week views and zoom

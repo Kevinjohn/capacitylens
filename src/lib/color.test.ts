@@ -195,6 +195,23 @@ describe("muted ink token contrast (WCAG 1.4.3 AA)", () => {
   });
 });
 
+describe("time-off draw-mode treatment", () => {
+  const rule = indexCss.match(/\[data-draw-mode="timeoff"\] \.scheduler-timeoff-block\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+
+  it("uses the same vivid yellow and readable dark ink in both themes", () => {
+    // The dark theme inherits this single root declaration: a second theme-specific value would
+    // allow the selected treatment to drift apart again.
+    expect(indexCss.match(/--c-timeoff-selected:\s*#facc15/g)).toHaveLength(1);
+    expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
+  });
+
+  it("keeps the hatch and limits the selected glow", () => {
+    expect(rule).toMatch(/background-color:\s*var\(--color-timeoff-selected\) !important/);
+    expect(rule).not.toMatch(/(?:^|[;\s])background:\s/);
+    expect(rule).toMatch(/0 0 6px 1px/);
+  });
+});
+
 describe("action and identity token contrast", () => {
   it("keeps the light-theme blue readable on white and the green action fill readable with white ink", () => {
     expect(contrastRatio("#2563eb", "#ffffff")).toBeGreaterThanOrEqual(4.5);
