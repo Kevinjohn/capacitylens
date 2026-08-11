@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDcoCommit, isDcoExemptPullRequestAuthor } from "./check-dco.mjs";
+import { evaluateDcoCommit, isDcoExemptPullRequestAuthor, isMergeCommit } from "./check-dco.mjs";
 
 const commit = (message, overrides = {}) => ({
   authorEmail: "author@example.com",
@@ -46,4 +46,11 @@ test("exempts only Dependabot pull requests", () => {
   assert.equal(isDcoExemptPullRequestAuthor("dependabot[bot]"), true);
   assert.equal(isDcoExemptPullRequestAuthor("renovate[bot]"), false);
   assert.equal(isDcoExemptPullRequestAuthor("contributor"), false);
+});
+
+test("identifies generated merge commits by their multiple parents", () => {
+  assert.equal(isMergeCommit(""), false);
+  assert.equal(isMergeCommit("parent-one"), false);
+  assert.equal(isMergeCommit("parent-one parent-two"), true);
+  assert.equal(isMergeCommit("parent-one parent-two parent-three\n"), true);
 });
