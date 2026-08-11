@@ -53,6 +53,8 @@
      both themes without any AA constraint on it. */
   --color-danger-cell: var(--c-danger-cell);
   --color-warn: var(--c-warn);
+  --color-timeoff-selected: var(--c-timeoff-selected);
+  --color-timeoff-selected-ink: var(--c-timeoff-selected-ink);
   --color-ok: var(--c-ok);
   --color-ok-strong: var(--c-ok-strong);
   --color-ok-strong-hover: var(--c-ok-strong-hover);
@@ -120,6 +122,10 @@
     white
   ); /* clear rose-red → ~rgb(251,158,161); empty cell, no AA bound */
   --c-warn: #d97706;
+  /* Draw-mode selection stays deliberately identical in both themes: a vivid yellow marker with
+     fixed dark ink. The dark theme inherits these root values instead of overriding them. */
+  --c-timeoff-selected: #facc15;
+  --c-timeoff-selected-ink: #1c2230;
   --c-ok: #047857;
   --c-ok-strong: #047857;
   --c-ok-strong-hover: #065f46; /* darker, rather than translucent-over-surface: white stays AA */
@@ -376,9 +382,8 @@ input[type="radio"] {
    non-interactive, off the tab order + a11y tree) is one DOM write on each lane's thin bars layer
    (ResourceLane → BarsLayer): that layer is the SOLE subscriber to the mode, so it alone re-renders
    on toggle — the lanes and their AllocationBars bail because every prop they receive stays a
-   stable ref across the toggle (see BarsLayer's TSDoc). Amber (the `warn` token) reads as
-   "out / away", distinct from brand (blue) and over (red). This is a first-pass treatment;
-   the visual is expected to be refined later. */
+   stable ref across the toggle (see BarsLayer's TSDoc). Selected time off uses one vivid yellow
+   in both themes, distinct from brand (blue) and over (red), while retaining its grey hatch. */
 /* Allocation-bar focus indicator — a DUAL-TONE ring (WCAG 1.4.11, Non-text Contrast ≥3:1).
    A single-edge indicator can't pass: the bar can sit on an over-capacity day whose cell is a PALE
    rose in light (--c-danger-cell ≈ rgb(251,158,161), where white reads ~2:1) but a DEEP red in dark
@@ -438,16 +443,16 @@ input[type="radio"] {
      the (now-dimmed) bars. Local to the lane's own stacking context, not the global
      scale above — it only needs to beat sibling bars, not compete with page chrome. */
   z-index: 3;
-  color: var(--color-ink);
-  /* !important: the block sets its hatch gradient via an inline `style`, which an
-     un-flagged rule can't beat. The solid amber fill intentionally REPLACES the block's
-     diagonal-hatch texture in draw mode, so the glow reads cleanly without the hatch fighting it. */
-  background: color-mix(in oklab, var(--color-warn) 34%, var(--color-surface)) !important;
+  color: var(--color-timeoff-selected-ink);
+  /* The block sets its hatch with an inline `background` shorthand. `!important` lets the vivid
+     yellow colour beat that shorthand's transparent background-color without replacing its
+     background-image, so the existing light-grey diagonals remain visible. */
+  background-color: var(--color-timeoff-selected) !important;
   box-shadow:
-    0 0 0 1.5px var(--color-warn),
-    0 0 14px 2px color-mix(in oklab, var(--color-warn) 55%, transparent);
+    0 0 0 1px var(--color-timeoff-selected),
+    0 0 6px 1px color-mix(in oklab, var(--color-timeoff-selected) 45%, transparent);
   transition:
-    background 0.15s ease,
+    background-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 

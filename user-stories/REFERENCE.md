@@ -403,9 +403,10 @@ from the "Time off" _nav link_). Then **Undo**/**Redo** icon buttons (`undo-butt
 `redo-button`, `aria-label` "Undo"/"Redo", disabled when the history stack is empty) — the
 visible counterpart to the global Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z shortcuts; their title hints use
 the current platform's conventional labels. **In `Time off` mode the grid signals the mode whole-view:
-work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
-clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks glow
-amber — so a lane draw books time off without the bars intercepting the gesture (a draw started
+work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted-foreground)` token, which adapts to light/dark) at 20% opacity AND go fully _inert_ (not
+clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks use the
+same vivid yellow background and dark label ink in both themes, retain their light-grey diagonal
+hatch and carry only a tight glow — so a lane draw books time off without the bars intercepting the gesture (a draw started
 over an existing allocation falls through to the lane). The grid carries
 `data-draw-mode="work"|"timeoff"`; nothing about the underlying data changes.**
 Switching modes is announced in the scheduler's polite live region. In Time-off mode row summaries
