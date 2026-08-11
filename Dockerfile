@@ -2,7 +2,7 @@
 # One reproducible build, two non-root runtime targets (SQLite API and nginx SPA) plus a
 # one-shot, least-privilege initializer for the per-install internal TLS certificate set.
 
-FROM node:24-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS deps
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS deps
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -43,7 +43,7 @@ RUN for package in vite vitest jsdom eslint react react-dom playwright playwrigh
       || { echo "unexpected API runtime package: $package" >&2; exit 1; }; \
     done
 
-FROM node:24-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS api
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS api
 WORKDIR /app/server
 ENV NODE_ENV=production
 ENV CAPACITYLENS_HOST=0.0.0.0
