@@ -100,8 +100,10 @@ partial or malicious.
 - Note operational, migration, privacy or accessibility impact.
 - Add an entry under `CHANGELOG.md` → `Unreleased` for user-visible changes.
 
-Every commit must include a [Developer Certificate of Origin](https://developercertificate.org/)
-sign-off whose email matches the commit author or committer (after `.mailmap` normalization):
+Every contributor-authored commit must include a
+[Developer Certificate of Origin](https://developercertificate.org/) sign-off whose email matches
+the commit author or committer (after `.mailmap` normalization). GitHub-generated merge commits are
+exempt; every commit on the feature branch still requires a sign-off:
 
 ```bash
 git commit -s -m "Describe the change"

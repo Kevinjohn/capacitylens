@@ -15,6 +15,9 @@ new features and **patch** versions carry fixes.
 - **The 1-week schedule option is visible as soon as the Weeks visible dropdown opens.** The menu now
   opens below its trigger instead of aligning the selected row over it and hiding the preceding
   option behind a scroll control (#195).
+- **Selected time off is now highlighted without losing its striped texture.** Time-off draw mode
+  uses the same vivid yellow background in light and dark themes, keeps the existing grey diagonal
+  hatch and replaces the oversized glow with a tighter highlight (#202).
 
 ## [0.39.2-alpha.1] — 2026-08-11
 

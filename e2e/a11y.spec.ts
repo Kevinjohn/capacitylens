@@ -49,9 +49,9 @@ test("scheduler in dark mode has no serious or critical violations", async ({ pa
   ).toEqual([]);
 });
 
-// Time-off draw mode recedes the work bars (dimmed neutral fill) and makes booked time-off
-// glow. That re-skin must stay a11y-clean too: the receded bars and the amber glow are new
-// colour treatments axe has never sampled. Wayne Enterprises's seed carries one time-off block
+// Time-off draw mode recedes the work bars (dimmed neutral fill) and marks booked time off with
+// the same vivid yellow, retained hatch and tight glow in both themes. That re-skin must stay
+// a11y-clean too. Wayne Enterprises's seed carries one time-off block
 // (Bruce Wayne, 10-12 Jun); 4w + scrollLeft=0 brings both it and the work bars into view, the
 // same way timeoff.spec proves the block renders.
 async function openDrawMode(page: import("@playwright/test").Page): Promise<void> {
@@ -67,7 +67,21 @@ async function openDrawMode(page: import("@playwright/test").Page): Promise<void
   // brand-strong + white pairing, not a mid-fade blend that reads as false low-contrast.
   await page.waitForTimeout(350);
   await expect(page.getByTestId("allocation-bar").first()).toBeVisible();
-  await expect(page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block")).toBeVisible();
+  const timeOffBlock = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
+  await expect(timeOffBlock).toBeVisible();
+  const treatment = await timeOffBlock.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      boxShadow: style.boxShadow,
+      color: style.color,
+    };
+  });
+  expect(treatment.backgroundColor).toBe("rgb(250, 204, 21)");
+  expect(treatment.backgroundImage).toContain("repeating-linear-gradient");
+  expect(treatment.boxShadow).toContain("6px 1px");
+  expect(treatment.color).toBe("rgb(28, 34, 48)");
 }
 
 test("scheduler in time-off draw mode has no serious or critical violations", async ({ page }) => {
