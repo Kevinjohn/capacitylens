@@ -179,47 +179,66 @@ describe("SchedulerToolbar history errors", () => {
 });
 
 describe("SchedulerToolbar Clear filter button", () => {
-  it("Clear button is absent when no filters are set", () => {
+  it("keeps Clear Filters visible, quiet and disabled when no filters are set", () => {
     render(<SchedulerToolbar />);
     showFilters();
 
-    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: "Clear Filters" });
+    expect(clear).toBeDisabled();
+    expect(clear).toHaveAttribute("data-variant", "outline");
+    expect(clear).toHaveClass("ml-auto");
+    expect(clear.querySelector("svg")).toBeNull();
   });
 
-  it("Clear button appears once a filter is set", async () => {
-    const user = userEvent.setup();
+  it("enables red Clear Filters styling and a decorative bin icon when a filter is active", () => {
+    useStore.getState().setFilters({ disciplineId: "d1" });
     render(<SchedulerToolbar />);
     showFilters();
 
-    await user.type(screen.getByLabelText("Search people"), "Bob");
-
-    // Clear appears once the debounced search reaches the store.
-    expect(await screen.findByRole("button", { name: "Clear" })).toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: "Clear Filters" });
+    expect(clear).toBeEnabled();
+    expect(clear).toHaveAttribute("data-variant", "danger-soft");
+    expect(clear.querySelector(".lucide-trash-2")).toHaveAttribute("aria-hidden", "true");
   });
 
-  it("clicking Clear resets all filters and hides the Clear button", async () => {
+  it("clicking Clear Filters resets every filter field and returns the button to its quiet state", async () => {
     const user = userEvent.setup();
+    useStore.setState((state) => ({
+      ui: {
+        ...state.ui,
+        filters: {
+          disciplineId: "d1",
+          clientId: "c1",
+          projectId: "p1",
+          activityId: "activity-1",
+          activityKind: "internal",
+          search: "Bob",
+          hideTentative: true,
+          showUnmatched: true,
+        },
+      },
+    }));
     render(<SchedulerToolbar />);
     showFilters();
 
-    await user.type(screen.getByLabelText("Search people"), "Bob");
-    expect(await screen.findByRole("button", { name: "Clear" })).toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: "Clear Filters" });
+    await user.click(clear);
 
-    await user.click(screen.getByRole("button", { name: "Clear" }));
-
-    expect(useStore.getState().ui.filters.search).toBe("");
-    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+    expect(useStore.getState().ui.filters).toEqual(emptyFilters());
+    expect(clear).toBeDisabled();
+    expect(clear).toHaveAttribute("data-variant", "outline");
+    expect(clear.querySelector("svg")).toBeNull();
   });
 
   it("Clear cancels a pending search debounce so a cleared term cannot reappear", async () => {
     const user = userEvent.setup();
-    // A non-search filter is active so Clear renders immediately, before the debounce.
+    // A non-search filter is active so Clear Filters is enabled before the debounce.
     useStore.getState().setFilters({ disciplineId: "d1" });
     render(<SchedulerToolbar />);
     showFilters();
 
     await user.type(screen.getByLabelText("Search people"), "jo"); // schedules a 180ms timer
-    await user.click(screen.getByRole("button", { name: "Clear" })); // must cancel it
+    await user.click(screen.getByRole("button", { name: "Clear Filters" })); // must cancel it
 
     // Wait past the debounce window: the orphaned timer must NOT re-apply "jo".
     await new Promise((r) => setTimeout(r, 250));

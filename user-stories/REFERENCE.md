@@ -320,6 +320,11 @@ week dominates the helicopter view. Weekends are not removed: people can still w
 bars span across them, and the narrowing only applies at a fine enough zoom to show per-day
 columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` labels.
 
+**Month header placement.** In the wide 1- and 2-week views, each month/year label is centred over
+the portion of that month currently visible in the timeline, including split-month windows and a
+partial month at either edge. The 4-, 6- and 8-week views retain the compact sticky label, bounded
+to its own month so neighbouring labels cannot overlap.
+
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
@@ -451,7 +456,8 @@ are reached via `Filter by project`). The activity lens is a **standalone** view
 clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back
-visible-but-dimmed so you can see who's free to staff), `Clear` (only shown when a filter is active).
+visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown at the far
+right; disabled and visually quiet with no active filters, then red with a bin icon while active).
 
 **Schedule display (minimise weekends).** Settings → **Schedule** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
@@ -1015,6 +1021,9 @@ multiple).
   belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
   (a project-less cross-project activity). Internal/cross-project activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
+  Internal and cross-project rows are alphabetical. Project-specific rows are grouped and sorted by
+  **client → project → activity**, with each client and project name shown once. Scoped rows whose
+  parent metadata is unavailable remain visible in a clearly labelled fallback group.
 - **Private client/project names.** A normal client or project may be marked private by an account
   **owner** and given a required code name. The real `name` and raw `codeName` remain persisted, but
   only owners receive them from the server. Admins, editors and viewers receive the code name in the

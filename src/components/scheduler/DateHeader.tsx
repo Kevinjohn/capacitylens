@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { m } from "@/i18n";
 import { parseDate, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from "../../lib/schedulerConfig";
+import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH, type WeeksZoom } from "../../lib/schedulerConfig";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
 
@@ -44,6 +44,7 @@ export const DateHeader = memo(function DateHeader({
   days,
   dayWidth,
   geom,
+  visibleWeeks,
   weekStartsOn,
   today,
 }: {
@@ -52,11 +53,15 @@ export const DateHeader = memo(function DateHeader({
   // Per-column geometry: cell/month/week widths come from here so they track the
   // (possibly narrowed) weekend columns instead of a single scalar.
   geom: ColumnGeometry;
+  visibleWeeks: WeeksZoom;
   weekStartsOn: 0 | 1;
   today: string;
 }) {
   const showDays = dayWidth >= DAY_COLUMN_MIN_WIDTH; // per-day columns vs per-week blocks
   const showWeekday = dayWidth >= WEEKDAY_LABEL_MIN_WIDTH;
+  // The 1/2-week views have enough room to centre labels over the visible month segment.
+  // At compact zooms that treatment would leave too little room, so keep the bounded sticky label.
+  const centreVisibleMonths = visibleWeeks <= 2 && showWeekday;
   const totalWidth = geom.totalWidth;
   // Width of a span [start, start+days-1] from the real per-column widths.
   const spanWidth = (s: Span) => geom.spanWidth(s.start, s.start + s.days - 1);
@@ -77,31 +82,65 @@ export const DateHeader = memo(function DateHeader({
       style={{ width: totalWidth }}
     >
       {/* Month tier — padding-driven height (not a fixed px) so it scales with font size.
-          Balanced padding on each month preserves that height while flex centring its label.
-          Each month's LABEL is position:sticky, pinned to the left edge of the visible
-          timeline (left = leftColWidth, just past the sticky utilisation column), so the
-          month you're scrolled into stays labelled instead of scrolling away with its 1st.
-          It's an inline-block (must be narrower than its month for sticky to have room to
-          move), bounded to its own month's width (maxWidth) so it can't bleed into the next
-          month, and opaque (bg-surface) so the next month's label cleanly takes over at the
-          boundary. NOTE: no `overflow-hidden` on the span's ANCESTORS here — an
-          overflow-hidden ancestor traps position:sticky (truncate on the span itself is
-          fine). */}
+          Wide 1/2-week views position an absolute wrapper over the intersection of the month
+          and visible timeline. useSchedulerViewport publishes scrollLeft as a CSS variable,
+          letting the browser keep that wrapper centred without a React render per scroll pixel.
+          Compact zooms retain the bounded sticky label: no overflow-hidden ancestor in that
+          branch, because it would trap position:sticky. */}
       <div className="flex shrink-0 border-b border-line">
-        {months.map((mo) => (
-          <div
-            key={mo.key}
-            className="flex shrink-0 items-center border-r border-line py-0.75"
-            style={{ width: spanWidth(mo) }}
-          >
-            <span
-              className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
-              style={{ left: LAYOUT.leftColWidth }}
+        {months.map((mo) => {
+          const width = spanWidth(mo);
+          const start = geom.x(mo.start);
+          return (
+            <div
+              key={mo.key}
+              className="relative flex shrink-0 items-center border-r border-line py-0.75"
+              style={{
+                width,
+                ["--month-start" as string]: `${start}px`,
+                ["--month-width" as string]: `${width}px`,
+              }}
             >
-              {mo.label}
-            </span>
-          </div>
-        ))}
+              {centreVisibleMonths ? (
+                <>
+                  {/* Absolute positioning must not collapse the padding-driven tier height. This
+                      empty, invisible in-flow span carries the label's scalable line box. */}
+                  <span
+                    aria-hidden="true"
+                    className="invisible inline-block px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide"
+                  >
+                    &nbsp;
+                  </span>
+                  <div
+                    data-month-placement="visible-segment"
+                    className="absolute inset-y-0 flex items-center justify-center overflow-hidden"
+                    style={{
+                      left: "clamp(0px, calc(var(--sched-scroll-left, 0px) - var(--month-start)), var(--month-width))",
+                      right:
+                        "clamp(0px, calc(var(--month-start) + var(--month-width) - var(--sched-scroll-left, 0px) - var(--sched-visible-width, 100%)), var(--month-width))",
+                    }}
+                  >
+                    <span
+                      data-month-label
+                      className="inline-block max-w-full truncate px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
+                    >
+                      {mo.label}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <span
+                  data-month-label
+                  data-month-placement="sticky-start"
+                  className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
+                  style={{ left: LAYOUT.leftColWidth }}
+                >
+                  {mo.label}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Week / day tier. flex-auto (basis auto, not flex-1's basis 0) so the cells'
