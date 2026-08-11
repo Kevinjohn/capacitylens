@@ -252,19 +252,23 @@ describe("reconcileReassignedHours", () => {
     employmentType: "permanent",
     workingHoursPerDay,
     workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
     color: "#000000",
   });
   it("forces 0 hours when reassigning onto an external (a capacity-free row carries no load)", () => {
-    expect(reconcileReassignedHours(8, res("external"), false)).toBe(0);
-    expect(reconcileReassignedHours(8, res("external"), true)).toBe(0);
+    expect(reconcileReassignedHours(8, res("external"), false, "2026-06-01")).toBe(0);
+    expect(reconcileReassignedHours(8, res("external"), true, "2026-06-01")).toBe(0);
   });
   it("keeps a real resource positive hours on a real-to-real reassign", () => {
-    expect(reconcileReassignedHours(6, res("person"), false)).toBe(6);
+    expect(reconcileReassignedHours(6, res("person"), false, "2026-06-01")).toBe(6);
   });
   it("promotes a 0-hour booking (dragged off an external) to the target working day", () => {
-    expect(reconcileReassignedHours(0, res("person", 7), false)).toBe(7);
+    expect(reconcileReassignedHours(0, res("person", 7), false, "2026-06-01")).toBe(7);
+  });
+  it("promotes a 0-hour booking to four hours on a target half day", () => {
+    expect(reconcileReassignedHours(0, { ...res("person", 7), halfDays: [2] }, false, "2026-06-02")).toBe(4);
   });
   it("keeps a zero-hour block at zero when reassigning it off an external", () => {
-    expect(reconcileReassignedHours(0, res("person", 7), true)).toBe(0);
+    expect(reconcileReassignedHours(0, res("person", 7), true, "2026-06-01")).toBe(0);
   });
 });

@@ -277,6 +277,7 @@ describe("importData (account-scoped)", () => {
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#777777",
         },
       ],

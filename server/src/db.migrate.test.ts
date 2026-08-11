@@ -61,6 +61,11 @@ const V27_MIGRATION = {
   name: "add-resource-favourites",
   checksum: "bff11f7f23c15a3eeb480a8abf05d61126d20c8324c1ba05316200175ab465cd",
 } as const;
+const V28_MIGRATION = {
+  version: 28,
+  name: "add-resource-half-days",
+  checksum: "a173ced498945aaa76ce6ec1955ae4b80d7a8f82d3835069a05566f84a377753",
+} as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -429,6 +434,7 @@ describe("schema migration of an existing on-disk DB", () => {
       // a couple of steps back) so the next openDb() re-runs the v13 migration against these rows.
       // Every row past v12 must go: a leftover future-version ledger row would (rightly) fail the
       // exact-history assertion for user_version = 12.
+      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
       db.exec(`PRAGMA user_version = 12`);
@@ -534,6 +540,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
       db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("demoted-reset", "demoted-admin");
       // Roll the ledger back to "just before v14" so the next openDb() re-runs ONLY the v14 migration.
+      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
       db.exec(`PRAGMA user_version = 13`);
@@ -592,6 +599,7 @@ describe("schema migration of an existing on-disk DB", () => {
       for (const column of ["showInternalProjects", "showInternalActivities", "inlineActivityCreateEnabled"]) {
         db.exec(`ALTER TABLE accounts DROP COLUMN ${column}`);
       }
+      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
       db.exec(`PRAGMA user_version = 15`);
@@ -1215,6 +1223,7 @@ describe("schema migration of an existing on-disk DB", () => {
       },
       V26_MIGRATION,
       V27_MIGRATION,
+      V28_MIGRATION,
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1245,7 +1254,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1273,7 +1282,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     const plan = planDatabaseMigrations(db).migrations;
-    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]);
+    expect(plan.map((migration) => migration.version)).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
     expect(plan[0]).toEqual({
       version: 17,
       name: "add-durable-audit-outbox",
@@ -1433,6 +1442,7 @@ describe("schema migration of an existing on-disk DB", () => {
       },
       V26_MIGRATION,
       V27_MIGRATION,
+      V28_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1539,7 +1549,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27,
+      20, 21, 22, 23, 24, 25, 26, 27, 28,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -1588,6 +1598,7 @@ describe("schema migration of an existing on-disk DB", () => {
       },
       V26_MIGRATION,
       V27_MIGRATION,
+      V28_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1658,6 +1669,7 @@ describe("schema migration of an existing on-disk DB", () => {
       },
       V26_MIGRATION,
       V27_MIGRATION,
+      V28_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1705,6 +1717,7 @@ describe("schema migration of an existing on-disk DB", () => {
       },
       V26_MIGRATION,
       V27_MIGRATION,
+      V28_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1758,6 +1771,7 @@ describe("schema migration of an existing on-disk DB", () => {
       },
       V26_MIGRATION,
       V27_MIGRATION,
+      V28_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -1811,6 +1825,7 @@ describe("schema migration of an existing on-disk DB", () => {
       },
       V26_MIGRATION,
       V27_MIGRATION,
+      V28_MIGRATION,
     ]);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
@@ -1954,17 +1969,18 @@ describe("schema migration of an existing on-disk DB", () => {
     }
   });
 
-  it("v26 and v27 add default-off member sign-in confirmation and resource favourites", () => {
+  it("v26 through v28 add sign-in confirmation, resource favourites and half days", () => {
     const db = openDb(":memory:");
     db.exec(`
       DROP TABLE account_member_sign_in_tracking;
       ALTER TABLE account_members DROP COLUMN signInConfirmed;
+      ALTER TABLE resources DROP COLUMN halfDays;
       ALTER TABLE resources DROP COLUMN isFavourite;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 26;
       PRAGMA user_version = 25;
     `);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([V26_MIGRATION, V27_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([V26_MIGRATION, V27_MIGRATION, V28_MIGRATION]);
     initializeOpenDb(db, ":memory:");
     expect(
       (db.prepare("PRAGMA table_info(account_members)").all() as Array<{ name: string }>).some(
@@ -1977,10 +1993,15 @@ describe("schema migration of an existing on-disk DB", () => {
         ({ name }) => name === "isFavourite",
       ),
     ).toBe(true);
+    expect(
+      (db.prepare("PRAGMA table_info(resources)").all() as Array<{ name: string }>).some(
+        ({ name }) => name === "halfDays",
+      ),
+    ).toBe(true);
     db.close();
   });
 
-  it("v27 preserves legacy resources as not favourite", () => {
+  it("v27 and v28 preserve legacy resources as not favourite with full working days", () => {
     const db = openDb(":memory:");
     insertRow(db, "accounts", {
       id: "a1",
@@ -1998,20 +2019,23 @@ describe("schema migration of an existing on-disk DB", () => {
       employmentType: "permanent" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5] as Array<1 | 2 | 3 | 4 | 5>,
+      halfDays: [],
       color: "#2d75da",
       createdAt: TS,
       updatedAt: TS,
     };
     insertRow(db, "resources", resource);
     db.exec(`
+      ALTER TABLE resources DROP COLUMN halfDays;
       ALTER TABLE resources DROP COLUMN isFavourite;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 27;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 27;
       PRAGMA user_version = 26;
     `);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([V27_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([V27_MIGRATION, V28_MIGRATION]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
+    expect(getRow(db, "resources", resource.id)?.halfDays).toEqual([]);
     db.close();
   });
 

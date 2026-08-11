@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { daysInclusive, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { daysInclusive, eachDayISO, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import {
@@ -32,7 +32,7 @@ import { DateField, Modal, NumberField, RequiredLegend, SelectField, TextAreaFie
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
-import { capacityAdvisory, capacityAllocationsForMode } from "../../lib/capacity";
+import { capacityAdvisory, capacityAllocationsForMode, scheduledHoursOnDay } from "../../lib/capacity";
 import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
 import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
@@ -163,6 +163,9 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
   const initialResource = data.resources.find((r) => r.id === initialResourceId);
   const initialLocked = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
+  const initialWhpd = initialResource?.workingHoursPerDay ?? 8;
+  const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
+  const initialScheduledHours = initialResource ? scheduledHoursOnDay(initialResource, initialStart) : initialWhpd;
 
   const [resourceId, setResourceId] = useState(initialResourceId);
   // When editing, the existing activity's project wins (undefined → '' = general), so a
@@ -170,11 +173,9 @@ export function AllocationModal(props: AllocationModalProps) {
   // `initialLocked` is only the CREATE-time default for a placeholder's bound project.
   const [projectId, setProjectId] = useState(editing ? (initialActivity?.projectId ?? "") : (initialLocked ?? ""));
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
-  const [startDate, setStartDate] = useState<ISODate>(
-    editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone),
-  );
+  const [startDate, setStartDate] = useState<ISODate>(initialStart);
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone));
-  const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? initialResource?.workingHoursPerDay ?? 8);
+  const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? (initialScheduledHours || initialWhpd));
   const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? "confirmed");
   const [note, setNote] = useState(editing?.note ?? "");
   const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false);
@@ -183,8 +184,6 @@ export function AllocationModal(props: AllocationModalProps) {
   // hours/dates against the assignee's working week; for a NEW one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
   // create defaults hours to a full working day across the same range.
-  const initialWhpd = initialResource?.workingHoursPerDay ?? 8;
-  const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const seedEnd = editing?.endDate ?? create?.endDate;
   const initialDaysOpts = {
     workingDays: initialResource?.workingDays,
@@ -194,8 +193,16 @@ export function AllocationModal(props: AllocationModalProps) {
   // NumberField can expose a transient 0 while the user clears the number input. Submission below
   // validates daysOver explicitly; the defensive 1 used for the live preview is never persisted.
   const [daysOver, setDaysOver] = useState(initialDaysOver);
+  const initialCapacityHours = initialResource
+    ? eachDayISO(initialStart, seedEnd ?? initialStart).reduce(
+        (sum, day) => sum + scheduledHoursOnDay(initialResource, day),
+        0,
+      )
+    : initialDaysOver * initialWhpd;
   const [daysOfWork, setDaysOfWork] = useState(
-    editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,
+    editing
+      ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd))
+      : roundDays(initialCapacityHours > 0 ? initialCapacityHours / initialWhpd : initialDaysOver),
   );
   const [newActivityName, setNewActivityName] = useState("");
   const [inlineActivityOption, setInlineActivityOption] = useState<(Option & { projectId?: string }) | null>(null);

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { authFromEnv, runAuthMigrations } from "./auth";
-import { DATABASE_MIGRATION_TABLE, openDb } from "./db";
+import { DATABASE_MIGRATION_TABLE, DB_SCHEMA_VERSION, openDb } from "./db";
 import { repairSsoCutover } from "./cutoverRepair";
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
 
@@ -98,7 +98,7 @@ describe("stopped-server SSO cutover repair", () => {
     expect(verified.prepare(`SELECT id, userId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
       { id: "right-link", userId: "right-principal" },
     ]);
-    expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: 27 });
+    expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: DB_SCHEMA_VERSION });
     verified.close();
   });
 

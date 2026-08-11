@@ -99,6 +99,20 @@ beforeEach(() => {
 });
 
 describe("AllocationModal create", () => {
+  it("defaults hourly load to four hours when creation starts on a half day", () => {
+    const resource = useStore
+      .getState()
+      .addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] });
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Hours / day")).toHaveValue(4);
+  });
+
   it("gives same-named activity options distinct accessible labels", async () => {
     useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
     const resource = useStore.getState().addResource({
@@ -108,6 +122,7 @@ describe("AllocationModal create", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     const user = userEvent.setup();
@@ -137,6 +152,7 @@ describe("AllocationModal create", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     const resourceId = useStore.getState().data.resources[0].id;
@@ -169,6 +185,7 @@ describe("AllocationModal create", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     const resourceId = useStore.getState().data.resources[0].id;
@@ -214,6 +231,7 @@ describe("AllocationModal create", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     const resourceId = useStore.getState().data.resources[0].id;
@@ -241,6 +259,7 @@ describe("AllocationModal create", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#a855f7",
       projectId: "p1",
     });
@@ -288,6 +307,7 @@ const person = (name: string) => ({
   employmentType: "permanent" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5] as const,
+  halfDays: [],
   color: "#111",
 });
 
@@ -354,6 +374,7 @@ describe("AllocationModal advisory work bounds", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#9ca3af",
     });
     const onClose = vi.fn();
@@ -578,6 +599,22 @@ describe("AllocationModal days mode", () => {
       endDate: "2026-06-05",
       hoursPerDay: 8,
     });
+  });
+
+  it("seeds a half day as half a day of work in days mode", () => {
+    enableDays();
+    const resource = useStore
+      .getState()
+      .addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] });
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Days over")).toHaveValue(1);
+    expect(screen.getByLabelText("Days of work")).toHaveValue(0.5);
   });
 
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
@@ -887,6 +924,7 @@ describe("AllocationModal edit", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#a",
       projectId: "p2",
     });
@@ -917,6 +955,7 @@ describe("AllocationModal edit", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#a",
       projectId: "p1",
     });
@@ -951,6 +990,7 @@ describe("AllocationModal edit", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#9ca3af",
     });
     const alloc = useStore.getState().addAllocation({
@@ -983,6 +1023,7 @@ describe("AllocationModal edit", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#a",
       projectId: "p1",
     });
@@ -1078,6 +1119,7 @@ describe("AllocationModal inline activity creation pref", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     return useStore.getState().data.resources[0].id;
@@ -1136,6 +1178,7 @@ describe("AllocationModal Enter key submission", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     const resourceId = useStore.getState().data.resources[0].id;
@@ -1164,6 +1207,7 @@ describe("AllocationModal Enter key submission", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     const resourceId = useStore.getState().data.resources[0].id;
@@ -1195,6 +1239,7 @@ describe("AllocationModal Enter key submission", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111",
     });
     const resourceId = useStore.getState().data.resources[0].id;
@@ -1226,6 +1271,7 @@ describe("AllocationModal repeat creation", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#111111",
     });
 

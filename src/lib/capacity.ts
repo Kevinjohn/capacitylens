@@ -4,8 +4,10 @@ import {
   eachDayISO,
   isWithin,
   isWorkingWeekday,
+  weekdayOf,
 } from "@capacitylens/shared/lib/dateMath";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
+import { HALF_DAY_HOURS } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 
 // Arithmetic-only tolerance: one nanohour is 3.6 microseconds, far below any scheduling input,
@@ -21,8 +23,8 @@ export function capacityAllocationsForMode(allocations: Allocation[], blocksMode
   return blocksMode ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: 0 })) : allocations;
 }
 
-// Capacity reflects real availability: a resource has 0 available hours on a
-// non-working weekday or a time-off day, otherwise their workingHoursPerDay.
+// Capacity reflects real availability: a resource has 0 available hours on a non-working weekday
+// or time-off day, a fixed 4 hours on a configured half day, otherwise workingHoursPerDay.
 // A day is over-allocated when allocated hours exceed available hours. A normal
 // (weekend-aware) allocation does NO work on the resource's non-working weekdays —
 // a bar that merely SPANS Sat/Sun is not over there — so the only zero-capacity
@@ -49,18 +51,25 @@ export function isWorkingDay(resource: Resource, date: ISODate): boolean {
   return isWorkingWeekday(date, resource.workingDays);
 }
 
+/** Configured capacity before time off: full-day hours, fixed 4h half day, or 0 when not working. */
+export function scheduledHoursOnDay(resource: Resource, date: ISODate): number {
+  if (!isWorkingDay(resource, date)) return 0;
+  return resource.halfDays.includes(weekdayOf(date)) ? HALF_DAY_HOURS : resource.workingHoursPerDay;
+}
+
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
   return timeOff.some((t) => t.resourceId === resourceId && isWithin(date, t.startDate, t.endDate));
 }
 
-/** Available working hours for `resource` on `date`: 0 on a non-working weekday or a time-off
- *  day, otherwise their `workingHoursPerDay`.
+/** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
+ *  fixed 4h on a half day, otherwise `workingHoursPerDay`.
  *  @remarks Assumes a finite, non-negative `workingHoursPerDay` (see the top-of-file precondition). */
 export function availableHoursOnDay(resource: Resource, date: ISODate, timeOff: TimeOff[]): number {
   if (!isWorkingDay(resource, date)) return 0;
   if (isOnTimeOff(resource.id, date, timeOff)) return 0;
-  devAssertFinite("workingHoursPerDay", resource.workingHoursPerDay);
-  return resource.workingHoursPerDay;
+  const scheduled = scheduledHoursOnDay(resource, date);
+  devAssertFinite("scheduled working hours", scheduled);
+  return scheduled;
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
@@ -232,7 +241,7 @@ export function capacityAdvisory(
     if (!allocationWorksOnDay(resource.workingDays, ignoreWeekends, working)) continue;
     // Mirrors availableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over — exactly like the per-day over-marker.
-    const available = working ? resource.workingHoursPerDay : 0;
+    const available = working ? scheduledHoursOnDay(resource, day) : 0;
     if (exceedsCapacity((allocatedByDay.get(day) ?? 0) + hoursPerDay, available)) overDays++;
   }
   return { overDays, timeOffDays };

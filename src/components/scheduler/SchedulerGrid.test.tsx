@@ -31,6 +31,7 @@ function dataset(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#111",
       },
       {
@@ -44,6 +45,7 @@ function dataset(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#999",
       },
     ],
@@ -299,6 +301,7 @@ describe("SchedulerGrid visible-window utilisation", () => {
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#111",
         },
       ],

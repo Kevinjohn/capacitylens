@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import {
@@ -13,7 +13,7 @@ import {
   DateField,
   SelectField,
   ColorField,
-  WeekdayPicker,
+  WorkingDayPicker,
   ColorSwatch,
   Avatar,
   SegmentedControl,
@@ -976,52 +976,60 @@ describe("ColorField", () => {
   });
 });
 
-// ─── WeekdayPicker ─────────────────────────────────────────────────────────
+// ─── WorkingDayPicker ──────────────────────────────────────────────────────
 
-describe("WeekdayPicker", () => {
-  it("renders all 7 day buttons", () => {
-    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={vi.fn()} />);
-    for (const day of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
-      expect(screen.getByRole("button", { name: day })).toBeInTheDocument();
+describe("WorkingDayPicker", () => {
+  const renderPicker = (onChange = vi.fn(), invalid = false) =>
+    render(
+      <WorkingDayPicker
+        label="Working days"
+        workingDays={[1, 2, 3, 4, 5]}
+        halfDays={[3]}
+        onChange={onChange}
+        invalid={invalid}
+        describedById="err-1"
+      />,
+    );
+
+  it("renders a labelled Monday–Sunday row with three choices per day", () => {
+    renderPicker();
+    expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Availability" })).toBeInTheDocument();
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+      const row = screen.getByRole("row", { name: new RegExp(day) });
+      expect(row).toHaveTextContent("Full day");
+      expect(row).toHaveTextContent("Half day");
+      expect(row).toHaveTextContent("Not working");
     }
   });
 
-  it("marks selected days as pressed", () => {
-    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Mon" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Sat" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Sun" })).toHaveAttribute("aria-pressed", "false");
+  it("selects full, half and non-working choices from the persisted subsets", () => {
+    renderPicker();
+    const monday = screen.getByRole("row", { name: /Monday/ });
+    const wednesday = screen.getByRole("row", { name: /Wednesday/ });
+    const saturday = screen.getByRole("row", { name: /Saturday/ });
+    expect(within(monday).getByRole("radio", { name: "Full day" })).toHaveAttribute("aria-checked", "true");
+    expect(within(wednesday).getByRole("radio", { name: "Half day" })).toHaveAttribute("aria-checked", "true");
+    expect(within(saturday).getByRole("radio", { name: "Not working" })).toHaveAttribute("aria-checked", "true");
   });
 
-  it("toggles a day ON when it is not selected", async () => {
+  it("moves a weekday between mutually exclusive choices", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={onChange} />);
-    await user.click(screen.getByRole("button", { name: "Sat" }));
-    // Sat is day 6 — should be added
-    expect(onChange).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6]);
-  });
-
-  it("toggles a day OFF when it is already selected", async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
-    render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={onChange} />);
-    await user.click(screen.getByRole("button", { name: "Mon" }));
-    // Mon is day 1 — should be removed
-    expect(onChange).toHaveBeenCalledWith([2, 3, 4, 5]);
+    renderPicker(onChange);
+    await user.click(within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Half day" }));
+    expect(onChange).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6], [3, 6]);
   });
 
   it("does NOT set aria-invalid/aria-describedby on the fieldset when valid", () => {
-    const { container } = render(<WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={vi.fn()} />);
+    const { container } = renderPicker();
     const fieldset = container.querySelector("fieldset")!;
     expect(fieldset).not.toHaveAttribute("aria-invalid");
     expect(fieldset).not.toHaveAttribute("aria-describedby");
   });
 
   it("marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)", () => {
-    const { container } = render(
-      <WeekdayPicker label="Working days" value={[]} onChange={vi.fn()} invalid describedById="err-1" />,
-    );
+    const { container } = renderPicker(vi.fn(), true);
     const fieldset = container.querySelector("fieldset")!;
     expect(fieldset).toHaveAttribute("aria-invalid", "true");
     expect(fieldset).toHaveAttribute("aria-describedby", "err-1");

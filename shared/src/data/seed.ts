@@ -89,6 +89,7 @@ export function seed(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#2d75da",
       },
       {
@@ -103,6 +104,7 @@ export function seed(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#ed841b",
       },
       {
@@ -117,6 +119,7 @@ export function seed(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#3ace6b",
       },
       {
@@ -131,6 +134,7 @@ export function seed(): AppData {
         employmentType: "freelancer",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3],
+        halfDays: [],
         color: "#2d75da",
       },
       {
@@ -144,6 +148,7 @@ export function seed(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#2d75da",
         projectId: "p-acme",
       },
@@ -173,6 +178,7 @@ export function seed(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         color: "#2d75da",
       },
     ],

@@ -264,6 +264,19 @@ function migrateV9toV10(data: Record<string, unknown>): Record<string, unknown> 
   return data;
 }
 
+// v10 → v11 adds required Resource.halfDays. Every previously selected working day was a full day,
+// so legacy resources receive an empty subset and every unselected weekday remains non-working.
+function migrateV10toV11(data: Record<string, unknown>): Record<string, unknown> {
+  const resources = Array.isArray(data.resources)
+    ? data.resources.map((resource) =>
+        resource && typeof resource === "object"
+          ? { ...(resource as Record<string, unknown>), halfDays: [] }
+          : resource,
+      )
+    : data.resources;
+  return { ...data, resources };
+}
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -316,6 +329,9 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   }
   if (data && typeof data === "object" && version < 10) {
     data = migrateV9toV10(data);
+  }
+  if (data && typeof data === "object" && version < 11) {
+    data = migrateV10toV11(data);
   }
 
   return {

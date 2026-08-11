@@ -63,7 +63,7 @@ describe("migrate", () => {
         },
       ],
     };
-    expect(migrate(data)).toEqual(data);
+    expect(migrate(data)).toEqual({ ...data, resources: [{ ...data.resources[0], halfDays: [] }] });
   });
 
   it("migrates legacy isFreelancer resources to employmentType (v1 → v2)", () => {
@@ -130,7 +130,7 @@ describe("migrate", () => {
     expect(out.resources[0]).toMatchObject({ employmentType: "freelancer" });
   });
 
-  it("leaves a v2 payload untouched (no v2→v3 transform needed)", () => {
+  it("retains v2 fields while applying later required-field migrations", () => {
     const data = {
       ...emptyAppData(),
       resources: [
@@ -147,7 +147,10 @@ describe("migrate", () => {
         },
       ],
     };
-    expect(migrate({ schemaVersion: 2, data })).toEqual(data);
+    expect(migrate({ schemaVersion: 2, data })).toEqual({
+      ...data,
+      resources: [{ ...data.resources[0], halfDays: [] }],
+    });
   });
 
   it("leaves a v7 account without internalColourMode absent so it reads as grey", () => {
@@ -271,6 +274,25 @@ describe("migrate", () => {
 
     const out = migrate({ schemaVersion: 9, data });
     expect(out.resources[0].isFavourite).toBeUndefined();
+  });
+
+  it("migrates v10 resources to an empty half-day subset without changing custom full-day capacity", () => {
+    const resource = {
+      id: "r1",
+      accountId: "a1",
+      createdAt: "t",
+      updatedAt: "t",
+      kind: "person" as const,
+      name: "Barbara Gordon",
+      role: "Engineer",
+      employmentType: "permanent" as const,
+      workingHoursPerDay: 6,
+      workingDays: [1, 3, 5] as const,
+      color: "#2d75da",
+    };
+
+    const out = migrate({ schemaVersion: 10, data: { ...emptyAppData(), resources: [resource] } });
+    expect(out.resources[0]).toEqual({ ...resource, halfDays: [] });
   });
 
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {

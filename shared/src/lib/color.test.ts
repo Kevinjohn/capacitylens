@@ -75,6 +75,7 @@ const resource = (id: string, kind: Resource["kind"]): Resource => ({
   employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#123456",
 });
 

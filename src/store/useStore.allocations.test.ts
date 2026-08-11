@@ -100,6 +100,7 @@ describe("atomic allocation creation", () => {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
       color: "#444444",
       projectId: boundProject.id,
     });

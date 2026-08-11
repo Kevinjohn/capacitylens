@@ -303,7 +303,7 @@ describe("isLifecycleEntityKey — narrowing guard for the tombstone-carrying ta
 describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, immutable)", () => {
   // A full, valid sample Resource so the preservation assertions check the REAL field set. The
   // id's leading hex ('a1b2') is the source of the deterministic token tag. Each call returns a
-  // fresh object (its own workingDays array) so the immutability checks aren't fooled by aliasing.
+  // fresh object (including its own weekday arrays) so the immutability checks aren't fooled by aliasing.
   const makeResource = (over: Partial<Resource> = {}): Resource => ({
     id: "a1b2c3d4-0000-4000-8000-000000000000",
     accountId: "acc-1",
@@ -321,6 +321,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     archivedAt: T_ARCH,
     deletedAt: T_DEL,
     ...over,
+    halfDays: over.halfDays ?? [],
   });
 
   it("scrubs a named person's name → 'Removed person #…', original name gone", () => {
@@ -341,6 +342,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(result.employmentType).toBe(input.employmentType);
     expect(result.workingHoursPerDay).toBe(input.workingHoursPerDay);
     expect(result.workingDays).toEqual(input.workingDays);
+    expect(result.halfDays).toEqual(input.halfDays);
     expect(result.projectId).toBe(input.projectId);
     expect(result.color).toBe(input.color);
     expect(result.createdAt).toBe(input.createdAt);
@@ -432,6 +434,7 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#3b82f6",
           createdAt: T_ARCH,
           updatedAt: T_ARCH,
@@ -445,6 +448,7 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#3b82f6",
           createdAt: T_ARCH,
           updatedAt: T_ARCH,
@@ -459,6 +463,7 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#3b82f6",
           createdAt: T_ARCH,
           updatedAt: T_ARCH,
@@ -799,6 +804,7 @@ describe("archiveImpact", () => {
           employmentType: "permanent",
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
           color: "#3b82f6",
           createdAt: T_ARCH,
           updatedAt: T_ARCH,

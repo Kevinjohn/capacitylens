@@ -79,6 +79,7 @@ const person = (id: ID, accountId: ID): Resource => ({
   employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#3b82f6",
 });
 const discipline = (id: ID, accountId: ID): Discipline => ({

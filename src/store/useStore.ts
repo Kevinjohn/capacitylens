@@ -69,7 +69,10 @@ import { createSchedulerSlice } from "./slices/schedulerSlice";
 // would break the "exactly one Internal per account" invariant the scheduler / migrate / import all
 // rely on. Excluding the field at the type level is the guard; the store also strips it defensively at
 // runtime (see addClient/updateClient).
-export type Draft<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
+type DraftFields<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
+export type Draft<T extends Entity> = T extends Resource
+  ? Omit<DraftFields<T>, "halfDays"> & { halfDays?: Weekday[] }
+  : DraftFields<T>;
 export type Patch<T extends Entity> = Partial<Draft<T>>;
 
 /** One row of a scoped table, and the patch shape accepted for it (server-owned fields excluded). */
@@ -627,6 +630,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
       throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");
     }
   };
+  const assertHalfDays = (halfDays: Weekday[], workingDays: Weekday[]): void => {
+    if (
+      !Array.isArray(halfDays) ||
+      new Set(halfDays).size !== halfDays.length ||
+      halfDays.some((day) => !Number.isInteger(day) || day < 0 || day > 6 || !workingDays.includes(day))
+    ) {
+      throw new Error("Half days must be unique whole-number weekdays contained in the working week.");
+    }
+  };
   // Write-time colour guard: snaps a bad/legacy colour to its NEAREST palette preset via the
   // shared snapToPresetColor mapper — the SAME mapper the server's sanitizeWrite('accounts') and
   // the one-time snap-legacy-account-colors migration use, so client and server can never
@@ -1073,6 +1085,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
     addResource: guardedAdd(
       (input: Draft<Resource>): Resource => ({
         ...input,
+        // Programmatic callers written before half-day patterns existed retain the exact legacy
+        // meaning: every selected working day is full, represented by an empty half-day subset.
+        halfDays: input.halfDays ?? [],
         // Clamp working hours/day (the store is the last line; the form caps it, but a non-form or
         // pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a resource
         // works a positive day) — distinct from an allocation, where 0 is legal.
@@ -1084,6 +1099,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       (e, input) => {
         assertScopedRefs(get().data, e.accountId, "resources", input);
         assertWorkingDays(input.workingDays);
+        assertHalfDays(e.halfDays, e.workingDays);
         // Colour snap runs LAST, right before persisting — never before the asserts above, so a
         // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
         const safe = withSnappedColor(e, e.kind === "external");
@@ -1103,6 +1119,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
         assertResourceProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
         assertResourceKindAllowsDependents(get().data, existing.accountId, id, merged.kind);
         if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
+        if (patch.workingDays !== undefined || patch.halfDays !== undefined) {
+          assertHalfDays(merged.halfDays, merged.workingDays);
+        }
         const colorPatch = withSnappedColor(patch, merged.kind === "external");
         return patch.workingHoursPerDay !== undefined
           ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }

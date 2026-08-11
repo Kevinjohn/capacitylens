@@ -37,6 +37,7 @@ const person = (id: string, accountId: string, extra: Record<string, unknown> = 
   employmentType: "permanent",
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
   color: "#3b82f6",
   ...meta(),
   ...extra,

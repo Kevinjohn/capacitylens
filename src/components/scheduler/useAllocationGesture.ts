@@ -240,7 +240,9 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       const targetResource = reassignTo
         ? useStore.getState().data.resources.find((resource) => resource.id === reassignTo)
         : undefined;
-      const reconciledHours = targetResource ? reconcileReassignedHours(hours, targetResource, isBlocks) : hours;
+      const reconciledHours = targetResource
+        ? reconcileReassignedHours(hours, targetResource, isBlocks, dates.startDate)
+        : hours;
       const hoursPatch = reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null;
 
       let updated: boolean;

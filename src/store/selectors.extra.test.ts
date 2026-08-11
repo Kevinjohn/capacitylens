@@ -37,6 +37,7 @@ const data: AppData = {
       employmentType: "permanent",
       workingHoursPerDay: 8,
       workingDays: [1],
+      halfDays: [],
       color: "#4",
     },
   ],

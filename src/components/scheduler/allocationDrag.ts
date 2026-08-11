@@ -1,7 +1,8 @@
 import { applyGesture, type DateRange, type DragMode, type GestureOpts } from "../../lib/gestureMath";
+import { scheduledHoursOnDay } from "../../lib/capacity";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
 import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import type { Resource } from "@capacitylens/shared/types/entities";
+import type { ISODate, Resource } from "@capacitylens/shared/types/entities";
 import type { ColumnGeometry } from "./columnGeometry";
 
 // Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable
@@ -14,9 +15,15 @@ import type { ColumnGeometry } from "./columnGeometry";
  *  external is promoted to the target's working day because those forms require positive load.
  *  Blocks mode deliberately permits and preserves zero; existing positive historical values are
  *  also retained for a real→real reassign. A same-resource move never calls this. */
-export function reconcileReassignedHours(current: number, target: Resource, zeroLoadMode: boolean): number {
+export function reconcileReassignedHours(
+  current: number,
+  target: Resource,
+  zeroLoadMode: boolean,
+  startDate: ISODate,
+): number {
   if (isExternalResource(target)) return 0;
-  return current > 0 || zeroLoadMode ? current : target.workingHoursPerDay;
+  if (current > 0 || zeroLoadMode) return current;
+  return scheduledHoursOnDay(target, startDate) || target.workingHoursPerDay;
 }
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so

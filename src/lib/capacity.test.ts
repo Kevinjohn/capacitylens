@@ -28,6 +28,7 @@ const makeResource = (over: Partial<Resource> = {}): Resource => ({
   workingDays: [1, 2, 3, 4, 5], // Mon–Fri
   color: "#000",
   ...over,
+  halfDays: over.halfDays ?? [],
 });
 
 const makeAlloc = (over: Partial<Allocation> = {}): Allocation => ({
@@ -83,10 +84,11 @@ describe("availability", () => {
     expect(isOnTimeOff("other", "2026-06-03", timeOff)).toBe(false);
   });
 
-  it("available hours are 0 on weekends and time off, else workingHoursPerDay", () => {
+  it("uses full-day hours, fixed four-hour half days, and zero for non-working/time-off days", () => {
     expect(availableHoursOnDay(r, "2026-06-01", [])).toBe(8); // Monday
+    expect(availableHoursOnDay(makeResource({ workingHoursPerDay: 6, halfDays: [2] }), "2026-06-02", [])).toBe(4);
     expect(availableHoursOnDay(r, "2026-06-06", [])).toBe(0); // Saturday
-    expect(availableHoursOnDay(r, "2026-06-03", [makeTimeOff()])).toBe(0); // time off
+    expect(availableHoursOnDay(makeResource({ halfDays: [3] }), "2026-06-03", [makeTimeOff()])).toBe(0);
   });
 });
 
@@ -97,7 +99,7 @@ describe("devAssertFinite (DEV-only console.warn on a non-finite value)", () => 
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     availableHoursOnDay(makeResource({ workingHoursPerDay: NaN }), "2026-06-01", []); // Monday
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain("workingHoursPerDay");
+    expect(warn.mock.calls[0][0]).toContain("scheduled working hours");
     expect(warn.mock.calls[0][0]).toContain("is not a finite number");
     expect(warn.mock.calls[0][0]).toContain("should have prevented this");
     warn.mockRestore();
@@ -369,6 +371,12 @@ describe("utilization", () => {
     expect(utilization(r, allocs, [], "2026-06-01", "2026-06-07")).toBeCloseTo(0.5);
   });
 
+  it("uses mixed full and half-day capacity in the utilisation denominator", () => {
+    const resource = makeResource({ workingDays: [1, 2], halfDays: [2] });
+    const allocations = [makeAlloc({ startDate: "2026-06-01", endDate: "2026-06-02", hoursPerDay: 3 })];
+    expect(utilization(resource, allocations, [], "2026-06-01", "2026-06-02")).toBeCloseTo(0.5);
+  });
+
   it("returns 0 when there is no availability in the window", () => {
     // A weekend-only window for a Mon–Fri resource has no availability.
     expect(utilization(r, [makeAlloc()], [], "2026-06-06", "2026-06-07")).toBe(0);
@@ -502,6 +510,12 @@ describe("capacityAdvisory", () => {
 
   it("is clean when the proposal fits within availability", () => {
     expect(capacityAdvisory(r, [], [], "2026-06-01", "2026-06-05", 8, false)).toEqual({ overDays: 0, timeOffDays: 0 });
+  });
+
+  it("treats exactly four hours as fitting a half day and anything above as over", () => {
+    const resource = makeResource({ halfDays: [2] });
+    expect(capacityAdvisory(resource, [], [], "2026-06-02", "2026-06-02", 4, false).overDays).toBe(0);
+    expect(capacityAdvisory(resource, [], [], "2026-06-02", "2026-06-02", 4.01, false).overDays).toBe(1);
   });
 
   it("does not advise over-capacity for an exact fractional days-mode split", () => {

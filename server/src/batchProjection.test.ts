@@ -40,6 +40,7 @@ function relationshipFixture(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
         projectId: "p1",
         disciplineId: "d1",
         color: "#5c34d4",

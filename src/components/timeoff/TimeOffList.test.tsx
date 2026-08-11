@@ -14,6 +14,7 @@ const resourceDraft = {
   employmentType: "permanent" as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
+  halfDays: [],
   color: "#111",
 };
 
@@ -25,6 +26,7 @@ const placeholderDraft = {
   employmentType: "permanent" as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
+  halfDays: [],
   color: "#222",
 };
 

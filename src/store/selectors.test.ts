@@ -38,6 +38,7 @@ function data(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1],
+        halfDays: [],
         color: "#1",
       },
       {
@@ -52,6 +53,7 @@ function data(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1],
+        halfDays: [],
         color: "#2",
       },
       {
@@ -65,6 +67,7 @@ function data(): AppData {
         employmentType: "permanent",
         workingHoursPerDay: 8,
         workingDays: [1],
+        halfDays: [],
         color: "#3",
       },
     ],
