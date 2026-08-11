@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { byName, compareDisplayNames } from "./displayOrder";
+import { byName, compareDisplayNames, favouriteDisplayNameComparator } from "./displayOrder";
 
 describe("display ordering", () => {
   it("pins English alphabetical order instead of inheriting the host locale", () => {
@@ -31,5 +31,21 @@ describe("display ordering", () => {
 
     expect([...entries].sort(byName).map((entry) => entry.id)).toEqual(["upper", "same-a", "same-z", "accent"]);
     expect(compareDisplayNames("Same", "b", "Same", "a")).toBeGreaterThan(0);
+  });
+
+  it("sorts favourites first and applies the same deterministic display-name order within each partition", () => {
+    const entries = [
+      { id: "normal-b", name: "Beta" },
+      { id: "favourite-b", name: "Beta", isFavourite: true },
+      { id: "normal-a", name: "Alpha", isFavourite: false },
+      { id: "favourite-a", name: "alpha", isFavourite: true },
+    ];
+
+    expect([...entries].sort(favouriteDisplayNameComparator((entry) => entry.name)).map((entry) => entry.id)).toEqual([
+      "favourite-a",
+      "favourite-b",
+      "normal-a",
+      "normal-b",
+    ]);
   });
 });

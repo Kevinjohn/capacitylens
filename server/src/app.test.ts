@@ -298,6 +298,17 @@ describe("CRUD round-trip", () => {
     expect(r.color).toBe("#5c34d4");
   });
 
+  it("PATCH persists and clears a resource favourite", async () => {
+    const { app, db } = freshApp();
+    await scaffold(app);
+
+    expect((await patch(app, "resources", "r1", { isFavourite: true })).json().isFavourite).toBe(true);
+    expect(getRow(db, "resources", "r1")?.isFavourite).toBe(true);
+
+    expect((await patch(app, "resources", "r1", { isFavourite: false })).json().isFavourite).toBe(false);
+    expect(getRow(db, "resources", "r1")?.isFavourite).toBe(false);
+  });
+
   it("refuses to re-home an existing row to another account (accountId is immutable)", async () => {
     const { app } = freshApp();
     await scaffold(app); // c1 in a1

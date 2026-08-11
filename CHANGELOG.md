@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- **People and external partners can be marked as favourites for quicker scheduling.** Favourites
+  stay alphabetically at the top of their Resources section and their existing schedule group,
+  without breaking discipline or placeholder grouping (#208).
+
 ### Changed
 
 - **Activities are easier to scan by where the work belongs.** Internal and cross-project work is

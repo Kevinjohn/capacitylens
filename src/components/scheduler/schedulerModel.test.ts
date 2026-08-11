@@ -191,6 +191,48 @@ const barIds = (model: GroupModel[]) =>
     .map((b) => b.allocation.id)
     .sort();
 
+it("keeps discipline groups while ordering favourite people and externals first alphabetically", () => {
+  const data = dataset();
+  const designTemplate = data.resources[0]!;
+  data.resources = [
+    { ...designTemplate, id: "design-alpha", name: "Alpha" },
+    { ...designTemplate, id: "design-zulu", name: "Zulu", isFavourite: true },
+    { ...designTemplate, id: "design-beta", name: "Beta", isFavourite: true },
+    data.resources[1]!,
+    {
+      ...designTemplate,
+      id: "external-alpha",
+      kind: "external",
+      name: "Acme",
+      role: "Print",
+      disciplineId: undefined,
+    },
+    {
+      ...designTemplate,
+      id: "external-zulu",
+      kind: "external",
+      name: "Zeta",
+      role: "Studio",
+      disciplineId: undefined,
+      isFavourite: true,
+    },
+  ];
+
+  const model = buildSchedulerModel({
+    data,
+    geom,
+    days,
+    visibleWindow: { start, end },
+    overSoonWindow: { start, end },
+    filters: emptyFilters(),
+    preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+  });
+
+  expect(model.map((group) => group.key)).toEqual(["d-design", "d-dev", "external"]);
+  expect(model[0]!.rows.map((row) => row.resource.name)).toEqual(["Beta", "Zulu", "Alpha"]);
+  expect(model[2]!.rows.map((row) => row.resource.name)).toEqual(["Zeta", "Acme"]);
+});
+
 // dataset() + one external party booked on a project activity over a weekend (zero-capacity for a
 // person), plus a stray time-off row — to prove externals carry NO capacity signals at all.
 function withExternal(): AppData {

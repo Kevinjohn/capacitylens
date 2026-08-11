@@ -28,6 +28,13 @@ describe("sanitizeImportedRecord", () => {
     });
   });
 
+  it("preserves boolean resource favourites and drops malformed values", () => {
+    expect(sanitizeImportedRecord("resources", { isFavourite: true }).isFavourite).toBe(true);
+    expect(sanitizeImportedRecord("resources", { isFavourite: false }).isFavourite).toBe(false);
+    expect(sanitizeImportedRecord("resources", { isFavourite: "true" })).not.toHaveProperty("isFavourite");
+    expect(sanitizeImportedRecord("resources", {})).not.toHaveProperty("isFavourite");
+  });
+
   it("clamps over-large hours and rejects NaN", () => {
     expect(sanitizeImportedRecord("resources", { workingHoursPerDay: 999 }).workingHoursPerDay).toBe(24);
     expect(sanitizeImportedRecord("allocations", { hoursPerDay: NaN }).hoursPerDay).toBe(8);

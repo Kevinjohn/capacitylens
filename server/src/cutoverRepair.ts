@@ -54,9 +54,10 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
     acquireExclusiveDatabaseLock(db);
     const plan = planDatabaseMigrations(db);
     // v25 is the identity-link migration this tool may unblock. v26 adds only the reviewed,
-    // default-off member sign-in confirmation shape, so it is safe to remain pending before this
-    // stopped-server repair. Keep this allowlist explicit so a future migration requires review.
-    if (plan.migrations.some(({ version }) => version !== 25 && version !== 26)) {
+    // default-off member sign-in confirmation shape; v27 adds only the optional resource-favourite
+    // column. Both are safe to remain pending before this stopped-server repair. Keep this allowlist
+    // explicit so a future migration requires review.
+    if (plan.migrations.some(({ version }) => ![25, 26, 27].includes(version))) {
       throw new Error(
         `Database schema v${plan.fromVersion} has unrelated pending migrations; start the matching release before repair.`,
       );

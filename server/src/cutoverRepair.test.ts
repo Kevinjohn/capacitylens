@@ -98,7 +98,7 @@ describe("stopped-server SSO cutover repair", () => {
     expect(verified.prepare(`SELECT id, userId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
       { id: "right-link", userId: "right-principal" },
     ]);
-    expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: 26 });
+    expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: 27 });
     verified.close();
   });
 

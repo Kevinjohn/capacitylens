@@ -122,6 +122,8 @@ export interface Resource extends ScopedEntity {
   /** PLACEHOLDERS ONLY: the single project a placeholder is bound to. */
   projectId?: ID;
   color: string;
+  /** Account-wide display preference for people and external resources. Absent = not favourite. */
+  isFavourite?: boolean;
   /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
    *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
@@ -377,8 +379,9 @@ export function externalCapacityDefaults(): Pick<Resource, "employmentType" | "w
  *  fields, whose absent values already represent the public default; v8 adds the optional
  *  per-account Internal work colour mode, whose absence means grey; v9 adds the optional per-account
  *  schedule view prefs showInternalProjects / showInternalActivities / inlineActivityCreateEnabled,
- *  whose absence means shown/enabled — read at `?? true`.) */
-export const EXPORT_SCHEMA_VERSION = 9;
+ *  whose absence means shown/enabled — read at `?? true`; v10 adds optional Resource.isFavourite,
+ *  whose absence means not favourite.) */
+export const EXPORT_SCHEMA_VERSION = 10;
 
 export interface PersistedState {
   schemaVersion: number;
