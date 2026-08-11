@@ -369,6 +369,15 @@ and projects use **Archive** (`Archive <name>`); their records and children are 
 lifecycle described below. Other deletable rows use **Delete** and include the row name when several
 controls would otherwise be ambiguous (for example, `Delete Design`). The glyph is decorative and the
 button's `aria-label`/`title` carries its action and, where needed, the row name.
+
+The **Time off** page is a forward-looking capacity view. It shows entries whose end date falls on
+or after the start of the current company week, calculated from the active company's timezone and
+Monday/Sunday week-start setting; older entries remain stored but are hidden. Entries are grouped
+into one compact bordered list per resource, with the displayed resource name shown once as the
+section heading. Resource sections sort alphabetically, and their rows sort by start date, end date
+and id. Placeholder entries still follow **Show placeholders**; an unexpected dangling resource is
+kept visible in a final **(unknown)** section rather than crashing.
+
 An allocation **Delete** asks for confirmation, then closes its editor only after the store accepts
 the removal. If the mutation rejects, the dialog stays open and its form error surfaces the safe
 rejection reason. Viewers see no allocation mutation actions.
@@ -443,7 +452,8 @@ are reached via `Filter by project`). The activity lens is a **standalone** view
 clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back
-visible-but-dimmed so you can see who's free to staff), `Clear` (only shown when a filter is active).
+visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown at the far
+right; disabled and visually quiet with no active filters, then red with a bin icon while active).
 
 **Schedule display (minimise weekends).** Settings → **Schedule** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
@@ -1007,6 +1017,9 @@ multiple).
   belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
   (a project-less cross-project activity). Internal/cross-project activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
+  Internal and cross-project rows are alphabetical. Project-specific rows are grouped and sorted by
+  **client → project → activity**, with each client and project name shown once. Scoped rows whose
+  parent metadata is unavailable remain visible in a clearly labelled fallback group.
 - **Private client/project names.** A normal client or project may be marked private by an account
   **owner** and given a required code name. The real `name` and raw `codeName` remain persisted, but
   only owners receive them from the server. Admins, editors and viewers receive the code name in the
@@ -1035,6 +1048,14 @@ multiple).
   private row is repaired fail-closed to a distinct, stable `Confidential #<record tag>` label instead
   of exposing its real name or collapsing several private rows onto one indistinguishable label.
 
+- **Management list ordering.** The **Resources**, **Disciplines**, **Clients** and **Projects**
+  management lists are alphabetical by the name shown in each row. Resources keep People,
+  Placeholders and External as separate sections, and each section sorts independently. Projects
+  sort by project name; their client label is secondary text. The hidden built-in **Internal** client
+  remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
+  spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
+  stored arrays are unchanged, and the schedule keeps its deliberate discipline `sortOrder` and
+  resource grouping.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it

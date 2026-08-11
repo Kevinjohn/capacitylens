@@ -27,6 +27,19 @@ describe("ClientList empty state", () => {
   });
 });
 
+it("sorts visible clients alphabetically after hiding Internal without changing stored order", () => {
+  useStore.getState().addClient({ name: "Zulu", color: "#111111" });
+  useStore.getState().addClient({ name: "alpha", color: "#222222" });
+  useStore.getState().addClient({ name: "Bravo", color: "#333333" });
+  const storedIds = useStore.getState().data.clients.map((client) => client.id);
+
+  render(<ClientList />);
+
+  expect(screen.getAllByTestId("client-row").map((row) => row.textContent)).toEqual(["alpha", "Bravo", "Zulu"]);
+  expect(screen.queryByText("Internal")).not.toBeInTheDocument();
+  expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(storedIds);
+});
+
 it("gives repeated client edit controls distinct contextual names", () => {
   useStore.getState().addClient({ name: "Acme", color: "#111" });
   useStore.getState().addClient({ name: "Globex", color: "#222" });

@@ -22,4 +22,4 @@ A filter that hides everything looks broken. A clear message tells the manager t
 - ✅ With no resource matching, the grid shows the `scheduler-empty` element — a centred card (filter icon + the message **"No resources match the current filters."** + a short subtext) in the schedule body, matching the entity-list empty states.
 - ✅ No discipline groups, resource rows or allocation bars are shown while the empty state is active.
 - ✅ This is the _filtered_ empty state — distinct from the no-data state shown when there are genuinely no resources yet (which instead offers a **Go to Resources** button).
-- ✅ The empty state offers a **Clear filters** button; clicking it clears the active filters and the full schedule returns. (Clearing the search, or the toolbar **Clear**, does the same.)
+- ✅ The empty state offers a **Clear filters** button; clicking it clears the active filters and the full schedule returns. (Clearing the search, or the toolbar **Clear Filters**, does the same.)

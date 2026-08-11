@@ -25,4 +25,4 @@ their default-off account settings and are outside this search example.
 - ✅ Typing `Bruce` narrows the visible resource rows to **Bruce Wayne** only; non-matching rows (Diana, Clark, Barry, the placeholder) are hidden.
 - ✅ Search matches on **role** too: typing `Developer` shows the resources whose role contains it (e.g. _Clark Kent — Web Developer_, _Barry Allen — Front End_).
 - ✅ Clearing the search box restores all resource rows.
-- ✅ While a search is active, the **Clear** button is shown.
+- ✅ While a search is active, the **Clear Filters** button is enabled.

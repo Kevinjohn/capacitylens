@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ListFilter, Redo2, Undo2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
 import { redoShortcut, undoShortcut } from "../../lib/keyboardShortcuts";
 import { hasActiveFilters, useStore } from "../../store/useStore";
@@ -54,6 +54,7 @@ export function SchedulerToolbar() {
   const filters = useStore((s) => s.ui.filters);
   const setFilters = useStore((s) => s.setFilters);
   const clearFilters = useStore((s) => s.clearFilters);
+  const filtersActive = hasActiveFilters(filters);
   const data = useActiveScopedData();
   const disciplines = data.disciplines;
   const clients = data.clients;
@@ -409,11 +410,16 @@ export function SchedulerToolbar() {
               <FieldLabel htmlFor="show-unmatched">{m.scheduler_show_unallocated()}</FieldLabel>
             </Field>
           )}
-          {hasActiveFilters(filters) && (
-            <Button size="sm" variant="outline" onClick={onClear}>
-              {m.scheduler_clear()}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant={filtersActive ? "danger-soft" : "outline"}
+            className="ml-auto"
+            onClick={onClear}
+            disabled={!filtersActive}
+          >
+            {filtersActive && <Trash2 aria-hidden="true" />}
+            {m.scheduler_clear()}
+          </Button>
         </div>
       )}
     </div>

@@ -12,6 +12,15 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Activities are easier to scan by where the work belongs.** Internal and cross-project work is
+  alphabetical, while project-specific activities are grouped and sorted by client, then project,
+  then activity. Client and project names appear once per group instead of on every row (#206).
+- **Time off is now grouped by resource and focused on current and upcoming absences.** Resource
+  sections are alphabetical, entries are date ordered, and completed entries from before the active
+  company's current week stay stored without cluttering the planning view (#203).
+- **Resources, Disciplines, Clients and Projects are now alphabetical in their management lists.**
+  The display-only ordering keeps resource sections separate and leaves schedule grouping and stored
+  data order unchanged (#204).
 - **Month labels now follow the days they describe in wide schedule views.** At one- and two-week
   zoom, each month and year is centred over the visible part of that month; compact zooms keep the
   existing non-overlapping sticky label (#219).
@@ -19,6 +28,9 @@ new features and **patch** versions carry fixes.
   button now sits at the right of the toolbar after Undo/Redo, and the expanded filter controls are
   centred while retaining their narrow-screen wrapping. The first-run checklist stays below the
   toolbar so those actions remain available (#214).
+- **Clearing schedule filters is always within reach.** The expanded filter row now keeps a
+  **Clear Filters** button at the far right: it stays quiet and disabled until a filter is active,
+  then turns red with a bin icon and resets every filter in one click (#220).
 - **Buttons now visibly respond while pressed.** Primary, outline, secondary, ghost, destructive,
   soft-danger and icon buttons briefly compress when clicked or keyboard-activated. Button-backed
   toggles use the same momentary feedback without obscuring their persistent selected state (#215).

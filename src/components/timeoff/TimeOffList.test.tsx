@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { TimeOffList } from "./TimeOffList";
 import { TimeOffForm } from "./TimeOffForm";
 import { useStore } from "../../store/useStore";
-import { WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 
 const resourceDraft = {
@@ -29,6 +29,8 @@ const placeholderDraft = {
 };
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
   resetStoreWithAccount();
   useStore.getState().clearFilters();
   // The placeholder-hiding behaviour is the system under test in some cases; default the device
@@ -37,6 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -97,10 +100,11 @@ describe("TimeOffList", () => {
     // Modal should be gone
     expect(screen.queryByRole("dialog", { name: "Add time off" })).not.toBeInTheDocument();
 
-    // Time-off row should be present with the resource name, the terse start date and a day count
+    // The group heading carries the resource name once; the row carries the terse start date and day count
     // (2026-07-01 is a Wednesday; 01→05 July is five inclusive days). The end date isn't shown.
+    expect(screen.getByRole("heading", { name: "Alice" })).toBeInTheDocument();
     const row = screen.getByTestId("timeoff-row");
-    expect(row).toHaveTextContent("Alice");
+    expect(row).not.toHaveTextContent("Alice");
     expect(row).toHaveTextContent("Wed 1st Jul");
     expect(row).toHaveTextContent("5 days");
     expect(row).not.toHaveTextContent("2026-07-01"); // the raw ISO string is no longer shown
@@ -128,6 +132,42 @@ describe("TimeOffList", () => {
     expect(row).not.toHaveTextContent("Holiday");
     expect(row).not.toHaveTextContent("holiday");
     expect(row).not.toHaveTextContent("Visiting family");
+  });
+
+  it("uses the active company's timezone and week-start setting for the visible boundary", () => {
+    vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
+    const resource = useStore.getState().addResource(resourceDraft);
+    useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-06-06",
+      endDate: "2026-06-07",
+      type: "holiday",
+    });
+
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+    const { rerender } = render(<TimeOffList />);
+    expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
+
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
+    rerender(<TimeOffList />);
+    expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+  });
+
+  it("hides archived resources and their retained time off", () => {
+    const resource = useStore.getState().addResource(resourceDraft);
+    useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-08-01",
+      endDate: "2026-08-05",
+      type: "holiday",
+    });
+    useStore.getState().archiveEntity("resources", resource.id);
+
+    render(<TimeOffList />);
+
+    expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
+    expect(screen.getByText("No time off booked.")).toBeInTheDocument();
+    expect(useStore.getState().data.timeOff).toHaveLength(1);
   });
 
   it("gives same-person time-off actions distinct date-specific names", () => {
@@ -203,9 +243,8 @@ describe("TimeOffList", () => {
       .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
     render(<TimeOffList />);
 
-    const row = screen.getByTestId("timeoff-row");
-    expect(row).toHaveTextContent("Placeholder"); // resourceDisplayName, consistent with everywhere else
-    expect(row).not.toHaveTextContent("Designer"); // not the placeholder's role
+    expect(screen.getByRole("heading", { name: "Placeholder" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Designer" })).not.toBeInTheDocument();
   });
 
   it("HIDES a placeholder time-off entry when placeholders are OFF (data stays intact)", () => {
@@ -237,10 +276,29 @@ describe("TimeOffList", () => {
     setPlaceholdersEnabled(false);
     render(<TimeOffList />);
 
-    const rows = screen.getAllByTestId("timeoff-row");
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toHaveTextContent("Alice");
+    expect(screen.getAllByTestId("timeoff-row")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Alice" })).toBeInTheDocument();
     expect(screen.queryByText("Placeholder")).not.toBeInTheDocument();
+  });
+
+  it("keeps edit and delete controls hidden for viewers", () => {
+    const resource = useStore.getState().addResource(resourceDraft);
+    useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: "2026-08-01",
+      endDate: "2026-08-05",
+      type: "holiday",
+    });
+
+    render(
+      <PermissionContext.Provider value={{ role: "viewer" }}>
+        <TimeOffList />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Edit / })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
   });
 });
 
