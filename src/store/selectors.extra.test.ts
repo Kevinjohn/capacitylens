@@ -85,7 +85,7 @@ describe("lookup + relation selectors", () => {
   });
 });
 
-describe("byDisciplineOrder (shared by the scheduler grouping AND the Disciplines list)", () => {
+describe("byDisciplineOrder (scheduler grouping)", () => {
   const disc = (id: string, name: string, sortOrder: number): Discipline => ({
     id,
     accountId: "acct-test",

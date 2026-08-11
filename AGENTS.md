@@ -2,18 +2,26 @@
 
 ## Working workflow
 
+- Follow KISS (Keep It Simple, Stupid): use the fewest workflow steps and roles that safely deliver
+  the requested result. Do not invent approval gates, reviewer roles or process stages unless the
+  user asks for them or a required external policy imposes them.
 - Any task that changes files gets a unique `feature/<short-description>` branch and linked worktree,
   unless the user explicitly says otherwise. Run `git fetch origin main --prune`, then branch the
   worktree from `origin/main`. If the branch or path exists, choose another; never reuse or clean it.
   Never implement in the primary checkout or another task's worktree. Report the branch, worktree
   and base revision before editing.
+- Default to one issue per branch and one pull request per issue. Group issues only when they are
+  inseparable or a combined change is materially clearer, and explain the reason in the pull request.
 - Make the smallest, simplest maintainable change that completely solves the request. Keep unrelated
   cleanup, formatting, refactors, dependencies and abstractions out of the diff.
 - Before creating a pull request, run the applicable checks and review the complete branch diff
-  against its base. Present every finding to the user, fix all actionable findings, and repeat the
-  checks and review until green.
-- Show the user the final scope, diff summary, review result and validation evidence. Wait for
-  explicit approval before pushing or opening the pull request.
+  against its base. Fix all actionable findings and repeat the checks and review until green.
+- A user request to complete a task or programme of work authorises its normal branch, commit, push,
+  pull request and merge flow. Continue through those steps without inserting additional approval
+  pauses. Stop only when a consequential choice is genuinely unresolved, an action would exceed the
+  requested scope, or validation exposes a blocker that cannot be resolved safely.
+- Keep the user informed with concise progress updates and report each pull request's scope, review
+  result and validation evidence.
 
 ## Product boundary
 
@@ -114,14 +122,16 @@ are documented in `docs-src/reference/development.md`. Keep E2E specs browser-ag
 
 - Commit each logical change with `git commit -s`; every feature commit requires a matching DCO
   `Signed-off-by` trailer. Generated merge commits are exempt.
-- After the approved review gate, push the feature branch and open a ready-for-review pull request
-  into `main`. Never push task commits directly to `main`.
-- Merge only with explicit user approval and a normal merge commit:
-  `gh pr merge <number> --merge --delete-branch`.
+- After the review gate passes, push the feature branch and open a ready-for-review pull request into
+  `main`. Link its issue with a closing keyword when applicable. Never push task commits directly to
+  `main`.
+- Merge validated pull requests with a normal merge commit and delete the remote feature branch:
+  `gh pr merge <number> --merge --delete-branch`. Respect dependency order and land one pull request
+  at a time unless independent changes materially benefit from parallel validation.
 - Never squash, rebase or rewrite branch history unless the user explicitly requests it for that
   operation.
-- Verify the PR, merge commit, linked issue and remote branch deletion before removing the isolated
-  worktree and reporting completion.
+- After each merge, verify the pull request, merge commit, linked issue and remote branch deletion,
+  update local `main`, then remove the isolated worktree and local feature branch.
 
 ## Version and CI policy
 

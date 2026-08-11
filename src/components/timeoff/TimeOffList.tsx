@@ -1,11 +1,11 @@
 import { useStore } from "../../store/useStore";
-import { placeholdersEnabledFor } from "../../store/selectors";
+import { placeholdersEnabledFor, timeZoneFor, weekStartsOnFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useCrudListState } from "../../hooks/useCrudListState";
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
-import { resourceDisplayName } from "../../lib/metadata";
 import { formatShortDate, formatDayCount } from "../../lib/dateDisplay";
 import { TimeOffForm } from "./TimeOffForm";
+import { buildTimeOffGroups, currentTimeOffWeekStart } from "./timeOffView";
 import type { TimeOff } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useMemo } from "react";
@@ -16,28 +16,22 @@ import { errorMessage } from "../../lib/errorMessage";
 export function TimeOffList() {
   const data = useActiveScopedData();
   const resources = data.resources;
-  const resourceById = useMemo(() => new Map(resources.map((resource) => [resource.id, resource])), [resources]);
   const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
+  const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
+  const calendarWeekStartsOn = useStore((s) => weekStartsOnFor(s.data, s.activeAccountId));
   const del = useStore((s) => s.deleteTimeOff);
   const setNotice = useStore((s) => s.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>();
 
-  // Placeholders are gated behind a per-account pref (default OFF). When off, HIDE time-off whose
-  // resource is a placeholder — a pure view filter: the entries stay in the store (export/import and
-  // the schedule are untouched), they're just not rendered while placeholders are hidden everywhere
-  // else. An empty result here still falls through to the existing empty-state below.
-  const timeOff = placeholdersEnabled
-    ? data.timeOff
-    : data.timeOff.filter((t) => resourceById.get(t.resourceId)?.kind !== "placeholder");
-
-  const resourceName = (id: string) => {
-    const r = resourceById.get(id);
-    return r ? resourceDisplayName(r) : m.list_timeoff_unknown_resource();
-  };
+  const currentWeekStart = currentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
+  const groups = useMemo(
+    () => buildTimeOffGroups(data.timeOff, resources, currentWeekStart, placeholdersEnabled),
+    [currentWeekStart, data.timeOff, placeholdersEnabled, resources],
+  );
 
   return (
     <ListPage title={m.list_timeoff_title()} addLabel={m.list_timeoff_add()} onAdd={() => setCreating(true)}>
-      {timeOff.length === 0 ? (
+      {groups.length === 0 ? (
         <EmptyState
           icon={Calendar}
           description={m.list_timeoff_empty_desc()}
@@ -51,37 +45,53 @@ export function TimeOffList() {
           {m.list_timeoff_empty()}
         </EmptyState>
       ) : (
-        <ItemGroup className="rounded-md border bg-card">
-          {timeOff.map((t, index) => {
-            const name = resourceName(t.resourceId);
-            const labelContext = {
-              name,
-              start: formatShortDate(t.startDate),
-              end: formatShortDate(t.endDate),
-            };
+        <div className="space-y-6" data-testid="timeoff-groups">
+          {groups.map((group) => {
+            const headingId = `timeoff-group-${encodeURIComponent(group.resourceId ?? "unknown")}`;
             return (
-              <Fragment key={t.id}>
-                {index > 0 && <ItemSeparator />}
-                <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
-                  <ItemContent>
-                    <span className="font-medium">{name}</span>
-                    {/* Deliberately spare: the start date (terse) and how many days. The end date, type
-                    and note are stored (and surfaced on the schedule's time-off block) but left off
-                    this list — it's a "who's away, from when, for how long" scan, not a detail view. */}
-                    <span className="text-sm text-muted-foreground">
-                      {" "}
-                      · {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
-                    </span>
-                  </ItemContent>
-                  <ItemActions>
-                    <EditButton label={m.list_timeoff_edit_aria(labelContext)} onClick={() => setEditing(t)} />
-                    <DeleteButton label={m.list_timeoff_delete_aria(labelContext)} onClick={() => setConfirming(t)} />
-                  </ItemActions>
-                </Item>
-              </Fragment>
+              <section
+                key={group.resourceId ?? "unknown"}
+                aria-labelledby={headingId}
+                data-testid="timeoff-group"
+                data-resource-id={group.resourceId ?? "unknown"}
+              >
+                <h2 id={headingId} className="mb-2 text-sm font-semibold">
+                  {group.name}
+                </h2>
+                <ItemGroup className="rounded-md border bg-card">
+                  {group.entries.map((t, index) => {
+                    const labelContext = {
+                      name: group.name,
+                      start: formatShortDate(t.startDate),
+                      end: formatShortDate(t.endDate),
+                    };
+                    return (
+                      <Fragment key={t.id}>
+                        {index > 0 && <ItemSeparator />}
+                        <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
+                          <ItemContent>
+                            {/* The resource name belongs to the section heading. Each row stays spare:
+                            start date + duration only; type, note and explicit end stay on the schedule/editor. */}
+                            <span className="text-sm text-muted-foreground">
+                              {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
+                            </span>
+                          </ItemContent>
+                          <ItemActions>
+                            <EditButton label={m.list_timeoff_edit_aria(labelContext)} onClick={() => setEditing(t)} />
+                            <DeleteButton
+                              label={m.list_timeoff_delete_aria(labelContext)}
+                              onClick={() => setConfirming(t)}
+                            />
+                          </ItemActions>
+                        </Item>
+                      </Fragment>
+                    );
+                  })}
+                </ItemGroup>
+              </section>
             );
           })}
-        </ItemGroup>
+        </div>
       )}
 
       {creating && <TimeOffForm onClose={() => setCreating(false)} />}

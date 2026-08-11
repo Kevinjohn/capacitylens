@@ -14,6 +14,7 @@ import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { projectArchiveImpactCopy } from "../../lib/archiveImpactCopy";
+import { byName } from "../../lib/displayOrder";
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. */
@@ -26,7 +27,7 @@ function projectArchiveMessage(data: AppData, project: Project): string {
 
 export function ProjectList() {
   const data = useActiveScopedData();
-  const projects = data.projects;
+  const projects = [...data.projects].sort(byName);
   const clients = data.clients;
   const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
   const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));

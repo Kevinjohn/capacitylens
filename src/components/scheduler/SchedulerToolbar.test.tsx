@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { PermissionContext } from "../../auth/permissionContext";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { emptyFilters, useStore } from "../../store/useStore";
 import { resetStoreWithAccount } from "../../test/fixtures";
@@ -106,10 +107,44 @@ describe("SchedulerToolbar filter panel", () => {
     expect(hide).toHaveAttribute("aria-controls", "scheduler-filters");
     expect(screen.getByLabelText("Search people")).toBeInTheDocument();
     expect(screen.getByRole("radiogroup", { name: "Draw mode" })).toBeInTheDocument();
+    expect(document.getElementById("scheduler-filters")).toHaveClass("justify-center");
 
     await user.click(hide);
     expect(screen.getByRole("button", { name: "Show filters" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByLabelText("Search people")).not.toBeInTheDocument();
+  });
+
+  it("places the filter toggle after the history controls with dividers on both sides", () => {
+    render(<SchedulerToolbar />);
+
+    const actions = screen.getByTestId("scheduler-toolbar-actions");
+    const show = within(actions).getByRole("button", { name: "Show filters" });
+    const undo = within(actions).getByRole("button", { name: "Undo" });
+    const redo = within(actions).getByRole("button", { name: "Redo" });
+
+    expect(actions.children).toHaveLength(4);
+    expect(actions.children[0]).toHaveAttribute("data-slot", "separator");
+    expect(actions.children[1]).toContainElement(undo);
+    expect(actions.children[1]).toContainElement(redo);
+    expect(actions.children[2]).toHaveAttribute("data-slot", "separator");
+    expect(actions.children[3]).toBe(show);
+  });
+
+  it("keeps the filter toggle in the right-hand action area for viewers", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "viewer" }}>
+        <SchedulerToolbar />
+      </PermissionContext.Provider>,
+    );
+
+    const actions = screen.getByTestId("scheduler-toolbar-actions");
+    const show = within(actions).getByRole("button", { name: "Show filters" });
+
+    expect(within(actions).queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+    expect(within(actions).queryByRole("button", { name: "Redo" })).not.toBeInTheDocument();
+    expect(actions.children).toHaveLength(2);
+    expect(actions.children[0]).toHaveAttribute("data-slot", "separator");
+    expect(actions.children[1]).toBe(show);
   });
 });
 
@@ -144,47 +179,66 @@ describe("SchedulerToolbar history errors", () => {
 });
 
 describe("SchedulerToolbar Clear filter button", () => {
-  it("Clear button is absent when no filters are set", () => {
+  it("keeps Clear Filters visible, quiet and disabled when no filters are set", () => {
     render(<SchedulerToolbar />);
     showFilters();
 
-    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: "Clear Filters" });
+    expect(clear).toBeDisabled();
+    expect(clear).toHaveAttribute("data-variant", "outline");
+    expect(clear).toHaveClass("ml-auto");
+    expect(clear.querySelector("svg")).toBeNull();
   });
 
-  it("Clear button appears once a filter is set", async () => {
-    const user = userEvent.setup();
+  it("enables red Clear Filters styling and a decorative bin icon when a filter is active", () => {
+    useStore.getState().setFilters({ disciplineId: "d1" });
     render(<SchedulerToolbar />);
     showFilters();
 
-    await user.type(screen.getByLabelText("Search people"), "Bob");
-
-    // Clear appears once the debounced search reaches the store.
-    expect(await screen.findByRole("button", { name: "Clear" })).toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: "Clear Filters" });
+    expect(clear).toBeEnabled();
+    expect(clear).toHaveAttribute("data-variant", "danger-soft");
+    expect(clear.querySelector(".lucide-trash-2")).toHaveAttribute("aria-hidden", "true");
   });
 
-  it("clicking Clear resets all filters and hides the Clear button", async () => {
+  it("clicking Clear Filters resets every filter field and returns the button to its quiet state", async () => {
     const user = userEvent.setup();
+    useStore.setState((state) => ({
+      ui: {
+        ...state.ui,
+        filters: {
+          disciplineId: "d1",
+          clientId: "c1",
+          projectId: "p1",
+          activityId: "activity-1",
+          activityKind: "internal",
+          search: "Bob",
+          hideTentative: true,
+          showUnmatched: true,
+        },
+      },
+    }));
     render(<SchedulerToolbar />);
     showFilters();
 
-    await user.type(screen.getByLabelText("Search people"), "Bob");
-    expect(await screen.findByRole("button", { name: "Clear" })).toBeInTheDocument();
+    const clear = screen.getByRole("button", { name: "Clear Filters" });
+    await user.click(clear);
 
-    await user.click(screen.getByRole("button", { name: "Clear" }));
-
-    expect(useStore.getState().ui.filters.search).toBe("");
-    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+    expect(useStore.getState().ui.filters).toEqual(emptyFilters());
+    expect(clear).toBeDisabled();
+    expect(clear).toHaveAttribute("data-variant", "outline");
+    expect(clear.querySelector("svg")).toBeNull();
   });
 
   it("Clear cancels a pending search debounce so a cleared term cannot reappear", async () => {
     const user = userEvent.setup();
-    // A non-search filter is active so Clear renders immediately, before the debounce.
+    // A non-search filter is active so Clear Filters is enabled before the debounce.
     useStore.getState().setFilters({ disciplineId: "d1" });
     render(<SchedulerToolbar />);
     showFilters();
 
     await user.type(screen.getByLabelText("Search people"), "jo"); // schedules a 180ms timer
-    await user.click(screen.getByRole("button", { name: "Clear" })); // must cancel it
+    await user.click(screen.getByRole("button", { name: "Clear Filters" })); // must cancel it
 
     // Wait past the debounce window: the orphaned timer must NOT re-apply "jo".
     await new Promise((r) => setTimeout(r, 250));

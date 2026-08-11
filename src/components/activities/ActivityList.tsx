@@ -9,14 +9,13 @@ import { Fragment, useEffect, useMemo, useRef } from "react";
 import { ClipboardCheck, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { errorMessage } from "../../lib/errorMessage";
+import { buildActivityListModel } from "./activityListModel";
 
 export function ActivityList({ selectedActivityId = null }: { selectedActivityId?: string | null }) {
   const data = useActiveScopedData();
   const activities = data.activities;
   const projects = data.projects;
   const clients = data.clients;
-  const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
-  const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
   const del = useStore((s) => s.deleteActivity);
   const setNotice = useStore((s) => s.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>();
@@ -26,23 +25,19 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
     selectedRowRef.current?.focus();
   }, [selectedActivityId, activities]);
 
-  // A project-less activity (internal/cross-project) is bucketed under the account's built-in
-  // Internal client for display — so its label reads "Internal", not "(no project)".
-  const projectLabel = (id: string | undefined) => {
-    if (!id) return m.list_activities_internal_label();
-    const p = projectById.get(id);
-    if (!p) return m.list_activities_no_project();
-    const c = clientById.get(p.clientId);
-    return c ? `${c.name} / ${p.name}` : p.name;
-  };
+  const activityList = useMemo(
+    () =>
+      buildActivityListModel({
+        activities,
+        projects,
+        clients,
+        unavailableClient: m.list_activities_unavailable_client(),
+        unavailableProject: m.list_activities_unavailable_project(),
+      }),
+    [activities, clients, projects],
+  );
 
-  // Three kinds, three tables. Internal first (the owner's ordering), then cross-project
-  // (stored as `repeatable` for compatibility), then project-specific work.
-  const internalActivities = activities.filter((a) => a.kind === "internal");
-  const repeatableActivities = activities.filter((a) => a.kind === "repeatable");
-  const projectActivities = activities.filter((a) => a.kind === "project");
-
-  const renderRow = (activity: Activity, showLabel: boolean) => {
+  const renderRow = (activity: Activity) => {
     const selected = activity.id === selectedActivityId;
     return (
       <Item
@@ -56,7 +51,6 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
       >
         <ItemContent>
           <span className="font-medium">{activity.name}</span>
-          {showLabel && <span className="text-sm text-muted-foreground"> · {projectLabel(activity.projectId)}</span>}
         </ItemContent>
         <ItemActions>
           <EditButton label={m.list_edit_aria({ name: activity.name })} onClick={() => setEditing(activity)} />
@@ -75,7 +69,6 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
   // the other two keep just their bare message. `empty` stays the load-bearing children.
   const box = (
     rows: Activity[],
-    showLabel: boolean,
     empty: string,
     testid: string,
     enrich?: { description: string; action: { label: string; onClick: () => void } },
@@ -93,7 +86,7 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
         {rows.map((activity, index) => (
           <Fragment key={activity.id}>
             {index > 0 && <ItemSeparator />}
-            {renderRow(activity, showLabel)}
+            {renderRow(activity)}
           </Fragment>
         ))}
       </ItemGroup>
@@ -105,8 +98,7 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
         <h2 className="text-lg font-semibold">{m.list_activities_internal_heading()}</h2>
       </div>
       {box(
-        internalActivities,
-        false,
+        activityList.internal,
         m.list_activities_internal_empty(),
         "internal-activities",
         activities.length === 0
@@ -120,12 +112,37 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
       </div>
-      {box(repeatableActivities, false, m.list_activities_repeatable_empty(), "cross-project-activities")}
+      {box(activityList.crossProject, m.list_activities_repeatable_empty(), "cross-project-activities")}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_project_heading()}</h2>
       </div>
-      {box(projectActivities, true, m.list_activities_project_empty(), "project-specific-activities")}
+      {activityList.clients.length === 0 ? (
+        <EmptyState>{m.list_activities_project_empty()}</EmptyState>
+      ) : (
+        <div data-testid="project-specific-activities" className="space-y-6">
+          {activityList.clients.map((client) => (
+            <section key={client.key} className="space-y-3">
+              <h3 className="text-base font-semibold">{client.name}</h3>
+              <div className="space-y-4">
+                {client.projects.map((project) => (
+                  <section key={project.key} className="space-y-2">
+                    <h4 className="text-sm font-medium text-muted-foreground">{project.name}</h4>
+                    <ItemGroup className="rounded-md border bg-card">
+                      {project.activities.map((activity, index) => (
+                        <Fragment key={activity.id}>
+                          {index > 0 && <ItemSeparator />}
+                          {renderRow(activity)}
+                        </Fragment>
+                      ))}
+                    </ItemGroup>
+                  </section>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
 
       {creating && <ActivityForm onClose={() => setCreating(false)} />}
       {editing && <ActivityForm activity={editing} onClose={() => setEditing(null)} />}

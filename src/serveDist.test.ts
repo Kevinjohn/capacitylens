@@ -122,6 +122,58 @@ describe("serve-dist rehearsal boundary", () => {
     expect(faultReport).toHaveBeenCalledWith("serve-dist: static file failed", fault);
   });
 
+  it("serves the SPA shell for extensionless routes while preserving asset and API 404s", async () => {
+    const missingError = Object.assign(new Error("missing"), { code: "ENOENT" });
+    const openShell = () => {
+      const stream = new PassThrough();
+      queueMicrotask(() => {
+        stream.emit("open");
+        stream.end("<!doctype html><title>CapacityLens</title>");
+      });
+      return stream;
+    };
+    const upstream = await listen((_request, response) => {
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end('{"error":"Not found"}');
+    });
+    const rehearsal = await listen(
+      createRehearsalRequestHandler({
+        dist: "/dist",
+        apiPort: upstream.port,
+        statPath: async (target) => {
+          if (String(target).endsWith("/index.html")) return { isFile: () => true };
+          throw missingError;
+        },
+        openFile: openShell,
+      }),
+    );
+
+    for (const path of [
+      "/resources",
+      "/disciplines",
+      "/clients",
+      "/projects",
+      "/activities",
+      "/timeoff",
+      "/team",
+      "/settings",
+      "/stale-bookmark-that-does-not-exist",
+    ]) {
+      await expect(requestText(rehearsal.port, path)).resolves.toEqual({
+        status: 200,
+        body: "<!doctype html><title>CapacityLens</title>",
+      });
+    }
+    await expect(requestText(rehearsal.port, "/assets/missing.js")).resolves.toEqual({
+      status: 404,
+      body: "404 not found",
+    });
+    await expect(requestText(rehearsal.port, "/api/missing")).resolves.toEqual({
+      status: 404,
+      body: '{"error":"Not found"}',
+    });
+  });
+
   it("surfaces a post-stat stream fault as 500 with its cause", async () => {
     const fault = Object.assign(new Error("storage I/O failed"), { code: "EIO" });
     const report = vi.fn();
