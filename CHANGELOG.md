@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Time off is now grouped by resource and focused on current and upcoming absences.** Resource
+  sections are alphabetical, entries are date ordered, and completed entries from before the active
+  company's current week stay stored without cluttering the planning view (#203).
 - **Resources, Disciplines, Clients and Projects are now alphabetical in their management lists.**
   The display-only ordering keeps resource sections separate and leaves schedule grouping and stored
   data order unchanged (#204).
