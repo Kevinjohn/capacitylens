@@ -584,6 +584,8 @@
   "list_activities_repeatable_empty": "No cross-project activities yet.",
   "list_activities_project_heading": "Project-specific activities",
   "list_activities_project_empty": "No project-specific activities yet.",
+  "list_activities_unavailable_client": "Unavailable client",
+  "list_activities_unavailable_project": "Unavailable project",
   "list_activities_delete_title": "Delete activity?",
   "list_activities_delete_aria": "Delete {name}",
   "list_activities_delete_message": "Delete \"{name}\" and any allocations of it?",

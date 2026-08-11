@@ -1,6 +1,6 @@
 # US-ACT-01 — Add an activity (internal, cross-project, or project-specific)
 
-**Area:** Activities · **Persona:** Studio manager · **Linked E2E:** `e2e/activities.spec.ts` → "adds an internal, a cross-project, and a project-specific activity into their three sections"
+**Area:** Activities · **Persona:** Studio manager · **Linked E2E:** `e2e/activities.spec.ts` → "adds an internal, a cross-project, and a project-specific activity into their three sections", "groups and sorts project activities by client, project, then activity"
 
 ## Goal
 
@@ -22,9 +22,15 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 
 ## Acceptance criteria
 
-- ✅ **Internal sync** saves into the **Internal activities** section (testid `internal-activities`), with **no** project label.
-- ✅ **Discovery workshop** saves into the **Cross-project activities** section (testid `cross-project-activities`).
-- ✅ **Spec review** saves into the **Project-specific activities** section (testid `project-specific-activities`), its row labelled with the client · project.
+- ✅ **Internal sync** saves into the **Internal activities** section (testid `internal-activities`),
+  with **no** project label. Internal activities are alphabetical.
+- ✅ **Discovery workshop** saves into the **Cross-project activities** section (testid
+  `cross-project-activities`). Cross-project activities are alphabetical.
+- ✅ **Spec review** saves into the **Project-specific activities** section (testid
+  `project-specific-activities`). Project-specific work is grouped and sorted by **client → project
+  → activity**; each client and project label appears once above its activity rows.
+- ✅ A project activity whose scoped project or client metadata is unavailable remains visible in a
+  clearly labelled fallback group rather than disappearing or crashing the list.
 - ✅ Saving an empty **Name** is rejected (required-field error; the dialog stays open).
 - ✅ Saving a **Project-specific**-kind activity with **no project chosen** is rejected ("A project-specific activity must be assigned to a project."); the dialog stays open.
 - ✅ With _Project Watchtower_ chosen, the **Activity** picker offers only that project's project-specific activities, including **Spec review**.

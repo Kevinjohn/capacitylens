@@ -30,15 +30,32 @@ test.describe("Activities", () => {
         .filter({ hasText: "Discovery workshop" }),
     ).toBeVisible();
 
-    // Project-specific kind (the default) → bound to a project, lands in the "Project-specific activities" section,
-    // labelled with its client / project.
+    // Project-specific kind (the default) → bound to a project, lands beneath one client heading
+    // and one project heading in the "Project-specific activities" section.
     await page.getByRole("button", { name: "Add activity" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Spec review");
     await selectShadOption(page.getByLabel("Project"), "p-acme");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(
-      page.getByTestId("project-specific-activities").getByTestId("activity-row").filter({ hasText: "Spec review" }),
-    ).toContainText("Queen");
+    const projectActivities = page.getByTestId("project-specific-activities");
+    await expect(projectActivities.getByRole("heading", { name: "Queen Consolidated", level: 3 })).toBeVisible();
+    await expect(projectActivities.getByRole("heading", { name: "Project Watchtower", level: 4 })).toBeVisible();
+    await expect(projectActivities.getByTestId("activity-row").filter({ hasText: "Spec review" })).toBeVisible();
+  });
+
+  test("groups and sorts project activities by client, project, then activity", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/activities");
+    const section = page.getByTestId("project-specific-activities");
+
+    await expect(section.getByRole("heading", { level: 3 })).toHaveText(["LexCorp", "Queen Consolidated"]);
+    await expect(section.getByRole("heading", { level: 4 })).toHaveText(["Metropolis Rebrand", "Project Watchtower"]);
+    await expect(section.getByTestId("activity-row")).toHaveText([
+      "Brand System",
+      "CMS Review",
+      "Visual Design",
+      "Wireframes",
+    ]);
+    await expect(section.getByText("LexCorp", { exact: true })).toHaveCount(1);
+    await expect(section.getByText("Metropolis Rebrand", { exact: true })).toHaveCount(1);
   });
 
   test("edits an activity name", async ({ page }) => {

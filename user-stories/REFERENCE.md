@@ -995,6 +995,9 @@ multiple).
   belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
   (a project-less cross-project activity). Internal/cross-project activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
+  Internal and cross-project rows are alphabetical. Project-specific rows are grouped and sorted by
+  **client → project → activity**, with each client and project name shown once. Scoped rows whose
+  parent metadata is unavailable remain visible in a clearly labelled fallback group.
 - **Private client/project names.** A normal client or project may be marked private by an account
   **owner** and given a required code name. The real `name` and raw `codeName` remain persisted, but
   only owners receive them from the server. Admins, editors and viewers receive the code name in the
