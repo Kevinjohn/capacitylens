@@ -125,9 +125,9 @@ export interface DisciplineGroup {
   external?: boolean;
 }
 
-/** Canonical discipline ordering: by sortOrder, then name as a stable tiebreak.
- *  Shared by the scheduler grouping AND the Disciplines list so the two surfaces
- *  never disagree when two disciplines share a sortOrder. */
+/** Canonical scheduler discipline ordering: by sortOrder, then name as a stable tiebreak.
+ *  The management list is independently alphabetical because scanning and planning are different
+ *  surfaces; keep this ordering on the scheduler path. */
 export const byDisciplineOrder = (a: Discipline, b: Discipline): number =>
   a.sortOrder - b.sortOrder || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 

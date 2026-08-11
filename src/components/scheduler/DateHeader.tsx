@@ -77,6 +77,7 @@ export const DateHeader = memo(function DateHeader({
       style={{ width: totalWidth }}
     >
       {/* Month tier — padding-driven height (not a fixed px) so it scales with font size.
+          Balanced padding on each month preserves that height while flex centring its label.
           Each month's LABEL is position:sticky, pinned to the left edge of the visible
           timeline (left = leftColWidth, just past the sticky utilisation column), so the
           month you're scrolled into stays labelled instead of scrolling away with its 1st.
@@ -88,7 +89,11 @@ export const DateHeader = memo(function DateHeader({
           fine). */}
       <div className="flex shrink-0 border-b border-line">
         {months.map((mo) => (
-          <div key={mo.key} className="shrink-0 border-r border-line" style={{ width: spanWidth(mo) }}>
+          <div
+            key={mo.key}
+            className="flex shrink-0 items-center border-r border-line py-0.75"
+            style={{ width: spanWidth(mo) }}
+          >
             <span
               className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
               style={{ left: LAYOUT.leftColWidth }}

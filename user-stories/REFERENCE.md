@@ -364,6 +364,15 @@ and projects use **Archive** (`Archive <name>`); their records and children are 
 lifecycle described below. Other deletable rows use **Delete** and include the row name when several
 controls would otherwise be ambiguous (for example, `Delete Design`). The glyph is decorative and the
 button's `aria-label`/`title` carries its action and, where needed, the row name.
+
+The **Time off** page is a forward-looking capacity view. It shows entries whose end date falls on
+or after the start of the current company week, calculated from the active company's timezone and
+Monday/Sunday week-start setting; older entries remain stored but are hidden. Entries are grouped
+into one compact bordered list per resource, with the displayed resource name shown once as the
+section heading. Resource sections sort alphabetically, and their rows sort by start date, end date
+and id. Placeholder entries still follow **Show placeholders**; an unexpected dangling resource is
+kept visible in a final **(unknown)** section rather than crashing.
+
 An allocation **Delete** asks for confirmation, then closes its editor only after the store accepts
 the removal. If the mutation rejects, the dialog stays open and its form error surfaces the safe
 rejection reason. Viewers see no allocation mutation actions.
@@ -1031,6 +1040,14 @@ multiple).
   private row is repaired fail-closed to a distinct, stable `Confidential #<record tag>` label instead
   of exposing its real name or collapsing several private rows onto one indistinguishable label.
 
+- **Management list ordering.** The **Resources**, **Disciplines**, **Clients** and **Projects**
+  management lists are alphabetical by the name shown in each row. Resources keep People,
+  Placeholders and External as separate sections, and each section sorts independently. Projects
+  sort by project name; their client label is secondary text. The hidden built-in **Internal** client
+  remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
+  spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
+  stored arrays are unchanged, and the schedule keeps its deliberate discipline `sortOrder` and
+  resource grouping.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it

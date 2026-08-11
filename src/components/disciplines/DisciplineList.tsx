@@ -3,7 +3,6 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import { useCrudListState } from "../../hooks/useCrudListState";
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { NEUTRAL_COLOR } from "../../lib/palette";
-import { byDisciplineOrder } from "../../store/selectors";
 import { DisciplineForm } from "./DisciplineForm";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
@@ -11,6 +10,7 @@ import { Fragment } from "react";
 import { Plus, Tag } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { errorMessage } from "../../lib/errorMessage";
+import { byName } from "../../lib/displayOrder";
 
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines;
@@ -18,7 +18,8 @@ export function DisciplineList() {
   const setNotice = useStore((s) => s.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Discipline>();
 
-  const sorted = [...disciplines].sort(byDisciplineOrder);
+  // Management is alphabetical for scanning; the scheduler deliberately keeps discipline sortOrder.
+  const sorted = [...disciplines].sort(byName);
 
   return (
     <ListPage title={m.list_disciplines_title()} addLabel={m.list_disciplines_add()} onAdd={() => setCreating(true)}>
