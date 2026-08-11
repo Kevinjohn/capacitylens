@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { PermissionContext } from "../../auth/permissionContext";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { emptyFilters, useStore } from "../../store/useStore";
 import { resetStoreWithAccount } from "../../test/fixtures";
@@ -106,10 +107,44 @@ describe("SchedulerToolbar filter panel", () => {
     expect(hide).toHaveAttribute("aria-controls", "scheduler-filters");
     expect(screen.getByLabelText("Search people")).toBeInTheDocument();
     expect(screen.getByRole("radiogroup", { name: "Draw mode" })).toBeInTheDocument();
+    expect(document.getElementById("scheduler-filters")).toHaveClass("justify-center");
 
     await user.click(hide);
     expect(screen.getByRole("button", { name: "Show filters" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByLabelText("Search people")).not.toBeInTheDocument();
+  });
+
+  it("places the filter toggle after the history controls with dividers on both sides", () => {
+    render(<SchedulerToolbar />);
+
+    const actions = screen.getByTestId("scheduler-toolbar-actions");
+    const show = within(actions).getByRole("button", { name: "Show filters" });
+    const undo = within(actions).getByRole("button", { name: "Undo" });
+    const redo = within(actions).getByRole("button", { name: "Redo" });
+
+    expect(actions.children).toHaveLength(4);
+    expect(actions.children[0]).toHaveAttribute("data-slot", "separator");
+    expect(actions.children[1]).toContainElement(undo);
+    expect(actions.children[1]).toContainElement(redo);
+    expect(actions.children[2]).toHaveAttribute("data-slot", "separator");
+    expect(actions.children[3]).toBe(show);
+  });
+
+  it("keeps the filter toggle in the right-hand action area for viewers", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "viewer" }}>
+        <SchedulerToolbar />
+      </PermissionContext.Provider>,
+    );
+
+    const actions = screen.getByTestId("scheduler-toolbar-actions");
+    const show = within(actions).getByRole("button", { name: "Show filters" });
+
+    expect(within(actions).queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+    expect(within(actions).queryByRole("button", { name: "Redo" })).not.toBeInTheDocument();
+    expect(actions.children).toHaveLength(2);
+    expect(actions.children[0]).toHaveAttribute("data-slot", "separator");
+    expect(actions.children[1]).toBe(show);
   });
 });
 

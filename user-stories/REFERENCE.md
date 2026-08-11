@@ -383,10 +383,12 @@ allocations in the same generated batch.
 `Cancel`. Dialog/footer action buttons keep their text — only the list-row actions are icon-only.
 The archive flow is reversible and retains children; it must not be described as cascade deletion.
 
-**Scheduler toolbar.** A filter-icon button beside **Schedule** starts as **Show filters** with
-`aria-expanded="false"`; it becomes **Hide filters** with `aria-expanded="true"` while the secondary
-filter row is present. Opening and closing the row moves the schedule body down and back up without
-changing any filter or draw-mode state. A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
+**Scheduler toolbar.** A filter-icon button at the right of the toolbar, after **Undo**/**Redo** and
+its own divider, starts as **Show filters** with `aria-expanded="false"`; it becomes **Hide filters**
+with `aria-expanded="true"` while the centred secondary filter row is present. Viewers retain the
+filter button in the same right-hand action area while the unavailable history controls are hidden.
+Opening and closing the row moves the schedule body down and back up without changing any filter or
+draw-mode state. A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
 carries its visible text — "Weeks visible, 4 weeks" — so voice control can act on the words on
 screen, WCAG 2.5.3) replaces the former zoom radiogroup (#173): its five options read "1 week", "2
 weeks", "4 weeks", "6 weeks", "8 weeks", and the closed trigger displays the current one (e.g. "4
