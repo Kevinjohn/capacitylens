@@ -10,6 +10,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.39.3-alpha.1] — 2026-08-11
+
+Schedule controls and time-off selection cues are now clearer and immediately visible.
+
 ### Fixed
 
 - **The 1-week schedule option is visible as soon as the Weeks visible dropdown opens.** The menu now
@@ -3123,7 +3127,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.3-alpha.1...HEAD
+[0.39.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.2-alpha.1...v0.39.3-alpha.1
 [0.39.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.1-alpha.1...v0.39.2-alpha.1
 [0.39.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.0-alpha.1...v0.39.1-alpha.1
 [0.39.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.38.2-alpha.1...v0.39.0-alpha.1
