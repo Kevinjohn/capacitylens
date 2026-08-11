@@ -5,9 +5,9 @@ import { GettingStarted } from "../GettingStarted";
 export function SchedulerView() {
   return (
     <div className="relative flex h-full flex-col">
-      <GettingStarted />
       <SchedulerToolbar />
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
+        <GettingStarted />
         <SchedulerGrid />
       </div>
     </div>

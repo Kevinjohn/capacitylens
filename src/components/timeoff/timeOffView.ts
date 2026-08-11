@@ -1,5 +1,6 @@
 import { startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import { compareDisplayNames } from "../../lib/displayOrder";
 import { resourceDisplayName } from "../../lib/metadata";
 import { m } from "@/i18n";
 
@@ -55,11 +56,8 @@ export function buildTimeOffGroups(
     group.entries.push(entry);
   }
 
-  const groups = [...byResource.values()].sort(
-    (left, right) =>
-      left.name.localeCompare(right.name, undefined, { sensitivity: "base", numeric: true }) ||
-      left.name.localeCompare(right.name) ||
-      (left.resourceId ?? "").localeCompare(right.resourceId ?? ""),
+  const groups = [...byResource.values()].sort((left, right) =>
+    compareDisplayNames(left.name, left.resourceId ?? "", right.name, right.resourceId ?? ""),
   );
   for (const group of groups) group.entries.sort(compareEntries);
   if (unknown) {

@@ -11,6 +11,18 @@ beforeEach(() => {
 });
 
 describe("DisciplineList", () => {
+  it("sorts the management view alphabetically without changing stored sort order", () => {
+    useStore.getState().addDiscipline({ name: "Zulu", color: "#111111", sortOrder: 0 });
+    useStore.getState().addDiscipline({ name: "alpha", color: "#222222", sortOrder: 2 });
+    useStore.getState().addDiscipline({ name: "Bravo", color: "#333333", sortOrder: 1 });
+    const storedIds = useStore.getState().data.disciplines.map((discipline) => discipline.id);
+
+    render(<DisciplineList />);
+
+    expect(screen.getAllByTestId("discipline-row").map((row) => row.textContent)).toEqual(["alpha", "Bravo", "Zulu"]);
+    expect(useStore.getState().data.disciplines.map((discipline) => discipline.id)).toEqual(storedIds);
+  });
+
   it("shows an empty state message when there are no disciplines", () => {
     render(<DisciplineList />);
     expect(screen.getByText(/no disciplines yet/i)).toBeInTheDocument();

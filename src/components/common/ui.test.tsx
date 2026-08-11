@@ -19,6 +19,7 @@ import {
   SegmentedControl,
 } from "./ui";
 import { Button } from "../ui/button";
+import { Toggle } from "../ui/toggle";
 import { EmptyDescription } from "../ui/empty";
 import { Alert, AlertDescription } from "../ui/alert";
 import { FieldError } from "../ui/field";
@@ -88,6 +89,69 @@ describe("Button", () => {
     );
     expect(screen.getByRole("button", { name: "Primary" })).toHaveClass("bg-ok-strong", "text-ok-strong-ink");
     expect(screen.getByRole("button", { name: "Danger" })).toHaveClass("bg-danger-soft", "text-danger-soft-ink");
+  });
+
+  it.each(["default", "danger-soft", "destructive", "outline", "secondary", "ghost"] as const)(
+    "gives the %s variant enabled-only pressed feedback",
+    (variant) => {
+      render(<Button variant={variant}>{variant}</Button>);
+
+      expect(screen.getByRole("button", { name: variant })).toHaveClass("enabled:active:scale-95");
+    },
+  );
+
+  it("keeps link-styled actions out of the button press treatment", () => {
+    render(<Button variant="link">Learn more</Button>);
+
+    expect(screen.getByRole("button", { name: "Learn more" })).not.toHaveClass("enabled:active:scale-95");
+  });
+
+  it("gives icon buttons the same enabled-only pressed feedback", () => {
+    render(
+      <Button size="icon" aria-label="Previous week">
+        ←
+      </Button>,
+    );
+
+    expect(screen.getByRole("button", { name: "Previous week" })).toHaveClass("enabled:active:scale-95");
+  });
+
+  it("does not expose the pressed transform on disabled buttons", () => {
+    render(<Button disabled>Unavailable</Button>);
+
+    const button = screen.getByRole("button", { name: "Unavailable" });
+    expect(button).toHaveClass("enabled:active:scale-95", "disabled:pointer-events-none");
+    expect(button).not.toHaveClass("active:scale-95");
+  });
+});
+
+describe("Toggle", () => {
+  it("shares the transient pressed feedback without replacing persistent selection", () => {
+    render(
+      <Toggle pressed aria-label="Work mode">
+        Work
+      </Toggle>,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Work mode" });
+    expect(toggle).toHaveClass(
+      "enabled:active:scale-95",
+      "data-[state=on]:bg-accent",
+      "data-[state=on]:text-accent-foreground",
+    );
+    expect(toggle).toHaveAttribute("data-state", "on");
+  });
+
+  it("gates pressed feedback when disabled", () => {
+    render(
+      <Toggle disabled aria-label="Unavailable mode">
+        Unavailable
+      </Toggle>,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Unavailable mode" });
+    expect(toggle).toHaveClass("enabled:active:scale-95", "disabled:pointer-events-none");
+    expect(toggle).not.toHaveClass("active:scale-95");
   });
 });
 
@@ -351,6 +415,29 @@ describe("Modal", () => {
     expect(group).toHaveAttribute("data-variant", "outline");
     expect(group).toHaveClass("data-[spacing=0]:data-[variant=outline]:shadow-xs");
     expect(group).not.toHaveClass("data-[spacing=default]:data-[variant=outline]:shadow-xs");
+  });
+
+  it("keeps the selected outline one pixel thick at every connected position", () => {
+    const options = [
+      { value: "first", label: "First" },
+      { value: "middle", label: "Middle" },
+      { value: "last", label: "Last" },
+    ];
+    const control = (value: string) => (
+      <SegmentedControl value={value} onChange={vi.fn()} options={options} ariaLabel="Positions" />
+    );
+    const { rerender } = render(control("first"));
+
+    for (const selectedOption of options) {
+      rerender(control(selectedOption.value));
+      const selected = screen.getByRole("radio", { name: selectedOption.label });
+      expect(selected).toHaveAttribute("data-state", "on");
+      expect(selected).toHaveClass("data-[state=on]:border-brand", "data-[state=on]:z-10");
+      expect(selected).toHaveClass(
+        "data-[spacing=0]:not-first:data-[state=on]:shadow-[inset_1px_0_0_var(--color-brand)]",
+      );
+      expect(selected).not.toHaveClass("data-[spacing=0]:data-[state=on]:shadow-[inset_0_0_0_1px_var(--color-brand)]");
+    }
   });
 
   it("round-trips numeric and string values that have the same display text", () => {

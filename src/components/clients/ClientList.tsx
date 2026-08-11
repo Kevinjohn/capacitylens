@@ -12,6 +12,7 @@ import { Fragment } from "react";
 import { Briefcase, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { clientArchiveImpactCopy } from "../../lib/archiveImpactCopy";
+import { byName } from "../../lib/displayOrder";
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
  *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
@@ -33,7 +34,7 @@ export function ClientList() {
   // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
   // not this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
   const scoped = useActiveScopedData();
-  const clients = scoped.clients.filter((c) => !isBuiltinClient(c));
+  const clients = scoped.clients.filter((c) => !isBuiltinClient(c)).sort(byName);
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();

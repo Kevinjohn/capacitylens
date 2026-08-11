@@ -65,12 +65,12 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Disciplines — `disciplines/`
 
-| Story                                                            | Title                                                       | Automated coverage                                           |
-| ---------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| [US-DIS-01](disciplines/US-DIS-01-add-discipline.md)             | Add a discipline                                            | `e2e/disciplines.spec.ts`                                    |
-| [US-DIS-02](disciplines/US-DIS-02-edit-discipline.md)            | Edit a discipline                                           | `e2e/disciplines.spec.ts`                                    |
-| [US-DIS-03](disciplines/US-DIS-03-delete-discipline-ungroups.md) | Delete (ungroups resources)                                 | `e2e/disciplines.spec.ts`                                    |
-| [US-DIS-04](disciplines/US-DIS-04-sort-order.md)                 | Disciplines display in a stable order (ties broken by name) | `e2e/disciplines.spec.ts` + unit (`selectors.extra.test.ts`) |
+| Story                                                            | Title                                               | Automated coverage                                 |
+| ---------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------- |
+| [US-DIS-01](disciplines/US-DIS-01-add-discipline.md)             | Add a discipline                                    | `e2e/disciplines.spec.ts`                          |
+| [US-DIS-02](disciplines/US-DIS-02-edit-discipline.md)            | Edit a discipline                                   | `e2e/disciplines.spec.ts`                          |
+| [US-DIS-03](disciplines/US-DIS-03-delete-discipline-ungroups.md) | Delete (ungroups resources)                         | `e2e/disciplines.spec.ts`                          |
+| [US-DIS-04](disciplines/US-DIS-04-sort-order.md)                 | Disciplines use a predictable order on each surface | `e2e/alphabetical-management-lists.spec.ts` + unit |
 
 ## Clients — `clients/`
 

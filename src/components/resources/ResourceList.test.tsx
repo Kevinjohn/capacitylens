@@ -37,6 +37,29 @@ const freelancerDraft = (name: string) => ({
 });
 
 describe("ResourceList display", () => {
+  it("sorts each visible section by displayed name without changing stored resource order", () => {
+    setExternalEnabled(true);
+    useStore.getState().addResource(personDraft("Zulu"));
+    useStore.getState().addResource(personDraft("alpha"));
+    useStore.getState().addResource(personDraft("Bravo"));
+    useStore.getState().addResource({ ...personDraft("Zeta Partners"), kind: "external", role: "Partner studio" });
+    useStore.getState().addResource({ ...personDraft("Acme Print"), kind: "external", role: "Print partner" });
+    const storedIds = useStore.getState().data.resources.map((resource) => resource.id);
+
+    render(<ResourceList />);
+
+    expect(screen.getAllByTestId("resource-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "alpha",
+      "Bravo",
+      "Zulu",
+    ]);
+    expect(screen.getAllByTestId("external-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "Acme Print",
+      "Zeta Partners",
+    ]);
+    expect(useStore.getState().data.resources.map((resource) => resource.id)).toEqual(storedIds);
+  });
+
   it("hides direct section create actions from viewers", () => {
     render(
       <PermissionContext.Provider value={{ role: "viewer" }}>
