@@ -62,6 +62,32 @@ test.describe("Resources", () => {
     await expect(page.getByText("Lead Developer")).toBeVisible();
   });
 
+  test("favourites a person and keeps them first in the resource list and discipline group", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/resources");
+
+    const clarkRow = page.getByTestId("resource-row").filter({ hasText: "Clark Kent" });
+    const favourite = clarkRow.getByRole("button", { name: "Add Clark Kent to favourites" });
+    await expect(favourite).toHaveAttribute("aria-pressed", "false");
+
+    await favourite.click();
+
+    const unfavourite = page.getByRole("button", { name: "Remove Clark Kent from favourites" });
+    await expect(unfavourite).toHaveAttribute("aria-pressed", "true");
+    await expect(unfavourite.locator(".lucide-star")).toHaveClass(/fill-warn/);
+    await expect(page.getByTestId("resource-row").first()).toContainText("Clark Kent");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect
+      .poll(async () => {
+        const rows = await page.getByTestId("scheduler-row").allTextContents();
+        return [
+          rows.findIndex((row) => row.includes("Clark Kent")),
+          rows.findIndex((row) => row.includes("Barry Allen")),
+        ];
+      })
+      .toEqual([1, 2]);
+  });
+
   // P2.5b: the per-row destructive action ARCHIVES (hidden from list + schedule, fully retained),
   // not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
   test("archiving a resource hides it from the list + schedule, and undo restores it", async ({ page }) => {
