@@ -12,7 +12,7 @@ Managers often plan one discipline at a time — "how booked is Design this fort
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Seed disciplines are Design, Development, Copywriting.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view. Seed disciplines are Design, Development, Copywriting.
 
 1. Open the **Filter by discipline** select.
 2. Choose **Development**.

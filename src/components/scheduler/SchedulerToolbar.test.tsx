@@ -12,6 +12,10 @@ async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: st
   fireEvent.click(screen.getByRole("option", { name: optionName }));
 }
 
+function showFilters() {
+  fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
+}
+
 beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
@@ -76,11 +80,36 @@ describe("SchedulerToolbar search filter", () => {
   it("typing in the Search field updates ui.filters.search", async () => {
     const user = userEvent.setup();
     render(<SchedulerToolbar />);
+    showFilters();
 
     await user.type(screen.getByLabelText("Search people"), "Alice");
 
     // The search is debounced into the store, so the update lands shortly after typing.
     await waitFor(() => expect(useStore.getState().ui.filters.search).toBe("Alice"));
+  });
+});
+
+describe("SchedulerToolbar filter panel", () => {
+  it("starts collapsed and toggles the filters and draw mode below the primary toolbar", async () => {
+    const user = userEvent.setup();
+    render(<SchedulerToolbar />);
+
+    const show = screen.getByRole("button", { name: "Show filters" });
+    expect(show).toHaveAttribute("aria-expanded", "false");
+    expect(show.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByLabelText("Search people")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Draw mode" })).not.toBeInTheDocument();
+
+    await user.click(show);
+    const hide = screen.getByRole("button", { name: "Hide filters" });
+    expect(hide).toHaveAttribute("aria-expanded", "true");
+    expect(hide).toHaveAttribute("aria-controls", "scheduler-filters");
+    expect(screen.getByLabelText("Search people")).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Draw mode" })).toBeInTheDocument();
+
+    await user.click(hide);
+    expect(screen.getByRole("button", { name: "Show filters" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Search people")).not.toBeInTheDocument();
   });
 });
 
@@ -117,6 +146,7 @@ describe("SchedulerToolbar history errors", () => {
 describe("SchedulerToolbar Clear filter button", () => {
   it("Clear button is absent when no filters are set", () => {
     render(<SchedulerToolbar />);
+    showFilters();
 
     expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
   });
@@ -124,6 +154,7 @@ describe("SchedulerToolbar Clear filter button", () => {
   it("Clear button appears once a filter is set", async () => {
     const user = userEvent.setup();
     render(<SchedulerToolbar />);
+    showFilters();
 
     await user.type(screen.getByLabelText("Search people"), "Bob");
 
@@ -134,6 +165,7 @@ describe("SchedulerToolbar Clear filter button", () => {
   it("clicking Clear resets all filters and hides the Clear button", async () => {
     const user = userEvent.setup();
     render(<SchedulerToolbar />);
+    showFilters();
 
     await user.type(screen.getByLabelText("Search people"), "Bob");
     expect(await screen.findByRole("button", { name: "Clear" })).toBeInTheDocument();
@@ -149,6 +181,7 @@ describe("SchedulerToolbar Clear filter button", () => {
     // A non-search filter is active so Clear renders immediately, before the debounce.
     useStore.getState().setFilters({ disciplineId: "d1" });
     render(<SchedulerToolbar />);
+    showFilters();
 
     await user.type(screen.getByLabelText("Search people"), "jo"); // schedules a 180ms timer
     await user.click(screen.getByRole("button", { name: "Clear" })); // must cancel it
@@ -162,6 +195,7 @@ describe("SchedulerToolbar Clear filter button", () => {
   it("an EXTERNAL filters.search reset (e.g. account switch) cancels a pending search debounce", async () => {
     useStore.getState().setFilters({ search: "alice" }); // a committed search
     render(<SchedulerToolbar />);
+    showFilters();
 
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
     // Type a new term — schedules a 180ms timer to setFilters({ search: 'bob' }); filters.search
@@ -177,6 +211,7 @@ describe("SchedulerToolbar Clear filter button", () => {
 
   it("a filters REPLACEMENT that leaves search unchanged (palette selection) still kills a pending debounce", async () => {
     render(<SchedulerToolbar />);
+    showFilters();
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
 
     // Pending term: the store's search is '' and STAYS '' through the replacement below,
@@ -195,6 +230,7 @@ describe("SchedulerToolbar Clear filter button", () => {
   it("commits pending search text when another toolbar filter changes", async () => {
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     render(<SchedulerToolbar />);
+    showFilters();
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
 
     fireEvent.change(box, { target: { value: "ali" } });
@@ -219,6 +255,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
   it("renders the Activities dropdown with grouped Internal / Cross-project options", async () => {
     seedLensActivities();
     render(<SchedulerToolbar />);
+    showFilters();
     const select = screen.getByRole("combobox", { name: "Filter by activity" });
     expect(select).toBeInTheDocument();
     fireEvent.keyDown(select, { key: "ArrowDown" });
@@ -230,6 +267,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
 
   it("is absent when the account has no project-less activities", () => {
     render(<SchedulerToolbar />);
+    showFilters();
     expect(screen.queryByLabelText("Filter by activity")).not.toBeInTheDocument();
   });
 
@@ -238,6 +276,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
     const { repeatable } = seedLensActivities();
     useStore.getState().setFilters({ projectId: "p1" }); // an active project lens
     render(<SchedulerToolbar />);
+    showFilters();
 
     await chooseOption(user, "Filter by activity", "Design");
 
@@ -251,6 +290,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
     seedLensActivities();
     useStore.getState().setFilters({ clientId: "c1" });
     render(<SchedulerToolbar />);
+    showFilters();
 
     await chooseOption(user, "Filter by activity", "Internal — All");
 
@@ -266,6 +306,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     useStore.getState().setFilters({ activityId: repeatable.id });
     render(<SchedulerToolbar />);
+    showFilters();
 
     await chooseOption(user, "Filter by project", "Acme / Lightning");
 
@@ -284,6 +325,7 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
       color: "#444",
     });
     render(<SchedulerToolbar />);
+    showFilters();
 
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Filter by project" }), { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Acme / Website" })).toBeInTheDocument();

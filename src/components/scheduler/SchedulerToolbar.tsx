@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Redo2, Undo2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListFilter, Redo2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
 import { redoShortcut, undoShortcut } from "../../lib/keyboardShortcuts";
 import { hasActiveFilters, useStore } from "../../store/useStore";
@@ -71,6 +71,7 @@ export function SchedulerToolbar() {
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
   // Keep the input snappy locally; push to filters after a short pause.
   const [searchInput, setSearchInput] = useState(filters.search);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   // Adopt external resets/replacements by reconciling during render — the React-recommended
   // alternative to a sync effect. Keyed on the filters OBJECT (identity), NOT the search
   // value: a palette project/client selection REPLACES filters with a fresh object whose
@@ -149,6 +150,16 @@ export function SchedulerToolbar() {
       >
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-controls="scheduler-filters"
+          >
+            <ListFilter data-icon="inline-start" />
+            {filtersOpen ? m.scheduler_hide_filters() : m.scheduler_show_filters()}
+          </Button>
         </div>
         {/* Prev/Next are icon-only: the chevrons carry the meaning. There is no visible text to
             contradict it, so aria-label alone names them "Prev"/"Next". */}
@@ -196,10 +207,42 @@ export function SchedulerToolbar() {
             </SelectGroup>
           </SelectContent>
         </Select>
-        {/* Draw-mode toggle + Undo/Redo: editor-only (P1.12). A viewer can't draw or mutate, so the
-            draw toggle and the undo/redo affordances are hidden (nothing to switch / undo). */}
+        {/* Undo/Redo: editor-only (P1.12). A viewer can't mutate, so the history affordances are
+            hidden (nothing to undo). The draw-mode toggle lives with the filters below. */}
         {canEdit && (
-          <>
+          <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
+            <Button
+              size="icon-sm"
+              variant="outline"
+              onClick={() => runHistoryAction(undo)}
+              disabled={!canUndo}
+              aria-label={m.scheduler_undo()}
+              title={m.scheduler_undo_title({ shortcut: undoShortcut() })}
+              data-testid="undo-button"
+            >
+              <Undo2 />
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="outline"
+              onClick={() => runHistoryAction(redo)}
+              disabled={!canRedo}
+              aria-label={m.scheduler_redo()}
+              title={m.scheduler_redo_title({ shortcut: redoShortcut() })}
+              data-testid="redo-button"
+            >
+              <Redo2 />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {filtersOpen && (
+        <div
+          id="scheduler-filters"
+          className={`flex flex-wrap items-center gap-x-2 px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
+        >
+          {canEdit && (
             <SegmentedControl
               ariaLabel={m.scheduler_draw_mode_aria()}
               value={drawMode}
@@ -217,187 +260,157 @@ export function SchedulerToolbar() {
                 },
               ]}
             />
-            {/* Visible counterparts to the global undo/redo shortcuts. */}
-            <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={() => runHistoryAction(undo)}
-                disabled={!canUndo}
-                aria-label={m.scheduler_undo()}
-                title={m.scheduler_undo_title({ shortcut: undoShortcut() })}
-                data-testid="undo-button"
-              >
-                <Undo2 />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={() => runHistoryAction(redo)}
-                disabled={!canRedo}
-                aria-label={m.scheduler_redo()}
-                title={m.scheduler_redo_title({ shortcut: redoShortcut() })}
-                data-testid="redo-button"
-              >
-                <Redo2 />
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div
-        className={`flex flex-wrap items-center gap-x-2 px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
-      >
-        <Input
-          value={searchInput}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={m.scheduler_search_people_placeholder()}
-          aria-label={m.scheduler_search_people_aria()}
-          className="w-44 @max-[680px]:w-full"
-        />
-        {disciplinesEnabled && (
+          )}
+          <Input
+            value={searchInput}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={m.scheduler_search_people_placeholder()}
+            aria-label={m.scheduler_search_people_aria()}
+            className="w-44 @max-[680px]:w-full"
+          />
+          {disciplinesEnabled && (
+            <Select
+              value={filters.disciplineId ?? "all"}
+              onValueChange={(value) =>
+                setToolbarFilters({
+                  disciplineId: value === "all" ? null : value,
+                })
+              }
+            >
+              <SelectTrigger aria-label={m.scheduler_filter_discipline_aria()} className="w-auto">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="all">{m.scheduler_filter_all_disciplines()}</SelectItem>
+                  {disciplines.map((discipline) => (
+                    <SelectItem key={discipline.id} value={discipline.id}>
+                      {discipline.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
           <Select
-            value={filters.disciplineId ?? "all"}
-            onValueChange={(value) =>
-              setToolbarFilters({
-                disciplineId: value === "all" ? null : value,
-              })
-            }
+            value={filters.clientId ?? "all"}
+            onValueChange={(value) => setToolbarFilters({ clientId: value === "all" ? null : value })}
           >
-            <SelectTrigger aria-label={m.scheduler_filter_discipline_aria()} className="w-auto">
+            <SelectTrigger aria-label={m.scheduler_filter_client_aria()} className="w-auto">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="all">{m.scheduler_filter_all_disciplines()}</SelectItem>
-                {disciplines.map((discipline) => (
-                  <SelectItem key={discipline.id} value={discipline.id}>
-                    {discipline.name}
+                <SelectItem value="all">{m.scheduler_filter_all_clients()}</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name}
                   </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
           </Select>
-        )}
-        <Select
-          value={filters.clientId ?? "all"}
-          onValueChange={(value) => setToolbarFilters({ clientId: value === "all" ? null : value })}
-        >
-          <SelectTrigger aria-label={m.scheduler_filter_client_aria()} className="w-auto">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="all">{m.scheduler_filter_all_clients()}</SelectItem>
-              {clients.map((client) => (
-                <SelectItem key={client.id} value={client.id}>
-                  {client.name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.projectId ?? "all"}
-          onValueChange={(value) => setToolbarFilters({ projectId: value === "all" ? null : value })}
-        >
-          <SelectTrigger aria-label={m.scheduler_filter_project_aria()} className="w-auto">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="all">{m.scheduler_filter_all_projects()}</SelectItem>
-              {projects.map((project) => {
-                const clientName = clientNames.get(project.clientId);
-                return (
-                  <SelectItem key={project.id} value={project.id}>
-                    {clientName ? `${clientName} / ${project.name}` : project.name}
-                  </SelectItem>
-                );
-              })}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        {(internalActivities.length > 0 || repeatableActivities.length > 0) && (
           <Select
-            // Encoded value: 'all' = all, 'kind:internal'/'kind:repeatable' = a whole group,
-            // otherwise a specific activity id. An activityKind selection wins over a stale activityId.
-            value={filters.activityKind ? `kind:${filters.activityKind}` : (filters.activityId ?? "all")}
-            onValueChange={(value) => {
-              if (value === "kind:internal")
-                setToolbarFilters({
-                  activityKind: "internal",
-                  activityId: null,
-                });
-              else if (value === "kind:repeatable")
-                setToolbarFilters({
-                  activityKind: "repeatable",
-                  activityId: null,
-                });
-              else
-                setToolbarFilters({
-                  activityId: value === "all" ? null : value,
-                  activityKind: null,
-                });
-            }}
+            value={filters.projectId ?? "all"}
+            onValueChange={(value) => setToolbarFilters({ projectId: value === "all" ? null : value })}
           >
-            <SelectTrigger aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
+            <SelectTrigger aria-label={m.scheduler_filter_project_aria()} className="w-auto">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="all">{m.scheduler_filter_all_activities()}</SelectItem>
+                <SelectItem value="all">{m.scheduler_filter_all_projects()}</SelectItem>
+                {projects.map((project) => {
+                  const clientName = clientNames.get(project.clientId);
+                  return (
+                    <SelectItem key={project.id} value={project.id}>
+                      {clientName ? `${clientName} / ${project.name}` : project.name}
+                    </SelectItem>
+                  );
+                })}
               </SelectGroup>
-              {internalActivities.length > 0 && (
-                <SelectGroup>
-                  <SelectLabel>{m.scheduler_filter_internal_group()}</SelectLabel>
-                  <SelectItem value="kind:internal">{m.scheduler_filter_internal_all()}</SelectItem>
-                  {internalActivities.map((activity) => (
-                    <SelectItem key={activity.id} value={activity.id}>
-                      {activity.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              )}
-              {repeatableActivities.length > 0 && (
-                <SelectGroup>
-                  <SelectLabel>{m.scheduler_filter_repeatable_group()}</SelectLabel>
-                  <SelectItem value="kind:repeatable">{m.scheduler_filter_repeatable_all()}</SelectItem>
-                  {repeatableActivities.map((activity) => (
-                    <SelectItem key={activity.id} value={activity.id}>
-                      {activity.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              )}
             </SelectContent>
           </Select>
-        )}
-        <Field orientation="horizontal" className="w-auto gap-1.5">
-          <Checkbox
-            id="hide-tentative"
-            checked={filters.hideTentative}
-            onCheckedChange={(checked) => setToolbarFilters({ hideTentative: checked === true })}
-          />
-          <FieldLabel htmlFor="hide-tentative">{m.scheduler_hide_tentative()}</FieldLabel>
-        </Field>
-        {(filters.projectId || filters.clientId || filters.activityId || filters.activityKind) && (
-          <Field orientation="horizontal" className="w-auto gap-1.5" title={m.scheduler_show_unallocated_title()}>
+          {(internalActivities.length > 0 || repeatableActivities.length > 0) && (
+            <Select
+              // Encoded value: 'all' = all, 'kind:internal'/'kind:repeatable' = a whole group,
+              // otherwise a specific activity id. An activityKind selection wins over a stale activityId.
+              value={filters.activityKind ? `kind:${filters.activityKind}` : (filters.activityId ?? "all")}
+              onValueChange={(value) => {
+                if (value === "kind:internal")
+                  setToolbarFilters({
+                    activityKind: "internal",
+                    activityId: null,
+                  });
+                else if (value === "kind:repeatable")
+                  setToolbarFilters({
+                    activityKind: "repeatable",
+                    activityId: null,
+                  });
+                else
+                  setToolbarFilters({
+                    activityId: value === "all" ? null : value,
+                    activityKind: null,
+                  });
+              }}
+            >
+              <SelectTrigger aria-label={m.scheduler_filter_activity_aria()} className="w-auto">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="all">{m.scheduler_filter_all_activities()}</SelectItem>
+                </SelectGroup>
+                {internalActivities.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>{m.scheduler_filter_internal_group()}</SelectLabel>
+                    <SelectItem value="kind:internal">{m.scheduler_filter_internal_all()}</SelectItem>
+                    {internalActivities.map((activity) => (
+                      <SelectItem key={activity.id} value={activity.id}>
+                        {activity.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {repeatableActivities.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>{m.scheduler_filter_repeatable_group()}</SelectLabel>
+                    <SelectItem value="kind:repeatable">{m.scheduler_filter_repeatable_all()}</SelectItem>
+                    {repeatableActivities.map((activity) => (
+                      <SelectItem key={activity.id} value={activity.id}>
+                        {activity.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+              </SelectContent>
+            </Select>
+          )}
+          <Field orientation="horizontal" className="w-auto gap-1.5">
             <Checkbox
-              id="show-unmatched"
-              checked={filters.showUnmatched}
-              onCheckedChange={(checked) => setToolbarFilters({ showUnmatched: checked === true })}
+              id="hide-tentative"
+              checked={filters.hideTentative}
+              onCheckedChange={(checked) => setToolbarFilters({ hideTentative: checked === true })}
             />
-            <FieldLabel htmlFor="show-unmatched">{m.scheduler_show_unallocated()}</FieldLabel>
+            <FieldLabel htmlFor="hide-tentative">{m.scheduler_hide_tentative()}</FieldLabel>
           </Field>
-        )}
-        {hasActiveFilters(filters) && (
-          <Button size="sm" variant="outline" onClick={onClear}>
-            {m.scheduler_clear()}
-          </Button>
-        )}
-      </div>
+          {(filters.projectId || filters.clientId || filters.activityId || filters.activityKind) && (
+            <Field orientation="horizontal" className="w-auto gap-1.5" title={m.scheduler_show_unallocated_title()}>
+              <Checkbox
+                id="show-unmatched"
+                checked={filters.showUnmatched}
+                onCheckedChange={(checked) => setToolbarFilters({ showUnmatched: checked === true })}
+              />
+              <FieldLabel htmlFor="show-unmatched">{m.scheduler_show_unallocated()}</FieldLabel>
+            </Field>
+          )}
+          {hasActiveFilters(filters) && (
+            <Button size="sm" variant="outline" onClick={onClear}>
+              {m.scheduler_clear()}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

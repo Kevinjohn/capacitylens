@@ -12,7 +12,7 @@ When presenting a confirmed plan, the manager wants to drop the speculative book
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. At least one allocation has **Status** = _Tentative_ (set one via US-ALL-02 if needed; tentative bars render with a dashed/hatched style).
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view. At least one allocation has **Status** = _Tentative_ (set one via US-ALL-02 if needed; tentative bars render with a dashed/hatched style).
 
 1. Tick the **Hide tentative** checkbox.
 

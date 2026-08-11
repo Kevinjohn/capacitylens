@@ -12,7 +12,7 @@ For a client review or billing check, the manager wants to see just that client'
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Seed clients are _Queen Consolidated_ (Project Watchtower) and _LexCorp_ (Metropolis Rebrand).
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view. Seed clients are _Queen Consolidated_ (Project Watchtower) and _LexCorp_ (Metropolis Rebrand).
 
 1. Open the **Filter by client** select.
 2. Choose **Queen Consolidated**.

@@ -13,7 +13,7 @@ A large studio's schedule is long. Typing part of a name or role is the quickest
 ## How (end-to-end)
 
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and
-click **Today** so the seeded people are visible. Placeholders and external resources remain hidden by
+click **Today**, then click **Show filters**, so the seeded people and filter row are visible. Placeholders and external resources remain hidden by
 their default-off account settings and are outside this search example.
 
 1. Click the **Search people…** box.

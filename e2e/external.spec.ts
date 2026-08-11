@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import { openApp, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
 
 // Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
 // active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
@@ -155,6 +155,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await enableExternal(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
+    await showScheduleFilters(page);
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollLeft = 0;
       (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;

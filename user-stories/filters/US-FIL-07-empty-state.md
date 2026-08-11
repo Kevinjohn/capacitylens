@@ -12,7 +12,7 @@ A filter that hides everything looks broken. A clear message tells the manager t
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
+**Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view.
 
 1. In **Search people…**, type a string that matches no resource name or role, e.g. `zzzzz`.
 2. In the centred empty-state card, click **Clear filters**.

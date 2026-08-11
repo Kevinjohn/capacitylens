@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp, showScheduleFilters } from "./helpers";
 
 // The account-level "Use disciplines" toggle (Settings → Disciplines). Off should hide
 // disciplines across the whole app and render the schedule flat; on restores them.
@@ -34,6 +34,7 @@ test.describe("Disciplines optional (account-level)", () => {
     // Schedule renders flat: the rows are still there, but there are no discipline-group
     // bands and the discipline filter control is hidden.
     await page.getByRole("link", { name: "Schedule" }).click();
+    await showScheduleFilters(page);
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
     // The External band is the LAST item; scroll to the bottom so it's inside the virtualised
     // window before asserting (the grid drops off-screen rows from the DOM).

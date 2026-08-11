@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp, showScheduleFilters } from "./helpers";
 
 // Covers US-CLI-01..03.
 test.describe("Clients", () => {
@@ -12,6 +12,7 @@ test.describe("Clients", () => {
 
     // Available as a client filter on the schedule.
     await page.getByRole("link", { name: "Schedule" }).click();
+    await showScheduleFilters(page);
     await page.getByLabel("Filter by client").click();
     await expect(page.getByRole("option", { name: "Initech" })).toBeVisible();
     await page.keyboard.press("Escape");

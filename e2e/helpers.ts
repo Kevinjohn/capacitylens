@@ -77,6 +77,15 @@ export async function setZoom(page: Page, weeks: 1 | 2 | 4 | 6 | 8): Promise<voi
   await selectShadOption(page.getByRole("combobox", { name: "Weeks visible" }), String(weeks));
 }
 
+/** Reveal the schedule's secondary filter row when a flow needs one of its controls. */
+export async function showScheduleFilters(page: Page): Promise<void> {
+  const show = page.getByRole("button", { name: "Show filters" });
+  const hide = page.getByRole("button", { name: "Hide filters" });
+  await show.or(hide).first().waitFor();
+  if (await show.isVisible()) await show.click();
+  await expect(hide).toHaveAttribute("aria-expanded", "true");
+}
+
 /** Re-anchor the schedule on the seeded week. `freezeBrowserDate` pins the clock to 2026-06-03,
  *  whose week start is 2026-06-01, so **Today** puts the seed week's Monday at the left edge. */
 export async function goToSeedWeek(page: Page): Promise<void> {

@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import { openApp, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
@@ -10,6 +10,7 @@ async function box(locator: Locator) {
 test.describe("Feature flows", () => {
   test("filtering by project narrows the schedule to that project", async ({ page }) => {
     await openApp(page);
+    await showScheduleFilters(page);
     const bars = page.getByTestId("allocation-bar");
     await expect.poll(() => bars.count()).toBeGreaterThan(1);
 
@@ -104,6 +105,7 @@ test.describe("Feature flows", () => {
 
   test("drawing in Time off mode opens a prefilled time-off form", async ({ page }) => {
     await openApp(page);
+    await showScheduleFilters(page);
     await setZoom(page, 4);
     // Toolbar draw-mode radio, distinct from the "Time off" nav link.
     await page.getByRole("radio", { name: "Time off", exact: true }).click();
