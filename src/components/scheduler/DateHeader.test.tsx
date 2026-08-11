@@ -2,13 +2,14 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { DateHeader } from "./DateHeader";
 import { buildColumnGeometry } from "./columnGeometry";
+import type { WeeksZoom } from "../../lib/schedulerConfig";
 
 const DAYS = ["2026-06-01", "2026-06-02", "2026-06-06"];
 const DEFAULT_PROPS = { weekStartsOn: 1 as 0 | 1, today: "2026-06-01" };
 
 // Uniform geometry (minimise off): widths are all `dayWidth`, so weekend labels still read
 // "Sat". The narrow-weekend / "S"-label behaviour is exercised separately (commit 2).
-const renderHeader = (dayWidth: number) =>
+const renderHeader = (dayWidth: number, visibleWeeks: WeeksZoom = 2) =>
   render(
     <DateHeader
       days={DAYS}
@@ -17,6 +18,7 @@ const renderHeader = (dayWidth: number) =>
         minimiseWeekends: false,
         weekendWidth: 22,
       })}
+      visibleWeeks={visibleWeeks}
       {...DEFAULT_PROPS}
     />,
   );
@@ -27,12 +29,38 @@ describe("DateHeader", () => {
     expect(screen.getByText("Jun 2026")).toBeInTheDocument();
   });
 
-  it("centres the month label while preserving its sticky, truncated treatment", () => {
+  it("centres wide-view labels in the visible month segment", () => {
     renderHeader(48);
     const label = screen.getByText("Jun 2026");
+    const placement = label.parentElement;
 
-    expect(label.parentElement).toHaveClass("flex", "items-center", "py-0.75");
+    expect(placement).toHaveAttribute("data-month-placement", "visible-segment");
+    expect(placement).toHaveClass("absolute", "items-center", "justify-center", "overflow-hidden");
+    expect(label).toHaveClass("max-w-full", "truncate");
+    expect(label).not.toHaveClass("sticky", "bg-surface");
+  });
+
+  it("keeps compact-view labels sticky and bounded", () => {
+    renderHeader(35);
+    const label = screen.getByText("Jun 2026");
+
+    expect(label).toHaveAttribute("data-month-placement", "sticky-start");
     expect(label).toHaveClass("sticky", "max-w-full", "truncate", "bg-surface");
+    expect(label).toHaveStyle({ left: "256px" });
+  });
+
+  it("keeps 4-week labels compact even when the columns are wide", () => {
+    renderHeader(48, 4);
+    expect(screen.getByText("Jun 2026")).toHaveAttribute("data-month-placement", "sticky-start");
+  });
+
+  it("switches horizontal placement modes at the weekday-label threshold", () => {
+    const below = renderHeader(35);
+    expect(screen.getByText("Jun 2026")).toHaveAttribute("data-month-placement", "sticky-start");
+    below.unmount();
+
+    renderHeader(36);
+    expect(screen.getByText("Jun 2026").parentElement).toHaveAttribute("data-month-placement", "visible-segment");
   });
 
   describe("at a coarse zoom (dayWidth < 18)", () => {
@@ -76,6 +104,7 @@ describe("DateHeader", () => {
           minimiseWeekends: false,
           weekendWidth: 10,
         })}
+        visibleWeeks={2}
         {...DEFAULT_PROPS}
       />,
     );
@@ -144,6 +173,7 @@ describe("DateHeader", () => {
             minimiseWeekends: true,
             weekendWidth: 22,
           })}
+          visibleWeeks={2}
           weekStartsOn={1}
           today="2026-06-05"
         />,

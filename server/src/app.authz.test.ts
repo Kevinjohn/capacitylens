@@ -139,6 +139,14 @@ const patchClient = (app: FastifyInstance, id: string, cookie?: string) =>
     headers: cookie ? { cookie } : {},
   });
 
+const patchResourceFavourite = (app: FastifyInstance, id: string, cookie?: string) =>
+  call(app, {
+    method: "PATCH",
+    url: `/api/resources/${id}`,
+    payload: { isFavourite: true },
+    headers: cookie ? { cookie } : {},
+  });
+
 /** DELETE a seeded non-lifecycle row (scoped delete needs ?accountId=). */
 const deleteProject = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
   call(app, {
@@ -258,6 +266,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect((await postClient(app, "a1", "vc1", cookie)).statusCode).toBe(403);
     expect((await putClient(app, "a1", "vc2", cookie)).statusCode).toBe(403);
     expect((await patchClient(app, "c1", cookie)).statusCode).toBe(403);
+    expect((await patchResourceFavourite(app, "r1", cookie)).statusCode).toBe(403);
     expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(403);
     expect((await batchInto(app, "a1", "vc3", cookie)).statusCode).toBe(403);
     expect((await importInto(app, "a1", "vc4", cookie)).statusCode).toBe(403);
@@ -273,6 +282,8 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect((await postClient(app, "a1", "ec1", cookie)).statusCode).toBe(201);
     expect((await putClient(app, "a1", "ec2", cookie)).statusCode).toBe(200);
     expect((await patchClient(app, "c1", cookie)).statusCode).toBe(200);
+    expect((await patchResourceFavourite(app, "r1", cookie)).statusCode).toBe(200);
+    expect(getRow(db, "resources", "r1")?.isFavourite).toBe(true);
     expect((await deleteProject(app, "a1", "p1", cookie)).statusCode).toBe(204);
     expect((await batchInto(app, "a1", "ec3", cookie)).statusCode).toBe(200);
     // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses

@@ -77,6 +77,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
     // (2026-06-02) — the previous column. Rounded first, it lands on the boundary column.
     expect(screen.getByTestId("left-edge-idx").textContent).toBe("2");
     expect(screen.getByTestId("visible-start").textContent).toBe("2026-06-03");
+    expect(grid.style.getPropertyValue("--sched-scroll-left")).toBe(`${boundary - 0.4}px`);
   });
 
   it("onScroll still resolves an exact boundary scrollLeft to that column (rounding is a no-op there)", () => {
@@ -131,6 +132,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
     const currentFocusX = Number(screen.getByTestId("focus-x").textContent);
     expect(currentFocusX).toBeGreaterThan(0);
     expect(grid.scrollLeft).toBe(currentFocusX);
+    expect(grid.style.getPropertyValue("--sched-scroll-left")).toBe(`${currentFocusX}px`);
   });
 
   it("clamps a zoom anchor whose week start falls before the timeline origin", () => {

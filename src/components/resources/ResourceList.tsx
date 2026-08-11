@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
-import { Plus, Users } from "lucide-react";
+import { Plus, Star, Users } from "lucide-react";
 import { useStore } from "../../store/useStore";
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
@@ -17,9 +17,46 @@ import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { Badge } from "../ui/badge";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { displayNameComparator } from "../../lib/displayOrder";
+import { displayNameComparator, favouriteDisplayNameComparator } from "../../lib/displayOrder";
+import { Button } from "../ui/button";
+import { useCanEdit } from "../../auth/permissionContext";
+import { errorMessage } from "../../lib/errorMessage";
+import { cn } from "../../lib/utils";
 
+const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
 const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
+
+function FavouriteButton({ resource }: { resource: Resource }) {
+  const canEdit = useCanEdit();
+  const updateResource = useStore((state) => state.updateResource);
+  const setNotice = useStore((state) => state.setNotice);
+
+  if (!canEdit) return null;
+
+  const selected = resource.isFavourite === true;
+  const name = resourceDisplayName(resource);
+  const label = selected ? m.list_resources_unfavourite_aria({ name }) : m.list_resources_favourite_aria({ name });
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      aria-pressed={selected}
+      onClick={() => {
+        try {
+          updateResource(resource.id, { isFavourite: !selected });
+        } catch (error) {
+          setNotice(errorMessage(error), "error");
+        }
+      }}
+    >
+      <Star aria-hidden className={cn("text-muted-foreground", selected && "fill-warn text-warn")} />
+    </Button>
+  );
+}
 
 export function ResourceList() {
   const data = useActiveScopedData();
@@ -52,9 +89,9 @@ export function ResourceList() {
 
   // Resources, placeholders, and externals all live on THIS tab now. Externals (the External section
   // below) are gated behind the per-account `externalEnabled` pref; people/placeholders split by kind.
-  const people = resources.filter((r) => r.kind === "person").sort(byResourceDisplayName);
+  const people = resources.filter((r) => r.kind === "person").sort(byFavouriteResourceDisplayName);
   const placeholders = resources.filter((r) => r.kind === "placeholder").sort(byResourceDisplayName);
-  const externals = resources.filter(isExternalResource).sort(byResourceDisplayName);
+  const externals = resources.filter(isExternalResource).sort(byFavouriteResourceDisplayName);
   const visibleResourceCount =
     people.length + (placeholdersEnabled ? placeholders.length : 0) + (externalEnabled ? externals.length : 0);
 
@@ -76,6 +113,7 @@ export function ResourceList() {
         </span>
       </ItemContent>
       <ItemActions>
+        {r.kind === "person" && <FavouriteButton resource={r} />}
         <EditButton label={m.list_edit_aria({ name: resourceDisplayName(r) })} onClick={() => setEditing(r)} />
         <DeleteButton
           label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })}
@@ -187,6 +225,7 @@ export function ResourceList() {
                       {r.name && r.role && <span className="text-sm text-muted-foreground">· {r.role}</span>}
                     </ItemContent>
                     <ItemActions>
+                      <FavouriteButton resource={r} />
                       <EditButton
                         label={m.list_edit_aria({ name: r.name ?? r.role })}
                         onClick={() => ext.setEditing(r)}

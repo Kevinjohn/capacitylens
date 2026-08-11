@@ -44,6 +44,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
     workingHoursPerDay: 8,
     workingDays: WORKDAYS,
     color: "#2d75da",
+    isFavourite: false,
     ...overrides,
   };
 }

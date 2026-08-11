@@ -26,6 +26,7 @@ import type {
   Resource,
   TimeOff,
 } from "@capacitylens/shared/types/entities";
+import { displayNameComparator, favouriteDisplayNameComparator } from "../../lib/displayOrder";
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
@@ -65,6 +66,8 @@ function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: 
 // array per resource-day (this runs days × resources times on every model rebuild).
 const NO_ALLOCATIONS: Allocation[] = [];
 const NO_TIME_OFF: TimeOff[] = [];
+const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
+const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
 
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
  *  (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
@@ -428,11 +431,15 @@ export function buildSchedulerModel({
       title: group.external ? "External / 3rd party" : (group.discipline?.name ?? "No discipline"),
       color: group.external ? NEUTRAL_COLOR : group.discipline?.color,
       external: !!group.external,
-      // People first, placeholders ("slots") second, within each discipline. Stable
-      // sort, so the existing relative order is preserved within each partition.
+      // Keep discipline/external grouping intact while putting favourites first alphabetically.
+      // Placeholders remain after all people and have no favourite affordance.
       rows: group.resources
         .filter(resourceVisible)
-        .sort((a, b) => Number(a.kind === "placeholder") - Number(b.kind === "placeholder"))
+        .sort(
+          (a, b) =>
+            Number(a.kind === "placeholder") - Number(b.kind === "placeholder") ||
+            (a.kind === "placeholder" ? byResourceDisplayName(a, b) : byFavouriteResourceDisplayName(a, b)),
+        )
         .map((resource) => {
           // This resource's data, pre-grouped above; capacity then scans only its own
           // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).

@@ -60,7 +60,43 @@ describe("ResourceList display", () => {
     expect(useStore.getState().data.resources.map((resource) => resource.id)).toEqual(storedIds);
   });
 
+  it("puts favourites first within People and External and toggles them accessibly", async () => {
+    const user = userEvent.setup();
+    setExternalEnabled(true);
+    useStore.getState().addResource(personDraft("Alpha"));
+    useStore.getState().addResource({ ...personDraft("Zulu"), isFavourite: true });
+    useStore.getState().addResource({ ...personDraft("Acme"), kind: "external", role: "Print partner" });
+    useStore
+      .getState()
+      .addResource({ ...personDraft("Zeta"), kind: "external", role: "Partner studio", isFavourite: true });
+
+    render(<ResourceList />);
+
+    expect(screen.getAllByTestId("resource-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "Zulu",
+      "Alpha",
+    ]);
+    expect(screen.getAllByTestId("external-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "Zeta",
+      "Acme",
+    ]);
+
+    const favouriteAlpha = screen.getByRole("button", { name: "Add Alpha to favourites" });
+    expect(favouriteAlpha).toHaveAttribute("aria-pressed", "false");
+    await user.click(favouriteAlpha);
+
+    expect(screen.getByRole("button", { name: "Remove Alpha from favourites" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getAllByTestId("resource-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "Alpha",
+      "Zulu",
+    ]);
+  });
+
   it("hides direct section create actions from viewers", () => {
+    useStore.getState().addResource(personDraft("Alice"));
     render(
       <PermissionContext.Provider value={{ role: "viewer" }}>
         <ResourceList />
@@ -69,6 +105,7 @@ describe("ResourceList display", () => {
 
     expect(screen.queryByRole("button", { name: "Add resource" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add placeholder" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add Alice to favourites" })).not.toBeInTheDocument();
   });
 
   it("shows an empty state when no resources exist", () => {
@@ -144,6 +181,7 @@ describe("ResourceList display", () => {
     expect(within(row).getByText(/Senior Designer/)).toBeInTheDocument();
     // No "Temp" tag since it is permanent
     expect(within(row).queryByText("Temp")).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /favourites/i })).not.toBeInTheDocument();
   });
 
   it("does not show global first-resource onboarding when only a visible later section has rows", () => {

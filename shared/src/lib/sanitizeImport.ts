@@ -44,6 +44,7 @@ const IMPORTED_FIELDS = {
     "workingDays",
     "projectId",
     "color",
+    "isFavourite",
     "archivedAt",
     "deletedAt",
   ],
@@ -264,6 +265,9 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       // was supplied at all.
       if (typeof rec.role === "string") cleanField(rec, "role");
       else rec.role = "Team member";
+      // Favourites are an optional binary flag. Preserve explicit true/false; absence is the
+      // default-off representation and malformed hand-edited values must not become truthy.
+      if (rec.isFavourite !== undefined && typeof rec.isFavourite !== "boolean") delete rec.isFavourite;
       normalizeLifecycleFields(rec);
       break;
     case "allocations":

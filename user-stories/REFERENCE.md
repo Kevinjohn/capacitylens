@@ -321,6 +321,11 @@ week dominates the helicopter view. Weekends are not removed: people can still w
 bars span across them, and the narrowing only applies at a fine enough zoom to show per-day
 columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` labels.
 
+**Month header placement.** In the wide 1- and 2-week views, each month/year label is centred over
+the portion of that month currently visible in the timeline, including split-month windows and a
+partial month at either edge. The 4-, 6- and 8-week views retain the compact sticky label, bounded
+to its own month so neighbouring labels cannot overlap.
+
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
@@ -365,6 +370,10 @@ and projects use **Archive** (`Archive <name>`); their records and children are 
 lifecycle described below. Other deletable rows use **Delete** and include the row name when several
 controls would otherwise be ambiguous (for example, `Delete Design`). The glyph is decorative and the
 button's `aria-label`/`title` carries its action and, where needed, the row name.
+Person and external-party rows also have an account-wide favourite toggle beside Edit/Archive.
+Its star is an outline when off and yellow-filled when on, exposes `aria-pressed`, and is named
+`Add <name> to favourites` or `Remove <name> from favourites` for the action it will perform.
+Viewers do not see the toggle, and placeholder rows never show one.
 
 The **Time off** page is a forward-looking capacity view. It shows entries whose end date falls on
 or after the start of the current company week, calculated from the active company's timezone and
@@ -1051,12 +1060,17 @@ multiple).
 
 - **Management list ordering.** The **Resources**, **Disciplines**, **Clients** and **Projects**
   management lists are alphabetical by the name shown in each row. Resources keep People,
-  Placeholders and External as separate sections, and each section sorts independently. Projects
+  Placeholders and External as separate sections, and each section sorts independently. Favourite
+  people appear first in People and favourite external parties appear first in External; each
+  favourite and non-favourite partition remains alphabetical. Projects
   sort by project name; their client label is secondary text. The hidden built-in **Internal** client
   remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
   spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
-  stored arrays are unchanged, and the schedule keeps its deliberate discipline `sortOrder` and
-  resource grouping.
+  stored arrays are unchanged. The schedule keeps its deliberate discipline `sortOrder` and
+  resource grouping while sorting favourite people first within their own discipline, followed by
+  the remaining people and then placeholders. Favourite external parties similarly lead the
+  External band. Favourites are company data shared by every account member, not a per-user view
+  preference.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it

@@ -170,6 +170,26 @@ describe("store CRUD covers every entity", () => {
     expectRevisionAdvanced(r, s().data.resources[0]);
   });
 
+  it("resources: favourite updates are account data and undoable", () => {
+    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+
+    s().updateResource(resource.id, { isFavourite: true });
+    expect(s().data.resources[0].isFavourite).toBe(true);
+
+    s().undo();
+    expect(s().data.resources[0].isFavourite).toBeUndefined();
+  });
+
+  it("resources: a viewer cannot change an account favourite", () => {
+    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+
+    s().setActiveRole("viewer");
+    s().updateResource(resource.id, { isFavourite: true });
+
+    expect(s().data.resources[0].isFavourite).toBeUndefined();
+    expect(s().notice).toMatchObject({ tone: "error" });
+  });
+
   it("allocations: add / update / delete", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });

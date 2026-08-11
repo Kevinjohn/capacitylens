@@ -106,6 +106,7 @@ export const FIXTURE_RESOURCE: Resource = {
   workingDays: [1, 2, 3],
   projectId: "fix-p1",
   color: "#3ace6b",
+  isFavourite: true,
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
