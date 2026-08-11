@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Time off is now grouped by resource and focused on current and upcoming absences.** Resource
+  sections are alphabetical, entries are date ordered, and completed entries from before the active
+  company's current week stay stored without cluttering the planning view (#203).
+
 ## [0.39.4-alpha.1] — 2026-08-11
 
 The schedule now opens with more room for planning while keeping every filter close at hand.

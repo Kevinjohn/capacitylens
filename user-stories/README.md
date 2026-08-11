@@ -110,12 +110,13 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Time off — `time-off/`
 
-| Story                                              | Title                          | Automated coverage                                    |
-| -------------------------------------------------- | ------------------------------ | ----------------------------------------------------- |
-| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)   | Book time off                  | `e2e/timeoff.spec.ts` + `e2e/features.spec.ts`        |
-| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)   | Edit a time-off entry          | `e2e/timeoff.spec.ts`                                 |
-| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md) | Delete a time-off entry (undo) | `e2e/timeoff.spec.ts`                                 |
-| [US-TOF-04](time-off/US-TOF-04-type-label.md)      | Human type label               | `e2e/timeoff.spec.ts` + unit (`TimeOffList.test.tsx`) |
+| Story                                                   | Title                          | Automated coverage                                    |
+| ------------------------------------------------------- | ------------------------------ | ----------------------------------------------------- |
+| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)        | Book time off                  | `e2e/timeoff.spec.ts` + `e2e/features.spec.ts`        |
+| [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)        | Edit a time-off entry          | `e2e/timeoff.spec.ts`                                 |
+| [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)      | Delete a time-off entry (undo) | `e2e/timeoff.spec.ts`                                 |
+| [US-TOF-04](time-off/US-TOF-04-type-label.md)           | Human type label               | `e2e/timeoff.spec.ts` + unit (`TimeOffList.test.tsx`) |
+| [US-TOF-05](time-off/US-TOF-05-grouped-forward-view.md) | Group current/future time off  | `e2e/timeoff.spec.ts` + unit (`timeOffView.test.ts`)  |
 
 ## Scheduler timeline — `scheduler/`
 
