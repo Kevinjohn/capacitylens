@@ -99,6 +99,9 @@ type Page = import("@playwright/test").Page;
  */
 const importFile = async (page: Page, name: string, body: string) => {
   await page.getByRole("link", { name: "Settings", exact: true }).click();
+  if (!(await page.getByTestId("settings-data-tools").isVisible())) {
+    await page.getByRole("button", { name: "Import & export", exact: true }).click();
+  }
   await expect(page.getByTestId("settings-data-tools")).toBeVisible();
   await page.getByTestId("import-input").setInputFiles({
     name,

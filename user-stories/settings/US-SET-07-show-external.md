@@ -25,7 +25,8 @@ old URL now redirects to `/resources`.)
 
 1. On the Schedule, note there is **no External band** at the bottom — only the real people. The external's bar (Visual Design) is not drawn.
 2. Open **Resources** (sidebar). There is **no "External" section** and **no "Add external party" button** — only the people list.
-3. Open **Settings** (sidebar). In the **External** section, read the explainer copy and find the **Show external resources** switch — it's **off**.
+3. Open **Settings** (sidebar). In the **External** section, find the **Show external resources**
+   switch — it's **off**. Its question-mark action opens the fuller explainer.
 4. Switch it **on**.
 5. Return to **Resources**: the **External** section now appears (with the same explainer copy and an **Add external party** button), showing the seeded external _Kord Industries_.
 6. Return to **Schedule**: a neutral **External / 3rd party** band now appears at the very bottom with _Kord Industries_'s Visual Design bar (no hours, no utilisation chip).
@@ -34,7 +35,9 @@ old URL now redirects to `/resources`.)
 
 ## Acceptance criteria
 
-- The **External** section appears in Settings with explainer copy and a single **Show external resources** switch (`role="switch"`, accessible name `Show external resources`).
+- The **External** section appears in Settings with a single **Show external resources** switch
+  (`role="switch"`, accessible name `Show external resources`); its fuller explainer is in the
+  labelled question-mark help modal rather than permanently on the page.
 - The switch defaults to **off** (`aria-checked="false"`) — externals are hidden out of the box.
 - With it **off**: no External band appears on the schedule, no external option appears in the assignee picker or the ⌘K command palette, and the Resources page hides its **External** section and **Add external party** button. The (now-empty) External band header does **not** render. A dataset that already contains externals **hides** them — it never errors.
 - With it **on**: the External band renders at the bottom of the schedule (single neutral colour, no utilisation / over-markers), and the **External** section appears under the Resources tab with explainer copy. The assignee picker labels an external **"<Company> (external)"**.

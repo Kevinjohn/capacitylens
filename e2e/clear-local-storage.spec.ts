@@ -35,6 +35,9 @@ test.describe("Settings — Clear device data", () => {
       });
     });
 
+    const disclosure = page.getByRole("button", { name: "Device data", exact: true });
+    await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    await disclosure.click();
     const button = page.getByTestId("clear-local-storage");
     await expect(button).toBeVisible();
     await expect(button).toHaveText("Clear device data");

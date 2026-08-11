@@ -14,7 +14,8 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 
 **Precondition:** Seeded app open. You have a valid CapacityLens JSON file to import — produce one first via **Export JSON** (US-DAT-01), which downloads `capacitylens-data.json`. (To prove the replace is visible, you may add or rename one entity before exporting so the imported set differs from the live one.)
 
-1. Open **Settings** and scroll to the **Import & export** card at the bottom of the page. Click **Import JSON** (`data-testid="import-data"`). The OS file picker opens.
+1. Open **Settings**, scroll to **Import & export**, expand it and click **Import JSON**
+   (`data-testid="import-data"`). The OS file picker opens.
 2. Choose the `capacitylens-data.json` file. The **"Import data?"** confirmation dialog appears.
 3. Read the dialog: it names the file, states it **replaces this company's data**, lists the file's entity counts (e.g. "5 resources, 3 disciplines, 2 clients, …, 1 time-off entries"), and says "You can undo this with ⌘Z."
 4. Click **Cancel** the first time — the dialog closes and the live data is untouched (proves Cancel is safe).

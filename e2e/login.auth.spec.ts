@@ -96,7 +96,7 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
 
     // Settings gains the Account section only on an auth-enabled deploy.
     await page.getByRole("link", { name: "Settings" }).click();
-    await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
     // Scoped to the page body: the sidebar footer carries its own avatar'd Sign out (#169), so an
     // unscoped lookup now matches two buttons.

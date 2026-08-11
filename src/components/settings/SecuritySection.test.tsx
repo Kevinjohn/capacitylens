@@ -144,7 +144,11 @@ describe("SecuritySection", () => {
         name: m.settings_security_title(),
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(m.settings_security_description())).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_security_description())).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `About ${m.settings_security_title()}` }));
+    const help = screen.getByRole("dialog", { name: m.settings_security_title() });
+    expect(help).toHaveTextContent(m.settings_security_description());
+    fireEvent.click(screen.getByRole("button", { name: m.settings_help_close() }));
     expect(screen.getByLabelText(m.settings_security_current_password())).toBeInTheDocument();
     expect(screen.getByLabelText(m.settings_security_new_password())).toBeInTheDocument();
     expect(screen.getByLabelText(m.settings_security_confirm_password())).toBeInTheDocument();

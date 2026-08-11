@@ -9,9 +9,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // to server mode — it routes through the same addAccount).
 
 test.describe("onboarding: capture-then-freeze language / week-start / time zone", () => {
-  test("create a company capturing week-start + timezone → land in app → Settings shows them disabled", async ({
-    page,
-  }) => {
+  test("create a company capturing week-start + timezone → Settings shows the read-only summary", async ({ page }) => {
     // Same frozen-clock + fake-sign-in + "New company" walk as helpers.ts's `openApp`/
     // `openNewCompany`, stopping short so this spec can inspect and change the open form's
     // fields before submitting it.
@@ -33,14 +31,14 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     await createCompany(page, "Onboarded Co");
 
     // Navigate to Settings via the in-app nav (a full reload would drop the never-persisted
-    // active account and bounce back to the picker). Settings shows the captured values, now FROZEN.
+    // active account and bounce back to the picker). Settings shows the captured values read-only.
     await page.getByRole("link", { name: "Settings" }).click();
-    await expect(page.getByRole("radio", { name: "Sunday" })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("radio", { name: "Sunday" })).toBeDisabled();
-    await expect(page.getByRole("radio", { name: "Monday" })).toBeDisabled();
-    await expect(page.getByLabel("Timezone")).toBeDisabled();
-    await expect(page.getByLabel("Timezone")).toHaveText("Europe/London (UTC+01:00)");
+    const accountOptions = page
+      .getByRole("heading", { name: "Account Options Selected at Creation" })
+      .locator('xpath=ancestor::*[@data-slot="card"]');
+    await expect(accountOptions.getByRole("row", { name: "Company name Onboarded Co" })).toBeVisible();
+    await expect(accountOptions.getByRole("row", { name: "Week starts on Sunday" })).toBeVisible();
+    await expect(accountOptions.getByRole("row", { name: "Time zone Europe/London (UTC+01:00)" })).toBeVisible();
     await expect(page.getByTestId("settings-language")).toHaveText("English");
-    await expect(page.getByText(/Set when the company was created and can't be changed/i)).toBeVisible();
   });
 });

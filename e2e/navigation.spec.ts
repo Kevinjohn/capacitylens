@@ -72,7 +72,13 @@ test.describe("Navigation & shell", () => {
       ["Projects", async () => void (await expect(page.getByRole("button", { name: "Add project" })).toBeVisible())],
       ["Activities", async () => void (await expect(page.getByRole("button", { name: "Add activity" })).toBeVisible())],
       ["Time off", async () => void (await expect(page.getByRole("button", { name: "Add time off" })).toBeVisible())],
-      ["Settings", async () => void (await expect(page.getByLabel("Company name")).toBeVisible())],
+      [
+        "Settings",
+        async () =>
+          void (await expect(
+            page.getByRole("heading", { name: "Account Options Selected at Creation" }),
+          ).toBeVisible()),
+      ],
     ];
     for (const [link, assert] of sections) {
       await page.getByRole("link", { name: link, exact: true }).click();
@@ -108,6 +114,7 @@ test.describe("Navigation & shell", () => {
     await expect(page.getByTestId("export-data")).toHaveCount(0);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Import & export" })).toBeVisible();
+    await page.getByRole("button", { name: "Import & export", exact: true }).click();
     await expect(page.getByTestId("export-data")).toBeVisible();
     await expect(page.getByTestId("import-data")).toBeVisible();
   });
@@ -170,6 +177,7 @@ test.describe("Navigation & shell", () => {
     await clientDialog.getByRole("button", { name: "Cancel" }).click();
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "Device data", exact: true }).click();
     await expect(page.getByTestId("clear-local-storage")).toHaveAttribute("data-variant", "danger-soft");
   });
 

@@ -15,7 +15,7 @@ preparation without exporting identity or authentication records.
 
 **Precondition:** Seeded app open with **Wayne Enterprises** selected.
 
-1. Open **Settings** and scroll to the **Import & export** card at the bottom of the page. Click **Export JSON**.
+1. Open **Settings**, scroll to **Import & export**, expand it and click **Export JSON**.
 2. Wait for `capacitylens-data.json` to download.
 3. Open the downloaded file and inspect its top-level shape and scoped tables.
 

@@ -33,8 +33,8 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 8. Click **Time off**. The URL is `/timeoff` and the Time-off list shows
    (_Bruce — 10–12 June (Holiday)_).
 9. Click **Team & access**. The URL is `/team` and the current access summary shows.
-10. Click **Settings**. The URL is `/settings` and the Settings screen shows (with the
-    **Company name** field).
+10. Click **Settings**. The URL is `/settings` and the Settings screen shows (ending with the
+    **Account Options Selected at Creation** summary).
 
 ## Acceptance criteria
 
@@ -45,7 +45,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).
 - ✅ Each of the other eight links renders its screen with at least the seeded rows /
   fields visible (e.g. _Bruce Wayne_ on Resources, _Queen Consolidated_ on Clients, the
-  **Company name** field on Settings).
+  **Account Options Selected at Creation** heading on Settings).
 - ✅ Navigating away and back (e.g. Resources → Schedule) re-renders each screen
   without a blank page or console error.
 - ✅ Loading or reloading a valid destination URL serves the application shell rather than an HTTP 404. Because the active company is intentionally session-only, the company picker appears after a

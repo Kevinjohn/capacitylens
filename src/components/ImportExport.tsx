@@ -199,7 +199,7 @@ export function ImportExport() {
   return (
     // Lives in a Settings card (issue #169), NOT the sidebar: a full-slice export/replace is a
     // once-in-a-while administrative act, and it was crowding the day-to-day destinations. The
-    // enclosing SettingsCard owns the heading and description, so this renders controls only.
+    // enclosing SettingsSection owns the heading, help and disclosure, so this renders controls only.
     <div className="flex flex-col gap-3" data-testid="settings-data-tools">
       <div className="flex flex-wrap gap-2">
         {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a

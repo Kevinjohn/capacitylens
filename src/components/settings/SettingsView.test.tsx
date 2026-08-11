@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
 import { AuthContext } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { PermissionContext } from "../../auth/permissionContext";
 
 const offlineMocks = vi.hoisted(() => ({
   enabled: false,
@@ -47,56 +48,6 @@ beforeEach(() => {
   useStore.getState().setTheme("light");
 });
 
-describe("SettingsView — company name", () => {
-  it("renames the active account through the store", async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-
-    const input = screen.getByLabelText("Company name");
-    expect(input).toHaveValue("Test Co");
-
-    // No edit yet → Save is disabled.
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-
-    await user.clear(input);
-    await user.type(input, "Renamed Co");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID);
-    expect(account?.name).toBe("Renamed Co");
-    expect(useStore.getState().notice?.message).toMatch(/updated/i);
-  });
-
-  it("re-syncs the field when the account name changes underneath (e.g. undo)", async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-
-    const input = screen.getByLabelText("Company name");
-    await user.clear(input);
-    await user.type(input, "Acme");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(input).toHaveValue("Acme");
-
-    // Undo reverts the store name; the field must follow it, not stay stale on 'Acme'.
-    act(() => useStore.getState().undo());
-    expect(input).toHaveValue("Test Co");
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-  });
-
-  it("rejects an empty name with a field error", async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-
-    const input = screen.getByLabelText("Company name");
-    await user.clear(input);
-    await user.type(input, "   ");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/name is required/i);
-    expect(useStore.getState().data.accounts[0].name).toBe("Test Co");
-  });
-});
-
 describe("SettingsView — scheduling mode", () => {
   it("defaults to Hours and switches the company to Days through the store", async () => {
     const user = userEvent.setup();
@@ -127,6 +78,44 @@ describe("SettingsView — scheduling mode", () => {
     const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID);
     expect(account?.schedulingMode).toBe("blocks");
     expect(blocks).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("SettingsView — section help", () => {
+  it("gives every default settings section its labelled question-mark action", () => {
+    render(<SettingsView />);
+
+    for (const section of [
+      "Scheduling",
+      "Disciplines",
+      "Schedule",
+      "Internal work colours",
+      "Placeholders",
+      "External",
+      "Internal work",
+      "Activity creation",
+      "Allocation bars",
+      "Utilisation",
+      "Appearance",
+      "Device data",
+      "Import & export",
+      "Account Options Selected at Creation",
+    ]) {
+      expect(screen.getByRole("button", { name: `About ${section}` })).toHaveAttribute("title", `About ${section}`);
+    }
+  });
+
+  it("keeps help and the account summary available while company controls remain read-only for viewers", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.getByRole("button", { name: "About Disciplines" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Use disciplines" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Days" })).toBeDisabled();
+    expect(screen.getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
   });
 });
 
@@ -203,18 +192,22 @@ describe("SettingsView — build stamp", () => {
 });
 
 describe("SettingsView — Import & export card (issue #169)", () => {
-  it("renders the import/export tools as the LAST card on the page", () => {
+  it("keeps the import/export tools closed by default above the final account-options card", async () => {
+    const user = userEvent.setup();
     render(<SettingsView />);
 
     expect(screen.getByRole("heading", { name: "Import & export" })).toBeInTheDocument();
+    const disclosure = screen.getByRole("button", { name: "Import & export" });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
+
+    await user.click(disclosure);
     expect(screen.getByTestId("export-data")).toHaveTextContent("Export JSON");
     expect(screen.getByTestId("import-data")).toHaveTextContent("Import JSON");
     expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
 
-    // Last card, not merely present: the whole point of the move was that this administrative,
-    // destructive-on-import tool is something you scroll to on purpose.
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings.at(-1)).toBe("Import & export");
+    expect(headings.at(-1)).toBe("Account Options Selected at Creation");
   });
 });
 
@@ -243,6 +236,11 @@ describe("SettingsView — Account section (auth)", () => {
       </AuthContext.Provider>,
     );
     expect(screen.getByRole("heading", { name: "Account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "About Account" })).toHaveAttribute("title", "About Account");
+    expect(screen.getByRole("button", { name: "About Offline access" })).toHaveAttribute(
+      "title",
+      "About Offline access",
+    );
     expect(screen.getByText(/Signed in as tester@capacitylens\.dev/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Sign out" }));
     expect(signOut).toHaveBeenCalled();
@@ -396,9 +394,17 @@ describe("SettingsView — Clear local storage", () => {
     localStorage.clear();
   });
 
+  const openDeviceData = async (user: ReturnType<typeof userEvent.setup>) => {
+    const disclosure = screen.getByRole("button", { name: "Device data" });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("clear-local-storage")).not.toBeInTheDocument();
+    await user.click(disclosure);
+  };
+
   it("shows a destructive Clear device data button that opens a confirm modal", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
+    await openDeviceData(user);
 
     const button = screen.getByTestId("clear-local-storage");
     expect(button).toHaveTextContent("Clear device data");
@@ -416,6 +422,7 @@ describe("SettingsView — Clear local storage", () => {
     localStorage.setItem("capacitylens/offlineRead", "on");
     localStorage.setItem("capacitylens/theme", "dark");
     render(<SettingsView />);
+    await openDeviceData(user);
 
     await user.click(screen.getByTestId("clear-local-storage"));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -432,6 +439,7 @@ describe("SettingsView — Clear local storage", () => {
     localStorage.setItem("capacitylens/theme", "dark");
     localStorage.setItem("unrelated", "leave-me"); // a sibling tool's key must survive
     render(<SettingsView />);
+    await openDeviceData(user);
 
     await user.click(screen.getByTestId("clear-local-storage"));
     // Scope to the alert dialog — the section button and confirm action share the label.
@@ -457,6 +465,7 @@ describe("SettingsView — Clear local storage", () => {
     );
     const user = userEvent.setup();
     render(<SettingsView />);
+    await openDeviceData(user);
     await user.click(screen.getByTestId("clear-local-storage"));
     const dialog = screen.getByRole("alertdialog");
     const confirm = within(dialog).getByRole("button", { name: "Clear device data" });
@@ -475,31 +484,32 @@ describe("SettingsView — Clear local storage", () => {
   });
 });
 
-describe("SettingsView — Calendar section (frozen after creation, P1.14)", () => {
-  it("still shows the chosen week-start / timezone, plus a frozen Language row", () => {
+describe("SettingsView — account options selected at creation", () => {
+  it("shows the four frozen values in a compact read-only table at the bottom", () => {
     render(<SettingsView />);
-    expect(screen.getByRole("radiogroup", { name: "Week starts on" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("combobox", { name: "Timezone" })).toHaveTextContent("GMT");
+
+    const heading = screen.getByRole("heading", { name: "Account Options Selected at Creation" });
+    const card = heading.closest('[data-slot="card"]');
+    expect(card).not.toBeNull();
+    const table = within(card as HTMLElement).getByRole("table");
+    expect(within(table).getAllByRole("row")).toHaveLength(4);
+    expect(within(table).getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
+    expect(within(table).getByRole("cell", { name: "Monday" })).toBeInTheDocument();
+    expect(within(table).getByRole("cell", { name: "GMT (UTC+00:00)" })).toBeInTheDocument();
     expect(screen.getByTestId("settings-language")).toHaveTextContent("English");
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Week starts on" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Time zone" })).not.toBeInTheDocument();
   });
 
-  it("week-start and timezone controls are DISABLED (the freeze inverts the old editable contract)", () => {
-    render(<SettingsView />);
-    expect(screen.getByRole("radio", { name: "Monday" })).toBeDisabled();
-    expect(screen.getByRole("radio", { name: "Sunday" })).toBeDisabled();
-    expect(screen.getByLabelText("Timezone")).toBeDisabled();
-    // An explainer states why they can't change.
-    expect(screen.getByText(/Set when the company was created and can't be changed/i)).toBeInTheDocument();
-  });
-
-  it("clicking a disabled week-start segment does NOT mutate the account", async () => {
+  it("moves the frozen explanation into the section help modal", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
-    await user.click(screen.getByRole("radio", { name: "Sunday" }));
-    const id = useStore.getState().activeAccountId!;
-    const account = useStore.getState().data.accounts.find((a) => a.id === id);
-    // Default reads as 1 (Monday); the disabled click can't change it.
-    expect(account?.weekStartsOn ?? 1).toBe(1);
+
+    expect(screen.queryByText(/cannot be changed here/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "About Account Options Selected at Creation" }));
+    const dialog = screen.getByRole("dialog", { name: "Account Options Selected at Creation" });
+    expect(within(dialog).getByText(/cannot be changed here/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/sets which day starts the week/i)).toBeInTheDocument();
   });
 });

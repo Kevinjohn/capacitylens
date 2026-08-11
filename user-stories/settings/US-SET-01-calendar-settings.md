@@ -1,6 +1,6 @@
 # US-SET-01 — Team calendar settings are set at creation, then frozen
 
-**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + disabled in Settings), `e2e/settings-calendar.spec.ts` (frozen/disabled + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
+**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + read-only summary in Settings), `e2e/settings-calendar.spec.ts` (frozen summary/help + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
 
 ## Goal
 
@@ -27,8 +27,9 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 3. Choose e.g. **Sunday** and **Europe/London**, type a name, click **Create company** → you land in
    the app for the new company.
 
-**Frozen (in Settings):** 4. Open **Settings** → the **Calendar** section shows the chosen **Week starts on**, **Timezone** and
-**Language**, all **disabled**, with the explainer _"Set when the company was created and can't be changed."_ 5. The **Company name** field and the **Disciplines** switch remain editable.
+**Frozen (in Settings):** 4. Open **Settings** → the final **Account Options Selected at Creation**
+card shows four compact read-only rows: **Company name**, **Week starts on**, **Time zone** and
+**Language**. 5. Open its question-mark help action to read why those choices cannot be changed here.
 
 ## Acceptance criteria
 
@@ -37,9 +38,11 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 - Every Timezone option shows both its display name and a numeric offset such as **GMT
   (UTC+00:00)** or **Europe/London (UTC+01:00)** for the date being represented; the offset helper
   handles daylight-saving changes rather than showing an unexplained IANA identifier alone.
-- In Settings, the **Calendar** section's Week-starts-on segmented control and Timezone select are
-  **disabled**; a read-only **Language** row reads **English**; the freeze explainer is shown.
-- Company **name** and **Disciplines** stay editable.
+- In Settings, **Account Options Selected at Creation** is the final card and shows Company name,
+  Week starts on, Time zone (with numeric offset) and Language in a read-only table; no disabled
+  form controls or ordinary company-name editing control are shown.
+- Its question-mark action opens a labelled modal explaining that the values were selected at
+  creation and cannot be changed here.
 - A direct API `PATCH` of `language`, `weekStartsOn` or `timezone` on an existing account is rejected
   with **409**, and the stored value is unchanged.
 - The Settings page passes an axe accessibility audit (no violations).

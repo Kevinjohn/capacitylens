@@ -7,6 +7,7 @@ import { makeAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { PermissionContext } from "../../auth/permissionContext";
+import { m } from "@/i18n";
 
 // ArchivedSection is the Settings → "Archived & deleted" admin view (P2.5b). These tests cover the
 // demo build (no server): it reads the inactive rows straight from the store (useInactiveScopedData),
@@ -95,6 +96,12 @@ describe("ArchivedSection — demo build (store source)", () => {
     seed({ resources: [resource({})] }); // one ACTIVE resource → not listed
     render(<ArchivedSection />);
     expect(screen.getByTestId("archived-section")).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_archived_intro())).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `About ${m.settings_archived_heading()}` }));
+    expect(screen.getByRole("dialog", { name: m.settings_archived_heading() })).toHaveTextContent(
+      m.settings_archived_intro(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: m.settings_help_close() }));
     expect(screen.getByText("Nothing archived or deleted.")).toBeInTheDocument();
     expect(screen.queryByTestId("archived-row")).not.toBeInTheDocument();
     expect(screen.queryByTestId("deleted-row")).not.toBeInTheDocument();

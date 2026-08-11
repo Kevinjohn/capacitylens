@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "../../auth/authContext";
 import { buildStamp, feedbackMailto } from "../../data/buildInfo";
 import { isServerConfigured } from "../../data/apiConfig";
@@ -13,14 +13,12 @@ import {
   setOfflineReadEnabled,
 } from "../../data/offlineCache";
 import { useStore } from "../../store/useStore";
-import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
-import { validateName } from "../../lib/validation";
-import { Avatar, ConfirmDialog, ListPage, SegmentedControl, SwitchField, TextField } from "../common/ui";
+import { Avatar, ConfirmDialog, ListPage, SegmentedControl, SwitchField } from "../common/ui";
 import { SecuritySection } from "./SecuritySection";
 import { ArchivedSection } from "./ArchivedSection";
 import { ImportExport } from "../ImportExport";
-import { supportedTimeZones, timeZoneOptionLabel } from "../../lib/timezones";
+import { timeZoneOptionLabel } from "../../lib/timezones";
 import { externalExplainer } from "../../lib/externalCopy";
 import { m } from "@/i18n";
 import type { ThemePref } from "../../lib/theme";
@@ -28,23 +26,15 @@ import type { InternalColourMode, SchedulingMode } from "@capacitylens/shared/ty
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useCanEdit } from "../../auth/permissionContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { FieldError } from "../ui/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Field, FieldLabel } from "../ui/field";
 import { timeZoneFor, weekStartsOnFor } from "../../store/selectors";
 import { useOfflineState } from "../../data/useOfflineState";
 import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "../../data/persistenceDiagnostics";
+import { SettingsSection } from "./SettingsSection";
 
 // Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
 // the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
 // load-time locale; the getter defers it to render so an account/locale switch re-resolves the text.
-const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
-  { value: 1, label: () => m.settings_week_start_monday() },
-  { value: 0, label: () => m.settings_week_start_sunday() },
-];
-
 const THEME_OPTIONS: { value: ThemePref; label: () => string }[] = [
   { value: "light", label: () => m.settings_theme_light() },
   { value: "dark", label: () => m.settings_theme_dark() },
@@ -100,30 +90,6 @@ function ToggleRow({
   return <SwitchField label={label} checked={on} onChange={onToggle} disabled={disabled} />;
 }
 
-function SettingsCard({
-  title,
-  description,
-  children,
-  danger = false,
-}: {
-  title: string;
-  description?: ReactNode;
-  children: ReactNode;
-  danger?: boolean;
-}) {
-  return (
-    <Card className={danger ? "border-danger/40" : undefined}>
-      <CardHeader className="gap-1">
-        <CardTitle className={danger ? "text-danger" : undefined}>
-          <h2>{title}</h2>
-        </CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">{children}</CardContent>
-    </Card>
-  );
-}
-
 // App-level preferences, opened from the nav like the CRUD list pages.
 export function SettingsView() {
   const canEdit = useCanEdit();
@@ -166,12 +132,6 @@ export function SettingsView() {
   const showInternalProjects: boolean = activeAccount?.showInternalProjects ?? true;
   const showInternalActivities: boolean = activeAccount?.showInternalActivities ?? true;
   const inlineActivityCreateEnabled: boolean = activeAccount?.inlineActivityCreateEnabled ?? true;
-  const allZones = supportedTimeZones();
-  const tzOptions = allZones.includes(timezone) ? allZones : [timezone, ...allZones];
-
-  const accountName = activeAccount?.name ?? "";
-  const [name, setName] = useState(accountName);
-  const { error, errorField, errorId, fail, clear } = useFieldError();
   const { authMode, user, canCreateAccount, multiAccount, signOut } = useAuth();
   const offlineEnabled = useSyncExternalStore(subscribeOfflinePreference, offlineReadEnabled, offlineReadEnabled);
   const offlineActionLock = useRef(false);
@@ -250,31 +210,8 @@ export function SettingsView() {
     }
   };
 
-  // Re-sync the field when the account name changes underneath us (undo/redo, import,
-  // or account switch) — the render-time reconcile pattern used in SchedulerToolbar.
-  // While the user is merely typing, accountName is unchanged, so edits aren't clobbered.
-  const [seenName, setSeenName] = useState(accountName);
-  if (accountName !== seenName) {
-    setSeenName(accountName);
-    setName(accountName);
-  }
-
   // The shell only routes here with an active account chosen; this is defensive.
   if (!activeAccount) return null;
-
-  const saveName = () => {
-    clear();
-    const trimmed = validateName(name, fail);
-    if (!trimmed) return;
-    // The Save button is disabled while unchanged, so no redundant equality guard here.
-    try {
-      updateAccount(activeAccount.id, { name: trimmed });
-      clear();
-      setNotice(m.settings_company_name_updated());
-    } catch (error) {
-      fail(null, errorMessage(error));
-    }
-  };
 
   const updateSetting = (patch: Parameters<typeof updateAccount>[1]) => {
     try {
@@ -284,50 +221,36 @@ export function SettingsView() {
     }
   };
 
-  const nameUnchanged = name.trim() === activeAccount.name;
   const stamp = buildStamp();
   const feedback = feedbackMailto();
+  const weekStartLabel = weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
+  const timeZoneLabel = timeZoneOptionLabel(timezone, timezone === "Etc/GMT" ? m.settings_timezone_gmt() : timezone);
 
   return (
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
-        <SettingsCard title={m.settings_company_heading()}>
-          <div className="flex flex-col gap-3">
-            <TextField
-              label={m.settings_company_name_label()}
-              value={name}
-              onChange={(next) => {
-                setName(next);
-                if (errorField === "name") clear();
-              }}
-              invalid={errorField === "name"}
-              describedById={errorId}
-              disabled={!canEdit}
-            />
-            <FieldError id={errorId}>{error}</FieldError>
-            <div className="flex justify-end">
-              <Button size="sm" onClick={saveName} disabled={!canEdit || nameUnchanged}>
-                {m.settings_save()}
-              </Button>
-            </div>
-          </div>
-        </SettingsCard>
-
-        <SettingsCard title={m.settings_scheduling_heading()} description={m.settings_scheduling_intro()}>
-          <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-muted-foreground">
-            <li>
-              <strong>{m.settings_scheduling_hours_strong()}</strong>
-              {m.settings_scheduling_hours_rest()}
-            </li>
-            <li>
-              <strong>{m.settings_scheduling_days_strong()}</strong>
-              {m.settings_scheduling_days_rest()}
-            </li>
-            <li>
-              <strong>{m.settings_scheduling_blocks_strong()}</strong>
-              {m.settings_scheduling_blocks_rest()}
-            </li>
-          </ul>
+        <SettingsSection
+          title={m.settings_scheduling_heading()}
+          help={
+            <>
+              <p>{m.settings_scheduling_intro()}</p>
+              <ul className="flex list-disc flex-col gap-1 pl-4">
+                <li>
+                  <strong>{m.settings_scheduling_hours_strong()}</strong>
+                  {m.settings_scheduling_hours_rest()}
+                </li>
+                <li>
+                  <strong>{m.settings_scheduling_days_strong()}</strong>
+                  {m.settings_scheduling_days_rest()}
+                </li>
+                <li>
+                  <strong>{m.settings_scheduling_blocks_strong()}</strong>
+                  {m.settings_scheduling_blocks_rest()}
+                </li>
+              </ul>
+            </>
+          }
+        >
           <SegmentedControl
             ariaLabel={m.settings_scheduling_aria()}
             value={schedulingMode}
@@ -338,56 +261,9 @@ export function SettingsView() {
             }))}
             disabled={!canEdit}
           />
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_calendar_heading()} description={m.settings_calendar_intro()}>
-          {/* P1.14: language/week-start/time zone are captured when the company is created and FROZEN
-              thereafter (the server returns 409 on a change). Disabled here, not removed, so the
-              chosen values stay visible. */}
-          <p className="text-xs text-muted-foreground">{m.settings_calendar_frozen_hint()}</p>
-          <div className="flex flex-col gap-3">
-            <Field>
-              <FieldLabel>{m.settings_week_start_label()}</FieldLabel>
-              <SegmentedControl
-                ariaLabel={m.settings_week_start_label()}
-                value={weekStartsOn}
-                onChange={(value) => updateSetting({ weekStartsOn: value })}
-                options={WEEK_START_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label(),
-                }))}
-                disabled
-              />
-            </Field>
-            <Field data-disabled>
-              <FieldLabel htmlFor="timezone-select">{m.settings_timezone_label()}</FieldLabel>
-              <Select value={timezone} disabled onValueChange={(value) => updateSetting({ timezone: value })}>
-                <SelectTrigger id="timezone-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {tzOptions.map((tz) => (
-                      <SelectItem key={tz} value={tz}>
-                        {timeZoneOptionLabel(tz, tz === "Etc/GMT" ? m.settings_timezone_gmt() : tz)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              {/* Language is English-only until P1.5.1 (Paraglide); a read-only row, frozen like the
-                  two above. Shown so the company's chosen language is visible even though it can't change. */}
-              <FieldLabel>{m.settings_language_label()}</FieldLabel>
-              <p className="text-sm text-muted-foreground" data-testid="settings-language">
-                {m.settings_language_value()}
-              </p>
-            </Field>
-          </div>
-        </SettingsCard>
-
-        <SettingsCard title={m.settings_disciplines_heading()} description={m.settings_disciplines_intro()}>
+        <SettingsSection title={m.settings_disciplines_heading()} help={m.settings_disciplines_intro()}>
           <div>
             <ToggleRow
               label={m.settings_disciplines_toggle()}
@@ -396,9 +272,9 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_schedule_heading()} description={m.settings_schedule_intro()}>
+        <SettingsSection title={m.settings_schedule_heading()} help={m.settings_schedule_intro()}>
           <div className="flex flex-col gap-3">
             <ToggleRow
               label={m.settings_schedule_minimise_weekends()}
@@ -416,9 +292,9 @@ export function SettingsView() {
               onToggle={() => setCompactView(!compactView)}
             />
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_internal_colours_heading()} description={m.settings_internal_colours_intro()}>
+        <SettingsSection title={m.settings_internal_colours_heading()} help={m.settings_internal_colours_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_internal_colours_aria()}
             value={internalColourMode}
@@ -429,9 +305,9 @@ export function SettingsView() {
             }))}
             disabled={!canEdit}
           />
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_placeholders_heading()} description={m.settings_placeholders_intro()}>
+        <SettingsSection title={m.settings_placeholders_heading()} help={m.settings_placeholders_intro()}>
           <div>
             <ToggleRow
               label={m.settings_placeholders_toggle()}
@@ -440,11 +316,11 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard
+        <SettingsSection
           title={m.settings_external_heading()}
-          description={
+          help={
             <>
               {/* Explainer copy (editable, shared with the Resources-tab External section — see
               lib/externalCopy.ts). Set per company; off by default. */}
@@ -461,12 +337,9 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard
-          title={m.settings_internal_visibility_heading()}
-          description={m.settings_internal_visibility_intro()}
-        >
+        <SettingsSection title={m.settings_internal_visibility_heading()} help={m.settings_internal_visibility_intro()}>
           <div className="flex flex-col gap-3">
             <ToggleRow
               label={m.settings_show_internal_projects_toggle()}
@@ -485,9 +358,9 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_activity_create_heading()} description={m.settings_activity_create_intro()}>
+        <SettingsSection title={m.settings_activity_create_heading()} help={m.settings_activity_create_intro()}>
           <div>
             <ToggleRow
               label={m.settings_inline_activity_create_toggle()}
@@ -500,9 +373,9 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_bar_labels_heading()} description={m.settings_bar_labels_intro()}>
+        <SettingsSection title={m.settings_bar_labels_heading()} help={m.settings_bar_labels_intro()}>
           <div className="flex flex-col gap-3">
             {BAR_LABEL_OPTIONS.map((opt) => (
               <ToggleRow
@@ -513,9 +386,9 @@ export function SettingsView() {
               />
             ))}
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_utilisation_heading()} description={m.settings_utilisation_intro()}>
+        <SettingsSection title={m.settings_utilisation_heading()} help={m.settings_utilisation_intro()}>
           <div className="flex flex-col gap-3">
             {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
             {UTILIZATION_OPTIONS.filter((opt) => disciplinesEnabled || opt.key !== "showDiscipline").map((opt) => (
@@ -527,9 +400,9 @@ export function SettingsView() {
               />
             ))}
           </div>
-        </SettingsCard>
+        </SettingsSection>
 
-        <SettingsCard title={m.settings_appearance_heading()} description={m.settings_appearance_intro()}>
+        <SettingsSection title={m.settings_appearance_heading()} help={m.settings_appearance_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_appearance_aria()}
             value={theme}
@@ -539,10 +412,10 @@ export function SettingsView() {
               label: o.label(),
             }))}
           />
-        </SettingsCard>
+        </SettingsSection>
 
         {serverMode && authMode !== "off" && user && (
-          <SettingsCard title={m.settings_offline_heading()} description={m.settings_offline_description()}>
+          <SettingsSection title={m.settings_offline_heading()} help={m.settings_offline_description()}>
             <ToggleRow
               label={m.settings_offline_toggle()}
               on={offlineEnabled}
@@ -554,15 +427,17 @@ export function SettingsView() {
                 {m.settings_offline_write_failed()}
               </p>
             )}
-          </SettingsCard>
+          </SettingsSection>
         )}
 
         {/* Device data is limited to the opt-in offline snapshot and preferences. Scheduling data is
             server-owned or temporary demo memory, so this action never deletes company data. */}
-        <SettingsCard
+        <SettingsSection
           title={m.settings_device_data_heading()}
-          description={m.settings_clear_desc_server({ app: APP_NAME })}
+          help={m.settings_clear_desc_server({ app: APP_NAME })}
           danger
+          collapsible
+          defaultOpen={false}
         >
           <Button
             size="sm"
@@ -572,7 +447,7 @@ export function SettingsView() {
           >
             {m.settings_clear_storage_button()}
           </Button>
-        </SettingsCard>
+        </SettingsSection>
 
         {confirmingClear && (
           <ConfirmDialog
@@ -588,7 +463,7 @@ export function SettingsView() {
         {/* Account section (P3.3) — only on an auth-enabled deploy (authMode ≠ off, as
             reported by the server). Auth off and the demo build render nothing here. */}
         {authMode !== "off" && (
-          <SettingsCard title={m.settings_account_heading()}>
+          <SettingsSection title={m.settings_account_heading()} help={m.settings_account_help()}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <Avatar
@@ -606,7 +481,7 @@ export function SettingsView() {
                 {m.settings_account_sign_out()}
               </Button>
             </div>
-          </SettingsCard>
+          </SettingsSection>
         )}
 
         {authMode === "password" && <SecuritySection />}
@@ -615,15 +490,62 @@ export function SettingsView() {
             shows in the DEMO build (everyone is owner locally); in SERVER mode it self-gates on a 403 from
             the inactive read (admin tier). Rendered unconditionally; the section decides its own
             visibility. */}
-        <ArchivedSection />
+        <ArchivedSection collapsible defaultOpen={false} />
 
-        {/* Import & export (issue #169) — moved out of the sidebar, where it took permanent nav
-            real estate for something almost nobody does twice. Deliberately the LAST card: it is
-            administrative, destructive on the import side, and should be the thing you scroll to
-            on purpose rather than something the eye lands on. */}
-        <SettingsCard title={m.settings_data_heading()} description={m.settings_data_description()}>
+        {/* Import & export (issue #169) stays out of the sidebar and is now closed by default: it is
+            administrative, destructive on the import side, and something people open on purpose. */}
+        <SettingsSection
+          title={m.settings_data_heading()}
+          help={m.settings_data_description()}
+          collapsible
+          defaultOpen={false}
+        >
           <ImportExport />
-        </SettingsCard>
+        </SettingsSection>
+
+        {/* Identity and calendar choices are informational here. They are captured at company
+            creation, remain server-protected, and deliberately have no disabled form controls. */}
+        <SettingsSection
+          title={m.settings_account_options_heading()}
+          help={
+            <>
+              <p>{m.settings_account_options_help()}</p>
+              <p>{m.settings_calendar_intro()}</p>
+            </>
+          }
+          contentClassName="gap-0"
+        >
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-line">
+              <tr>
+                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                  {m.settings_company_name_label()}
+                </th>
+                <td className="py-2 text-right text-ink">{activeAccount.name}</td>
+              </tr>
+              <tr>
+                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                  {m.settings_week_start_label()}
+                </th>
+                <td className="py-2 text-right text-ink">{weekStartLabel}</td>
+              </tr>
+              <tr>
+                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                  {m.settings_timezone_label()}
+                </th>
+                <td className="py-2 text-right text-ink">{timeZoneLabel}</td>
+              </tr>
+              <tr>
+                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                  {m.settings_language_label()}
+                </th>
+                <td className="py-2 text-right text-ink" data-testid="settings-language">
+                  {m.settings_language_value()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </SettingsSection>
 
         {/* Build provenance footer (P1.7) + feedback link (P5.2) — only in builds the
             deploy script stamps; absent (today's Settings exactly) when both env vars

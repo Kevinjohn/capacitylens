@@ -62,9 +62,4 @@ test("segmented controls keep an even selected outline at every position", async
   await page.keyboard.press("ArrowRight");
   await expect(segments[1].locator).toBeFocused();
   expect((await selectedTreatment(segments[1].locator)).zIndex).toBe("10");
-
-  const frozenWeekStart = page.getByRole("radio", { name: "Monday", exact: true });
-  await expect(frozenWeekStart).toBeDisabled();
-  await expect(frozenWeekStart).toHaveAttribute("aria-checked", "true");
-  await expectSelectedTreatment(frozenWeekStart, "first");
 });
