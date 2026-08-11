@@ -438,7 +438,8 @@ are reached via `Filter by project`). The activity lens is a **standalone** view
 clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back
-visible-but-dimmed so you can see who's free to staff), `Clear` (only shown when a filter is active).
+visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown at the far
+right; disabled and visually quiet with no active filters, then red with a bin icon while active).
 
 **Schedule display (minimise weekends).** Settings → **Schedule** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.

@@ -22,4 +22,4 @@ When focused on one project's delivery, the manager wants the schedule reduced t
 - ✅ Choosing **Metropolis Rebrand** collapses the view to exactly that project's work — the _Brand System_ bar; allocations from other projects (e.g. _Project Watchtower_ activities) are hidden, along with the resources that have no Metropolis Rebrand work.
 - ✅ Ticking **Show unallocated** (off by default) brings the non-matching resources back **visible but dimmed**, still showing their full real utilisation.
 - ✅ Setting the select back to **All projects** restores every bar.
-- ✅ While a project filter is active, the **Clear** button is shown.
+- ✅ While a project filter is active, the **Clear Filters** button is enabled.

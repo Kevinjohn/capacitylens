@@ -1,14 +1,14 @@
 # US-FIL-06 — Clear all filters at once
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "clears all active filters with the Clear button"
+**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "clears all active filters with the Clear Filters button"
 
 ## Goal
 
-Reset the search, all the filter selects and the Hide-tentative toggle in one click with **Clear**.
+Reset the search, all the filter selects and the Hide-tentative toggle in one click with **Clear Filters**.
 
 ## Why
 
-After narrowing the view several ways, getting back to the full schedule one control at a time is tedious. A single **Clear** — shown only when something is filtering — restores everything at once.
+After narrowing the view several ways, getting back to the full schedule one control at a time is tedious. A single **Clear Filters** restores everything at once.
 
 ## How (end-to-end)
 
@@ -18,11 +18,12 @@ After narrowing the view several ways, getting back to the full schedule one con
 2. Choose a **Filter by discipline** (e.g. _Development_).
 3. Choose a **Filter by client** and a **Filter by project**.
 4. Tick **Hide tentative**.
-5. Click **Clear**.
+5. Click **Clear Filters**.
 
 ## Acceptance criteria
 
-- ✅ The **Clear** button is only present while at least one filter is active (search, any select, or Hide tentative).
-- ✅ Clicking **Clear** empties the **Search people…** box, returns every filter select to its "All …" option, and unticks **Hide tentative**.
-- ✅ After Clear, the full schedule returns — all resource rows, all groups and all bars are visible again.
-- ✅ Once everything is reset, the **Clear** button is no longer shown.
+- ✅ **Clear Filters** remains at the far right whenever the filter toolbar is open.
+- ✅ With no active filter it is visually quiet, has no bin icon and is disabled.
+- ✅ With any active filter it uses the red soft-danger style, shows a decorative bin icon and is enabled.
+- ✅ Clicking **Clear Filters** empties the **Search people…** box, returns every filter select to its "All …" option, and unticks **Hide tentative** and **Show unallocated**.
+- ✅ After clearing, the full schedule returns — all resource rows, all groups and all bars are visible again.

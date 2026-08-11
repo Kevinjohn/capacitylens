@@ -21,4 +21,4 @@ When presenting a confirmed plan, the manager wants to drop the speculative book
 - ✅ Ticking **Hide tentative** removes every `data-status="tentative"` bar from view; confirmed and completed bars remain.
 - ✅ Capacity stays truthful: **over-markers** (`over-marker`) and per-resource **utilisation %** (`utilization`) still account for the hidden tentative work.
 - ✅ Un-ticking the checkbox brings the tentative bars back.
-- ✅ While **Hide tentative** is on, the **Clear** button is shown.
+- ✅ While **Hide tentative** is on, the **Clear Filters** button is enabled.
