@@ -1,5 +1,20 @@
 # CapacityLens repository guidance
 
+## Working workflow
+
+- Any task that changes files gets a unique `feature/<short-description>` branch and linked worktree,
+  unless the user explicitly says otherwise. Run `git fetch origin main --prune`, then branch the
+  worktree from `origin/main`. If the branch or path exists, choose another; never reuse or clean it.
+  Never implement in the primary checkout or another task's worktree. Report the branch, worktree
+  and base revision before editing.
+- Make the smallest, simplest maintainable change that completely solves the request. Keep unrelated
+  cleanup, formatting, refactors, dependencies and abstractions out of the diff.
+- Before creating a pull request, run the applicable checks and review the complete branch diff
+  against its base. Present every finding to the user, fix all actionable findings, and repeat the
+  checks and review until green.
+- Show the user the final scope, diff summary, review result and validation evidence. Wait for
+  explicit approval before pushing or opening the pull request.
+
 ## Product boundary
 
 CapacityLens is a deliberately small, week-granularity agency capacity scheduler. Budgets,
@@ -95,14 +110,29 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 Run `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e`. Cross-browser and mutation suites
 are documented in `docs-src/reference/development.md`. Keep E2E specs browser-agnostic.
 
-## GitHub CI policy
+## Git and GitHub flow
 
-- Land work through a pull request: branch, `git commit -s` (a DCO `Signed-off-by` trailer is
-  required), push, open the pull request, then merge it.
-- No workflow runs on a pull request. CI runs when the merge reaches `main`, or on demand:
+- Commit each logical change with `git commit -s`; every feature commit requires a matching DCO
+  `Signed-off-by` trailer. Generated merge commits are exempt.
+- After the approved review gate, push the feature branch and open a ready-for-review pull request
+  into `main`. Never push task commits directly to `main`.
+- Merge only with explicit user approval and a normal merge commit:
+  `gh pr merge <number> --merge --delete-branch`.
+- Never squash, rebase or rewrite branch history unless the user explicitly requests it for that
+  operation.
+- Verify the PR, merge commit, linked issue and remote branch deletion before removing the isolated
+  worktree and reporting completion.
+
+## Version and CI policy
+
+- No workflow runs on a pull request. CI runs when a merge reaches `main`, or on demand with
   `gh workflow run gate.yml --ref <branch>`. Dispatch before merging when the change warrants it.
-- Squash-merge with the sign-off carried into the body, or the DCO job fails on `main`:
-  `gh pr merge <number> --squash --delete-branch --body "$(git log -1 --format=%b)"`.
-- For patch-version-only changes, skip GitHub CI by default.
-- For minor-version changes, ask the user whether GitHub CI should be run before proceeding.
-- For major-version changes, GitHub CI must be run; do not skip it.
+- Treat a requested version bump as a release task, not merely as a description of the change.
+- After the functional change lands, create a separate version-only branch and worktree. Update the
+  root and server package versions, move only the release's eligible changelog entries into the new
+  dated section, leave unrelated entries under `Unreleased`, and update comparison links.
+- A patch-version-only pull request skips CI by default: do not dispatch a workflow, and put
+  `[skip ci]` in the release PR title so it is included in the normal merge commit message. Do not
+  use `[skip ci]` on the preceding functional change.
+- For a minor-version release, ask the user whether GitHub CI should be run before proceeding.
+- For a major-version release, GitHub CI must be run and pass; do not skip it.
