@@ -1023,6 +1023,14 @@ multiple).
   private row is repaired fail-closed to a distinct, stable `Confidential #<record tag>` label instead
   of exposing its real name or collapsing several private rows onto one indistinguishable label.
 
+- **Management list ordering.** The **Resources**, **Disciplines**, **Clients** and **Projects**
+  management lists are alphabetical by the name shown in each row. Resources keep People,
+  Placeholders and External as separate sections, and each section sorts independently. Projects
+  sort by project name; their client label is secondary text. The hidden built-in **Internal** client
+  remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
+  spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
+  stored arrays are unchanged, and the schedule keeps its deliberate discipline `sortOrder` and
+  resource grouping.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it
