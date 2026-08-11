@@ -28,8 +28,8 @@ surfaces here.
 1. On **Resources**, archive **Barry Allen** via the row's **Archive Barry Allen** button → confirm
    **Archive** in the _"Archive resource?"_ dialog. The row disappears from Resources and from the
    **Schedule**.
-2. Open **Settings**. The **Archived & deleted** section (`data-testid="archived-section"`) lists Barry
-   under **Archived** (`data-testid="archived-row"`) with a type tag (**Resource**).
+2. Open **Settings** and expand **Archived & deleted** (`data-testid="archived-section"`). It lists
+   Barry under **Archived** (`data-testid="archived-row"`) with a type tag (**Resource**).
 3. Click **Restore Barry Allen** — the row leaves the section and Barry reappears on the Schedule and
    the Resources list.
 4. Re-archive Barry from Resources, return to Settings, and on the archived row click **Delete Barry
@@ -44,9 +44,10 @@ surfaces here.
 
 ## Acceptance criteria
 
-- ✅ The **Archived & deleted** section shows in the **in-memory demo** (always) and in **server mode** for an
-  **admin** (it self-hides on a **403** from the `?includeInactive=1` read — a non-admin/viewer never
-  sees it). It reads inactive rows from the store (local) or that fetch (server).
+- ✅ **Archived & deleted** is an independent disclosure, closed by default. It shows in the
+  **in-memory demo** (always) and in **server mode** for an **admin** (it self-hides on a **403** from
+  the `?includeInactive=1` read — a non-admin/viewer never sees it). It reads inactive rows from the
+  store (local) or that fetch (server).
 - ✅ It partitions inactive resources/clients/projects into **Archived** (`archived-row`) and
   **Deleted** (`deleted-row`) groups, each row showing the name + a type tag; an **empty state**
   (_"Nothing archived or deleted."_) shows when nothing is inactive.

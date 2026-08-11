@@ -26,7 +26,7 @@ theme), not shared account data.
 
 ## Acceptance criteria
 
-- The Allocation bars section appears between Calendar and Utilisation in Settings.
+- The Allocation bars section appears before Utilisation in Settings.
 - Both switches default to **on** (`aria-checked="true"`).
 - With both on, a bar's label is `Client · Project · Activity` (then `· Nh` outside blocks mode).
 - Switching **Show client name** off removes only the client part; **Show project name** off removes only the project part; both off leaves just the activity.

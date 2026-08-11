@@ -33,6 +33,7 @@ test.describe("Archived & deleted (demo mode)", () => {
 
     // Settings → Archived & deleted shows it as an archived row.
     await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
     const section = page.getByTestId("archived-section");
     await expect(section).toBeVisible();
     const archivedRow = section.getByTestId("archived-row").filter({ hasText: RESOURCE });
@@ -59,6 +60,7 @@ test.describe("Archived & deleted (demo mode)", () => {
 
     // In the admin view, DELETE (soft-delete) the archived row → confirm.
     await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
     const section2 = page.getByTestId("archived-section");
     const archivedRow2 = section2.getByTestId("archived-row").filter({ hasText: RESOURCE });
     await expect(archivedRow2).toBeVisible();

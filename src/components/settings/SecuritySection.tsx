@@ -12,10 +12,10 @@ import { m } from "@/i18n";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
 import { useAuth } from "../../auth/authContext";
 import { Badge } from "../ui/badge";
+import { SettingsSection } from "./SettingsSection";
 
 interface SessionView {
   id: string;
@@ -271,123 +271,114 @@ export function SecuritySection() {
   };
 
   return (
-    <Card data-testid="security-section">
-      <CardHeader>
-        <CardTitle>
-          <h2>{m.settings_security_title()}</h2>
-        </CardTitle>
-        <CardDescription>{m.settings_security_description()}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        {strictProvider && (
-          <div className="flex flex-col gap-2" data-testid="sso-connection">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-medium text-ink">{m.settings_sso_connect_heading()}</h3>
-              {providerConnected && (
-                <Badge variant="secondary">{m.settings_sso_connected({ provider: strictProvider.label })}</Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {m.settings_sso_connect_description({ provider: strictProvider.label })}
-            </p>
-            {providerConnected === false && (
-              <Button size="sm" type="button" disabled={busy} onClick={() => void connectProvider()}>
-                {m.settings_sso_connect_button({ provider: strictProvider.label })}
-              </Button>
+    <SettingsSection
+      title={m.settings_security_title()}
+      help={m.settings_security_description()}
+      testId="security-section"
+      contentClassName="gap-5"
+    >
+      {strictProvider && (
+        <div className="flex flex-col gap-2" data-testid="sso-connection">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-ink">{m.settings_sso_connect_heading()}</h3>
+            {providerConnected && (
+              <Badge variant="secondary">{m.settings_sso_connected({ provider: strictProvider.label })}</Badge>
             )}
-            <FieldError>{providerError}</FieldError>
-            <Separator />
           </div>
-        )}
-        <form onSubmit={(event) => void changePassword(event)}>
-          <FieldGroup className="gap-3">
-            <h3 className="text-sm font-medium text-ink">{m.settings_security_change_password()}</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Field>
-                <FieldLabel htmlFor="security-current-password">{m.settings_security_current_password()}</FieldLabel>
-                <Input
-                  id="security-current-password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  aria-invalid={passwordErrorField === "current" || undefined}
-                  aria-describedby={passwordErrorField === "current" ? errorId : undefined}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="security-new-password">{m.settings_security_new_password()}</FieldLabel>
-                <Input
-                  id="security-new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={MIN_PASSWORD_LENGTH}
-                  maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  aria-invalid={passwordErrorField === "new" || undefined}
-                  aria-describedby={passwordErrorField === "new" ? errorId : undefined}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="security-confirm-password">{m.settings_security_confirm_password()}</FieldLabel>
-                <Input
-                  id="security-confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  aria-invalid={passwordErrorField === "confirm" || undefined}
-                  aria-describedby={passwordErrorField === "confirm" ? errorId : undefined}
-                />
-              </Field>
-            </div>
-            <Button size="sm" type="submit" disabled={busy || !currentPassword || !newPassword || !confirmPassword}>
-              {m.settings_security_change_password()}
-            </Button>
-          </FieldGroup>
-        </form>
-
-        <Separator />
-        <div>
-          <h3 className="text-sm font-medium text-ink">{m.settings_security_active_sessions()}</h3>
-          <ul className="mt-2 flex flex-col gap-2">
-            {sessions.map((session) => (
-              <li key={session.id} className="flex items-center justify-between gap-3 rounded bg-canvas p-2 text-xs">
-                <span className="min-w-0 text-muted-foreground">
-                  <span className="block truncate text-ink">
-                    {session.current ? m.settings_security_current_session() : m.settings_security_signed_in_session()}
-                  </span>
-                  {session.expiresAt
-                    ? m.settings_security_session_expires({
-                        created: new Date(session.createdAt).toLocaleString(),
-                        expires: new Date(session.expiresAt).toLocaleString(),
-                      })
-                    : m.settings_security_session_no_expiry({
-                        created: new Date(session.createdAt).toLocaleString(),
-                      })}
-                </span>
-                <Button
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => void revoke(session.id)}
-                >
-                  {m.settings_security_revoke()}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <FieldError id={errorId}>{error}</FieldError>
-        {message && (
-          <p role="status" className="text-sm text-ok">
-            {message}
+          <p className="text-sm text-muted-foreground">
+            {m.settings_sso_connect_description({ provider: strictProvider.label })}
           </p>
-        )}
-      </CardContent>
-    </Card>
+          {providerConnected === false && (
+            <Button size="sm" type="button" disabled={busy} onClick={() => void connectProvider()}>
+              {m.settings_sso_connect_button({ provider: strictProvider.label })}
+            </Button>
+          )}
+          <FieldError>{providerError}</FieldError>
+          <Separator />
+        </div>
+      )}
+      <form onSubmit={(event) => void changePassword(event)}>
+        <FieldGroup className="gap-3">
+          <h3 className="text-sm font-medium text-ink">{m.settings_security_change_password()}</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="security-current-password">{m.settings_security_current_password()}</FieldLabel>
+              <Input
+                id="security-current-password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                aria-invalid={passwordErrorField === "current" || undefined}
+                aria-describedby={passwordErrorField === "current" ? errorId : undefined}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="security-new-password">{m.settings_security_new_password()}</FieldLabel>
+              <Input
+                id="security-new-password"
+                type="password"
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
+                maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                aria-invalid={passwordErrorField === "new" || undefined}
+                aria-describedby={passwordErrorField === "new" ? errorId : undefined}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="security-confirm-password">{m.settings_security_confirm_password()}</FieldLabel>
+              <Input
+                id="security-confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                aria-invalid={passwordErrorField === "confirm" || undefined}
+                aria-describedby={passwordErrorField === "confirm" ? errorId : undefined}
+              />
+            </Field>
+          </div>
+          <Button size="sm" type="submit" disabled={busy || !currentPassword || !newPassword || !confirmPassword}>
+            {m.settings_security_change_password()}
+          </Button>
+        </FieldGroup>
+      </form>
+
+      <Separator />
+      <div>
+        <h3 className="text-sm font-medium text-ink">{m.settings_security_active_sessions()}</h3>
+        <ul className="mt-2 flex flex-col gap-2">
+          {sessions.map((session) => (
+            <li key={session.id} className="flex items-center justify-between gap-3 rounded bg-canvas p-2 text-xs">
+              <span className="min-w-0 text-muted-foreground">
+                <span className="block truncate text-ink">
+                  {session.current ? m.settings_security_current_session() : m.settings_security_signed_in_session()}
+                </span>
+                {session.expiresAt
+                  ? m.settings_security_session_expires({
+                      created: new Date(session.createdAt).toLocaleString(),
+                      expires: new Date(session.expiresAt).toLocaleString(),
+                    })
+                  : m.settings_security_session_no_expiry({
+                      created: new Date(session.createdAt).toLocaleString(),
+                    })}
+              </span>
+              <Button size="sm" type="button" variant="outline" disabled={busy} onClick={() => void revoke(session.id)}>
+                {m.settings_security_revoke()}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <FieldError id={errorId}>{error}</FieldError>
+      {message && (
+        <p role="status" className="text-sm text-ok">
+          {message}
+        </p>
+      )}
+    </SettingsSection>
   );
 }

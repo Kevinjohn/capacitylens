@@ -124,17 +124,17 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                                                               |
-| ------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schedule      | `/`            | Timeline scheduler                                                                                                                                                   |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                          |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                                                      |
-| Clients       | `/clients`     | Client list                                                                                                                                                          |
-| Projects      | `/projects`    | Project list                                                                                                                                                         |
-| Activities    | `/activities`  | Activity list                                                                                                                                                        |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                                                        |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                    |
-| Settings      | `/settings`    | Settings (company rename, scheduling, calendar, disciplines, schedule, Internal work colours, allocation bars, utilisation, appearance, local data, import & export) |
+| Link label    | Route          | Screen                                                                                                                                  |
+| ------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Schedule      | `/`            | Timeline scheduler                                                                                                                      |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                             |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                         |
+| Clients       | `/clients`     | Client list                                                                                                                             |
+| Projects      | `/projects`    | Project list                                                                                                                            |
+| Activities    | `/activities`  | Activity list                                                                                                                           |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                           |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                       |
+| Settings      | `/settings`    | Settings (scheduling, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
 
 The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -159,10 +159,11 @@ session-only active company and therefore shows the company picker, but choosing
 requested URL and continues to that section. Unknown extensionless URLs still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
-The **Import & export** card (**Export JSON** / **Import JSON**) is the **last card on the Settings
-page**, below **Archived & deleted**. It used to be a "Data" section in the sidebar; it moved because
-a full-slice export or replacement is a rare administrative act that does not warrant permanent
-navigation real estate. In an authenticated
+The **Import & export** card (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
+near the bottom of Settings, below **Archived & deleted** and above the compact account-options
+summary. It used to be a "Data" section in the sidebar; it moved because a full-slice export or
+replacement is a rare administrative act that does not warrant permanent navigation real estate.
+In an authenticated
 server deployment, **Import JSON** is owner-only because a slice replacement can author or erase
 owner-confidential client/project identities; **Export JSON** remains available at its existing
 role tiers and is server-redacted for non-owners. The local demo and auth-off deploy remain
@@ -468,24 +469,28 @@ via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the
 governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
 see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
 
-**Calendar (per-account, FROZEN after creation — P1.14).** Settings → **Calendar** shows the
-account's **Week starts on** (segmented Monday/Sunday, default Monday), **Timezone** (select,
-default `GMT`; every option includes the numeric UTC offset, e.g. `Europe/London (UTC+01:00)`),
-and a read-only **Language** row (`data-testid="settings-language"`, **English**).
-All three are **disabled** here — they are captured ONCE in the company-create form (see _Launching
-the app_ above) and are then **frozen**: the section carries the explainer _"Set when the company
-was created and can't be changed."_, and the server rejects a direct change to any of the three
-(`language`/`weekStartsOn`/`timezone`) with **409**. Company **name** and **disciplines** remain
-editable. Ordinary company-wide planning and display settings — including the company name,
-scheduling mode, disciplines, colour mode and feature-visibility switches — deliberately use the
-normal Editor-and-up write tier. Identity, membership, privacy, lifecycle, import and company-erasure
+**Account options selected at creation (per-account, FROZEN after creation — P1.14).** The final
+Settings card is a compact, read-only four-row table: **Company name**, **Week starts on**,
+**Time zone** (including its numeric UTC offset) and **Language** (`data-testid="settings-language"`,
+**English**). It replaces the editable Company card and the disabled Calendar controls. These values
+are captured ONCE in the company-create form (see _Launching the app_ above), and the help modal
+explains that they cannot be changed here. The server continues to reject a direct change to
+`language`, `weekStartsOn` or `timezone` with **409**. Ordinary company-wide planning and display
+settings — scheduling mode, disciplines, colour mode and feature-visibility switches — deliberately
+use the normal Editor-and-up write tier. Identity, membership, privacy, lifecycle, import and company-erasure
 operations retain their stricter Admin/Owner gates. (English-only until Paraglide; the value persists
 as `'en'` on the Account.)
 
+**Settings help and disclosures.** Every Settings card has an icon-only question-mark action whose
+accessible name and native hover title are `About <section>`. Activating it opens a labelled modal
+with the fuller explanation that used to sit permanently in the card. **Device data**, **Archived &
+deleted** and **Import & export** are separate disclosures, each closed by default and independently
+expandable; opening one never closes another. Safety consequences remain in destructive confirmation
+dialogs rather than depending on hidden help copy.
+
 > **i18n note.** Every Settings + Team & access label/heading/button/placeholder/hint quoted in
-> this file is now rendered from a Paraglide message key (`settings_*` in `messages/en.json`) rather
-> than an inline literal — the **visible English text is char-identical**, so all selectors here (by
-> text / role-name / `data-testid`) are unchanged. Role labels (Owner/Admin/Editor/Viewer) and the
+> this file is rendered from a Paraglide message key (`settings_*` in `messages/en.json`) rather
+> than an inline literal. Role labels (Owner/Admin/Editor/Viewer) and the
 > week-start/theme/scheduling option lists resolve their labels at render. Interpolated copy (the
 > server-vs-local clear-storage / "Signed in as …" / status-suffixed error toasts) is deferred to the
 > later toasts/errors i18n area; its visible text is likewise unchanged.
@@ -533,8 +538,8 @@ the schedule then renders **flat** (no `discipline-group` bands). It's stored on
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
-**Clear device data (Settings → Device data).** A maintenance action near the bottom of Settings:
-a `Clear device data` button
+**Clear device data (Settings → Device data).** A closed-by-default maintenance disclosure near the
+bottom of Settings contains a `Clear device data` button
 (`data-testid="clear-local-storage"`). Clicking it opens the standard confirm dialog (title
 `Clear device data?`, danger `Clear device data` confirm + `Cancel`). It removes the opt-in offline
 snapshot and CapacityLens preferences from **THIS browser**, leaves server data and unrelated origin
@@ -984,11 +989,12 @@ incomplete onboarding step and it hasn't been dismissed), `getting-started-tour`
 around** button — runs the driver.js orientation tour), `getting-started-dismiss` (its **Dismiss**
 button; sets `capacitylens/gettingStartedDismissed`),
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
-(Settings → Calendar's read-only Language row — **English**; both frozen, P1.14),
+(Settings → Account Options Selected at Creation's read-only Language cell — **English**; both
+frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
 whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
 or under auth-on the caller lacks owner/admin standing on any account),
-`clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
+`clear-local-storage` (Settings → Device data danger button; opens a destructive confirm),
 `archived-section` (Settings → Archived & deleted; shows in local mode and for admins on an auth-on
 server, self-hidden on a 403), `archived-row` (one per archived resource/client/project; carries a
 **Restore <name>** + **Delete <name>** button), `deleted-row` (one per soft-deleted tombstone; carries
@@ -1112,7 +1118,8 @@ button (it's hidden from the Clients list and the store/server backstop it). Hoo
 
 Settings gains an **"Archived & deleted"** section (heading `Archived & deleted`,
 `data-testid="archived-section"`) — the admin view of the data-lifecycle, the counterpart to the
-normal active-only views. Unlike Members it **also shows in LOCAL mode** (everyone is owner locally);
+normal active-only views. Its independent disclosure is closed by default. Unlike Members it **also
+shows in LOCAL mode** (everyone is owner locally);
 in **server mode** it self-gates by trying the `GET /api/state?accountId=…&includeInactive=1` read and
 rendering **nothing** if the server replies **403** (a non-admin — the inactive read is purge-tier).
 The inactive-row **source** is the store (`useInactiveScopedData`) in local mode and that

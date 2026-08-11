@@ -13,8 +13,8 @@ import { can } from "@capacitylens/shared/domain/access";
 import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from "@capacitylens/shared/domain/lifecycle";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { SettingsSection } from "./SettingsSection";
 
 // Settings → "Archived & deleted" — the client-admin view of the data-lifecycle (P2.5b), the
 // COUNTERPART to the normal active-only views. It lists the resources/clients/projects the scheduler
@@ -84,7 +84,13 @@ const TYPE_LABEL: Record<LifecycleEntity, () => string> = {
  * permanent-delete button is additionally gated by `canPurge` until the 30-day grace elapses. The
  * server remains the authorization backstop.
  */
-export function ArchivedSection() {
+export function ArchivedSection({
+  collapsible = false,
+  defaultOpen = true,
+}: {
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+} = {}) {
   const server = isServerConfigured();
   const activeAccountId = useStore((s) => s.activeAccountId);
   const setNotice = useStore((s) => s.setNotice);
@@ -221,121 +227,120 @@ export function ArchivedSection() {
 
   return (
     <>
-      <Card data-testid="archived-section">
-        <CardHeader>
-          <CardTitle>
-            <h2>{m.settings_archived_heading()}</h2>
-          </CardTitle>
-          <CardDescription>{m.settings_archived_intro()}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {rows.length === 0 && <p className="py-2 text-sm text-muted-foreground">{m.settings_archived_empty()}</p>}
+      <SettingsSection
+        title={m.settings_archived_heading()}
+        help={m.settings_archived_intro()}
+        testId="archived-section"
+        collapsible={collapsible}
+        defaultOpen={defaultOpen}
+        contentClassName="gap-4"
+      >
+        {rows.length === 0 && <p className="py-2 text-sm text-muted-foreground">{m.settings_archived_empty()}</p>}
 
-          {/* Archived group — restore (→ active) or delete (→ tombstone). */}
-          {archived.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_archived()}</h3>
-              <ItemGroup>
-                {archived.map((r, index) => (
+        {/* Archived group — restore (→ active) or delete (→ tombstone). */}
+        {archived.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_archived()}</h3>
+            <ItemGroup>
+              {archived.map((r, index) => (
+                <Fragment key={`${r.entity}-${r.id}`}>
+                  {index > 0 && <ItemSeparator />}
+                  <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="archived-row">
+                    <ItemContent className="min-w-0">
+                      <span className="text-sm text-ink">{r.name}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
+                    </ItemContent>
+                    <ItemActions>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid="archived-restore"
+                        disabled={lifecycleBusy}
+                        aria-label={m.settings_archived_restore_aria({
+                          name: r.name,
+                        })}
+                        onClick={() => runLifecycle(() => actions.unarchive(r.entity, r.id))}
+                      >
+                        {m.settings_archived_restore()}
+                      </Button>
+                      {mayPurge && (
+                        <Button
+                          size="sm"
+                          variant="danger-soft"
+                          data-testid="archived-delete"
+                          disabled={lifecycleBusy}
+                          aria-label={m.settings_archived_delete_aria({
+                            name: r.name,
+                          })}
+                          onClick={() => {
+                            if (!actionLock.current) setConfirmingDelete(r);
+                          }}
+                        >
+                          {m.settings_archived_delete()}
+                        </Button>
+                      )}
+                    </ItemActions>
+                  </Item>
+                </Fragment>
+              ))}
+            </ItemGroup>
+          </div>
+        )}
+
+        {/* Deleted (tombstone) group — permanent purge, gated by canPurge + the purge role tier. */}
+        {deleted.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_deleted()}</h3>
+            <ItemGroup>
+              {deleted.map((r, index) => {
+                // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would
+                // let the client stay up to ~24h more conservative than the server's own boundary check.
+                const purgeable = canPurge(r.raw, new Date(purgeClock).toISOString());
+                // The "locked" hint only renders (and is only referenced) while the purge button is
+                // disabled, so a screen reader hears WHY it can't act yet, not just the button name.
+                const hintId = `${hintBaseId}-${r.entity}-${r.id}`;
+                return (
                   <Fragment key={`${r.entity}-${r.id}`}>
                     {index > 0 && <ItemSeparator />}
-                    <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="archived-row">
+                    <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="deleted-row">
                       <ItemContent className="min-w-0">
                         <span className="text-sm text-ink">{r.name}</span>
                         <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
                       </ItemContent>
-                      <ItemActions>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          data-testid="archived-restore"
-                          disabled={lifecycleBusy}
-                          aria-label={m.settings_archived_restore_aria({
-                            name: r.name,
-                          })}
-                          onClick={() => runLifecycle(() => actions.unarchive(r.entity, r.id))}
-                        >
-                          {m.settings_archived_restore()}
-                        </Button>
-                        {mayPurge && (
+                      {mayPurge && (
+                        <ItemActions>
+                          {!purgeable && (
+                            <span id={hintId} className="text-xs text-muted-foreground">
+                              {m.settings_archived_purge_locked_hint({
+                                days: PURGE_MIN_AGE_DAYS,
+                              })}
+                            </span>
+                          )}
                           <Button
                             size="sm"
                             variant="danger-soft"
-                            data-testid="archived-delete"
-                            disabled={lifecycleBusy}
-                            aria-label={m.settings_archived_delete_aria({
+                            data-testid="archived-purge"
+                            disabled={lifecycleBusy || !purgeable}
+                            aria-label={m.settings_archived_purge_aria({
                               name: r.name,
                             })}
+                            aria-describedby={!purgeable ? hintId : undefined}
                             onClick={() => {
-                              if (!actionLock.current) setConfirmingDelete(r);
+                              if (!actionLock.current) setConfirmingPurge(r);
                             }}
                           >
-                            {m.settings_archived_delete()}
+                            {m.settings_archived_purge()}
                           </Button>
-                        )}
-                      </ItemActions>
+                        </ItemActions>
+                      )}
                     </Item>
                   </Fragment>
-                ))}
-              </ItemGroup>
-            </div>
-          )}
-
-          {/* Deleted (tombstone) group — permanent purge, gated by canPurge + the purge role tier. */}
-          {deleted.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_deleted()}</h3>
-              <ItemGroup>
-                {deleted.map((r, index) => {
-                  // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would
-                  // let the client stay up to ~24h more conservative than the server's own boundary check.
-                  const purgeable = canPurge(r.raw, new Date(purgeClock).toISOString());
-                  // The "locked" hint only renders (and is only referenced) while the purge button is
-                  // disabled, so a screen reader hears WHY it can't act yet, not just the button name.
-                  const hintId = `${hintBaseId}-${r.entity}-${r.id}`;
-                  return (
-                    <Fragment key={`${r.entity}-${r.id}`}>
-                      {index > 0 && <ItemSeparator />}
-                      <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="deleted-row">
-                        <ItemContent className="min-w-0">
-                          <span className="text-sm text-ink">{r.name}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
-                        </ItemContent>
-                        {mayPurge && (
-                          <ItemActions>
-                            {!purgeable && (
-                              <span id={hintId} className="text-xs text-muted-foreground">
-                                {m.settings_archived_purge_locked_hint({
-                                  days: PURGE_MIN_AGE_DAYS,
-                                })}
-                              </span>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="danger-soft"
-                              data-testid="archived-purge"
-                              disabled={lifecycleBusy || !purgeable}
-                              aria-label={m.settings_archived_purge_aria({
-                                name: r.name,
-                              })}
-                              aria-describedby={!purgeable ? hintId : undefined}
-                              onClick={() => {
-                                if (!actionLock.current) setConfirmingPurge(r);
-                              }}
-                            >
-                              {m.settings_archived_purge()}
-                            </Button>
-                          </ItemActions>
-                        )}
-                      </Item>
-                    </Fragment>
-                  );
-                })}
-              </ItemGroup>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                );
+              })}
+            </ItemGroup>
+          </div>
+        )}
+      </SettingsSection>
       {confirmingDelete && (
         <ConfirmDialog
           title={m.settings_archived_delete_title()}

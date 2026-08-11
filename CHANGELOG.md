@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Settings now keeps controls concise and explanations on demand.** Every section has a
+  question-mark help modal; Device data, Archived & deleted, and Import & export start collapsed;
+  and company/calendar choices now appear in one compact read-only summary at the bottom (#213).
 - **Activities are easier to scan by where the work belongs.** Internal and cross-project work is
   alphabetical, while project-specific activities are grouped and sorted by client, then project,
   then activity. Client and project names appear once per group instead of on every row (#206).

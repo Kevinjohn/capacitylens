@@ -44,8 +44,11 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await openApp(page);
     await enableExternal(page);
 
-    // Settings section carries the explainer copy.
-    await expect(page.getByText(/outside companies you hand work to but/i).first()).toBeVisible();
+    // Settings keeps the fuller explainer behind the section's help action.
+    await page.getByRole("button", { name: "About External" }).click();
+    const helpDialog = page.getByRole("dialog", { name: "External" });
+    await expect(helpDialog.getByText(/outside companies you hand work to but/i)).toBeVisible();
+    await helpDialog.getByRole("button", { name: "Close" }).click();
 
     // Resources page now shows the External section + its explainer + the seeded external.
     await page.getByRole("link", { name: "Resources" }).click();

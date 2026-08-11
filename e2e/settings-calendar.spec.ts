@@ -4,41 +4,30 @@ import { openApp } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// P1.14 inverted this contract: week-start and time zone used to be EDITABLE in Settings; they are
-// now CAPTURED at company creation and FROZEN thereafter (the server returns 409 on a change). These
-// tests assert the now-frozen behaviour — the controls render their chosen values but are disabled —
-// so the coverage is preserved, not deleted. (The create-company capture is in onboarding.spec.ts;
-// the server 409 in onboarding.db.spec.ts.)
-test.describe("Calendar settings (frozen after creation)", () => {
-  test("week-start and timezone render the chosen values but are disabled", async ({ page }) => {
+// These account values are captured at company creation and frozen thereafter. Settings presents
+// them as a compact read-only summary; the server's 409 backstop remains in onboarding.db.spec.ts.
+test.describe("Account options selected at creation", () => {
+  test("renders the four frozen values without disabled form controls", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
 
-    // The seeded company starts Monday / GMT — the values still SHOW.
-    const mondayBtn = page.getByRole("radio", { name: "Monday" });
-    const sundayBtn = page.getByRole("radio", { name: "Sunday" });
-    await expect(mondayBtn).toHaveAttribute("aria-checked", "true");
-    await expect(sundayBtn).toHaveAttribute("aria-checked", "false");
-    const tzSelect = page.getByLabel("Timezone");
-    await expect(tzSelect).toHaveText("GMT (UTC+00:00)");
-
-    // …but every control is disabled (the freeze).
-    await expect(mondayBtn).toBeDisabled();
-    await expect(sundayBtn).toBeDisabled();
-    await expect(tzSelect).toBeDisabled();
-
-    // A read-only Language row + the explainer make the freeze legible.
+    const heading = page.getByRole("heading", { name: "Account Options Selected at Creation" });
+    const card = heading.locator('xpath=ancestor::*[@data-slot="card"]');
+    await expect(card.getByRole("row", { name: "Company name Wayne Enterprises" })).toBeVisible();
+    await expect(card.getByRole("row", { name: "Week starts on Monday" })).toBeVisible();
+    await expect(card.getByRole("row", { name: "Time zone GMT (UTC+00:00)" })).toBeVisible();
+    await expect(card.getByRole("row", { name: "Language English" })).toBeVisible();
     await expect(page.getByTestId("settings-language")).toHaveText("English");
-    await expect(page.getByText(/Set when the company was created and can't be changed/i)).toBeVisible();
+    await expect(page.getByLabel("Company name")).toHaveCount(0);
+    await expect(page.getByRole("radiogroup", { name: "Week starts on" })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Time zone" })).toHaveCount(0);
   });
 
-  test("clicking a disabled week-start segment cannot change the selection", async ({ page }) => {
+  test("opens the fuller frozen-value explanation from the question-mark action", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    const mondayBtn = page.getByRole("radio", { name: "Monday" });
-    const sundayBtn = page.getByRole("radio", { name: "Sunday" });
-    // force past the disabled-pointer guard; the value must still not move.
-    await sundayBtn.click({ force: true });
-    await expect(mondayBtn).toHaveAttribute("aria-checked", "true");
-    await expect(sundayBtn).toHaveAttribute("aria-checked", "false");
+    await page.getByRole("button", { name: "About Account Options Selected at Creation" }).click();
+    const dialog = page.getByRole("dialog", { name: "Account Options Selected at Creation" });
+    await expect(dialog).toContainText(/cannot be changed here/i);
+    await expect(dialog).toContainText(/sets which day starts the week/i);
   });
 
   test("Settings page passes axe accessibility check", async ({ page }) => {
