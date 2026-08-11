@@ -17,6 +17,9 @@ import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { Badge } from "../ui/badge";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { displayNameComparator } from "../../lib/displayOrder";
+
+const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
 
 export function ResourceList() {
   const data = useActiveScopedData();
@@ -49,9 +52,9 @@ export function ResourceList() {
 
   // Resources, placeholders, and externals all live on THIS tab now. Externals (the External section
   // below) are gated behind the per-account `externalEnabled` pref; people/placeholders split by kind.
-  const people = resources.filter((r) => r.kind === "person");
-  const placeholders = resources.filter((r) => r.kind === "placeholder");
-  const externals = resources.filter(isExternalResource);
+  const people = resources.filter((r) => r.kind === "person").sort(byResourceDisplayName);
+  const placeholders = resources.filter((r) => r.kind === "placeholder").sort(byResourceDisplayName);
+  const externals = resources.filter(isExternalResource).sort(byResourceDisplayName);
   const visibleResourceCount =
     people.length + (placeholdersEnabled ? placeholders.length : 0) + (externalEnabled ? externals.length : 0);
 
