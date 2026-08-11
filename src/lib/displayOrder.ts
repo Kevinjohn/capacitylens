@@ -4,6 +4,7 @@ type Named = Identified & { name: string };
 // CapacityLens is currently English-only. Pinning the locale keeps management-list order independent
 // of the host/browser locale; exact spelling and id then make every collation tie deterministic.
 const displayNameCollator = new Intl.Collator("en", {
+  numeric: true,
   sensitivity: "base",
   usage: "sort",
 });

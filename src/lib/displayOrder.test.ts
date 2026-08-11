@@ -12,6 +12,15 @@ describe("display ordering", () => {
     expect([...entries].sort(byName).map((entry) => entry.name)).toEqual(["Äther", "Zulu"]);
   });
 
+  it("orders numbered names naturally", () => {
+    const entries = [
+      { id: "ten", name: "Workshop 10" },
+      { id: "two", name: "Workshop 2" },
+    ];
+
+    expect([...entries].sort(byName).map((entry) => entry.name)).toEqual(["Workshop 2", "Workshop 10"]);
+  });
+
   it("breaks case, accent and exact-name ties without relying on stable sort", () => {
     const entries = [
       { id: "same-z", name: "alpha" },

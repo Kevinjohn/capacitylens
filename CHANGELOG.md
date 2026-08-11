@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Activities are easier to scan by where the work belongs.** Internal and cross-project work is
+  alphabetical, while project-specific activities are grouped and sorted by client, then project,
+  then activity. Client and project names appear once per group instead of on every row (#206).
 - **Time off is now grouped by resource and focused on current and upcoming absences.** Resource
   sections are alphabetical, entries are date ordered, and completed entries from before the active
   company's current week stay stored without cluttering the planning view (#203).

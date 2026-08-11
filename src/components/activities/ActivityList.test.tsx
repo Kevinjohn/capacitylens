@@ -9,8 +9,14 @@ beforeEach(() => resetStoreWithAccount());
 
 describe("ActivityList", () => {
   it("focuses the activity selected by a command-palette deep link", () => {
-    const selected = useStore.getState().addActivity({ name: "Selected kickoff", kind: "internal" });
-    useStore.getState().addActivity({ name: "Other work", kind: "internal" });
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const selected = useStore.getState().addActivity({
+      name: "Selected kickoff",
+      kind: "project",
+      projectId: project.id,
+    });
+    useStore.getState().addActivity({ name: "Other work", kind: "project", projectId: project.id });
 
     render(<ActivityList selectedActivityId={selected.id} />);
 
@@ -85,7 +91,7 @@ describe("ActivityList", () => {
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
   });
 
-  it("adds a project-specific activity, showing the client / project label in the Project-specific activities section", async () => {
+  it("adds a project-specific activity under one client and project heading", async () => {
     const user = userEvent.setup();
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
@@ -106,7 +112,49 @@ describe("ActivityList", () => {
 
     const row = within(screen.getByTestId("project-specific-activities")).getByTestId("activity-row");
     expect(row).toHaveTextContent("My Activity");
-    expect(row).toHaveTextContent("Acme / Lightning");
+    expect(row).not.toHaveTextContent("Acme");
+    expect(row).not.toHaveTextContent("Lightning");
+    expect(screen.getByRole("heading", { name: "Acme", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Lightning", level: 4 })).toBeInTheDocument();
+  });
+
+  it("groups and sorts project activities by client, project, then activity", () => {
+    const zuluClient = useStore.getState().addClient({ name: "Zulu Client", color: "#111" });
+    const alphaClient = useStore.getState().addClient({ name: "Alpha Client", color: "#222" });
+    const zuluProject = useStore
+      .getState()
+      .addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#333" });
+    const alphaProject = useStore
+      .getState()
+      .addProject({ name: "Alpha Project", clientId: alphaClient.id, color: "#444" });
+    const otherProject = useStore
+      .getState()
+      .addProject({ name: "Other Project", clientId: zuluClient.id, color: "#555" });
+    useStore.getState().addActivity({ name: "Zulu task", kind: "project", projectId: alphaProject.id });
+    useStore.getState().addActivity({ name: "Alpha task", kind: "project", projectId: alphaProject.id });
+    useStore.getState().addActivity({ name: "Other project task", kind: "project", projectId: zuluProject.id });
+    useStore.getState().addActivity({ name: "Other client task", kind: "project", projectId: otherProject.id });
+
+    render(<ActivityList />);
+
+    const section = within(screen.getByTestId("project-specific-activities"));
+    expect(section.getAllByRole("heading", { level: 3 }).map(({ textContent }) => textContent)).toEqual([
+      "Alpha Client",
+      "Zulu Client",
+    ]);
+    expect(section.getAllByRole("heading", { level: 4 }).map(({ textContent }) => textContent)).toEqual([
+      "Alpha Project",
+      "Zulu Project",
+      "Other Project",
+    ]);
+    expect(section.getAllByTestId("activity-row").map(({ textContent }) => textContent)).toEqual([
+      "Alpha task",
+      "Zulu task",
+      "Other project task",
+      "Other client task",
+    ]);
+    expect(section.getAllByText("Alpha Client", { exact: true })).toHaveLength(1);
+    expect(section.getAllByText("Alpha Project", { exact: true })).toHaveLength(1);
   });
 
   it("rejects a project-specific activity with no project chosen", async () => {
@@ -181,6 +229,8 @@ describe("ActivityList", () => {
     render(<ActivityList />);
 
     expect(screen.getByText("Orphan Activity")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Unavailable client", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Unavailable project", level: 4 })).toBeInTheDocument();
     vi.unstubAllEnvs();
   });
 
@@ -191,6 +241,8 @@ describe("ActivityList", () => {
     render(<ActivityList />);
 
     expect(screen.getByText("Orphan Activity")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Unavailable client", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Unavailable project", level: 4 })).toBeInTheDocument();
     vi.unstubAllEnvs();
   });
 
