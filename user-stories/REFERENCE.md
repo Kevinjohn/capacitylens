@@ -154,6 +154,11 @@ An otherwise unmatched or stale URL renders the branded **Page not found** scree
 matching stays strict: while signed out, a truncated or nested token URL remains behind the usable
 sign-in wall rather than being treated as a valid bearer entry.
 
+Loading or reloading any valid section URL serves the application shell. A reload clears the
+session-only active company and therefore shows the company picker, but choosing a company keeps the
+requested URL and continues to that section. Unknown extensionless URLs still reach the in-app
+**Page not found** screen; missing asset and API paths remain real HTTP errors.
+
 The **Import & export** card (**Export JSON** / **Import JSON**) is the **last card on the Settings
 page**, below **Archived & deleted**. It used to be a "Data" section in the sidebar; it moved because
 a full-slice export or replacement is a rare administrative act that does not warrant permanent
