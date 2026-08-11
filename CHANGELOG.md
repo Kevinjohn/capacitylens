@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The 1-week schedule option is visible as soon as the Weeks visible dropdown opens.** The menu now
+  opens below its trigger instead of aligning the selected row over it and hiding the preceding
+  option behind a scroll control (#195).
+
 ## [0.39.2-alpha.1] — 2026-08-11
 
 Schedule zoom levels now end at the selected calendar-week boundary. Wide one-week views and zoom
