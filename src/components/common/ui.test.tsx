@@ -353,6 +353,29 @@ describe("Modal", () => {
     expect(group).not.toHaveClass("data-[spacing=default]:data-[variant=outline]:shadow-xs");
   });
 
+  it("keeps the selected outline one pixel thick at every connected position", () => {
+    const options = [
+      { value: "first", label: "First" },
+      { value: "middle", label: "Middle" },
+      { value: "last", label: "Last" },
+    ];
+    const control = (value: string) => (
+      <SegmentedControl value={value} onChange={vi.fn()} options={options} ariaLabel="Positions" />
+    );
+    const { rerender } = render(control("first"));
+
+    for (const selectedOption of options) {
+      rerender(control(selectedOption.value));
+      const selected = screen.getByRole("radio", { name: selectedOption.label });
+      expect(selected).toHaveAttribute("data-state", "on");
+      expect(selected).toHaveClass("data-[state=on]:border-brand", "data-[state=on]:z-10");
+      expect(selected).toHaveClass(
+        "data-[spacing=0]:not-first:data-[state=on]:shadow-[inset_1px_0_0_var(--color-brand)]",
+      );
+      expect(selected).not.toHaveClass("data-[spacing=0]:data-[state=on]:shadow-[inset_0_0_0_1px_var(--color-brand)]");
+    }
+  });
+
   it("round-trips numeric and string values that have the same display text", () => {
     const onChange = vi.fn();
     render(
