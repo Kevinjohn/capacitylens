@@ -622,6 +622,10 @@ export function SchedulerGrid() {
           // property isn't in React's CSSProperties type.
           style={{
             ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
+            // DateHeader centres wide-view month labels within the VISIBLE part of their month.
+            // The scroll offset is updated imperatively by useSchedulerViewport so horizontal
+            // scrolling moves only a CSS variable instead of re-rendering the scheduler per pixel.
+            ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,
           }}
         >
           {/* min-w-max: this is a flex item of the flex-col scroll container, so the
@@ -662,7 +666,14 @@ export function SchedulerGrid() {
                 </>
               )}
             </div>
-            <DateHeader days={days} dayWidth={dayWidth} geom={geom} weekStartsOn={calendarWeekStartsOn} today={today} />
+            <DateHeader
+              days={days}
+              dayWidth={dayWidth}
+              geom={geom}
+              visibleWeeks={ui.zoom}
+              weekStartsOn={calendarWeekStartsOn}
+              today={today}
+            />
           </div>
 
           {model.length === 0 && (

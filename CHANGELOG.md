@@ -21,6 +21,9 @@ new features and **patch** versions carry fixes.
 - **Resources, Disciplines, Clients and Projects are now alphabetical in their management lists.**
   The display-only ordering keeps resource sections separate and leaves schedule grouping and stored
   data order unchanged (#204).
+- **Month labels now follow the days they describe in wide schedule views.** At one- and two-week
+  zoom, each month and year is centred over the visible part of that month; compact zooms keep the
+  existing non-overlapping sticky label (#219).
 - **Schedule filters are easier to find without crowding the page title.** The Show/Hide Filters
   button now sits at the right of the toolbar after Undo/Redo, and the expanded filter controls are
   centred while retaining their narrow-screen wrapping. The first-run checklist stays below the
