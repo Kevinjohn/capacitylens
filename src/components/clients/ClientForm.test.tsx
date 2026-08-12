@@ -26,7 +26,11 @@ describe("ClientForm – add mode", () => {
     expect(screen.getByLabelText("Code name")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByLabelText("Code name")).toHaveAttribute("aria-invalid", "true");
+    const codeName = screen.getByLabelText("Code name");
+    const hint = screen.getByText("Quotation marks are added automatically.");
+    const alert = screen.getByRole("alert");
+    expect(codeName).toHaveAttribute("aria-invalid", "true");
+    expect(codeName.getAttribute("aria-describedby")?.split(" ")).toEqual(expect.arrayContaining([hint.id, alert.id]));
     expect(useStore.getState().data.clients).toHaveLength(0);
   });
 

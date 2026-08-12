@@ -52,3 +52,5 @@ intended scope.
 - ✅ Edit shows no Repeat control, and linked occurrences do not offer Duplicate.
 - ✅ Duplicate remains available for unlinked allocations and creates exactly one independent allocation.
 - ✅ Capacity and time-off warnings count affected generated allocations and never block Save.
+- ✅ **Repeat until** follows the shared label/control row, and its generated-allocation preview
+  aligns beneath the right-hand control column.
