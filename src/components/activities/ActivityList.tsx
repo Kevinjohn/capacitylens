@@ -92,57 +92,79 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
       </ItemGroup>
     );
 
+  const renderKindSection = (kind: (typeof activityList.kindOrder)[number], index: number) => {
+    const headingClassName = `mb-4 flex items-center justify-between${index > 0 ? " mt-8" : ""}`;
+
+    if (kind === "internal") {
+      return (
+        <Fragment key={kind}>
+          <div className={headingClassName}>
+            <h2 className="text-lg font-semibold">{m.list_activities_internal_heading()}</h2>
+          </div>
+          {box(
+            activityList.internal,
+            m.list_activities_internal_empty(),
+            "internal-activities",
+            activities.length === 0
+              ? {
+                  description: m.list_activities_empty_desc(),
+                  action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true) },
+                }
+              : undefined,
+          )}
+        </Fragment>
+      );
+    }
+
+    if (kind === "repeatable") {
+      return (
+        <Fragment key={kind}>
+          <div className={headingClassName}>
+            <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
+          </div>
+          {box(activityList.crossProject, m.list_activities_repeatable_empty(), "cross-project-activities")}
+        </Fragment>
+      );
+    }
+
+    return (
+      <Fragment key={kind}>
+        <div className={headingClassName}>
+          <h2 className="text-lg font-semibold">{m.list_activities_project_heading()}</h2>
+        </div>
+        {activityList.clients.length === 0 ? (
+          <EmptyState>{m.list_activities_project_empty()}</EmptyState>
+        ) : (
+          <div data-testid="project-specific-activities" className="space-y-6">
+            {activityList.clients.map((client) => (
+              <section key={client.key} className="space-y-3">
+                <h3 className="text-base font-semibold">{client.name}</h3>
+                <div className="space-y-4">
+                  {client.projects.map((project) => (
+                    <section key={project.key} className="space-y-2">
+                      <h4 className="text-sm font-medium text-muted-foreground">{project.name}</h4>
+                      <ItemGroup className="rounded-md border bg-card">
+                        {project.activities.map((activity, rowIndex) => (
+                          <Fragment key={activity.id}>
+                            {rowIndex > 0 && <ItemSeparator />}
+                            {renderRow(activity)}
+                          </Fragment>
+                        ))}
+                      </ItemGroup>
+                    </section>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </Fragment>
+    );
+  };
+
   return (
     <ListPage title={m.list_activities_title()} addLabel={m.list_activities_add()} onAdd={() => setCreating(true)}>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{m.list_activities_internal_heading()}</h2>
-      </div>
-      {box(
-        activityList.internal,
-        m.list_activities_internal_empty(),
-        "internal-activities",
-        activities.length === 0
-          ? {
-              description: m.list_activities_empty_desc(),
-              action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true) },
-            }
-          : undefined,
-      )}
-
-      <div className="mb-4 mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
-      </div>
-      {box(activityList.crossProject, m.list_activities_repeatable_empty(), "cross-project-activities")}
-
-      <div className="mb-4 mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{m.list_activities_project_heading()}</h2>
-      </div>
-      {activityList.clients.length === 0 ? (
-        <EmptyState>{m.list_activities_project_empty()}</EmptyState>
-      ) : (
-        <div data-testid="project-specific-activities" className="space-y-6">
-          {activityList.clients.map((client) => (
-            <section key={client.key} className="space-y-3">
-              <h3 className="text-base font-semibold">{client.name}</h3>
-              <div className="space-y-4">
-                {client.projects.map((project) => (
-                  <section key={project.key} className="space-y-2">
-                    <h4 className="text-sm font-medium text-muted-foreground">{project.name}</h4>
-                    <ItemGroup className="rounded-md border bg-card">
-                      {project.activities.map((activity, index) => (
-                        <Fragment key={activity.id}>
-                          {index > 0 && <ItemSeparator />}
-                          {renderRow(activity)}
-                        </Fragment>
-                      ))}
-                    </ItemGroup>
-                  </section>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      {activityList.kindOrder.map(renderKindSection)}
 
       {creating && <ActivityForm onClose={() => setCreating(false)} />}
       {editing && <ActivityForm activity={editing} onClose={() => setEditing(null)} />}

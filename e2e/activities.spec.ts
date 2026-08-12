@@ -11,6 +11,11 @@ test.describe("Activities", () => {
 
     // Internal kind → project picker hidden, lands in the "Internal activities" section.
     await page.getByRole("button", { name: "Add activity" }).click();
+    await expect(page.getByRole("radiogroup", { name: "Activity kind" }).getByRole("radio")).toHaveText([
+      "Internal",
+      "Cross-project",
+      "Project-specific",
+    ]);
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Internal sync");
     await page.getByRole("radio", { name: "Internal" }).click();
     await page.getByRole("button", { name: "Save" }).click();

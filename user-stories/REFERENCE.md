@@ -351,7 +351,8 @@ nothing, and shows `This client changed while you were editing. Close and reopen
 re-apply your changes.` or the equivalent `This project changed…` message.
 Resource, external-party and time-off edit forms use the same stale-edit contract and show the
 equivalent entity-specific `changed while you were editing` message.
-The **activity form** has an `Activity kind` radiogroup (`Project-specific` / `Internal` / `Cross-project`); the
+The **activity form** has an `Activity kind` radiogroup ordered `Internal` / `Cross-project` /
+`Project-specific` (with `Project-specific` selected by default); the
 `Project` field shows (and is required) only for the `Project-specific` kind — internal/cross-project
 activities are project-less.
 The **time-off form** shows and submits `Note` only for Owner/Admin (and open/demo mode, where no
