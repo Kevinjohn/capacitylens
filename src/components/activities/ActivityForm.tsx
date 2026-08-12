@@ -147,6 +147,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         onChange={onKindChange}
         options={kindOptions()}
         ariaLabel={m.form_activity_kind_aria()}
+        controlClassName="w-full [&>*]:flex-1"
         layout="label-control"
       />
       {kind === "project" && (

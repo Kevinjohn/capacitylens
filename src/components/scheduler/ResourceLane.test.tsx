@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render as rtlRender, screen, act, type RenderOptions } from "@testing-library/react";
+import { cleanup, render as rtlRender, screen, act, type RenderOptions } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { TooltipProvider } from "../ui/tooltip";
@@ -25,9 +25,9 @@ const ORIGIN = "2026-06-01";
 const GEOM = buildColumnGeometry(DAYS, DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 });
 
 const DAY_STATES: DayState[] = [
-  { unavailable: true, over: false, timeOffConflict: false },
-  { unavailable: false, over: true, timeOffConflict: false },
-  { unavailable: false, over: false, timeOffConflict: false },
+  { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false },
+  { unavailable: false, over: true, timeOffConflict: false, partialCapacity: true },
+  { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
 ];
 
 const TIME_OFF_BLOCKS: TimeOffBlock[] = [{ id: "to1", x: 0, width: 96, label: "Holiday" }];
@@ -87,6 +87,29 @@ describe("ResourceLane rendering", () => {
     expect(screen.getByTestId("unavailable-day")).toBeInTheDocument();
   });
 
+  it("tints exactly the bottom half of a half day without taking pointer or focus", () => {
+    renderLane();
+    const halfDay = screen.getByTestId("half-day");
+    expect(halfDay).toHaveClass("bottom-0", "h-1/2", "bg-weekend", "pointer-events-none");
+    expect(halfDay).toHaveAttribute("aria-hidden", "true");
+    expect(halfDay).toHaveStyle({ left: "48px", width: "48px" });
+  });
+
+  it("does not paint half-day tint on full or unavailable dates, or at coarse zoom", () => {
+    renderLane({
+      dayStates: [
+        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
+      ],
+    });
+    expect(screen.queryByTestId("half-day")).not.toBeInTheDocument();
+
+    cleanup();
+    renderLane({ dayWidth: 17 });
+    expect(screen.queryByTestId("half-day")).not.toBeInTheDocument();
+  });
+
   it("renders an over-marker (red background) for the over day", () => {
     renderLane({ timeOff: [] });
     const marker = screen.getByTestId("over-marker");
@@ -100,12 +123,14 @@ describe("ResourceLane rendering", () => {
   it("composites a holiday conflict above the hatch and below the allocation bar", () => {
     renderLane();
     const block = screen.getByTestId("timeoff-block");
+    const halfDay = screen.getByTestId("half-day");
     const marker = screen.getByTestId("over-marker");
     const bar = screen.getByTestId("allocation-bar");
 
     expect(marker).toHaveClass("bg-danger/55");
     expect(marker).not.toHaveClass("bg-danger-cell");
     expect(block).toHaveTextContent("Holiday");
+    expect(halfDay.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -113,9 +138,9 @@ describe("ResourceLane rendering", () => {
   it("renders the same layered marker for a zero-load block/time-off conflict", () => {
     renderLane({
       dayStates: [
-        { unavailable: true, over: false, timeOffConflict: true },
-        { unavailable: true, over: false, timeOffConflict: false },
-        { unavailable: false, over: false, timeOffConflict: false },
+        { unavailable: true, over: false, timeOffConflict: true, partialCapacity: false },
+        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
       ],
     });
 
@@ -133,9 +158,9 @@ describe("ResourceLane rendering", () => {
     renderLane({
       bars: [],
       dayStates: [
-        { unavailable: false, over: false, timeOffConflict: false },
-        { unavailable: false, over: false, timeOffConflict: false },
-        { unavailable: false, over: false, timeOffConflict: false },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
       ],
     });
     expect(screen.queryByTestId("over-marker")).not.toBeInTheDocument();
@@ -169,14 +194,40 @@ describe("ResourceLane rendering", () => {
 });
 
 describe("ResourceLane draw interaction", () => {
+  it("keeps the hover add hint and click creation active across the full half-day cell", () => {
+    const { onDraw } = renderLane({ bars: [], timeOff: [] });
+    const lane = screen.getByTestId("resource-lane");
+    lane.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 144,
+        bottom: 64,
+        width: 144,
+        height: 64,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    fireEvent.pointerMove(lane, { clientX: 60, clientY: 56, pointerType: "mouse" });
+    expect(screen.getByTestId("day-add-hint")).toHaveStyle({ left: "48px", width: "48px" });
+    fireEvent.pointerDown(lane, { clientX: 60, clientY: 56, button: 0 });
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: 60, clientY: 56, bubbles: true }));
+    });
+
+    expect(onDraw).toHaveBeenCalledWith("r1", "2026-06-02", "2026-06-02");
+  });
+
   it("hides the hover hint and rejects the click when creation is blocked on that day", () => {
     const { onDraw } = renderLane({
       bars: [],
       timeOff: [],
       dayStates: [
-        { unavailable: true, over: false, timeOffConflict: false, creationBlocked: true },
-        { unavailable: false, over: false, timeOffConflict: false, creationBlocked: false },
-        { unavailable: false, over: false, timeOffConflict: false, creationBlocked: false },
+        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: true },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: true, creationBlocked: false },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: false },
       ],
     });
     const lane = screen.getByTestId("resource-lane");
@@ -211,9 +262,9 @@ describe("ResourceLane draw interaction", () => {
       bars: [],
       timeOff: [],
       dayStates: [
-        { unavailable: false, over: false, timeOffConflict: false, creationBlocked: false },
-        { unavailable: true, over: false, timeOffConflict: false, creationBlocked: true },
-        { unavailable: true, over: false, timeOffConflict: false, creationBlocked: true },
+        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: false },
+        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: true },
+        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: true },
       ],
     });
     const lane = screen.getByTestId("resource-lane");

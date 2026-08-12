@@ -13,6 +13,20 @@ new features and **patch** versions carry fixes.
   label-to-control rows, contained compound controls and aligned supporting hints, without changing
   allocation values or behaviour (#306).
 
+## [0.41.4-alpha.1] — 2026-08-12
+
+### Fixed
+
+- The Activity Kind control now fills its form column with three equal-width options at normal and
+  narrow widths.
+
+## [0.41.3-alpha.1] — 2026-08-12
+
+### Added
+
+- Half working days now tint the bottom half of their schedule cell at fine zoom and are included
+  in the accessible row summary, while preserving full-cell allocation creation (#316).
+
 ## [0.41.2-alpha.1] — 2026-08-12
 
 ### Fixed
@@ -3388,7 +3402,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.4-alpha.1...HEAD
+[0.41.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.3-alpha.1...v0.41.4-alpha.1
+[0.41.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.2-alpha.1...v0.41.3-alpha.1
 [0.41.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.1-alpha.1...v0.41.2-alpha.1
 [0.41.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.0-alpha.3...v0.41.1-alpha.1
 [0.41.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/ab823d3a1a33df5a00957551cc65b1f169f993b3...v0.41.0-alpha.3

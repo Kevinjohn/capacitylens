@@ -597,7 +597,7 @@ export function SegmentedField<T extends string | number>({
   options: SegmentedOption<T>[];
   /** Optional accessible name when it intentionally differs from the visible label. */
   ariaLabel?: string;
-  /** Optional layout classes for the segmented control itself. */
+  /** Optional layout classes for this field's segmented control. */
   controlClassName?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;

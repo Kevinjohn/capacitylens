@@ -1062,7 +1062,7 @@ Mouse hover sets the active option; mouse click selects.
 row plus the expandable draw-mode/filter row; the WCAG 1.4.10 reflow check asserts the expanded
 state doesn't overflow at 320 CSS px),
 `scheduler-row`, `discipline-group`, `resource-lane`,
-`allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
+`allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`, `half-day`,
 `scheduler-live-region` (a grid-level visually-hidden `role="status"` `aria-live="polite"` region —
 WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER a KEYBOARD move/resize
 on one of its bars, e.g. "Ty now over capacity on 1 day." or "Ty: no capacity conflicts." Pointer drags
@@ -1328,6 +1328,13 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   same day-capacity signal; a holiday with no work is not red. The over-marker carries no `title` (it's
   `pointer-events-none`, so a hover tooltip there is unreachable); the screen-reader signal is the
   per-row sr-only "Over capacity on N day(s)" summary in the row header instead.
+- **Half working days are visible at fine zoom.** At 1- and 2-week zoom, the bottom half of each
+  saved half-day cell uses the same neutral tint family as an unavailable day
+  (`data-testid="half-day"`), while the top half remains clear. The decorative tint is pointer
+  transparent, so the day-level add affordance and click/draw creation continue to use the full
+  cell. A time-off or non-working day remains fully unavailable rather than also showing a half-day
+  tint, and the row's screen-reader summary announces the number of half working days without
+  relying on colour.
 - **An allocation can't exceed 24h/day, and the form says so instead of silently trimming it.** In
   **days mode**, a _Days of work_ spread over too few _Days over_ (e.g. 5 days of work in a 1-day span =
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")

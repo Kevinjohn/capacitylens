@@ -44,10 +44,19 @@ describe("compact input modal layouts", () => {
     expectCompact(screen.getByRole("button", { name: /^Colour \(/ }));
   });
 
-  it("uses compact rows for the Activity kind and conditional project", () => {
+  it("uses compact rows and equal full-width segments for the Activity kind", () => {
     render(<ActivityForm onClose={vi.fn()} />);
     expectCompact(screen.getByLabelText("Name"));
-    expectCompact(screen.getByRole("radiogroup", { name: "Activity kind" }));
+    const kind = screen.getByRole("radiogroup", { name: "Activity kind" });
+    expectCompact(kind);
+    expect(kind).toHaveClass("w-full");
+    expect(kind).toHaveClass("[&>*]:flex-1");
+    expect(kind.children).toHaveLength(3);
+    expect(screen.getAllByRole("radio").map((segment) => segment.textContent)).toEqual([
+      "Internal",
+      "Cross-project",
+      "Project-specific",
+    ]);
     expectCompact(screen.getByLabelText("Project"));
   });
 

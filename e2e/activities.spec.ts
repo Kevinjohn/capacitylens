@@ -4,6 +4,82 @@ import { openApp, selectShadOption, setZoom } from "./helpers";
 // Covers the runnable US-ACT-01, US-ACT-03 and US-ACT-04 flows. US-ACT-02 remains manual while
 // phase management is hidden.
 test.describe("Activities", () => {
+  test("fills the Activity kind control with equal segments without changing its interactions", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/activities");
+    await page.getByRole("button", { name: "Add activity" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Add activity" });
+    const group = dialog.getByRole("radiogroup", { name: "Activity kind" });
+    const segments = group.getByRole("radio");
+    const field = group.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+
+    const expectEqualFullWidthSegments = async (stacked: boolean) => {
+      const [fieldBox, groupBox, segmentBoxes] = await Promise.all([
+        field.boundingBox(),
+        group.boundingBox(),
+        segments.evaluateAll((elements) =>
+          elements.map((element) => {
+            const bounds = element.getBoundingClientRect();
+            return {
+              width: bounds.width,
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+            };
+          }),
+        ),
+      ]);
+      expect(fieldBox).not.toBeNull();
+      expect(groupBox).not.toBeNull();
+      expect(segmentBoxes).toHaveLength(3);
+      expect(
+        Math.max(...segmentBoxes.map(({ width }) => width)) - Math.min(...segmentBoxes.map(({ width }) => width)),
+      ).toBeLessThanOrEqual(1);
+      for (const segment of segmentBoxes) expect(segment.scrollWidth).toBeLessThanOrEqual(segment.clientWidth);
+
+      if (stacked) {
+        expect(Math.abs(groupBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(groupBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
+      } else {
+        const projectBox = await dialog.getByLabel("Project").boundingBox();
+        expect(projectBox).not.toBeNull();
+        expect(Math.abs(groupBox!.x - projectBox!.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(groupBox!.width - projectBox!.width)).toBeLessThanOrEqual(1);
+        const controlStart = (groupBox!.x - fieldBox!.x) / fieldBox!.width;
+        const controlShare = groupBox!.width / fieldBox!.width;
+        expect(controlStart).toBeGreaterThan(0.24);
+        expect(controlStart).toBeLessThan(0.32);
+        expect(controlShare).toBeGreaterThan(0.68);
+        expect(controlShare).toBeLessThan(0.76);
+      }
+    };
+
+    await expect(segments).toHaveText(["Internal", "Cross-project", "Project-specific"]);
+    await expectEqualFullWidthSegments(false);
+    await selectShadOption(dialog.getByLabel("Project"), "p-acme");
+
+    const projectSpecific = dialog.getByRole("radio", { name: "Project-specific" });
+    const crossProject = dialog.getByRole("radio", { name: "Cross-project" });
+    await projectSpecific.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(crossProject).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect(crossProject).toHaveAttribute("aria-checked", "true");
+    await expect(dialog.getByLabel("Project")).toHaveCount(0);
+
+    await projectSpecific.click();
+    await expect(projectSpecific).toHaveAttribute("aria-checked", "true");
+    await expect(dialog.getByLabel("Project")).toContainText("Select project");
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await expectEqualFullWidthSegments(true);
+    await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+
+    await dialog.getByRole("radio", { name: "Internal" }).click();
+    await expect(dialog.getByRole("radio", { name: "Internal" })).toHaveAttribute("aria-checked", "true");
+    await expect(dialog.getByLabel("Project")).toHaveCount(0);
+  });
+
   test("adds an internal, a cross-project, and a project-specific activity into their three sections", async ({
     page,
   }) => {
