@@ -520,6 +520,40 @@ describe("ServerSyncAdapter.loadAll", () => {
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBefore);
   });
 
+  it("preserves current resource engagement and half days from a versionless server slice", async () => {
+    const slice = scopedData("a1", {
+      resources: [
+        {
+          id: "r1",
+          accountId: "a1",
+          kind: "person",
+          name: "Barbara Gordon",
+          role: "Engineer",
+          employmentType: "contractor",
+          engagement: "supplementary",
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5],
+          halfDays: [2],
+          color: "#2d75da",
+          createdAt: TS1,
+          updatedAt: TS1,
+        },
+      ],
+    });
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/state")) return new Response(JSON.stringify(slice), { status: 200 });
+      return commitReceipt(init);
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+
+    const loaded = await adapter.loadAll("a1");
+    expect(loaded.resources[0]).toMatchObject({ engagement: "supplementary", halfDays: [2] });
+
+    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await adapter.saveAll(loaded);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("CROSS-ACCOUNT REGRESSION: re-seed to a2 then save a2 emits ONLY a2 ops — never deletes of a1", async () => {
     // The #1 correctness guard (§5): after a switch, lastSynced (the diff snapshot) MUST be the NEW
     // account's slice. If it stayed a1's, the first a2 save would diff a1→a2 and emit DELETEs for a1's

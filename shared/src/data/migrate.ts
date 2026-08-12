@@ -267,26 +267,32 @@ function migrateV9toV10(data: Record<string, unknown>): Record<string, unknown> 
 
 // v10 → v11 adds required Resource.halfDays. Every previously selected working day was a full day,
 // so legacy resources receive an empty subset and every unselected weekday remains non-working.
+// Bare server slices do not carry an export schemaVersion and therefore pass through every portable
+// migration on hydration. Preserve an already-present value so current server data is not mistaken
+// for a legacy export and reset on every fresh session.
 function migrateV10toV11(data: Record<string, unknown>): Record<string, unknown> {
   const resources = Array.isArray(data.resources)
-    ? data.resources.map((resource) =>
-        resource && typeof resource === "object"
-          ? { ...(resource as Record<string, unknown>), halfDays: [] }
-          : resource,
-      )
+    ? data.resources.map((resource) => {
+        if (!resource || typeof resource !== "object") return resource;
+        const record = resource as Record<string, unknown>;
+        return Array.isArray(record.halfDays) ? record : { ...record, halfDays: [] };
+      })
     : data.resources;
   return { ...data, resources };
 }
 
 // v11 → v12 adds required Resource.engagement. Existing people, placeholders and external rows all
-// start as Studio; later edits can explicitly classify people as Supplementary.
+// start as Studio; later edits can explicitly classify people as Supplementary. As above, a bare
+// current server slice is versionless, so valid current classifications must survive this step.
 function migrateV11toV12(data: Record<string, unknown>): Record<string, unknown> {
   const resources = Array.isArray(data.resources)
-    ? data.resources.map((resource) =>
-        resource && typeof resource === "object"
-          ? { ...(resource as Record<string, unknown>), engagement: "studio" }
-          : resource,
-      )
+    ? data.resources.map((resource) => {
+        if (!resource || typeof resource !== "object") return resource;
+        const record = resource as Record<string, unknown>;
+        return record.engagement === "studio" || record.engagement === "supplementary"
+          ? record
+          : { ...record, engagement: "studio" };
+      })
     : data.resources;
   return { ...data, resources };
 }

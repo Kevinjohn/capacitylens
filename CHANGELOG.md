@@ -10,6 +10,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fresh server-backed sessions now preserve saved Studio/Supplementary classifications and half-day
+  working patterns instead of replacing them with legacy defaults during client hydration.
+- Production builds now contain physical entry documents for every fixed application route, so
+  bookmarks and browser refreshes work even when a hosting edge serves static paths without an SPA
+  history fallback.
+
 ## [0.40.0-alpha.1] — 2026-08-12
 
 CapacityLens now gives teams finer control over working patterns, resource engagement and recurring

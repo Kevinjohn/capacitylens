@@ -3,12 +3,25 @@ import { loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import { copyFile, mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parsePort } from "./scripts/port.mjs";
 import { clientApiOrigin } from "./scripts/render-client-nginx.mjs";
 import { isAccountEmail } from "./shared/src/account/validation";
 
 const devApiPort = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, "CAPACITYLENS_DEV_API_PORT");
+const STATIC_SPA_ROUTES = [
+  "resources",
+  "external",
+  "disciplines",
+  "clients",
+  "projects",
+  "activities",
+  "timeoff",
+  "team",
+  "settings",
+] as const;
 
 function offlineShellManifest(): Plugin {
   return {
@@ -16,7 +29,7 @@ function offlineShellManifest(): Plugin {
     apply: "build",
     generateBundle(_options, bundle) {
       const assets = Object.keys(bundle)
-        .filter((fileName) => fileName !== "offline-shell.json" && fileName !== "index.html")
+        .filter((fileName) => fileName !== "offline-shell.json" && !fileName.endsWith(".html"))
         .map((fileName) => `/${fileName}`)
         .sort();
       this.emitFile({
@@ -24,6 +37,30 @@ function offlineShellManifest(): Plugin {
         fileName: "offline-shell.json",
         source: JSON.stringify(assets),
       });
+    },
+  };
+}
+
+/**
+ * Emit real directory index documents for fixed client routes. The packaged nginx image still
+ * provides the normal SPA fallback, while these aliases also survive a static outer proxy that
+ * serves only paths which physically exist (the production failure mode this guards).
+ */
+function staticSpaRouteDocuments(): Plugin {
+  let outputDirectory = "";
+  return {
+    name: "capacitylens-static-spa-route-documents",
+    apply: "build",
+    configResolved(config) {
+      outputDirectory = resolve(config.root, config.build.outDir);
+    },
+    async closeBundle() {
+      const shell = resolve(outputDirectory, "index.html");
+      for (const route of STATIC_SPA_ROUTES) {
+        const directory = resolve(outputDirectory, route);
+        await mkdir(directory, { recursive: true });
+        await copyFile(shell, resolve(directory, "index.html"));
+      }
     },
   };
 }
@@ -44,6 +81,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       offlineShellManifest(),
+      staticSpaRouteDocuments(),
       // Paraglide (inlang) i18n (P1.5.1) — compile-time, type-safe messages. The plugin re-runs the
       // message compiler into ./src/paraglide on dev/build (the package scripts also precompile so a
       // bare `tsc -b`/`vitest` finds the output). strategy = ['globalVariable','baseLocale']: locale is

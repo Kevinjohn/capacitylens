@@ -104,6 +104,39 @@ test.describe("database-backed persistence", () => {
     await expect(page.getByTestId("client-row").filter({ hasText: "Rename Me Co" })).toHaveCount(0);
   });
 
+  test("edit + fresh hydration: engagement and half days survive the server round-trip", async ({ page, request }) => {
+    await openApp(page);
+    await page.getByRole("link", { name: "Resources" }).click();
+    const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
+    await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit resource" });
+    await selectShadOption(dialog.getByLabel("Engagement"), { label: "Supplementary" });
+    await dialog.getByRole("radio", { name: "Tuesday Half day" }).click();
+    await dialog.getByRole("button", { name: "Save" }).click();
+
+    await expect
+      .poll(async () => {
+        const persisted = (await serverState(request)).resources.find(({ id }) => id === "r-tyler");
+        return { engagement: persisted?.engagement, halfDays: persisted?.halfDays };
+      })
+      .toEqual({ engagement: "supplementary", halfDays: [2] });
+
+    // Start again from the document root so the client discards its in-memory snapshot and hydrates
+    // a new account slice from GET /api/state, matching a later browser session.
+    await openApp(page);
+    await page.getByRole("link", { name: "Resources" }).click();
+    const supplementary = page.getByRole("heading", { name: "Supplementary" }).locator("..");
+    await expect(supplementary.getByTestId("resource-row")).toContainText("Bruce Wayne");
+
+    await page
+      .getByTestId("resource-row")
+      .filter({ hasText: "Bruce Wayne" })
+      .getByRole("button", { name: "Edit Bruce Wayne" })
+      .click();
+    await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
+    await expect(page.getByRole("radio", { name: "Tuesday Half day" })).toBeChecked();
+  });
+
   // P2.5b: the per-row destructive action ARCHIVES (server-authoritative — the UI POSTs the dedicated
   // /api/clients/:id/archive route, then reloads the active slice). An archived client is RETAINED in
   // the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the

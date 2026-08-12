@@ -318,6 +318,27 @@ describe("migrate", () => {
     expect(out.resources[0]).toEqual({ ...resource, engagement: "studio" });
   });
 
+  it("preserves current engagement and half-day values in a bare server slice", () => {
+    const resource = {
+      id: "r1",
+      accountId: "a1",
+      createdAt: "t",
+      updatedAt: "t",
+      kind: "person" as const,
+      name: "Barbara Gordon",
+      role: "Engineer",
+      employmentType: "contractor" as const,
+      engagement: "supplementary" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5] as const,
+      halfDays: [2] as const,
+      color: "#2d75da",
+    };
+
+    const out = migrate({ ...emptyAppData(), resources: [resource] });
+    expect(out.resources[0]).toEqual(resource);
+  });
+
   it("leaves v12 engagement grouping absent so the default-on selector applies", () => {
     const account = {
       id: "a1",
