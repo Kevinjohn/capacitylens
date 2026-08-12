@@ -55,6 +55,13 @@ Weekend columns get a faint tint when you're zoomed in close enough to see indiv
 days clearly. In the one- and two-week views, each month and year starts above the first visible
 day it describes. Wider views keep a compact month label in sight as you scroll.
 
+At the same close zoom levels, a person's **Half day** is shown by tinting the bottom
+half of that day's cell. The full cell remains available for clicking, drawing and
+editing work; the tint is a capacity cue, not a smaller interaction target. Time off or
+a fully non-working day still fills the whole cell.
+
+![The two-week schedule with the lower half of Diana Prince's unobscured Wednesday cell tinted to show her saved half-day working pattern](../screenshots/flows/schedule_half_days.jpg)
+
 ## Allocation bars
 
 An [allocation](/reference/glossary) — a person booked on a project for a date range —
@@ -102,6 +109,12 @@ range.
 [Time off](/guide/time-off) — holiday, sick leave or unpaid leave — is drawn on the same
 grid as work, as a hatched block with no project colour, so a person's real availability
 is always visible in one place rather than hidden in a separate calendar.
+
+An Hours or Days allocation that exceeds the remaining availability gets the usual red
+over-capacity band. Blocks deliberately carry no hours and keep utilisation at 0%, but
+a Block that overlaps time off still gets the red conflict treatment so the clash cannot
+disappear inside the holiday hatch. See [Time off](/guide/time-off#time-off-and-allocations)
+for an example.
 
 ## Filtering and searching
 

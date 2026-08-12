@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation now illustrates the latest compact forms and Settings layout, half-day schedule
+  cues, and time-off conflict markers with current product screenshots.
+
 ## [0.41.8-alpha.1] — 2026-08-12
 
 ### Changed

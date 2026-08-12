@@ -66,6 +66,8 @@ For example, if someone goes part-time, open their row and change the relevant d
 **Half day** or **Not working**. Existing allocations aren't rewritten, but every
 utilisation figure you see after saving reflects their new working pattern.
 
+![The Edit resource form with Wednesday set to Half day in Bruce Wayne's seven-row working pattern](../screenshots/flows/resource_half_day.jpg)
+
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.
 
