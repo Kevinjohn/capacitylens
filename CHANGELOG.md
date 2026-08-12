@@ -23,6 +23,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Management and Settings lists are denser and easier to scan.** Resources, Disciplines,
+  Clients, Projects, Activities, Time off and table-like Settings rows now use compact vertical
+  spacing (#246).
 - **Schedule filters now follow the app's planning order.** Disciplines mirror the schedule grid;
   Internal precedes alphabetically ordered clients and projects; and activities are alphabetical
   within their existing Internal and Cross-project groups (#254).

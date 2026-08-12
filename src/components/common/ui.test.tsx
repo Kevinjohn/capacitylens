@@ -23,6 +23,7 @@ import { Toggle } from "../ui/toggle";
 import { EmptyDescription } from "../ui/empty";
 import { Alert, AlertDescription } from "../ui/alert";
 import { FieldError } from "../ui/field";
+import { Item } from "../ui/item";
 import { Switch } from "../ui/switch";
 import { useStore } from "../../store/useStore";
 import { colorName, SWATCHES } from "../../lib/palette";
@@ -165,6 +166,21 @@ describe("Alert", () => {
 
     expect(screen.getByRole("alert")).toHaveClass("*:data-[slot=alert-description]:text-destructive");
     expect(screen.getByRole("alert")).not.toHaveClass("*:data-[slot=alert-description]:text-destructive/90");
+  });
+});
+
+describe("Item", () => {
+  it("keeps fake-table rows compact without changing the default item density", () => {
+    render(
+      <>
+        <Item>Default row</Item>
+        <Item size="sm">Compact row</Item>
+      </>,
+    );
+
+    expect(screen.getByText("Default row")).toHaveClass("p-4");
+    expect(screen.getByText("Compact row")).toHaveClass("px-4", "py-1");
+    expect(screen.getByText("Compact row")).not.toHaveClass("py-3");
   });
 });
 
