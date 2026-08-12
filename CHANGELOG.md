@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Time-off notes now use the same compact single-line input as the other short form fields (#309).
+
 ### Fixed
 
 - Keyboard shortcuts now respect non-editable regions nested inside editable content.

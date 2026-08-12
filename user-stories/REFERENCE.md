@@ -377,8 +377,9 @@ The **activity form** has an `Activity kind` radiogroup ordered `Internal` / `Cr
 `Project-specific` (with `Project-specific` selected by default); the
 `Project` field shows (and is required) only for the `Project-specific` kind — internal/cross-project
 activities are project-less.
-The **time-off form** shows and submits `Note` only for Owner/Admin (and open/demo mode, where no
-membership role applies); Editor/Viewer never receive or submit that protected field.
+The **time-off form** presents `Note` as a single-line text field and shows/submits it only for
+Owner/Admin (and open/demo mode, where no membership role applies); Editor/Viewer never receive or
+submit that protected field.
 Buttons include `Save`, `Cancel`, `Delete`, `Archive`, `Duplicate`, and `Add activity` as applicable.
 The **create / "Add"**
 affordances carry a leading **`+`** glyph before the label (decorative, `aria-hidden`; the
