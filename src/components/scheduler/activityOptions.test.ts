@@ -63,4 +63,117 @@ describe("buildActivityOptions", () => {
       { value: "project", label: "Briefing" },
     ]);
   });
+
+  it("excludes project activities belonging to another project", () => {
+    const activities: Activity[] = [
+      { ...row, id: "wayne", name: "Briefing", kind: "project", projectId: "wayne-project" },
+      { ...row, id: "stark", name: "Briefing", kind: "project", projectId: "stark-project" },
+    ];
+
+    expect(buildActivityOptions(activities, [], [], "project", "wayne-project")).toEqual([
+      { value: "wayne", label: "Briefing" },
+    ]);
+  });
+
+  it("does not apply the project id filter to non-project activities", () => {
+    const malformed = {
+      ...row,
+      id: "internal-with-project",
+      name: "Support",
+      kind: "internal",
+      projectId: "legacy-project",
+    } as Activity;
+
+    expect(buildActivityOptions([malformed], [], [], "internal", "another-project")).toEqual([
+      { value: malformed.id, label: "Support" },
+    ]);
+  });
+
+  it.each([
+    ["internal", "Internal"],
+    ["repeatable", "Cross-project"],
+  ] as const)("uses the %s kind as context when duplicate names need disambiguation", (kind, context) => {
+    const activities: Activity[] = [
+      { ...row, id: `${kind}-b`, name: "Planning", kind },
+      { ...row, id: `${kind}-a`, name: "Planning", kind },
+    ];
+
+    expect(buildActivityOptions(activities, [], [], kind)).toEqual([
+      { value: `${kind}-a`, label: `Planning / ${context} (1)` },
+      { value: `${kind}-b`, label: `Planning / ${context} (2)` },
+    ]);
+  });
+
+  it("prefers phase context and falls back through project name to the generic project label", () => {
+    const project: Project = {
+      ...row,
+      id: "project",
+      clientId: "client",
+      name: "Website",
+      color: "#123456",
+    };
+    const phase: Phase = { ...row, id: "phase", projectId: project.id, name: "Discovery" };
+    const activities: Activity[] = [
+      {
+        ...row,
+        id: "with-phase",
+        name: "Workshop",
+        kind: "project",
+        projectId: project.id,
+        phaseId: phase.id,
+      },
+      { ...row, id: "with-project", name: "Workshop", kind: "project", projectId: project.id },
+      { ...row, id: "without-metadata", name: "Workshop", kind: "project", projectId: project.id },
+    ];
+
+    expect(buildActivityOptions(activities, [phase], [project], "project", project.id)).toEqual([
+      { value: "with-phase", label: "Workshop / Discovery" },
+      { value: "with-project", label: "Workshop / Website (1)" },
+      { value: "without-metadata", label: "Workshop / Website (2)" },
+    ]);
+
+    expect(buildActivityOptions(activities, [], [], "project", project.id)).toEqual([
+      { value: "with-phase", label: "Workshop / Project (1)" },
+      { value: "with-project", label: "Workshop / Project (2)" },
+      { value: "without-metadata", label: "Workshop / Project (3)" },
+    ]);
+  });
+
+  it("uses the generic context when duplicate project activities have no project id", () => {
+    const activities = [
+      { ...row, id: "project-a", name: "Workshop", kind: "project" },
+      { ...row, id: "project-b", name: "Workshop", kind: "project" },
+    ] as Activity[];
+
+    expect(buildActivityOptions(activities, [], [], "project")).toEqual([
+      { value: "project-a", label: "Workshop / Project (1)" },
+      { value: "project-b", label: "Workshop / Project (2)" },
+    ]);
+  });
+
+  it("sorts labels case-insensitively and breaks equal-label ties by id", () => {
+    const activities: Activity[] = [
+      { ...row, id: "z", name: "alpha", kind: "internal" },
+      { ...row, id: "b", name: "Alpha", kind: "internal" },
+      { ...row, id: "a", name: "Alpha", kind: "internal" },
+    ];
+
+    expect(buildActivityOptions(activities, [], [], "internal")).toEqual([
+      { value: "z", label: "alpha" },
+      { value: "a", label: "Alpha / Internal (1)" },
+      { value: "b", label: "Alpha / Internal (2)" },
+    ]);
+  });
+
+  it("treats accent-only label differences as equal before applying the id tie-break", () => {
+    const activities: Activity[] = [
+      { ...row, id: "z", name: "resume", kind: "internal" },
+      { ...row, id: "a", name: "Résumé", kind: "internal" },
+    ];
+
+    expect(buildActivityOptions(activities, [], [], "internal")).toEqual([
+      { value: "a", label: "Résumé" },
+      { value: "z", label: "resume" },
+    ]);
+  });
 });
