@@ -20,6 +20,53 @@ test.describe("Resources", () => {
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Dana Lee" })).toBeVisible();
   });
 
+  test("keeps resource details compact at normal widths and stacks them on a narrow screen", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/resources");
+    await page.getByRole("button", { name: "Add resource" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Add resource" });
+    const compactFields = dialog.locator('[data-product-layout="label-control"]');
+    await expect(compactFields).toHaveCount(4);
+
+    const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
+    const workingDaysBox = await dialog.getByRole("group", { name: "Working days" }).boundingBox();
+    expect(fieldGroupBox).not.toBeNull();
+    expect(workingDaysBox).not.toBeNull();
+    expect(Math.abs(fieldGroupBox!.width - workingDaysBox!.width)).toBeLessThanOrEqual(2);
+
+    for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+      const control = dialog.getByLabel(label, { exact: true });
+      const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+      const fieldBox = await field.boundingBox();
+      const controlBox = await control.boundingBox();
+      expect(fieldBox).not.toBeNull();
+      expect(controlBox).not.toBeNull();
+      const controlStart = (controlBox!.x - fieldBox!.x) / fieldBox!.width;
+      const controlShare = controlBox!.width / fieldBox!.width;
+      expect(controlStart).toBeGreaterThan(0.24);
+      expect(controlStart).toBeLessThan(0.32);
+      expect(controlShare).toBeGreaterThan(0.68);
+      expect(controlShare).toBeLessThan(0.76);
+    }
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await expect(dialog).toBeVisible();
+    for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+      const control = dialog.getByLabel(label, { exact: true });
+      const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+      const labelBox = await field.locator(":scope > :first-child").boundingBox();
+      const fieldBox = await field.boundingBox();
+      const controlBox = await control.boundingBox();
+      expect(labelBox).not.toBeNull();
+      expect(fieldBox).not.toBeNull();
+      expect(controlBox).not.toBeNull();
+      expect(controlBox!.y).toBeGreaterThanOrEqual(labelBox!.y + labelBox!.height);
+      expect(Math.abs(controlBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(controlBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
+    }
+  });
+
   test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — turn them on so the management

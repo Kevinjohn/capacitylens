@@ -28,6 +28,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Resource forms are shorter and easier to scan.** Name, Role, Discipline, Engagement and Bound
+  project use compact 25/75 label-and-control rows at normal dialog widths, stack on narrow screens,
+  and leave the Working days grid full width (#256).
 - **Resource forms now classify people by Engagement.** People can be marked Studio or
   Supplementary independently of discipline and retained employment data. New and existing
   resources default to Studio, placeholders remain Studio, and editing a person preserves their

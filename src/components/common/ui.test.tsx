@@ -687,6 +687,17 @@ describe("TextField", () => {
     render(<TextField label="Search" value="" onChange={vi.fn()} placeholder="Type here..." />);
     expect(screen.getByPlaceholderText("Type here...")).toBeInTheDocument();
   });
+
+  it("opts into a responsive label-control row without changing the default layout", () => {
+    const { rerender } = render(<TextField label="Name" value="" onChange={vi.fn()} />);
+    expect(screen.getByLabelText("Name").closest('[data-slot="field"]')).not.toHaveAttribute("data-product-layout");
+
+    rerender(<TextField label="Name" value="" onChange={vi.fn()} layout="label-control" />);
+    expect(screen.getByLabelText("Name").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
+  });
 });
 
 // ─── TextAreaField ─────────────────────────────────────────────────────────
@@ -767,6 +778,17 @@ describe("SelectField", () => {
     fireEvent.keyDown(select, { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Option B" }));
     expect(onChange).toHaveBeenCalledWith("b");
+  });
+
+  it("opts into a responsive label-control row without changing the default layout", () => {
+    const { rerender } = render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
+    expect(screen.getByLabelText("Pick one").closest('[data-slot="field"]')).not.toHaveAttribute("data-product-layout");
+
+    rerender(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} layout="label-control" />);
+    expect(screen.getByLabelText("Pick one").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
   });
 
   it("renders an optional structural separator without creating another option", () => {

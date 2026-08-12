@@ -31,3 +31,6 @@ off that resource record.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline error
   ("Name is required for a person.") associated with the Name field (`aria-invalid`).
 - ✅ The saved resource uses the fixed **8-hour** full-day capacity.
+- ✅ At normal dialog widths, Name, Role, Discipline and Engagement use compact rows with roughly
+  one quarter for the label and three quarters for the control; on a narrow screen they stack
+  vertically, while Working days remains full width.

@@ -8,7 +8,7 @@ import { validateText, validateWorkingDays } from "../../lib/validation";
 import { m } from "@/i18n";
 import { Modal, RequiredLegend, SelectField, TextField, WorkingDayPicker, type Option } from "../common/ui";
 import { Button } from "../ui/button";
-import { FieldError } from "../ui/field";
+import { FieldError, FieldGroup } from "../ui/field";
 import { resourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import {
@@ -173,51 +173,58 @@ export function ResourceForm({
         </>
       }
     >
-      <TextField
-        label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()}
-        value={name}
-        onChange={setName}
-        required={!isPlaceholder}
-        invalid={errorField === "name"}
-        describedById={errorId}
-      />
-      <TextField
-        label={m.form_resource_role_label()}
-        value={role}
-        onChange={setRole}
-        placeholder={m.form_resource_role_placeholder()}
-        invalid={errorField === "role"}
-        describedById={errorId}
-      />
-      {disciplinesEnabled && (
-        <SelectField
-          label={m.form_resource_discipline_label()}
-          value={disciplineId}
-          onChange={setDisciplineId}
-          options={disciplineOptions}
-          placeholder={m.form_resource_discipline_none_placeholder()}
-        />
-      )}
-      {!isPlaceholder && (
-        <SelectField
-          label={m.form_resource_engagement_label()}
-          value={engagement}
-          onChange={(v) => setEngagement(v as ResourceEngagement)}
-          options={resourceEngagementOptions()}
-        />
-      )}
-      {isPlaceholder && (
-        <SelectField
-          label={m.form_resource_bound_project_label()}
-          value={projectId}
-          onChange={setProjectId}
-          options={projectOptions}
-          placeholder={m.form_resource_select_project_placeholder()}
-          required
-          invalid={errorField === "projectId"}
+      <FieldGroup className="gap-3">
+        <TextField
+          label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()}
+          value={name}
+          onChange={setName}
+          required={!isPlaceholder}
+          invalid={errorField === "name"}
           describedById={errorId}
+          layout="label-control"
         />
-      )}
+        <TextField
+          label={m.form_resource_role_label()}
+          value={role}
+          onChange={setRole}
+          placeholder={m.form_resource_role_placeholder()}
+          invalid={errorField === "role"}
+          describedById={errorId}
+          layout="label-control"
+        />
+        {disciplinesEnabled && (
+          <SelectField
+            label={m.form_resource_discipline_label()}
+            value={disciplineId}
+            onChange={setDisciplineId}
+            options={disciplineOptions}
+            placeholder={m.form_resource_discipline_none_placeholder()}
+            layout="label-control"
+          />
+        )}
+        {!isPlaceholder && (
+          <SelectField
+            label={m.form_resource_engagement_label()}
+            value={engagement}
+            onChange={(v) => setEngagement(v as ResourceEngagement)}
+            options={resourceEngagementOptions()}
+            layout="label-control"
+          />
+        )}
+        {isPlaceholder && (
+          <SelectField
+            label={m.form_resource_bound_project_label()}
+            value={projectId}
+            onChange={setProjectId}
+            options={projectOptions}
+            placeholder={m.form_resource_select_project_placeholder()}
+            required
+            invalid={errorField === "projectId"}
+            describedById={errorId}
+            layout="label-control"
+          />
+        )}
+      </FieldGroup>
       <WorkingDayPicker
         label={m.form_resource_working_days_label()}
         workingDays={workingDays}
