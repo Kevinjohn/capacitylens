@@ -544,6 +544,10 @@ describe("SettingsView — account options selected at creation", () => {
     expect(within(table).getByRole("cell", { name: "Monday" })).toBeInTheDocument();
     expect(within(table).getByRole("cell", { name: "GMT (UTC+00:00)" })).toBeInTheDocument();
     expect(screen.getByTestId("settings-language")).toHaveTextContent("English");
+    for (const cell of [...within(table).getAllByRole("rowheader"), ...within(table).getAllByRole("cell")]) {
+      expect(cell).toHaveClass("py-1");
+      expect(cell).not.toHaveClass("py-2");
+    }
     expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Week starts on" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Time zone" })).not.toBeInTheDocument();

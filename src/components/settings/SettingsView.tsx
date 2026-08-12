@@ -567,28 +567,28 @@ export function SettingsView() {
           <table className="w-full text-sm">
             <tbody className="divide-y divide-line">
               <tr>
-                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
                   {m.settings_company_name_label()}
                 </th>
-                <td className="py-2 text-right text-ink">{activeAccount.name}</td>
+                <td className="py-1 text-right text-ink">{activeAccount.name}</td>
               </tr>
               <tr>
-                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
                   {m.settings_week_start_label()}
                 </th>
-                <td className="py-2 text-right text-ink">{weekStartLabel}</td>
+                <td className="py-1 text-right text-ink">{weekStartLabel}</td>
               </tr>
               <tr>
-                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
                   {m.settings_timezone_label()}
                 </th>
-                <td className="py-2 text-right text-ink">{timeZoneLabel}</td>
+                <td className="py-1 text-right text-ink">{timeZoneLabel}</td>
               </tr>
               <tr>
-                <th scope="row" className="py-2 pr-4 text-left font-medium text-muted-foreground">
+                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
                   {m.settings_language_label()}
                 </th>
-                <td className="py-2 text-right text-ink" data-testid="settings-language">
+                <td className="py-1 text-right text-ink" data-testid="settings-language">
                   {m.settings_language_value()}
                 </td>
               </tr>

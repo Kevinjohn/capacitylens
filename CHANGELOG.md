@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- The read-only Account Options rows in Settings now use the same compact vertical spacing as the
+  other management and Settings lists (#246).
 - Fresh server-backed sessions now preserve saved Studio/Supplementary classifications and half-day
   working patterns instead of replacing them with legacy defaults during client hydration.
 - Production builds now contain physical entry documents for every fixed application route, so
