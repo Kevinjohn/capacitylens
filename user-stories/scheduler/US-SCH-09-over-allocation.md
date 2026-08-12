@@ -22,6 +22,9 @@ Over-allocation is the single most important signal in a capacity tool: it's the
 4. Put work onto a holiday by changing dates in the allocation modal, dragging a bar, and creating a
    repeating series whose generated occurrence lands on the holiday. In each case the red day stays
    visible with the holiday hatch and label, and the allocation bar remains on top.
+5. Switch Scheduling to **Blocks** and edit a block onto time off. The overlapping day uses the same
+   red treatment and row summary even though Blocks still show 0% utilisation. Days covered only by
+   the person's or company's non-working pattern remain grey rather than red.
 
 ## Acceptance criteria
 
@@ -34,3 +37,6 @@ Over-allocation is the single most important signal in a capacity tool: it's the
 - ✅ Work scheduled on a **time-off / holiday** day still shows the over-marker (a real conflict, unlike a merely-spanned weekend); the red overlay, holiday treatment and allocation remain legible in their intended stacking order.
 - ✅ Direct date edits, drag/reassignment and generated repeat occurrences all produce that same
   holiday conflict signal; a holiday with no allocation is unavailable but not red.
+- ✅ In Blocks mode, a block/time-off overlap is explicitly marked without adding hourly load or
+  utilisation; a block on an ordinary working day and time off without a block are not marked.
+- ✅ Blocks do not gain a red marker merely for spanning personal or company non-working days.

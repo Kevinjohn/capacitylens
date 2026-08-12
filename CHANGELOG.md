@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Blocks that overlap a person's time off now receive the schedule's red conflict marker and
+  accessible row summary while continuing to contribute zero hourly capacity and utilisation
+  (#305).
 - Keyboard shortcuts now respect non-editable regions nested inside editable content.
 
 ## [0.41.0-alpha.3] — 2026-08-12

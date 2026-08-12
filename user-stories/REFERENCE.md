@@ -1333,11 +1333,14 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   The previewed "…h/day" hint always equals what saves.
 - **Blocks mode has zero effective consumption.** Switching an existing company from Hours or Days
   to Blocks leaves historical hour values stored so switching back restores the prior schedule, but
-  those values contribute zero to utilisation, capacity warnings, announcements, drag previews,
-  keyboard moves and duplication for as long as Blocks is active. New and duplicated blocks persist
-  zero hours. Reassigning a block never synthesises hours: an External target is still forced to
-  zero, and a zero-hour External block moved to a person stays at zero. Switching back makes the
-  preserved historical values effective again.
+  those values contribute zero to utilisation, hourly capacity warnings and announcements, drag
+  previews, keyboard moves and duplication for as long as Blocks is active. A block that overlaps
+  its resource's time off is still a scheduling conflict: the overlapping day receives the existing
+  red marker and is included in the row's non-colour conflict summary. An ordinary personal or
+  company non-working day does not receive that treatment. New and duplicated blocks persist zero
+  hours. Reassigning a block never synthesises hours: an External target is still forced to zero, and
+  a zero-hour External block moved to a person stays at zero. Switching back makes the preserved
+  historical values effective again.
 - **Visual language.** Blue semantic tokens (`brand`) identify CapacityLens, navigation and links;
   green semantic tokens (`ok-strong`) identify positive actions such as Create, Save, Add and
   Continue; red semantic tokens (`danger` / `danger-soft`) identify destructive actions. These
