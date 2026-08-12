@@ -6,6 +6,7 @@ import { domainErrorMessage, errorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "../../lib/palette";
+import { byName } from "../../lib/displayOrder";
 import { internalColourModeFor } from "../../store/selectors";
 import { m } from "@/i18n";
 import { ColorField, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
@@ -36,10 +37,16 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const selectedClientIsInternal = clients.find((client) => client.id === clientId)?.builtin === true;
   const showColourPicker = internalColourMode === "palette" || !selectedClientIsInternal;
 
-  const clientOptions: Option[] = clients.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
+  const internalClient = clients.find((client) => client.builtin === true);
+  const ordinaryClients = clients.filter((client) => client.builtin !== true).sort(byName);
+  const clientOptions: Option[] = [
+    ...(internalClient ? [{ value: internalClient.id, label: internalClient.name }] : []),
+    ...ordinaryClients.map((client, index) => ({
+      value: client.id,
+      label: client.name,
+      separatorBefore: internalClient !== undefined && index === 0,
+    })),
+  ];
   // Editing a project whose client is ARCHIVED: the active-only options above don't contain it, so
   // without this the select would silently blank and an unrelated edit (rename, colour) couldn't
   // round-trip the unchanged clientId. Append the current id as a DISABLED option — it stays

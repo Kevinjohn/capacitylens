@@ -753,6 +753,24 @@ describe("SelectField", () => {
     expect(onChange).toHaveBeenCalledWith("b");
   });
 
+  it("renders an optional structural separator without creating another option", () => {
+    const { baseElement } = render(
+      <SelectField
+        label="Grouped choices"
+        value="internal"
+        onChange={vi.fn()}
+        options={[
+          { value: "internal", label: "Internal" },
+          { value: "client", label: "Client", separatorBefore: true },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Grouped choices"), { key: "ArrowDown" });
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("round-trips empty and sentinel-shaped option values without collision", () => {
     const onChange = vi.fn();
     const { rerender } = render(

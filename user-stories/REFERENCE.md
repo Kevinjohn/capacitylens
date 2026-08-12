@@ -1089,6 +1089,9 @@ multiple).
   bars/labels read "Internal", and **Filter by client → Internal** shows BOTH the project-less
   activities AND any activities under Internal-owned projects). No `clientId` is stored on the
   activity; the association is derived in the view-model.
+  In the project form, **Internal is pinned first**, followed by a non-selectable divider and then
+  active ordinary clients in alphabetical display-name order. An archived current client remains a
+  disabled final option while editing so an unrelated change can still preserve that relationship.
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus any
   project-less (internal/cross-project) activity**. They are **hidden by default** behind the
   per-account **Show placeholders** pref (Settings → Placeholders, `placeholdersEnabled` on the

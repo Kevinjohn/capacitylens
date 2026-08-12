@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { MAX_NAME_INPUT_CODE_UNITS, MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from "../../lib/palette";
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
@@ -8,7 +8,15 @@ import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
@@ -263,6 +271,8 @@ export function DateField({
 export interface Option {
   value: string;
   label: string;
+  /** Adds a structural, non-selectable divider immediately before this option. */
+  separatorBefore?: boolean;
   /** Renders the option un-pickable while still SELECTABLE-by-value: a select whose current value
    *  is a disabled option keeps showing it (the "(current, archived)" parent case — the unchanged
    *  id must round-trip), but the user can't move BACK to it after choosing something else. */
@@ -331,9 +341,12 @@ export function SelectField({
         <SelectContent>
           <SelectGroup>
             {options.map((o) => (
-              <SelectItem key={o.value} value={encodeSelectValue(o.value)} data-value={o.value} disabled={o.disabled}>
-                {o.label}
-              </SelectItem>
+              <Fragment key={o.value}>
+                {o.separatorBefore && <SelectSeparator />}
+                <SelectItem value={encodeSelectValue(o.value)} data-value={o.value} disabled={o.disabled}>
+                  {o.label}
+                </SelectItem>
+              </Fragment>
             ))}
           </SelectGroup>
         </SelectContent>
