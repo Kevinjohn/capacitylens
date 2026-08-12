@@ -129,4 +129,9 @@ describe("docs image lightbox", () => {
     const missing = withScreenshots.filter((page) => !page.html.includes(".cl-toggle:checked"));
     expect(missing.map((page) => page.name)).toEqual([]);
   });
+
+  it("keeps generated HTML free of trailing whitespace", () => {
+    const offenders = pages.filter((page) => /[^\S\r\n]+$/m.test(page.html));
+    expect(offenders.map((page) => page.name)).toEqual([]);
+  });
 });
