@@ -6,7 +6,7 @@ import {
   utilizationFromCapacity,
   type DayCapacity,
 } from "../../lib/capacity";
-import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
 import { timeOffTypeLabels, resourceDisplayName } from "../../lib/metadata";
@@ -124,6 +124,9 @@ export interface DayState {
    * from hourly `over` so Blocks can show the conflict while retaining zero capacity consumption. */
   timeOffConflict: boolean;
   unavailable: boolean;
+  /** This resource has a saved half-day working pattern on this date. Suppressed when another
+   * rule makes the whole date unavailable, so the view never paints contradictory backgrounds. */
+  partialCapacity: boolean;
   creationBlocked?: boolean;
 }
 
@@ -593,11 +596,18 @@ export function buildSchedulerModel({
           const dayStates: DayState[] = isExternal
             ? days.map((date) => {
                 const creationBlocked = isCreationStartBlocked(resource, date, [], accountWorkingDays);
-                return { over: false, timeOffConflict: false, unavailable: creationBlocked, creationBlocked };
+                return {
+                  over: false,
+                  timeOffConflict: false,
+                  unavailable: creationBlocked,
+                  partialCapacity: false,
+                  creationBlocked,
+                };
               })
             : days.map((d) => {
                 const cap = capacityOnDay(d);
                 const creationBlocked = isCreationStartBlocked(resource, d, resTimeOff, accountWorkingDays);
+                const unavailable = cap.available === 0 || creationBlocked;
                 const hasTimeOff = (timeOffByDate?.get(d)?.length ?? 0) > 0;
                 // Blocks carry placement but zero hourly load. Their date-range overlap with time
                 // off is therefore an explicit conflict signal rather than fabricated capacity.
@@ -606,7 +616,8 @@ export function buildSchedulerModel({
                 return {
                   over: cap.over,
                   timeOffConflict,
-                  unavailable: cap.available === 0 || creationBlocked,
+                  unavailable,
+                  partialCapacity: !unavailable && resource.halfDays.includes(weekdayOf(d)),
                   creationBlocked,
                 };
               });

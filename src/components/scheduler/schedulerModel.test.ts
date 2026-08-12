@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildSchedulerModel, refreshVisibleUtilization, type GroupModel } from "./schedulerModel";
 import { buildColumnGeometry } from "./columnGeometry";
-import { eachDayISO, addDaysISO } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO, addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { capacityForWindow as capacityForWindowOf, utilization as utilizationOf } from "../../lib/capacity";
 import { emptyFilters } from "../../store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
@@ -1157,6 +1157,7 @@ describe("external / 3rd-party band", () => {
     expect(ext.utilization).toBe(0);
     expect(ext.overSoon).toBe(false);
     expect(ext.dayStates.every((d) => !d.over)).toBe(true);
+    expect(ext.dayStates.every((d) => !d.partialCapacity)).toBe(true);
     expect(ext.dayStates.map((d) => d.unavailable)).toEqual([false, false, false, false, false, true, true]);
     expect(ext.timeOff).toEqual([]); // the stray time-off row is ignored for externals
   });
@@ -1938,6 +1939,54 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     expect(r1.dayStates[2].unavailable).toBe(false); // 2026-06-03, ordinary working day
   });
 
+  it("signals saved half days only when the date retains partial capacity", () => {
+    const d = dataset();
+    const resource = d.resources.find((candidate) => candidate.id === "r1")!;
+    resource.halfDays = [1, 2, 5];
+    d.timeOff.push({
+      id: "to-r1-monday",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "r1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      type: "holiday",
+    });
+
+    const row = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        accountWorkingDays: [1, 2, 3, 4],
+      },
+    })
+      .flatMap((group) => group.rows)
+      .find((candidate) => candidate.resource.id === "r1")!;
+
+    // Monday's time off and globally closed Friday stay fully unavailable. Tuesday is the only
+    // saved half day that retains 4h capacity; ordinary full days and the weekend stay unmarked.
+    expect(row.dayStates.map((state) => state.partialCapacity)).toEqual([
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row.dayStates[0]).toMatchObject({ unavailable: true, partialCapacity: false });
+    expect(row.dayStates[1]).toMatchObject({ unavailable: false, partialCapacity: true, over: true });
+    expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false });
+  });
+
   it("marks only the holiday day of a partial allocation overlap as over", () => {
     const d = dataset();
     // a1 spans Mon–Tue at exactly 8h/day. Monday remains at capacity; Tuesday has zero available
@@ -2081,6 +2130,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       over: false,
       timeOffConflict: false,
       unavailable: false,
+      partialCapacity: false,
       creationBlocked: false,
     });
   });
@@ -2763,6 +2813,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
             over: c.over,
             timeOffConflict,
             unavailable: c.available === 0 || creationBlocked,
+            partialCapacity: c.available > 0 && !creationBlocked && resource.halfDays.includes(weekdayOf(days[index]!)),
             creationBlocked,
           };
         }),
