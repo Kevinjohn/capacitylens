@@ -328,7 +328,7 @@ describe("migrate", () => {
     };
 
     const out = migrate({ schemaVersion: 12, data: { ...emptyAppData(), accounts: [account] } });
-    expect(out.accounts[0]).toEqual(account);
+    expect(out.accounts[0]).toEqual({ ...account, workingDays: [1, 2, 3, 4, 5] });
     expect(out.accounts[0].groupResourcesByEngagement).toBeUndefined();
   });
 
@@ -414,6 +414,22 @@ describe("migrate", () => {
     });
     expect(out.clients.map((client) => client.id)).toEqual(["internal:a1", "internal:a1:1"]);
     expect(out.clients[1]).toMatchObject({ accountId: "a1", builtin: true });
+  });
+
+  it("backfills account working days from week start at v13 to v14", () => {
+    const out = migrate({
+      schemaVersion: 13,
+      data: {
+        ...emptyAppData(),
+        accounts: [
+          { id: "sun", name: "Sunday", color: "#2d75da", weekStartsOn: 0, createdAt: "t", updatedAt: "t" },
+          { id: "mon", name: "Monday", color: "#2d75da", weekStartsOn: 1, createdAt: "t", updatedAt: "t" },
+        ],
+      },
+    });
+
+    expect(out.accounts.find((account) => account.id === "sun")?.workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect(out.accounts.find((account) => account.id === "mon")?.workingDays).toEqual([1, 2, 3, 4, 5]);
   });
 
   it("renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)", () => {

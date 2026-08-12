@@ -138,6 +138,75 @@ describe("ResourceLane rendering", () => {
 });
 
 describe("ResourceLane draw interaction", () => {
+  it("hides the hover hint and rejects the click when creation is blocked on that day", () => {
+    const { onDraw } = renderLane({
+      bars: [],
+      timeOff: [],
+      dayStates: [
+        { unavailable: true, over: false, creationBlocked: true },
+        { unavailable: false, over: false, creationBlocked: false },
+        { unavailable: false, over: false, creationBlocked: false },
+      ],
+    });
+    const lane = screen.getByTestId("resource-lane");
+    lane.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 144,
+        bottom: 64,
+        width: 144,
+        height: 64,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    fireEvent.pointerMove(lane, { clientX: 20, pointerType: "mouse" });
+    expect(screen.queryByTestId("day-add-hint")).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(lane, { clientX: 20, button: 0 });
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: 20, bubbles: true }));
+    });
+    expect(onDraw).not.toHaveBeenCalled();
+
+    fireEvent.pointerMove(lane, { clientX: 60, pointerType: "mouse" });
+    expect(screen.getByTestId("day-add-hint")).toBeInTheDocument();
+  });
+
+  it("allows a span to cross a blocked date when it starts on an allowed date", () => {
+    const { onDraw } = renderLane({
+      bars: [],
+      timeOff: [],
+      dayStates: [
+        { unavailable: false, over: false, creationBlocked: false },
+        { unavailable: true, over: false, creationBlocked: true },
+        { unavailable: true, over: false, creationBlocked: true },
+      ],
+    });
+    const lane = screen.getByTestId("resource-lane");
+    lane.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 144,
+        bottom: 64,
+        width: 144,
+        height: 64,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    fireEvent.pointerDown(lane, { clientX: 20, button: 0 });
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: 120, bubbles: true }));
+    });
+
+    expect(onDraw).toHaveBeenCalledWith("r1", "2026-06-01", "2026-06-03");
+  });
+
   it("calls onDraw with ISO date strings after pointerDown on the lane and document pointerup", () => {
     const { onDraw } = renderLane();
     const lane = screen.getByTestId("resource-lane");

@@ -32,6 +32,7 @@
     "./domain/privateNames": "./src/domain/privateNames.ts",
     "./domain/tenancy": "./src/domain/tenancy.ts",
     "./lib/color": "./src/lib/color.ts",
+    "./lib/accountWorkingDays": "./src/lib/accountWorkingDays.ts",
     "./lib/dateMath": "./src/lib/dateMath.ts",
     "./lib/id": "./src/lib/id.ts",
     "./lib/integrity": "./src/lib/integrity.ts",

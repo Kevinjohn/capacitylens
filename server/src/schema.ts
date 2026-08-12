@@ -101,7 +101,13 @@ ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
 // requiring columns owned by a later migration.
 const V29_ACCOUNTS: TableSpec = {
   ...TABLES.accounts,
-  columns: TABLES.accounts.columns.filter((column) => column.name !== "groupResourcesByEngagement"),
+  columns: TABLES.accounts.columns.filter(
+    (column) => column.name !== "groupResourcesByEngagement" && column.name !== "workingDays",
+  ),
+};
+const V30_ACCOUNTS: TableSpec = {
+  ...TABLES.accounts,
+  columns: TABLES.accounts.columns.filter((column) => column.name !== "workingDays"),
 };
 const V27_TABLES: Record<string, TableSpec> = {
   ...TABLES,
@@ -122,6 +128,10 @@ const V28_TABLES: Record<string, TableSpec> = {
 const V29_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V29_ACCOUNTS,
+};
+const V30_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: V30_ACCOUNTS,
 };
 
 /**
@@ -506,6 +516,11 @@ export function assertSchemaV28(db: Db): void {
 /** Assert the released v29 shape without requiring the v30 engagement-grouping preference. */
 export function assertSchemaV29(db: Db): void {
   assertSchemaVersion(db, V29_TABLES, true);
+}
+
+/** Assert the released v30 shape without requiring the v31 account working-days column. */
+export function assertSchemaV30(db: Db): void {
+  assertSchemaVersion(db, V30_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

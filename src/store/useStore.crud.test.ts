@@ -36,6 +36,27 @@ describe("store CRUD covers every entity", () => {
     expectRevisionAdvanced(account, s().data.accounts[0]);
   });
 
+  it("accounts: defaults, stores and validates company working days", () => {
+    const account = s().data.accounts[0];
+    s().updateAccount(account.id, { workingDays: [1, 3, 5] });
+    expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
+
+    expect(() => s().updateAccount(account.id, { workingDays: [1, 9] as Resource["workingDays"] })).toThrow(
+      /company working days/i,
+    );
+    expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
+
+    const sundayStart = s().addAccount({ name: "Sunday company", color: "#2d75da", weekStartsOn: 0 });
+    expect(sundayStart?.workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect(() =>
+      s().addAccount({
+        name: "Malformed company",
+        color: "#2d75da",
+        workingDays: [1, 9] as Resource["workingDays"],
+      }),
+    ).toThrow(/company working days/i);
+  });
+
   it("disciplines: add / update / delete", () => {
     const d = s().addDiscipline({ name: "Design", color: "#1", sortOrder: 0 });
     s().updateDiscipline(d.id, { name: "Design 2" });

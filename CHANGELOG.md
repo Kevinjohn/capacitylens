@@ -12,6 +12,11 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- **Companies can define global working days.** Settings exposes all seven weekdays in the
+  configured week order, with the first five selected by default. Schedule hover, click and draw
+  creation starts are blocked on globally non-working, personally non-working and time-off dates,
+  while allowed multi-day spans may cross them. Portable exports advance to schema v14 and
+  self-hosted databases to schema v31 (#252).
 - **Resources can now be grouped by Studio and Supplementary engagement.** A new company-wide,
   default-on setting separates the two Resources sections and orders Studio before Supplementary
   inside every schedule discipline, with favourites first and alphabetical within each partition.

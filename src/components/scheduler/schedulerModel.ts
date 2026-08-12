@@ -25,7 +25,9 @@ import type {
   ISODate,
   Resource,
   TimeOff,
+  Weekday,
 } from "@capacitylens/shared/types/entities";
+import { isCreationStartBlocked } from "./creationAvailability";
 import {
   displayNameComparator,
   engagementFavouriteDisplayNameComparator,
@@ -117,6 +119,7 @@ function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>
 export interface DayState {
   over: boolean;
   unavailable: boolean;
+  creationBlocked?: boolean;
 }
 
 /** A positioned time-off block. */
@@ -193,6 +196,8 @@ export interface SchedulerModelOptions {
     // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
     // when re-enabled. See selectors.ts / DECISIONS.md.
     externalEnabled: boolean;
+    /** Account-wide hard boundary for the start of a schedule creation gesture. */
+    accountWorkingDays?: Weekday[];
     /** Default-on company preference: Studio then Supplementary, favourites first within each. */
     groupResourcesByEngagement?: boolean;
     blocksMode?: boolean;
@@ -267,6 +272,7 @@ export function buildSchedulerModel({
     disciplinesEnabled,
     placeholdersEnabled,
     externalEnabled,
+    accountWorkingDays = [1, 2, 3, 4, 5],
     groupResourcesByEngagement = true,
     blocksMode = false,
     internalColourMode = "grey",
@@ -501,7 +507,8 @@ export function buildSchedulerModel({
             };
           });
           // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-          // External rows carry none — flat, unmarked day cells and no time-off blocks.
+          // External rows carry none and have no time-off blocks; company-closed dates still receive
+          // the shared unavailable tint because allocation creation is blocked there for every row.
           const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode);
           // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
           // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
@@ -529,10 +536,18 @@ export function buildSchedulerModel({
             return computed;
           };
           const dayStates: DayState[] = isExternal
-            ? days.map(() => ({ over: false, unavailable: false }))
+            ? days.map((date) => {
+                const creationBlocked = isCreationStartBlocked(resource, date, [], accountWorkingDays);
+                return { over: false, unavailable: creationBlocked, creationBlocked };
+              })
             : days.map((d) => {
                 const cap = capacityOnDay(d);
-                return { over: cap.over, unavailable: cap.available === 0 };
+                const creationBlocked = isCreationStartBlocked(resource, d, resTimeOff, accountWorkingDays);
+                return {
+                  over: cap.over,
+                  unavailable: cap.available === 0 || creationBlocked,
+                  creationBlocked,
+                };
               });
           const timeOff: TimeOffBlock[] = isExternal
             ? []

@@ -11,6 +11,7 @@ import {
   showInternalActivitiesFor,
   showInternalProjectsFor,
   activitiesForProject,
+  accountWorkingDaysFor,
   timeZoneFor,
   visibleRange,
   weekStartsOnFor,
@@ -220,6 +221,20 @@ describe("calendar primitive selectors", () => {
     const data = accounts({ timezone: "Europe/London", weekStartsOn: 0 });
     expect(timeZoneFor(data, "a1")).toBe("Europe/London");
     expect(weekStartsOnFor(data, "a1")).toBe(0);
+  });
+
+  it("derives legacy account working days from week start and preserves an explicit selection", () => {
+    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 1 }), "a1")).toEqual([1, 2, 3, 4, 5]);
+    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 0 }), "a1")).toEqual([0, 1, 2, 3, 4]);
+    expect(
+      accountWorkingDaysFor(
+        {
+          ...accounts({ weekStartsOn: 0 }),
+          accounts: [{ ...accounts({ weekStartsOn: 0 }).accounts[0]!, workingDays: [1, 3, 5] }],
+        },
+        "a1",
+      ),
+    ).toEqual([1, 3, 5]);
   });
 });
 

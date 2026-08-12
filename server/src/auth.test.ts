@@ -328,7 +328,7 @@ describe("startup configuration before database migration", () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 30 }));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining({ version: 31 }));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -508,6 +508,7 @@ describe("startup configuration before database migration", () => {
       expect.objectContaining({ version: 28, name: "add-resource-half-days" }),
       expect.objectContaining({ version: 29, name: "add-resource-engagement" }),
       expect.objectContaining({ version: 30, name: "add-engagement-grouping-preference" }),
+      expect.objectContaining({ version: 31, name: "add-account-working-days" }),
     ]);
     const before = await planAuthSchemaMigrations(configured.auth!);
     expect(before.pending).toBe(true);

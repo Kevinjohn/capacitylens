@@ -3,6 +3,7 @@ import { INTERNAL_CLIENT_COLOR } from "../data/internalClient";
 import { cleanText } from "./strings";
 import { parseISOTimestamp } from "./integrity";
 import { normalizeCodeName, privateCodeNameFallback } from "../domain/privateNames";
+import { normalizeAccountWorkingDays } from "./accountWorkingDays";
 import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
@@ -208,6 +209,7 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   if (rec.weekStartsOn !== undefined && rec.weekStartsOn !== 0 && rec.weekStartsOn !== 1) {
     delete rec.weekStartsOn;
   }
+  rec.workingDays = normalizeAccountWorkingDays(rec.workingDays, rec.weekStartsOn === 0 ? 0 : 1);
   // Drop any language that isn't the one supported value ('en'). English-only until P1.5.1
   // (Paraglide); a hand-edited 'fr'/123/etc. must not persist — its absence reads back as 'en'.
   if (rec.language !== undefined && rec.language !== "en") {

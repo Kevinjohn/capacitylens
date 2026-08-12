@@ -1,5 +1,6 @@
 import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
 import { availableInternalClientId, buildInternalClient, ensureInternalClients } from "./internalClient";
+import { normalizeAccountWorkingDays } from "../lib/accountWorkingDays";
 import type { AppData } from "../types/entities";
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
@@ -296,6 +297,23 @@ function migrateV12toV13(data: Record<string, unknown>): Record<string, unknown>
   return data;
 }
 
+// v13 → v14 adds account-wide working weekdays. Backfill the first five days of each account's
+// configured week; malformed present values take the same repair path as a direct server write.
+function migrateV13toV14(data: Record<string, unknown>): Record<string, unknown> {
+  const accounts = Array.isArray(data.accounts)
+    ? data.accounts.map((account) => {
+        if (!account || typeof account !== "object") return account;
+        const record = account as Record<string, unknown>;
+        const weekStartsOn = record.weekStartsOn === 0 ? 0 : 1;
+        return {
+          ...record,
+          workingDays: normalizeAccountWorkingDays(record.workingDays, weekStartsOn),
+        };
+      })
+    : data.accounts;
+  return { ...data, accounts };
+}
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -357,6 +375,9 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   }
   if (data && typeof data === "object" && version < 13) {
     data = migrateV12toV13(data);
+  }
+  if (data && typeof data === "object" && version < 14) {
+    data = migrateV13toV14(data);
   }
 
   return {
