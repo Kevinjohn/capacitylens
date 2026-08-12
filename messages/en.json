@@ -451,7 +451,6 @@
   "form_resource_working_hours_label": "Working hours / day",
   "form_resource_working_days_label": "Working days",
   "form_resource_working_day_weekday": "Weekday",
-  "form_resource_working_day_availability": "Availability",
   "form_resource_working_day_full": "Full day",
   "form_resource_working_day_half": "Half day",
   "form_resource_working_day_off": "Not working",

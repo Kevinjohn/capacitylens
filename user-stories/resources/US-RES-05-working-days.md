@@ -27,8 +27,11 @@ once, and the timeline uses the resulting capacity while still greying out off-d
 
 ## Acceptance criteria
 
-- ✅ The dialog presents one labelled row for every day from Monday through Sunday. Each row has
-  exactly one selected choice: **Full day**, **Half day** or **Not working**.
+- ✅ The dialog presents a compact radio grid aligned to the right of the form. Monday through
+  Sunday are row headings; **Full day**, **Half day** and **Not working** are written once as column
+  headings; and each row has exactly one selected radio.
+- ✅ Every radio's accessible name combines its weekday and availability (for example,
+  **Tuesday Half day**), and native arrow-key movement stays within that weekday's three choices.
 - ✅ Existing selected weekdays open as **Full day** and existing unselected weekdays open as
   **Not working**; changing the UI does not turn an existing full day into a half day.
 - ✅ A **Full day** contributes the resource's configured **Working hours / day**, a **Half day**

@@ -23,6 +23,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Working-day choices are now a compact radio grid.** Resource forms show Full day, Half day and
+  Not working once as column headings, with one radio per weekday and the grid aligned to the right
+  (#240).
 - **Wide schedule month labels now begin above their first visible day.** One- and two-week views
   left-align each month and year within its visible segment instead of centring it (#253).
 - **External help no longer occupies permanent space on Resources.** The External section now keeps

@@ -329,9 +329,9 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Employment`, `Bound project`, `Working hours / day`, `Working days` (a Monday–Sunday table whose
-rows each contain a labelled `radiogroup` offering the mutually exclusive `Full day`, `Half day`
-and `Not working` choices),
+`Employment`, `Bound project`, `Working hours / day`, `Working days` (a right-aligned Monday–Sunday
+radio grid whose `Full day`, `Half day` and `Not working` column headings appear once; every cell's
+native radio is labelled by both its weekday and availability, and each row permits one choice),
 `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
 `Colour (Blue dark)` for a known swatch, else the raw hex — that opens a `radiogroup` of preset
 colour swatches, each `radio` labelled by a human-readable name like `Blue dark` /

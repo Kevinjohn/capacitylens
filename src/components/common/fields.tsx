@@ -17,8 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { Button } from "../ui/button";
+import { Label } from "../ui/label";
 import { cn } from "@/lib/utils";
 import { m } from "@/i18n";
 import type { Weekday } from "@capacitylens/shared/types/entities";
@@ -489,6 +489,14 @@ function weekdayLabel(day: Weekday): string {
 
 type WorkingDayOption = "full" | "half" | "off";
 
+function workingDayOptions(): Array<{ value: WorkingDayOption; label: string }> {
+  return [
+    { value: "full", label: m.form_resource_working_day_full() },
+    { value: "half", label: m.form_resource_working_day_half() },
+    { value: "off", label: m.form_resource_working_day_off() },
+  ];
+}
+
 export function WorkingDayPicker({
   label,
   workingDays,
@@ -508,6 +516,7 @@ export function WorkingDayPicker({
 }) {
   const markDirty = useMarkFormDirty();
   const groupId = useId();
+  const options = workingDayOptions();
   const optionFor = (day: Weekday): WorkingDayOption =>
     !workingDays.includes(day) ? "off" : halfDays.includes(day) ? "half" : "full";
   const choose = (day: Weekday, option: WorkingDayOption) => {
@@ -528,43 +537,61 @@ export function WorkingDayPicker({
   return (
     <FieldSet aria-invalid={invalid || undefined} aria-describedby={invalid ? describedById : undefined}>
       <FieldLegend variant="label">{label}</FieldLegend>
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full border-collapse text-sm">
-          <thead className="sr-only">
-            <tr>
-              <th scope="col">{m.form_resource_working_day_weekday()}</th>
-              <th scope="col">{m.form_resource_working_day_availability()}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {WEEKDAY_ORDER.map((day) => {
-              const rowId = `${groupId}-${day}`;
-              return (
-                <tr key={day} className="border-b last:border-b-0">
-                  <th id={rowId} scope="row" className="px-3 py-2 text-left font-medium">
-                    {weekdayLabel(day)}
+      <div className="flex justify-end">
+        <div className="max-w-full overflow-x-auto rounded-md border">
+          <table className="border-collapse text-sm">
+            <thead>
+              <tr className="border-b">
+                <th scope="col" className="sr-only">
+                  {m.form_resource_working_day_weekday()}
+                </th>
+                {options.map((option) => (
+                  <th
+                    key={option.value}
+                    id={`${groupId}-${option.value}-heading`}
+                    scope="col"
+                    className="min-w-24 px-3 py-2 text-center text-xs font-medium text-muted-foreground"
+                  >
+                    {option.label}
                   </th>
-                  <td className="px-2 py-1.5">
-                    <ToggleGroup
-                      type="single"
-                      variant="outline"
-                      size="sm"
-                      value={optionFor(day)}
-                      aria-labelledby={rowId}
-                      onValueChange={(next) => {
-                        if (next) choose(day, next as WorkingDayOption);
-                      }}
-                    >
-                      <ToggleGroupItem value="full">{m.form_resource_working_day_full()}</ToggleGroupItem>
-                      <ToggleGroupItem value="half">{m.form_resource_working_day_half()}</ToggleGroupItem>
-                      <ToggleGroupItem value="off">{m.form_resource_working_day_off()}</ToggleGroupItem>
-                    </ToggleGroup>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {WEEKDAY_ORDER.map((day) => {
+                const dayLabel = weekdayLabel(day);
+                const rowHeadingId = `${groupId}-${day}-heading`;
+                return (
+                  <tr key={day} className="border-b last:border-b-0">
+                    <th id={rowHeadingId} scope="row" className="min-w-24 px-3 py-2 text-left font-medium">
+                      {dayLabel}
+                    </th>
+                    {options.map((option) => {
+                      const radioId = `${groupId}-${day}-${option.value}`;
+                      return (
+                        <td key={option.value} className="px-3 py-1 text-center">
+                          <Label htmlFor={radioId} className="flex min-h-8 cursor-pointer justify-center">
+                            <input
+                              id={radioId}
+                              type="radio"
+                              name={`${groupId}-${day}`}
+                              value={option.value}
+                              checked={optionFor(day) === option.value}
+                              aria-labelledby={`${rowHeadingId} ${groupId}-${option.value}-heading`}
+                              data-form-dirty-managed
+                              className="size-4 cursor-pointer"
+                              onChange={() => choose(day, option.value)}
+                            />
+                          </Label>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </FieldSet>
   );
