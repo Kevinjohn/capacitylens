@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Half working days now tint the bottom half of their schedule cell at fine zoom and are included
+  in the accessible row summary, while preserving full-cell allocation creation (#316).
+
 ## [0.41.2-alpha.1] — 2026-08-12
 
 ### Fixed

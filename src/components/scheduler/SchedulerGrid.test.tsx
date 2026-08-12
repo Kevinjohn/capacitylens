@@ -197,6 +197,16 @@ describe("SchedulerGrid", () => {
     expect(screen.getByText(/% utilisation over the visible/)).toBeInTheDocument();
   });
 
+  it("renders saved half days and includes their non-colour signal in the row summary", () => {
+    useStore.getState().updateResource("r1", { halfDays: [2] });
+    renderGrid();
+
+    const row = screen.getByRole("rowheader", { name: /Bruce/ }).closest('[data-testid="scheduler-row"]');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getAllByTestId("half-day").length).toBeGreaterThan(0);
+    expect(within(row as HTMLElement).getByText(/half working days\./)).toBeInTheDocument();
+  });
+
   it("marks over-allocated days and shows a utilization figure", () => {
     // Bruce has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({

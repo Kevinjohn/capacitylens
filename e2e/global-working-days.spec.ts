@@ -8,7 +8,7 @@ async function centre(locator: Locator): Promise<{ x: number; y: number }> {
 }
 
 async function lanePoint(page: Page, lane: Locator, date: string): Promise<{ x: number; y: number }> {
-  const day = await centre(page.locator(`[data-date="${date}"]`));
+  const day = await centre(page.getByTestId("scheduler-day-tier").locator(`[data-date="${date}"]`));
   const laneBox = await lane.boundingBox();
   if (!laneBox) throw new Error("Expected a visible resource lane.");
   return { x: day.x, y: laneBox.y + laneBox.height / 2 };
