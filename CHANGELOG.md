@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- The resource form's Working days table now fills and left-aligns with the field width while
+  retaining contained horizontal overflow for narrow screens and long labels (#280).
+
 ## [0.40.4-alpha.1] — 2026-08-12
 
 ### Fixed

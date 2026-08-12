@@ -27,9 +27,11 @@ once, and the timeline uses the resulting capacity while still greying out off-d
 
 ## Acceptance criteria
 
-- ✅ The dialog presents a compact radio grid aligned to the right of the form. Monday through
-  Sunday are row headings; **Full day**, **Half day** and **Not working** are written once as column
-  headings; and each row has exactly one selected radio.
+- ✅ The dialog presents a full-width compact radio grid aligned with the **Working days** label and
+  the other resource fields. Monday through Sunday are row headings; **Full day**, **Half day** and
+  **Not working** are written once as column headings; and each row has exactly one selected radio.
+- ✅ At narrow widths or with longer labels, headings stay on one line inside a horizontally
+  scrollable table boundary; the table does not widen the resource dialog or page.
 - ✅ Every radio's accessible name combines its weekday and availability (for example,
   **Tuesday Half day**), and native arrow-key movement stays within that weekday's three choices.
 - ✅ Existing selected weekdays open as **Full day** and existing unselected weekdays open as

@@ -196,7 +196,7 @@ export function Modal({
         showCloseButton={false}
         aria-modal="true"
         aria-describedby={undefined}
-        className="max-h-[90dvh] max-w-md gap-0 overflow-y-auto p-0"
+        className="max-h-[90dvh] max-w-md grid-cols-[minmax(0,1fr)] gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
           requestClose();
@@ -227,7 +227,7 @@ export function Modal({
               if (toggle && !toggle.hasAttribute("data-form-dirty-managed")) markDirty();
             }}
           >
-            <div className="flex flex-col gap-3 p-4">{children}</div>
+            <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
             {footer && <DialogFooter className="border-t px-4 py-3">{footer}</DialogFooter>}
           </form>
         </FormDirtyContext.Provider>
