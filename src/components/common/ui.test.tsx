@@ -681,7 +681,11 @@ describe("compact product fields", () => {
       />,
     );
     const control = screen.getByRole("switch", { name: "Use a code name" });
-    expect(control.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+    const field = control.closest('[data-slot="field"]');
+    const description = screen.getByText("Hide the real name");
+    expect(field).toHaveAttribute("data-product-layout", "label-control");
+    expect(field?.firstElementChild).toContainElement(description);
+    expect(control.parentElement).not.toContainElement(description);
     expect(control.parentElement).toHaveClass("min-h-9");
   });
 

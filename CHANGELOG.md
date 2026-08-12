@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Client and Project privacy explanations now sit with their controls in the right-hand form column.
 - Keyboard shortcuts now respect non-editable regions nested inside editable content.
 
 ## [0.41.0-alpha.3] — 2026-08-12
