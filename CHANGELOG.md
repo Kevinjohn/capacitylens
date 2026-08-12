@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.41.4-alpha.1] — 2026-08-12
+
 ### Fixed
 
 - The Activity Kind control now fills its form column with three equal-width options at normal and
@@ -3394,7 +3396,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.3-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.4-alpha.1...HEAD
+[0.41.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.3-alpha.1...v0.41.4-alpha.1
 [0.41.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.2-alpha.1...v0.41.3-alpha.1
 [0.41.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.1-alpha.1...v0.41.2-alpha.1
 [0.41.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.0-alpha.3...v0.41.1-alpha.1
