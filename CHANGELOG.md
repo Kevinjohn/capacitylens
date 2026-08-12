@@ -12,8 +12,56 @@ new features and **patch** versions carry fixes.
 - Global working days now use a compact two-row weekday table in the company's configured week order
   (#317).
 
+## [0.41.7-alpha.1] — 2026-08-12
+
+### Changed
+
+- Time-off notes now use the same compact single-line input as the other short form fields (#309).
+
+## [0.41.6-alpha.1] — 2026-08-12
+
 ### Fixed
 
+- Client and Project privacy explanations now sit with their controls in the right-hand form column
+  (#307).
+
+## [0.41.5-alpha.1] — 2026-08-12
+
+### Changed
+
+- Allocation create/edit forms now match the other product modals with responsive 25/75
+  label-to-control rows, contained compound controls and aligned supporting hints, without changing
+  allocation values or behaviour (#306).
+
+## [0.41.4-alpha.1] — 2026-08-12
+
+### Fixed
+
+- The Activity Kind control now fills its form column with three equal-width options at normal and
+  narrow widths.
+
+## [0.41.3-alpha.1] — 2026-08-12
+
+### Added
+
+- Half working days now tint the bottom half of their schedule cell at fine zoom and are included
+  in the accessible row summary, while preserving full-cell allocation creation (#316).
+
+## [0.41.2-alpha.1] — 2026-08-12
+
+### Fixed
+
+- Allocation forms now label the calendar-day override as **Ignore working days**, accurately
+  describing that it includes every personal non-working weekday while preserving existing
+  allocation data and behaviour (#313).
+
+## [0.41.1-alpha.1] — 2026-08-12
+
+### Fixed
+
+- Blocks that overlap a person's time off now receive the schedule's red conflict marker and
+  accessible row summary while continuing to contribute zero hourly capacity and utilisation
+  (#305).
 - Keyboard shortcuts now respect non-editable regions nested inside editable content.
 
 ## [0.41.0-alpha.3] — 2026-08-12
@@ -3145,7 +3193,7 @@ Weekends stop counting against capacity unless you opt an allocation into them.
   allocation that runs across a Saturday/Sunday (or any of a resource's non-working
   days) used to paint those days red, as if the person were overbooked. The work
   lands on working days, so the weekend now just shows as unavailable — not red.
-  Ticking **"Include weekends as working days"** on an allocation still counts its
+  Turning on an allocation's **calendar-day override** still counts its
   weekend work (and flags it red against a weekday-only person's zero weekend
   capacity), and work scheduled on a **time-off / holiday** day is still flagged as
   the real conflict it is. The allocation editor's "over capacity on N days"
@@ -3374,7 +3422,14 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.0-alpha.3...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.7-alpha.1...HEAD
+[0.41.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.6-alpha.1...v0.41.7-alpha.1
+[0.41.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.5-alpha.1...v0.41.6-alpha.1
+[0.41.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.4-alpha.1...v0.41.5-alpha.1
+[0.41.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.3-alpha.1...v0.41.4-alpha.1
+[0.41.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.2-alpha.1...v0.41.3-alpha.1
+[0.41.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.1-alpha.1...v0.41.2-alpha.1
+[0.41.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.0-alpha.3...v0.41.1-alpha.1
 [0.41.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/ab823d3a1a33df5a00957551cc65b1f169f993b3...v0.41.0-alpha.3
 [0.40.9-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.8-alpha.1...v0.40.9-alpha.1
 [0.40.8-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.7-alpha.1...v0.40.8-alpha.1

@@ -34,5 +34,5 @@ than displaying a misleading add hint and opening a form that cannot represent a
 - ✅ A lane start on a global non-working, personal non-working or time-off date has no hover add hint
   and does not open a form from click or draw.
 - ✅ A multi-day span may cross blocked dates after an allowed start.
-- ✅ The allocation's **Include weekends as working days** choice never bypasses the start boundary.
+- ✅ The allocation's **Ignore working days** choice never bypasses the start boundary.
 - ✅ Existing capacity and utilisation calculations are unchanged.

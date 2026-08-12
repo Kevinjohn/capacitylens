@@ -307,6 +307,51 @@ describe("TimeOffList", () => {
 });
 
 describe("TimeOffForm note visibility", () => {
+  it("uses one single-line Note input with the existing note length limit", () => {
+    render(<TimeOffForm onClose={() => {}} />);
+
+    const note = screen.getByRole("textbox", { name: "Note" });
+    expect(note.tagName).toBe("INPUT");
+    expect(note).toHaveAttribute("type", "text");
+    expect(note).toHaveAttribute("maxlength", "2000");
+  });
+
+  it("keeps invalid Enter submission in the form instead of creating a note newline", async () => {
+    const user = userEvent.setup();
+    render(<TimeOffForm onClose={() => {}} />);
+
+    const note = screen.getByRole("textbox", { name: "Note" });
+    await user.type(note, "Planning note{Enter}");
+
+    expect(note).toHaveValue("Planning note");
+    expect(screen.getByRole("dialog", { name: "Add time off" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/choose a resource/i);
+    expect(useStore.getState().data.timeOff).toHaveLength(0);
+  });
+
+  it("stores a populated single-line Note without changing the selected time-off fields", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource(resourceDraft);
+    render(
+      <TimeOffForm
+        defaults={{ resourceId: resource.id, startDate: "2026-09-01", endDate: "2026-09-02" }}
+        onClose={() => {}}
+      />,
+    );
+
+    await user.type(screen.getByRole("textbox", { name: "Note" }), "  Planning note  ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.timeOff).toHaveLength(1);
+    expect(useStore.getState().data.timeOff[0]).toMatchObject({
+      resourceId: resource.id,
+      startDate: "2026-09-01",
+      endDate: "2026-09-02",
+      type: "holiday",
+      note: "Planning note",
+    });
+  });
+
   it("rejects a stale edit instead of overwriting a concurrent change", async () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource(resourceDraft);

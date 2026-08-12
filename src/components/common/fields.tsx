@@ -7,6 +7,7 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
+import { Checkbox } from "../ui/checkbox";
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
 import {
   Select,
@@ -57,6 +58,7 @@ export function RequiredLegend() {
 export function SwitchField({
   label,
   description,
+  descriptionPlacement = "label",
   checked,
   onChange,
   disabled = false,
@@ -64,6 +66,8 @@ export function SwitchField({
 }: {
   label: string;
   description?: string;
+  /** Keep the default beside the label, or group it below the control in compact rows. */
+  descriptionPlacement?: "label" | "control";
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
@@ -73,6 +77,7 @@ export function SwitchField({
   const markDirty = useMarkFormDirty();
   const descriptionId = useId();
   const controlId = useId();
+  const descriptionInControl = description && descriptionPlacement === "control";
   const control = (
     <Switch
       id={controlId}
@@ -95,9 +100,69 @@ export function SwitchField({
     >
       <FieldContent>
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
-        {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+        {description && !descriptionInControl && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
       </FieldContent>
-      {layout === "label-control" ? <div className="flex min-h-9 items-center">{control}</div> : control}
+      {descriptionInControl ? (
+        <FieldContent className="min-h-9 justify-center">
+          {control}
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        </FieldContent>
+      ) : layout === "label-control" ? (
+        <div className="flex min-h-9 items-center">{control}</div>
+      ) : (
+        control
+      )}
+    </Field>
+  );
+}
+
+/** Accessible checkbox field with the same opt-in product layouts as the other form controls. */
+export function CheckboxField({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+  layout = "stacked",
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
+}) {
+  const markDirty = useMarkFormDirty();
+  const controlId = useId();
+  const control = (
+    <Checkbox
+      id={controlId}
+      data-form-dirty-managed
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={(next) => {
+        markDirty();
+        onChange(next === true);
+      }}
+    />
+  );
+  return (
+    <Field
+      orientation={layout === "label-control" ? "vertical" : "horizontal"}
+      data-disabled={disabled || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
+      {layout === "label-control" ? (
+        <>
+          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+          <div className="flex min-h-9 items-center">{control}</div>
+        </>
+      ) : (
+        <>
+          {control}
+          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+        </>
+      )}
     </Field>
   );
 }
@@ -107,6 +172,7 @@ export function TextField({
   value,
   onChange,
   placeholder,
+  description,
   autoFocus,
   invalid,
   required,
@@ -124,6 +190,7 @@ export function TextField({
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  description?: string;
   autoFocus?: boolean;
   invalid?: boolean;
   required?: boolean;
@@ -139,6 +206,32 @@ export function TextField({
   layout?: ProductFieldLayout;
 }) {
   const id = useId();
+  const descriptionId = useId();
+  const input = (
+    <Input
+      id={id}
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      // Mark the intended autofocus target so Modal's focus trap honours it instead of
+      // grabbing the first focusable (often a leading button).
+      data-autofocus={autoFocus ? "" : undefined}
+      maxLength={maxLength}
+      minLength={minLength}
+      autoComplete={autoComplete}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      data-testid={testId}
+      aria-required={required || undefined}
+      aria-invalid={invalid || undefined}
+      aria-describedby={
+        [description ? descriptionId : undefined, invalid ? describedById : undefined].filter(Boolean).join(" ") ||
+        undefined
+      }
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
   return (
     <Field
       data-invalid={invalid || undefined}
@@ -147,26 +240,14 @@ export function TextField({
       className={cn(layout === "label-control" && labelControlLayout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        autoFocus={autoFocus}
-        // Mark the intended autofocus target so Modal's focus trap honours it instead of
-        // grabbing the first focusable (often a leading button).
-        data-autofocus={autoFocus ? "" : undefined}
-        maxLength={maxLength}
-        minLength={minLength}
-        autoComplete={autoComplete}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        data-testid={testId}
-        aria-required={required || undefined}
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? describedById : undefined}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {description ? (
+        <FieldContent>
+          {input}
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        </FieldContent>
+      ) : (
+        input
+      )}
     </Field>
   );
 }
@@ -220,6 +301,7 @@ export function NumberField({
   invalid,
   required,
   describedById,
+  layout = "stacked",
 }: {
   label: string;
   value: number;
@@ -230,10 +312,16 @@ export function NumberField({
   invalid?: boolean;
   required?: boolean;
   describedById?: string;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}
@@ -529,6 +617,7 @@ export function SegmentedField<T extends string | number>({
   onChange,
   options,
   ariaLabel,
+  controlClassName,
   layout = "stacked",
 }: {
   label: string;
@@ -537,6 +626,8 @@ export function SegmentedField<T extends string | number>({
   options: SegmentedOption<T>[];
   /** Optional accessible name when it intentionally differs from the visible label. */
   ariaLabel?: string;
+  /** Optional layout classes for this field's segmented control. */
+  controlClassName?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 }) {
@@ -553,6 +644,7 @@ export function SegmentedField<T extends string | number>({
         options={options}
         ariaLabel={ariaLabel}
         ariaLabelledby={ariaLabel ? undefined : labelId}
+        className={controlClassName}
       />
     </Field>
   );

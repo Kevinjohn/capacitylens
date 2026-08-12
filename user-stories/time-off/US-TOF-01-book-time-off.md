@@ -18,7 +18,7 @@ People take holidays, get sick and book unpaid days. The manager records that on
 2. Choose **Resource** = _Clark Kent_ (`r-nike`).
 3. Set **Start** = `2026-06-17` and **End** = `2026-06-19` (both in the seed's June window).
 4. Set **Type** = _Holiday_.
-5. Optionally type a **Note** (e.g. `Long weekend`).
+5. Optionally type a short, single-line **Note** (e.g. `Long weekend`).
 6. Click **Save**. The dialog closes and a new entry appears in the list.
 7. Go to **Schedule** (`/`), click **Today** so the seed bars are in view, and set **Weeks visible** to **1 week** so individual day columns are wide enough to render the per-day tint and the block label.
 
@@ -30,3 +30,5 @@ People take holidays, get sick and book unpaid days. The manager records that on
 - ✅ Saving with **no Resource** selected keeps the dialog open and is rejected with the inline error "Choose a resource." (`aria-invalid` on the Resource field).
 - ✅ Clearing **Start** or **End** so a date is empty keeps the dialog open and is rejected with "Start and end dates are required." (`aria-invalid` on the date fields).
 - ✅ Saving with **End** before **Start** (e.g. End `2026-06-15`, Start `2026-06-17`) keeps the dialog open and is rejected with "End date cannot be before the start date."
+- ✅ **Note** is a single-line text input. An empty note remains valid; a populated note persists
+  across reopening the entry; Editor/Viewer do not receive or submit the protected field.

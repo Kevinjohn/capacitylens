@@ -2,7 +2,7 @@ import { test, expect, type Page } from "./fixtures";
 import { openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
-// SPANS a weekend adds no over-marker; opting the allocation into weekends turns those days red; and
+// SPANS a weekend adds no over-marker; ignoring its working pattern turns those days red; and
 // work on a TIME-OFF working day still flags (a real conflict, distinct from a spanned weekend).
 //
 // Seed bars live 1–9 June 2026 (clock frozen to 2026-06-03), so a fresh allocation Fri 12 → Mon 15
@@ -17,7 +17,7 @@ test.describe("Weekend over-marker", () => {
   const leftsOf = (loc: ReturnType<Page["locator"]>) =>
     loc.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.left));
 
-  test("a spanned weekend is not over; include-weekends and time-off are", async ({ page }) => {
+  test("a spanned weekend is not over; ignored working days and time off are", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 2);
 
@@ -42,10 +42,10 @@ test.describe("Weekend over-marker", () => {
     await expect(clarkOverMarkers(page)).toHaveCount(baseline);
     const weekendAwareLefts = await leftsOf(clarkOverMarkers(page));
 
-    // Opt into weekends → the two weekend days now carry work against 0 capacity → over.
+    // Ignore the personal working pattern → the two weekend days now carry work against 0 capacity → over.
     await bar.click();
     const edit = page.getByRole("dialog", { name: "Edit allocation" });
-    await edit.getByText("Include weekends as working days").click();
+    await edit.getByRole("checkbox", { name: "Ignore working days" }).click();
     // The modal advisory must MIRROR the grid (not stay silent as it did before): Sat+Sun = 2 days.
     await expect(edit.getByText(/over capacity on 2 days/i)).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
@@ -53,15 +53,18 @@ test.describe("Weekend over-marker", () => {
     // POSITION (not just count): the two NEW markers sit on non-working (weekend) columns — the same
     // `left` as Clark's grey unavailable-day cells — so a regression that flagged Fri/Mon instead would
     // fail even though the count of 2 held.
-    const includeWeekendsLefts = await leftsOf(clarkOverMarkers(page));
-    const newWeekendLefts = includeWeekendsLefts.filter((l) => !weekendAwareLefts.includes(l));
+    const ignoredWorkingDaysLefts = await leftsOf(clarkOverMarkers(page));
+    const newWeekendLefts = ignoredWorkingDaysLefts.filter((l) => !weekendAwareLefts.includes(l));
     const unavailableLefts = await leftsOf(clarkLane(page).getByTestId("unavailable-day"));
     expect(newWeekendLefts).toHaveLength(2);
     expect(newWeekendLefts.every((l) => unavailableLefts.includes(l))).toBe(true);
 
     // Back to weekend-aware → the weekend clears again.
     await bar.click();
-    await page.getByRole("dialog", { name: "Edit allocation" }).getByText("Include weekends as working days").click();
+    await page
+      .getByRole("dialog", { name: "Edit allocation" })
+      .getByRole("checkbox", { name: "Ignore working days" })
+      .click();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(clarkOverMarkers(page)).toHaveCount(baseline);
 

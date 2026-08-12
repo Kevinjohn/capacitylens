@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { SchedulerGrid } from "./SchedulerGrid";
 import { useStore } from "../../store/useStore";
@@ -197,6 +197,16 @@ describe("SchedulerGrid", () => {
     expect(screen.getByText(/% utilisation over the visible/)).toBeInTheDocument();
   });
 
+  it("renders saved half days and includes their non-colour signal in the row summary", () => {
+    useStore.getState().updateResource("r1", { halfDays: [2] });
+    renderGrid();
+
+    const row = screen.getByRole("rowheader", { name: /Bruce/ }).closest('[data-testid="scheduler-row"]');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getAllByTestId("half-day").length).toBeGreaterThan(0);
+    expect(within(row as HTMLElement).getByText(/half working days\./)).toBeInTheDocument();
+  });
+
   it("marks over-allocated days and shows a utilization figure", () => {
     // Bruce has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({
@@ -210,6 +220,25 @@ describe("SchedulerGrid", () => {
     renderGrid();
     expect(screen.getAllByTestId("over-marker").length).toBeGreaterThan(0);
     expect(screen.getAllByTestId("utilization").length).toBeGreaterThan(0);
+  });
+
+  it("marks a zero-load block on time off and includes it in the non-colour row summary", () => {
+    useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
+    useStore.getState().addTimeOff({
+      resourceId: "r1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      type: "holiday",
+    });
+    useStore.getState().setUtilizationPref("showPersonal", true);
+
+    renderGrid();
+
+    const row = screen.getByTestId("scheduler-row");
+    expect(within(row).getByTestId("over-marker")).toBeInTheDocument();
+    expect(within(row).getByText(/Over capacity on 1 day\./)).toBeInTheDocument();
+    expect(within(row).getByTestId("utilization")).toHaveTextContent("0%");
+    expect(screen.getByTestId("overall-utilization")).toHaveTextContent("0%");
   });
 
   // The density pref has to reach BOTH pipelines: the model (row heights, bar offsets) and the view

@@ -10,12 +10,20 @@ test.describe("Time off", () => {
     await selectShadOption(dialog.getByLabel("Resource"), { label: "Clark Kent" });
     await dialog.getByLabel("Start").fill("2026-06-17");
     await dialog.getByLabel("End").fill("2026-06-19");
+    const note = dialog.getByRole("textbox", { name: "Note" });
+    await expect(note).toHaveJSProperty("tagName", "INPUT");
+    await note.fill("Conference");
     await page.getByRole("button", { name: "Save" }).click();
 
     const clarkGroup = page
       .getByTestId("timeoff-group")
       .filter({ has: page.getByRole("heading", { name: "Clark Kent", exact: true }) });
     await expect(clarkGroup.getByTestId("timeoff-row")).toBeVisible();
+
+    await clarkGroup.getByRole("button", { name: /^Edit / }).click();
+    const editor = page.getByRole("dialog", { name: "Edit time off" });
+    await expect(editor.getByRole("textbox", { name: "Note" })).toHaveValue("Conference");
+    await editor.getByRole("button", { name: "Cancel" }).click();
 
     // It renders as a labelled block on Clark's lane.
     await page.getByRole("link", { name: "Schedule" }).click();
