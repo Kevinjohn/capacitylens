@@ -529,6 +529,7 @@ export function SegmentedField<T extends string | number>({
   onChange,
   options,
   ariaLabel,
+  controlClassName,
   layout = "stacked",
 }: {
   label: string;
@@ -537,6 +538,8 @@ export function SegmentedField<T extends string | number>({
   options: SegmentedOption<T>[];
   /** Optional accessible name when it intentionally differs from the visible label. */
   ariaLabel?: string;
+  /** Optional layout classes for this field's segmented control. */
+  controlClassName?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 }) {
@@ -553,6 +556,7 @@ export function SegmentedField<T extends string | number>({
         options={options}
         ariaLabel={ariaLabel}
         ariaLabelledby={ariaLabel ? undefined : labelId}
+        className={controlClassName}
       />
     </Field>
   );

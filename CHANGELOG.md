@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- The Activity Kind control now fills its form column with three equal-width options at normal and
+  narrow widths.
 - Keyboard shortcuts now respect non-editable regions nested inside editable content.
 
 ## [0.41.0-alpha.3] — 2026-08-12
