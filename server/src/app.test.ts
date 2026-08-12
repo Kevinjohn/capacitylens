@@ -1747,12 +1747,14 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     expect((await state(app)).accounts[0]).toMatchObject(FROZEN);
   });
 
-  it("PATCH name → 200; disciplinesEnabled → 200; schedulingMode → 200 (mutable regression)", async () => {
+  it("PATCH mutable account preferences, including engagement grouping", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
     expect((await patch(app, "accounts", "a1", { name: "New Name" })).statusCode).toBe(200);
     expect((await patch(app, "accounts", "a1", { disciplinesEnabled: true })).statusCode).toBe(200);
+    expect((await patch(app, "accounts", "a1", { groupResourcesByEngagement: false })).statusCode).toBe(200);
     expect((await patch(app, "accounts", "a1", { schedulingMode: "blocks" })).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].groupResourcesByEngagement).toBe(false);
   });
 
   it("a batch PUT changing a frozen field returns the same reloadable 409 as direct writes", async () => {

@@ -62,13 +62,17 @@ a full day, and a day that was unselected remains not working.
 
 ## Find people quickly
 
-The Resources page keeps People, Placeholders and External as separate sections. Rows in
-each section are alphabetical, while the Disciplines page is alphabetical too.
+By default, the Resources page separates people into **Studio** and **Supplementary** sections,
+followed by the existing Placeholders and External sections. An Editor, Admin or Owner can turn
+**Group resources by engagement** off in [Settings](/guide/settings) to combine people into one
+list. Rows in each section are alphabetical, while the Disciplines page is alphabetical too.
 
 People and external parties have a star beside their edit and archive actions. Select it
 to add that row to the company's favourites; the star fills yellow and the row moves to
-the top of its section while favourites and non-favourites each stay alphabetical. The
-same ordering carries into each discipline and the External group on the schedule.
+the top of its engagement section while favourites and non-favourites each stay alphabetical. The
+schedule likewise keeps Studio before Supplementary within each discipline and favourites first
+inside each partition. When grouping is off, favourites lead the combined People list and each
+discipline instead. The External group keeps its own favourites-first order.
 Favourites are shared company data, so everyone sees the same order. Placeholders cannot
 be favourited.
 
@@ -110,7 +114,7 @@ External parties are off by default; an Owner or Admin turns them on for the com
 3. Fill in **Company** (required) and, optionally, a **Descriptor** — for example
    "Print" or "Overflow dev" — and save.
 
-![The Resources page with favourite people ordered first, yellow favourite stars and the External section with Kord Industries](../screenshots/flows/resources-external.jpg)
+![The Resources page with separate Studio and Supplementary sections, a yellow favourite star, and the External section with Kord Industries](../screenshots/flows/resources-external.jpg)
 
 Turning external parties off in Settings hides the section and its rows the same way
 placeholders do, without deleting anything.

@@ -9,6 +9,7 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import {
   disciplinesEnabledFor,
   externalEnabledFor,
+  groupResourcesByEngagementFor,
   internalColourModeFor,
   placeholdersEnabledFor,
   schedulingModeFor,
@@ -100,6 +101,7 @@ export function SchedulerGrid() {
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const groupResourcesByEngagement = useStore((s) => groupResourcesByEngagementFor(s.data, s.activeAccountId));
   // Per-account Internal work colour preference. Grey is the absent/default mode; palette restores
   // saved project colours without changing the underlying project records.
   const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));
@@ -218,6 +220,7 @@ export function SchedulerGrid() {
           disciplinesEnabled,
           placeholdersEnabled,
           externalEnabled,
+          groupResourcesByEngagement,
           blocksMode,
           internalColourMode,
           showInternalProjects,
@@ -235,6 +238,7 @@ export function SchedulerGrid() {
       disciplinesEnabled,
       placeholdersEnabled,
       externalEnabled,
+      groupResourcesByEngagement,
       blocksMode,
       internalColourMode,
       showInternalProjects,

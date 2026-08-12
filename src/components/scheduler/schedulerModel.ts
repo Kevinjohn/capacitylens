@@ -26,7 +26,11 @@ import type {
   Resource,
   TimeOff,
 } from "@capacitylens/shared/types/entities";
-import { displayNameComparator, favouriteDisplayNameComparator } from "../../lib/displayOrder";
+import {
+  displayNameComparator,
+  engagementFavouriteDisplayNameComparator,
+  favouriteDisplayNameComparator,
+} from "../../lib/displayOrder";
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
@@ -67,6 +71,8 @@ function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: 
 const NO_ALLOCATIONS: Allocation[] = [];
 const NO_TIME_OFF: TimeOff[] = [];
 const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
+const byEngagementFavouriteResourceDisplayName =
+  engagementFavouriteDisplayNameComparator<Resource>(resourceDisplayName);
 const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
 
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
@@ -187,6 +193,8 @@ export interface SchedulerModelOptions {
     // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
     // when re-enabled. See selectors.ts / DECISIONS.md.
     externalEnabled: boolean;
+    /** Default-on company preference: Studio then Supplementary, favourites first within each. */
+    groupResourcesByEngagement?: boolean;
     blocksMode?: boolean;
     // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
     // restores the normal project/resource colour path without changing persisted entity colours.
@@ -259,6 +267,7 @@ export function buildSchedulerModel({
     disciplinesEnabled,
     placeholdersEnabled,
     externalEnabled,
+    groupResourcesByEngagement = true,
     blocksMode = false,
     internalColourMode = "grey",
     showInternalProjects = true,
@@ -431,14 +440,19 @@ export function buildSchedulerModel({
       title: group.external ? "External / 3rd party" : (group.discipline?.name ?? "No discipline"),
       color: group.external ? NEUTRAL_COLOR : group.discipline?.color,
       external: !!group.external,
-      // Keep discipline/external grouping intact while putting favourites first alphabetically.
-      // Placeholders remain after all people and have no favourite affordance.
+      // Keep discipline/external grouping intact. People are Studio then Supplementary when the
+      // default-on account preference is enabled, with favourites first alphabetically inside each
+      // partition. Placeholders remain after all people and have no favourite affordance.
       rows: group.resources
         .filter(resourceVisible)
         .sort(
           (a, b) =>
             Number(a.kind === "placeholder") - Number(b.kind === "placeholder") ||
-            (a.kind === "placeholder" ? byResourceDisplayName(a, b) : byFavouriteResourceDisplayName(a, b)),
+            (a.kind === "placeholder"
+              ? byResourceDisplayName(a, b)
+              : groupResourcesByEngagement
+                ? byEngagementFavouriteResourceDisplayName(a, b)
+                : byFavouriteResourceDisplayName(a, b)),
         )
         .map((resource) => {
           // This resource's data, pre-grouped above; capacity then scans only its own

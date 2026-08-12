@@ -105,6 +105,54 @@ describe("ResourceList display", () => {
     ]);
   });
 
+  it("separates Studio and Supplementary by default, with favourites first inside each section", () => {
+    useStore.getState().addResource(personDraft("Studio Zulu"));
+    useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
+    useStore.getState().addResource({
+      ...personDraft("Supplementary Alpha"),
+      engagement: "supplementary",
+    });
+    useStore.getState().addResource({
+      ...personDraft("Supplementary Zulu"),
+      engagement: "supplementary",
+      isFavourite: true,
+    });
+
+    render(<ResourceList />);
+
+    const studio = screen.getByRole("heading", { name: "Studio" }).closest("section")!;
+    const supplementary = screen.getByRole("heading", { name: "Supplementary" }).closest("section")!;
+    expect(
+      within(studio)
+        .getAllByTestId("resource-row")
+        .map((row) => row.textContent),
+    ).toEqual([expect.stringContaining("Studio Alpha"), expect.stringContaining("Studio Zulu")]);
+    expect(
+      within(supplementary)
+        .getAllByTestId("resource-row")
+        .map((row) => row.textContent),
+    ).toEqual([expect.stringContaining("Supplementary Zulu"), expect.stringContaining("Supplementary Alpha")]);
+  });
+
+  it("combines people into one favourites-first list when engagement grouping is off", () => {
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { groupResourcesByEngagement: false });
+    useStore.getState().addResource(personDraft("Studio Zulu"));
+    useStore.getState().addResource({
+      ...personDraft("Supplementary Alpha"),
+      engagement: "supplementary",
+      isFavourite: true,
+    });
+
+    render(<ResourceList />);
+
+    expect(screen.queryByRole("heading", { name: "Studio" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Supplementary" })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("resource-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "Supplementary Alpha",
+      "Studio Zulu",
+    ]);
+  });
+
   it("hides direct section create actions from viewers", () => {
     useStore.getState().addResource(personDraft("Alice"));
     render(

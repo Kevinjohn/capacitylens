@@ -16,7 +16,8 @@ The schedule is the studio manager's daily home page. Before touching anything t
 
 1. Note the discipline group headers down the grid: **Design**, **Development**, **Copywriting** (the seed disciplines, in their sort order).
 2. Confirm each resource row sits under the right group — e.g. **Bruce Wayne** under **Design**, **Clark Kent** and **Barry Allen** under **Development**, **Diana Prince** under **Copywriting**.
-   A favourite person leads only their own discipline; it does not move the discipline itself.
+   Studio people precede Supplementary people within each discipline. A favourite leads only its
+   own engagement partition; neither engagement nor favourite status moves the discipline itself.
 3. Click **Today** so the seed bars are in view. Bruce is over-allocated on **3–4 June** (8h + 4h > 8h): his bars there carry an over-allocation marker (a full-height tint with a top band).
 4. Set **Weeks visible** to **1 week** (or **2 weeks**) so the fine-zoom greying renders, staying on the current week. Weekend columns and non-working days show the **unavailable-day** grey tint.
 5. Read the left column: each row shows a **utilisation** percentage under **"Utilisation · Nw"**
@@ -26,8 +27,9 @@ The schedule is the studio manager's daily home page. Before touching anything t
 ## Acceptance criteria
 
 - ✅ The grid shows **discipline group** headers (Design, Development, Copywriting) with resource rows nested under them.
-- ✅ Favourite people appear alphabetically before non-favourites within their existing discipline;
-  placeholders remain after people and external favourites remain in the separate External band.
+- ✅ Studio people appear before Supplementary people within their existing discipline; favourites
+  lead alphabetically inside each engagement partition. Placeholders remain after people and
+  external favourites remain in the separate External band.
 - ✅ At `2026-06-01`, Bruce's 3–4 June shows at least one **over-marker** (`data-testid="over-marker"`).
 - ✅ With **Weeks visible** set to **1 week** or **2 weeks**, at least one **unavailable-day** tint (`data-testid="unavailable-day"`) is visible (weekend / non-working day).
 - ✅ Each resource row shows a **utilisation** figure (`data-testid="utilization"`).

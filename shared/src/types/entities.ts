@@ -73,6 +73,9 @@ export interface Account extends Entity {
    *  When false, disciplines are hidden across the whole UI (nav, resource form,
    *  schedule grouping + filter, lists, command palette) — the data is preserved. */
   disciplinesEnabled?: boolean;
+  /** Whether people are partitioned as Studio then Supplementary in Resources and the schedule.
+   *  Absent = true, preserving the default-on company view without rewriting legacy accounts. */
+  groupResourcesByEngagement?: boolean;
   /** Whether this company surfaces placeholder ("slot") resources. Absent = false
    *  (hidden out of the box — NOT `?? true` like disciplinesEnabled) so new companies start
    *  with placeholders OFF. When false, placeholders are hidden across the UI; the data is
@@ -400,8 +403,9 @@ export function externalCapacityDefaults(): Pick<
  *  whose absence means shown/enabled — read at `?? true`; v10 adds optional Resource.isFavourite,
  *  whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
  *  legacy resources so every previously selected weekday remains a full day; v12 adds required
- *  Resource.engagement, defaulting legacy resources to Studio.) */
-export const EXPORT_SCHEMA_VERSION = 12;
+ *  Resource.engagement, defaulting legacy resources to Studio; v13 adds the optional account-wide
+ *  groupResourcesByEngagement view preference, whose absence means enabled.) */
+export const EXPORT_SCHEMA_VERSION = 13;
 
 export interface PersistedState {
   schemaVersion: number;

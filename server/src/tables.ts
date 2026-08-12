@@ -72,6 +72,7 @@ const COLS_accounts = [
   { name: "weekStartsOn", json: true, optional: true },
   { name: "language", optional: true },
   { name: "disciplinesEnabled", json: true, optional: true },
+  { name: "groupResourcesByEngagement", json: true, optional: true },
   { name: "placeholdersEnabled", json: true, optional: true },
   { name: "externalEnabled", json: true, optional: true },
   { name: "internalColourMode", optional: true },
@@ -360,7 +361,7 @@ CREATE TABLE IF NOT EXISTS timeOff (
  * shortcut around the ledger. */
 export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   "placeholdersEnabled TEXT, externalEnabled TEXT,",
-  "placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, " +
+  "placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, groupResourcesByEngagement TEXT, " +
     "showInternalProjects TEXT, showInternalActivities TEXT, inlineActivityCreateEnabled TEXT,",
 )
   .replace(

@@ -88,6 +88,7 @@ describe("SettingsView — section help", () => {
     for (const section of [
       "Scheduling",
       "Disciplines",
+      "Engagement grouping",
       "Schedule",
       "Internal work colours",
       "Placeholders",
@@ -114,6 +115,7 @@ describe("SettingsView — section help", () => {
 
     expect(screen.getByRole("button", { name: "About Disciplines" })).toBeEnabled();
     expect(screen.getByRole("switch", { name: "Use disciplines" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Group resources by engagement" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Days" })).toBeDisabled();
     expect(screen.getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
   });
@@ -305,6 +307,7 @@ describe("SettingsView — Schedule (minimise weekends)", () => {
 describe("SettingsView — account toggle wiring", () => {
   it.each([
     ["Use disciplines", "disciplinesEnabled"],
+    ["Group resources by engagement", "groupResourcesByEngagement"],
     ["Show placeholders", "placeholdersEnabled"],
     ["Show external resources", "externalEnabled"],
     ["Show internal projects", "showInternalProjects"],
@@ -321,7 +324,10 @@ describe("SettingsView — account toggle wiring", () => {
     expect(after).toBe(
       !(
         before ??
-        (key === "disciplinesEnabled" || key.startsWith("showInternal") || key === "inlineActivityCreateEnabled")
+        (key === "disciplinesEnabled" ||
+          key === "groupResourcesByEngagement" ||
+          key.startsWith("showInternal") ||
+          key === "inlineActivityCreateEnabled")
       ),
     );
   });

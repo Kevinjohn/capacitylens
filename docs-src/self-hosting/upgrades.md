@@ -69,6 +69,15 @@ rather than guessing.
 7. Keep the old container image and the recovery snapshot until you're satisfied the
    upgrade is good.
 
+### Current schema changes
+
+The release that adds Studio and Supplementary engagement advances the database through
+schema v29 (the required resource engagement column) and v30 (the optional company-wide
+engagement-grouping preference). Existing resources become Studio resources, and an absent
+grouping preference reads as on. No manual data edit is required. To roll back to an older
+image, restore the automatic pre-migration snapshot as described below; do not remove the new
+columns or edit the migration ledger by hand.
+
 ### Stored credential effects
 
 Some releases change how CapacityLens stores credentials rather than the schema. When a

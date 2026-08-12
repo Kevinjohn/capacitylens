@@ -12,6 +12,11 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- **Resources can now be grouped by Studio and Supplementary engagement.** A new company-wide,
+  default-on setting separates the two Resources sections and orders Studio before Supplementary
+  inside every schedule discipline, with favourites first and alphabetical within each partition.
+  Turning it off restores one favourites-first People list and schedule order. Portable exports
+  advance to schema v13 and self-hosted databases to schema v30 (#244).
 - **Working patterns now support full days, half days and non-working days.** Resource create and
   edit forms show one explicit choice for every Monday–Sunday row, and the schedule treats half
   days as four hours of capacity while preserving existing full-day and non-working selections

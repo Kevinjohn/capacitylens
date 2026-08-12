@@ -97,10 +97,15 @@ ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;
 ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
-// Historical resource contracts let released migrations validate their own result without
-// accidentally requiring columns owned by a later migration.
+// Historical contracts let released migrations validate their own result without accidentally
+// requiring columns owned by a later migration.
+const V29_ACCOUNTS: TableSpec = {
+  ...TABLES.accounts,
+  columns: TABLES.accounts.columns.filter((column) => column.name !== "groupResourcesByEngagement"),
+};
 const V27_TABLES: Record<string, TableSpec> = {
   ...TABLES,
+  accounts: V29_ACCOUNTS,
   resources: {
     ...TABLES.resources,
     columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays" && column.name !== "engagement"),
@@ -108,10 +113,15 @@ const V27_TABLES: Record<string, TableSpec> = {
 };
 const V28_TABLES: Record<string, TableSpec> = {
   ...TABLES,
+  accounts: V29_ACCOUNTS,
   resources: {
     ...TABLES.resources,
     columns: TABLES.resources.columns.filter((column) => column.name !== "engagement"),
   },
+};
+const V29_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: V29_ACCOUNTS,
 };
 
 /**
@@ -491,6 +501,11 @@ export function assertSchemaV27(db: Db): void {
 /** Assert the released v28 shape without requiring the v29 resource engagement column. */
 export function assertSchemaV28(db: Db): void {
   assertSchemaVersion(db, V28_TABLES, true);
+}
+
+/** Assert the released v29 shape without requiring the v30 engagement-grouping preference. */
+export function assertSchemaV29(db: Db): void {
+  assertSchemaVersion(db, V29_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

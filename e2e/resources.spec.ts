@@ -121,6 +121,50 @@ test.describe("Resources", () => {
       .toEqual([1, 2]);
   });
 
+  test("groups Studio before Supplementary and restores one People order when disabled", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/resources");
+    await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Supplementary" })).toBeVisible();
+
+    const barry = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
+    await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
+    await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+    await page.getByRole("button", { name: "Save" }).click();
+    await barry.getByRole("button", { name: "Add Barry Allen to favourites" }).click();
+
+    const supplementary = page.getByRole("heading", { name: "Supplementary" }).locator("..");
+    await expect(supplementary.getByTestId("resource-row")).toContainText("Barry Allen");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect
+      .poll(async () => {
+        const rows = await page.getByTestId("scheduler-row").allTextContents();
+        return [
+          rows.findIndex((row) => row.includes("Clark Kent")),
+          rows.findIndex((row) => row.includes("Barry Allen")),
+        ];
+      })
+      .toEqual([1, 2]);
+
+    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("switch", { name: "Group resources by engagement" }).click();
+    await page.getByRole("link", { name: "Resources" }).click();
+    await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Supplementary" })).toHaveCount(0);
+    await expect(page.getByTestId("resource-row").first()).toContainText("Barry Allen");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect
+      .poll(async () => {
+        const rows = await page.getByTestId("scheduler-row").allTextContents();
+        return [
+          rows.findIndex((row) => row.includes("Barry Allen")),
+          rows.findIndex((row) => row.includes("Clark Kent")),
+        ];
+      })
+      .toEqual([1, 2]);
+  });
+
   // P2.5b: the per-row destructive action ARCHIVES (hidden from list + schedule, fully retained),
   // not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
   test("archiving a resource hides it from the list + schedule, and undo restores it", async ({ page }) => {

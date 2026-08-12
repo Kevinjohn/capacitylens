@@ -12,7 +12,7 @@ else. Each section has a question-mark button labelled **About &lt;section&gt;**
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![The top of Settings with concise Scheduling, Disciplines and device Schedule sections, each with an About button](../screenshots/flows/settings_overview.jpg)
+![The top of Settings with Scheduling, Disciplines, Engagement grouping and device Schedule sections, each with an About button](../screenshots/flows/settings_overview.jpg)
 
 ## Internal work visibility
 
@@ -46,6 +46,7 @@ The rest of Settings, roughly top to bottom:
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scheduling                    | Whether allocations are entered as Hours, Days or Blocks — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
 | Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. On by default. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
+| Engagement grouping           | Whether Resources separates Studio and Supplementary people and the schedule orders Studio first inside each discipline. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |
 | Schedule (this device)        | Minimise weekends, snap to week start, and compact view — your own display preferences, not shared with teammates.                                                                                                                                                                                                                     |
 | Internal work colours         | Whether internal work uses grey bars (default) or the same colour palette as everything else.                                                                                                                                                                                                                                          |
 | Placeholders                  | Whether unfilled [placeholder](/reference/glossary) slots are available. Off by default. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                                                                                |
