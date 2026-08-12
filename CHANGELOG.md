@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Time-off notes now use the same compact single-line input as the other short form fields (#309).
+
 ## [0.41.6-alpha.1] — 2026-08-12
 
 ### Fixed
