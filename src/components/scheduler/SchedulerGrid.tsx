@@ -622,7 +622,7 @@ export function SchedulerGrid() {
           // property isn't in React's CSSProperties type.
           style={{
             ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
-            // DateHeader centres wide-view month labels within the VISIBLE part of their month.
+            // DateHeader aligns wide-view month labels to the VISIBLE part of their month.
             // The scroll offset is updated imperatively by useSchedulerViewport so horizontal
             // scrolling moves only a CSS variable instead of re-rendering the scheduler per pixel.
             ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,
