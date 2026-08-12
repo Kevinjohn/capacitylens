@@ -42,7 +42,7 @@ once, and the timeline uses the resulting capacity while still greying out off-d
   unavailable days (`data-testid="unavailable-day"`).
 - ✅ A non-working day carries **0** capacity. A normal allocation that merely spans Barry's
   Thu/Fri contributes **0 allocated hours** there, so those days stay grey but are not red.
-  An allocation that explicitly enables **Include weekends as working days** does place its hours
+  An allocation that explicitly enables **Ignore working days** does place its hours
   on those zero-capacity days, which then show a red `over-marker` / `utilization` value.
 - ✅ Selecting **Half day** for Thursday and saving makes that column available with 4 hours of
   capacity; an allocation above 4 hours is over capacity, while exactly 4 hours is not.

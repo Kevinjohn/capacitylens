@@ -1,6 +1,6 @@
 # US-SCH-09 — Over-allocated days are flagged with an over-marker
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"; `e2e/weekend-overmarker.spec.ts` → "a spanned weekend is not over; include-weekends and time-off are"; `e2e/holiday-overallocation.spec.ts` → modal edit, drag and repeat holiday conflicts
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"; `e2e/weekend-overmarker.spec.ts` → "a spanned weekend is not over; ignored working days and time off are"; `e2e/holiday-overallocation.spec.ts` → modal edit, drag and repeat holiday conflicts
 
 ## Goal
 
@@ -10,7 +10,7 @@ Any day where a resource's allocated hours exceed their available hours is flagg
 
 Over-allocation is the single most important signal in a capacity tool: it's the difference between a plan that's deliverable and one that quietly burns someone out. Painting the offending day red across its full height — and adding a top band so it reads even where bars don't fill the column — turns "someone, somewhere is overbooked" into "_this_ person on _this_ day," which is what lets the manager fix it. Unlike the weekend/unavailable greying (which only paints at fine zoom — see US-SCH-10), the **over-marker** is a hard scheduling warning and renders at **every** zoom level, so over-allocation is never hidden just because you zoomed out.
 
-**Weekends don't count unless you opt in.** A normal allocation does no work on a resource's non-working weekdays, so a bar that merely **spans** a weekend leaves Sat/Sun greyed (unavailable) but **not** red — those days aren't "over". Two zero-capacity days still DO flag red, because they're real conflicts: (a) work scheduled on a **time-off / holiday** day, and (b) a weekend an allocation explicitly includes via **"Include weekends as working days"** (the resource still has 0 weekend capacity, so that weekend work honestly reads as over).
+**Non-working days don't count unless you opt in.** A normal allocation does no work on a resource's non-working weekdays, so a bar that merely **spans** one leaves the day greyed (unavailable) but **not** red — it isn't "over". Two zero-capacity cases still DO flag red, because they're real conflicts: (a) work scheduled on a **time-off / holiday** day, and (b) any personal non-working day an allocation explicitly includes via **Ignore working days** (the resource still has 0 capacity that day, so the work honestly reads as over).
 
 ## How (end-to-end)
 
@@ -30,7 +30,7 @@ Over-allocation is the single most important signal in a capacity tool: it's the
 - ✅ Pushing a day's total allocated hours above available (more hours, or an extra bar) flags that day with an over-marker.
 - ✅ The over-marker is visible with **Weeks visible** set to **4 weeks** (it does not depend on fine zoom).
 - ✅ A weekend that an allocation merely **spans** (default, weekend-aware) shows **no** over-marker — only the grey unavailable tint.
-- ✅ An allocation with **"Include weekends as working days"** on flags its weekend days with an over-marker (the resource has 0 weekend capacity).
+- ✅ An allocation with **Ignore working days** checked flags every included personal non-working day with an over-marker (the resource has 0 capacity that day).
 - ✅ Work scheduled on a **time-off / holiday** day still shows the over-marker (a real conflict, unlike a merely-spanned weekend); the red overlay, holiday treatment and allocation remain legible in their intended stacking order.
 - ✅ Direct date edits, drag/reassignment and generated repeat occurrences all produce that same
   holiday conflict signal; a holiday with no allocation is unavailable but not red.
