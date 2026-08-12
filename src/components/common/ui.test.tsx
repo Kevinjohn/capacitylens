@@ -17,6 +17,8 @@ import {
   ColorSwatch,
   Avatar,
   SegmentedControl,
+  SegmentedField,
+  SwitchField,
 } from "./ui";
 import { Button } from "../ui/button";
 import { Toggle } from "../ui/toggle";
@@ -667,6 +669,40 @@ describe("FieldError", () => {
   });
 });
 
+describe("compact product fields", () => {
+  it("lays out a privacy switch with the shared responsive label-control contract", () => {
+    render(
+      <SwitchField
+        label="Use a code name"
+        description="Hide the real name"
+        checked={false}
+        onChange={vi.fn()}
+        layout="label-control"
+      />,
+    );
+    const control = screen.getByRole("switch", { name: "Use a code name" });
+    expect(control.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+    expect(control.parentElement).toHaveClass("min-h-9");
+  });
+
+  it("labels a segmented field and applies the shared responsive row", () => {
+    render(
+      <SegmentedField
+        label="Kind"
+        value="project"
+        onChange={vi.fn()}
+        options={[
+          { value: "project", label: "Project" },
+          { value: "internal", label: "Internal" },
+        ]}
+        layout="label-control"
+      />,
+    );
+    const group = screen.getByRole("radiogroup", { name: "Kind" });
+    expect(group.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+  });
+});
+
 // ─── TextField ─────────────────────────────────────────────────────────────
 
 describe("TextField", () => {
@@ -715,6 +751,14 @@ describe("TextAreaField", () => {
     await user.type(screen.getByLabelText("Notes"), "H");
     expect(onChange).toHaveBeenCalledWith("H");
   });
+
+  it("opts into the shared responsive label-control row", () => {
+    render(<TextAreaField label="Notes" value="" onChange={vi.fn()} layout="label-control" />);
+    expect(screen.getByLabelText("Notes").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
+  });
 });
 
 // ─── NumberField ───────────────────────────────────────────────────────────
@@ -755,6 +799,14 @@ describe("DateField", () => {
     expect(screen.getByLabelText("Repeat until")).toHaveAttribute("min", "2026-06-01");
     expect(screen.getByLabelText("Repeat until")).toHaveAttribute("max", "2026-12-01");
     expect(screen.getByLabelText("Repeat until")).toHaveAttribute("aria-required", "true");
+  });
+
+  it("opts into the shared responsive label-control row", () => {
+    render(<DateField label="Start date" value="2026-06-01" onChange={vi.fn()} layout="label-control" />);
+    expect(screen.getByLabelText("Start date").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
   });
 });
 
@@ -909,6 +961,13 @@ describe("ColorField", () => {
     expect(screen.getByRole("button", { name: `Brand colour (${colorName(BLUE)})` })).toBeInTheDocument();
     // Popup is closed → preset swatches are not in the DOM.
     expect(screen.queryByRole("radio", { name: colorName(RED) })).not.toBeInTheDocument();
+  });
+
+  it("opts into the shared responsive label-control row", () => {
+    render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} layout="label-control" />);
+    expect(
+      screen.getByRole("button", { name: `Colour (${colorName(BLUE)})` }).closest('[data-slot="field"]'),
+    ).toHaveAttribute("data-product-layout", "label-control");
   });
 
   it("opens the full grid of preset swatches when the trigger is clicked", async () => {

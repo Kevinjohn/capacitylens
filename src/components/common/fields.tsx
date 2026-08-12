@@ -24,9 +24,10 @@ import { m } from "@/i18n";
 import type { Weekday } from "@capacitylens/shared/types/entities";
 import { weekdayLabel } from "../../lib/weekdays";
 import { useMarkFormDirty } from "./formDirty";
+import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 
 // Product field APIs composed from ShadCN's Field family.
-type ProductFieldLayout = "stacked" | "label-control";
+export type ProductFieldLayout = "stacked" | "label-control";
 
 const labelControlLayout = "sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:items-center";
 
@@ -59,33 +60,44 @@ export function SwitchField({
   checked,
   onChange,
   disabled = false,
+  layout = "stacked",
 }: {
   label: string;
   description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const markDirty = useMarkFormDirty();
   const descriptionId = useId();
   const controlId = useId();
+  const control = (
+    <Switch
+      id={controlId}
+      data-form-dirty-managed
+      checked={checked}
+      aria-describedby={description ? descriptionId : undefined}
+      onCheckedChange={(next) => {
+        markDirty();
+        onChange(next);
+      }}
+      disabled={disabled}
+    />
+  );
   return (
-    <Field orientation="horizontal" data-disabled={disabled || undefined}>
+    <Field
+      orientation={layout === "label-control" ? "vertical" : "horizontal"}
+      data-disabled={disabled || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <FieldContent>
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
         {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
       </FieldContent>
-      <Switch
-        id={controlId}
-        data-form-dirty-managed
-        checked={checked}
-        aria-describedby={description ? descriptionId : undefined}
-        onCheckedChange={(next) => {
-          markDirty();
-          onChange(next);
-        }}
-        disabled={disabled}
-      />
+      {layout === "label-control" ? <div className="flex min-h-9 items-center">{control}</div> : control}
     </Field>
   );
 }
@@ -166,6 +178,7 @@ export function TextAreaField({
   invalid,
   describedById,
   maxLength = MAX_NOTE_INPUT_CODE_UNITS,
+  layout = "stacked",
 }: {
   label: string;
   value: string;
@@ -173,10 +186,16 @@ export function TextAreaField({
   invalid?: boolean;
   describedById?: string;
   maxLength?: number;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Textarea
         id={id}
@@ -258,6 +277,7 @@ export function DateField({
   describedById,
   min,
   max,
+  layout = "stacked",
 }: {
   label: string;
   value: string;
@@ -267,10 +287,16 @@ export function DateField({
   describedById?: string;
   min?: string;
   max?: string;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}
@@ -391,12 +417,15 @@ export function ColorField({
   onChange,
   invalid,
   describedById,
+  layout = "stacked",
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   invalid?: boolean;
   describedById?: string;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const markDirty = useMarkFormDirty();
   const [open, setOpen] = useState(false);
@@ -406,7 +435,11 @@ export function ColorField({
   );
 
   return (
-    <Field data-invalid={invalid || undefined}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <FieldLabel>{label}</FieldLabel>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -485,6 +518,42 @@ export function ColorField({
           })}
         </PopoverContent>
       </Popover>
+    </Field>
+  );
+}
+
+/** Labelled segmented option set that shares the product field layouts. */
+export function SegmentedField<T extends string | number>({
+  label,
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  layout = "stacked",
+}: {
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: SegmentedOption<T>[];
+  /** Optional accessible name when it intentionally differs from the visible label. */
+  ariaLabel?: string;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
+}) {
+  const labelId = useId();
+  return (
+    <Field
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
+      <FieldLabel id={labelId}>{label}</FieldLabel>
+      <SegmentedControl
+        value={value}
+        onChange={onChange}
+        options={options}
+        ariaLabel={ariaLabel}
+        ariaLabelledby={ariaLabel ? undefined : labelId}
+      />
     </Field>
   );
 }

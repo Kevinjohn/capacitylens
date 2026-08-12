@@ -5,7 +5,7 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateName } from "../../lib/validation";
 import { m } from "@/i18n";
-import { Modal, RequiredLegend, SegmentedControl, SelectField, TextField, type Option } from "../common/ui";
+import { Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import type { Activity, ActivityKind } from "@capacitylens/shared/types/entities";
@@ -139,16 +139,16 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         required
         invalid={errorField === "name"}
         describedById={errorId}
+        layout="label-control"
       />
-      <div className="mb-3">
-        <p className="mb-1.5 text-sm font-medium text-ink">{m.form_activity_kind_label()}</p>
-        <SegmentedControl
-          ariaLabel={m.form_activity_kind_aria()}
-          value={kind}
-          onChange={onKindChange}
-          options={kindOptions()}
-        />
-      </div>
+      <SegmentedField
+        label={m.form_activity_kind_label()}
+        value={kind}
+        onChange={onKindChange}
+        options={kindOptions()}
+        ariaLabel={m.form_activity_kind_aria()}
+        layout="label-control"
+      />
       {kind === "project" && (
         <SelectField
           label={m.form_activity_project_label()}
@@ -159,6 +159,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
           required
           invalid={errorField === "project"}
           describedById={errorId}
+          layout="label-control"
         />
       )}
       <FieldError id={errorId}>{error}</FieldError>

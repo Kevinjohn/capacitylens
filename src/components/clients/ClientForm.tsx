@@ -73,14 +73,16 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
         disabled={privateNameFields.protectedName}
         invalid={errorField === "name"}
         describedById={errorId}
+        layout="label-control"
       />
-      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} />
+      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} layout="label-control" />
       <ColorField
         label={m.form_client_colour_label()}
         value={color}
         onChange={setColor}
         invalid={errorField === "color"}
         describedById={errorId}
+        layout="label-control"
       />
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />

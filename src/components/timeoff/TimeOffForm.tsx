@@ -124,6 +124,7 @@ export function TimeOffForm({
         required
         invalid={errorField === "resource"}
         describedById={errorId}
+        layout="label-control"
       />
       <DateField
         label={m.form_timeoff_start_label()}
@@ -132,6 +133,7 @@ export function TimeOffForm({
         required
         invalid={errorField === "dates"}
         describedById={errorId}
+        layout="label-control"
       />
       <DateField
         label={m.form_timeoff_end_label()}
@@ -140,12 +142,14 @@ export function TimeOffForm({
         required
         invalid={errorField === "dates"}
         describedById={errorId}
+        layout="label-control"
       />
       <SelectField
         label={m.form_timeoff_type_label()}
         value={type}
         onChange={(v) => setType(v as TimeOffType)}
         options={timeOffTypeOptions()}
+        layout="label-control"
       />
       {canEditNote && (
         <TextAreaField
@@ -154,6 +158,7 @@ export function TimeOffForm({
           onChange={setNote}
           invalid={errorField === "note"}
           describedById={errorId}
+          layout="label-control"
         />
       )}
       <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
