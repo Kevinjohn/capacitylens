@@ -88,7 +88,7 @@ describe("ResourceLane rendering", () => {
   });
 
   it("renders an over-marker (red background) for the over day", () => {
-    renderLane();
+    renderLane({ timeOff: [] });
     const marker = screen.getByTestId("over-marker");
     expect(marker).toBeInTheDocument();
     // The user-facing point: a CLEAR, saturated red background, not a faint tint. Lock the
@@ -97,10 +97,24 @@ describe("ResourceLane rendering", () => {
     expect(marker).toHaveClass("bg-danger-cell");
   });
 
+  it("composites a holiday conflict above the hatch and below the allocation bar", () => {
+    renderLane();
+    const block = screen.getByTestId("timeoff-block");
+    const marker = screen.getByTestId("over-marker");
+    const bar = screen.getByTestId("allocation-bar");
+
+    expect(marker).toHaveClass("bg-danger/55");
+    expect(marker).not.toHaveClass("bg-danger-cell");
+    expect(block).toHaveTextContent("Holiday");
+    expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   // The render-layer boundary mirroring the pure-fn boundary: a day that is at-or-under
   // capacity carries `over: false`, so NO over-marker / red background renders for it.
   it("does NOT render an over-marker when no day is over (at-or-under capacity)", () => {
     renderLane({
+      bars: [],
       dayStates: [
         { unavailable: false, over: false },
         { unavailable: false, over: false },

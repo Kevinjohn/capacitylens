@@ -267,29 +267,6 @@ export const ResourceLane = memo(function ResourceLane({
           ) : null,
         )}
 
-      {/* over-allocation markers (any zoom, only on over days — `over` = allocated > available,
-          STRICTLY greater; at-or-under capacity is NOT marked): a clear, unmistakable RED
-          BACKGROUND so an over-capacity day reads as red at a glance, plus a solid top band for a
-          non-colour-alone shape cue. Uses the dedicated `danger-cell` token — a strongly saturated
-          red, FAR stronger than the `danger-soft` button tint. This cell carries NO text: the
-          allocation bars layered on top (later in DOM order) paint their own opaque, WCAG-tuned
-          fills, so the saturated red here has no text-contrast (AA) constraint on it and @axe-core
-          stays green even at full strength. The band stays the full `danger` to keep the over edge
-          crisp over the fill. */}
-      {days.map((d, i) =>
-        dayStates[i]?.over ? (
-          <div
-            key={`o-${d}`}
-            data-testid="over-marker"
-            // No `title` here: this element is pointer-events-none, so a hover/focus tooltip on it is
-            // unreachable (does nothing). The over-capacity signal is carried accessibly by the per-row
-            // sr-only summary (SchedulerGrid's `scheduler_sr_over_capacity_*`) instead.
-            className="pointer-events-none absolute top-0 h-full border-t-[3px] border-danger bg-danger-cell"
-            style={{ left: geom.x(i), width: geom.widthOf(i) }}
-          />
-        ) : null,
-      )}
-
       {/* time-off blocks (hatched, labelled) */}
       {timeOff.map((b) => (
         <div
@@ -315,6 +292,34 @@ export const ResourceLane = memo(function ResourceLane({
           <span aria-hidden>{b.width > 44 ? b.label : ""}</span>
         </div>
       ))}
+
+      {/* Over-allocation markers paint AFTER time off so a real work/holiday conflict cannot be
+          hidden by the holiday band. Ordinary over days keep the opaque, AA-independent
+          `danger-cell` fill. A marker that intersects time off instead uses a stronger translucent
+          danger overlay: the day still reads unmistakably red while the hatch and holiday label
+          remain legible underneath. Allocation bars paint later and stay above both layers.
+
+          `over` remains allocated > available (strictly greater); at-or-under capacity is not
+          marked. The solid top band supplies a non-colour-alone shape cue at every zoom. */}
+      {days.map((d, i) => {
+        if (!dayStates[i]?.over) return null;
+        const left = geom.x(i);
+        const width = geom.widthOf(i);
+        const overlapsTimeOff = timeOff.some((block) => block.x < left + width && block.x + block.width > left);
+        return (
+          <div
+            key={`o-${d}`}
+            data-testid="over-marker"
+            // No `title` here: this element is pointer-events-none, so a hover/focus tooltip on it is
+            // unreachable (does nothing). The over-capacity signal is carried accessibly by the per-row
+            // sr-only summary (SchedulerGrid's `scheduler_sr_over_capacity_*`) instead.
+            className={`pointer-events-none absolute top-0 h-full border-t-[3px] border-danger ${
+              overlapsTimeOff ? "bg-danger/55" : "bg-danger-cell"
+            }`}
+            style={{ left, width }}
+          />
+        );
+      })}
 
       {/* Hover hint: a faint "+" in the day cell under the mouse, advertising that a
           bare click creates an allocation right there (the lane gesture above) — the

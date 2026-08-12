@@ -1,6 +1,6 @@
 # US-SCH-09 — Over-allocated days are flagged with an over-marker
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"; `e2e/weekend-overmarker.spec.ts` → "a spanned weekend is not over; include-weekends and time-off are"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows seeded resources, grouping and capacity cues"; `e2e/weekend-overmarker.spec.ts` → "a spanned weekend is not over; include-weekends and time-off are"; `e2e/holiday-overallocation.spec.ts` → modal edit, drag and repeat holiday conflicts
 
 ## Goal
 
@@ -19,6 +19,9 @@ Over-allocation is the single most important signal in a capacity tool: it's the
 1. Look at Bruce's row on **3–4 June**: those columns carry the over-marker (full-height tint with a top band).
 2. Confirm a non-over-allocated day (e.g. a day with a single 8h booking) carries **no** over-marker.
 3. Add hours to a day that was previously fine: open an allocation on a day at capacity and raise its **Hours / day** (or draw a second bar on the same day) so the total exceeds available. That day is now flagged with an over-marker too.
+4. Put work onto a holiday by changing dates in the allocation modal, dragging a bar, and creating a
+   repeating series whose generated occurrence lands on the holiday. In each case the red day stays
+   visible with the holiday hatch and label, and the allocation bar remains on top.
 
 ## Acceptance criteria
 
@@ -28,4 +31,6 @@ Over-allocation is the single most important signal in a capacity tool: it's the
 - ✅ The over-marker is visible with **Weeks visible** set to **4 weeks** (it does not depend on fine zoom).
 - ✅ A weekend that an allocation merely **spans** (default, weekend-aware) shows **no** over-marker — only the grey unavailable tint.
 - ✅ An allocation with **"Include weekends as working days"** on flags its weekend days with an over-marker (the resource has 0 weekend capacity).
-- ✅ Work scheduled on a **time-off / holiday** day still shows the over-marker (a real conflict, unlike a merely-spanned weekend).
+- ✅ Work scheduled on a **time-off / holiday** day still shows the over-marker (a real conflict, unlike a merely-spanned weekend); the red overlay, holiday treatment and allocation remain legible in their intended stacking order.
+- ✅ Direct date edits, drag/reassignment and generated repeat occurrences all produce that same
+  holiday conflict signal; a holiday with no allocation is unavailable but not red.

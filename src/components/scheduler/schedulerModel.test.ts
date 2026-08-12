@@ -1908,6 +1908,52 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     expect(r1.dayStates[2].unavailable).toBe(false); // 2026-06-03, ordinary working day
   });
 
+  it("marks only the holiday day of a partial allocation overlap as over", () => {
+    const d = dataset();
+    // a1 spans Mon–Tue at exactly 8h/day. Monday remains at capacity; Tuesday has zero available
+    // hours because of time off and therefore becomes the sole over day. r2's Wednesday holiday has
+    // no allocation and must stay non-red.
+    d.timeOff.push(
+      {
+        id: "to-r1-tuesday",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        startDate: "2026-06-02",
+        endDate: "2026-06-02",
+        type: "holiday",
+      },
+      {
+        id: "to-r2-wednesday",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r2",
+        startDate: "2026-06-03",
+        endDate: "2026-06-03",
+        type: "holiday",
+      },
+    );
+
+    const model = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+    const rows = model.flatMap((group) => group.rows);
+    const r1 = rows.find((row) => row.resource.id === "r1")!;
+    const r2 = rows.find((row) => row.resource.id === "r2")!;
+
+    expect(r1.dayStates.map((state) => state.over)).toEqual([false, true, false, false, false, false, false]);
+    expect(r1.timeOff).toHaveLength(1);
+    expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false });
+  });
+
   it("external rows use literal {over:false, unavailable:false} day-states (real booleans, not an empty object)", () => {
     const model = buildSchedulerModel({
       data: withExternal(),

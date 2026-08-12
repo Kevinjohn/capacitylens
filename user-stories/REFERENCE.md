@@ -1299,7 +1299,10 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   read as over are a **time-off** day a working allocation covers, and a weekend an allocation opts
   into via **"Include weekends as working days"** (`ignoreWeekends`). An over-allocated day renders
   with a **clear red background** (`data-testid="over-marker"`) plus a solid
-  red top band, in both light and dark themes. The over-marker carries no `title` (it's
+  red top band, in both light and dark themes. When work overlaps time off, the red marker is
+  composited above the holiday hatch while its label stays legible, and the allocation bar remains
+  above both. Direct date edits, drag/reassignment and generated repeat occurrences all use this
+  same day-capacity signal; a holiday with no work is not red. The over-marker carries no `title` (it's
   `pointer-events-none`, so a hover tooltip there is unreachable); the screen-reader signal is the
   per-row sr-only "Over capacity on N day(s)" summary in the row header instead.
 - **An allocation can't exceed 24h/day, and the form says so instead of silently trimming it.** In
