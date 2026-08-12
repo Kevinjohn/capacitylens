@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keyboard shortcuts now respect non-editable regions nested inside editable content.
+
 ## [0.41.0-alpha.3] — 2026-08-12
 
 Alpha 3 brings the planning, team-management and production-reliability work completed since the
