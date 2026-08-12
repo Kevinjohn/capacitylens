@@ -22,9 +22,10 @@ intended scope.
 2. Choose the **Project** and **Activity**, then enter the dates and workload as usual.
 3. Open **Repeat**. It defaults to **Doesn’t repeat** and also offers **Weekly**, **Every 2 weeks**,
    **Every 3 weeks**, **Every 4 weeks** and **Monthly**.
-4. Choose a repeating option, then choose the required **Repeat until** date. It cannot be before
-   today or the allocation start, must include at least one repeated occurrence, and can be no more
-   than six calendar months after the allocation start.
+4. Choose a repeating option. **Repeat until** starts at the end of the month two calendar months
+   after the allocation start; change it if needed. It cannot be before today or the allocation
+   start, must include at least one repeated occurrence, and can be no more than six calendar months
+   after the allocation start.
 5. Review the preview: it shows the inclusive cutoff, how many linked allocations will be created,
    and the final occurrence start. An occurrence that starts on the cutoff is included, even when
    its multi-day span ends later.
@@ -36,13 +37,16 @@ intended scope.
 
 - ✅ Repeat appears only in **New allocation**, including row-button and drawn-range creation.
 - ✅ **Doesn’t repeat** creates one allocation through the existing path.
-- ✅ Choosing a cadence reveals a blank, required **Repeat until** date; one-off creation does not.
+- ✅ Choosing a cadence reveals a required **Repeat until** date suggested from the allocation start;
+  the suggestion follows start changes until manually edited, while one-off creation shows no date.
 - ✅ The cutoff cannot precede today or the allocation start, must permit at least one repeat, and
   cannot exceed six calendar months after the allocation start.
 - ✅ Occurrences whose start is on the inclusive cutoff are included; their end may fall after it.
 - ✅ The preview shows the cutoff and final start using the app's short weekday/day/month date style.
 - ✅ Saving a repeat is all-or-nothing and produces one undo step.
 - ✅ Generated bars remain independently editable while retaining their hidden series membership.
+- ✅ Linked bars show a repeat cue and expose the last surviving series end on hover, focus and to
+  assistive technology; one-offs and legacy unlinked repeat batches do not.
 - ✅ Delete can remove one occurrence or the selected and future occurrences; earlier starts remain.
 - ✅ Either deletion choice is one undoable operation, and legacy repeat batches remain unlinked.
 - ✅ Edit shows no Repeat control, and linked occurrences do not offer Duplicate.

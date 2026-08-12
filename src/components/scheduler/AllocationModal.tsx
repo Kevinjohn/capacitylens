@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
@@ -7,6 +7,7 @@ import { daysInclusive, eachDayISO, parseDate, todayISO } from "@capacitylens/sh
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import {
   generateRepeatingStartDates,
+  defaultRepeatUntilDate,
   maximumRepeatUntilDate,
   RepeatingDateError,
 } from "@capacitylens/shared/lib/repeatingDates";
@@ -225,6 +226,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false);
   const [repeat, setRepeat] = useState<RepeatSelection>("none");
   const [repeatUntil, setRepeatUntil] = useState("");
+  const repeatUntilIsSuggested = useRef(false);
   // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
   // hours/dates against the assignee's working week; for a NEW one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
@@ -311,6 +313,29 @@ export function AllocationModal(props: AllocationModalProps) {
   const repeatToday = todayISO(calendarTimeZone);
   const repeatUntilMinimum = isValidISODate(startDate) && startDate > repeatToday ? startDate : repeatToday;
   const repeatUntilMaximum = isValidISODate(startDate) ? maximumRepeatUntilDate(startDate) : undefined;
+
+  useEffect(() => {
+    if (repeat !== "none" && repeatUntilIsSuggested.current && isValidISODate(startDate)) {
+      setRepeatUntil(defaultRepeatUntilDate(startDate));
+    }
+  }, [repeat, startDate]);
+
+  const onRepeatChange = (value: string) => {
+    const next = value as RepeatSelection;
+    if (repeat === "none" && next !== "none" && isValidISODate(startDate)) {
+      repeatUntilIsSuggested.current = true;
+      setRepeatUntil(defaultRepeatUntilDate(startDate));
+    } else if (next === "none") {
+      repeatUntilIsSuggested.current = false;
+      setRepeatUntil("");
+    }
+    setRepeat(next);
+  };
+
+  const onRepeatUntilChange = (value: string) => {
+    repeatUntilIsSuggested.current = false;
+    setRepeatUntil(value);
+  };
 
   // Repeating preview/advisory inputs mirror the effective persisted fields without invoking the
   // submit validator (which owns focus/error side effects). Invalid partial form state gets no
@@ -1096,14 +1121,14 @@ export function AllocationModal(props: AllocationModalProps) {
           <SelectField
             label={m.form_allocation_repeat_label()}
             value={repeat}
-            onChange={(value) => setRepeat(value as RepeatSelection)}
+            onChange={onRepeatChange}
             options={repeatOptions()}
           />
           {repeat !== "none" && (
             <DateField
               label={m.form_allocation_repeat_until_label()}
               value={repeatUntil}
-              onChange={setRepeatUntil}
+              onChange={onRepeatUntilChange}
               required
               invalid={errorField === "repeatUntil"}
               describedById={errorId}

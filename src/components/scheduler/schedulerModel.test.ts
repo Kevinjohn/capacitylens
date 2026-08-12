@@ -321,6 +321,33 @@ describe("buildSchedulerModel", () => {
     expect(a1.width).toBe(96); // 2 inclusive days * 48
   });
 
+  it("surfaces the last surviving linked-series end without inferring legacy repeats", () => {
+    const data = dataset();
+    data.allocations = [
+      { ...data.allocations[0]!, seriesId: "series-1", endDate: "2026-06-02" },
+      {
+        ...data.allocations[0]!,
+        id: "series-later",
+        seriesId: "series-1",
+        startDate: "2026-08-10",
+        endDate: "2026-08-12",
+      },
+      { ...data.allocations[1]!, id: "legacy-repeat" },
+    ];
+    const model = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+
+    expect(allBars(model).find((bar) => bar.allocation.id === "a1")?.seriesEnd).toBe("2026-08-12");
+    expect(allBars(model).find((bar) => bar.allocation.id === "legacy-repeat")?.seriesEnd).toBeUndefined();
+  });
+
   it("orders people before placeholders within a discipline (regardless of data order)", () => {
     const d = dataset();
     // A placeholder listed BEFORE a person in the same discipline — the model must
