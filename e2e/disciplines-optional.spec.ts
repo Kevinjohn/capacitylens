@@ -1,14 +1,24 @@
 import { test, expect } from "./fixtures";
-import { openApp, showScheduleFilters } from "./helpers";
+import { openApp, selectShadOption, showScheduleFilters } from "./helpers";
 
 // The account-level "Use disciplines" toggle (Settings → Disciplines). Off should hide
-// disciplines across the whole app and render the schedule flat; on restores them.
+// discipline surfaces and use engagement fallback bands on the schedule; on restores disciplines.
 test.describe("Disciplines optional (account-level)", () => {
   test("turning disciplines off hides every surface; turning it back on restores them", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
+    await openApp(page, "Wayne Enterprises", "/resources");
 
-    // Enable External (default off) so its band is present to prove the "external still segregates
-    // in flat mode" exception below; it's an independent per-account pref.
+    // Give the fallback a real Supplementary member before disabling disciplines so both engagement
+    // bands are exercised in the browser, not just inferred from model tests.
+    await page
+      .getByTestId("resource-row")
+      .filter({ hasText: "Diana Prince" })
+      .getByRole("button", { name: "Edit Diana Prince" })
+      .click();
+    await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("link", { name: "Settings" }).click();
+
+    // Enable External (default off) so its final band is present; it's an independent account pref.
     await page.getByRole("switch", { name: "Show external resources" }).click();
 
     // On by default for the seed: the nav link is present and the switch reads on.
@@ -31,21 +41,33 @@ test.describe("Disciplines optional (account-level)", () => {
     await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
     await page.getByTestId("app-sidebar").getByRole("button", { name: "Expand menu" }).click();
 
-    // Schedule renders flat: the rows are still there, but there are no discipline-group
-    // bands and the discipline filter control is hidden.
+    // Schedule falls back to Studio then Supplementary bands and hides the discipline filter.
     await page.getByRole("link", { name: "Schedule" }).click();
     await showScheduleFilters(page);
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
+    const studio = page.getByTestId("discipline-group").filter({ hasText: "Studio" });
+    const supplementary = page.getByTestId("discipline-group").filter({ hasText: "Supplementary" });
+    await expect(studio).toBeVisible();
+    await expect(supplementary).toBeVisible();
+    await expect(studio).toContainText(/avg utilisation/);
+    await expect(supplementary).toContainText(/avg utilisation/);
+
+    // Synthetic bands retain the normal collapse interaction and row summaries.
+    const studioToggle = studio.getByRole("button");
+    await studioToggle.click();
+    await expect(studioToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
+    await studioToggle.click();
+    await expect(studioToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toContainText(/utilisation/i);
+
     // The External band is the LAST item; scroll to the bottom so it's inside the virtualised
     // window before asserting (the grid drops off-screen rows from the DOM).
     await page.getByTestId("scheduler-grid").evaluate((el) => {
       (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
     });
-    // Our people render flat — no Design/Development bands. The External band is the ONE
-    // exception: it always keeps its header so outsourced work stays segregated, disciplines
-    // on or off (the seeded "Kord Industries" makes the band present here).
-    await expect(page.getByTestId("discipline-group")).toHaveCount(1);
-    await expect(page.getByTestId("discipline-group")).toContainText("External / 3rd party");
+    // External remains the final headed band (the seeded Kord Industries makes it present here).
+    await expect(page.getByTestId("discipline-group").filter({ hasText: "External / 3rd party" })).toBeVisible();
     await expect(page.getByLabel("Filter by discipline")).toHaveCount(0);
 
     // The command palette no longer offers the Disciplines page.

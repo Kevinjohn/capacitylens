@@ -30,6 +30,10 @@ The schedule is the studio manager's daily home page. Before touching anything t
 - ✅ Studio people appear before Supplementary people within their existing discipline; favourites
   lead alphabetically inside each engagement partition. Placeholders remain after people and
   external favourites remain in the separate External band.
+- ✅ Unassigned capacity-tracked resources follow the assigned discipline bands in **Studio** then
+  **Supplementary**. With disciplines off, those engagement bands become the primary grouping; with
+  engagement grouping off, one **Unassigned** band replaces them. Empty bands never render and
+  External / 3rd party remains last.
 - ✅ At `2026-06-01`, Bruce's 3–4 June shows at least one **over-marker** (`data-testid="over-marker"`).
 - ✅ With **Weeks visible** set to **1 week** or **2 weeks**, at least one **unavailable-day** tint (`data-testid="unavailable-day"`) is visible (weekend / non-working day).
 - ✅ Each resource row shows a **utilisation** figure (`data-testid="utilization"`).

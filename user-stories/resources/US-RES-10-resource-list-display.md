@@ -27,7 +27,9 @@ should say so, not show a blank page.
 
 ## Acceptance criteria
 
-- ✅ Each row shows its discipline colour, display name and role without redundant hours-per-day text.
+- ✅ Each row shows its discipline colour, display name and role without redundant hours-per-day
+  text. A missing or dangling discipline is omitted from the metadata instead of rendering a stray
+  em dash or separator.
 - ✅ Person and external-party rows expose an accessible favourite star to editors and owners;
   placeholder rows and viewer sessions do not.
 - ✅ With **Group resources by engagement** on (the default), Studio and Supplementary render as

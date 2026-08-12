@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Resources without a valid discipline no longer show a dangling em dash, and the schedule now
+  gives unassigned people useful Studio/Supplementary fallback bands (or Unassigned when engagement
+  grouping is off), with External / 3rd party kept last (#278).
+
 ## [0.40.7-alpha.1] — 2026-08-12
 
 ### Changed
