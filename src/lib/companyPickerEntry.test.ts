@@ -18,6 +18,52 @@ describe("post-sign-in company-picker entry", () => {
     expect(window.location.href).toBe("http://localhost:3000/clients?view=archived");
   });
 
+  it("writes only the stable marker while preserving the exact route and router state", () => {
+    const url = "/projects?client=wayne#active";
+    window.history.replaceState({ idx: 9, key: "router-key", usr: null }, "", url);
+
+    markCompanyPickerForNextReload();
+
+    expect(window.history.state).toEqual({
+      idx: 9,
+      key: "router-key",
+      usr: null,
+      "capacitylens.showCompanyPickerOnReload": true,
+    });
+    expect(window.location.href).toBe("http://localhost:3000/projects?client=wayne#active");
+
+    expect(consumeCompanyPickerForReload()).toBe(true);
+    expect(window.history.state).toEqual({ idx: 9, key: "router-key", usr: null });
+    expect(window.location.href).toBe("http://localhost:3000/projects?client=wayne#active");
+  });
+
+  it.each([
+    ["null", null],
+    ["array", ["router-state"]],
+    ["string", "router-state"],
+    ["number", 4],
+    ["boolean", false],
+  ])("repairs %s history state without spreading malformed values", (_label, state) => {
+    window.history.replaceState(state, "", "/settings?section=account");
+
+    markCompanyPickerForNextReload();
+
+    expect(window.history.state).toEqual({ "capacitylens.showCompanyPickerOnReload": true });
+    expect(consumeCompanyPickerForReload()).toBe(true);
+    expect(window.history.state).toEqual({});
+    expect(window.location.href).toBe("http://localhost:3000/settings?section=account");
+  });
+
+  it("does not consume marker-like values that are not exactly true", () => {
+    for (const marker of [false, "true", 1, null, { enabled: true }]) {
+      const state = { idx: 3, "capacitylens.showCompanyPickerOnReload": marker };
+      window.history.replaceState(state, "", "/clients");
+
+      expect(consumeCompanyPickerForReload()).toBe(false);
+      expect(window.history.state).toEqual(state);
+    }
+  });
+
   it("fails safely when clearing the one-use marker is unavailable", () => {
     markCompanyPickerForNextReload();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
