@@ -128,8 +128,8 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(dialog.getByRole("heading")).toContainText("Kord Industries");
     // External work carries no load — the modal collects a date span only.
     await expect(dialog.getByLabel("Hours / day")).toHaveCount(0);
-    // Externals have no working week — the weekend toggle is hidden too.
-    await expect(dialog.getByText("Include weekends as working days")).toHaveCount(0);
+    // Externals already use literal calendar spans, so the override is hidden.
+    await expect(dialog.getByRole("checkbox", { name: "Ignore working days" })).toHaveCount(0);
     await expect(dialog.getByLabel("Start Date")).toBeVisible();
 
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");

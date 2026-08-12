@@ -363,6 +363,9 @@ is wording local to this picker: cross-project activities keep their established
 Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` radiogroup, and `Note`
 is a single-line text field. A historical multiline note remains byte-for-byte intact when another
 field is edited and saved; editing the note itself adopts the single-line value shown by the field.
+The allocation checkbox is labelled exactly `Ignore working days`. Unchecked, the allocation follows
+the assignee's personal working pattern; checked, it uses every calendar day in the date span. The
+control is hidden for external allocations, whose start/end span is already literal.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
 `Quotation marks are added automatically.` Non-owners editing an already-private row do not see the
@@ -520,7 +523,7 @@ selection. Editors and above may change the selection; Viewers can read it but c
 The account selection is the hard boundary for starting work in the schedule: the lane hover **+**
 is absent and a click or draw is rejected when its start date is globally non-working, outside the
 resource's personal working pattern, or covered by that resource's time off. A multi-day draw may
-still cross blocked dates after an allowed start. **Include weekends as working days** never permits
+still cross blocked dates after an allowed start. **Ignore working days** never permits
 a gesture to start on a globally non-working date. These interaction rules do not change existing
 capacity/utilisation calculations; that separate question remains outside this behaviour.
 
@@ -1174,8 +1177,8 @@ multiple).
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
   of the schedule** with **no utilisation / over-markers**. Their allocations carry `hoursPerDay: 0`
-  and are a **literal start/end span** (`ignoreWeekends: true` — the "Include weekends" toggle is
-  hidden, weekends count as plain calendar days); they're excluded from the Time-off picker, and the
+  and are a **literal start/end span** (`ignoreWeekends: true` — the **Ignore working days** checkbox
+  is hidden and every date counts as a plain calendar day); they're excluded from the Time-off picker, and the
   write boundary rejects time off OR a non-zero load for an external on _any_ path (a direct/crafted
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
   **hidden by default** behind the per-account **Show external resources** pref (Settings → External,
@@ -1313,8 +1316,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   (STRICTLY greater — exactly at capacity is NOT over). Allocated hours are **weekend-aware**: a
   normal allocation does no work on the resource's non-working weekdays, so a weekend a bar merely
   **spans** is NOT over (it keeps only the grey unavailable tint). The zero-capacity days that DO
-  read as over are a **time-off** day a working allocation covers, and a weekend an allocation opts
-  into via **"Include weekends as working days"** (`ignoreWeekends`). An over-allocated day renders
+  read as over are a **time-off** day a working allocation covers, and any personal non-working day an
+  allocation opts into via **Ignore working days** (`ignoreWeekends`). An over-allocated day renders
   with a **clear red background** (`data-testid="over-marker"`) plus a solid
   red top band, in both light and dark themes. When work overlaps time off, the red marker is
   composited above the holiday hatch while its label stays legible, and the allocation bar remains

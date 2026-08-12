@@ -105,7 +105,7 @@ describe("projectAllocationDates", () => {
     },
   );
 
-  it("honours custom work weeks and Include weekends without moving the generated start", () => {
+  it("honours custom work weeks and Ignore working days without moving the generated start", () => {
     const custom = projectAllocationDates(
       baseDraft({ startDate: "2026-06-01", endDate: "2026-06-04" }),
       ["2026-06-01", "2026-06-03"],
