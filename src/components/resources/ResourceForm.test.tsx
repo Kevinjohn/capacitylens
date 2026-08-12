@@ -7,6 +7,29 @@ import { resetStoreWithAccount } from "../../test/fixtures";
 
 beforeEach(() => resetStoreWithAccount());
 
+describe("ResourceForm layout", () => {
+  it("uses compact label-control rows while leaving working days full width", () => {
+    render(<ResourceForm kind="person" onClose={vi.fn()} />);
+
+    for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+      expect(screen.getByLabelText(label).closest('[data-slot="field"]')).toHaveAttribute(
+        "data-product-layout",
+        "label-control",
+      );
+    }
+    expect(screen.getByRole("group", { name: "Working days" })).not.toHaveAttribute("data-product-layout");
+  });
+
+  it("uses the compact row for a placeholder's bound project", () => {
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+
+    expect(screen.getByLabelText("Bound project").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
+  });
+});
+
 describe("ResourceForm placeholder binding", () => {
   it("rejects a stale person edit instead of overwriting a concurrent change", async () => {
     const user = userEvent.setup();

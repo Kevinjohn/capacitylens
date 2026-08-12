@@ -39,3 +39,5 @@ pref is on).
 - ✅ Saving a placeholder with no **Bound project** keeps the dialog open and is rejected
   with the inline error "A placeholder must be bound to a project." on the Bound project
   field (`aria-invalid`).
+- ✅ **Bound project** follows the same compact, responsive label/control row as the other resource
+  details; the Working days grid remains full width.

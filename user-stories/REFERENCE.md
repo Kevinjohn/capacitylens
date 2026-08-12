@@ -341,6 +341,9 @@ description. Allocation and time-off validation focus the associated invalid fie
 form-level alert), scroll it into view, and clear the stale error on the next edit. Other labels are
 `Start`, `End`, `Hours / day`, `Repeat`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
+In the resource add/edit modal only, `Name`, `Role`, `Discipline`, `Engagement` and `Bound project`
+use an approximately 25/75 label-to-control row at normal modal widths and stack vertically on
+narrow screens. The `Working days` grid stays full width. Other modal layouts are unchanged.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
 `Quotation marks are added automatically.` Non-owners editing an already-private row do not see the

@@ -25,6 +25,10 @@ import type { Weekday } from "@capacitylens/shared/types/entities";
 import { useMarkFormDirty } from "./formDirty";
 
 // Product field APIs composed from ShadCN's Field family.
+type ProductFieldLayout = "stacked" | "label-control";
+
+const labelControlLayout = "sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:items-center";
+
 function RequiredFieldLabel({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
   return (
     <div className="flex items-center gap-1">
@@ -101,6 +105,7 @@ export function TextField({
   minLength,
   ariaLabel,
   testId,
+  layout = "stacked",
 }: {
   label: string;
   value: string;
@@ -117,10 +122,17 @@ export function TextField({
   minLength?: number;
   ariaLabel?: string;
   testId?: string;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-disabled={disabled || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}
@@ -297,6 +309,7 @@ export function SelectField({
   describedById,
   ariaLabel,
   testId,
+  layout = "stacked",
 }: {
   label: string;
   value: string;
@@ -309,13 +322,20 @@ export function SelectField({
   describedById?: string;
   ariaLabel?: string;
   testId?: string;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const id = useId();
   const markDirty = useMarkFormDirty();
   const selectedOption = options.find((option) => option.value === value);
   const unresolvedValue = value !== "" && selectedOption === undefined;
   return (
-    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-disabled={disabled || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Select
         value={selectedOption || unresolvedValue ? encodeSelectValue(value) : ""}
