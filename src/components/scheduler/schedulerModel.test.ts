@@ -7,6 +7,7 @@ import { emptyFilters } from "../../store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData } from "@capacitylens/shared/types/entities";
+import { isCreationStartBlocked } from "./creationAvailability";
 
 const start = "2026-06-01";
 const end = "2026-06-07";
@@ -1122,12 +1123,12 @@ describe("external / 3rd-party band", () => {
     expect(last.rows.map((r) => r.resource.id)).toEqual(["ext1"]);
   });
 
-  it("external rows carry NO capacity: utilisation 0, never overSoon, no day markers, no time-off", () => {
+  it("external rows carry no capacity while company-closed dates remain visibly blocked", () => {
     const ext = buildExt().at(-1)!.rows[0];
     expect(ext.utilization).toBe(0);
     expect(ext.overSoon).toBe(false);
-    // Its booking spans a weekend (zero-capacity for a person), yet no day is flagged.
-    expect(ext.dayStates.every((d) => !d.over && !d.unavailable)).toBe(true);
+    expect(ext.dayStates.every((d) => !d.over)).toBe(true);
+    expect(ext.dayStates.map((d) => d.unavailable)).toEqual([false, false, false, false, false, true, true]);
     expect(ext.timeOff).toEqual([]); // the stray time-off row is ignored for externals
   });
 
@@ -1922,7 +1923,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       },
     });
     const ext = model.at(-1)!.rows[0];
-    expect(ext.dayStates[0]).toEqual({ over: false, unavailable: false });
+    expect(ext.dayStates[0]).toEqual({ over: false, unavailable: false, creationBlocked: false });
   });
 
   it("a dangling activityId (missing from `activities`) degrades to safe fallbacks, never throws", () => {
@@ -2463,7 +2464,12 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       const off = d.timeOff.filter((t) => t.resourceId === resourceId);
       const row = rows.find((r) => r.resource.id === resourceId)!;
       const naiveTimeline = capacityForWindowOf(resource, allocs, off, days[0]!, days[days.length - 1]!);
-      expect(row.dayStates).toEqual(naiveTimeline.map((c) => ({ over: c.over, unavailable: c.available === 0 })));
+      expect(row.dayStates).toEqual(
+        naiveTimeline.map((c, index) => {
+          const creationBlocked = isCreationStartBlocked(resource, days[index]!, off, [1, 2, 3, 4, 5]);
+          return { over: c.over, unavailable: c.available === 0 || creationBlocked, creationBlocked };
+        }),
+      );
       expect(row.utilization).toBe(utilizationOf(resource, allocs, off, visStart, visEnd));
       expect(row.overSoon).toBe(capacityForWindowOf(resource, allocs, off, start, end).some((c) => c.over));
     }

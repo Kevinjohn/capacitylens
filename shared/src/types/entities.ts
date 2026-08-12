@@ -66,6 +66,8 @@ export interface Account extends Entity {
   timezone?: string;
   /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Absent = 1. */
   weekStartsOn?: 0 | 1;
+  /** Weekdays on which schedule creation may start. Stored as a set; presentation follows weekStartsOn. */
+  workingDays?: Weekday[];
   /** UI language for this company. Absent = 'en'. English-only until P1.5.1 (Paraglide).
    *  Frozen after creation — see P1.14. */
   language?: string;
@@ -404,8 +406,9 @@ export function externalCapacityDefaults(): Pick<
  *  whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
  *  legacy resources so every previously selected weekday remains a full day; v12 adds required
  *  Resource.engagement, defaulting legacy resources to Studio; v13 adds the optional account-wide
- *  groupResourcesByEngagement view preference, whose absence means enabled.) */
-export const EXPORT_SCHEMA_VERSION = 13;
+ *  groupResourcesByEngagement view preference, whose absence means enabled; v14 adds account-wide
+ *  working days, defaulting legacy accounts to the first five days of their configured week.) */
+export const EXPORT_SCHEMA_VERSION = 14;
 
 export interface PersistedState {
   schemaVersion: number;

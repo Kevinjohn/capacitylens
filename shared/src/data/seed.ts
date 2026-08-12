@@ -29,6 +29,7 @@ export function seed(): AppData {
         updatedAt: TS,
         name: "Wayne Enterprises",
         color: "#2d75da",
+        workingDays: [1, 2, 3, 4, 5],
       },
       {
         id: LOFT,
@@ -36,6 +37,7 @@ export function seed(): AppData {
         updatedAt: TS,
         name: "Stark Industries",
         color: "#2d75da",
+        workingDays: [1, 2, 3, 4, 5],
       },
     ],
     disciplines: [

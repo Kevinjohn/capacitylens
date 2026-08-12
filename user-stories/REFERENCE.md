@@ -124,17 +124,17 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                                  |
-| ------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Schedule      | `/`            | Timeline scheduler                                                                                                                      |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                             |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                         |
-| Clients       | `/clients`     | Client list                                                                                                                             |
-| Projects      | `/projects`    | Project list                                                                                                                            |
-| Activities    | `/activities`  | Activity list                                                                                                                           |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                           |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                       |
-| Settings      | `/settings`    | Settings (scheduling, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Link label    | Route          | Screen                                                                                                                                                       |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Schedule      | `/`            | Timeline scheduler                                                                                                                                           |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                  |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                                              |
+| Clients       | `/clients`     | Client list                                                                                                                                                  |
+| Projects      | `/projects`    | Project list                                                                                                                                                 |
+| Activities    | `/activities`  | Activity list                                                                                                                                                |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                                                |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                            |
+| Settings      | `/settings`    | Settings (scheduling, global working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
 
 The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -481,6 +481,18 @@ It's a **device-global** display pref (own `localStorage` key `capacitylens/mini
 account and NOT in export) — like the theme and bar-label toggles. On → narrow Sat/Sun columns
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
+
+**Global working days (account-level).** Settings → **Global working days** exposes seven
+checkboxes in the account's configured week order. A new company selects the first five days of
+that week by default (Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
+Changing the week-start presentation only reorders these controls; it never changes the saved
+selection. Editors and above may change the selection; Viewers can read it but cannot edit it.
+The account selection is the hard boundary for starting work in the schedule: the lane hover **+**
+is absent and a click or draw is rejected when its start date is globally non-working, outside the
+resource's personal working pattern, or covered by that resource's time off. A multi-day draw may
+still cross blocked dates after an allowed start. **Include weekends as working days** never permits
+a gesture to start on a globally non-working date. These interaction rules do not change existing
+capacity/utilisation calculations; that separate question remains outside this behaviour.
 
 **Schedule display (snap to week start).** The same Settings → **Schedule** section has a second
 switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by

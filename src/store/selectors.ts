@@ -1,4 +1,5 @@
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
+import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { byAccount } from "@capacitylens/shared/domain/tenancy";
 import {
   emptyAppData,
@@ -14,6 +15,7 @@ import type {
   InternalColourMode,
   Resource,
   SchedulingMode,
+  Weekday,
 } from "@capacitylens/shared/types/entities";
 import type { SchedulerUI } from "./useStore";
 
@@ -78,6 +80,15 @@ export const timeZoneFor = (data: AppData, activeAccountId: ID | null): string =
 
 export const weekStartsOnFor = (data: AppData, activeAccountId: ID | null): 0 | 1 =>
   data.accounts.find((a) => a.id === activeAccountId)?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON;
+
+/** Account-wide dates on which a schedule creation gesture may start. */
+export const accountWorkingDaysFor = (data: AppData, activeAccountId: ID | null): Weekday[] => {
+  const account = data.accounts.find((candidate) => candidate.id === activeAccountId);
+  const weekStartsOn = account?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON;
+  return account?.workingDays === undefined
+    ? defaultAccountWorkingDays(weekStartsOn)
+    : normalizeAccountWorkingDays(account.workingDays, weekStartsOn);
+};
 
 /** Narrow the full store data to a single account: every scoped array filtered to
  *  `accountId`, and `accounts` blanked (scoped views never read the tenant list).

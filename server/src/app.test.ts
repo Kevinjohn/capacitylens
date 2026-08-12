@@ -1579,6 +1579,23 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     await patch(app, "accounts", "a1", { schedulingMode: "blocks" });
     expect((await state(app)).accounts[0].schedulingMode).toBe("blocks");
   });
+
+  it("defaults, repairs and persists account working-day selections", async () => {
+    const { app } = freshApp();
+    expect((await post(app, "accounts", { ...account("a1"), weekStartsOn: 0 })).statusCode).toBe(201);
+    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
+
+    expect((await patch(app, "accounts", "a1", { workingDays: [1, 3, 5] })).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
+
+    // A pre-v31 full-replacement client does not know this field. Omission preserves the
+    // configured selection instead of resetting it to the week-start default.
+    expect((await put(app, "accounts", "a1", account("a1"))).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
+
+    expect((await patch(app, "accounts", "a1", { workingDays: [1, 9] })).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
+  });
 });
 
 describe("scheduling-mode fields round-trip through the DB", () => {

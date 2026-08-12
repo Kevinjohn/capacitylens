@@ -24,6 +24,7 @@ import {
   assertSchemaV27,
   assertSchemaV28,
   assertSchemaV29,
+  assertSchemaV30,
   assertSchemaV8,
   assertSchemaV9,
   migrateSchemaV8,
@@ -78,7 +79,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 30;
+export const DB_SCHEMA_VERSION = 31;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -654,6 +655,32 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
         }>
       ).some((column) => column.name === "groupResourcesByEngagement");
       if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;");
+      assertSchemaV30(db);
+    },
+  ),
+  defineMigration(
+    31,
+    "add-account-working-days",
+    [
+      "guard:PRAGMA table_info(accounts):workingDays-missing",
+      "ALTER TABLE accounts ADD COLUMN workingDays TEXT;",
+      "backfill:weekStartsOn='0' => [0,1,2,3,4]; otherwise [1,2,3,4,5]",
+    ].join("\n"),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "workingDays");
+      if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN workingDays TEXT;");
+      db.exec(`
+        UPDATE accounts
+           SET workingDays = CASE
+             WHEN weekStartsOn = '0' THEN '[0,1,2,3,4]'
+             ELSE '[1,2,3,4,5]'
+           END
+         WHERE workingDays IS NULL;
+      `);
       assertSchemaCurrent(db);
     },
   ),

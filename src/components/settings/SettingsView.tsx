@@ -27,10 +27,14 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useCanEdit } from "../../auth/permissionContext";
 import { Button } from "../ui/button";
-import { timeZoneFor, weekStartsOnFor } from "../../store/selectors";
+import { accountWorkingDaysFor, timeZoneFor, weekStartsOnFor } from "../../store/selectors";
 import { useOfflineState } from "../../data/useOfflineState";
 import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "../../data/persistenceDiagnostics";
 import { SettingsSection } from "./SettingsSection";
+import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { weekdayLabel } from "../../lib/weekdays";
+import { Checkbox } from "../ui/checkbox";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
 
 // Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
 // the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
@@ -120,6 +124,8 @@ export function SettingsView() {
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? "hourly";
   const weekStartsOn = weekStartsOnFor(data, activeAccountId);
+  const workingDays = accountWorkingDaysFor(data, activeAccountId);
+  const workingDayOrder = orderedWeekdays(weekStartsOn);
   const timezone = timeZoneFor(data, activeAccountId);
   const disciplinesEnabled: boolean = activeAccount?.disciplinesEnabled ?? true;
   const groupResourcesByEngagement: boolean = activeAccount?.groupResourcesByEngagement ?? true;
@@ -262,6 +268,37 @@ export function SettingsView() {
             }))}
             disabled={!canEdit}
           />
+        </SettingsSection>
+
+        <SettingsSection title={m.settings_working_days_heading()} help={m.settings_working_days_intro()}>
+          <FieldSet>
+            <FieldLegend variant="label" className="sr-only">
+              {m.settings_working_days_legend()}
+            </FieldLegend>
+            <FieldGroup data-slot="checkbox-group" className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
+              {workingDayOrder.map((day) => {
+                const id = `account-working-day-${day}`;
+                const checked = workingDays.includes(day);
+                return (
+                  <Field key={day} orientation="horizontal" data-disabled={!canEdit || undefined}>
+                    <Checkbox
+                      id={id}
+                      checked={checked}
+                      disabled={!canEdit}
+                      onCheckedChange={() =>
+                        updateSetting({
+                          workingDays: checked
+                            ? workingDays.filter((candidate) => candidate !== day)
+                            : [...workingDays, day].sort((a, b) => a - b),
+                        })
+                      }
+                    />
+                    <FieldLabel htmlFor={id}>{weekdayLabel(day)}</FieldLabel>
+                  </Field>
+                );
+              })}
+            </FieldGroup>
+          </FieldSet>
         </SettingsSection>
 
         <SettingsSection title={m.settings_disciplines_heading()} help={m.settings_disciplines_intro()}>

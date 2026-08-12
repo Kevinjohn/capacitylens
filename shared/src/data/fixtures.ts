@@ -25,6 +25,7 @@ export const FIXTURE_ACCOUNT: Account = {
   schedulingMode: "days",
   timezone: "Europe/London",
   weekStartsOn: 0,
+  workingDays: [0, 1, 2, 3],
   language: "en",
   disciplinesEnabled: false,
   // Default-on preference: explicit false proves the optional column round-trips.

@@ -22,6 +22,7 @@ import { Label } from "../ui/label";
 import { cn } from "@/lib/utils";
 import { m } from "@/i18n";
 import type { Weekday } from "@capacitylens/shared/types/entities";
+import { weekdayLabel } from "../../lib/weekdays";
 import { useMarkFormDirty } from "./formDirty";
 
 // Product field APIs composed from ShadCN's Field family.
@@ -486,26 +487,6 @@ export function ColorField({
 // localise and follow a locale switch without a reload. Kept separate from the model order so the
 // order isn't re-stated per locale.
 const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
-
-/** The localised full label for a weekday (Sun=0 … Sat=6). Exhaustive over Weekday. */
-function weekdayLabel(day: Weekday): string {
-  switch (day) {
-    case 1:
-      return m.weekday_long_mon();
-    case 2:
-      return m.weekday_long_tue();
-    case 3:
-      return m.weekday_long_wed();
-    case 4:
-      return m.weekday_long_thu();
-    case 5:
-      return m.weekday_long_fri();
-    case 6:
-      return m.weekday_long_sat();
-    case 0:
-      return m.weekday_long_sun();
-  }
-}
 
 type WorkingDayOption = "full" | "half" | "off";
 

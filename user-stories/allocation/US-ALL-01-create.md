@@ -32,3 +32,6 @@ Scheduling work is the core job of the app. A studio manager plans who does what
 - ✅ The **Project** picker starts with _Internal_ and _Any Project_, then a divider and real projects sorted by client and project name. Those scopes expose only internal, cross-project and selected-project activities respectively, with each Activity list alphabetical.
 - ✅ **Status** is a labelled _Confirmed_ / _Tentative_ / _Completed_ radiogroup and **Note** is a single-line text field.
 - ✅ Drawing a left-to-right gesture on an empty part of a lane (in **Work** draw mode) instead opens the same **New allocation** dialog, preset to that lane's resource and the drawn dates.
+- ✅ The hover **+**, click and draw are absent/rejected when their start date is globally
+  non-working, outside that resource's working pattern or covered by their time off. A span that
+  starts on an allowed date may still cross blocked dates.

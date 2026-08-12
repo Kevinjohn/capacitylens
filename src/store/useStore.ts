@@ -59,6 +59,7 @@ import type {
 } from "@capacitylens/shared/types/entities";
 import { createRuntimeSlice } from "./slices/runtimeSlice";
 import { createSchedulerSlice } from "./slices/schedulerSlice";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -634,6 +635,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
       throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");
     }
   };
+  const assertAccountWorkingDays = (days: Weekday[]): void => {
+    if (
+      !Array.isArray(days) ||
+      new Set(days).size !== days.length ||
+      days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+    ) {
+      throw new Error("Company working days must be unique whole-number weekdays from 0 to 6.");
+    }
+  };
   const assertHalfDays = (halfDays: Weekday[], workingDays: Weekday[]): void => {
     if (
       !Array.isArray(halfDays) ||
@@ -751,6 +761,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
 
     addAccount: guarded((input: Draft<Account>): Account | null => {
       const ts = stamp();
+      const weekStartsOn = input.weekStartsOn ?? 1;
+      if (input.workingDays !== undefined) assertAccountWorkingDays(input.workingDays);
       // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
       // scheduling with disciplines OFF, placeholder + external features hidden, and Internal work
       // grey. `...input`
@@ -765,6 +777,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
         externalEnabled: false,
         internalColourMode: "grey",
         ...input,
+        workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
         color: snapColor(input.color),
         id: newId(),
         ...ts,
@@ -798,9 +811,17 @@ export const useStore = create<StoreState>()((set, get, store) => {
       if (state.activeAccountId !== id) {
         throw new Error("Cannot update a company other than the active company.");
       }
+      if (patch.workingDays !== undefined) assertAccountWorkingDays(patch.workingDays);
+      const safePatch =
+        patch.workingDays === undefined
+          ? patch
+          : {
+              ...patch,
+              workingDays: normalizeAccountWorkingDays(patch.workingDays, existing.weekStartsOn ?? 1),
+            };
       mutate((d) => ({
         ...d,
-        accounts: updateById(d.accounts, id, withSnappedColor(patch)),
+        accounts: updateById(d.accounts, id, withSnappedColor(safePatch)),
       }));
     }),
     // Cascade-drop every scoped entity belonging to this account; if it was the
