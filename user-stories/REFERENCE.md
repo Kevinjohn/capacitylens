@@ -344,6 +344,14 @@ form-level alert), scroll it into view, and clear the stale error on the next ed
 In the resource add/edit modal only, `Name`, `Role`, `Discipline`, `Engagement` and `Bound project`
 use an approximately 25/75 label-to-control row at normal modal widths and stack vertically on
 narrow screens. The `Working days` grid stays full width. Other modal layouts are unchanged.
+The allocation modal's `Project` picker begins with `Internal` and `Any Project`, followed by a
+separator and the real projects sorted by client name and then project name. `Internal` exposes only
+internal activities; `Any Project` exposes only cross-project activities; a real project exposes
+only its project-specific activities. Each resulting `Activity` list is alphabetical. `Any Project`
+is wording local to this picker: cross-project activities keep their established name elsewhere.
+Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` radiogroup, and `Note`
+is a single-line text field. A historical multiline note remains byte-for-byte intact when another
+field is edited and saved; editing the note itself adopts the single-line value shown by the field.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
 `Quotation marks are added automatically.` Non-owners editing an already-private row do not see the

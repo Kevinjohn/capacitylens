@@ -4,7 +4,7 @@
 
 ## Goal
 
-When the chosen Assignee is a placeholder, preset its bound project and restrict the Project choices to it (the bound project plus the general option) and limit activities to that project, so a hiring slot's work can't drift onto another project.
+When the chosen Assignee is a placeholder, preset its bound project and restrict the Project choices to it (the bound project plus Internal and Any Project) and limit activities to the chosen scope, so a hiring slot's work can't drift onto another project.
 
 ## Why
 
@@ -21,8 +21,8 @@ Designer** placeholder (`r-ph-designer`) is bound to **Project Watchtower** (`p-
 
 ## Acceptance criteria
 
-- ✅ Opening on the placeholder's row sets **Project** to its bound project, _Queen Consolidated / Project Watchtower_ (select value `p-acme`), and restricts the Project choices to that project plus _No project (general)_ — the select stays **enabled** (a placeholder can still take general activities); a non-bound project like _Metropolis Rebrand_ is not offered.
+- ✅ Opening on the placeholder's row sets **Project** to its bound project, _Queen Consolidated / Project Watchtower_ (select value `p-acme`), and restricts the Project choices to that project plus _Internal_ and _Any Project_ — the select stays **enabled** (a placeholder can still take project-less activities); a non-bound project like _Metropolis Rebrand_ is not offered.
 - ✅ Only that project's activities are offered in **Activity** (e.g. _Wireframes_, _Visual Design_, _CMS Review_); _Brand System_ is not selectable.
 - ✅ A help line reads **"Placeholder — locked to its bound project."**
-- ✅ Opening the modal by drawing directly on the placeholder's lane produces the same restricted state (Project preset to `p-acme` and its choices limited to the bound project plus the general option, the select still enabled).
+- ✅ Opening the modal by drawing directly on the placeholder's lane produces the same restricted state (Project preset to `p-acme` and its choices limited to the bound project plus Internal and Any Project, the select still enabled).
 - ✅ Because create mode has no Assignee select, the lock follows the row you opened from: to book a non-placeholder instead, open **+** from that resource's row (changing a placeholder's assignee in place is an edit-mode action — see US-ALL-06).

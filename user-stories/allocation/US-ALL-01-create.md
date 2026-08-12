@@ -19,8 +19,8 @@ Scheduling work is the core job of the app. A studio manager plans who does what
 3. Choose **Activity** = _Wireframes_.
 4. Set **Start** = `2026-06-16` and **End** = `2026-06-18`.
 5. Set **Hours / day** = `6`.
-6. Set **Status** = _Confirmed_.
-7. Optionally type a **Note**.
+6. Choose **Status** = _Confirmed_ in the three-option status group.
+7. Optionally type a single-line **Note**.
 8. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
@@ -29,4 +29,6 @@ Scheduling work is the core job of the app. A studio manager plans who does what
 - ✅ The bar carries `data-status="confirmed"`.
 - ✅ When the modal is opened from the row **+**, the assignee is fixed to that row's resource (here _Bruce Wayne_): there is no **Assignee** select in create mode — the dialog title names the resource instead.
 - ✅ Choosing a **Project** repopulates **Activity** to that project; **Activity** only lists that project's activities.
+- ✅ The **Project** picker starts with _Internal_ and _Any Project_, then a divider and real projects sorted by client and project name. Those scopes expose only internal, cross-project and selected-project activities respectively, with each Activity list alphabetical.
+- ✅ **Status** is a labelled _Confirmed_ / _Tentative_ / _Completed_ radiogroup and **Note** is a single-line text field.
 - ✅ Drawing a left-to-right gesture on an empty part of a lane (in **Work** draw mode) instead opens the same **New allocation** dialog, preset to that lane's resource and the drawn dates.

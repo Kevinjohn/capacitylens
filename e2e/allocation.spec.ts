@@ -27,6 +27,45 @@ test.describe("Allocation editor", () => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
 
+  test("separates allocation scopes, sorts choices and uses compact status and note controls", async ({ page }) => {
+    await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
+    const dialog = page.getByRole("dialog", { name: "New allocation" });
+    const project = dialog.getByLabel("Project", { exact: true });
+    await expect(project).toHaveText("Internal");
+
+    await project.click();
+    await expect(page.getByRole("option")).toHaveText([
+      "Internal",
+      "Any Project",
+      "LexCorp / Metropolis Rebrand",
+      "Queen Consolidated / Project Watchtower",
+    ]);
+    await expect(page.locator('[data-slot="select-separator"]')).toHaveCount(1);
+    await page.getByRole("option", { name: "Internal", exact: true }).click();
+
+    const activity = dialog.getByRole("combobox", { name: "Activity", exact: true });
+    await activity.click();
+    await expect(page.getByRole("option")).toHaveText(["Admin / Internal"]);
+    await page.keyboard.press("Escape");
+
+    await project.click();
+    await page.getByRole("option", { name: "Any Project", exact: true }).click();
+    await activity.click();
+    await expect(page.getByRole("option")).toHaveText(["Design", "Workshop"]);
+    await page.keyboard.press("Escape");
+
+    await selectShadOption(project, "p-acme");
+    await activity.click();
+    await expect(page.getByRole("option")).toHaveText(["CMS Review", "Visual Design", "Wireframes"]);
+    await page.keyboard.press("Escape");
+
+    const status = dialog.getByRole("radiogroup", { name: "Status" });
+    await expect(status.getByRole("radio")).toHaveText(["Confirmed", "Tentative", "Completed"]);
+    await status.getByRole("radio", { name: "Tentative" }).click();
+    await expect(status.getByRole("radio", { name: "Tentative" })).toBeChecked();
+    await expect(dialog.getByLabel("Note")).toHaveJSProperty("tagName", "INPUT");
+  });
+
   test("creates and undoes a weekly repeat batch", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
@@ -192,16 +231,13 @@ test.describe("Allocation editor", () => {
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
     await expect(project).toHaveText(/Project Watchtower/); // bound project preselected
-    // "Locked" = restricted to the bound project + the project-less option, but the select
-    // stays ENABLED so a placeholder can still take project-less (internal/cross-project) activities. A
-    // non-bound project ("Metropolis Rebrand") is not offered.
+    // "Locked" = restricted to the bound project + both project-less scopes, but the select stays
+    // ENABLED so a placeholder can still take Internal or Any Project work. A non-bound project
+    // ("Metropolis Rebrand") is not offered.
     await expect(project).toBeEnabled();
     await project.click();
-    await expect(
-      page.getByRole("option", {
-        name: "No project (internal / cross-project)",
-      }),
-    ).toBeVisible();
+    await expect(page.getByRole("option", { name: "Internal", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Any Project", exact: true })).toBeVisible();
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 

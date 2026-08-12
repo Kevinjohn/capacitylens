@@ -17,8 +17,8 @@ Plans change constantly — a booking stretches, drops to part-time, becomes ten
 1. Click the **Wireframes** bar. The **Edit allocation** dialog opens, pre-filled with the bar's current Assignee, Project, Activity, dates, Hours / day, Status and Note.
 2. Change **Hours / day** from its current value to `4`.
 3. Change **End** to one day later.
-4. Change **Status** to _Tentative_.
-5. Type a **Note**, e.g. `Pending sign-off`.
+4. Choose **Status** = _Tentative_ in the three-option status group.
+5. Type a single-line **Note**, e.g. `Pending sign-off`.
 6. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
@@ -28,3 +28,4 @@ Plans change constantly — a booking stretches, drops to part-time, becomes ten
 - ✅ The bar now extends one day further (its end date moved).
 - ✅ Setting **Status** = _Tentative_ renders the bar with a dashed border + hatched overlay and `data-status="tentative"`; setting it to _Completed_ prefixes the label with a `✓` and sets `data-status="completed"`.
 - ✅ Adding a **Note** adds a trailing `•` marker to the bar label (and the note shows in the hover popover).
+- ✅ Saving another field without editing a historical multiline note preserves that stored note exactly; directly editing **Note** adopts the field's single-line value.

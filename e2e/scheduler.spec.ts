@@ -466,7 +466,7 @@ test.describe("Scheduler", () => {
     // Mark Wireframes completed + add a note -> ✓ prefix and • marker.
     await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit allocation" });
-    await selectShadOption(dialog.getByLabel("Status"), { label: "Completed" });
+    await dialog.getByRole("radiogroup", { name: "Status" }).getByRole("radio", { name: "Completed" }).click();
     await dialog.getByLabel("Note").fill("Handed off to QA");
     await page.getByRole("button", { name: "Save" }).click();
 

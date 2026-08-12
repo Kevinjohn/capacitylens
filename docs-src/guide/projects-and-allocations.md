@@ -60,9 +60,15 @@ There are two ways to book a person's time on the schedule:
 
 ![The New allocation form with Project, Activity, dates, workload, Repeat and Status fields, plus an Add activity button](../screenshots/flows/allocation-form.jpg)
 
-Either way, fill in the project or activity and save. If the activity you need doesn't
-exist yet, an "Add activity" option inside the same form can create it on the spot —
+Either way, choose **Internal**, **Any Project**, or a real project. Internal and Any
+Project show only internal and cross-project activities respectively; real projects
+follow after a divider in client-and-project order and show only their own activities.
+Every resulting activity list is alphabetical. If the activity you need doesn't exist
+yet, an "Add activity" option inside the same form can create it in the selected scope —
 unless your company has turned that convenience off in [Settings](/guide/settings).
+
+Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
+single-line; an older multiline note remains stored unchanged unless you edit that field.
 
 For regular work, choose **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4
 weeks** or **Monthly** under **Repeat**. The form shows how many independent allocations
