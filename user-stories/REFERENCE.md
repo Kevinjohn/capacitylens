@@ -321,10 +321,10 @@ week dominates the helicopter view. Weekends are not removed: people can still w
 bars span across them, and the narrowing only applies at a fine enough zoom to show per-day
 columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` labels.
 
-**Month header placement.** In the wide 1- and 2-week views, each month/year label is centred over
-the portion of that month currently visible in the timeline, including split-month windows and a
-partial month at either edge. The 4-, 6- and 8-week views retain the compact sticky label, bounded
-to its own month so neighbouring labels cannot overlap.
+**Month header placement.** In the wide 1- and 2-week views, each month/year label starts at the
+left edge of the first visible day in that month, including split-month windows and a partial month
+at either edge. The 4-, 6- and 8-week views retain the compact sticky label, bounded to its own month
+so neighbouring labels cannot overlap.
 
 ## Control labels (accessible names)
 

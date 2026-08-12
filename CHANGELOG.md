@@ -23,6 +23,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Wide schedule month labels now begin above their first visible day.** One- and two-week views
+  left-align each month and year within its visible segment instead of centring it (#253).
 - **External help no longer occupies permanent space on Resources.** The External section now keeps
   its existing explainer behind the same labelled question-mark modal used in Settings (#242).
 - **Management and Settings lists are denser and easier to scan.** Resources, Disciplines,
@@ -52,8 +54,8 @@ new features and **patch** versions carry fixes.
   The display-only ordering keeps resource sections separate and leaves schedule grouping and stored
   data order unchanged (#204).
 - **Month labels now follow the days they describe in wide schedule views.** At one- and two-week
-  zoom, each month and year is centred over the visible part of that month; compact zooms keep the
-  existing non-overlapping sticky label (#219).
+  zoom, each month and year stays with the visible part of that month; compact zooms keep the existing
+  non-overlapping sticky label (#219).
 - **Schedule filters are easier to find without crowding the page title.** The Show/Hide Filters
   button now sits at the right of the toolbar after Undo/Redo, and the expanded filter controls are
   centred while retaining their narrow-screen wrapping. The first-run checklist stays below the
