@@ -58,7 +58,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-RES-04](resources/US-RES-04-archive-resource.md)      | Archive a resource (retain children + undo) | `e2e/resources.spec.ts`                                  |
 | [US-RES-05](resources/US-RES-05-working-days.md)          | Set working days                            | unit (`capacity.test.ts`) + manual                       |
 | [US-RES-06](resources/US-RES-06-working-hours.md)         | Use fixed working hours                     | unit + `e2e/resources.spec.ts`                           |
-| [US-RES-07](resources/US-RES-07-employment-temp-tag.md)   | Employment type (Temp tag parked)           | `e2e/resources.spec.ts`                                  |
+| [US-RES-07](resources/US-RES-07-engagement.md)            | Studio or Supplementary engagement          | `e2e/resources.spec.ts`                                  |
 | [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group under a discipline                    | `e2e/resources.spec.ts` + `e2e/disciplines.spec.ts`      |
 | [US-RES-09](resources/US-RES-09-resource-colour.md)       | Colour derives from discipline              | `e2e/resources.spec.ts`                                  |
 | [US-RES-10](resources/US-RES-10-resource-list-display.md) | Resource list display                       | `e2e/resources.spec.ts` + unit (`ResourceList.test.tsx`) |

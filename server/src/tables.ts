@@ -141,6 +141,7 @@ const COLS_resources = [
   { name: "role" },
   { name: "disciplineId", optional: true },
   { name: "employmentType" },
+  { name: "engagement" },
   { name: "workingHoursPerDay", sqlType: "REAL" },
   { name: "workingDays", json: true },
   { name: "halfDays", json: true },
@@ -369,6 +370,10 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   .replace(
     "  workingDays TEXT NOT NULL,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",
     "  workingDays TEXT NOT NULL, halfDays TEXT NOT NULL DEFAULT '[]',\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",
+  )
+  .replace(
+    "  employmentType TEXT NOT NULL, workingHoursPerDay REAL NOT NULL,",
+    "  employmentType TEXT NOT NULL, engagement TEXT NOT NULL DEFAULT 'studio', workingHoursPerDay REAL NOT NULL,",
   )}\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */

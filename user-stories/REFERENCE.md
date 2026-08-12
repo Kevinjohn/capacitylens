@@ -329,7 +329,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Employment`, `Bound project`, `Working days` (a right-aligned Monday–Sunday
+`Engagement`, `Bound project`, `Working days` (a right-aligned Monday–Sunday
 radio grid whose `Full day`, `Half day` and `Not working` column headings appear once; every cell's
 native radio is labelled by both its weekday and availability, and each row permits one choice),
 `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
@@ -1226,6 +1226,10 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
   renders flat — see the _Disciplines (account-level)_ note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
+- **Engagement is separate from employment and discipline.** A person is either **Studio** or
+  **Supplementary**, defaulting to Studio. The resource form shows Engagement instead of the
+  retained employment field; editing preserves the existing employment value. Placeholders are
+  always Studio and do not show the Engagement control.
 - **Capacity:** a full day's available hours are always **8 hours**, a half day is always
   **4 hours**, and a non-working weekday or time-off day is **0 hours**. Resource forms therefore
   do not expose a separate working-hours field and always save `workingHoursPerDay: 8`; editing a

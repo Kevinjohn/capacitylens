@@ -53,7 +53,7 @@ off that resource record.
 1. Click **Add resource**. The "Add resource" dialog opens (locked to a person — there is no Type switcher; placeholders have their own **Add placeholder** button).
 2. Fill **Name** = `Dana Lee`, **Role** = `Motion Designer`.
 3. Choose **Discipline** = _Design_.
-4. Leave **Employment** = _Permanent_.
+4. Leave **Engagement** = _Studio_.
 5. In **Working days**, ensure Mon–Fri are **Full day** and Sat/Sun are **Not working**.
 6. Click **Save**. The dialog closes.
 

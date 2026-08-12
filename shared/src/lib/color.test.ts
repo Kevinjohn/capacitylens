@@ -73,6 +73,7 @@ const resource = (id: string, kind: Resource["kind"]): Resource => ({
   kind,
   role: "R",
   employmentType: "permanent",
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],

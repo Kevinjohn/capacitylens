@@ -538,9 +538,9 @@ function shortResourceTag(id: string): string {
  * WHY: a soft-deleted row is retained for the {@link PURGE_MIN_AGE_DAYS} grace window, but it must
  * carry NO original personal data while it waits to be purged. A Resource TODAY has NO email and NO
  * SSO link. Both `name` and the unconstrained display-label `role` can contain identifying text, so
- * both are scrubbed. id/accountId/kind/disciplineId/employmentType/
- * workingHoursPerDay/workingDays/halfDays/projectId/color and the lifecycle tombstones (archivedAt/deletedAt)
- * and audit timestamps (createdAt/updatedAt).
+ * both are scrubbed. id/accountId/kind/disciplineId/employmentType/engagement/
+ * workingHoursPerDay/workingDays/halfDays/projectId/color, the lifecycle tombstones
+ * (archivedAt/deletedAt) and audit timestamps (createdAt/updatedAt) are preserved.
  *
  * The token is `Removed person #<tag>`, where `<tag>` is a short stable marker from the id (see
  * {@link shortResourceTag}) — derived from the id so the transform is PURE and testable (no clock, no

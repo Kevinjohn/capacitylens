@@ -23,6 +23,7 @@ const VALID_STATUS = ["confirmed", "tentative", "completed"] as const;
 const VALID_KIND = ["person", "placeholder", "external"] as const;
 const VALID_ACTIVITY_KIND = ["project", "internal", "repeatable"] as const;
 const VALID_EMPLOYMENT = ["permanent", "freelancer", "contractor"] as const;
+const VALID_ENGAGEMENT = ["studio", "supplementary"] as const;
 const VALID_TIMEOFF = ["holiday", "sick", "unpaid", "other"] as const;
 
 const SCOPED_META_FIELDS = ["id", "accountId", "createdAt", "updatedAt"] as const;
@@ -40,6 +41,7 @@ const IMPORTED_FIELDS = {
     "role",
     "disciplineId",
     "employmentType",
+    "engagement",
     "workingHoursPerDay",
     "workingDays",
     "halfDays",
@@ -260,6 +262,7 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
         delete rec.projectId;
       } else {
         rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, "permanent");
+        rec.engagement = rec.kind === "placeholder" ? "studio" : oneOf(rec.engagement, VALID_ENGAGEMENT, "studio");
         rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay);
         rec.workingDays = safeWorkingDays(rec.workingDays);
         rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);

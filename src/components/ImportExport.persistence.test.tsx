@@ -28,6 +28,7 @@ function incomingFile(): File {
             accountId: "source-account",
             createdAt: TS,
             updatedAt: TS,
+            engagement: "studio",
             halfDays: [],
           },
         ],

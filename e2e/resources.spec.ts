@@ -160,12 +160,18 @@ test.describe("Resources", () => {
     await expect(row).not.toContainText(/\d+h\/day/);
   });
 
-  test("the Temp tag is parked: freelancers render untagged", async ({ page }) => {
-    // Employment type is still captured on the form, but the visual pill is hidden
-    // Employment type is recorded without adding a roster badge (DECISIONS.md).
+  test("edits Engagement while Employment stays hidden and unbadged", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
-    // Barry Allen is a seeded freelancer — visible, but with no Temp tag anywhere.
-    await expect(page.getByTestId("resource-row").filter({ hasText: "Barry Allen" })).toBeVisible();
+    const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
+    await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
+
+    await expect(page.getByLabel("Employment")).toHaveCount(0);
+    await expect(page.getByLabel("Engagement")).toContainText("Studio");
+    await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
+    await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
     await expect(page.getByText("Temp", { exact: true })).toHaveCount(0);
   });
 });
