@@ -120,6 +120,9 @@ function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>
 /** Per-day capacity state for a lane background cell. */
 export interface DayState {
   over: boolean;
+  /** Capacity-relevant work or a Block placement overlaps this resource's time off. Kept separate
+   * from hourly `over` so Blocks can show the conflict while retaining zero capacity consumption. */
+  timeOffConflict: boolean;
   unavailable: boolean;
   creationBlocked?: boolean;
 }
@@ -172,11 +175,10 @@ export interface SchedulerModelOptions {
   //   (UTILIZATION_WINDOW_DAYS), independent of zoom/pan — the second, zoom-independent "over soon"
   //   warning that must stay separate from the zoomable %. Don't widen it to the visible window.
   //
-  // The per-day over-marker (dayStates.over) is a THIRD, distinct signal — it flags any day where
-  // allocated > available (the over / red-background signal) across the whole `days` timeline. Its
-  // `allocated` is weekend-aware (a bar merely spanning Sat/Sun does no weekend work), so the only
-  // zero-capacity days it catches are a TIME-OFF day a working allocation covers and a weekend an
-  // allocation opts into via `ignoreWeekends`.
+  // The per-day red marker is a THIRD, distinct signal across the whole `days` timeline. It renders
+  // for `dayStates.over` (allocated > available) or `dayStates.timeOffConflict` (a zero-load Block
+  // overlaps time off). Hourly allocation remains weekend-aware, so a bar merely spanning Sat/Sun
+  // does no weekend work; Blocks likewise do not flag ordinary personal/company non-working days.
   visibleWindow: { start: ISODate; end: ISODate };
   overSoonWindow: { start: ISODate; end: ISODate };
   filters: Filters;
@@ -591,13 +593,19 @@ export function buildSchedulerModel({
           const dayStates: DayState[] = isExternal
             ? days.map((date) => {
                 const creationBlocked = isCreationStartBlocked(resource, date, [], accountWorkingDays);
-                return { over: false, unavailable: creationBlocked, creationBlocked };
+                return { over: false, timeOffConflict: false, unavailable: creationBlocked, creationBlocked };
               })
             : days.map((d) => {
                 const cap = capacityOnDay(d);
                 const creationBlocked = isCreationStartBlocked(resource, d, resTimeOff, accountWorkingDays);
+                const hasTimeOff = (timeOffByDate?.get(d)?.length ?? 0) > 0;
+                // Blocks carry placement but zero hourly load. Their date-range overlap with time
+                // off is therefore an explicit conflict signal rather than fabricated capacity.
+                // Hours/Days retain their existing working-day-aware `cap.over` semantics.
+                const timeOffConflict = hasTimeOff && (blocksMode ? (allocsByDate?.get(d)?.length ?? 0) > 0 : cap.over);
                 return {
                   over: cap.over,
+                  timeOffConflict,
                   unavailable: cap.available === 0 || creationBlocked,
                   creationBlocked,
                 };

@@ -299,10 +299,12 @@ export const ResourceLane = memo(function ResourceLane({
           danger overlay: the day still reads unmistakably red while the hatch and holiday label
           remain legible underneath. Allocation bars paint later and stay above both layers.
 
-          `over` remains allocated > available (strictly greater); at-or-under capacity is not
-          marked. The solid top band supplies a non-colour-alone shape cue at every zoom. */}
+          `over` remains allocated > available (strictly greater). `timeOffConflict` independently
+          covers zero-load Blocks placed over time off; ordinary non-working days are not included.
+          The solid top band supplies a non-colour-alone shape cue at every zoom. */}
       {days.map((d, i) => {
-        if (!dayStates[i]?.over) return null;
+        const state = dayStates[i];
+        if (!state?.over && !state?.timeOffConflict) return null;
         const left = geom.x(i);
         const width = geom.widthOf(i);
         const overlapsTimeOff = timeOff.some((block) => block.x < left + width && block.x + block.width > left);
