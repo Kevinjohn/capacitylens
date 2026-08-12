@@ -57,6 +57,7 @@ test.describe("database-backed persistence", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-10");
     await dialog.getByLabel(/^End/).fill("2026-06-10");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
+    await dialog.getByLabel("Repeat until").fill("2026-09-10");
     await dialog.getByRole("button", { name: "Save" }).click();
 
     await expect

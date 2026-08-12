@@ -75,7 +75,20 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-10");
     await dialog.getByLabel(/^End/).fill("2026-06-10");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-    await expect(dialog).toContainText("Creates 14 linked allocations. Last start: Wed 9th Sep.");
+    const repeatUntil = dialog.getByLabel("Repeat until");
+    await expect(repeatUntil).toHaveValue("");
+    await expect(repeatUntil).toHaveAttribute("min", "2026-06-10");
+    await expect(repeatUntil).toHaveAttribute("max", "2026-12-10");
+    await repeatUntil.fill("2026-09-10");
+    await expect(dialog).toContainText("Creates 14 linked allocations through Thu 10th Sep. Last start: Wed 9th Sep.");
+    const dialogBox = await dialog.boundingBox();
+    const viewport = page.viewportSize();
+    expect(dialogBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(dialogBox!.y).toBeGreaterThanOrEqual(0);
+    expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(viewport!.height);
+    await dialog.getByRole("button", { name: "Save" }).scrollIntoViewIfNeeded();
+    await expect(dialog.getByRole("button", { name: "Save" })).toBeInViewport();
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(20);
     await page.keyboard.press("ControlOrMeta+z");
@@ -90,7 +103,8 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "every-three-weeks");
-    await expect(dialog).toContainText("Creates 5 linked allocations. Last start: Sat 5th Sep.");
+    await dialog.getByLabel("Repeat until").fill("2026-09-13");
+    await expect(dialog).toContainText("Creates 5 linked allocations through Sun 13th Sep. Last start: Sat 5th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(11);
   });
@@ -105,7 +119,8 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
-    await expect(dialog).toContainText("Creates 4 linked allocations. Last start: Sun 13th Sep.");
+    await dialog.getByLabel("Repeat until").fill("2026-09-13");
+    await expect(dialog).toContainText("Creates 4 linked allocations through Sun 13th Sep. Last start: Sun 13th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
 
@@ -139,7 +154,8 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2027-01-31");
     await dialog.getByLabel(/^End/).fill("2027-01-31");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
-    await expect(dialog).toContainText("Creates 4 linked allocations. Last start: Fri 30th Apr.");
+    await dialog.getByLabel("Repeat until").fill("2027-04-30");
+    await expect(dialog).toContainText("Creates 4 linked allocations through Fri 30th Apr. Last start: Fri 30th Apr.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);

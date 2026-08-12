@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- **Repeat creation now ends on an explicit date.** Choosing a cadence requires a **Repeat until**
+  date, includes occurrences that start on that cutoff, and previews the complete linked batch.
+  The cutoff must allow at least one repeat and can extend up to six calendar months (#248).
 - **New repeat batches can be removed from any occurrence forward.** Repeated allocations now retain
   a hidden series identity, so Delete can remove only the selected occurrence or it and every future
   occurrence in one atomic, undoable action. Existing repeat batches remain independent. Portable

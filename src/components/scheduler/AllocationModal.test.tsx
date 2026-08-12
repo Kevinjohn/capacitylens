@@ -6,6 +6,7 @@ import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { DEFAULT_ACCOUNT_ID, makeAppData, setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
+import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 
 const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOffDays: 0 })));
 // The mock is declared without a parameter list, so reach its recorded arguments through a cast:
@@ -1493,7 +1494,7 @@ describe("AllocationModal repeat creation", () => {
     const resource = addPerson();
     const { unmount } = render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
     );
@@ -1504,6 +1505,11 @@ describe("AllocationModal repeat creation", () => {
       expect(screen.getByRole("option", { name: option })).toBeInTheDocument();
     }
     fireEvent.click(screen.getByRole("option", { name: "Weekly" }));
+    const repeatUntil = screen.getByLabelText("Repeat until");
+    expect(repeatUntil).toHaveValue("");
+    expect(repeatUntil).toHaveAttribute("aria-required", "true");
+    expect(repeatUntil).toHaveAttribute("min", "2099-06-01");
+    expect(repeatUntil).toHaveAttribute("max", "2099-12-01");
     expect(useStore.getState().dirtyForm).toBe(true);
     unmount();
 
@@ -1527,7 +1533,7 @@ describe("AllocationModal repeat creation", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={onClose}
       />,
     );
@@ -1541,7 +1547,11 @@ describe("AllocationModal repeat creation", () => {
       ["Monthly", 4, "Tue 1st Sep"],
     ] as const) {
       await chooseOption(user, "Repeat", choice);
-      expect(screen.getByText(`Creates ${count} linked allocations. Last start: ${lastStart}.`)).toBeInTheDocument();
+      await user.clear(screen.getByLabelText("Repeat until"));
+      await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
+      expect(
+        screen.getByText(`Creates ${count} linked allocations through Tue 1st Sep. Last start: ${lastStart}.`),
+      ).toBeInTheDocument();
     }
 
     await chooseOption(user, "Repeat", "Weekly");
@@ -1550,8 +1560,8 @@ describe("AllocationModal repeat creation", () => {
     expect(bulkSpy).toHaveBeenCalledTimes(1);
     const drafts = bulkSpy.mock.calls[0][0];
     expect(drafts).toHaveLength(14);
-    expect(drafts[0]).toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-03" });
-    expect(drafts.at(-1)).toMatchObject({ startDate: "2026-08-31", endDate: "2026-09-02" });
+    expect(drafts[0]).toMatchObject({ startDate: "2099-06-01", endDate: "2099-06-03" });
+    expect(drafts.at(-1)).toMatchObject({ startDate: "2099-08-31", endDate: "2099-09-02" });
     const seriesIds = drafts.map(({ seriesId }) => seriesId);
     expect(seriesIds[0]).toEqual(expect.any(String));
     expect(new Set(seriesIds).size).toBe(1);
@@ -1566,20 +1576,23 @@ describe("AllocationModal repeat creation", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2027-01-31", endDate: "2027-02-02" }}
+        create={{ resourceId: resource.id, startDate: "2099-01-31", endDate: "2099-02-02" }}
         onClose={vi.fn()}
       />,
     );
     await completeAssignment(user);
     await chooseOption(user, "Repeat", "Monthly");
-    expect(screen.getByText("Creates 4 linked allocations. Last start: Fri 30th Apr.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Repeat until"), "2099-04-30");
+    expect(
+      screen.getByText("Creates 4 linked allocations through Thu 30th Apr. Last start: Thu 30th Apr."),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(bulkSpy.mock.calls[0][0].map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
-      ["2027-01-31", "2027-02-02"],
-      ["2027-02-28", "2027-03-02"],
-      ["2027-03-31", "2027-04-02"],
-      ["2027-04-30", "2027-05-02"],
+      ["2099-01-31", "2099-02-02"],
+      ["2099-02-28", "2099-03-02"],
+      ["2099-03-31", "2099-04-02"],
+      ["2099-04-30", "2099-05-02"],
     ]);
     bulkSpy.mockRestore();
   });
@@ -1603,12 +1616,13 @@ describe("AllocationModal repeat creation", () => {
       );
       await completeAssignment(user);
       await chooseOption(user, "Repeat", "Monthly");
+      await user.type(screen.getByLabelText("Repeat until"), "9999-12-30");
       expect(screen.queryByText(/creates 4 linked allocations/i)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "Repeating allocations cannot extend beyond the supported date range.",
+        "Choose an earlier Repeat until date or a longer cadence; this repeat cannot fit the supported date range.",
       );
       expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
       expect(bulkSpy).not.toHaveBeenCalled();
@@ -1624,7 +1638,7 @@ describe("AllocationModal repeat creation", () => {
     const user = userEvent.setup();
     const first = render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
     );
@@ -1643,12 +1657,13 @@ describe("AllocationModal repeat creation", () => {
     const onClose = vi.fn();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={onClose}
       />,
     );
     await completeAssignment(user);
     await chooseOption(user, "Repeat", "Every 3 weeks");
+    await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("The generated batch was rejected.");
@@ -1656,12 +1671,82 @@ describe("AllocationModal repeat creation", () => {
     rejectBulk.mockRestore();
   });
 
+  it("validates the required, temporal and six-month Repeat until boundaries", async () => {
+    useStore.getState().updateAccount(ACC, { timezone: "UTC" });
+    const resource = addPerson();
+    const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Weekly");
+    const repeatUntil = screen.getByLabelText("Repeat until");
+    const save = screen.getByRole("button", { name: "Save" });
+
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent("Choose when the repeat should end.");
+
+    await user.type(repeatUntil, addDaysISO(todayISO("UTC"), -1));
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent("Repeat until cannot be before today.");
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-05-31");
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent("Repeat until cannot be before the allocation start.");
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-12-02");
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Repeat until cannot be later than Tue 1st Dec (six calendar months after the allocation start).",
+    );
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-06-07");
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose a later Repeat until date so this cadence includes at least one repeat.",
+    );
+    expect(bulkSpy).not.toHaveBeenCalled();
+    bulkSpy.mockRestore();
+  });
+
+  it("includes an occurrence on the cutoff and supports the complete six-month weekly range", async () => {
+    const resource = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Weekly");
+    const repeatUntil = screen.getByLabelText("Repeat until");
+
+    await user.type(repeatUntil, "2099-06-08");
+    expect(
+      screen.getByText("Creates 2 linked allocations through Mon 8th Jun. Last start: Mon 8th Jun."),
+    ).toBeInTheDocument();
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-12-01");
+    expect(
+      screen.getByText("Creates 27 linked allocations through Tue 1st Dec. Last start: Mon 30th Nov."),
+    ).toBeInTheDocument();
+  });
+
   it("aggregates singular/plural repeat advisory fragments and keeps saving advisory-only", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
     );
@@ -1675,9 +1760,11 @@ describe("AllocationModal repeat creation", () => {
       return { overDays: 0, timeOffDays: 0 };
     });
     await chooseOption(user, "Repeat", "Weekly");
+    await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
     expect(screen.getByRole("status")).toHaveTextContent(
       "For this repeat, 1 allocation may exceed capacity and 2 allocations overlap time off. Saving is still allowed.",
     );
+    expect(capacityAdvisoryMock).toHaveBeenCalledTimes(14);
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 

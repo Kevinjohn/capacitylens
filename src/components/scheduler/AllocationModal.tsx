@@ -5,7 +5,11 @@ import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { daysInclusive, eachDayISO, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
+import {
+  generateRepeatingStartDates,
+  maximumRepeatUntilDate,
+  RepeatingDateError,
+} from "@capacitylens/shared/lib/repeatingDates";
 import { newId } from "@capacitylens/shared/lib/id";
 import {
   blockHoursPerDay,
@@ -220,6 +224,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [noteEdited, setNoteEdited] = useState(false);
   const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false);
   const [repeat, setRepeat] = useState<RepeatSelection>("none");
+  const [repeatUntil, setRepeatUntil] = useState("");
   // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
   // hours/dates against the assignee's working week; for a NEW one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
@@ -303,6 +308,9 @@ export function AllocationModal(props: AllocationModalProps) {
   // the multi-million-day render freeze this guard prevents.
   const typedDateSpanDays = startDate && endDate ? daysInclusive(startDate, endDate) : 0;
   const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
+  const repeatToday = todayISO(calendarTimeZone);
+  const repeatUntilMinimum = isValidISODate(startDate) && startDate > repeatToday ? startDate : repeatToday;
+  const repeatUntilMaximum = isValidISODate(startDate) ? maximumRepeatUntilDate(startDate) : undefined;
 
   // Repeating preview/advisory inputs mirror the effective persisted fields without invoking the
   // submit validator (which owns focus/error side effects). Invalid partial form state gets no
@@ -310,6 +318,13 @@ export function AllocationModal(props: AllocationModalProps) {
   const repeatProjection = useMemo(() => {
     if (!create || repeat === "none" || !selectedResource || !resourceId || !activityId) return null;
     if (!isValidISODate(startDate) || !isValidISODate(effEndDate) || effEndDate < startDate) return null;
+    if (
+      !isValidISODate(repeatUntil) ||
+      repeatUntil < repeatUntilMinimum ||
+      !repeatUntilMaximum ||
+      repeatUntil > repeatUntilMaximum
+    )
+      return null;
     if (daysInclusive(startDate, effEndDate) > MAX_SPAN_DAYS) return null;
     if ((isDays || isBlocks) && (!validDaysOver || !spanFitsDateDomain)) return null;
     if (isDays && !(daysOfWork > 0)) return null;
@@ -322,7 +337,7 @@ export function AllocationModal(props: AllocationModalProps) {
     const activity = data.activities.find((candidate) => candidate.id === activityId);
     if (!activity || !validateAllocationAssignment(selectedResource, activity.projectId).ok) return null;
     try {
-      const { startDates } = generateRepeatingStartDates(startDate, repeatPatternForSelection(repeat));
+      const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
       const drafts = projectAllocationDates(
         {
           resourceId,
@@ -339,8 +354,8 @@ export function AllocationModal(props: AllocationModalProps) {
       );
       return { drafts, startDates };
     } catch (error) {
-      // A near-boundary date is valid form input but cannot form a three-month repeat. Save owns the
-      // localized error surface; invariant/programming errors remain loud instead of disappearing.
+      // A near-boundary date can be valid input while a projected occurrence cannot fit. Save owns
+      // the localized error surface; invariant/programming errors remain loud instead of disappearing.
       if (error instanceof RangeError) return null;
       throw error;
     }
@@ -359,6 +374,9 @@ export function AllocationModal(props: AllocationModalProps) {
     mode,
     note,
     repeat,
+    repeatUntil,
+    repeatUntilMaximum,
+    repeatUntilMinimum,
     resourceId,
     selectedResource,
     spanFitsDateDomain,
@@ -647,6 +665,48 @@ export function AllocationModal(props: AllocationModalProps) {
         return null;
       }
     }
+    if (create && repeat !== "none") {
+      if (!repeatUntil || !isValidISODate(repeatUntil)) {
+        fail("repeatUntil", m.form_allocation_err_repeat_until_required());
+        return null;
+      }
+      if (repeatUntil < repeatToday) {
+        fail("repeatUntil", m.form_allocation_err_repeat_until_past());
+        return null;
+      }
+      if (repeatUntil < startDate) {
+        fail("repeatUntil", m.form_allocation_err_repeat_until_before_start());
+        return null;
+      }
+      if (!repeatUntilMaximum) {
+        fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+        return null;
+      }
+      if (repeatUntil > repeatUntilMaximum) {
+        fail(
+          "repeatUntil",
+          m.form_allocation_err_repeat_until_after_max({
+            max: formatShortDate(repeatUntilMaximum),
+          }),
+        );
+        return null;
+      }
+      try {
+        generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
+      } catch (error) {
+        if (error instanceof RepeatingDateError) {
+          fail(
+            "repeatUntil",
+            error.code === "no-repeat"
+              ? m.form_allocation_err_repeat_until_no_occurrence()
+              : m.form_allocation_err_repeat_date_domain(),
+          );
+        } else {
+          fail(null, error instanceof Error ? errorMessage(error) : m.form_allocation_err_save_failed());
+        }
+        return null;
+      }
+    }
     // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
     // 0-load span and blocks derive a safe block load, so both are excluded). The store clamps an
     // allocation's load into [0, MAX_HOURS_PER_DAY] AND collapses a non-finite value to 0 — so a
@@ -722,7 +782,11 @@ export function AllocationModal(props: AllocationModalProps) {
         if (!selectedResource) {
           throw new Error("The selected resource could not be resolved for repeat projection.");
         }
-        const { startDates } = generateRepeatingStartDates(draft.startDate, repeatPatternForSelection(repeat));
+        const { startDates } = generateRepeatingStartDates(
+          draft.startDate,
+          repeatUntil as ISODate,
+          repeatPatternForSelection(repeat),
+        );
         const drafts = projectAllocationDates(draft, startDates, {
           schedulingMode: mode,
           daysOver,
@@ -733,14 +797,11 @@ export function AllocationModal(props: AllocationModalProps) {
       }
       onClose();
     } catch (e) {
-      fail(
-        null,
-        repeat !== "none" && e instanceof RangeError
-          ? m.form_allocation_err_repeat_date_domain()
-          : e instanceof Error
-            ? errorMessage(e)
-            : m.form_allocation_err_save_failed(),
-      );
+      if (repeat !== "none" && e instanceof RangeError) {
+        fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+      } else {
+        fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_save_failed());
+      }
     }
   };
 
@@ -1038,10 +1099,23 @@ export function AllocationModal(props: AllocationModalProps) {
             onChange={(value) => setRepeat(value as RepeatSelection)}
             options={repeatOptions()}
           />
+          {repeat !== "none" && (
+            <DateField
+              label={m.form_allocation_repeat_until_label()}
+              value={repeatUntil}
+              onChange={setRepeatUntil}
+              required
+              invalid={errorField === "repeatUntil"}
+              describedById={errorId}
+              min={repeatUntilMinimum}
+              max={repeatUntilMaximum}
+            />
+          )}
           {repeatProjection && repeatLastStart && (
             <p className="text-xs text-muted-foreground">
               {m.form_allocation_repeat_preview({
                 count: repeatProjection.startDates.length,
+                repeatUntil: formatShortDate(repeatUntil as ISODate),
                 lastStart: formatShortDate(repeatLastStart),
               })}
             </p>

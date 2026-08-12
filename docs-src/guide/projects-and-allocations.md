@@ -71,12 +71,15 @@ Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes 
 single-line; an older multiline note remains stored unchanged unless you edit that field.
 
 For regular work, choose **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4
-weeks** or **Monthly** under **Repeat**. The form shows how many linked allocations
-it will create over the next three calendar months and the final start date. Save once
-to create the complete group. One Undo removes that group; after creation, you can edit
-each occurrence independently. Deleting a linked occurrence lets you remove only that
-occurrence or it and every future occurrence in the same series. Leave **Doesn’t repeat**
-selected for a single allocation.
+weeks** or **Monthly** under **Repeat**, then set the required **Repeat until** date. The
+cutoff cannot be before today or the allocation start, must include at least one repeat,
+and can be no more than six calendar months after the allocation starts. The form shows
+the inclusive cutoff, how many linked allocations it will create and the final start date;
+an occurrence may finish after the cutoff when it starts on or before it. Save once to
+create the complete group. One Undo removes that group; after creation, you can edit each
+occurrence independently. Deleting a linked occurrence lets you remove only that occurrence
+or it and every future occurrence in the same series. Leave **Doesn’t repeat** selected for
+a single allocation.
 
 ## Edit, move and remove allocations
 
