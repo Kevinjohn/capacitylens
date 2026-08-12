@@ -10,6 +10,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.40.8-alpha.1] — 2026-08-12
+
 ### Fixed
 
 - Resources without a valid discipline no longer show a dangling em dash, and the schedule now
@@ -3309,7 +3311,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.7-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.8-alpha.1...HEAD
+[0.40.8-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.7-alpha.1...v0.40.8-alpha.1
 [0.40.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.6-alpha.1...v0.40.7-alpha.1
 [0.40.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.5-alpha.1...v0.40.6-alpha.1
 [0.40.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.4-alpha.1...v0.40.5-alpha.1
