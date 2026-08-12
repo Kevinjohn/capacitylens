@@ -5,17 +5,38 @@ import type { ISODate } from "../types/entities";
 /** A supported repeat cadence for transient allocation creation. */
 export type RepeatPattern = { kind: "weeks"; interval: 1 | 2 | 3 | 4 } | { kind: "monthly-date" };
 
-/** The fixed three-month generation boundary and every included occurrence start. */
+/** The chosen inclusive generation boundary and every included occurrence start. */
 export interface RepeatingDateResult {
-  windowEnd: ISODate;
+  repeatUntil: ISODate;
   startDates: ISODate[];
 }
 
 const FIRST_SUPPORTED_YEAR = 1;
 const LAST_SUPPORTED_YEAR = 9999;
 const MONTHS_PER_YEAR = 12;
-const REPEAT_WINDOW_MONTHS = 3;
-const GENERATED_ALLOCATION_LIMIT = 16;
+const MAX_REPEAT_MONTHS = 6;
+/** Defensive ceiling above the 27 weekly starts possible in a valid six-month window. */
+export const GENERATED_ALLOCATION_LIMIT = 30;
+const LAST_SUPPORTED_DATE = "9999-12-31" as ISODate;
+
+export type RepeatingDateErrorCode =
+  | "invalid-date"
+  | "cutoff-before-start"
+  | "cutoff-after-limit"
+  | "unsupported-pattern"
+  | "occurrence-limit"
+  | "no-repeat";
+
+/** Stable error classification for form validation without matching human-readable messages. */
+export class RepeatingDateError extends RangeError {
+  readonly code: RepeatingDateErrorCode;
+
+  constructor(code: RepeatingDateErrorCode, message: string) {
+    super(message);
+    this.code = code;
+    this.name = "RepeatingDateError";
+  }
+}
 
 function isLeapYear(year: number): boolean {
   return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -37,12 +58,25 @@ function isoDate(year: number, month: number, day: number): ISODate {
 }
 
 function dateParts(date: ISODate): { year: number; month: number; day: number } {
-  if (!isValidISODate(date)) throw new RangeError("Repeat start date must be a valid zero-padded ISO date.");
+  if (!isValidISODate(date)) {
+    throw new RepeatingDateError("invalid-date", "Repeat dates must be valid zero-padded ISO dates.");
+  }
   return {
     year: Number(date.slice(0, 4)),
     month: Number(date.slice(5, 7)),
     day: Number(date.slice(8, 10)),
   };
+}
+
+/** Latest valid user cutoff: six calendar months after start, capped by the ISO date domain. */
+export function maximumRepeatUntilDate(startDate: ISODate): ISODate {
+  dateParts(startDate);
+  try {
+    return addCalendarMonthsClamped(startDate, MAX_REPEAT_MONTHS);
+  } catch (error) {
+    if (error instanceof RangeError) return LAST_SUPPORTED_DATE;
+    throw error;
+  }
 }
 
 function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
@@ -59,49 +93,78 @@ function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
 }
 
 /**
- * Generate repeat starts from a validated allocation start through a clamped three-calendar-month window.
+ * Generate repeat starts from a validated allocation start through the chosen inclusive cutoff.
  * Weekly candidates always derive from the original anchor; monthly candidates always reuse its numeric day.
  *
  * @param startDate validated, zero-padded ISO date in the years 0001 through 9999.
+ * @param repeatUntil validated inclusive cutoff, no later than six calendar months after start.
  * @param pattern supported weekly interval or original-calendar-date monthly cadence.
- * @throws RangeError when the input/pattern leaves the supported ISO-date domain.
- * @throws Error when a defensive generation invariant is violated.
+ * @throws RepeatingDateError when the dates, cutoff, pattern or generated count are invalid.
+ * @throws Error when an internal ordering invariant is violated.
  */
-export function generateRepeatingStartDates(startDate: ISODate, pattern: RepeatPattern): RepeatingDateResult {
+export function generateRepeatingStartDates(
+  startDate: ISODate,
+  repeatUntil: ISODate,
+  pattern: RepeatPattern,
+): RepeatingDateResult {
   dateParts(startDate);
-  const windowEnd = addCalendarMonthsClamped(startDate, REPEAT_WINDOW_MONTHS);
+  dateParts(repeatUntil);
+  if (repeatUntil < startDate) {
+    throw new RepeatingDateError("cutoff-before-start", "Repeat until cannot be before the allocation start.");
+  }
+  if (repeatUntil > maximumRepeatUntilDate(startDate)) {
+    throw new RepeatingDateError(
+      "cutoff-after-limit",
+      `Repeat until cannot be more than ${MAX_REPEAT_MONTHS} calendar months after the allocation start.`,
+    );
+  }
   const startDates: ISODate[] = [];
   const append = (candidate: ISODate) => {
     if (startDates.length > 0 && candidate <= startDates[startDates.length - 1]) {
       throw new Error("Repeating allocation dates must be strictly increasing.");
     }
-    startDates.push(candidate);
     if (startDates.length >= GENERATED_ALLOCATION_LIMIT) {
-      throw new Error(`Repeating allocation generation reached its ${GENERATED_ALLOCATION_LIMIT}-allocation limit.`);
+      throw new RepeatingDateError(
+        "occurrence-limit",
+        `Repeating allocation generation exceeds its ${GENERATED_ALLOCATION_LIMIT}-allocation limit.`,
+      );
     }
+    startDates.push(candidate);
   };
 
   append(startDate);
   if (pattern.kind === "weeks") {
-    if (![1, 2, 3, 4].includes(pattern.interval)) throw new RangeError("Repeat week interval is not supported.");
+    if (![1, 2, 3, 4].includes(pattern.interval)) {
+      throw new RepeatingDateError("unsupported-pattern", "Repeat week interval is not supported.");
+    }
     const intervalDays = pattern.interval * 7;
-    const windowOffset = daysInclusive(startDate, windowEnd) - 1;
-    for (let index = 1; index * intervalDays <= windowOffset; index += 1) {
+    const cutoffOffset = daysInclusive(startDate, repeatUntil) - 1;
+    for (let index = 1; index * intervalDays <= cutoffOffset; index += 1) {
       append(addDaysISO(startDate, index * intervalDays));
     }
   } else if (pattern.kind === "monthly-date") {
-    for (let index = 1; index <= REPEAT_WINDOW_MONTHS; index += 1) {
-      const candidate = addCalendarMonthsClamped(startDate, index);
-      if (candidate > windowEnd) break;
+    for (let index = 1; index <= MAX_REPEAT_MONTHS; index += 1) {
+      let candidate: ISODate;
+      try {
+        candidate = addCalendarMonthsClamped(startDate, index);
+      } catch (error) {
+        if (error instanceof RangeError) break;
+        throw error;
+      }
+      if (candidate > repeatUntil) break;
       append(candidate);
+      if (candidate === repeatUntil) break;
     }
   } else {
     const exhaustive: never = pattern;
-    throw new RangeError(`Repeat pattern is not supported: ${JSON.stringify(exhaustive)}`);
+    throw new RepeatingDateError(
+      "unsupported-pattern",
+      `Repeat pattern is not supported: ${JSON.stringify(exhaustive)}`,
+    );
   }
 
   if (startDates.length < 2) {
-    throw new RangeError("The supported date range cannot accommodate another repeating allocation.");
+    throw new RepeatingDateError("no-repeat", "Repeat until must include at least one repeated occurrence.");
   }
-  return { windowEnd, startDates };
+  return { repeatUntil, startDates };
 }

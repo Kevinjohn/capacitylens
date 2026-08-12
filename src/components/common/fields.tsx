@@ -256,6 +256,8 @@ export function DateField({
   invalid,
   required,
   describedById,
+  min,
+  max,
 }: {
   label: string;
   value: string;
@@ -263,6 +265,8 @@ export function DateField({
   invalid?: boolean;
   required?: boolean;
   describedById?: string;
+  min?: string;
+  max?: string;
 }) {
   const id = useId();
   return (
@@ -275,6 +279,8 @@ export function DateField({
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
+        min={min}
+        max={max}
         onChange={(e) => onChange(e.target.value)}
       />
     </Field>

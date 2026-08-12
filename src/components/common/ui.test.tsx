@@ -749,6 +749,13 @@ describe("DateField", () => {
     });
     expect(onChange).toHaveBeenCalledWith("2026-07-01");
   });
+
+  it("forwards optional native date boundaries", () => {
+    render(<DateField label="Repeat until" value="" onChange={vi.fn()} min="2026-06-01" max="2026-12-01" required />);
+    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("min", "2026-06-01");
+    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("max", "2026-12-01");
+    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("aria-required", "true");
+  });
 });
 
 // ─── SelectField ───────────────────────────────────────────────────────────

@@ -410,15 +410,19 @@ open and its form error surfaces the safe rejection reason. Viewers see no alloc
 **Repeat allocation creation.** New allocation forms opened from either the row **+** or a drawn
 range include a **Repeat** dropdown between the scheduling controls and **Status**. It defaults to
 **Doesn’t repeat** and offers **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4 weeks** and
-**Monthly**. A repeating choice previews the number of linked allocations and the final start
-date over a fixed three-calendar-month window. Saving gives the generated allocations one shared
-series ID in a single undoable operation; old independent repeats are never inferred or backfilled.
-Each occurrence can still be edited independently while retaining its series membership. Deletion
-can target one occurrence or that occurrence and all later starts in its series; earlier starts are
-untouched. Edit never shows the Repeat choice. Duplicate is available only for unlinked allocations,
-where it creates one independent allocation; linked occurrences hide it. Capacity and time-off
-warnings count the generated allocations affected, remain advisory, and include conflicts between
-allocations in the same generated batch.
+**Monthly**. Choosing a cadence reveals a blank, required **Repeat until** date. The cutoff is
+inclusive by occurrence start: an occurrence whose start is on the chosen date is included, and its
+end may fall later. Repeat until cannot precede today or the allocation start, must allow at least one
+occurrence after the entered allocation, and cannot be later than six calendar months after the
+allocation start. A valid choice previews the number of linked allocations, chosen cutoff and final
+occurrence start. Saving gives the generated allocations one shared series ID in a single undoable
+operation; old independent repeats are never inferred or backfilled. Each occurrence can still be
+edited independently while retaining its series membership. Deletion can target one occurrence or
+that occurrence and all later starts in its series; earlier starts are untouched. Edit never shows
+the Repeat choice. Duplicate is available only for unlinked allocations, where it creates one
+independent allocation; linked occurrences hide it. Capacity and time-off warnings count the
+generated allocations affected, remain advisory, and include conflicts between allocations in the
+same generated batch.
 
 **Destructive confirmation** uses the action-specific title and buttons: lifecycle list actions use
 `Archive <entity>?`, `Archive`, and `Cancel`; actual deletion uses `Delete <entity>?`, `Delete`, and
