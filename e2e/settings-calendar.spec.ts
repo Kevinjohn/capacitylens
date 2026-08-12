@@ -7,6 +7,28 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // These account values are captured at company creation and frozen thereafter. Settings presents
 // them as a compact read-only summary; the server's 409 backstop remains in onboarding.db.spec.ts.
 test.describe("Account options selected at creation", () => {
+  test("vertically centres every section title with its help action", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+
+    const titles = page.locator('[data-slot="card-title"] h2');
+    const helpActions = page.locator('[data-slot="card-action"] button[aria-label^="About "]');
+    const sectionCount = await titles.count();
+    expect(sectionCount).toBeGreaterThan(0);
+    await expect(helpActions).toHaveCount(sectionCount);
+
+    for (let index = 0; index < sectionCount; index += 1) {
+      const titleBox = await titles.nth(index).boundingBox();
+      const helpBox = await helpActions.nth(index).boundingBox();
+      expect(titleBox).not.toBeNull();
+      expect(helpBox).not.toBeNull();
+
+      const titleCentre = titleBox!.y + titleBox!.height / 2;
+      const helpCentre = helpBox!.y + helpBox!.height / 2;
+      expect(Math.abs(titleCentre - helpCentre)).toBeLessThanOrEqual(0.5);
+    }
+  });
+
   test("renders the four frozen values without disabled form controls", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
 

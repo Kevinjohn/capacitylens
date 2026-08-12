@@ -65,6 +65,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- **Settings card titles now align with their help actions.** Every section heading is vertically
+  centred beside its question-mark button, including closed disclosure cards (#255).
 - **Month and year labels are vertically centred in the schedule header.** Labels retain their
   sticky positioning and truncation while sitting centrally within the month tier (#218).
 - **Selected segmented controls now have an even outline on every side.** Choosing a middle or last

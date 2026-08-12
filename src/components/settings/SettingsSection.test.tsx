@@ -15,6 +15,10 @@ describe("SettingsSection", () => {
     expect(screen.queryByText("How the week grid is drawn.")).not.toBeInTheDocument();
     const help = screen.getByRole("button", { name: "About Schedule" });
     expect(help).toHaveAttribute("title", "About Schedule");
+    const heading = screen.getByRole("heading", { name: "Schedule" });
+    expect(heading.closest('[data-slot="card-header"]')).toHaveClass("flex", "items-center");
+    expect(heading.parentElement).toHaveClass("flex-1");
+    expect(help.parentElement).toHaveClass("self-center");
 
     await user.click(help);
     const dialog = screen.getByRole("dialog", { name: "Schedule" });
