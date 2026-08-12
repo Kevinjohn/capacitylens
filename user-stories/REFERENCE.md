@@ -349,12 +349,15 @@ description. Allocation and time-off validation focus the associated invalid fie
 form-level alert), scroll it into view, and clear the stale error on the next edit. Other labels are
 `Start`, `End`, `Hours / day`, `Repeat`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
-The Resource, External party, Discipline, Client, Project, Activity and Time off add/edit modals use
-an approximately 25/75 label-to-control row at normal modal widths and stack vertically on narrow
-screens. This includes conditional Activity Kind/Project controls and Client/Project privacy
-controls. Long labels wrap inside the label column without shifting the control column. The Resource
-form's `Working days` grid fills that same field width without widening the modal at narrow sizes.
-The Allocation and administrative modal layouts are unchanged.
+The Resource, External party, Discipline, Client, Project, Activity, Time off and Allocation
+add/edit modals use an approximately 25/75 label-to-control row at normal modal widths and stack
+vertically on narrow screens. This includes conditional Activity Kind/Project controls,
+Client/Project privacy controls and every applicable Allocation field in Hours, Days and Blocks
+modes. Long labels wrap inside the label column without shifting the control column. Compound
+Allocation controls remain side by side inside the control column; inline activity creation and
+date/end/repeat hints align with that column; Status fills it with three equal segments. The
+Resource form's `Working days` grid fills that same field width without widening the modal at narrow
+sizes. Administrative modal layouts are unchanged.
 The allocation modal's `Project` picker begins with `Internal` and `Any Project`, followed by a
 separator and the real projects sorted by client name and then project name. `Internal` exposes only
 internal activities; `Any Project` exposes only cross-project activities; a real project exposes
@@ -363,6 +366,9 @@ is wording local to this picker: cross-project activities keep their established
 Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` radiogroup, and `Note`
 is a single-line text field. A historical multiline note remains byte-for-byte intact when another
 field is edited and saved; editing the note itself adopts the single-line value shown by the field.
+The allocation checkbox is labelled exactly `Ignore working days`. Unchecked, the allocation follows
+the assignee's personal working pattern; checked, it uses every calendar day in the date span. The
+control is hidden for external allocations, whose start/end span is already literal.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
 `Quotation marks are added automatically.` Non-owners editing an already-private row do not see the
@@ -520,7 +526,7 @@ selection. Editors and above may change the selection; Viewers can read it but c
 The account selection is the hard boundary for starting work in the schedule: the lane hover **+**
 is absent and a click or draw is rejected when its start date is globally non-working, outside the
 resource's personal working pattern, or covered by that resource's time off. A multi-day draw may
-still cross blocked dates after an allowed start. **Include weekends as working days** never permits
+still cross blocked dates after an allowed start. **Ignore working days** never permits
 a gesture to start on a globally non-working date. These interaction rules do not change existing
 capacity/utilisation calculations; that separate question remains outside this behaviour.
 
@@ -1056,7 +1062,7 @@ Mouse hover sets the active option; mouse click selects.
 row plus the expandable draw-mode/filter row; the WCAG 1.4.10 reflow check asserts the expanded
 state doesn't overflow at 320 CSS px),
 `scheduler-row`, `discipline-group`, `resource-lane`,
-`allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
+`allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`, `half-day`,
 `scheduler-live-region` (a grid-level visually-hidden `role="status"` `aria-live="polite"` region —
 WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER a KEYBOARD move/resize
 on one of its bars, e.g. "Ty now over capacity on 1 day." or "Ty: no capacity conflicts." Pointer drags
@@ -1174,8 +1180,8 @@ multiple).
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
   of the schedule** with **no utilisation / over-markers**. Their allocations carry `hoursPerDay: 0`
-  and are a **literal start/end span** (`ignoreWeekends: true` — the "Include weekends" toggle is
-  hidden, weekends count as plain calendar days); they're excluded from the Time-off picker, and the
+  and are a **literal start/end span** (`ignoreWeekends: true` — the **Ignore working days** checkbox
+  is hidden and every date counts as a plain calendar day); they're excluded from the Time-off picker, and the
   write boundary rejects time off OR a non-zero load for an external on _any_ path (a direct/crafted
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
   **hidden by default** behind the per-account **Show external resources** pref (Settings → External,
@@ -1313,8 +1319,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   (STRICTLY greater — exactly at capacity is NOT over). Allocated hours are **weekend-aware**: a
   normal allocation does no work on the resource's non-working weekdays, so a weekend a bar merely
   **spans** is NOT over (it keeps only the grey unavailable tint). The zero-capacity days that DO
-  read as over are a **time-off** day a working allocation covers, and a weekend an allocation opts
-  into via **"Include weekends as working days"** (`ignoreWeekends`). An over-allocated day renders
+  read as over are a **time-off** day a working allocation covers, and any personal non-working day an
+  allocation opts into via **Ignore working days** (`ignoreWeekends`). An over-allocated day renders
   with a **clear red background** (`data-testid="over-marker"`) plus a solid
   red top band, in both light and dark themes. When work overlaps time off, the red marker is
   composited above the holiday hatch while its label stays legible, and the allocation bar remains
@@ -1322,6 +1328,13 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   same day-capacity signal; a holiday with no work is not red. The over-marker carries no `title` (it's
   `pointer-events-none`, so a hover tooltip there is unreachable); the screen-reader signal is the
   per-row sr-only "Over capacity on N day(s)" summary in the row header instead.
+- **Half working days are visible at fine zoom.** At 1- and 2-week zoom, the bottom half of each
+  saved half-day cell uses the same neutral tint family as an unavailable day
+  (`data-testid="half-day"`), while the top half remains clear. The decorative tint is pointer
+  transparent, so the day-level add affordance and click/draw creation continue to use the full
+  cell. A time-off or non-working day remains fully unavailable rather than also showing a half-day
+  tint, and the row's screen-reader summary announces the number of half working days without
+  relying on colour.
 - **An allocation can't exceed 24h/day, and the form says so instead of silently trimming it.** In
   **days mode**, a _Days of work_ spread over too few _Days over_ (e.g. 5 days of work in a 1-day span =
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
@@ -1333,11 +1346,14 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   The previewed "…h/day" hint always equals what saves.
 - **Blocks mode has zero effective consumption.** Switching an existing company from Hours or Days
   to Blocks leaves historical hour values stored so switching back restores the prior schedule, but
-  those values contribute zero to utilisation, capacity warnings, announcements, drag previews,
-  keyboard moves and duplication for as long as Blocks is active. New and duplicated blocks persist
-  zero hours. Reassigning a block never synthesises hours: an External target is still forced to
-  zero, and a zero-hour External block moved to a person stays at zero. Switching back makes the
-  preserved historical values effective again.
+  those values contribute zero to utilisation, hourly capacity warnings and announcements, drag
+  previews, keyboard moves and duplication for as long as Blocks is active. A block that overlaps
+  its resource's time off is still a scheduling conflict: the overlapping day receives the existing
+  red marker and is included in the row's non-colour conflict summary. An ordinary personal or
+  company non-working day does not receive that treatment. New and duplicated blocks persist zero
+  hours. Reassigning a block never synthesises hours: an External target is still forced to zero, and
+  a zero-hour External block moved to a person stays at zero. Switching back makes the preserved
+  historical values effective again.
 - **Visual language.** Blue semantic tokens (`brand`) identify CapacityLens, navigation and links;
   green semantic tokens (`ok-strong`) identify positive actions such as Create, Save, Add and
   Continue; red semantic tokens (`danger` / `danger-soft`) identify destructive actions. These

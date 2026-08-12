@@ -58,7 +58,7 @@ There are two ways to book a person's time on the schedule:
    with the visible week.
 2. Draw it directly: click and drag across the days you want on that person's row.
 
-![The New allocation form with Project, Activity, dates, workload, Repeat and Status fields, plus an Add activity button](../screenshots/flows/allocation-form.jpg)
+![The New allocation form with labels in a left column and Project, Activity, dates, workload, Repeat and Status controls aligned on the right](../screenshots/flows/allocation-form.jpg)
 
 Either way, choose **Internal**, **Any Project**, or a real project. Internal and Any
 Project show only internal and cross-project activities respectively; real projects
@@ -69,6 +69,12 @@ unless your company has turned that convenience off in [Settings](/guide/setting
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
 single-line; an older multiline note remains stored unchanged unless you edit that field.
+
+Leave **Ignore working days** unchecked to follow the person's working pattern. Check it when the
+allocation must use every calendar day in its date span, including personal non-working weekdays.
+External-party allocations already use literal calendar spans, so they do not show this checkbox.
+On a regular-width screen, the form keeps its labels in a narrow left column and aligns the controls
+on the right. On a narrow screen, each label stacks above its control so nothing is clipped.
 
 For regular work, choose **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4
 weeks** or **Monthly** under **Repeat**, then set the required **Repeat until** date. The
@@ -91,7 +97,7 @@ a single allocation.
   occurrences in a linked repeat series. Deleting can be undone from the toolbar, or
   with Ctrl/Cmd+Z.
 
-![The Edit allocation form for an existing bar, showing its assignee, project, activity, dates and status](../screenshots/flows/allocation-open.jpg)
+![The Edit allocation form for an existing bar, with its assignee, project, activity, dates and status aligned in label and control columns](../screenshots/flows/allocation-open.jpg)
 
 ## How allocation granularity works
 

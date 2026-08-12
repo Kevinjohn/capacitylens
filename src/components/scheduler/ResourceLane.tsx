@@ -261,7 +261,25 @@ export const ResourceLane = memo(function ResourceLane({
             <div
               key={`u-${d}`}
               data-testid="unavailable-day"
+              data-date={d}
               className="absolute top-0 h-full bg-weekend"
+              style={{ left: geom.x(i), width: geom.widthOf(i) }}
+            />
+          ) : null,
+        )}
+
+      {/* A half working day keeps the whole cell interactive while the unavailable half uses the
+          same neutral family as a fully unavailable day. This decorative layer paints before time
+          off, conflicts, add hints and bars so every existing schedule signal remains legible. */}
+      {dayWidth >= DAY_COLUMN_MIN_WIDTH &&
+        days.map((d, i) =>
+          dayStates[i]?.partialCapacity ? (
+            <div
+              key={`h-${d}`}
+              aria-hidden
+              data-testid="half-day"
+              data-date={d}
+              className="pointer-events-none absolute bottom-0 h-1/2 bg-weekend"
               style={{ left: geom.x(i), width: geom.widthOf(i) }}
             />
           ) : null,
@@ -299,10 +317,12 @@ export const ResourceLane = memo(function ResourceLane({
           danger overlay: the day still reads unmistakably red while the hatch and holiday label
           remain legible underneath. Allocation bars paint later and stay above both layers.
 
-          `over` remains allocated > available (strictly greater); at-or-under capacity is not
-          marked. The solid top band supplies a non-colour-alone shape cue at every zoom. */}
+          `over` remains allocated > available (strictly greater). `timeOffConflict` independently
+          covers zero-load Blocks placed over time off; ordinary non-working days are not included.
+          The solid top band supplies a non-colour-alone shape cue at every zoom. */}
       {days.map((d, i) => {
-        if (!dayStates[i]?.over) return null;
+        const state = dayStates[i];
+        if (!state?.over && !state?.timeOffConflict) return null;
         const left = geom.x(i);
         const width = geom.widthOf(i);
         const overlapsTimeOff = timeOff.some((block) => block.x < left + width && block.x + block.width > left);
@@ -310,6 +330,7 @@ export const ResourceLane = memo(function ResourceLane({
           <div
             key={`o-${d}`}
             data-testid="over-marker"
+            data-date={d}
             // No `title` here: this element is pointer-events-none, so a hover/focus tooltip on it is
             // unreachable (does nothing). The over-capacity signal is carried accessibly by the per-row
             // sr-only summary (SchedulerGrid's `scheduler_sr_over_capacity_*`) instead.

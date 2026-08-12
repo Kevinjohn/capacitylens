@@ -456,17 +456,26 @@ export function SchedulerGrid() {
           style={{ width: LAYOUT.leftColWidth }}
         >
           {/* Text equivalent of the colour-only capacity cues (over-marker red background, time-off
-              tint). The per-day over-marker is otherwise colour/shape-only and unannounced (WCAG
-              1.1.1/1.3.1), so count the over-capacity days (allocated > available) and surface them
-              here — the non-colour pair to the red background. */}
+              tint and half-day tint). The per-day red marker is otherwise colour/shape-only and
+              unannounced (WCAG 1.1.1/1.3.1), so count both hourly over-capacity days and explicit
+              block/time-off conflicts here — the non-colour pair to the red background. The half-day
+              count likewise names the neutral partial-capacity treatment without relying on colour. */}
           <span className="sr-only">
             {overSoon ? m.scheduler_sr_overbooked_two_weeks() : ""}
             {(() => {
-              const overDays = dayStates.filter((d) => d.over).length;
-              return overDays
-                ? overDays > 1
-                  ? m.scheduler_sr_over_capacity_other({ count: overDays })
-                  : m.scheduler_sr_over_capacity_one({ count: overDays })
+              const conflictDays = dayStates.filter((d) => d.over || d.timeOffConflict).length;
+              return conflictDays
+                ? conflictDays > 1
+                  ? m.scheduler_sr_over_capacity_other({ count: conflictDays })
+                  : m.scheduler_sr_over_capacity_one({ count: conflictDays })
+                : "";
+            })()}
+            {(() => {
+              const partialCapacityDays = dayStates.filter((d) => d.partialCapacity).length;
+              return partialCapacityDays
+                ? partialCapacityDays > 1
+                  ? m.scheduler_sr_half_day_other({ count: partialCapacityDays })
+                  : m.scheduler_sr_half_day_one({ count: partialCapacityDays })
                 : "";
             })()}
             {timeOff.length
