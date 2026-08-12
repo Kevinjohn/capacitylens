@@ -37,8 +37,8 @@ export function SettingsSection({
         data-testid={testId}
         className={cn(danger && "border-danger/40", collapsible && "py-4", collapsible && !open && "gap-0")}
       >
-        <CardHeader className="gap-0">
-          <CardTitle className={danger ? "text-danger" : undefined}>
+        <CardHeader className="flex items-center gap-0">
+          <CardTitle className={cn("flex-1", danger && "text-danger")}>
             <h2>
               {collapsible ? (
                 <button
@@ -56,7 +56,7 @@ export function SettingsSection({
               )}
             </h2>
           </CardTitle>
-          <CardAction>
+          <CardAction className="self-center">
             <Button
               type="button"
               size="icon-sm"
