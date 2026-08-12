@@ -20,3 +20,23 @@ export function weekdayLabel(day: Weekday): string {
       return m.weekday_long_sun();
   }
 }
+
+/** The localised abbreviated label for a weekday (Sun=0 … Sat=6). */
+export function weekdayShortLabel(day: Weekday): string {
+  switch (day) {
+    case 1:
+      return m.weekday_short_mon();
+    case 2:
+      return m.weekday_short_tue();
+    case 3:
+      return m.weekday_short_wed();
+    case 4:
+      return m.weekday_short_thu();
+    case 5:
+      return m.weekday_short_fri();
+    case 6:
+      return m.weekday_short_sat();
+    case 0:
+      return m.weekday_short_sun();
+  }
+}
