@@ -1,6 +1,6 @@
 # US-NAV-14 — Company picker gives one clear next step (empty and populated states)
 
-**Area:** Navigation & shell · **Persona:** New owner or invited teammate · **Linked automated coverage:** `src/components/accounts/AccountPicker.test.tsx` (empty-state copy, permission branch, visible membership roles, multi-company copy and no onboarding colour choice), `e2e/onboarding.spec.ts` (create flow), `e2e/onboarding.db.spec.ts` (server permission/cap enforcement)
+**Area:** Navigation & shell · **Persona:** New owner or invited teammate · **Linked automated coverage:** `src/components/accounts/AccountPicker.test.tsx` (empty-state copy, permission branch, visible membership roles, multi-company copy and no onboarding colour choice), `src/components/AppShell.test.tsx` (single-company reload gate boundaries), `e2e/onboarding.spec.ts` (create flow), `e2e/onboarding.db.spec.ts` (server permission/cap enforcement), `e2e/navigation.db.spec.ts` (real reload, route preservation and explicit switch)
 
 ## Goal
 
@@ -39,6 +39,9 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 7. In an authenticated deploy, confirm every company shows the caller's membership role — **Owner**,
    **Admin**, **Editor** or **Viewer** — before it is opened. The demo instead says **Demo access**;
    an auth-off persisted server says **Open access**.
+8. On first entry, keep the picker visible. Open the only valid company, navigate to another route,
+   then reload: confirm the same route resumes without another choice. Use **Switch company** and
+   confirm that explicit action keeps the picker visible.
 
 ## Acceptance criteria
 
@@ -58,3 +61,7 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 - ✅ The create form has no company-colour control; the account receives the default preset
   automatically.
 - ✅ A server-side permission/cap refusal remains enforced even if the UI affordance is bypassed.
+- ✅ A browser reload auto-opens exactly one valid company without persisting `activeAccountId` or
+  navigating away from the requested route.
+- ✅ First entry, explicit switching, multiple companies, no companies, unavailable membership and
+  invite handoff continue through their existing safe picker/handoff boundaries.

@@ -177,7 +177,7 @@ export async function refreshAccountSummaries(init?: {
     },
   });
   if (list !== null && callerAcceptsEffects()) {
-    const published = useStore.getState().setAccountSummaries(list, requestId);
+    const published = useStore.getState().setAccountSummaries(list, requestId, complete);
     const activeAccountId = useStore.getState().activeAccountId;
     if (
       published &&

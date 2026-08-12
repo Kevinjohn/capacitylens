@@ -244,13 +244,11 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     });
     expect(transfer.status()).toBe(200);
 
-    // A re-reads membership and is reprojected as Admin — in the company picker and, once the
-    // company is reopened, in the sidebar footer.
+    // A re-reads membership and is reprojected as Admin. This login has exactly one valid company,
+    // so the reload resumes the current Team & access route instead of returning to the picker.
     await ownerPage.reload();
-    const ownerCompany = ownerPage.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true });
-    await expect(ownerCompany).toContainText("Admin");
-    await ownerCompany.click();
-    await dismissIntroIfPresent(ownerPage, ownerPage.locator("#main"));
+    await expect(ownerPage).toHaveURL(/\/team$/);
+    await expect(ownerPage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
     await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
     await expect
       .poll(async () => {

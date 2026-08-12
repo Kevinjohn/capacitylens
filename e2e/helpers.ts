@@ -111,9 +111,10 @@ export async function dismissIntroIfPresent(page: Page, landedOn: Locator): Prom
   if (await introContinue.isVisible()) await introContinue.click();
 }
 
-// Multi-tenancy shows a full-screen account picker on every load (the active
-// account is never persisted). Almost every spec wants to land in the app for
-// the seeded company, so they navigate through `openApp` instead of `goto('/')`.
+// The seeded demo is multi-company, so it shows the full-screen account picker on every load. A
+// server-backed login with exactly one valid company may skip it on a browser reload, but
+// activeAccountId itself remains unpersisted. Almost every core spec wants the seeded company, so
+// they navigate through `openApp` instead of `goto('/')`.
 export async function openApp(page: Page, company = "Wayne Enterprises", path = "/"): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);

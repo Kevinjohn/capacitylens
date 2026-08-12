@@ -26,9 +26,12 @@ If the app changes, update this file first, then the affected stories.
    has **no** popup: click the single preview account to continue. It is shown only
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
    device-globally; "Sign out" on the picker/sidebar returns to it).
-4. Then the **company picker** (you choose a tenant on every load — `activeAccountId` is never
-   persisted). Pick **Wayne Enterprises** to see the seeded data these stories describe. (A second
-   seeded company, _Stark Industries_, is near-empty.) While "signed in", the picker shows
+4. Then the **company picker**. The active company remains session-only and is never persisted.
+   On a browser reload, a login with exactly one valid company opens that company automatically and
+   keeps the requested route; first entry, an explicit **Switch company**, and every multi-company
+   login still show the picker. Pick **Wayne Enterprises** to see the seeded data these stories
+   describe. (A second seeded company, _Stark Industries_, is near-empty, so this demo remains on
+   the multi-company picker after a reload.) While "signed in", the picker shows
    _"Signed in as Jordan Avery"_ with a **Sign out** link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
@@ -44,6 +47,9 @@ If the app changes, update this file first, then the affected stories.
    If a refresh or account switch returns a slice that no longer contains the selected company,
    CapacityLens installs no active workspace: it returns atomically to this picker, shows the
    company-not-found notification, and rejects scoped edits until a real company is selected.
+   A single-company reload attempt is consumed once, so a missing or deleted company cannot be
+   repeatedly reactivated. An unavailable membership, empty company list, or invite handoff also
+   remains at its safe entry boundary rather than being mistaken for a valid single company.
    Only the newest complete company-directory response may treat a missing company as revoked
    access. A superseded response cannot close the current company, and a partially malformed
    directory may publish its valid rows with a warning but cannot claim that a dropped membership
@@ -155,8 +161,9 @@ matching stays strict: while signed out, a truncated or nested token URL remains
 sign-in wall rather than being treated as a valid bearer entry.
 
 Loading or reloading any valid section URL serves the application shell. A reload clears the
-session-only active company and therefore shows the company picker, but choosing a company keeps the
-requested URL and continues to that section. Unknown extensionless URLs still reach the in-app
+session-only active company; exactly one complete, valid company resumes automatically, while every
+other directory shows the picker. Choosing from the picker keeps the requested URL and continues to
+that section. Unknown extensionless URLs still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
 The **Import & export** card (**Export JSON** / **Import JSON**) is a closed-by-default disclosure

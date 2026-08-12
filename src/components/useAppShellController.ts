@@ -11,10 +11,24 @@ import { hasOpenModal, textEntryOwnsShortcut } from "../lib/shortcutGuards";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { useStore } from "../store/useStore";
 import { useAuth } from "../auth/authContext";
+import { useDemoAuthActive } from "../lib/fakeAuth";
+import { consumeCompanyPickerForReload } from "../lib/companyPickerEntry";
+
+function isReloadNavigation(): boolean {
+  try {
+    return globalThis.performance
+      .getEntriesByType("navigation")
+      .some((entry) => (entry as PerformanceNavigationTiming).type === "reload");
+  } catch (error) {
+    console.warn("The browser navigation type could not be read; keeping the company picker", error);
+    return false;
+  }
+}
 
 /** Owns AppShell's bootstrap handoff, global effects, shortcuts and notice bridge. */
 export function useAppShellController() {
   const { authMode } = useAuth();
+  const demoAuthActive = useDemoAuthActive();
   // In auth-on mode PermissionProvider owns the active-account refresh and publishes the same
   // validated list to the store. The shell hook still owns picker reads; auth-off has no permission
   // lookup, so it continues refreshing the active directory itself.
@@ -26,8 +40,11 @@ export function useAppShellController() {
   const redo = useStore((state) => state.redo);
   const accounts = useStore((state) => state.data.accounts);
   const accountSummaries = useStore((state) => state.accountSummaries);
+  const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const hydrated = useStore((state) => state.hydrated);
   const activeAccountId = useStore((state) => state.activeAccountId);
+  const previousAccountId = useStore((state) => state.previousAccountId);
+  const fakeSignedIn = useStore((state) => state.fakeSignedIn);
   const setActiveAccount = useStore((state) => state.setActiveAccount);
   const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
@@ -35,7 +52,10 @@ export function useAppShellController() {
   const [joinedAccountHandoff] = useState(() => readJoinedAccountHandoff(search));
   const joinedAccountUrlCleaned = useRef(false);
   const joinedAccountHandoffConsumed = useRef(false);
+  const singleAccountReloadHandled = useRef(false);
   const initialActiveAccountId = useRef(activeAccountId);
+  const [reloadNavigation] = useState(isReloadNavigation);
+  const [showPickerForReload] = useState(consumeCompanyPickerForReload);
   const hydratedActiveAccount = accounts.find((account) => account.id === activeAccountId);
   const activeLanguage = hydratedActiveAccount?.language;
   const activeLanguagePending = activeAccountId !== null && hydratedActiveAccount === undefined;
@@ -71,6 +91,45 @@ export function useAppShellController() {
       setActiveAccount(joinedAccountHandoff);
     }
   }, [accountSummaries, activeAccountId, hydrated, joinedAccountHandoff, setActiveAccount]);
+
+  useEffect(() => {
+    if (!reloadNavigation || !hydrated || singleAccountReloadHandled.current) return;
+    // An empty list is also the initial state while the authoritative directory read is in flight.
+    // Wait for a real row rather than consuming the one reload attempt before the answer arrives.
+    if (accountSummaries.length === 0) return;
+
+    // Consume the decision once a directory is available. If the selected slice later proves stale
+    // or deleted, replaceAll drops back to the picker and this ref prevents a reactivation loop.
+    singleAccountReloadHandled.current = true;
+    if (
+      joinedAccountHandoff ||
+      showPickerForReload ||
+      activeAccountId !== null ||
+      previousAccountId !== null ||
+      (demoAuthActive && !fakeSignedIn) ||
+      !accountSummariesComplete ||
+      accountSummaries.length !== 1 ||
+      accountSummaries[0].roleStatus === "unavailable"
+    ) {
+      return;
+    }
+
+    // activeAccountId remains session-only. A browser reload with one unambiguous membership may
+    // safely reopen it without remembering a tenant choice or changing the requested route.
+    setActiveAccount(accountSummaries[0].id);
+  }, [
+    accountSummaries,
+    accountSummariesComplete,
+    activeAccountId,
+    demoAuthActive,
+    fakeSignedIn,
+    hydrated,
+    joinedAccountHandoff,
+    previousAccountId,
+    reloadNavigation,
+    setActiveAccount,
+    showPickerForReload,
+  ]);
 
   useEffect(() => {
     // In server mode an account summary becomes active one render before its full slice arrives.

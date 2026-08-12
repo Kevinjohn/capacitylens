@@ -7,6 +7,7 @@ import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
 import { attachPersistence } from "../data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
+import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -20,7 +21,10 @@ vi.mock("../data/apiConfig", () => ({
   isServerConfigured: () => false,
 }));
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
@@ -46,6 +50,12 @@ function renderAppShell(initialEntries: string[] = ["/"], includeLocationProbe =
       <AppShell />
       {includeLocationProbe && <LocationProbe />}
     </MemoryRouter>,
+  );
+}
+
+function mockNavigationType(type: NavigationTimingType) {
+  vi.spyOn(performance, "getEntriesByType").mockImplementation((entryType) =>
+    entryType === "navigation" ? ([{ type } as PerformanceNavigationTiming] satisfies PerformanceEntry[]) : [],
   );
 }
 
@@ -131,6 +141,145 @@ it("does not apply a late joined-account handoff after an explicit company choic
   });
 
   expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
+});
+
+it("keeps the company picker on first entry even when exactly one company is available", async () => {
+  mockNavigationType("navigate");
+  useStore.setState({ activeAccountId: null, previousAccountId: null });
+
+  renderAppShell(["/clients"], true);
+
+  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
+});
+
+it("keeps the company picker after a successful sign-in reload", async () => {
+  mockNavigationType("reload");
+  markCompanyPickerForNextReload();
+  useStore.setState({ activeAccountId: null, previousAccountId: null });
+
+  renderAppShell(["/clients"]);
+
+  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(window.history.state).toEqual({});
+});
+
+it("reopens the sole valid company on reload without changing the requested route", async () => {
+  mockNavigationType("reload");
+  useStore.setState({ activeAccountId: null, previousAccountId: null });
+
+  renderAppShell(["/clients?view=archived#client-list"], true);
+
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients?view=archived#client-list");
+  expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+});
+
+it("keeps the picker on a multi-company reload", async () => {
+  mockNavigationType("reload");
+  const accounts = [makeAccount(), makeAccount({ id: "acct-other", name: "Other Co" })];
+  useStore.getState().replaceAll(makeAppData({ accounts }));
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: null,
+    accountSummaries: accounts.map(({ id, name }) => ({ id, name, role: "owner" as const })),
+  });
+
+  renderAppShell();
+
+  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(useStore.getState().activeAccountId).toBeNull();
+});
+
+it("keeps the picker when one valid company came from an incomplete directory", async () => {
+  mockNavigationType("reload");
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: null,
+    accountSummaries: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+    accountSummariesComplete: false,
+  });
+
+  renderAppShell();
+
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+});
+
+it("keeps the picker when the browser cannot classify the navigation", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.spyOn(performance, "getEntriesByType").mockImplementation(() => {
+    throw new DOMException("Performance unavailable");
+  });
+  useStore.setState({ activeAccountId: null, previousAccountId: null });
+
+  renderAppShell();
+
+  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(warn).toHaveBeenCalledWith(
+    expect.stringContaining("navigation type could not be read"),
+    expect.any(DOMException),
+  );
+});
+
+it("keeps an explicit Switch company action on the picker after a reload", async () => {
+  mockNavigationType("reload");
+  renderAppShell();
+  expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(useStore.getState().previousAccountId).toBe(DEFAULT_ACCOUNT_ID);
+});
+
+it("does not mistake an unavailable sole membership for a valid reload destination", async () => {
+  mockNavigationType("reload");
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: null,
+    accountSummaries: [
+      { id: "unavailable-account", name: "Unavailable Co", role: "viewer", roleStatus: "unavailable" },
+    ],
+  });
+
+  renderAppShell();
+
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+});
+
+it("lets an invite handoff keep ownership of a reload instead of auto-opening another sole company", async () => {
+  mockNavigationType("reload");
+  useStore.setState({ activeAccountId: null, previousAccountId: null });
+
+  renderAppShell(["/clients?joinedAccount=not-yet-authorized"]);
+
+  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
+  expect(useStore.getState().activeAccountId).toBeNull();
+});
+
+it("does not reactivate a sole company after its loaded slice proves missing", async () => {
+  mockNavigationType("reload");
+  const summary = { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" as const };
+  useStore.setState({ activeAccountId: null, previousAccountId: null, accountSummaries: [summary] });
+  renderAppShell();
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+
+  act(() => {
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setAccountSummaries([summary]);
+  });
+
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+  expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+  expect(useStore.getState().notice?.message).toBe("That company no longer exists.");
 });
 
 it("guards navigation while a persistence write is still unacknowledged", () => {

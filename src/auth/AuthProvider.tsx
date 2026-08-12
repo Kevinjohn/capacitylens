@@ -32,6 +32,7 @@ import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { readApiError } from "../lib/readApiError";
+import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
 
 // Auth boundary (production plan P3.3). In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
 // pure pass-through that performs NO fetch at all. In server mode (the default) it asks
@@ -624,7 +625,10 @@ export function AuthProvider({
           providers={status.providers}
           degraded={status.degraded}
           hadUnsavedChanges={status.hadUnsavedChanges}
-          onSignedIn={() => window.location.reload()}
+          onSignedIn={() => {
+            markCompanyPickerForNextReload();
+            window.location.reload();
+          }}
         />
       </Suspense>
     );

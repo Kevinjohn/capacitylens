@@ -56,9 +56,10 @@ function toCreatedOrg(body: unknown): { id: string; name: string } | null {
   return { id: b.id, name: b.name };
 }
 
-// Full-screen tenant chooser. Shown on every load (activeAccountId is never
-// persisted) and whenever the user picks "Switch company". Lets you open an
-// existing company, create one inline, or delete one (cascade-drops its data).
+// Full-screen tenant chooser. Shown on first entry, every multi-company load and whenever the user
+// picks "Switch company". A browser reload with one valid company can bypass it without persisting
+// activeAccountId. Lets you open an existing company, create one inline, or delete one
+// (cascade-drops its data).
 //
 // The list comes from `accountSummaries` (P1.13), NOT `data.accounts`: in server mode `data` holds
 // only the ACTIVE account's slice, so it can't list the login's OTHER tenants — `accountSummaries`
