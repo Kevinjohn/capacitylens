@@ -318,6 +318,20 @@ describe("migrate", () => {
     expect(out.resources[0]).toEqual({ ...resource, engagement: "studio" });
   });
 
+  it("leaves v12 engagement grouping absent so the default-on selector applies", () => {
+    const account = {
+      id: "a1",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Studio",
+      color: "#2d75da",
+    };
+
+    const out = migrate({ schemaVersion: 12, data: { ...emptyAppData(), accounts: [account] } });
+    expect(out.accounts[0]).toEqual(account);
+    expect(out.accounts[0].groupResourcesByEngagement).toBeUndefined();
+  });
+
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {
     // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
     // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.

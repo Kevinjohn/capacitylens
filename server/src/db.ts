@@ -23,6 +23,7 @@ import {
   assertSchemaV16,
   assertSchemaV27,
   assertSchemaV28,
+  assertSchemaV29,
   assertSchemaV8,
   assertSchemaV9,
   migrateSchemaV8,
@@ -77,7 +78,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 29;
+export const DB_SCHEMA_VERSION = 30;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -636,6 +637,23 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
         }>
       ).some((column) => column.name === "engagement");
       if (!exists) db.exec("ALTER TABLE resources ADD COLUMN engagement TEXT NOT NULL DEFAULT 'studio';");
+      assertSchemaV29(db);
+    },
+  ),
+  defineMigration(
+    30,
+    "add-engagement-grouping-preference",
+    [
+      "guard:PRAGMA table_info(accounts):groupResourcesByEngagement-missing",
+      "ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;",
+    ].join("\n"),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "groupResourcesByEngagement");
+      if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;");
       assertSchemaCurrent(db);
     },
   ),

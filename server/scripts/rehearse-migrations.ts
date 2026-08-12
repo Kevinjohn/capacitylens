@@ -30,6 +30,7 @@ const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Object.from
       "weekStartsOn",
       "language",
       "disciplinesEnabled",
+      "groupResourcesByEngagement",
       "placeholdersEnabled",
       "externalEnabled",
       "createdAt",

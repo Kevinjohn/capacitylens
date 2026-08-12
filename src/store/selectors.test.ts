@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   disciplinesEnabledFor,
   externalEnabledFor,
+  groupResourcesByEngagementFor,
   inlineActivityCreateEnabledFor,
   internalColourModeFor,
   placeholdersEnabledFor,
@@ -162,6 +163,15 @@ describe("account feature selector defaults", () => {
       fallback: false,
       explicit: [true, false],
       values: (externalEnabled) => ({ externalEnabled: externalEnabled as boolean }),
+    },
+    {
+      name: "engagement grouping",
+      selector: groupResourcesByEngagementFor,
+      fallback: true,
+      explicit: [true, false],
+      values: (groupResourcesByEngagement) => ({
+        groupResourcesByEngagement: groupResourcesByEngagement as boolean,
+      }),
     },
     {
       name: "internal projects",

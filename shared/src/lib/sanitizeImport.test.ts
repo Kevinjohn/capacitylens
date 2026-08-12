@@ -445,6 +445,13 @@ describe("sanitizeAccount", () => {
     expect(sanitizeAccount({ disciplinesEnabled: true }).disciplinesEnabled).toBe(true);
   });
 
+  it("keeps boolean engagement grouping and drops malformed values", () => {
+    expect(sanitizeAccount({ groupResourcesByEngagement: false }).groupResourcesByEngagement).toBe(false);
+    expect(sanitizeAccount({ groupResourcesByEngagement: true }).groupResourcesByEngagement).toBe(true);
+    expect(sanitizeAccount({ groupResourcesByEngagement: "yes" }).groupResourcesByEngagement).toBeUndefined();
+    expect(sanitizeAccount({ groupResourcesByEngagement: null }).groupResourcesByEngagement).toBeUndefined();
+  });
+
   it("strips a non-boolean placeholdersEnabled", () => {
     expect(sanitizeAccount({ placeholdersEnabled: "yes" }).placeholdersEnabled).toBeUndefined();
     expect(sanitizeAccount({ placeholdersEnabled: 1 }).placeholdersEnabled).toBeUndefined();

@@ -1,7 +1,12 @@
 import { Fragment, useMemo, useState } from "react";
 import { Plus, Star, Users } from "lucide-react";
 import { useStore } from "../../store/useStore";
-import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from "../../store/selectors";
+import {
+  disciplinesEnabledFor,
+  externalEnabledFor,
+  groupResourcesByEngagementFor,
+  placeholdersEnabledFor,
+} from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useCrudListState } from "../../hooks/useCrudListState";
 import {
@@ -26,13 +31,19 @@ import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { Badge } from "../ui/badge";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { displayNameComparator, favouriteDisplayNameComparator } from "../../lib/displayOrder";
+import {
+  displayNameComparator,
+  engagementFavouriteDisplayNameComparator,
+  favouriteDisplayNameComparator,
+} from "../../lib/displayOrder";
 import { Button } from "../ui/button";
 import { useCanEdit } from "../../auth/permissionContext";
 import { errorMessage } from "../../lib/errorMessage";
 import { cn } from "../../lib/utils";
 
 const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
+const byEngagementFavouriteResourceDisplayName =
+  engagementFavouriteDisplayNameComparator<Resource>(resourceDisplayName);
 const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
 
 function FavouriteButton({ resource }: { resource: Resource }) {
@@ -76,6 +87,7 @@ export function ResourceList() {
     [disciplines],
   );
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const groupResourcesByEngagement = useStore((s) => groupResourcesByEngagementFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF). When off the placeholder feature is hidden, so the
   // Placeholders section and its "Add placeholder" affordance don't render. Existing placeholder
   // resources stay in the data untouched — they simply aren't shown until the pref is turned on.
@@ -98,7 +110,11 @@ export function ResourceList() {
 
   // Resources, placeholders, and externals all live on THIS tab now. Externals (the External section
   // below) are gated behind the per-account `externalEnabled` pref; people/placeholders split by kind.
-  const people = resources.filter((r) => r.kind === "person").sort(byFavouriteResourceDisplayName);
+  const people = resources
+    .filter((r) => r.kind === "person")
+    .sort(groupResourcesByEngagement ? byEngagementFavouriteResourceDisplayName : byFavouriteResourceDisplayName);
+  const studioPeople = people.filter((resource) => resource.engagement === "studio");
+  const supplementaryPeople = people.filter((resource) => resource.engagement === "supplementary");
   const placeholders = resources.filter((r) => r.kind === "placeholder").sort(byResourceDisplayName);
   const externals = resources.filter(isExternalResource).sort(byFavouriteResourceDisplayName);
   const visibleResourceCount =
@@ -163,21 +179,49 @@ export function ResourceList() {
       </ItemGroup>
     );
 
+  const engagementSection = (id: string, title: string, rows: Resource[], empty: string, separated = false) => (
+    <section aria-labelledby={id}>
+      {separated && <Separator className="mt-8" />}
+      <h2 id={id} className="mb-4 mt-8 text-lg font-semibold">
+        {title}
+      </h2>
+      {box(rows, empty)}
+    </section>
+  );
+
   return (
     <ListPage
       title={m.list_resources_title()}
       addLabel={m.list_resources_add()}
       onAdd={() => setCreatingKind("person")}
     >
-      {box(
-        people,
-        m.list_resources_empty(),
-        visibleResourceCount === 0
-          ? {
-              description: m.list_resources_empty_desc(),
-              action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind("person") },
-            }
-          : undefined,
+      {groupResourcesByEngagement && people.length > 0 ? (
+        <>
+          {engagementSection(
+            "studio-resources-heading",
+            m.list_resources_studio_heading(),
+            studioPeople,
+            m.list_resources_studio_empty(),
+          )}
+          {engagementSection(
+            "supplementary-resources-heading",
+            m.list_resources_supplementary_heading(),
+            supplementaryPeople,
+            m.list_resources_supplementary_empty(),
+            true,
+          )}
+        </>
+      ) : (
+        box(
+          people,
+          m.list_resources_empty(),
+          visibleResourceCount === 0
+            ? {
+                description: m.list_resources_empty_desc(),
+                action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind("person") },
+              }
+            : undefined,
+        )
       )}
 
       {/* The whole placeholder feature is behind the per-account `placeholdersEnabled` pref

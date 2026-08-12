@@ -122,6 +122,7 @@ export function SettingsView() {
   const weekStartsOn = weekStartsOnFor(data, activeAccountId);
   const timezone = timeZoneFor(data, activeAccountId);
   const disciplinesEnabled: boolean = activeAccount?.disciplinesEnabled ?? true;
+  const groupResourcesByEngagement: boolean = activeAccount?.groupResourcesByEngagement ?? true;
   // Per-account view prefs (default OFF — absent reads as hidden), mirroring disciplinesEnabled
   // above. activeAccount is guaranteed non-null past the `if (!activeAccount) return null` below.
   const placeholdersEnabled: boolean = activeAccount?.placeholdersEnabled ?? false;
@@ -269,6 +270,17 @@ export function SettingsView() {
               label={m.settings_disciplines_toggle()}
               on={disciplinesEnabled}
               onToggle={() => updateSetting({ disciplinesEnabled: !disciplinesEnabled })}
+              disabled={!canEdit}
+            />
+          </div>
+        </SettingsSection>
+
+        <SettingsSection title={m.settings_engagement_grouping_heading()} help={m.settings_engagement_grouping_intro()}>
+          <div>
+            <ToggleRow
+              label={m.settings_engagement_grouping_toggle()}
+              on={groupResourcesByEngagement}
+              onToggle={() => updateSetting({ groupResourcesByEngagement: !groupResourcesByEngagement })}
               disabled={!canEdit}
             />
           </div>

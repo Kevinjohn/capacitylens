@@ -27,13 +27,15 @@ export const FIXTURE_ACCOUNT: Account = {
   weekStartsOn: 0,
   language: "en",
   disciplinesEnabled: false,
+  // Default-on preference: explicit false proves the optional column round-trips.
+  groupResourcesByEngagement: false,
   // Both true (the NON-default — absent reads as false/hidden) so the server round-trip test
   // proves the new optional boolean columns persist a PRESENT value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
   // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
   internalColourMode: "palette",
-  // All three default to true when absent. Persist explicit false values so the full-fixture
+  // All four default to true when absent. Persist explicit false values so the full-fixture
   // round-trip detects a dropped column or accidental default substitution.
   showInternalProjects: false,
   showInternalActivities: false,

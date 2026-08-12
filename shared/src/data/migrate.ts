@@ -290,6 +290,12 @@ function migrateV11toV12(data: Record<string, unknown>): Record<string, unknown>
   return { ...data, resources };
 }
 
+// v12 → v13 adds optional Account.groupResourcesByEngagement. No transform is needed: absence
+// deliberately reads as true, and sanitizeAccount drops malformed present values.
+function migrateV12toV13(data: Record<string, unknown>): Record<string, unknown> {
+  return data;
+}
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -348,6 +354,9 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   }
   if (data && typeof data === "object" && version < 12) {
     data = migrateV11toV12(data);
+  }
+  if (data && typeof data === "object" && version < 13) {
+    data = migrateV12toV13(data);
   }
 
   return {

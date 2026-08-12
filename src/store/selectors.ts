@@ -31,6 +31,11 @@ export const schedulingModeFor = (data: AppData, activeAccountId: ID | null): Sc
 export const disciplinesEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
   data.accounts.find((a) => a.id === activeAccountId)?.disciplinesEnabled ?? true;
 
+/** Whether the active company partitions people by engagement in Resources and within schedule
+ * groups. Absent reads as TRUE so existing and new accounts receive the default-on behaviour. */
+export const groupResourcesByEngagementFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.groupResourcesByEngagement ?? true;
+
 /** Whether the active company shows placeholder ("slot") rows. Absent on the account reads as
  *  FALSE (hidden) — the documented default-off behaviour. NOTE the `?? false` (contrast
  *  disciplinesEnabledFor's `?? true`): a new/seed/imported account with no field stays hidden.

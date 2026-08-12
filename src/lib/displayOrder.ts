@@ -33,4 +33,15 @@ export function favouriteDisplayNameComparator<T extends Identified & { isFavour
     Number(right.isFavourite === true) - Number(left.isFavourite === true) || byDisplayName(left, right);
 }
 
+/** Studio before Supplementary, then favourites first and deterministic display-name order within
+ * each engagement partition. Used by both Resources and the scheduler so the two views cannot drift. */
+export function engagementFavouriteDisplayNameComparator<
+  T extends Identified & { engagement: "studio" | "supplementary"; isFavourite?: boolean },
+>(displayName: (item: T) => string) {
+  const byFavouriteDisplayName = favouriteDisplayNameComparator(displayName);
+  return (left: T, right: T): number =>
+    Number(left.engagement === "supplementary") - Number(right.engagement === "supplementary") ||
+    byFavouriteDisplayName(left, right);
+}
+
 export const byName = displayNameComparator<Named>((item) => item.name);

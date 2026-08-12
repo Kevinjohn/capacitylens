@@ -218,6 +218,10 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   if (rec.disciplinesEnabled !== undefined && typeof rec.disciplinesEnabled !== "boolean") {
     delete rec.disciplinesEnabled;
   }
+  // Drop malformed engagement-grouping values; absence is the default-on representation.
+  if (rec.groupResourcesByEngagement !== undefined && typeof rec.groupResourcesByEngagement !== "boolean") {
+    delete rec.groupResourcesByEngagement;
+  }
   // Drop a non-boolean placeholdersEnabled rather than persist junk; its absence reads
   // back as the default (false — hidden) on the client.
   if (rec.placeholdersEnabled !== undefined && typeof rec.placeholdersEnabled !== "boolean") {

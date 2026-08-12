@@ -553,6 +553,16 @@ the schedule then renders **flat** (no `discipline-group` bands). It's stored on
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
+**Engagement grouping (account-level).** Settings → **Engagement grouping** has a single switch
+**Group resources by engagement**, on by default. When on, Resources renders people in separate
+**Studio** and **Supplementary** sections; each section puts favourites first and then sorts by
+display name. The schedule keeps its existing discipline bands but orders Studio people before
+Supplementary people within each band, with favourites first inside each engagement partition.
+When the switch is off, Resources returns to one People list and each schedule band returns to its
+single favourites-first alphabetical order. Placeholders and External remain separate and
+unaffected. The preference is stored on the account (`groupResourcesByEngagement`, absent = on), so
+every member of the company sees the same grouping.
+
 **Clear device data (Settings → Device data).** A closed-by-default maintenance disclosure near the
 bottom of Settings contains a `Clear device data` button
 (`data-testid="clear-local-storage"`). Clicking it opens the standard confirm dialog (title
@@ -1066,18 +1076,22 @@ multiple).
   of exposing its real name or collapsing several private rows onto one indistinguishable label.
 
 - **Management list ordering.** The **Resources**, **Disciplines**, **Clients** and **Projects**
-  management lists are alphabetical by the name shown in each row. Resources keep People,
-  Placeholders and External as separate sections, and each section sorts independently. Favourite
-  people appear first in People and favourite external parties appear first in External; each
-  favourite and non-favourite partition remains alphabetical. Projects
+  management lists are alphabetical by the name shown in each row. With the default engagement
+  grouping on, Resources keeps Studio, Supplementary, Placeholders and External as separate
+  sections; turning it off combines Studio and Supplementary into one People list. Each section
+  sorts independently. Favourite people appear first within their engagement partition and
+  favourite external parties appear first in External; each favourite and non-favourite partition
+  remains alphabetical. Projects
   sort by project name; their client label is secondary text. The hidden built-in **Internal** client
   remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
   spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
   stored arrays are unchanged. The schedule keeps its deliberate discipline `sortOrder` and
-  resource grouping while sorting favourite people first within their own discipline, followed by
-  the remaining people and then placeholders. Favourite external parties similarly lead the
-  External band. Favourites are company data shared by every account member, not a per-user view
-  preference.
+  resource grouping while sorting Studio before Supplementary within each discipline, favourites
+  first and alphabetical inside each engagement partition, followed by placeholders. Turning
+  engagement grouping off removes that Studio/Supplementary partition but retains favourites-first
+  alphabetical order. Favourite external parties similarly lead the External band. Favourites and
+  the grouping preference are company data shared by every account member, not per-user view
+  preferences.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it
