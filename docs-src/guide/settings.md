@@ -12,7 +12,7 @@ else. Each section has a question-mark button labelled **About &lt;section&gt;**
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![The top of Settings with Scheduling, Global working days, Disciplines and Engagement grouping sections, each with an About button](../screenshots/flows/settings_overview.jpg)
+![The top of Settings with Scheduling, the compact two-row Global working days table, Disciplines and Engagement grouping, each with an About button](../screenshots/flows/settings_overview.jpg)
 
 ## Global working days
 

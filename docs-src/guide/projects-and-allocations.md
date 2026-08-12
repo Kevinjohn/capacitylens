@@ -34,15 +34,21 @@ create or edit it. Everyone below Owner sees a generic code name instead of the 
 one; only the Owner sees both. See [Roles and permissions](/getting-started/roles-and-permissions)
 for what each role can see.
 
+![The Add client form with the privacy explanation aligned beside the Use a code name switch](../screenshots/flows/client_private_name.jpg)
+
+![The Add project form with the same privacy explanation aligned beside its Use a code name switch](../screenshots/flows/project_private_name.jpg)
+
 ### Activities
 
 Under **Activities**, an activity is the specific thing a person is booked to do, and
 it comes in three kinds:
 
-- **Project-specific** — belongs to one project.
 - **Internal** — non-billable work that isn't tied to a project.
 - **Cross-project** — work that applies across projects, like general account
   management.
+- **Project-specific** — belongs to one project.
+
+![The Add activity form with equal-width Internal, Cross-project and Project-specific choices](../screenshots/flows/activity_form.jpg)
 
 Internal and cross-project activities are alphabetical. Project-specific activities are
 grouped in client, project and then activity order, with each client and project name
@@ -68,7 +74,7 @@ yet, an "Add activity" option inside the same form can create it in the selected
 unless your company has turned that convenience off in [Settings](/guide/settings).
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
-single-line; an older multiline note remains stored unchanged unless you edit that field.
+single-line.
 
 Leave **Ignore working days** unchecked to follow the person's working pattern. Check it when the
 allocation must use every calendar day in its date span, including personal non-working weekdays.

@@ -17,9 +17,12 @@ recording it and how it interacts with allocations.
    person's row.
 2. Choose the person, the start and end dates, and a type: holiday, sick, unpaid, or
    other.
-3. Add a note if you need to — for example, which half of the day, or a return date.
-   Notes are only visible to Admins and Owners; other roles see that time off exists
-   without the detail. See [Roles and permissions](/getting-started/roles-and-permissions).
+3. Add a short, single-line note if you need to — for example, "Conference" or a return
+   date. Notes are only visible to Admins and Owners; other roles see that time off
+   exists without the detail. See
+   [Roles and permissions](/getting-started/roles-and-permissions).
+
+![The Add time off form with Resource, Start, End and Type controls plus a compact single-line Note containing Conference](../screenshots/flows/timeoff_form.jpg)
 
 ![The schedule with draw mode switched to Time off: work allocations dim and a holiday block is highlighted](../screenshots/flows/timeoff-draw.jpg)
 
@@ -53,6 +56,12 @@ Recording time off doesn't automatically remove or block overlapping allocations
 Instead, if you try to book someone on days they're already off, the allocation form
 warns you that the booking overlaps their time off — so you can see the conflict and
 decide, rather than have CapacityLens silently prevent it or silently ignore it.
+
+Hours and Days allocations use the normal over-capacity calculation. A Block carries no
+hours, so it leaves utilisation at 0%, but an overlap with time off still receives the
+same red conflict treatment above the holiday hatch.
+
+![The two-week schedule at 0% utilisation with an Internal block spanning Bruce Wayne's three-day holiday and the overlapping cells marked red](../screenshots/flows/schedule_block_timeoff_conflict.jpg)
 
 ## What's next
 
