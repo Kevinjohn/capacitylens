@@ -28,6 +28,8 @@ export async function serverState(request: APIRequestContext): Promise<
       deletedAt?: string;
       language?: string;
       seriesId?: string;
+      engagement?: "studio" | "supplementary";
+      halfDays?: number[];
     }>
   >
 > {

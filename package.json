@@ -32,7 +32,7 @@
     "dev:demo": "node scripts/run-preset.mjs dev-demo",
     "dev:access": "node scripts/dev-access-lab.mjs",
     "build": "pnpm run paraglide:compile && tsc -b && vite build && pnpm run bundle:check",
-    "bundle:check": "node scripts/check-bundle-budget.mjs && node scripts/check-offline-shell.mjs",
+    "bundle:check": "node scripts/check-bundle-budget.mjs && node scripts/check-offline-shell.mjs && node scripts/check-spa-route-documents.mjs",
     "security:crypto-inventory": "node scripts/check-crypto-inventory.mjs",
     "security:gitleaks-config": "node scripts/check-gitleaks-config.mjs",
     "policy:dco:test": "node --test scripts/check-dco.test.mjs",
