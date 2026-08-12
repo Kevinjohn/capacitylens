@@ -23,6 +23,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Project client choices now put internal work first.** The project form pins Internal above a
+  non-selectable divider, followed by active clients in alphabetical order (#239).
 - **Activity kind choices now follow the page's work hierarchy.** The Activity form presents
   Internal, Cross-project and Project-specific in the same order used by the Activities page,
   while keeping Project-specific selected by default (#245).

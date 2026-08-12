@@ -101,6 +101,27 @@ describe("ProjectForm", () => {
     expect(useStore.getState().data.projects[0].clientId).toBe(client.id);
   });
 
+  it("pins Internal above a divider and sorts ordinary clients alphabetically", () => {
+    const internal = installInternalClient();
+    const zulu = useStore.getState().addClient({ name: "Zulu", color: "#111111" });
+    const alpha = useStore.getState().addClient({ name: "alpha", color: "#222222" });
+    const { baseElement } = render(<ProjectForm onClose={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByLabelText("Client"), { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      internal.name,
+      alpha.name,
+      zulu.name,
+    ]);
+
+    const separator = baseElement.querySelector('[data-slot="select-separator"]');
+    if (!separator) throw new Error("Expected a client-group separator.");
+    expect(separator).toHaveAttribute("data-slot", "select-separator");
+    expect(separator).toHaveAttribute("aria-hidden", "true");
+    expect(separator.previousElementSibling).toHaveAttribute("data-value", internal.id);
+    expect(separator.nextElementSibling).toHaveAttribute("data-value", alpha.id);
+  });
+
   it("hides the colour picker for an Internal-owned project in the default grey mode", async () => {
     const internal = installInternalClient();
     render(<ProjectForm onClose={vi.fn()} />);
