@@ -336,9 +336,10 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Engagement`, `Bound project`, `Working days` (a right-aligned Monday–Sunday
-radio grid whose `Full day`, `Half day` and `Not working` column headings appear once; every cell's
-native radio is labelled by both its weekday and availability, and each row permits one choice),
+`Engagement`, `Bound project`, `Working days` (a full-width Monday–Sunday radio grid aligned with
+the field label whose `Full day`, `Half day` and `Not working` column headings appear once; every
+cell's native radio is labelled by both its weekday and availability, and each row permits one
+choice; long labels remain on one line inside a horizontally scrollable narrow-width boundary),
 `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
 `Colour (Blue dark)` for a known swatch, else the raw hex — that opens a `radiogroup` of preset
 colour swatches, each `radio` labelled by a human-readable name like `Blue dark` /
@@ -350,7 +351,8 @@ form-level alert), scroll it into view, and clear the stale error on the next ed
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
 In the resource add/edit modal only, `Name`, `Role`, `Discipline`, `Engagement` and `Bound project`
 use an approximately 25/75 label-to-control row at normal modal widths and stack vertically on
-narrow screens. The `Working days` grid stays full width. Other modal layouts are unchanged.
+narrow screens. The `Working days` grid fills that same field width without widening the modal at
+narrow sizes. Other modal layouts are unchanged.
 The allocation modal's `Project` picker begins with `Internal` and `Any Project`, followed by a
 separator and the real projects sorted by client name and then project name. `Internal` exposes only
 internal activities; `Any Project` exposes only cross-project activities; a real project exposes

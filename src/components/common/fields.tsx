@@ -542,63 +542,69 @@ export function WorkingDayPicker({
   };
 
   return (
-    <FieldSet aria-invalid={invalid || undefined} aria-describedby={invalid ? describedById : undefined}>
+    <FieldSet
+      className="min-w-0"
+      aria-invalid={invalid || undefined}
+      aria-describedby={invalid ? describedById : undefined}
+    >
       <FieldLegend variant="label">{label}</FieldLegend>
-      <div className="flex justify-end">
-        <div className="max-w-full overflow-x-auto rounded-md border">
-          <table className="border-collapse text-sm">
-            <thead>
-              <tr className="border-b">
-                <th scope="col" className="sr-only">
-                  {m.form_resource_working_day_weekday()}
+      <div className="min-w-0 w-full max-w-full overflow-x-auto rounded-md border">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b">
+              <th scope="col" className="sr-only">
+                {m.form_resource_working_day_weekday()}
+              </th>
+              {options.map((option) => (
+                <th
+                  key={option.value}
+                  id={`${groupId}-${option.value}-heading`}
+                  scope="col"
+                  className="min-w-24 whitespace-nowrap px-3 py-2 text-center text-xs font-medium text-muted-foreground"
+                >
+                  {option.label}
                 </th>
-                {options.map((option) => (
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {WEEKDAY_ORDER.map((day) => {
+              const dayLabel = weekdayLabel(day);
+              const rowHeadingId = `${groupId}-${day}-heading`;
+              return (
+                <tr key={day} className="border-b last:border-b-0">
                   <th
-                    key={option.value}
-                    id={`${groupId}-${option.value}-heading`}
-                    scope="col"
-                    className="min-w-24 px-3 py-2 text-center text-xs font-medium text-muted-foreground"
+                    id={rowHeadingId}
+                    scope="row"
+                    className="min-w-24 whitespace-nowrap px-3 py-2 text-left font-medium"
                   >
-                    {option.label}
+                    {dayLabel}
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {WEEKDAY_ORDER.map((day) => {
-                const dayLabel = weekdayLabel(day);
-                const rowHeadingId = `${groupId}-${day}-heading`;
-                return (
-                  <tr key={day} className="border-b last:border-b-0">
-                    <th id={rowHeadingId} scope="row" className="min-w-24 px-3 py-2 text-left font-medium">
-                      {dayLabel}
-                    </th>
-                    {options.map((option) => {
-                      const radioId = `${groupId}-${day}-${option.value}`;
-                      return (
-                        <td key={option.value} className="px-3 py-1 text-center">
-                          <Label htmlFor={radioId} className="flex min-h-8 cursor-pointer justify-center">
-                            <input
-                              id={radioId}
-                              type="radio"
-                              name={`${groupId}-${day}`}
-                              value={option.value}
-                              checked={optionFor(day) === option.value}
-                              aria-labelledby={`${rowHeadingId} ${groupId}-${option.value}-heading`}
-                              data-form-dirty-managed
-                              className="size-4 cursor-pointer"
-                              onChange={() => choose(day, option.value)}
-                            />
-                          </Label>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  {options.map((option) => {
+                    const radioId = `${groupId}-${day}-${option.value}`;
+                    return (
+                      <td key={option.value} className="px-3 py-1 text-center">
+                        <Label htmlFor={radioId} className="flex min-h-8 cursor-pointer justify-center">
+                          <input
+                            id={radioId}
+                            type="radio"
+                            name={`${groupId}-${day}`}
+                            value={option.value}
+                            checked={optionFor(day) === option.value}
+                            aria-labelledby={`${rowHeadingId} ${groupId}-${option.value}-heading`}
+                            data-form-dirty-managed
+                            className="size-4 cursor-pointer"
+                            onChange={() => choose(day, option.value)}
+                          />
+                        </Label>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </FieldSet>
   );

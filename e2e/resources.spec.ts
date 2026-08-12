@@ -20,7 +20,9 @@ test.describe("Resources", () => {
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Dana Lee" })).toBeVisible();
   });
 
-  test("keeps resource details compact at normal widths and stacks them on a narrow screen", async ({ page }) => {
+  test("keeps resource details compact and the working-days table aligned without narrow-screen overflow", async ({
+    page,
+  }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
 
@@ -29,10 +31,16 @@ test.describe("Resources", () => {
     await expect(compactFields).toHaveCount(4);
 
     const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
-    const workingDaysBox = await dialog.getByRole("group", { name: "Working days" }).boundingBox();
+    const workingDays = dialog.getByRole("group", { name: "Working days" });
+    const workingDaysBox = await workingDays.boundingBox();
+    const workingDaysTable = workingDays.getByRole("table");
+    const tableBox = await workingDaysTable.boundingBox();
     expect(fieldGroupBox).not.toBeNull();
     expect(workingDaysBox).not.toBeNull();
+    expect(tableBox).not.toBeNull();
     expect(Math.abs(fieldGroupBox!.width - workingDaysBox!.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(tableBox!.x - workingDaysBox!.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(tableBox!.width - workingDaysBox!.width)).toBeLessThanOrEqual(2);
 
     for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
       const control = dialog.getByLabel(label, { exact: true });
@@ -65,6 +73,28 @@ test.describe("Resources", () => {
       expect(Math.abs(controlBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
       expect(Math.abs(controlBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
     }
+
+    // Exercise long translated-style labels without claiming an end-to-end non-English locale.
+    // The no-wrap contract should widen only this scroll area, never the dialog or page.
+    await workingDays.getByRole("columnheader", { name: "Not working" }).evaluate((element) => {
+      element.textContent = "Ganztägig nicht verfügbar";
+    });
+    await workingDays.getByRole("rowheader", { name: "Wednesday" }).evaluate((element) => {
+      element.textContent = "Mittwoch (zusätzlicher Arbeitstag)";
+    });
+    const scrollArea = workingDaysTable.locator("..");
+    const overflow = await scrollArea.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      whiteSpace: getComputedStyle(element.querySelector("th:not(.sr-only)")!).whiteSpace,
+    }));
+    expect(overflow.scrollWidth).toBeGreaterThan(overflow.clientWidth);
+    expect(overflow.whiteSpace).toBe("nowrap");
+    const narrowDialogBox = await dialog.boundingBox();
+    expect(narrowDialogBox).not.toBeNull();
+    expect(narrowDialogBox!.x).toBeGreaterThanOrEqual(0);
+    expect(narrowDialogBox!.x + narrowDialogBox!.width).toBeLessThanOrEqual(360);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   });
 
   test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
@@ -118,10 +148,11 @@ test.describe("Resources", () => {
     await expect(dialog.getByRole("columnheader", { name: "Half day" })).toBeVisible();
     await expect(dialog.getByRole("columnheader", { name: "Not working" })).toBeVisible();
     const tableBox = await dialog.getByRole("table").boundingBox();
-    const dialogBox = await dialog.boundingBox();
+    const groupBox = await dialog.getByRole("group", { name: "Working days" }).boundingBox();
     expect(tableBox).not.toBeNull();
-    expect(dialogBox).not.toBeNull();
-    expect(Math.abs(dialogBox!.x + dialogBox!.width - (tableBox!.x + tableBox!.width))).toBeLessThanOrEqual(30);
+    expect(groupBox).not.toBeNull();
+    expect(Math.abs(tableBox!.x - groupBox!.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(tableBox!.width - groupBox!.width)).toBeLessThanOrEqual(2);
     const mondayFull = dialog.getByRole("radio", { name: "Monday Full day" });
     await mondayFull.click();
     await mondayFull.press("ArrowRight");

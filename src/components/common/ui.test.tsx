@@ -232,9 +232,9 @@ describe("Modal", () => {
         <p>Content</p>
       </Modal>,
     );
-    expect(screen.getByRole("dialog", { name: "My Modal" })).toHaveClass("bg-popover");
+    expect(screen.getByRole("dialog", { name: "My Modal" })).toHaveClass("bg-popover", "grid-cols-[minmax(0,1fr)]");
     expect(screen.getByRole("dialog", { name: "My Modal" })).not.toHaveClass("bg-background");
-    expect(screen.getByText("Content")).toBeInTheDocument();
+    expect(screen.getByText("Content").parentElement).toHaveClass("min-w-0");
   });
 
   it("exposes the title as a navigable heading (aria-labelledby)", () => {
@@ -1054,20 +1054,33 @@ describe("WorkingDayPicker", () => {
       />,
     );
 
-  it("renders a right-aligned Monday–Sunday grid with the three choice headings written once", () => {
+  it("renders a full-width Monday–Sunday grid with the three choice headings written once", () => {
     renderPicker();
     expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
     for (const option of ["Full day", "Half day", "Not working"]) {
       expect(screen.getByRole("columnheader", { name: option })).toBeVisible();
     }
     const table = screen.getByRole("table");
-    expect(table.parentElement?.parentElement).toHaveClass("justify-end");
+    expect(table).toHaveClass("w-full");
+    expect(table.parentElement).toHaveClass("min-w-0", "w-full", "max-w-full", "overflow-x-auto");
+    expect(table.closest("fieldset")).toHaveClass("min-w-0");
+    expect(table.parentElement).not.toHaveClass("justify-end");
     expect(screen.getAllByRole("radio")).toHaveLength(21);
     for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
       const row = screen.getByRole("row", { name: new RegExp(day) });
       expect(within(row).getByRole("radio", { name: `${day} Full day` })).toHaveAttribute("type", "radio");
       expect(within(row).getByRole("radio", { name: `${day} Half day` })).toHaveAttribute("type", "radio");
       expect(within(row).getByRole("radio", { name: `${day} Not working` })).toHaveAttribute("type", "radio");
+    }
+  });
+
+  it("keeps long availability and weekday labels on one line for horizontal overflow", () => {
+    renderPicker();
+    for (const header of screen.getAllByRole("columnheader").slice(1)) {
+      expect(header).toHaveClass("whitespace-nowrap");
+    }
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+      expect(screen.getByRole("rowheader", { name: day })).toHaveClass("whitespace-nowrap");
     }
   });
 
