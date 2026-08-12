@@ -451,11 +451,12 @@ Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
 The rest of the expanded filter row follows the draw-mode control:
 `Search people…` matches accent-insensitively across the displayed name, stored name and role as
-one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`,
-`Filter by client`, `Filter by project`,
+one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`
+(in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
+alphabetical), `Filter by project` (Internal-owned projects first, then alphabetical by project name),
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then a `Cross-project` optgroup with `Cross-project — All` +
-each cross-project activity; shown only when the account has internal/cross-project activities. Project-specific activities
+each group's activities alphabetically; shown only when the account has internal/cross-project activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
 clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
