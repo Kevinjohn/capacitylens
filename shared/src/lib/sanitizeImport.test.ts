@@ -103,6 +103,12 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("allocations", { ignoreWeekends: false }).ignoreWeekends).toBe(false);
   });
 
+  it("preserves a clean repeat-series id and drops malformed or blank values", () => {
+    expect(sanitizeImportedRecord("allocations", { seriesId: " series-1 " }).seriesId).toBe("series-1");
+    expect(sanitizeImportedRecord("allocations", { seriesId: 42 })).not.toHaveProperty("seriesId");
+    expect(sanitizeImportedRecord("allocations", { seriesId: "  " })).not.toHaveProperty("seriesId");
+  });
+
   it("repairs missing names by resource kind while preserving nameless placeholders", () => {
     expect(sanitizeImportedRecord("resources", { kind: "person" }).name).toBe("Unnamed person");
     expect(sanitizeImportedRecord("resources", { kind: "external", name: "  " }).name).toBe("Unnamed company");

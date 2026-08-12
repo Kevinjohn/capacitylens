@@ -145,3 +145,54 @@ describe("atomic allocation creation", () => {
     expect(state().notice).toMatchObject({ tone: "error" });
   });
 });
+
+describe("repeat-series allocation mutations", () => {
+  it("deletes the selected and future occurrences as one undoable mutation", () => {
+    const { draft } = allocationSetup();
+    const seriesId = "series-weekly";
+    const [earlier, selected, later, unrelated] = state().addAllocations([
+      draft({ seriesId, startDate: "2026-06-01", endDate: "2026-06-03" }),
+      draft({ seriesId, startDate: "2026-06-08", endDate: "2026-06-10" }),
+      draft({ seriesId, startDate: "2026-06-15", endDate: "2026-06-17" }),
+      draft({ seriesId: "another-series", startDate: "2026-06-22", endDate: "2026-06-24" }),
+    ]);
+    useStore.setState({ past: [], future: [] });
+
+    state().deleteAllocationSeriesFrom(selected.id);
+
+    expect(state().data.allocations.map(({ id }) => id)).toEqual([earlier.id, unrelated.id]);
+    expect(state().past).toHaveLength(1);
+    state().undo();
+    expect(state().data.allocations).toHaveLength(4);
+    state().redo();
+    expect(state().data.allocations.map(({ id }) => id)).not.toContain(selected.id);
+    expect(state().data.allocations.map(({ id }) => id)).not.toContain(later.id);
+  });
+
+  it("keeps series membership system-owned while editing linked and one-off allocations", () => {
+    const { draft } = allocationSetup();
+    const linked = state().addAllocation(draft({ seriesId: "series-weekly" }));
+    const oneOff = state().addAllocation(draft({ startDate: "2026-07-01", endDate: "2026-07-01" }));
+
+    state().updateAllocation(linked.id, { note: "Retained", seriesId: "other-series" });
+    state().updateAllocation(oneOff.id, { note: "Still one-off", seriesId: "invented-series" });
+
+    expect(state().data.allocations.find(({ id }) => id === linked.id)).toMatchObject({
+      note: "Retained",
+      seriesId: "series-weekly",
+    });
+    const updatedOneOff = state().data.allocations.find(({ id }) => id === oneOff.id);
+    expect(updatedOneOff).toMatchObject({ note: "Still one-off" });
+    expect(updatedOneOff).not.toHaveProperty("seriesId");
+  });
+
+  it("rejects a series-tail operation for an unlinked allocation without publishing history", () => {
+    const { draft } = allocationSetup();
+    const oneOff = state().addAllocation(draft());
+    useStore.setState({ past: [], future: [] });
+
+    expect(() => state().deleteAllocationSeriesFrom(oneOff.id)).toThrow(/not part of a repeat series/i);
+    expect(state().data.allocations).toContainEqual(oneOff);
+    expect(state().past).toHaveLength(0);
+  });
+});

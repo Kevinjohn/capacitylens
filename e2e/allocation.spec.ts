@@ -75,7 +75,7 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-10");
     await dialog.getByLabel(/^End/).fill("2026-06-10");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-    await expect(dialog).toContainText("Creates 14 independent allocations. Last start: Wed 9th Sep.");
+    await expect(dialog).toContainText("Creates 14 linked allocations. Last start: Wed 9th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(20);
     await page.keyboard.press("ControlOrMeta+z");
@@ -90,12 +90,14 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "every-three-weeks");
-    await expect(dialog).toContainText("Creates 5 independent allocations. Last start: Sat 5th Sep.");
+    await expect(dialog).toContainText("Creates 5 linked allocations. Last start: Sat 5th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(11);
   });
 
-  test("creates monthly batches on the 13th and across February, then edits one independently", async ({ page }) => {
+  test("edits one monthly occurrence, deletes its series tail and restores the tail with one Undo", async ({
+    page,
+  }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     let dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
@@ -103,7 +105,7 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
-    await expect(dialog).toContainText("Creates 4 independent allocations. Last start: Sun 13th Sep.");
+    await expect(dialog).toContainText("Creates 4 linked allocations. Last start: Sun 13th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
 
@@ -118,8 +120,16 @@ test.describe("Allocation editor", () => {
     await julyOccurrence.click();
     editor = page.getByRole("dialog", { name: "Edit allocation" });
     await editor.getByRole("button", { name: "Delete" }).click();
-    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(9);
+    const repeatedDelete = page.getByRole("alertdialog", { name: "Delete repeated allocation?" });
+    await expect(repeatedDelete.getByRole("button", { name: "Delete this occurrence" })).toBeVisible();
+    await repeatedDelete.getByRole("button", { name: "Delete this and future occurrences" }).click();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(7);
+    await expect(page.locator('[data-testid="allocation-bar"][aria-label*="13 Jun to 13 Jun"]')).toBeVisible();
+    await expect(julyOccurrence).toHaveCount(0);
+
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
+    await expect(julyOccurrence).toBeVisible();
 
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -128,7 +138,7 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2027-01-31");
     await dialog.getByLabel(/^End/).fill("2027-01-31");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
-    await expect(dialog).toContainText("Creates 4 independent allocations. Last start: Fri 30th Apr.");
+    await expect(dialog).toContainText("Creates 4 linked allocations. Last start: Fri 30th Apr.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);

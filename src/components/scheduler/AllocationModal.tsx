@@ -6,6 +6,7 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import { daysInclusive, eachDayISO, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
+import { newId } from "@capacitylens/shared/lib/id";
 import {
   blockHoursPerDay,
   daysOfWorkFor,
@@ -61,6 +62,7 @@ import { Input } from "../ui/input";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
+import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
 import { buildActivityOptions } from "./activityOptions";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { formatShortDate } from "../../lib/dateDisplay";
@@ -174,6 +176,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const addAllocations = useStore((s) => s.addAllocations);
   const updateAllocation = useStore((s) => s.updateAllocation);
   const deleteAllocation = useStore((s) => s.deleteAllocation);
+  const deleteAllocationSeriesFrom = useStore((s) => s.deleteAllocationSeriesFrom);
   const addActivity = useStore((s) => s.addActivity);
   const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF): when off, placeholders are dropped from the assignee
@@ -725,7 +728,8 @@ export function AllocationModal(props: AllocationModalProps) {
           daysOver,
           resource: selectedResource,
         });
-        addAllocations(drafts);
+        const seriesId = newId();
+        addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })));
       }
       onClose();
     } catch (e) {
@@ -752,12 +756,12 @@ export function AllocationModal(props: AllocationModalProps) {
     }
   };
 
-  const onDelete = () => {
+  const onDelete = (scope: "one" | "future" = "one") => {
     if (!editing || !canEdit) return;
     setConfirmDelete(false);
     try {
-      deleteAllocation(editing.id);
-      onClose();
+      if (scope === "future") deleteAllocationSeriesFrom(editing.id);
+      else deleteAllocation(editing.id);
     } catch (e) {
       fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_delete_failed());
     }
@@ -813,14 +817,20 @@ export function AllocationModal(props: AllocationModalProps) {
         </>
       }
     >
-      {confirmDelete && (
+      {confirmDelete && editing?.seriesId ? (
+        <RepeatedAllocationDeleteDialog
+          onDeleteOne={() => onDelete("one")}
+          onDeleteFuture={() => onDelete("future")}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      ) : confirmDelete ? (
         <ConfirmDialog
           title={m.form_allocation_delete_title()}
           message={m.form_allocation_delete_message({ shortcut: undoShortcut() })}
-          onConfirm={onDelete}
+          onConfirm={() => onDelete("one")}
           onCancel={() => setConfirmDelete(false)}
         />
-      )}
+      ) : null}
       {!create && (
         <SelectField
           label={m.form_allocation_assignee_label()}

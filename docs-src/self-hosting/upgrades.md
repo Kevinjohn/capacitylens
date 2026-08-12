@@ -73,10 +73,11 @@ rather than guessing.
 
 The release that adds Studio and Supplementary engagement advances the database through
 schema v29 (the required resource engagement column), v30 (the optional company-wide
-engagement-grouping preference), and v31 (the company working-day selection). Existing resources
-become Studio resources, an absent grouping preference reads as on, and existing companies receive
-the first five days of their configured week. No manual data edit is required. To roll back to an older
-image, restore the automatic pre-migration snapshot as described below; do not remove the new
+engagement-grouping preference), v31 (the company working-day selection), and v32 (the optional
+repeat-series identity on allocations). Existing resources become Studio resources, an absent
+grouping preference reads as on, existing companies receive the first five days of their configured
+week, and existing allocations remain unlinked. No manual data edit is required. To roll back to an
+older image, restore the automatic pre-migration snapshot as described below; do not remove the new
 columns or edit the migration ledger by hand.
 
 ### Stored credential effects

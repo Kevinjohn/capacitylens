@@ -397,19 +397,26 @@ section heading. Resource sections sort alphabetically, and their rows sort by s
 and id. Placeholder entries still follow **Show placeholders**; an unexpected dangling resource is
 kept visible in a final **(unknown)** section rather than crashing.
 
-An allocation **Delete** asks for confirmation, then closes its editor only after the store accepts
-the removal. If the mutation rejects, the dialog stays open and its form error surfaces the safe
-rejection reason. Viewers see no allocation mutation actions.
+An ordinary allocation **Delete** asks for confirmation, then closes its editor only after the store
+accepts the removal. A newly generated repeat batch carries one optional, system-owned series ID;
+legacy repeats and one-off allocations remain unlinked. Deleting a linked occurrence instead asks
+whether to delete only that occurrence or that occurrence and every later-starting allocation in the
+same account and series. Earlier occurrences remain. Either choice is one atomic, undoable mutation,
+and one Undo restores the complete removal. Editing a linked occurrence preserves its membership and
+never applies edits to future occurrences. If any deletion rejects, the dialog stays open and its
+form error surfaces the safe rejection reason. Viewers see no allocation mutation actions.
 
 **Repeat allocation creation.** New allocation forms opened from either the row **+** or a drawn
 range include a **Repeat** dropdown between the scheduling controls and **Status**. It defaults to
 **Doesn’t repeat** and offers **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4 weeks** and
-**Monthly**. A repeating choice previews the number of independent allocations and the final start
-date over a fixed three-calendar-month window. Saving creates ordinary allocations in one undoable
-operation; one Undo removes the whole generated batch. Each allocation can then be edited or deleted
-independently. Edit and Duplicate never show or inherit the Repeat choice. Capacity and time-off
-warnings count the generated allocations affected, remain advisory, and include conflicts between
-allocations in the same generated batch.
+**Monthly**. A repeating choice previews the number of linked allocations and the final start
+date over a fixed three-calendar-month window. Saving gives the generated allocations one shared
+series ID in a single undoable operation; old independent repeats are never inferred or backfilled.
+Each occurrence can still be edited independently while retaining its series membership. Deletion
+can target one occurrence or that occurrence and all later starts in its series; earlier starts are
+untouched. Edit and Duplicate never show or inherit the Repeat choice, and Duplicate remains a
+single independent allocation. Capacity and time-off warnings count the generated allocations
+affected, remain advisory, and include conflicts between allocations in the same generated batch.
 
 **Destructive confirmation** uses the action-specific title and buttons: lifecycle list actions use
 `Archive <entity>?`, `Archive`, and `Cancel`; actual deletion uses `Delete <entity>?`, `Delete`, and

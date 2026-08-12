@@ -81,6 +81,11 @@ const V31_MIGRATION = {
   name: "add-account-working-days",
   checksum: "6cf179df5c1a8559cafb03aeb197435c5333fb27908e5be043156843c9d582cf",
 } as const;
+const V32_MIGRATION = {
+  version: 32,
+  name: "add-allocation-series-id",
+  checksum: "92a8f85615b85af7c4a1f1b4a0d78b8f1dd48aa7a98c67a9090268a42bef1292",
+} as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -454,6 +459,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
       db.exec(`PRAGMA user_version = 12`);
       db.close();
@@ -563,6 +569,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
       db.exec(`PRAGMA user_version = 13`);
       db.close();
@@ -625,6 +632,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
       db.exec(`PRAGMA user_version = 15`);
       db.close();
@@ -1254,6 +1262,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
@@ -1284,7 +1293,7 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
+      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1313,7 +1322,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1478,6 +1487,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1584,7 +1594,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -1637,6 +1647,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1711,6 +1722,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1762,6 +1774,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1819,6 +1832,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -1876,6 +1890,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
@@ -2019,11 +2034,12 @@ describe("schema migration of an existing on-disk DB", () => {
     }
   });
 
-  it("v26 through v31 add sign-in confirmation, resource fields and account preferences", () => {
+  it("v26 through v32 add sign-in confirmation, resource fields, account preferences and series identity", () => {
     const db = openDb(":memory:");
     db.exec(`
       DROP TABLE account_member_sign_in_tracking;
       ALTER TABLE account_members DROP COLUMN signInConfirmed;
+      ALTER TABLE allocations DROP COLUMN seriesId;
       ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement;
       ALTER TABLE accounts DROP COLUMN workingDays;
       ALTER TABLE resources DROP COLUMN engagement;
@@ -2040,6 +2056,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(
@@ -2069,6 +2086,11 @@ describe("schema migration of an existing on-disk DB", () => {
       ),
     ).toBe(true);
     expect(
+      (db.prepare("PRAGMA table_info(allocations)").all() as Array<{ name: string }>).some(
+        ({ name }) => name === "seriesId",
+      ),
+    ).toBe(true);
+    expect(
       (db.prepare("PRAGMA table_info(accounts)").all() as Array<{ name: string }>).some(
         ({ name }) => name === "workingDays",
       ),
@@ -2076,7 +2098,7 @@ describe("schema migration of an existing on-disk DB", () => {
     db.close();
   });
 
-  it("v27 through v31 preserve legacy defaults for resources and account preferences", () => {
+  it("v27 through v32 preserve legacy defaults and leave old allocations unlinked", () => {
     const db = openDb(":memory:");
     insertRow(db, "accounts", {
       id: "a1",
@@ -2109,12 +2131,34 @@ describe("schema migration of an existing on-disk DB", () => {
       updatedAt: TS,
     };
     insertRow(db, "resources", resource);
+    insertRow(db, "activities", {
+      id: "t1",
+      accountId: "a1",
+      name: "Admin",
+      kind: "repeatable",
+      createdAt: TS,
+      updatedAt: TS,
+    });
+    const legacyAllocation = {
+      id: "al-legacy",
+      accountId: "a1",
+      resourceId: "r1",
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed" as const,
+      createdAt: TS,
+      updatedAt: TS,
+    };
+    insertRow(db, "allocations", legacyAllocation);
     db.exec(`
       ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement;
       ALTER TABLE accounts DROP COLUMN workingDays;
       ALTER TABLE resources DROP COLUMN halfDays;
       ALTER TABLE resources DROP COLUMN isFavourite;
       ALTER TABLE resources DROP COLUMN engagement;
+      ALTER TABLE allocations DROP COLUMN seriesId;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 27;
       PRAGMA user_version = 26;
     `);
@@ -2125,6 +2169,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V29_MIGRATION,
       V30_MIGRATION,
       V31_MIGRATION,
+      V32_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2133,6 +2178,7 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(getRow(db, "accounts", "a1")?.groupResourcesByEngagement).toBeUndefined();
     expect(getRow(db, "accounts", "a1")?.workingDays).toEqual([1, 2, 3, 4, 5]);
     expect(getRow(db, "accounts", "a2")?.workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect(getRow(db, "allocations", legacyAllocation.id)?.seriesId).toBeUndefined();
     db.close();
   });
 

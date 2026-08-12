@@ -60,6 +60,7 @@ const IMPORTED_FIELDS = {
     ...SCOPED_META_FIELDS,
     "resourceId",
     "activityId",
+    "seriesId",
     "startDate",
     "endDate",
     "hoursPerDay",
@@ -294,6 +295,11 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       rec.status = oneOf(rec.status, VALID_STATUS, "confirmed");
       rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8);
       if (typeof rec.ignoreWeekends !== "boolean") delete rec.ignoreWeekends;
+      if (rec.seriesId !== undefined) {
+        const seriesId = typeof rec.seriesId === "string" ? cleanText(rec.seriesId) : "";
+        if (seriesId) rec.seriesId = seriesId;
+        else delete rec.seriesId;
+      }
       rec.startDate = normalizeISODate(rec.startDate);
       rec.endDate = normalizeISODate(rec.endDate);
       cleanField(rec, "note", true);

@@ -420,6 +420,8 @@ export interface StoreState {
    * target disappeared before commit; validation/tenancy violations still throw. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean;
   deleteAllocation: (id: ID) => void;
+  /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */
+  deleteAllocationSeriesFrom: (id: ID) => void;
 
   addTimeOff: (input: Draft<TimeOff>) => TimeOff;
   updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void;
@@ -1291,10 +1293,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
             existing,
           );
           assertDateRange(merged.startDate, merged.endDate);
+          // Repeat-series membership is system-owned at creation. An ordinary edit may change every
+          // visible allocation field but cannot link, unlink or move the row between series.
+          const safePatch = { ...patch };
+          if (existing.seriesId === undefined) delete safePatch.seriesId;
+          else safePatch.seriesId = existing.seriesId;
           // Clamp hours/day on the way in (a drag-resize rescale can exceed a real day).
-          return patch.hoursPerDay !== undefined
-            ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
-            : patch;
+          return safePatch.hoursPerDay !== undefined
+            ? { ...safePatch, hoursPerDay: clampHoursPerDay(safePatch.hoursPerDay) }
+            : safePatch;
         }),
       false,
     ),
@@ -1303,6 +1310,21 @@ export const useStore = create<StoreState>()((set, get, store) => {
       mutate((d) => ({
         ...d,
         allocations: d.allocations.filter((a) => a.id !== id),
+      }));
+    }),
+    deleteAllocationSeriesFrom: guarded((id: ID) => {
+      const target = findOwned(get().data, "allocations", id);
+      if (!target) return;
+      if (!target.seriesId) throw new Error("This allocation is not part of a repeat series.");
+      const { accountId, seriesId, startDate } = target;
+      // One mutation produces one history snapshot and one persistence diff/batch: a single Undo
+      // restores the whole tail, and server mode commits all DELETE operations transactionally.
+      mutate((d) => ({
+        ...d,
+        allocations: d.allocations.filter(
+          (allocation) =>
+            allocation.accountId !== accountId || allocation.seriesId !== seriesId || allocation.startDate < startDate,
+        ),
       }));
     }),
 

@@ -432,6 +432,25 @@ describe("migrate", () => {
     expect(out.accounts.find((account) => account.id === "mon")?.workingDays).toEqual([1, 2, 3, 4, 5]);
   });
 
+  it("keeps legacy repeat allocations unlinked at v14 to v15", () => {
+    const legacy = {
+      id: "a1",
+      accountId: "account",
+      resourceId: "resource",
+      activityId: "activity",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed" as const,
+      createdAt: "t",
+      updatedAt: "t",
+    };
+    const out = migrate({ schemaVersion: 14, data: { ...emptyAppData(), allocations: [legacy] } });
+
+    expect(out.allocations).toEqual([legacy]);
+    expect(out.allocations[0]).not.toHaveProperty("seriesId");
+  });
+
   it("renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)", () => {
     const out = migrate({
       schemaVersion: 4,

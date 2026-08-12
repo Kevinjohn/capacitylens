@@ -172,6 +172,7 @@ export const FIXTURE_ALLOCATION: Allocation = {
   accountId: "fix-a1",
   resourceId: "fix-r1",
   activityId: "fix-t1",
+  seriesId: "fix-series-1",
   startDate: "2026-02-01",
   endDate: "2026-02-28",
   hoursPerDay: 0,

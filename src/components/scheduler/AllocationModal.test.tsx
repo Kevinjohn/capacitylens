@@ -988,6 +988,91 @@ describe("AllocationModal edit", () => {
     }
   });
 
+  it("offers one-or-future deletion for a linked occurrence and closes after the atomic removal", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const seriesId = "series-weekly";
+    const [earlier, selected, later] = useStore.getState().addAllocations([
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId,
+      },
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-08",
+        endDate: "2026-06-09",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId,
+      },
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-15",
+        endDate: "2026-06-16",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId,
+      },
+    ]);
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={selected.id} onClose={onClose} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Delete repeated allocation?" });
+    expect(within(dialog).getByRole("button", { name: "Delete this occurrence" })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Delete this and future occurrences" }));
+
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).toContain(earlier.id);
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(selected.id);
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(later.id);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes only the selected linked occurrence when that scope is chosen", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const [selected, later] = useStore.getState().addAllocations([
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-08",
+        endDate: "2026-06-09",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId: "series-weekly",
+      },
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-15",
+        endDate: "2026-06-16",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId: "series-weekly",
+      },
+    ]);
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={selected.id} onClose={onClose} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(
+      within(screen.getByRole("alertdialog", { name: "Delete repeated allocation?" })).getByRole("button", {
+        name: "Delete this occurrence",
+      }),
+    );
+
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).toEqual([later.id]);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("reassigns an allocation to another resource", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const b = useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] });
@@ -1427,9 +1512,7 @@ describe("AllocationModal repeat creation", () => {
       ["Monthly", 4, "Tue 1st Sep"],
     ] as const) {
       await chooseOption(user, "Repeat", choice);
-      expect(
-        screen.getByText(`Creates ${count} independent allocations. Last start: ${lastStart}.`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(`Creates ${count} linked allocations. Last start: ${lastStart}.`)).toBeInTheDocument();
     }
 
     await chooseOption(user, "Repeat", "Weekly");
@@ -1440,6 +1523,9 @@ describe("AllocationModal repeat creation", () => {
     expect(drafts).toHaveLength(14);
     expect(drafts[0]).toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-03" });
     expect(drafts.at(-1)).toMatchObject({ startDate: "2026-08-31", endDate: "2026-09-02" });
+    const seriesIds = drafts.map(({ seriesId }) => seriesId);
+    expect(seriesIds[0]).toEqual(expect.any(String));
+    expect(new Set(seriesIds).size).toBe(1);
     expect(onClose).toHaveBeenCalledTimes(1);
     bulkSpy.mockRestore();
     oneSpy.mockRestore();
@@ -1457,7 +1543,7 @@ describe("AllocationModal repeat creation", () => {
     );
     await completeAssignment(user);
     await chooseOption(user, "Repeat", "Monthly");
-    expect(screen.getByText("Creates 4 independent allocations. Last start: Fri 30th Apr.")).toBeInTheDocument();
+    expect(screen.getByText("Creates 4 linked allocations. Last start: Fri 30th Apr.")).toBeInTheDocument();
     expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(bulkSpy.mock.calls[0][0].map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
@@ -1488,7 +1574,7 @@ describe("AllocationModal repeat creation", () => {
       );
       await completeAssignment(user);
       await chooseOption(user, "Repeat", "Monthly");
-      expect(screen.queryByText(/creates 4 independent allocations/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/creates 4 linked allocations/i)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Save" }));
 

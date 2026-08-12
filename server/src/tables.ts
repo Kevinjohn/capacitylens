@@ -179,6 +179,7 @@ const COLS_allocations = [
   // JSON so node:sqlite (which can't bind a raw boolean) round-trips it as
   // "true"/"false"; absent → NULL → omitted on read, matching the client object.
   { name: "ignoreWeekends", json: true, optional: true },
+  { name: "seriesId", optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 
@@ -376,6 +377,10 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   .replace(
     "  employmentType TEXT NOT NULL, workingHoursPerDay REAL NOT NULL,",
     "  employmentType TEXT NOT NULL, engagement TEXT NOT NULL DEFAULT 'studio', workingHoursPerDay REAL NOT NULL,",
+  )
+  .replace(
+    "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,",
+    "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT, seriesId TEXT,",
   )}\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */
