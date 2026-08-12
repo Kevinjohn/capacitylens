@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Allocation forms now label the calendar-day override as **Ignore working days**, accurately
+  describing that it includes every personal non-working weekday while preserving existing
+  allocation data and behaviour (#313).
+
 ## [0.41.1-alpha.1] — 2026-08-12
 
 ### Fixed
@@ -3145,7 +3151,7 @@ Weekends stop counting against capacity unless you opt an allocation into them.
   allocation that runs across a Saturday/Sunday (or any of a resource's non-working
   days) used to paint those days red, as if the person were overbooked. The work
   lands on working days, so the weekend now just shows as unavailable — not red.
-  Ticking **"Include weekends as working days"** on an allocation still counts its
+  Turning on an allocation's **calendar-day override** still counts its
   weekend work (and flags it red against a weekday-only person's zero weekend
   capacity), and work scheduled on a **time-off / holiday** day is still flagged as
   the real conflict it is. The allocation editor's "over capacity on N days"
