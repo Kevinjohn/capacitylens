@@ -7,9 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.41.6-alpha.1] — 2026-08-12
+
 ### Fixed
 
-- Client and Project privacy explanations now sit with their controls in the right-hand form column.
+- Client and Project privacy explanations now sit with their controls in the right-hand form column
+  (#307).
 
 ## [0.41.5-alpha.1] — 2026-08-12
 
@@ -3408,7 +3411,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.5-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.6-alpha.1...HEAD
+[0.41.6-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.5-alpha.1...v0.41.6-alpha.1
 [0.41.5-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.4-alpha.1...v0.41.5-alpha.1
 [0.41.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.3-alpha.1...v0.41.4-alpha.1
 [0.41.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.2-alpha.1...v0.41.3-alpha.1
