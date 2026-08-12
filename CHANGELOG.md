@@ -10,6 +10,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.40.4-alpha.1] — 2026-08-12
+
 ### Fixed
 
 - Work scheduled on time off now keeps the red over-allocation day visible above the holiday hatch,
@@ -3278,7 +3280,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.3-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.4-alpha.1...HEAD
+[0.40.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.3-alpha.1...v0.40.4-alpha.1
 [0.40.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.2-alpha.1...v0.40.3-alpha.1
 [0.40.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.1-alpha.1...v0.40.2-alpha.1
 [0.40.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.0-alpha.1...v0.40.1-alpha.1
