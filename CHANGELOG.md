@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Work scheduled on time off now keeps the red over-allocation day visible above the holiday hatch,
+  while retaining the holiday label and allocation bar stacking (#283).
+
 ## [0.40.3-alpha.1] — 2026-08-12
 
 ### Fixed
