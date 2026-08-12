@@ -38,5 +38,6 @@ intended scope.
 - ✅ Generated bars remain independently editable while retaining their hidden series membership.
 - ✅ Delete can remove one occurrence or the selected and future occurrences; earlier starts remain.
 - ✅ Either deletion choice is one undoable operation, and legacy repeat batches remain unlinked.
-- ✅ Edit and Duplicate show no Repeat control, and Duplicate creates exactly one allocation.
+- ✅ Edit shows no Repeat control, and linked occurrences do not offer Duplicate.
+- ✅ Duplicate remains available for unlinked allocations and creates exactly one independent allocation.
 - ✅ Capacity and time-off warnings count affected generated allocations and never block Save.

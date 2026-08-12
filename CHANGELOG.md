@@ -37,6 +37,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Linked repeat occurrences no longer offer Duplicate.** Unlinked allocations retain the action,
+  including one-offs that use Cross-project activities (#250).
 - **Allocation forms make work scope explicit.** The Project picker separates Internal and Any
   Project work from client projects, sorts projects by client then project and activities
   alphabetically, replaces Status with a three-way segmented choice, and uses a single-line Note

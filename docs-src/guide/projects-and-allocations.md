@@ -84,8 +84,9 @@ selected for a single allocation.
   person's row to reassign the work.
 - **Resize** a bar from either edge to change its start or end date.
 - **Open** a bar to change its status between tentative, confirmed and completed, or
-  to duplicate or delete it. Deleting can be undone from the toolbar, or with
-  Ctrl/Cmd+Z.
+  to duplicate or delete it. Duplicate is available for unlinked allocations, but not
+  occurrences in a linked repeat series. Deleting can be undone from the toolbar, or
+  with Ctrl/Cmd+Z.
 
 ![The Edit allocation form for an existing bar, showing its assignee, project, activity, dates and status](../screenshots/flows/allocation-open.jpg)
 

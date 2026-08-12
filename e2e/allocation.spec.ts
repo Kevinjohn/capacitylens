@@ -119,6 +119,7 @@ test.describe("Allocation editor", () => {
 
     await julyOccurrence.click();
     editor = page.getByRole("dialog", { name: "Edit allocation" });
+    await expect(editor.getByRole("button", { name: "Duplicate" })).toHaveCount(0);
     await editor.getByRole("button", { name: "Delete" }).click();
     const repeatedDelete = page.getByRole("alertdialog", { name: "Delete repeated allocation?" });
     await expect(repeatedDelete.getByRole("button", { name: "Delete this occurrence" })).toBeVisible();
