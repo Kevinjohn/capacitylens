@@ -1088,9 +1088,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
         // Programmatic callers written before half-day patterns existed retain the exact legacy
         // meaning: every selected working day is full, represented by an empty half-day subset.
         halfDays: input.halfDays ?? [],
-        // Clamp working hours/day (the store is the last line; the form caps it, but a non-form or
-        // pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a resource
-        // works a positive day) — distinct from an allocation, where 0 is legal.
+        // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
+        // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
+        // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
         workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
         id: newId(),
         accountId: requireAccount(),

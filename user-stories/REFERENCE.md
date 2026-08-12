@@ -329,7 +329,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Employment`, `Bound project`, `Working hours / day`, `Working days` (a right-aligned Monday–Sunday
+`Employment`, `Bound project`, `Working days` (a right-aligned Monday–Sunday
 radio grid whose `Full day`, `Half day` and `Not working` column headings appear once; every cell's
 native radio is labelled by both its weekday and availability, and each row permits one choice),
 `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
@@ -1226,8 +1226,10 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
   renders flat — see the _Disciplines (account-level)_ note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
-- **Capacity:** a full day's available hours = the resource's configured working hours, a half
-  day is always **4 hours**, and a non-working weekday or time-off day is **0 hours**. Existing
+- **Capacity:** a full day's available hours are always **8 hours**, a half day is always
+  **4 hours**, and a non-working weekday or time-off day is **0 hours**. Resource forms therefore
+  do not expose a separate working-hours field and always save `workingHoursPerDay: 8`; editing a
+  legacy resource with a custom value normalises it to 8 without a bulk data migration. Existing
   working-day patterns migrate to full days and existing non-working weekdays remain non-working.
   A day is **over-allocated** when allocated > available
   (STRICTLY greater — exactly at capacity is NOT over). Allocated hours are **weekend-aware**: a
@@ -1244,8 +1246,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
   rather than saved as a quietly-clamped 24h; **hourly mode** likewise rejects a _Hours / day_ above 24.
   _Days over_ itself must be a whole number from 1 through 36,500 in both Days and Blocks modes;
-  out-of-range or fractional values are rejected rather than rounded or clamped. Resource working
-  hours likewise must be finite, greater than 0 and no more than 24 hours/day. A directly entered
+  out-of-range or fractional values are rejected rather than rounded or clamped. A directly entered
   Start/End span in Hours mode, for an External resource or for time off cannot exceed 36,500
   calendar days; the form rejects a longer span with "Date span cannot exceed 36,500 calendar days."
   The previewed "…h/day" hint always equals what saves.

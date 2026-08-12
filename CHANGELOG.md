@@ -23,6 +23,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Resource availability now uses a fixed 8/4/0-hour working pattern.** Resource forms no longer
+  show a separate hours-per-day field, every form save records an eight-hour full day, and roster
+  rows omit the redundant hours text. Existing custom values remain stored for compatibility until
+  that resource is next edited, but no longer alter the fixed capacity calculation (#241).
 - **Working-day choices are now a compact radio grid.** Resource forms show Full day, Half day and
   Not working once as column headings, with one radio per weekday and the grid aligned to the right
   (#240).

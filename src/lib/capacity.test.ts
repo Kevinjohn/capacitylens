@@ -84,30 +84,21 @@ describe("availability", () => {
     expect(isOnTimeOff("other", "2026-06-03", timeOff)).toBe(false);
   });
 
-  it("uses full-day hours, fixed four-hour half days, and zero for non-working/time-off days", () => {
+  it("uses fixed eight-hour full days, four-hour half days, and zero for non-working/time-off days", () => {
     expect(availableHoursOnDay(r, "2026-06-01", [])).toBe(8); // Monday
     expect(availableHoursOnDay(makeResource({ workingHoursPerDay: 6, halfDays: [2] }), "2026-06-02", [])).toBe(4);
+    expect(availableHoursOnDay(makeResource({ workingHoursPerDay: 6 }), "2026-06-01", [])).toBe(8);
     expect(availableHoursOnDay(r, "2026-06-06", [])).toBe(0); // Saturday
     expect(availableHoursOnDay(makeResource({ halfDays: [3] }), "2026-06-03", [makeTimeOff()])).toBe(0);
   });
 });
 
-describe("devAssertFinite (DEV-only console.warn on a non-finite value)", () => {
+describe("devAssertFinite (DEV-only console.warn on a non-finite allocation)", () => {
   const r = makeResource();
 
-  it("warns when workingHoursPerDay is not finite", () => {
+  it("ignores a legacy non-finite workingHoursPerDay because full-day capacity is fixed", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     availableHoursOnDay(makeResource({ workingHoursPerDay: NaN }), "2026-06-01", []); // Monday
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain("scheduled working hours");
-    expect(warn.mock.calls[0][0]).toContain("is not a finite number");
-    expect(warn.mock.calls[0][0]).toContain("should have prevented this");
-    warn.mockRestore();
-  });
-
-  it("does not warn when workingHoursPerDay is finite", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    availableHoursOnDay(r, "2026-06-01", []); // Monday, finite workingHoursPerDay
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
@@ -320,7 +311,7 @@ describe("dayCapacity over-allocation", () => {
   });
 
   it("ignores fractional accumulation noise at exact capacity in every allocation order", () => {
-    const fractional = [2, 5, 2].map((days) => (7.5 * days) / 9);
+    const fractional = [2, 5, 2].map((days) => (8 * days) / 9);
     const allocations = fractional.map((hoursPerDay, index) => makeAlloc({ id: `fraction-${index}`, hoursPerDay }));
     const orders = [
       [0, 1, 2],
@@ -520,7 +511,7 @@ describe("capacityAdvisory", () => {
 
   it("does not advise over-capacity for an exact fractional days-mode split", () => {
     const resource = makeResource({ workingHoursPerDay: 7.5 });
-    const fractional = [2, 5, 2].map((days) => (7.5 * days) / 9);
+    const fractional = [2, 5, 2].map((days) => (8 * days) / 9);
     const others = fractional
       .slice(0, 2)
       .map((hoursPerDay, index) => makeAlloc({ id: `existing-fraction-${index}`, hoursPerDay }));

@@ -25,7 +25,7 @@ should say so, not show a blank page.
 
 ## Acceptance criteria
 
-- ✅ Each row shows its discipline colour, display name, role and working hours.
+- ✅ Each row shows its discipline colour, display name and role without redundant hours-per-day text.
 - ✅ Person and external-party rows expose an accessible favourite star to editors and owners;
   placeholder rows and viewer sessions do not.
 - ✅ Favourite people lead the People list and their existing schedule discipline group.

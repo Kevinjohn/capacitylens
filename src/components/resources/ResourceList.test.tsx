@@ -3,7 +3,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceList } from "./ResourceList";
 import { useStore } from "../../store/useStore";
-import { WORKDAYS, resetStoreWithAccount, setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
+import {
+  DEFAULT_ACCOUNT_ID,
+  WORKDAYS,
+  resetStoreWithAccount,
+  setExternalEnabled,
+  setPlaceholdersEnabled,
+} from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 
 beforeEach(() => {
@@ -119,6 +125,16 @@ describe("ResourceList display", () => {
     useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
     expect(screen.getByText("Alice")).toBeInTheDocument();
+  });
+
+  it("omits both fixed hours text and dangling metadata separators", () => {
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+    useStore.getState().addResource({ ...personDraft("Alice"), role: "" });
+    render(<ResourceList />);
+
+    const row = screen.getByTestId("resource-row");
+    expect(row).not.toHaveTextContent(/\d+h\/day/);
+    expect(row).not.toHaveTextContent("·");
   });
 
   it("gives repeated resource edit controls distinct contextual names", () => {

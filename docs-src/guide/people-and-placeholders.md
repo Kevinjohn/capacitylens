@@ -35,14 +35,13 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 - **Employment** — Permanent, Freelancer or Contractor. This is a label for your own
   filtering and reporting; it doesn't change how utilisation is worked out. Adding
   someone works exactly the same way whichever you pick.
-- **Working hours / day** — how many hours a full day makes this person available for.
 - **Working days** — use the compact radio grid to choose **Full day**, **Half day** or
-  **Not working** for every day from Monday to Sunday. A half day is always four hours;
-  a full day uses the person's **Working hours / day** value.
+  **Not working** for every day from Monday to Sunday. A full day is eight hours, a half
+  day is four hours and a non-working day is zero hours.
 
-Working hours and working days drive the utilisation figures directly: they're what
-CapacityLens compares a person's bookings against to decide whether they're over
-capacity. Get these two fields right, or the overwork indicators on
+Working days drive the utilisation figures directly: CapacityLens compares that fixed
+8/4/0-hour pattern with the person's bookings to decide whether they're over capacity.
+Set the pattern correctly, or the overwork indicators on
 [the schedule](/guide/the-schedule#reading-overwork) will be wrong for that person.
 
 The new row appears on the schedule immediately, ready for allocations and time off.

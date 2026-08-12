@@ -25,7 +25,7 @@ pref is on).
    appears.
 2. Leave **Name** empty (optional) and set **Role** = `Senior Developer`.
 3. Choose **Bound project** = _Queen Consolidated / Project Watchtower_.
-4. Set **Working hours / day** = `8`; ensure Mon–Fri in **Working days**.
+4. In **Working days**, ensure Mon–Fri are **Full day** and Sat/Sun are **Not working**.
 5. Click **Save**. The dialog closes.
 
 ## Acceptance criteria

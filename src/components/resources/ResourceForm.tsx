@@ -6,21 +6,13 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import { m } from "@/i18n";
-import {
-  Modal,
-  NumberField,
-  RequiredLegend,
-  SelectField,
-  TextField,
-  WorkingDayPicker,
-  type Option,
-} from "../common/ui";
+import { Modal, RequiredLegend, SelectField, TextField, WorkingDayPicker, type Option } from "../common/ui";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import { employmentTypeOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import {
-  MAX_HOURS_PER_DAY,
+  FULL_DAY_HOURS,
   type EmploymentType,
   type Resource,
   type ResourceKind,
@@ -37,9 +29,10 @@ import {
  * @param onClose  called after a successful save, or on cancel.
  *
  * Non-obvious rules enforced here: a PERSON requires a name (a placeholder's is optional); a
- * PLACEHOLDER must be bound to a project; working hours/day must be > 0 and at least one working
- * day must be selected (a zero-capacity resource reads as permanently over-allocated); and a
- * resource's colour is DERIVED from its discipline (no per-resource colour control — see DECISIONS).
+ * PLACEHOLDER must be bound to a project; at least one working day must be selected (a zero-capacity
+ * resource reads as permanently over-allocated); every form write uses the fixed 8-hour full-day
+ * capacity; and a resource's colour is DERIVED from its discipline (no per-resource colour control
+ * — see DECISIONS).
  */
 export function ResourceForm({
   resource,
@@ -71,7 +64,6 @@ export function ResourceForm({
   const [role, setRole] = useState(resource?.role ?? "");
   const [disciplineId, setDisciplineId] = useState(resource?.disciplineId ?? "");
   const [employmentType, setEmploymentType] = useState<EmploymentType>(resource?.employmentType ?? "permanent");
-  const [hours, setHours] = useState(resource?.workingHoursPerDay ?? 8);
   const [workingDays, setWorkingDays] = useState<Weekday[]>(resource?.workingDays ?? [1, 2, 3, 4, 5]);
   const [halfDays, setHalfDays] = useState<Weekday[]>(resource?.halfDays ?? []);
   const [projectId, setProjectId] = useState(resource?.projectId ?? "");
@@ -114,10 +106,6 @@ export function ResourceForm({
       fail("projectId", m.form_resource_err_placeholder_project());
       return;
     }
-    if (!(Number.isFinite(hours) && hours > 0 && hours <= MAX_HOURS_PER_DAY)) {
-      fail("hours", m.form_resource_err_hours_range({ max: MAX_HOURS_PER_DAY }));
-      return;
-    }
     // A resource with zero working days has zero capacity every day (reads as
     // permanently over-allocated), so at least one weekday must be selected.
     if (!validateWorkingDays(workingDays, fail)) return;
@@ -127,7 +115,10 @@ export function ResourceForm({
       role: cleanRole,
       disciplineId: disciplineId || undefined,
       employmentType: isPlaceholder ? ("permanent" as const) : employmentType,
-      workingHoursPerDay: hours,
+      // The working-pattern picker is the form's only availability control: full / half / off maps
+      // to 8 / 4 / 0 hours. Keep writing the compatibility field so legacy custom values normalise
+      // when that specific resource is edited, without migrating untouched records in bulk.
+      workingHoursPerDay: FULL_DAY_HOURS,
       workingDays,
       halfDays,
       projectId: isPlaceholder ? projectId : undefined,
@@ -222,15 +213,6 @@ export function ResourceForm({
           describedById={errorId}
         />
       )}
-      <NumberField
-        label={m.form_resource_working_hours_label()}
-        value={hours}
-        onChange={setHours}
-        min={0}
-        max={MAX_HOURS_PER_DAY}
-        invalid={errorField === "hours"}
-        describedById={errorId}
-      />
       <WorkingDayPicker
         label={m.form_resource_working_days_label()}
         workingDays={workingDays}

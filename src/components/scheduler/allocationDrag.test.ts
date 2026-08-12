@@ -263,7 +263,7 @@ describe("reconcileReassignedHours", () => {
     expect(reconcileReassignedHours(6, res("person"), false, "2026-06-01")).toBe(6);
   });
   it("promotes a 0-hour booking (dragged off an external) to the target working day", () => {
-    expect(reconcileReassignedHours(0, res("person", 7), false, "2026-06-01")).toBe(7);
+    expect(reconcileReassignedHours(0, res("person", 7), false, "2026-06-01")).toBe(8);
   });
   it("promotes a 0-hour booking to four hours on a target half day", () => {
     expect(reconcileReassignedHours(0, { ...res("person", 7), halfDays: [2] }, false, "2026-06-02")).toBe(4);

@@ -147,15 +147,17 @@ test.describe("Resources", () => {
     await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
   });
 
-  test("rejects zero working hours", async ({ page }) => {
+  test("uses fixed working hours without showing an hours field", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Edge Case");
+    await expect(page.getByLabel("Working hours / day")).toHaveCount(0);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Fixed Hours");
     await page.getByLabel("Role").fill("Tester");
-
-    await page.getByLabel("Working hours / day").fill("0");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("alert")).toContainText(/greater than 0/i);
+
+    const row = page.getByTestId("resource-row").filter({ hasText: "Fixed Hours" });
+    await expect(row).toBeVisible();
+    await expect(row).not.toContainText(/\d+h\/day/);
   });
 
   test("the Temp tag is parked: freelancers render untagged", async ({ page }) => {

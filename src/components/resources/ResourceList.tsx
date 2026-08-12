@@ -111,26 +111,30 @@ export function ResourceList() {
   const swatchColor = (r: Resource) =>
     (disciplinesEnabled && r.disciplineId ? disciplineById.get(r.disciplineId)?.color : undefined) ?? r.color;
 
-  const renderRow = (r: Resource) => (
-    <Item size="sm" role="listitem" data-testid="resource-row" className="rounded-none">
-      <ItemContent className="flex-row flex-wrap items-center gap-2">
-        <ColorSwatch color={swatchColor(r)} />
-        <span className="font-medium">{resourceDisplayName(r)}</span>
-        {r.kind === "placeholder" && <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>}
-        <span className="text-sm text-muted-foreground">
-          {` · ${r.role}${disciplinesEnabled ? ` · ${disciplineName(r.disciplineId)}` : ""} · ${m.list_resources_hours_per_day({ hours: r.workingHoursPerDay })}`}
-        </span>
-      </ItemContent>
-      <ItemActions>
-        {r.kind === "person" && <FavouriteButton resource={r} />}
-        <EditButton label={m.list_edit_aria({ name: resourceDisplayName(r) })} onClick={() => setEditing(r)} />
-        <DeleteButton
-          label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })}
-          onClick={() => setConfirming(r)}
-        />
-      </ItemActions>
-    </Item>
-  );
+  const resourceMetadata = (r: Resource) =>
+    [r.role, disciplinesEnabled ? disciplineName(r.disciplineId) : undefined].filter(Boolean).join(" · ");
+
+  const renderRow = (r: Resource) => {
+    const metadata = resourceMetadata(r);
+    return (
+      <Item size="sm" role="listitem" data-testid="resource-row" className="rounded-none">
+        <ItemContent className="flex-row flex-wrap items-center gap-2">
+          <ColorSwatch color={swatchColor(r)} />
+          <span className="font-medium">{resourceDisplayName(r)}</span>
+          {r.kind === "placeholder" && <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>}
+          {metadata && <span className="text-sm text-muted-foreground">{` · ${metadata}`}</span>}
+        </ItemContent>
+        <ItemActions>
+          {r.kind === "person" && <FavouriteButton resource={r} />}
+          <EditButton label={m.list_edit_aria({ name: resourceDisplayName(r) })} onClick={() => setEditing(r)} />
+          <DeleteButton
+            label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })}
+            onClick={() => setConfirming(r)}
+          />
+        </ItemActions>
+      </Item>
+    );
+  };
 
   // `enrich` carries the icon/description/CTA for the *genuinely-empty* People box. The
   // placeholder box passes none — its bare message is left as-is (its own "Add placeholder"

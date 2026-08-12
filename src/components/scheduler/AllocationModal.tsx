@@ -34,7 +34,7 @@ import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import { capacityAdvisory, capacityAllocationsForMode, scheduledHoursOnDay } from "../../lib/capacity";
 import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
-import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
@@ -101,7 +101,7 @@ function effectiveAllocationValues({
 }: EffectiveAllocationInput) {
   const resource = resources.find((candidate) => candidate.id === resourceId);
   const external = !!resource && isExternalResource(resource);
-  const workingHoursPerDay = resource?.workingHoursPerDay ?? 8;
+  const workingHoursPerDay = FULL_DAY_HOURS;
   const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const spanOpts = { workingDays: resource?.workingDays, ignoreWeekends };
   const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOpts) : MAX_SPAN_DAYS;
@@ -163,7 +163,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
   const initialResource = data.resources.find((r) => r.id === initialResourceId);
   const initialLocked = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
-  const initialWhpd = initialResource?.workingHoursPerDay ?? 8;
+  const initialWhpd = FULL_DAY_HOURS;
   const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const initialScheduledHours = initialResource ? scheduledHoursOnDay(initialResource, initialStart) : initialWhpd;
 

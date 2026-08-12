@@ -4,7 +4,7 @@
 
 ## Goal
 
-Change an existing resource's details (role, working hours, discipline) and have those
+Change an existing resource's details (role, discipline and working pattern) and have those
 changes reflected everywhere the resource appears.
 
 ## Why
@@ -18,10 +18,10 @@ there's no second place to keep in sync.
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
 
 1. On the **Clark Kent** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens, pre-filled
-   with the current values (Role _Web Developer_, Discipline _Development_, 8h, Mon–Fri).
+   with the current values (Role _Web Developer_, Discipline _Development_, Mon–Fri full days).
 2. Change **Role** = `Lead Developer`.
 3. Change **Discipline** = _Design_.
-4. Change **Working hours / day** from `8` to `6`.
+4. Change Wednesday to **Half day**.
 5. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
@@ -29,7 +29,9 @@ there's no second place to keep in sync.
 - ✅ The dialog reused in edit mode is titled **"Edit resource"** and every field is
   pre-filled with the resource's existing values when it opens.
 - ✅ After Save, the Resources list row for **Clark Kent** shows the new role
-  (_Lead Developer_) and _6h/day_.
+  (_Lead Developer_) without redundant hours-per-day text.
+- ✅ The edited resource is saved with an 8-hour full day; this also normalises any legacy custom
+  `workingHoursPerDay` value when that resource is next edited.
 - ✅ On **Schedule**, the **Clark Kent** row now appears under the **Design** group
   (moved out of _Development_).
 - ✅ In the server-backed app, the changes persist across a page reload.
