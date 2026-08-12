@@ -66,6 +66,7 @@ jobs:
           format: spdx-json
           output-file: capacitylens.spdx.json
           artifact-name: capacitylens-source-sbom
+          upload-release-assets: false
 
   containers:
     name: Container vulnerability scan
@@ -215,7 +216,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: read
+      contents: write
       id-token: write
       attestations: write
     steps:
