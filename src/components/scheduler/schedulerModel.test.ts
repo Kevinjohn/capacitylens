@@ -1980,8 +1980,86 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     const r2 = rows.find((row) => row.resource.id === "r2")!;
 
     expect(r1.dayStates.map((state) => state.over)).toEqual([false, true, false, false, false, false, false]);
+    expect(r1.dayStates.map((state) => state.timeOffConflict)).toEqual([
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
     expect(r1.timeOff).toHaveLength(1);
-    expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false });
+    expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false, timeOffConflict: false });
+  });
+
+  it("marks only block/time-off overlaps without adding load or treating non-working days as conflicts", () => {
+    const d = dataset();
+    d.allocations = [
+      {
+        ...d.allocations[0]!,
+        startDate: "2026-06-01",
+        endDate: "2026-06-07",
+        hoursPerDay: 8, // legacy load is retained in storage but projected to zero in Blocks mode
+      },
+    ];
+    d.timeOff = [
+      {
+        id: "to-r1-tuesday",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        startDate: "2026-06-02",
+        endDate: "2026-06-02",
+        type: "holiday",
+      },
+      {
+        id: "to-r2-wednesday",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r2",
+        startDate: "2026-06-03",
+        endDate: "2026-06-03",
+        type: "holiday",
+      },
+    ];
+
+    const model = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        accountWorkingDays: [1, 2, 3, 4], // Friday is globally closed; Sat/Sun are personally closed.
+        blocksMode: true,
+      },
+    });
+    const rows = model.flatMap((group) => group.rows);
+    const r1 = rows.find((row) => row.resource.id === "r1")!;
+    const r2 = rows.find((row) => row.resource.id === "r2")!;
+
+    expect(r1.dayStates.map((state) => state.over)).toEqual([false, false, false, false, false, false, false]);
+    expect(r1.dayStates.map((state) => state.timeOffConflict)).toEqual([
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(r1.dayStates[4]).toMatchObject({ unavailable: true, timeOffConflict: false }); // global Friday
+    expect(r1.dayStates[5]).toMatchObject({ unavailable: true, timeOffConflict: false }); // personal Saturday
+    expect(r1.utilization).toBe(0);
+    expect(r1.overSoon).toBe(false);
+    expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false, timeOffConflict: false });
   });
 
   it("external rows use literal {over:false, unavailable:false} day-states (real booleans, not an empty object)", () => {
@@ -1999,7 +2077,12 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       },
     });
     const ext = model.at(-1)!.rows[0];
-    expect(ext.dayStates[0]).toEqual({ over: false, unavailable: false, creationBlocked: false });
+    expect(ext.dayStates[0]).toEqual({
+      over: false,
+      timeOffConflict: false,
+      unavailable: false,
+      creationBlocked: false,
+    });
   });
 
   it("a dangling activityId (missing from `activities`) degrades to safe fallbacks, never throws", () => {
@@ -2674,7 +2757,14 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       expect(row.dayStates).toEqual(
         naiveTimeline.map((c, index) => {
           const creationBlocked = isCreationStartBlocked(resource, days[index]!, off, [1, 2, 3, 4, 5]);
-          return { over: c.over, unavailable: c.available === 0 || creationBlocked, creationBlocked };
+          const timeOffConflict =
+            c.over && off.some((entry) => entry.startDate <= days[index]! && entry.endDate >= days[index]!);
+          return {
+            over: c.over,
+            timeOffConflict,
+            unavailable: c.available === 0 || creationBlocked,
+            creationBlocked,
+          };
         }),
       );
       expect(row.utilization).toBe(utilizationOf(resource, allocs, off, visStart, visEnd));

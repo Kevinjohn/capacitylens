@@ -25,9 +25,9 @@ const ORIGIN = "2026-06-01";
 const GEOM = buildColumnGeometry(DAYS, DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 });
 
 const DAY_STATES: DayState[] = [
-  { unavailable: true, over: false },
-  { unavailable: false, over: true },
-  { unavailable: false, over: false },
+  { unavailable: true, over: false, timeOffConflict: false },
+  { unavailable: false, over: true, timeOffConflict: false },
+  { unavailable: false, over: false, timeOffConflict: false },
 ];
 
 const TIME_OFF_BLOCKS: TimeOffBlock[] = [{ id: "to1", x: 0, width: 96, label: "Holiday" }];
@@ -110,15 +110,32 @@ describe("ResourceLane rendering", () => {
     expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("renders the same layered marker for a zero-load block/time-off conflict", () => {
+    renderLane({
+      dayStates: [
+        { unavailable: true, over: false, timeOffConflict: true },
+        { unavailable: true, over: false, timeOffConflict: false },
+        { unavailable: false, over: false, timeOffConflict: false },
+      ],
+    });
+
+    const block = screen.getByTestId("timeoff-block");
+    const marker = screen.getByTestId("over-marker");
+    const bar = screen.getByTestId("allocation-bar");
+    expect(marker).toHaveClass("bg-danger/55");
+    expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   // The render-layer boundary mirroring the pure-fn boundary: a day that is at-or-under
   // capacity carries `over: false`, so NO over-marker / red background renders for it.
   it("does NOT render an over-marker when no day is over (at-or-under capacity)", () => {
     renderLane({
       bars: [],
       dayStates: [
-        { unavailable: false, over: false },
-        { unavailable: false, over: false },
-        { unavailable: false, over: false },
+        { unavailable: false, over: false, timeOffConflict: false },
+        { unavailable: false, over: false, timeOffConflict: false },
+        { unavailable: false, over: false, timeOffConflict: false },
       ],
     });
     expect(screen.queryByTestId("over-marker")).not.toBeInTheDocument();
@@ -157,9 +174,9 @@ describe("ResourceLane draw interaction", () => {
       bars: [],
       timeOff: [],
       dayStates: [
-        { unavailable: true, over: false, creationBlocked: true },
-        { unavailable: false, over: false, creationBlocked: false },
-        { unavailable: false, over: false, creationBlocked: false },
+        { unavailable: true, over: false, timeOffConflict: false, creationBlocked: true },
+        { unavailable: false, over: false, timeOffConflict: false, creationBlocked: false },
+        { unavailable: false, over: false, timeOffConflict: false, creationBlocked: false },
       ],
     });
     const lane = screen.getByTestId("resource-lane");
@@ -194,9 +211,9 @@ describe("ResourceLane draw interaction", () => {
       bars: [],
       timeOff: [],
       dayStates: [
-        { unavailable: false, over: false, creationBlocked: false },
-        { unavailable: true, over: false, creationBlocked: true },
-        { unavailable: true, over: false, creationBlocked: true },
+        { unavailable: false, over: false, timeOffConflict: false, creationBlocked: false },
+        { unavailable: true, over: false, timeOffConflict: false, creationBlocked: true },
+        { unavailable: true, over: false, timeOffConflict: false, creationBlocked: true },
       ],
     });
     const lane = screen.getByTestId("resource-lane");

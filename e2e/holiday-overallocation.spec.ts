@@ -108,3 +108,45 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
   await markerOnFirstTimeOff(page.locator('[data-resource-id="r-nike"]'));
   await page.screenshot({ path: testInfo.outputPath("issue_283_holiday_conflict_dark.png") });
 });
+
+test("editing a zero-load block onto time off shows the visible and non-colour conflict signals", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("link", { name: "Time off" }).click();
+  await addTimeOff(page, "Diana Prince", "2026-06-17");
+
+  await page.getByRole("link", { name: "Settings" }).click();
+  const blocks = page.getByRole("radio", { name: "Blocks", exact: true });
+  await blocks.click();
+  await expect(blocks).toHaveAttribute("aria-checked", "true");
+
+  await page.getByRole("link", { name: "Schedule" }).click();
+  await setZoom(page, 4);
+  await page.getByTestId("scheduler-grid").evaluate((element) => {
+    (element as HTMLElement).scrollLeft = 0;
+  });
+
+  const bruceLane = page.locator('[data-resource-id="r-tyler"]');
+  const clarkLane = page.locator('[data-resource-id="r-nike"]');
+  const dianaLane = page.locator('[data-resource-id="r-pam"]');
+
+  // Zero-load blocks on ordinary dates are clean, and time off without a block is not red.
+  await expect(bruceLane.getByTestId("over-marker")).toHaveCount(0);
+  await expect(clarkLane.getByTestId("over-marker")).toHaveCount(0);
+  await expect(dianaLane.getByTestId("timeoff-block")).toBeVisible();
+  await expect(dianaLane.getByTestId("over-marker")).toHaveCount(0);
+
+  // Move a five-working-day block over Bruce's three-day holiday. Its date span also crosses his
+  // personal weekend; only the three time-off dates are conflicts (#257 remains out of scope).
+  await bruceLane.getByTestId("allocation-bar").filter({ hasText: "Visual Design" }).click();
+  const editor = page.getByRole("dialog", { name: "Edit allocation" });
+  await editor.getByLabel("Start Date").fill("2026-06-10");
+  await editor.getByLabel("Days over").fill("5");
+  await editor.getByRole("button", { name: "Save" }).click();
+
+  await markerOnFirstTimeOff(bruceLane);
+  await expect(bruceLane.getByTestId("over-marker")).toHaveCount(3);
+  const bruceRow = page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" });
+  await expect(bruceRow).toContainText("Over capacity on 3 days.");
+  await expect(bruceRow.getByTestId("utilization")).toHaveText("0%");
+  await expect(page.getByTestId("overall-utilization")).toHaveText("0%");
+});

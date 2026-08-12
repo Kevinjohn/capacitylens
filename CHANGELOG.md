@@ -12,6 +12,14 @@ new features and **patch** versions carry fixes.
 - Allocation forms now label the calendar-day override as **Ignore working days**, accurately
   describing that it includes every personal non-working weekday while preserving existing
   allocation data and behaviour (#313).
+
+## [0.41.1-alpha.1] — 2026-08-12
+
+### Fixed
+
+- Blocks that overlap a person's time off now receive the schedule's red conflict marker and
+  accessible row summary while continuing to contribute zero hourly capacity and utilisation
+  (#305).
 - Keyboard shortcuts now respect non-editable regions nested inside editable content.
 
 ## [0.41.0-alpha.3] — 2026-08-12
@@ -3372,7 +3380,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.0-alpha.3...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.1-alpha.1...HEAD
+[0.41.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.0-alpha.3...v0.41.1-alpha.1
 [0.41.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/ab823d3a1a33df5a00957551cc65b1f169f993b3...v0.41.0-alpha.3
 [0.40.9-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.8-alpha.1...v0.40.9-alpha.1
 [0.40.8-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.7-alpha.1...v0.40.8-alpha.1
