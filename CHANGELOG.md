@@ -12,13 +12,18 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
-- The read-only Account Options rows in Settings now use the same compact vertical spacing as the
-  other management and Settings lists (#246).
 - Fresh server-backed sessions now preserve saved Studio/Supplementary classifications and half-day
   working patterns instead of replacing them with legacy defaults during client hydration.
 - Production builds now contain physical entry documents for every fixed application route, so
   bookmarks and browser refreshes work even when a hosting edge serves static paths without an SPA
   history fallback.
+
+## [0.40.1-alpha.1] — 2026-08-12
+
+### Fixed
+
+- The read-only Account Options rows in Settings now use the same compact vertical spacing as the
+  other management and Settings lists (#246).
 
 ## [0.40.0-alpha.1] — 2026-08-12
 
@@ -3257,7 +3262,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.1-alpha.1...HEAD
+[0.40.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.0-alpha.1...v0.40.1-alpha.1
 [0.40.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.4-alpha.1...v0.40.0-alpha.1
 [0.39.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.3-alpha.1...v0.39.4-alpha.1
 [0.39.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.2-alpha.1...v0.39.3-alpha.1
