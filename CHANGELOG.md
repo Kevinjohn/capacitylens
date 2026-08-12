@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- The Activity Kind control now fills its form column with three equal-width options at normal and
+  narrow widths.
+
 ## [0.41.3-alpha.1] — 2026-08-12
 
 ### Added
