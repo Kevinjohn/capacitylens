@@ -80,6 +80,7 @@ test.describe("viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)", () => {
         name: "Viewer-visible person",
         role: "Designer",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         color: "#3b82f6",

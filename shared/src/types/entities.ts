@@ -36,6 +36,8 @@ export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1];
  */
 export type ResourceKind = "person" | "placeholder" | "external";
 export type EmploymentType = "permanent" | "freelancer" | "contractor";
+/** How the agency regards a person, independently of contract status or discipline. */
+export type ResourceEngagement = "studio" | "supplementary";
 export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
 /**
  * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
@@ -119,6 +121,7 @@ export interface Resource extends ScopedEntity {
   role: string;
   disciplineId?: ID;
   employmentType: EmploymentType;
+  engagement: ResourceEngagement;
   /** Capacity per working day. Unused (silent default) for `external` — externals have no capacity. */
   workingHoursPerDay: number;
   /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. */
@@ -374,10 +377,11 @@ export function isCapacityTracked(r: { kind: ResourceKind }): boolean {
  *  aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
 export function externalCapacityDefaults(): Pick<
   Resource,
-  "employmentType" | "workingHoursPerDay" | "workingDays" | "halfDays"
+  "employmentType" | "engagement" | "workingHoursPerDay" | "workingDays" | "halfDays"
 > {
   return {
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: FULL_DAY_HOURS,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
@@ -395,8 +399,9 @@ export function externalCapacityDefaults(): Pick<
  *  schedule view prefs showInternalProjects / showInternalActivities / inlineActivityCreateEnabled,
  *  whose absence means shown/enabled — read at `?? true`; v10 adds optional Resource.isFavourite,
  *  whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
- *  legacy resources so every previously selected weekday remains a full day.) */
-export const EXPORT_SCHEMA_VERSION = 11;
+ *  legacy resources so every previously selected weekday remains a full day; v12 adds required
+ *  Resource.engagement, defaulting legacy resources to Studio.) */
+export const EXPORT_SCHEMA_VERSION = 12;
 
 export interface PersistedState {
   schemaVersion: number;

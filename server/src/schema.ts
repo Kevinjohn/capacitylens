@@ -97,14 +97,20 @@ ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;
 ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
-// v27 is the current entity contract immediately before required resources.halfDays. Keep this
-// historical assertion separate so the released v27 migration can still validate its own result
-// before v28 adds the new NOT NULL column.
+// Historical resource contracts let released migrations validate their own result without
+// accidentally requiring columns owned by a later migration.
 const V27_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   resources: {
     ...TABLES.resources,
-    columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays"),
+    columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays" && column.name !== "engagement"),
+  },
+};
+const V28_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  resources: {
+    ...TABLES.resources,
+    columns: TABLES.resources.columns.filter((column) => column.name !== "engagement"),
   },
 };
 
@@ -480,6 +486,11 @@ export function assertSchemaV16(db: Db): void {
 /** Assert the released v27 shape without requiring the v28 resource half-day column. */
 export function assertSchemaV27(db: Db): void {
   assertSchemaVersion(db, V27_TABLES, true);
+}
+
+/** Assert the released v28 shape without requiring the v29 resource engagement column. */
+export function assertSchemaV28(db: Db): void {
+  assertSchemaVersion(db, V28_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

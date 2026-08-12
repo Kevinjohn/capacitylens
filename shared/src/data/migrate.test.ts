@@ -57,6 +57,7 @@ describe("migrate", () => {
           kind: "person",
           role: "Dev",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           color: "#1",
@@ -141,6 +142,7 @@ describe("migrate", () => {
           kind: "person",
           role: "Dev",
           employmentType: "contractor",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1],
           color: "#1",
@@ -274,6 +276,7 @@ describe("migrate", () => {
 
     const out = migrate({ schemaVersion: 9, data });
     expect(out.resources[0].isFavourite).toBeUndefined();
+    expect(out.resources[0].engagement).toBe("studio");
   });
 
   it("migrates v10 resources to an empty half-day subset without changing custom full-day capacity", () => {
@@ -292,7 +295,27 @@ describe("migrate", () => {
     };
 
     const out = migrate({ schemaVersion: 10, data: { ...emptyAppData(), resources: [resource] } });
-    expect(out.resources[0]).toEqual({ ...resource, halfDays: [] });
+    expect(out.resources[0]).toEqual({ ...resource, halfDays: [], engagement: "studio" });
+  });
+
+  it("migrates v11 resources to Studio engagement", () => {
+    const resource = {
+      id: "r1",
+      accountId: "a1",
+      createdAt: "t",
+      updatedAt: "t",
+      kind: "person" as const,
+      name: "Barbara Gordon",
+      role: "Engineer",
+      employmentType: "contractor" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5] as const,
+      halfDays: [3] as const,
+      color: "#2d75da",
+    };
+
+    const out = migrate({ schemaVersion: 11, data: { ...emptyAppData(), resources: [resource] } });
+    expect(out.resources[0]).toEqual({ ...resource, engagement: "studio" });
   });
 
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {

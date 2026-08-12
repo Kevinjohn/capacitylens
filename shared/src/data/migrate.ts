@@ -277,6 +277,19 @@ function migrateV10toV11(data: Record<string, unknown>): Record<string, unknown>
   return { ...data, resources };
 }
 
+// v11 → v12 adds required Resource.engagement. Existing people, placeholders and external rows all
+// start as Studio; later edits can explicitly classify people as Supplementary.
+function migrateV11toV12(data: Record<string, unknown>): Record<string, unknown> {
+  const resources = Array.isArray(data.resources)
+    ? data.resources.map((resource) =>
+        resource && typeof resource === "object"
+          ? { ...(resource as Record<string, unknown>), engagement: "studio" }
+          : resource,
+      )
+    : data.resources;
+  return { ...data, resources };
+}
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -332,6 +345,9 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   }
   if (data && typeof data === "object" && version < 11) {
     data = migrateV10toV11(data);
+  }
+  if (data && typeof data === "object" && version < 12) {
+    data = migrateV11toV12(data);
   }
 
   return {

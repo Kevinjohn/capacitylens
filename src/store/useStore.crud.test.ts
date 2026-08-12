@@ -21,8 +21,9 @@ const personDraft = {
   name: "Person",
   role: "Dev",
   employmentType: "permanent" as const,
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5],
+  workingDays: [1, 2, 3, 4, 5] as Resource["workingDays"],
   halfDays: [],
   color: "#1",
 };
@@ -171,6 +172,28 @@ describe("store CRUD covers every entity", () => {
     expectRevisionAdvanced(r, s().data.resources[0]);
   });
 
+  it("resources: defaults legacy people and forces placeholders to Studio engagement", () => {
+    const person = s().addResource({ ...personDraft, engagement: undefined });
+    expect(person.engagement).toBe("studio");
+
+    const client = s().addClient({ name: "Acme", color: "#1" });
+    const project = s().addProject({ name: "Project", clientId: client.id, color: "#2" });
+    const placeholder = s().addResource({
+      ...personDraft,
+      kind: "placeholder",
+      projectId: project.id,
+      engagement: "supplementary",
+    });
+    expect(placeholder.engagement).toBe("studio");
+
+    s().updateResource(placeholder.id, { engagement: "supplementary" });
+    expect(s().data.resources.find((resource) => resource.id === placeholder.id)?.engagement).toBe("studio");
+
+    const personToPlaceholder = s().addResource({ ...personDraft, engagement: "supplementary" });
+    s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id });
+    expect(s().data.resources.find((resource) => resource.id === personToPlaceholder.id)?.engagement).toBe("studio");
+  });
+
   it("resources: favourite updates are account data and undoable", () => {
     const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
 
@@ -312,6 +335,7 @@ describe("allocation integrity at the store boundary", () => {
       kind: "placeholder",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -547,6 +571,7 @@ describe("update* re-validates the merged row so the store + server agree", () =
     name: "Outsource Co",
     role: "Overflow",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],

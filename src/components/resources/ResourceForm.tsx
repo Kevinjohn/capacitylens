@@ -9,12 +9,12 @@ import { m } from "@/i18n";
 import { Modal, RequiredLegend, SelectField, TextField, WorkingDayPicker, type Option } from "../common/ui";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
-import { employmentTypeOptions } from "../../lib/metadata";
+import { resourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import {
   FULL_DAY_HOURS,
-  type EmploymentType,
   type Resource,
+  type ResourceEngagement,
   type ResourceKind,
   type Weekday,
 } from "@capacitylens/shared/types/entities";
@@ -31,8 +31,9 @@ import {
  * Non-obvious rules enforced here: a PERSON requires a name (a placeholder's is optional); a
  * PLACEHOLDER must be bound to a project; at least one working day must be selected (a zero-capacity
  * resource reads as permanently over-allocated); every form write uses the fixed 8-hour full-day
- * capacity; and a resource's colour is DERIVED from its discipline (no per-resource colour control
- * — see DECISIONS).
+ * capacity; hidden employment data is preserved on person edits; placeholders force Studio
+ * engagement; and a resource's colour is DERIVED from its discipline (no per-resource colour
+ * control — see DECISIONS).
  */
 export function ResourceForm({
   resource,
@@ -63,7 +64,7 @@ export function ResourceForm({
   const [name, setName] = useState(resource?.name ?? "");
   const [role, setRole] = useState(resource?.role ?? "");
   const [disciplineId, setDisciplineId] = useState(resource?.disciplineId ?? "");
-  const [employmentType, setEmploymentType] = useState<EmploymentType>(resource?.employmentType ?? "permanent");
+  const [engagement, setEngagement] = useState<ResourceEngagement>(resource?.engagement ?? "studio");
   const [workingDays, setWorkingDays] = useState<Weekday[]>(resource?.workingDays ?? [1, 2, 3, 4, 5]);
   const [halfDays, setHalfDays] = useState<Weekday[]>(resource?.halfDays ?? []);
   const [projectId, setProjectId] = useState(resource?.projectId ?? "");
@@ -114,7 +115,11 @@ export function ResourceForm({
       name: cleanName ? cleanName : undefined,
       role: cleanRole,
       disciplineId: disciplineId || undefined,
-      employmentType: isPlaceholder ? ("permanent" as const) : employmentType,
+      // Employment remains compatibility data but is intentionally hidden. Preserve it on person
+      // edits rather than silently resetting a freelancer/contractor; new people and placeholders
+      // retain the existing permanent default.
+      employmentType: isPlaceholder ? ("permanent" as const) : (resource?.employmentType ?? "permanent"),
+      engagement: isPlaceholder ? ("studio" as const) : engagement,
       // The working-pattern picker is the form's only availability control: full / half / off maps
       // to 8 / 4 / 0 hours. Keep writing the compatibility field so legacy custom values normalise
       // when that specific resource is edited, without migrating untouched records in bulk.
@@ -195,10 +200,10 @@ export function ResourceForm({
       )}
       {!isPlaceholder && (
         <SelectField
-          label={m.form_resource_employment_label()}
-          value={employmentType}
-          onChange={(v) => setEmploymentType(v as EmploymentType)}
-          options={employmentTypeOptions()}
+          label={m.form_resource_engagement_label()}
+          value={engagement}
+          onChange={(v) => setEngagement(v as ResourceEngagement)}
+          options={resourceEngagementOptions()}
         />
       )}
       {isPlaceholder && (

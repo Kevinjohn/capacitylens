@@ -23,7 +23,7 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 2. Click **Add resource**.
 3. Fill in the fields below and save.
 
-![The Add resource form with details fields and a right-aligned seven-day radio grid for Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
+![The Add resource form showing Studio engagement and a right-aligned seven-day radio grid for Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
 
 - **Name** — required.
 - **Role** — a free-text label, for example "Senior Designer". Optional.
@@ -32,9 +32,9 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
   [disciplines](/reference/glossary), which is the default. Disciplines themselves are
   created and coloured on the standalone **Disciplines** page in the main navigation,
   not here — see [Settings](/guide/settings) for the on/off switch.
-- **Employment** — Permanent, Freelancer or Contractor. This is a label for your own
-  filtering and reporting; it doesn't change how utilisation is worked out. Adding
-  someone works exactly the same way whichever you pick.
+- **Engagement** — choose **Studio** for someone regarded as part of the core studio or
+  **Supplementary** for additional capacity. This is separate from both their contract status and
+  their discipline, and it doesn't change how utilisation is worked out.
 - **Working days** — use the compact radio grid to choose **Full day**, **Half day** or
   **Not working** for every day from Monday to Sunday. A full day is eight hours, a half
   day is four hours and a non-working day is zero hours.

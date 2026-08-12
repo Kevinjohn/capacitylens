@@ -665,6 +665,7 @@ describe("ServerSyncAdapter.loadAll", () => {
             kind: "placeholder" as const,
             role: "Designer",
             employmentType: "permanent" as const,
+            engagement: "studio" as const,
             workingHoursPerDay: 8,
             workingDays: [1, 2, 3, 4, 5] as const,
             halfDays: [],

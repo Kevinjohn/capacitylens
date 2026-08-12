@@ -21,7 +21,7 @@ the sidebar (the **Placeholders** section and its **Add placeholder** button onl
 pref is on).
 
 1. Click **Add placeholder**. The "Add placeholder" dialog opens. The **Name** field reads
-   _Name (optional)_, the **Employment** field is hidden, and a **Bound project** field
+   _Name (optional)_, the **Engagement** field is hidden, and a **Bound project** field
    appears.
 2. Leave **Name** empty (optional) and set **Role** = `Senior Developer`.
 3. Choose **Bound project** = _Queen Consolidated / Project Watchtower_.
@@ -34,8 +34,8 @@ pref is on).
   role (_Senior Developer_) in the secondary text and a "placeholder" tag.
 - ✅ On **Schedule**, the placeholder's row shows the literal name **"Placeholder"** with a **"?"**
   avatar, marking it as an unstaffed slot (its role is the secondary text).
-- ✅ The **Employment** field is hidden in the **Add placeholder** dialog (placeholders are
-  always permanent).
+- ✅ The **Engagement** field is hidden in the **Add placeholder** dialog (placeholders are always
+  Studio); the retained employment value is also hidden and remains permanent.
 - ✅ Saving a placeholder with no **Bound project** keeps the dialog open and is rejected
   with the inline error "A placeholder must be bound to a project." on the Bound project
   field (`aria-invalid`).

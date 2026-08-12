@@ -16,6 +16,7 @@ describe("ResourceForm placeholder binding", () => {
       name: "Alice",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -38,6 +39,8 @@ describe("ResourceForm placeholder binding", () => {
     const onClose = vi.fn();
     render(<ResourceForm kind="placeholder" onClose={onClose} />);
 
+    expect(screen.queryByLabelText("Employment")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Engagement")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Role"), "Senior Designer");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -63,6 +66,7 @@ describe("ResourceForm placeholder binding", () => {
     expect(resources).toHaveLength(1);
     expect(resources[0].kind).toBe("placeholder");
     expect(resources[0].projectId).toBe(project.id);
+    expect(resources[0].engagement).toBe("studio");
   });
 
   // Editing a placeholder whose bound project is ARCHIVED (hidden from the active-only picker): the
@@ -78,6 +82,7 @@ describe("ResourceForm placeholder binding", () => {
       kind: "placeholder",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -102,6 +107,53 @@ describe("ResourceForm placeholder binding", () => {
     const saved = useStore.getState().data.resources[0];
     expect(saved.role).toBe("Senior Designer");
     expect(saved.projectId).toBe(project.id); // unchanged, round-tripped
+  });
+});
+
+describe("ResourceForm engagement", () => {
+  it("defaults new people to Studio and saves Supplementary without showing Employment", async () => {
+    const user = userEvent.setup();
+    render(<ResourceForm kind="person" onClose={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Employment")).not.toBeInTheDocument();
+    const engagement = screen.getByLabelText("Engagement");
+    expect(engagement).toHaveTextContent("Studio");
+
+    await user.type(screen.getByLabelText("Name"), "Selina Kyle");
+    fireEvent.keyDown(engagement, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      employmentType: "permanent",
+      engagement: "supplementary",
+    });
+  });
+
+  it("preserves hidden employment data when engagement is edited", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Barry Allen",
+      role: "Developer",
+      employmentType: "freelancer",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    });
+    render(<ResourceForm resource={resource} onClose={vi.fn()} />);
+
+    const engagement = screen.getByLabelText("Engagement");
+    fireEvent.keyDown(engagement, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      employmentType: "freelancer",
+      engagement: "supplementary",
+    });
   });
 });
 
@@ -145,6 +197,7 @@ describe("ResourceForm working days", () => {
       name: "Alice",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 6,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],

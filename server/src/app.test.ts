@@ -118,6 +118,7 @@ const person = (id: string, accountId: string) => ({
   kind: "person",
   role: "Designer",
   employmentType: "permanent",
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
@@ -1518,7 +1519,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect((await state(app)).resources[0].color).toBe("#eb7272");
   });
 
-  it("repairs junk fields and a missing legacy halfDays array on POST", async () => {
+  it("repairs junk fields and missing legacy halfDays/engagement values on POST", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     // A hand-crafted request that bypasses the UI forms with every value-field wrong.
@@ -1537,6 +1538,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     const r = (await state(app)).resources[0] as Record<string, unknown>;
     expect(r.kind).toBe("person");
     expect(r.employmentType).toBe("permanent");
+    expect(r.engagement).toBe("studio");
     expect(r.workingHoursPerDay).toBe(8);
     expect(r.workingDays).toEqual([1, 2, 3, 4, 5]);
     expect(r.halfDays).toEqual([]);
@@ -3012,6 +3014,23 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app);
     expect((await post(app, "resources", FIXTURE_RESOURCE)).statusCode).toBe(201);
     expectFixture((await state(app)).resources[0], stripTombstones(FIXTURE_RESOURCE));
+  });
+
+  it("person resource: Supplementary engagement round-trips independently of employment", async () => {
+    const { app } = freshApp();
+    await seedFixtureDeps(app);
+    const supplementary = {
+      ...person("supplementary-person", FIXTURE_ACCOUNT.id),
+      name: "Fixture Supplementary Person",
+      employmentType: "permanent" as const,
+      engagement: "supplementary" as const,
+    };
+
+    expect((await post(app, "resources", supplementary)).statusCode).toBe(201);
+    expect((await state(app)).resources[0]).toMatchObject({
+      employmentType: "permanent",
+      engagement: "supplementary",
+    });
   });
 
   it("external resource: kind + company name round-trip (no discipline/project binding)", async () => {

@@ -23,6 +23,11 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Resource forms now classify people by Engagement.** People can be marked Studio or
+  Supplementary independently of discipline and retained employment data. New and existing
+  resources default to Studio, placeholders remain Studio, and editing a person preserves their
+  hidden employment value. Portable exports advance to schema v12 and self-hosted databases to
+  schema v29 (#243).
 - **Resource availability now uses a fixed 8/4/0-hour working pattern.** Resource forms no longer
   show a separate hours-per-day field, every form save records an eight-hour full day, and roster
   rows omit the redundant hours text. Existing custom values remain stored for compatibility until

@@ -41,6 +41,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
     name: "Test Person",
     role: "Designer",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: WORKDAYS,
     color: "#2d75da",

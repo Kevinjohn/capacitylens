@@ -35,6 +35,7 @@ const data: AppData = {
       name: "A",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1],
       halfDays: [],

@@ -51,6 +51,7 @@ import type {
   Phase,
   Project,
   Resource,
+  ResourceEngagement,
   ScopedEntityKey,
   Activity,
   TimeOff,
@@ -71,7 +72,10 @@ import { createSchedulerSlice } from "./slices/schedulerSlice";
 // runtime (see addClient/updateClient).
 type DraftFields<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
 export type Draft<T extends Entity> = T extends Resource
-  ? Omit<DraftFields<T>, "halfDays"> & { halfDays?: Weekday[] }
+  ? Omit<DraftFields<T>, "halfDays" | "engagement"> & {
+      halfDays?: Weekday[];
+      engagement?: ResourceEngagement;
+    }
   : DraftFields<T>;
 export type Patch<T extends Entity> = Partial<Draft<T>>;
 
@@ -1085,6 +1089,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
     addResource: guardedAdd(
       (input: Draft<Resource>): Resource => ({
         ...input,
+        // Engagement did not exist in older programmatic callers. Default them to Studio, and
+        // keep placeholders/external rows outside the people classification by forcing Studio.
+        engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
         // Programmatic callers written before half-day patterns existed retain the exact legacy
         // meaning: every selected working day is full, represented by an empty half-day subset.
         halfDays: input.halfDays ?? [],
@@ -1122,7 +1129,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
         if (patch.workingDays !== undefined || patch.halfDays !== undefined) {
           assertHalfDays(merged.halfDays, merged.workingDays);
         }
-        const colorPatch = withSnappedColor(patch, merged.kind === "external");
+        const engagementPatch = merged.kind !== "person" ? { ...patch, engagement: "studio" as const } : patch;
+        const colorPatch = withSnappedColor(engagementPatch, merged.kind === "external");
         return patch.workingHoursPerDay !== undefined
           ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
           : colorPatch;

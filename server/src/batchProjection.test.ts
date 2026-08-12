@@ -38,6 +38,7 @@ function relationshipFixture(): AppData {
         kind: "placeholder",
         role: "Designer",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],

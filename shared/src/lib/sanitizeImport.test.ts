@@ -15,6 +15,7 @@ describe("sanitizeImportedRecord", () => {
     const out = sanitizeImportedRecord("resources", {
       kind: "wizard",
       employmentType: "slave",
+      engagement: "associate",
       workingHoursPerDay: -5,
       workingDays: "nope",
       color: "red",
@@ -22,11 +23,21 @@ describe("sanitizeImportedRecord", () => {
     expect(out).toMatchObject({
       kind: "person",
       employmentType: "permanent",
+      engagement: "studio",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
       color: FALLBACK_PRESET_COLOR,
     });
+  });
+
+  it("preserves valid engagement and forces placeholders to Studio", () => {
+    expect(sanitizeImportedRecord("resources", { kind: "person", engagement: "supplementary" }).engagement).toBe(
+      "supplementary",
+    );
+    expect(sanitizeImportedRecord("resources", { kind: "placeholder", engagement: "supplementary" }).engagement).toBe(
+      "studio",
+    );
   });
 
   it("preserves boolean resource favourites and drops malformed values", () => {
@@ -108,12 +119,14 @@ describe("sanitizeImportedRecord", () => {
       disciplineId: "d1",
       projectId: "p1",
       employmentType: "contractor",
+      engagement: "supplementary",
       workingHoursPerDay: 12,
       workingDays: [1],
       color: "#abcdef",
     });
     expect(external).toMatchObject({
       employmentType: "permanent",
+      engagement: "studio",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],

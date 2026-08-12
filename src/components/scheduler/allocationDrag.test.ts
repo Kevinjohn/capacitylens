@@ -250,6 +250,7 @@ describe("reconcileReassignedHours", () => {
     kind,
     role: "R",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
