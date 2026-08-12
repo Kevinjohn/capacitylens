@@ -403,8 +403,9 @@ legacy repeats and one-off allocations remain unlinked. Deleting a linked occurr
 whether to delete only that occurrence or that occurrence and every later-starting allocation in the
 same account and series. Earlier occurrences remain. Either choice is one atomic, undoable mutation,
 and one Undo restores the complete removal. Editing a linked occurrence preserves its membership and
-never applies edits to future occurrences. If any deletion rejects, the dialog stays open and its
-form error surfaces the safe rejection reason. Viewers see no allocation mutation actions.
+never applies edits to future occurrences. Linked occurrences do not offer **Duplicate**; unlinked
+one-off allocations retain it regardless of activity kind. If any deletion rejects, the dialog stays
+open and its form error surfaces the safe rejection reason. Viewers see no allocation mutation actions.
 
 **Repeat allocation creation.** New allocation forms opened from either the row **+** or a drawn
 range include a **Repeat** dropdown between the scheduling controls and **Status**. It defaults to
@@ -414,9 +415,10 @@ date over a fixed three-calendar-month window. Saving gives the generated alloca
 series ID in a single undoable operation; old independent repeats are never inferred or backfilled.
 Each occurrence can still be edited independently while retaining its series membership. Deletion
 can target one occurrence or that occurrence and all later starts in its series; earlier starts are
-untouched. Edit and Duplicate never show or inherit the Repeat choice, and Duplicate remains a
-single independent allocation. Capacity and time-off warnings count the generated allocations
-affected, remain advisory, and include conflicts between allocations in the same generated batch.
+untouched. Edit never shows the Repeat choice. Duplicate is available only for unlinked allocations,
+where it creates one independent allocation; linked occurrences hide it. Capacity and time-off
+warnings count the generated allocations affected, remain advisory, and include conflicts between
+allocations in the same generated batch.
 
 **Destructive confirmation** uses the action-specific title and buttons: lifecycle list actions use
 `Archive <entity>?`, `Archive`, and `Cancel`; actual deletion uses `Delete <entity>?`, `Delete`, and

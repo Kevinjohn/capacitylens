@@ -800,9 +800,11 @@ export function AllocationModal(props: AllocationModalProps) {
               <Button size="sm" type="button" variant="danger-soft" onClick={() => setConfirmDelete(true)}>
                 {m.form_delete()}
               </Button>
-              <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
-                {m.form_allocation_duplicate()}
-              </Button>
+              {!editing.seriesId && (
+                <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
+                  {m.form_allocation_duplicate()}
+                </Button>
+              )}
             </>
           )}
           <span className="flex-1" />

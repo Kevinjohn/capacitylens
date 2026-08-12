@@ -1263,6 +1263,35 @@ describe("AllocationModal edit", () => {
     });
   });
 
+  it("keeps Duplicate for an unlinked cross-project allocation and hides it for a linked occurrence", () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const oneOff = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const linked = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-08",
+      endDate: "2026-06-08",
+      hoursPerDay: 8,
+      status: "confirmed",
+      seriesId: "series-weekly",
+    });
+
+    const oneOffView = render(<AllocationModal allocationId={oneOff.id} onClose={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Duplicate" })).toBeInTheDocument();
+    oneOffView.unmount();
+
+    render(<AllocationModal allocationId={linked.id} onClose={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Duplicate" })).not.toBeInTheDocument();
+  });
+
   it("rejects duplicating a zero-hour block after the account switches to Hours mode", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
