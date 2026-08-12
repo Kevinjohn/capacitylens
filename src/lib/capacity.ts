@@ -7,7 +7,7 @@ import {
   weekdayOf,
 } from "@capacitylens/shared/lib/dateMath";
 import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
-import { HALF_DAY_HOURS } from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS, HALF_DAY_HOURS } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 
 // Arithmetic-only tolerance: one nanohour is 3.6 microseconds, far below any scheduling input,
@@ -23,17 +23,17 @@ export function capacityAllocationsForMode(allocations: Allocation[], blocksMode
   return blocksMode ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: 0 })) : allocations;
 }
 
-// Capacity reflects real availability: a resource has 0 available hours on a non-working weekday
-// or time-off day, a fixed 4 hours on a configured half day, otherwise workingHoursPerDay.
+// Capacity reflects the explicit working pattern: a resource has 0 available hours on a
+// non-working weekday or time-off day, 4 hours on a half day, and 8 hours on a full day.
 // A day is over-allocated when allocated hours exceed available hours. A normal
 // (weekend-aware) allocation does NO work on the resource's non-working weekdays —
 // a bar that merely SPANS Sat/Sun is not over there — so the only zero-capacity
 // days that read as over are (a) a TIME-OFF day a working allocation covers (a real
 // conflict) and (b) a weekend an allocation opts into via `ignoreWeekends`.
 //
-// PRECONDITION: every `workingHoursPerDay` / `hoursPerDay` reaching this module is a finite,
-// non-negative number — guaranteed at every write boundary by integrity.ts (clampHoursPerDay /
-// clampWorkingHoursPerDay) on store add/update, import remap, and server validate. A NaN/undefined
+// PRECONDITION: every `hoursPerDay` reaching this module is a finite, non-negative number —
+// guaranteed at every write boundary by integrity.ts (clampHoursPerDay) on store add/update,
+// import remap, and server validate. A NaN/undefined
 // slipping through is WORSE than a crash here: `NaN > x` is always false, so an over-allocated day
 // would read as "never over" — a silently WRONG answer in a multi-tenant scheduler, not a visible
 // failure. We therefore do NOT throw on this per-day × per-allocation hot path (that would swallow
@@ -51,10 +51,10 @@ export function isWorkingDay(resource: Resource, date: ISODate): boolean {
   return isWorkingWeekday(date, resource.workingDays);
 }
 
-/** Configured capacity before time off: full-day hours, fixed 4h half day, or 0 when not working. */
+/** Fixed capacity before time off: 8h full day, 4h half day, or 0 when not working. */
 export function scheduledHoursOnDay(resource: Resource, date: ISODate): number {
   if (!isWorkingDay(resource, date)) return 0;
-  return resource.halfDays.includes(weekdayOf(date)) ? HALF_DAY_HOURS : resource.workingHoursPerDay;
+  return resource.halfDays.includes(weekdayOf(date)) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
 }
 
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
@@ -62,14 +62,11 @@ export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): 
 }
 
 /** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
- *  fixed 4h on a half day, otherwise `workingHoursPerDay`.
- *  @remarks Assumes a finite, non-negative `workingHoursPerDay` (see the top-of-file precondition). */
+ *  fixed 4h on a half day, otherwise fixed 8h. */
 export function availableHoursOnDay(resource: Resource, date: ISODate, timeOff: TimeOff[]): number {
   if (!isWorkingDay(resource, date)) return 0;
   if (isOnTimeOff(resource.id, date, timeOff)) return 0;
-  const scheduled = scheduledHoursOnDay(resource, date);
-  devAssertFinite("scheduled working hours", scheduled);
-  return scheduled;
+  return scheduledHoursOnDay(resource, date);
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.

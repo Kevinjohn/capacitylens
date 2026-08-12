@@ -408,7 +408,9 @@ describe("AllocationModal days mode", () => {
 
   it("derives end date + hours/day from start, days of work and days over", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore
+      .getState()
+      .addResource({ ...person("Bruce"), workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -438,7 +440,8 @@ describe("AllocationModal days mode", () => {
 
     expect(onClose).toHaveBeenCalled();
     // 10 working days from Mon 2026-06-01 (Mon–Fri) lands on Fri 2026-06-12;
-    // 5 days of work spread over 10 at an 8h day = 4h/day.
+    // 5 days of work spread over 10 at the fixed 8h day = 4h/day. The legacy stored 6h value
+    // deliberately has no effect on scheduling math.
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: "2026-06-01",
       endDate: "2026-06-12",

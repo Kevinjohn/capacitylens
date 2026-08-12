@@ -6,6 +6,8 @@ export type ISOTimestamp = string; // full ISO datetime, e.g. new Date().toISOSt
 
 /** 0 = Sunday … 6 = Saturday (matches JS Date.getDay()). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** Fixed capacity of a resource weekday marked as a full day. */
+export const FULL_DAY_HOURS = 8;
 /** Fixed capacity of a resource weekday marked as a half day. */
 export const HALF_DAY_HOURS = 4;
 
@@ -351,7 +353,7 @@ export function clampHoursPerDay(h: number): number {
  *  day; a finite positive value just clamps to the 24h ceiling. Shared by the import sanitiser
  *  and the store resource write path so the two stay in lockstep. */
 export function clampWorkingHoursPerDay(h: number): number {
-  return Number.isFinite(h) && h > 0 ? Math.min(h, MAX_HOURS_PER_DAY) : 8;
+  return Number.isFinite(h) && h > 0 ? Math.min(h, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS;
 }
 
 /** Outsourced / 3rd-party resources have NO capacity (no hours, utilisation, or over-markers) and
@@ -374,7 +376,12 @@ export function externalCapacityDefaults(): Pick<
   Resource,
   "employmentType" | "workingHoursPerDay" | "workingDays" | "halfDays"
 > {
-  return { employmentType: "permanent", workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], halfDays: [] };
+  return {
+    employmentType: "permanent",
+    workingHoursPerDay: FULL_DAY_HOURS,
+    workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
+  };
 }
 
 /** JSON/export format version. Bump when the portable AppData shape changes; drives

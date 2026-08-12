@@ -82,18 +82,20 @@ test.describe("Keyboard & accessibility", () => {
     await expect(page.getByRole("alert")).toHaveAttribute("id", describedBy!);
 
     await name.fill("Accessible resource");
-    const hours = page.getByLabel("Working hours / day");
-    await hours.fill("0");
+    const workingDays = page.getByRole("group", { name: "Working days" });
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
+      await page.getByRole("radio", { name: `${day} Not working` }).click();
+    }
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect(name).not.toHaveAttribute("aria-invalid", "true");
     await expect(name).not.toHaveAttribute("aria-describedby");
-    await expect(hours).toHaveAttribute("aria-invalid", "true");
-    const hoursDescribedBy = await hours.getAttribute("aria-describedby");
-    expect(hoursDescribedBy).toBeTruthy();
-    await expect(page.getByRole("alert")).toHaveAttribute("id", hoursDescribedBy!);
+    await expect(workingDays).toHaveAttribute("aria-invalid", "true");
+    const workingDaysDescribedBy = await workingDays.getAttribute("aria-describedby");
+    expect(workingDaysDescribedBy).toBeTruthy();
+    await expect(page.getByRole("alert")).toHaveAttribute("id", workingDaysDescribedBy!);
 
-    await hours.fill("8");
+    await page.getByRole("radio", { name: "Monday Full day" }).click();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("resource-row").filter({ hasText: "Accessible resource" })).toBeVisible();
   });

@@ -1,7 +1,7 @@
 import { applyGesture, type DateRange, type DragMode, type GestureOpts } from "../../lib/gestureMath";
 import { scheduledHoursOnDay } from "../../lib/capacity";
 import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
-import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { ISODate, Resource } from "@capacitylens/shared/types/entities";
 import type { ColumnGeometry } from "./columnGeometry";
 
@@ -23,12 +23,12 @@ export function reconcileReassignedHours(
 ): number {
   if (isExternalResource(target)) return 0;
   if (current > 0 || zeroLoadMode) return current;
-  return scheduledHoursOnDay(target, startDate) || target.workingHoursPerDay;
+  return scheduledHoursOnDay(target, startDate) || FULL_DAY_HOURS;
 }
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so
  *  hours/day scales inversely with the span: new × newSpan = old × oldSpan.
- *  workingHoursPerDay cancels out, so it isn't needed here. Returns the clamped hours
+ *  the fixed full-day hours cancel out, so they aren't needed here. Returns the clamped hours
  *  AND whether the clamp actually bit, so a gesture commit can surface the lost volume
  *  (the cap truncates work — the bar would otherwise silently show the clamped 24h).
  *  `clamped` is true ONLY when the raw derived hours exceeded MAX_HOURS_PER_DAY; a

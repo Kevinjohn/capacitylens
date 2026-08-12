@@ -131,23 +131,37 @@ describe("ResourceForm working days", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
+      workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4],
       halfDays: [2],
     });
   });
 
-  it("rejects working hours above the shared daily maximum", async () => {
+  it("hides working hours and normalises a legacy custom value to eight on edit", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<ResourceForm kind="person" onClose={onClose} />);
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Alice",
+      role: "Designer",
+      employmentType: "permanent",
+      workingHoursPerDay: 6,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    });
+    render(<ResourceForm resource={resource} onClose={onClose} />);
 
-    await user.type(screen.getByLabelText("Name"), "Alice");
-    fireEvent.change(screen.getByLabelText("Working hours / day"), { target: { value: "40" } });
+    expect(screen.queryByLabelText("Working hours / day")).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Design lead");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/no more than 24/i);
-    expect(onClose).not.toHaveBeenCalled();
-    expect(useStore.getState().data.resources).toHaveLength(0);
+    expect(onClose).toHaveBeenCalled();
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      role: "Design lead",
+      workingHoursPerDay: 8,
+    });
   });
 
   it("blocks saving a resource with no working days selected", async () => {

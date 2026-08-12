@@ -34,8 +34,8 @@ once, and the timeline uses the resulting capacity while still greying out off-d
   **Tuesday Half day**), and native arrow-key movement stays within that weekday's three choices.
 - ✅ Existing selected weekdays open as **Full day** and existing unselected weekdays open as
   **Not working**; changing the UI does not turn an existing full day into a half day.
-- ✅ A **Full day** contributes the resource's configured **Working hours / day**, a **Half day**
-  contributes exactly **4 hours**, and **Not working** contributes **0 hours**.
+- ✅ A **Full day** contributes exactly **8 hours**, a **Half day** contributes exactly **4 hours**,
+  and **Not working** contributes **0 hours**.
 - ✅ On the timeline at fine zoom, Barry's **Thu** and **Fri** columns are greyed as
   unavailable days (`data-testid="unavailable-day"`).
 - ✅ A non-working day carries **0** capacity. A normal allocation that merely spans Barry's
