@@ -228,7 +228,7 @@ describe("dayCapacity over-allocation", () => {
   });
 
   it("a weekend IS over when the allocation opts in via ignoreWeekends", () => {
-    // "Include weekends as working days" makes the hours land on Sat/Sun; a Mon–Fri person has
+    // "Ignore working days" makes the hours land on Sat/Sun; a Mon–Fri person has
     // 0 weekend capacity, so that weekend work honestly reads as over.
     const allocs = [
       makeAlloc({

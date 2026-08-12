@@ -258,7 +258,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
-  const includeWeekendsId = useId();
+  const ignoreWorkingDaysId = useId();
   const statusLabelId = useId();
 
   // If the edited allocation is removed out from under us (e.g. undo), close
@@ -1172,16 +1172,16 @@ export function AllocationModal(props: AllocationModalProps) {
         describedById={errorId}
       />
 
-      {/* Externals have no working week — their booking is a literal start/end span, so the weekend
-          toggle is meaningless and hidden (they store ignoreWeekends: true). */}
+      {/* Externals have no working pattern — their booking is already a literal start/end span, so
+          this checkbox is meaningless and hidden (they store ignoreWeekends: true). */}
       {!isExternal && (
         <Field orientation="horizontal">
           <Checkbox
-            id={includeWeekendsId}
+            id={ignoreWorkingDaysId}
             checked={ignoreWeekends}
             onCheckedChange={(checked) => setIgnoreWeekends(checked === true)}
           />
-          <FieldLabel htmlFor={includeWeekendsId}>{m.form_allocation_include_weekends()}</FieldLabel>
+          <FieldLabel htmlFor={ignoreWorkingDaysId}>{m.form_allocation_ignore_working_days()}</FieldLabel>
         </Field>
       )}
 

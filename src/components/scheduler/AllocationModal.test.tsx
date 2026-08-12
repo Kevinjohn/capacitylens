@@ -458,10 +458,119 @@ describe("AllocationModal advisory work bounds", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Date span cannot exceed 36,500 calendar days.");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+
+  it("keeps Ignore working days hidden for an External while preserving its literal calendar span", async () => {
+    const resource = useStore.getState().addResource({
+      kind: "external",
+      name: "Kord Industries",
+      role: "Partner studio",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 3, 5],
+      halfDays: [],
+      color: "#9ca3af",
+    });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-04" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("checkbox", { name: "Ignore working days" })).not.toBeInTheDocument();
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations[0]).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-04",
+      hoursPerDay: 0,
+      ignoreWeekends: true,
+    });
+  });
 });
 
 describe("AllocationModal days mode", () => {
   const enableDays = () => useStore.getState().updateAccount(ACC, { schedulingMode: "days" });
+
+  it("leaves Ignore working days unchecked and skips personal non-working weekdays", async () => {
+    enableDays();
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-01" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const ignoreWorkingDays = screen.getByRole("checkbox", { name: "Ignore working days" });
+    expect(ignoreWorkingDays).not.toBeChecked();
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "3" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations[0]).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      ignoreWeekends: false,
+    });
+  });
+
+  it("includes every calendar day when Ignore working days is checked", async () => {
+    enableDays();
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-01" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const ignoreWorkingDays = screen.getByRole("checkbox", { name: "Ignore working days" });
+    await user.click(ignoreWorkingDays);
+    expect(ignoreWorkingDays).toBeChecked();
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "3" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations[0]).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      ignoreWeekends: true,
+    });
+  });
+
+  it("reopens and resaves an existing checked allocation without changing its span or semantics", async () => {
+    enableDays();
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+      ignoreWeekends: true,
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("checkbox", { name: "Ignore working days" })).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      ignoreWeekends: true,
+    });
+  });
 
   it("derives end date + hours/day from start, days of work and days over", async () => {
     enableDays();

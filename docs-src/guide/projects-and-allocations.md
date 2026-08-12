@@ -58,7 +58,7 @@ There are two ways to book a person's time on the schedule:
    with the visible week.
 2. Draw it directly: click and drag across the days you want on that person's row.
 
-![The New allocation form with Project, Activity, dates, workload, Repeat and Status fields, plus an Add activity button](../screenshots/flows/allocation-form.jpg)
+![The New allocation form with Project, Activity, dates, workload, Repeat and Status fields, plus the Ignore working days checkbox](../screenshots/flows/allocation-form.jpg)
 
 Either way, choose **Internal**, **Any Project**, or a real project. Internal and Any
 Project show only internal and cross-project activities respectively; real projects
@@ -69,6 +69,10 @@ unless your company has turned that convenience off in [Settings](/guide/setting
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
 single-line; an older multiline note remains stored unchanged unless you edit that field.
+
+Leave **Ignore working days** unchecked to follow the person's working pattern. Check it when the
+allocation must use every calendar day in its date span, including personal non-working weekdays.
+External-party allocations already use literal calendar spans, so they do not show this checkbox.
 
 For regular work, choose **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4
 weeks** or **Monthly** under **Repeat**, then set the required **Repeat until** date. The
