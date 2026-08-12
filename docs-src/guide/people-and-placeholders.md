@@ -23,7 +23,7 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 2. Click **Add resource**.
 3. Fill in the fields below and save.
 
-![The Add resource form with Name, Role, Discipline, Employment, Working hours / day and Working days fields](../screenshots/flows/resource-form.jpg)
+![The Add resource form with details fields and a seven-day working pattern table offering Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
 
 - **Name** — required.
 - **Role** — a free-text label, for example "Senior Designer". Optional.
@@ -35,8 +35,10 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 - **Employment** — Permanent, Freelancer or Contractor. This is a label for your own
   filtering and reporting; it doesn't change how utilisation is worked out. Adding
   someone works exactly the same way whichever you pick.
-- **Working hours / day** — how many hours a day this person is available for.
-- **Working days** — which weekdays they work.
+- **Working hours / day** — how many hours a full day makes this person available for.
+- **Working days** — choose **Full day**, **Half day** or **Not working** for every day
+  from Monday to Sunday. A half day is always four hours; a full day uses the person's
+  **Working hours / day** value.
 
 Working hours and working days drive the utilisation figures directly: they're what
 CapacityLens compares a person's bookings against to decide whether they're over
@@ -52,10 +54,24 @@ There's no account to create and nothing for the person to sign in to.
 2. Click the edit icon next to the person's row.
 3. Change any field and save.
 
-For example, if someone goes part-time, open their row and turn off the weekdays they
-no longer work in **Working days**. The change applies going forward: past allocations
-and reports aren't rewritten, but every utilisation figure you see after saving reflects
-their new working days.
+For example, if someone goes part-time, open their row and change the relevant days to
+**Half day** or **Not working**. Existing allocations aren't rewritten, but every
+utilisation figure you see after saving reflects their new working pattern.
+
+Existing working patterns are preserved after upgrading: a day that was selected remains
+a full day, and a day that was unselected remains not working.
+
+## Find people quickly
+
+The Resources page keeps People, Placeholders and External as separate sections. Rows in
+each section are alphabetical, while the Disciplines page is alphabetical too.
+
+People and external parties have a star beside their edit and archive actions. Select it
+to add that row to the company's favourites; the star fills yellow and the row moves to
+the top of its section while favourites and non-favourites each stay alphabetical. The
+same ordering carries into each discipline and the External group on the schedule.
+Favourites are shared company data, so everyone sees the same order. Placeholders cannot
+be favourited.
 
 ## Placeholders
 
@@ -95,7 +111,7 @@ External parties are off by default; an Owner or Admin turns them on for the com
 3. Fill in **Company** (required) and, optionally, a **Descriptor** — for example
    "Print" or "Overflow dev" — and save.
 
-![The Resources page with the External section, its Add external party button and an existing external row](../screenshots/flows/resources-external.jpg)
+![The Resources page with favourite people ordered first, yellow favourite stars and the External section with Kord Industries](../screenshots/flows/resources-external.jpg)
 
 Turning external parties off in Settings hides the section and its rows the same way
 placeholders do, without deleting anything.

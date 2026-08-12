@@ -23,6 +23,18 @@ recording it and how it interacts with allocations.
 
 ![The schedule with draw mode switched to Time off: work allocations dim and a holiday block is highlighted](../screenshots/flows/timeoff-draw.jpg)
 
+## Review current and upcoming time off
+
+The Time off page is a forward-looking planning list. It shows an entry when its end date
+is on or after the start of the current company week. Older entries stay stored but no
+longer clutter the page.
+
+Entries are grouped under each resource's name. Resource groups are alphabetical, and a
+person's entries are ordered by date. Placeholder time off follows the company's **Show
+placeholders** setting.
+
+![The Time off page with current and upcoming entries grouped under alphabetical resource headings and ordered by date](../screenshots/flows/timeoff_grouped.jpg)
+
 ## How it shows on the schedule
 
 Time off renders as a hatched block on the person's row — no project colour, so it's

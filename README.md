@@ -23,8 +23,8 @@ you're looking at.
 ## Try it in two minutes
 
 The demo runs entirely in your browser with sample data. It is fully editable — drag things about,
-book time off, break something. Nothing is saved and nothing leaves your machine; reload and it's
-back to the beginning.
+book time off, break something. Schedule changes stay in memory and reset when you reload; only
+device choices such as the cosmetic signed-in state and display preferences stay in your browser.
 
 ```bash
 corepack enable
@@ -36,7 +36,8 @@ Then open <http://127.0.0.1:5173>, pick a demo account, and you're in.
 
 ## What you can do with it
 
-- **See the week ahead** — 1, 2, 4, 6 or 8 weeks at a time, filtered by discipline, client or project.
+- **See the week ahead** — 1, 2, 4, 6 or 8 weeks at a time, filtered by discipline, client, project
+  or activity.
 - **Spot trouble early** — daily over-capacity in red, plus a 14-day forward warning for problems
   just off the edge of the screen.
 - **Plan work you haven't won yet** — placeholder people for roles you'd need to hire or borrow, and

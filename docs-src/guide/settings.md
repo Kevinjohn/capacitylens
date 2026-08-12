@@ -12,6 +12,8 @@ else. Each section has a question-mark button labelled **About &lt;section&gt;**
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
+![The top of Settings with concise Scheduling, Disciplines and device Schedule sections, each with an About button](../screenshots/flows/settings_overview.jpg)
+
 ## Internal work visibility
 
 Two switches under **Internal work**, both on by default, control whether internal and
@@ -62,6 +64,8 @@ The rest of Settings, roughly top to bottom:
 **Device data**, **Archived & deleted** and **Import & export** are independent
 disclosures and start closed. Opening one does not close another. Destructive actions
 still explain their consequences in the confirmation dialog.
+
+![The bottom of Settings with Account and Security details, closed Device data, Archived and Import disclosures, and the account options summary](../screenshots/flows/settings_account_disclosures.jpg)
 
 ::: tip
 Sections marked "this device" only affect your own browser. Everything else is shared
