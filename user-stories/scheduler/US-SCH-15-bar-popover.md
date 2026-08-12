@@ -4,7 +4,7 @@
 
 ## Goal
 
-Hovering — or keyboard-focusing — an allocation bar shows a detail popover with the activity, project · client, date range, hours/day, status and any note; it hides again when you leave.
+Hovering — or keyboard-focusing — an allocation bar shows a detail popover with the activity, project · client, date range, hours/day, status, any note and (for linked repeats) the last surviving series end; it hides again when you leave.
 
 ## Why
 
@@ -28,6 +28,8 @@ A bar can only show so much on its face, especially when narrow. The manager oft
 
 - ✅ Hovering a bar shows the **allocation-popover** with the project/client and the date range.
 - ✅ The popover includes hours/day, status, and (when present) the note.
+- ✅ A linked repeat says **Series through <date>** in the popover and accessible name; an unlinked
+  allocation has no series claim.
 - ✅ Moving the pointer off the bar hides the popover.
 - ✅ Keyboard-focusing a bar (Tab) shows the same popover for editors and Viewers — it's not
   mouse-only, and Viewer focus does not enable editing, moving or resizing.

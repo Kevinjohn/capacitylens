@@ -79,6 +79,21 @@ export function maximumRepeatUntilDate(startDate: ISODate): ISODate {
   }
 }
 
+/** Suggested cutoff for a newly enabled repeat: the end of the month two calendar months after
+ *  the allocation start (August -> 31 October). Near the supported date ceiling it is clamped to
+ *  the same maximum accepted by the form, so revealing the field never creates invalid state. */
+export function defaultRepeatUntilDate(startDate: ISODate): ISODate {
+  const maximum = maximumRepeatUntilDate(startDate);
+  const { year, month } = dateParts(startDate);
+  const absoluteMonth = (year - 1) * MONTHS_PER_YEAR + (month - 1) + 2;
+  const lastAbsoluteMonth = LAST_SUPPORTED_YEAR * MONTHS_PER_YEAR - 1;
+  const boundedMonth = Math.min(absoluteMonth, lastAbsoluteMonth);
+  const targetYear = Math.floor(boundedMonth / MONTHS_PER_YEAR) + 1;
+  const targetMonth = (boundedMonth % MONTHS_PER_YEAR) + 1;
+  const suggested = isoDate(targetYear, targetMonth, daysInMonth(targetYear, targetMonth));
+  return suggested > maximum ? maximum : suggested;
+}
+
 function addCalendarMonthsClamped(date: ISODate, months: number): ISODate {
   if (!Number.isSafeInteger(months)) throw new RangeError("Calendar-month offset must be a safe integer.");
   const { year, month, day } = dateParts(date);

@@ -52,6 +52,8 @@ export interface BarLayout {
   label: string;
   project?: string;
   client?: string;
+  /** Last surviving occurrence end in this modern linked series; absent for one-offs and legacy batches. */
+  seriesEnd?: ISODate;
   /** True when the assignee is an external / 3rd-party resource — the bar hides its hours. */
   external: boolean;
 }
@@ -324,10 +326,16 @@ export function buildSchedulerModel({
   // is a Map lookup instead of a full-array scan per resource (was O(resources ×
   // (allocations + timeOff)); now O(allocations + timeOff + resources)).
   const allocsByResource = new Map<ID, Allocation[]>();
+  const seriesEndByKey = new Map<string, ISODate>();
   for (const a of data.allocations) {
     const list = allocsByResource.get(a.resourceId);
     if (list) list.push(a);
     else allocsByResource.set(a.resourceId, [a]);
+    if (a.seriesId && isValidISODate(a.endDate)) {
+      const key = `${a.accountId}\u0000${a.seriesId}`;
+      const current = seriesEndByKey.get(key);
+      if (!current || a.endDate > current) seriesEndByKey.set(key, a.endDate);
+    }
   }
   const timeOffByResource = new Map<ID, TimeOff[]>();
   for (const t of data.timeOff) {
@@ -503,6 +511,7 @@ export function buildSchedulerModel({
               label: activityById.get(a.activityId)?.name ?? "Activity",
               project: project?.name,
               client: client?.name,
+              seriesEnd: a.seriesId ? seriesEndByKey.get(`${a.accountId}\u0000${a.seriesId}`) : undefined,
               external: isExternal,
             };
           });

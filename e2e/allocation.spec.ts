@@ -73,10 +73,10 @@ test.describe("Allocation editor", () => {
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
     await dialog.getByLabel("Start Date").fill("2026-06-10");
-    await dialog.getByLabel(/^End/).fill("2026-06-10");
+    await dialog.getByLabel(/^End/).fill("2026-06-12");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
     const repeatUntil = dialog.getByLabel("Repeat until");
-    await expect(repeatUntil).toHaveValue("");
+    await expect(repeatUntil).toHaveValue("2026-08-31");
     await expect(repeatUntil).toHaveAttribute("min", "2026-06-10");
     await expect(repeatUntil).toHaveAttribute("max", "2026-12-10");
     await repeatUntil.fill("2026-09-10");
@@ -91,6 +91,10 @@ test.describe("Allocation editor", () => {
     await expect(dialog.getByRole("button", { name: "Save" })).toBeInViewport();
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(20);
+    const linkedBar = page.locator('[data-testid="allocation-bar"][aria-label*="series through 11 Sep"]').first();
+    await expect(linkedBar.getByTestId("allocation-series-icon")).toBeVisible();
+    await linkedBar.hover();
+    await expect(page.getByTestId("allocation-popover")).toContainText("Series through 11 Sep");
     await page.keyboard.press("ControlOrMeta+z");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
   });
@@ -140,7 +144,9 @@ test.describe("Allocation editor", () => {
     await expect(repeatedDelete.getByRole("button", { name: "Delete this occurrence" })).toBeVisible();
     await repeatedDelete.getByRole("button", { name: "Delete this and future occurrences" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(7);
-    await expect(page.locator('[data-testid="allocation-bar"][aria-label*="13 Jun to 13 Jun"]')).toBeVisible();
+    const survivingOccurrence = page.locator('[data-testid="allocation-bar"][aria-label*="13 Jun to 13 Jun"]');
+    await expect(survivingOccurrence).toBeVisible();
+    await expect(survivingOccurrence).toHaveAttribute("aria-label", /series through 13 Jun/i);
     await expect(julyOccurrence).toHaveCount(0);
 
     await page.keyboard.press("ControlOrMeta+z");

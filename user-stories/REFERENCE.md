@@ -421,8 +421,10 @@ open and its form error surfaces the safe rejection reason. Viewers see no alloc
 **Repeat allocation creation.** New allocation forms opened from either the row **+** or a drawn
 range include a **Repeat** dropdown between the scheduling controls and **Status**. It defaults to
 **Doesn’t repeat** and offers **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4 weeks** and
-**Monthly**. Choosing a cadence reveals a blank, required **Repeat until** date. The cutoff is
-inclusive by occurrence start: an occurrence whose start is on the chosen date is included, and its
+**Monthly**. Choosing a cadence reveals a required **Repeat until** date suggested as the end of the
+month two calendar months after the allocation start (and safely clamped at the supported date
+boundary). The suggestion follows start-date changes until the user edits it. The cutoff is inclusive
+by occurrence start: an occurrence whose start is on the chosen date is included, and its
 end may fall later. Repeat until cannot precede today or the allocation start, must allow at least one
 occurrence after the entered allocation, and cannot be later than six calendar months after the
 allocation start. A valid choice previews the number of linked allocations, chosen cutoff and final
@@ -434,6 +436,10 @@ the Repeat choice. Duplicate is available only for unlinked allocations, where i
 independent allocation; linked occurrences hide it. Capacity and time-off warnings count the
 generated allocations affected, remain advisory, and include conflicts between allocations in the
 same generated batch.
+
+Linked-series bars show a repeat icon when space permits. Their hover/focus details and accessible
+name state **Series through <date>**, where the date is the end of the last surviving allocation in
+the series. One-offs and legacy unlinked repeat batches show no series cue.
 
 **Destructive confirmation** uses the action-specific title and buttons: lifecycle list actions use
 `Archive <entity>?`, `Archive`, and `Cancel`; actual deletion uses `Delete <entity>?`, `Delete`, and

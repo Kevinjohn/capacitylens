@@ -1506,7 +1506,7 @@ describe("AllocationModal repeat creation", () => {
     }
     fireEvent.click(screen.getByRole("option", { name: "Weekly" }));
     const repeatUntil = screen.getByLabelText("Repeat until");
-    expect(repeatUntil).toHaveValue("");
+    expect(repeatUntil).toHaveValue("2099-08-31");
     expect(repeatUntil).toHaveAttribute("aria-required", "true");
     expect(repeatUntil).toHaveAttribute("min", "2099-06-01");
     expect(repeatUntil).toHaveAttribute("max", "2099-12-01");
@@ -1523,6 +1523,45 @@ describe("AllocationModal repeat creation", () => {
     });
     render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
+  });
+
+  it("defaults from the allocation start, follows untouched starts, and preserves a hand-edited cutoff", async () => {
+    const resource = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2027-12-03", endDate: "2027-12-05" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await chooseOption(user, "Repeat", "Weekly");
+    const repeatUntil = screen.getByLabelText("Repeat until");
+    expect(repeatUntil).toHaveValue("2028-02-29");
+
+    const start = screen.getByLabelText("Start Date");
+    await user.clear(start);
+    await user.type(start, "2028-01-10");
+    expect(repeatUntil).toHaveValue("2028-03-31");
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2028-04-15");
+    await user.clear(start);
+    await user.type(start, "2028-02-10");
+    expect(repeatUntil).toHaveValue("2028-04-15");
+  });
+
+  it("clamps the suggested cutoff at the supported date boundary", async () => {
+    const resource = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "9999-11-15", endDate: "9999-11-16" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await chooseOption(user, "Repeat", "Monthly");
+    expect(screen.getByLabelText("Repeat until")).toHaveValue("9999-12-31");
+    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("max", "9999-12-31");
   });
 
   it("previews every cadence with formatShortDate and creates weekly through one bulk call", async () => {
@@ -1582,6 +1621,7 @@ describe("AllocationModal repeat creation", () => {
     );
     await completeAssignment(user);
     await chooseOption(user, "Repeat", "Monthly");
+    await user.clear(screen.getByLabelText("Repeat until"));
     await user.type(screen.getByLabelText("Repeat until"), "2099-04-30");
     expect(
       screen.getByText("Creates 4 linked allocations through Thu 30th Apr. Last start: Thu 30th Apr."),
@@ -1616,6 +1656,7 @@ describe("AllocationModal repeat creation", () => {
       );
       await completeAssignment(user);
       await chooseOption(user, "Repeat", "Monthly");
+      await user.clear(screen.getByLabelText("Repeat until"));
       await user.type(screen.getByLabelText("Repeat until"), "9999-12-30");
       expect(screen.queryByText(/creates 4 linked allocations/i)).not.toBeInTheDocument();
 
@@ -1663,6 +1704,7 @@ describe("AllocationModal repeat creation", () => {
     );
     await completeAssignment(user);
     await chooseOption(user, "Repeat", "Every 3 weeks");
+    await user.clear(screen.getByLabelText("Repeat until"));
     await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
@@ -1687,6 +1729,7 @@ describe("AllocationModal repeat creation", () => {
     const repeatUntil = screen.getByLabelText("Repeat until");
     const save = screen.getByRole("button", { name: "Save" });
 
+    await user.clear(repeatUntil);
     await user.click(save);
     expect(screen.getByRole("alert")).toHaveTextContent("Choose when the repeat should end.");
 
@@ -1729,6 +1772,7 @@ describe("AllocationModal repeat creation", () => {
     await chooseOption(user, "Repeat", "Weekly");
     const repeatUntil = screen.getByLabelText("Repeat until");
 
+    await user.clear(repeatUntil);
     await user.type(repeatUntil, "2099-06-08");
     expect(
       screen.getByText("Creates 2 linked allocations through Mon 8th Jun. Last start: Mon 8th Jun."),
@@ -1751,6 +1795,7 @@ describe("AllocationModal repeat creation", () => {
       />,
     );
     await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Weekly");
     capacityAdvisoryMock.mockClear();
     let call = 0;
     capacityAdvisoryMock.mockImplementation(() => {
@@ -1759,7 +1804,7 @@ describe("AllocationModal repeat creation", () => {
       if (call === 2) return { overDays: 0, timeOffDays: 1 };
       return { overDays: 0, timeOffDays: 0 };
     });
-    await chooseOption(user, "Repeat", "Weekly");
+    await user.clear(screen.getByLabelText("Repeat until"));
     await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
     expect(screen.getByRole("status")).toHaveTextContent(
       "For this repeat, 1 allocation may exceed capacity and 2 allocations overlap time off. Saving is still allowed.",

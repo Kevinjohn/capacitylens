@@ -84,6 +84,37 @@ describe("AllocationBar rendering", () => {
     expect(el).toHaveTextContent("Sprint Planning");
   });
 
+  it("shows a linked-series icon without crowding narrow bars and omits it for legacy unlinked repeats", () => {
+    const linked = makeBar(makeAllocation({ seriesId: "series-1" }));
+    linked.seriesEnd = "2026-08-31";
+    const { rerender } = render(
+      <AllocationBar bar={linked} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
+    );
+    expect(screen.getByTestId("allocation-series-icon")).toBeInTheDocument();
+
+    rerender(
+      <AllocationBar bar={{ ...linked, width: 40 }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
+    );
+    expect(screen.queryByTestId("allocation-series-icon")).not.toBeInTheDocument();
+    expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/series through 31 Aug/i);
+
+    rerender(
+      <AllocationBar bar={makeBar(makeAllocation())} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
+    );
+    expect(screen.queryByTestId("allocation-series-icon")).not.toBeInTheDocument();
+    expect(screen.getByTestId("allocation-bar")).not.toHaveAccessibleName(/series through/i);
+  });
+
+  it("shows the last surviving series end in the hover and focus details", () => {
+    const bar = makeBar(makeAllocation({ seriesId: "series-1" }));
+    bar.seriesEnd = "2026-08-31";
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    fireEvent.mouseEnter(screen.getByTestId("allocation-bar"));
+    expect(screen.getByTestId("allocation-popover")).toHaveTextContent("Series through 31 Aug");
+    expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/series through 31 Aug/i);
+  });
+
   it("shows just the activity when the bar carries no client/project metadata", () => {
     render(
       <AllocationBar bar={makeBar(makeAllocation())} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,

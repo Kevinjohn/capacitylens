@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Linked repeat allocations now show an in-bar repeat cue and their last surviving series end on
+  hover, focus and to assistive technology. New repeats suggest the end of the month two calendar
+  months after the allocation start without overwriting a manually edited cutoff (#282).
+
 ## [0.40.6-alpha.1] — 2026-08-12
 
 ### Changed

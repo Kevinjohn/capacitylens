@@ -2,10 +2,23 @@ import { describe, expect, it } from "vitest";
 import { weekdayOf } from "./dateMath";
 import {
   GENERATED_ALLOCATION_LIMIT,
+  defaultRepeatUntilDate,
   generateRepeatingStartDates,
   maximumRepeatUntilDate,
   RepeatingDateError,
 } from "./repeatingDates";
+
+describe("defaultRepeatUntilDate", () => {
+  it.each([
+    ["2026-08-14", "2026-10-31"],
+    ["2026-09-30", "2026-11-30"],
+    ["2027-12-03", "2028-02-29"],
+    ["9999-11-15", "9999-12-31"],
+  ] as const)("defaults %s to the bounded end of its third calendar month", (startDate, expected) => {
+    expect(defaultRepeatUntilDate(startDate)).toBe(expected);
+    expect(defaultRepeatUntilDate(startDate) <= maximumRepeatUntilDate(startDate)).toBe(true);
+  });
+});
 
 describe("generateRepeatingStartDates weekly", () => {
   it.each([

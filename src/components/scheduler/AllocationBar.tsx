@@ -12,6 +12,7 @@ import type { ID } from "@capacitylens/shared/types/entities";
 import type { BarLayout } from "./schedulerModel";
 import { useAllocationGesture } from "./useAllocationGesture";
 import { TooltipRoot, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Repeat2 } from "lucide-react";
 
 /** Hours/day for display: days-mode rescaling can yield a repeating decimal
  *  (e.g. 24h over 7 working days = 3.4285…), so round to 2 dp for labels/popovers.
@@ -97,6 +98,9 @@ export const AllocationBar = memo(function AllocationBar({
   const inset = Math.min(LAYOUT.barInset, width / 3);
   const insetLeft = left + inset;
   const insetWidth = Math.max(1, width - inset * 2);
+  // Padding + icon + gap need 36px before the label receives any width. Keep another 12px for a
+  // visible label fragment; below that, the accessible name and popover retain the series detail.
+  const showSeriesIcon = bar.seriesEnd !== undefined && insetWidth >= 48;
 
   const tentative = bar.allocation.status === "tentative";
   const completed = bar.allocation.status === "completed";
@@ -164,6 +168,7 @@ export const AllocationBar = memo(function AllocationBar({
                   // The visible "•" note dot (below) is otherwise lost to AT; surface its PRESENCE here
                   // (the note CONTENT lives in the edit modal). Empty when there's no note.
                   note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : "",
+                  series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: fmt(bar.seriesEnd) }) : "",
                 })
               : m.scheduler_bar_aria_viewer({
                   label: viewerLabelText,
@@ -172,6 +177,7 @@ export const AllocationBar = memo(function AllocationBar({
                   start: fmt(bar.allocation.startDate),
                   end: fmt(bar.allocation.endDate),
                   note: bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : "",
+                  series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: fmt(bar.seriesEnd) }) : "",
                 })
           }
           onPointerDown={
@@ -272,11 +278,14 @@ export const AllocationBar = memo(function AllocationBar({
               }}
             />
           )}
-          <span className="truncate px-2.5">
-            {completed ? "✓ " : ""}
-            {labelText}
-            {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: hoursLabel(bar.allocation.hoursPerDay) })}
-            {bar.allocation.note ? " •" : ""}
+          <span className="flex min-w-0 items-center gap-1 px-2.5">
+            {showSeriesIcon && <Repeat2 aria-hidden data-testid="allocation-series-icon" className="size-3 shrink-0" />}
+            <span className="truncate">
+              {completed ? "✓ " : ""}
+              {labelText}
+              {hideHours ? "" : m.scheduler_bar_hours_suffix({ hours: hoursLabel(bar.allocation.hoursPerDay) })}
+              {bar.allocation.note ? " •" : ""}
+            </span>
           </span>
           {canEdit && (
             <span data-handle="end" data-testid="resize-end" className={`right-0 ${gripClass}`}>
@@ -332,6 +341,12 @@ export const AllocationBar = memo(function AllocationBar({
             {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} ·{" "}
             {allocationStatusLabels()[bar.allocation.status]}
           </div>
+          {bar.seriesEnd && (
+            <div className="mt-1 text-muted-foreground">
+              <Repeat2 aria-hidden className="mr-1 inline size-3" />
+              {m.scheduler_bar_pop_series({ end: fmt(bar.seriesEnd) })}
+            </div>
+          )}
           {bar.allocation.note && (
             <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>
           )}
