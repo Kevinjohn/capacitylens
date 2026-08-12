@@ -48,9 +48,26 @@ Choose the sample account; no password or pop-up is involved.
 
 Try the things you'd do in a real resourcing meeting:
 
-- Drag an allocation bar to a different week and watch the [utilisation](/reference/glossary) percentage update.
-- Filter the schedule by [discipline](/reference/glossary) or client.
-- Zoom the calendar out to see more weeks at once.
+1. Select **Show filters** at the far right of the Schedule toolbar. The Work/Time off
+   choice, person search and filter dropdowns appear in one row.
+
+   ![The open schedule filter row with Work and Time off draw modes, person search and filter dropdowns](../screenshots/flows/schedule_filters_open.jpg)
+
+2. Open **All projects** and choose **Queen Consolidated / Project Watchtower**. The
+   schedule keeps matching work, and **Clear Filters** turns red to show that the view is
+   narrowed.
+
+   ![The Schedule filtered to Queen Consolidated and Project Watchtower, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.jpg)
+
+3. Select **Show unallocated**. People without Project Watchtower work return as dimmed
+   rows so you can see who may be available to staff it.
+
+   ![The Project Watchtower filter with Show unallocated selected and Diana Prince shown dimmed](../screenshots/flows/schedule_filter_unallocated.jpg)
+
+4. Select **Clear Filters**, then drag an allocation bar to a different week and watch
+   the [utilisation](/reference/glossary) percentage update.
+5. Change **Weeks visible** from two weeks to four or six weeks to see how the same plan
+   reads at a wider range.
 
 Everything is editable, so there's no wrong button to press.
 

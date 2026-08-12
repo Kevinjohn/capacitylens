@@ -30,12 +30,26 @@ Everyone else follows alphabetically, then placeholders. Favourite external part
 the separate External group. Favourites are shared with everyone in the company rather
 than being a personal display preference.
 
+When disciplines are turned off, the same people move into **Studio** and
+**Supplementary** bands. **External / 3rd party** stays last. If disciplines are on but a
+person has not been assigned to one yet, that person also falls back to their Studio or
+Supplementary band after the discipline groups.
+
+![The Schedule grouped into Studio, Supplementary and External / 3rd party bands after disciplines have been turned off](../screenshots/flows/schedule_engagement_groups.jpg)
+
+Select a group heading to collapse it when you need more vertical space. The heading
+stays visible and reports how many rows are hidden; select it again to expand the group.
+
+![The Supplementary schedule band collapsed to a heading that reports one hidden resource](../screenshots/flows/schedule_group_collapsed.jpg)
+
 ## Columns: the visible weeks
 
 Columns are days, grouped into a zoomable range of one, two, four, six or eight weeks
 at a time — the **Weeks visible** dropdown in the toolbar switches between them. Use the
 arrow buttons (hover for "Back one week" / "Forward one week") to pan a week at a time,
 and **Today** to jump back to the current week.
+
+![The Schedule toolbar with previous week, Today, next week, two-week zoom, Undo, Redo and Show filters controls](../screenshots/flows/schedule_filters_hidden.jpg)
 
 Weekend columns get a faint tint when you're zoomed in close enough to see individual
 days clearly. In the one- and two-week views, each month and year starts above the first visible
@@ -92,9 +106,23 @@ is always visible in one place rather than hidden in a separate calendar.
 ## Filtering and searching
 
 Use **Show filters** at the right of the toolbar, after Undo and Redo, to open the filter
-row. You can search people by name, filter by discipline, client, project or activity,
-hide tentative work, or show people with no work booked against the current filter. The
-latter is useful when you're trying to find someone free to staff a project.
+row. Select **Hide filters** when you want the extra vertical space back. Hiding the row
+does not clear an active filter.
+
+![The open schedule filter row with Work and Time off draw modes, person search, four filter dropdowns and Hide tentative](../screenshots/flows/schedule_filters_open.jpg)
+
+You can search people by name, filter by discipline, client, project or activity, or
+hide tentative work. Selecting a client or project narrows the bars and rows to that
+work. The active value stays visible in the row, and **Clear Filters** turns red so the
+filtered state cannot be mistaken for the complete schedule.
+
+![The Schedule filtered to Queen Consolidated and Project Watchtower, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.jpg)
+
+After selecting a client, project or activity, turn on **Show unallocated** to bring
+people with no matching work back into the result. Their rows are dimmed, which makes
+them useful candidates to staff without implying they are already booked to the filter.
+
+![The Project Watchtower filter with Show unallocated selected and Diana Prince shown dimmed as available capacity](../screenshots/flows/schedule_filter_unallocated.jpg)
 
 **Clear Filters** stays at the far right of the open row. It is quiet and disabled when
 nothing is filtered, then turns red with a bin icon when a filter is active. One click
