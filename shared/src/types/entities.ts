@@ -218,6 +218,8 @@ export interface Activity extends ScopedEntity {
 export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
+  /** System-owned identity shared by allocations created in one repeat batch. Absent = one-off or legacy repeat. */
+  seriesId?: ID;
   startDate: ISODate; // inclusive
   endDate: ISODate; // inclusive
   hoursPerDay: number;
@@ -407,8 +409,9 @@ export function externalCapacityDefaults(): Pick<
  *  legacy resources so every previously selected weekday remains a full day; v12 adds required
  *  Resource.engagement, defaulting legacy resources to Studio; v13 adds the optional account-wide
  *  groupResourcesByEngagement view preference, whose absence means enabled; v14 adds account-wide
- *  working days, defaulting legacy accounts to the first five days of their configured week.) */
-export const EXPORT_SCHEMA_VERSION = 14;
+ *  working days, defaulting legacy accounts to the first five days of their configured week; v15
+ *  adds optional Allocation.seriesId without inferring links for legacy repeat batches.) */
+export const EXPORT_SCHEMA_VERSION = 15;
 
 export interface PersistedState {
   schemaVersion: number;

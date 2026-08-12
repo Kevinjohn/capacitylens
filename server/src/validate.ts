@@ -222,6 +222,13 @@ export function sanitizeWrite(
       if (typeof existing?.deletedAt === "string") cleaned.deletedAt = existing.deletedAt;
       else delete cleaned.deletedAt;
     }
+    // Repeat-series membership is assigned only when an allocation is created. Generic PUT/PATCH
+    // edits may omit the hidden field (legacy clients) or attempt to change it (crafted requests),
+    // but neither can unlink a member, link a one-off or move an occurrence between series.
+    if (table === "allocations" && existing) {
+      if (typeof existing.seriesId === "string") cleaned.seriesId = existing.seriesId;
+      else delete cleaned.seriesId;
+    }
     // P1.6 field-confidentiality PINS (note-erasure guard + private-name guard): same PIN mechanism
     // as the tombstones above, but the WHICH-fields-are-gated knowledge is single-sourced in
     // GATED_FIELD_POLICIES (fieldPolicy.ts) so this write-pin can never drift from the read redaction

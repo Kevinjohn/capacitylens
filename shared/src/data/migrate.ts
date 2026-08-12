@@ -314,6 +314,13 @@ function migrateV13toV14(data: Record<string, unknown>): Record<string, unknown>
   return { ...data, accounts };
 }
 
+// v14 → v15 introduces optional repeat-series identity. Existing repeated allocations were
+// independent rows with no durable evidence of which creation batch produced them, so forward-only
+// migration deliberately leaves every legacy allocation unlinked.
+function migrateV14toV15(data: Record<string, unknown>): Record<string, unknown> {
+  return data;
+}
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -378,6 +385,9 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   }
   if (data && typeof data === "object" && version < 14) {
     data = migrateV13toV14(data);
+  }
+  if (data && typeof data === "object" && version < 15) {
+    data = migrateV14toV15(data);
   }
 
   return {

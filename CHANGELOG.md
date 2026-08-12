@@ -12,6 +12,10 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- **New repeat batches can be removed from any occurrence forward.** Repeated allocations now retain
+  a hidden series identity, so Delete can remove only the selected occurrence or it and every future
+  occurrence in one atomic, undoable action. Existing repeat batches remain independent. Portable
+  exports advance to schema v15 and self-hosted databases to schema v32 (#249).
 - **Companies can define global working days.** Settings exposes all seven weekdays in the
   configured week order, with the first five selected by default. Schedule hover, click and draw
   creation starts are blocked on globally non-working, personally non-working and time-off dates,

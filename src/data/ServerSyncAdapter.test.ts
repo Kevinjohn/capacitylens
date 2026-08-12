@@ -803,6 +803,30 @@ describe("ServerSyncAdapter.saveAll", () => {
     expect(ops.map((op) => op.id)).toEqual(allocations.map((row) => row.id));
   });
 
+  it("dispatches a linked series-tail deletion as one transactional client batch", async () => {
+    const fetchImpl = okFetch() as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const allocations = ["2026-06-01", "2026-06-08", "2026-06-15"].map((startDate, index) => ({
+      ...allocation(`repeat-${index}`, startDate as Allocation["startDate"]),
+      seriesId: "series-weekly",
+    }));
+    await adapter.saveAll(withData({ allocations }));
+    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+    await adapter.saveAll(withData({ allocations: allocations.slice(0, 1) }));
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    const ops = batchOps(calls[0]);
+    expect(ops).toHaveLength(2);
+    expect(ops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ method: "DELETE", table: "allocations", id: "repeat-1" }),
+        expect.objectContaining({ method: "DELETE", table: "allocations", id: "repeat-2" }),
+      ]),
+    );
+  });
+
   it("does NOT advance the snapshot on a failed batch, so the next save replays the delta", async () => {
     let failNext = false;
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {

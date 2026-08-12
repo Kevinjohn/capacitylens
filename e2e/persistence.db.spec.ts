@@ -70,6 +70,9 @@ test.describe("database-backed persistence", () => {
     const afterReload = (await serverState(request)).allocations;
     expect(afterReload).toHaveLength(before.length + 14);
     expect(before.every((row) => afterReload.some((persisted) => persisted.id === row.id))).toBe(true);
+    const repeated = afterReload.filter((row) => !before.some(({ id }) => id === row.id));
+    expect(repeated[0].seriesId).toEqual(expect.any(String));
+    expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
   });
 
   test("edit + reload: a rename round-trips through the DB", async ({ page, request }) => {

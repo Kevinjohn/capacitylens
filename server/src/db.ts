@@ -25,6 +25,7 @@ import {
   assertSchemaV28,
   assertSchemaV29,
   assertSchemaV30,
+  assertSchemaV31,
   assertSchemaV8,
   assertSchemaV9,
   migrateSchemaV8,
@@ -79,7 +80,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 31;
+export const DB_SCHEMA_VERSION = 32;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -681,6 +682,22 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
            END
          WHERE workingDays IS NULL;
       `);
+      assertSchemaV31(db);
+    },
+  ),
+  defineMigration(
+    32,
+    "add-allocation-series-id",
+    ["guard:PRAGMA table_info(allocations):seriesId-missing", "ALTER TABLE allocations ADD COLUMN seriesId TEXT;"].join(
+      "\n",
+    ),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(allocations)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "seriesId");
+      if (!exists) db.exec("ALTER TABLE allocations ADD COLUMN seriesId TEXT;");
       assertSchemaCurrent(db);
     },
   ),

@@ -1563,6 +1563,51 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect(a.hoursPerDay).toBe(0);
   });
 
+  it("sanitizes repeat-series identity on create and preserves membership on every edit shape", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    expect(
+      (
+        await post(app, "allocations", {
+          ...allocation("al-series", "a1", "r1", "t1"),
+          seriesId: "  weekly-series  ",
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
+    ).toBe("weekly-series");
+
+    expect(
+      (
+        await put(app, "allocations", "al-series", {
+          ...allocation("al-series", "a1", "r1", "t1"),
+          note: "Legacy full replacement",
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
+    ).toBe("weekly-series");
+
+    expect((await patch(app, "allocations", "al-series", { seriesId: "another-series" })).statusCode).toBe(200);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
+    ).toBe("weekly-series");
+
+    expect(
+      (
+        await post(app, "allocations", {
+          ...allocation("al-blank-series", "a1", "r1", "t1"),
+          seriesId: "   ",
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-blank-series"),
+    ).not.toHaveProperty("seriesId");
+  });
+
   it("drops a junk account schedulingMode on a direct write but keeps a valid one", async () => {
     const { app } = freshApp();
     // A hand-crafted account write with a junk schedulingMode the scheduler can't handle.

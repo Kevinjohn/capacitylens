@@ -109,9 +109,14 @@ const V30_ACCOUNTS: TableSpec = {
   ...TABLES.accounts,
   columns: TABLES.accounts.columns.filter((column) => column.name !== "workingDays"),
 };
+const V31_ALLOCATIONS: TableSpec = {
+  ...TABLES.allocations,
+  columns: TABLES.allocations.columns.filter((column) => column.name !== "seriesId"),
+};
 const V27_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V29_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
   resources: {
     ...TABLES.resources,
     columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays" && column.name !== "engagement"),
@@ -120,6 +125,7 @@ const V27_TABLES: Record<string, TableSpec> = {
 const V28_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V29_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
   resources: {
     ...TABLES.resources,
     columns: TABLES.resources.columns.filter((column) => column.name !== "engagement"),
@@ -128,10 +134,16 @@ const V28_TABLES: Record<string, TableSpec> = {
 const V29_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V29_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
 };
 const V30_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V30_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
+};
+const V31_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  allocations: V31_ALLOCATIONS,
 };
 
 /**
@@ -521,6 +533,11 @@ export function assertSchemaV29(db: Db): void {
 /** Assert the released v30 shape without requiring the v31 account working-days column. */
 export function assertSchemaV30(db: Db): void {
   assertSchemaVersion(db, V30_TABLES, true);
+}
+
+/** Assert the released v31 shape without requiring the v32 allocation series column. */
+export function assertSchemaV31(db: Db): void {
+  assertSchemaVersion(db, V31_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */
