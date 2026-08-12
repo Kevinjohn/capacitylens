@@ -83,7 +83,10 @@ for (const file of files.filter((f) => f.endsWith(".html"))) {
       const [path, hash] = (url.endsWith("/capacitylens") ? url + "/" : url).split("#");
       return `${attr}="${toRelative(pageDir, path)}${hash ? "#" + hash : ""}"`;
     })
-    .replace("</head>", `${DEAD_CHROME_CSS}</head>`);
+    .replace("</head>", `${DEAD_CHROME_CSS}</head>`)
+    // Removing VitePress scripts can leave indentation on otherwise empty lines.
+    // Normalise it here so a rebuild is both Prettier-clean and byte-for-byte stable.
+    .replace(/[^\S\r\n]+$/gm, "");
 
   writeFileSync(file, html);
   pages++;
