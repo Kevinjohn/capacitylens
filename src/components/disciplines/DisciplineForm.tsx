@@ -74,6 +74,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
         required
         invalid={errorField === "name"}
         describedById={errorId}
+        layout="label-control"
       />
       <ColorField
         label={m.form_discipline_colour_label()}
@@ -81,6 +82,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
         onChange={setColor}
         invalid={errorField === "color"}
         describedById={errorId}
+        layout="label-control"
       />
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />

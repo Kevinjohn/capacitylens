@@ -7,8 +7,8 @@
 //
 //   ./dialogs           AddButton, EditButton, DeleteButton, Modal, ConfirmDialog,
 //                       ListPage, EmptyState
-//   ./fields            TextField, TextAreaField, NumberField, DateField, SelectField, Option,
-//                       ColorField, WeekdayPicker, RequiredLegend
+//   ./fields            Product field layouts and labelled text, textarea, number, date, select,
+//                       colour, switch, segmented and weekday controls
 //   ./badges            ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
 //   ./SegmentedControl  SegmentedControl, SegmentedOption  (the pill radio-group chooser)
 //   ./SectionHelp       SectionHelp  (labelled question-mark action + help modal)

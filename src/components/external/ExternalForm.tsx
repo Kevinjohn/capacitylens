@@ -82,6 +82,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
         required
         invalid={errorField === "name"}
         describedById={errorId}
+        layout="label-control"
       />
       <TextField
         label={m.form_external_descriptor_label()}
@@ -90,6 +91,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
         placeholder={m.form_external_descriptor_placeholder()}
         invalid={errorField === "role"}
         describedById={errorId}
+        layout="label-control"
       />
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />

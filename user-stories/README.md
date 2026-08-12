@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-122 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
+123 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -212,6 +212,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-KBD-03](accessibility/US-KBD-03-grid-semantics.md)          | Grid semantics + row summary        | `e2e/accessibility.spec.ts`                                |
 | [US-KBD-04](accessibility/US-KBD-04-axe-clean.md)               | No serious/critical WCAG violations | `e2e/a11y.spec.ts` (light + dark + modal)                  |
 | [US-KBD-05](accessibility/US-KBD-05-field-error-association.md) | Field-level error association       | `e2e/accessibility.spec.ts` + unit (`ClientForm.test.tsx`) |
+| [US-KBD-06](accessibility/US-KBD-06-compact-input-modals.md)    | Scan compact input modals           | `e2e/modal-layout.spec.ts` + component tests               |
 
 ## Data management — `data/`
 

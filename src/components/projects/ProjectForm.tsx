@@ -116,8 +116,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         disabled={privateNameFields.protectedName}
         invalid={errorField === "name"}
         describedById={errorId}
+        layout="label-control"
       />
-      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} />
+      <PrivateNameFields fields={privateNameFields} errorField={errorField} errorId={errorId} layout="label-control" />
       <SelectField
         label={m.form_project_client_label()}
         value={clientId}
@@ -127,6 +128,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         required
         invalid={errorField === "client"}
         describedById={errorId}
+        layout="label-control"
       />
       {showColourPicker && (
         <ColorField
@@ -135,6 +137,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
           onChange={setColor}
           invalid={errorField === "color"}
           describedById={errorId}
+          layout="label-control"
         />
       )}
       <FieldError id={errorId}>{error}</FieldError>

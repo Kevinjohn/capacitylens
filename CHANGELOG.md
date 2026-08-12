@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- External party, Discipline, Client, Project, Activity and Time off add/edit forms now share the
+  Resource form's compact 25/75 label-to-control layout at normal widths and stack on narrow screens
+  (#281).
+
 ## [0.40.5-alpha.1] — 2026-08-12
 
 ### Fixed
