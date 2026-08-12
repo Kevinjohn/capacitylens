@@ -23,6 +23,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Allocation hover cards keep the schedule clear.** The always-repeated drag, resize and
+  reassign instructions no longer occupy a visible footer, while the retained assistive label
+  continues to provide the appropriate interaction guidance to screen-reader users (#251).
 - **Settings now keeps controls concise and explanations on demand.** Every section has a
   question-mark help modal; Device data, Archived & deleted, and Import & export start collapsed;
   and company/calendar choices now appear in one compact read-only summary at the bottom (#213).

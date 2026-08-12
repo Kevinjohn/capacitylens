@@ -19,8 +19,9 @@ A bar can only show so much on its face, especially when narrow. The manager oft
 3. Move the pointer off the bar — the popover hides.
 4. Now use the keyboard: **Tab** to focus an allocation bar. The same popover appears on focus,
    including in Viewer read-only mode where the bar remains a non-editable image.
-5. A Viewer sees **Read-only allocation details** in the footer instead of drag/resize/reassign
-   guidance. Assistive technology receives the complete activity, project/client, dates, hours,
+5. The visible card contains allocation details only, without an instruction footer. Its assistive
+   label retains drag/resize/reassign guidance for editors and says **Read-only allocation details**
+   for a Viewer. Assistive technology receives the complete activity, project/client, dates, hours,
    status and note text from the bar even when optional face-label parts are turned off.
 
 ## Acceptance criteria
@@ -30,4 +31,6 @@ A bar can only show so much on its face, especially when narrow. The manager oft
 - ✅ Moving the pointer off the bar hides the popover.
 - ✅ Keyboard-focusing a bar (Tab) shows the same popover for editors and Viewers — it's not
   mouse-only, and Viewer focus does not enable editing, moving or resizing.
+- ✅ The visible popover has no instruction footer, while its assistive label retains the
+  appropriate editor or Viewer guidance.
 - ✅ Viewer detail output contains the complete read-only context and never advertises edit gestures.

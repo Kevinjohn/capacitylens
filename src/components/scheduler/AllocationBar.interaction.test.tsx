@@ -121,7 +121,8 @@ describe("AllocationBar interactions", () => {
     const pop = screen.getByTestId("allocation-popover");
     expect(pop).toHaveTextContent("Project Watchtower");
     expect(pop).toHaveTextContent("Acme");
-    expect(pop).toHaveTextContent(/drag to move/i);
+    expect(pop.querySelector(".text-2xs.text-faint")).toBeNull();
+    expect(bar).toHaveAccessibleDescription("Drag to move · edges to resize · drop on another row to reassign");
     fireEvent.mouseLeave(bar);
     expect(screen.queryByTestId("allocation-popover")).toBeNull();
   });
@@ -157,7 +158,8 @@ describe("AllocationBar interactions", () => {
       const popover = screen.getByTestId("allocation-popover");
       expect(popover).toHaveTextContent("Project Watchtower");
       expect(popover).toHaveTextContent("Call the client before kickoff");
-      expect(popover).toHaveTextContent("Read-only allocation details");
+      expect(popover.querySelector(".text-2xs.text-faint")).toBeNull();
+      expect(bar).toHaveAccessibleDescription("Read-only allocation details");
       expect(popover).not.toHaveTextContent(/drag|resize|reassign/i);
       expect(bar).toHaveAccessibleName(
         /Wires, Project Watchtower · Acme, 8h per day, Confirmed, 1 Jun to 3 Jun, note: Call the client before kickoff\./,

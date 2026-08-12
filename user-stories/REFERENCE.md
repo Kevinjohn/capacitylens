@@ -527,7 +527,9 @@ blocks mode; a `✓ ` prefix when completed, a trailing ` •` when it has a not
 and project parts are device-global toggles in Settings → **Allocation bars** — switches
 `Show client name` and `Show project name`, both **on** by default; a bar whose activity has no
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
-activity-first layout regardless of these toggles.
+activity-first layout regardless of these toggles. Its visible card contains allocation details
+only; the retained drag/resize/reassign guidance is exposed as the popover's assistive label rather
+than as a footer over the schedule.
 
 **Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
@@ -891,9 +893,10 @@ to **viewer**, the whole app goes **read-only**:
   lane creates nothing) and no hover **+** hint; allocation bars have **no resize grips**, no
   drag/resize, and don't open the edit modal (a viewer bar is `role="img"`, not a `button`). Viewer
   bars remain Tab-reachable so keyboard users can open and Escape-close the same read-only detail
-  popover available on hover. Its footer says **Read-only allocation details** rather than offering
-  edit gestures, and the bar's accessible name includes the full project/client context and note
-  text even when those optional face-label parts are hidden.
+  popover available on hover. The visible card has no instruction footer; its assistive label says
+  **Read-only allocation details** rather than offering edit gestures, and the bar's accessible name
+  includes the full project/client context and note text even when those optional face-label parts
+  are hidden.
 - **The toolbar hides the Draw-mode toggle and Undo/Redo** (nothing to draw/undo); navigation +
   filters (reads) stay.
 - A subtle **"View only" badge** (`data-testid="view-only"`) sits in the sidebar footer beside the
