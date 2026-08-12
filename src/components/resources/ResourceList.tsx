@@ -4,7 +4,16 @@ import { useStore } from "../../store/useStore";
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useCrudListState } from "../../hooks/useCrudListState";
-import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
+import {
+  AddButton,
+  ColorSwatch,
+  ConfirmDialog,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  ListPage,
+  SectionHelp,
+} from "../common/ui";
 import { Separator } from "../ui/separator";
 import { resourceDisplayName } from "../../lib/metadata";
 import { ResourceForm } from "./ResourceForm";
@@ -192,14 +201,15 @@ export function ResourceList() {
           {/* Decorative rule before the External section (Phase 8) — see the People→Placeholders
               Separator above. */}
           <Separator className="mt-8" />
-          <div className="mb-2 mt-8 flex items-center justify-between">
-            <h2 id="external-heading" className="text-lg font-semibold">
-              {m.list_resources_external_heading()}
-            </h2>
+          <div className="mb-4 mt-8 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1">
+              <h2 id="external-heading" className="text-lg font-semibold">
+                {m.list_resources_external_heading()}
+              </h2>
+              <SectionHelp title={m.list_resources_external_heading()}>{externalExplainer()}</SectionHelp>
+            </div>
             <AddButton label={m.list_resources_add_external()} onClick={() => ext.setCreating(true)} />
           </div>
-          {/* Explainer copy (editable, shared with Settings → External — see lib/externalCopy.ts). */}
-          <p className="mb-4 max-w-prose text-sm text-muted-foreground">{externalExplainer()}</p>
           {externals.length === 0 ? (
             <EmptyState
               icon={Users}

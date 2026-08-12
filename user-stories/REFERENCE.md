@@ -1106,7 +1106,7 @@ multiple).
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
   **hidden by default** behind the per-account **Show external resources** pref (Settings → External,
   `externalEnabled` on the Account, default off); when on, an **External** section appears under the **Resources**
-  tab (with explainer copy + an `Add external party` button) and the band appears on the schedule. When
+  tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
 - **Archived & soft-deleted resources/clients/projects are hidden from all normal views** (the
