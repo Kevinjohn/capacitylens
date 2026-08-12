@@ -22,6 +22,10 @@ import {
   assertSchemaCurrent,
   assertSchemaV16,
   assertSchemaV27,
+  assertSchemaV28,
+  assertSchemaV29,
+  assertSchemaV30,
+  assertSchemaV31,
   assertSchemaV8,
   assertSchemaV9,
   migrateSchemaV8,
@@ -76,7 +80,7 @@ import {
 export type Db = DatabaseSync;
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 28;
+export const DB_SCHEMA_VERSION = 32;
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e;
@@ -618,6 +622,82 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
         }>
       ).some((column) => column.name === "halfDays");
       if (!exists) db.exec("ALTER TABLE resources ADD COLUMN halfDays TEXT NOT NULL DEFAULT '[]';");
+      assertSchemaV28(db);
+    },
+  ),
+  defineMigration(
+    29,
+    "add-resource-engagement",
+    [
+      "guard:PRAGMA table_info(resources):engagement-missing",
+      "ALTER TABLE resources ADD COLUMN engagement TEXT NOT NULL DEFAULT 'studio';",
+    ].join("\n"),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(resources)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "engagement");
+      if (!exists) db.exec("ALTER TABLE resources ADD COLUMN engagement TEXT NOT NULL DEFAULT 'studio';");
+      assertSchemaV29(db);
+    },
+  ),
+  defineMigration(
+    30,
+    "add-engagement-grouping-preference",
+    [
+      "guard:PRAGMA table_info(accounts):groupResourcesByEngagement-missing",
+      "ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;",
+    ].join("\n"),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "groupResourcesByEngagement");
+      if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;");
+      assertSchemaV30(db);
+    },
+  ),
+  defineMigration(
+    31,
+    "add-account-working-days",
+    [
+      "guard:PRAGMA table_info(accounts):workingDays-missing",
+      "ALTER TABLE accounts ADD COLUMN workingDays TEXT;",
+      "backfill:weekStartsOn='0' => [0,1,2,3,4]; otherwise [1,2,3,4,5]",
+    ].join("\n"),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "workingDays");
+      if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN workingDays TEXT;");
+      db.exec(`
+        UPDATE accounts
+           SET workingDays = CASE
+             WHEN weekStartsOn = '0' THEN '[0,1,2,3,4]'
+             ELSE '[1,2,3,4,5]'
+           END
+         WHERE workingDays IS NULL;
+      `);
+      assertSchemaV31(db);
+    },
+  ),
+  defineMigration(
+    32,
+    "add-allocation-series-id",
+    ["guard:PRAGMA table_info(allocations):seriesId-missing", "ALTER TABLE allocations ADD COLUMN seriesId TEXT;"].join(
+      "\n",
+    ),
+    (db) => {
+      const exists = (
+        db.prepare(`PRAGMA table_info(allocations)`).all() as Array<{
+          name: string;
+        }>
+      ).some((column) => column.name === "seriesId");
+      if (!exists) db.exec("ALTER TABLE allocations ADD COLUMN seriesId TEXT;");
       assertSchemaCurrent(db);
     },
   ),

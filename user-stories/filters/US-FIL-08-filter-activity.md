@@ -21,6 +21,8 @@ Beyond a client view and a project view, managers want an **activity view**: "sh
 ## Acceptance criteria
 
 - ✅ Choosing **Cross-project — All** collapses the view to cross-project activity work only (the _Design_ bar); project-specific activity bars are hidden.
+- ✅ Internal remains above Cross-project, and activities are alphabetical within each group after
+  the group's **All** option.
 - ✅ The activity lens is **standalone**: selecting an activity filter resets **Filter by project / client** to _All_, and choosing a project/client resets **Filter by activity** to _All activities_ (the two lenses are mutually exclusive).
 - ✅ Project-specific activities are **not** listed in the activity dropdown (they're reached via **Filter by project**).
 - ✅ **Show unallocated** works under the activity lens too (dimmed rows for resources with no matching activity work).

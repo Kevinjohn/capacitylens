@@ -7,12 +7,14 @@
 
 ## Goal
 
-Remove a single allocation from the schedule, and be able to undo that removal.
+Remove one allocation, or one linked repeat occurrence and its future siblings, and be able to undo
+the complete removal.
 
 ## Why
 
-Bookings get cancelled. The manager needs a clear way to remove one allocation, a confirmation step
-that prevents an accidental click, and undo in case the confirmed removal was still a mistake.
+Bookings get cancelled. The manager needs a clear way to remove one allocation without manually
+opening every future occurrence in a repeated series, a confirmation step that prevents an accidental
+click, and undo in case the confirmed removal was still a mistake.
 
 ## How (end-to-end)
 
@@ -25,6 +27,11 @@ that prevents an accidental click, and undo in case the confirmed removal was st
    the bar disappears.
 5. Press **⌘Z** (Undo).
 
+For an allocation created as part of a repeat batch, **Delete** opens **Delete repeated allocation?**.
+Choose **Delete this occurrence** to remove only the selected row, or **Delete this and future
+occurrences** to remove the selected row and every later-starting row in the same series. Earlier
+occurrences remain.
+
 ## Acceptance criteria
 
 - ✅ The confirmation dialog is titled **Delete allocation?** with **Delete** and **Cancel** buttons.
@@ -34,3 +41,7 @@ that prevents an accidental click, and undo in case the confirmed removal was st
 - ✅ If the removal is rejected, the dialog remains open and shows the safe rejection reason.
 - ✅ Pressing **⌘Z** restores the exact same bar (same resource, activity, dates, hours and status).
 - ✅ The delete is undoable via **⌘Z** OR the toolbar **Undo** button — either path restores the bar.
+- ✅ A linked occurrence offers one-only and this-and-future choices; the forward choice is one
+  atomic mutation and one Undo restores the complete deleted tail.
+- ✅ Editing a linked occurrence retains its series membership and never modifies future siblings.
+- ✅ Legacy repeat batches remain independent: no series is inferred or backfilled.

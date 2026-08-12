@@ -25,15 +25,18 @@ export const FIXTURE_ACCOUNT: Account = {
   schedulingMode: "days",
   timezone: "Europe/London",
   weekStartsOn: 0,
+  workingDays: [0, 1, 2, 3],
   language: "en",
   disciplinesEnabled: false,
+  // Default-on preference: explicit false proves the optional column round-trips.
+  groupResourcesByEngagement: false,
   // Both true (the NON-default — absent reads as false/hidden) so the server round-trip test
   // proves the new optional boolean columns persist a PRESENT value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
   // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
   internalColourMode: "palette",
-  // All three default to true when absent. Persist explicit false values so the full-fixture
+  // All four default to true when absent. Persist explicit false values so the full-fixture
   // round-trip detects a dropped column or accidental default substitution.
   showInternalProjects: false,
   showInternalActivities: false,
@@ -102,6 +105,7 @@ export const FIXTURE_RESOURCE: Resource = {
   role: "Fixture Role",
   disciplineId: "fix-d1",
   employmentType: "contractor",
+  engagement: "studio" as const,
   workingHoursPerDay: 6,
   workingDays: [1, 2, 3],
   halfDays: [2],
@@ -168,6 +172,7 @@ export const FIXTURE_ALLOCATION: Allocation = {
   accountId: "fix-a1",
   resourceId: "fix-r1",
   activityId: "fix-t1",
+  seriesId: "fix-series-1",
   startDate: "2026-02-01",
   endDate: "2026-02-28",
   hoursPerDay: 0,

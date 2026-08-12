@@ -1,6 +1,6 @@
 # US-ALL-03 — Duplicate an allocation
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "duplicates an allocation from the edit dialog"
+**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "duplicates an allocation from the edit dialog" and "edits one monthly occurrence, deletes its series tail and restores the tail with one Undo"
 
 ## Goal
 
@@ -14,6 +14,9 @@ Studios often repeat a booking — the same person on the same activity for the 
 
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view. Note the current count of bars on the **Bruce Wayne** row.
 
+The source must be an unlinked allocation. Allocations created in a linked repeat batch deliberately
+do not offer **Duplicate**; an unlinked Cross-project allocation still does.
+
 1. Click the **Wireframes** bar. The **Edit allocation** dialog opens.
 2. Click **Duplicate**. The dialog closes immediately (no confirmation).
 
@@ -24,3 +27,4 @@ Studios often repeat a booking — the same person on the same activity for the 
 - ✅ The original bar is unchanged (Duplicate copies; it does not move or edit the source).
 - ✅ The duplicate is itself an independent allocation — editing or deleting it does not affect the original.
 - ✅ Pressing **⌘Z** removes the duplicate (the action is undoable).
+- ✅ Linked repeat occurrences hide **Duplicate**; unlinked allocations retain it regardless of activity kind.

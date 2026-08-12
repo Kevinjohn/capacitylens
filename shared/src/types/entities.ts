@@ -6,6 +6,8 @@ export type ISOTimestamp = string; // full ISO datetime, e.g. new Date().toISOSt
 
 /** 0 = Sunday … 6 = Saturday (matches JS Date.getDay()). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** Fixed capacity of a resource weekday marked as a full day. */
+export const FULL_DAY_HOURS = 8;
 /** Fixed capacity of a resource weekday marked as a half day. */
 export const HALF_DAY_HOURS = 4;
 
@@ -34,6 +36,8 @@ export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1];
  */
 export type ResourceKind = "person" | "placeholder" | "external";
 export type EmploymentType = "permanent" | "freelancer" | "contractor";
+/** How the agency regards a person, independently of contract status or discipline. */
+export type ResourceEngagement = "studio" | "supplementary";
 export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
 /**
  * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
@@ -62,6 +66,8 @@ export interface Account extends Entity {
   timezone?: string;
   /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Absent = 1. */
   weekStartsOn?: 0 | 1;
+  /** Weekdays on which schedule creation may start. Stored as a set; presentation follows weekStartsOn. */
+  workingDays?: Weekday[];
   /** UI language for this company. Absent = 'en'. English-only until P1.5.1 (Paraglide).
    *  Frozen after creation — see P1.14. */
   language?: string;
@@ -69,6 +75,9 @@ export interface Account extends Entity {
    *  When false, disciplines are hidden across the whole UI (nav, resource form,
    *  schedule grouping + filter, lists, command palette) — the data is preserved. */
   disciplinesEnabled?: boolean;
+  /** Whether people are partitioned as Studio then Supplementary in Resources and the schedule.
+   *  Absent = true, preserving the default-on company view without rewriting legacy accounts. */
+  groupResourcesByEngagement?: boolean;
   /** Whether this company surfaces placeholder ("slot") resources. Absent = false
    *  (hidden out of the box — NOT `?? true` like disciplinesEnabled) so new companies start
    *  with placeholders OFF. When false, placeholders are hidden across the UI; the data is
@@ -117,6 +126,7 @@ export interface Resource extends ScopedEntity {
   role: string;
   disciplineId?: ID;
   employmentType: EmploymentType;
+  engagement: ResourceEngagement;
   /** Capacity per working day. Unused (silent default) for `external` — externals have no capacity. */
   workingHoursPerDay: number;
   /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. */
@@ -208,6 +218,8 @@ export interface Activity extends ScopedEntity {
 export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
+  /** System-owned identity shared by allocations created in one repeat batch. Absent = one-off or legacy repeat. */
+  seriesId?: ID;
   startDate: ISODate; // inclusive
   endDate: ISODate; // inclusive
   hoursPerDay: number;
@@ -351,7 +363,7 @@ export function clampHoursPerDay(h: number): number {
  *  day; a finite positive value just clamps to the 24h ceiling. Shared by the import sanitiser
  *  and the store resource write path so the two stay in lockstep. */
 export function clampWorkingHoursPerDay(h: number): number {
-  return Number.isFinite(h) && h > 0 ? Math.min(h, MAX_HOURS_PER_DAY) : 8;
+  return Number.isFinite(h) && h > 0 ? Math.min(h, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS;
 }
 
 /** Outsourced / 3rd-party resources have NO capacity (no hours, utilisation, or over-markers) and
@@ -372,9 +384,15 @@ export function isCapacityTracked(r: { kind: ResourceKind }): boolean {
  *  aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
 export function externalCapacityDefaults(): Pick<
   Resource,
-  "employmentType" | "workingHoursPerDay" | "workingDays" | "halfDays"
+  "employmentType" | "engagement" | "workingHoursPerDay" | "workingDays" | "halfDays"
 > {
-  return { employmentType: "permanent", workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], halfDays: [] };
+  return {
+    employmentType: "permanent",
+    engagement: "studio" as const,
+    workingHoursPerDay: FULL_DAY_HOURS,
+    workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
+  };
 }
 
 /** JSON/export format version. Bump when the portable AppData shape changes; drives
@@ -388,8 +406,12 @@ export function externalCapacityDefaults(): Pick<
  *  schedule view prefs showInternalProjects / showInternalActivities / inlineActivityCreateEnabled,
  *  whose absence means shown/enabled — read at `?? true`; v10 adds optional Resource.isFavourite,
  *  whose absence means not favourite; v11 adds required Resource.halfDays, initially empty for
- *  legacy resources so every previously selected weekday remains a full day.) */
-export const EXPORT_SCHEMA_VERSION = 11;
+ *  legacy resources so every previously selected weekday remains a full day; v12 adds required
+ *  Resource.engagement, defaulting legacy resources to Studio; v13 adds the optional account-wide
+ *  groupResourcesByEngagement view preference, whose absence means enabled; v14 adds account-wide
+ *  working days, defaulting legacy accounts to the first five days of their configured week; v15
+ *  adds optional Allocation.seriesId without inferring links for legacy repeat batches.) */
+export const EXPORT_SCHEMA_VERSION = 15;
 
 export interface PersistedState {
   schemaVersion: number;

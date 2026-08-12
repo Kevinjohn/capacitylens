@@ -12,7 +12,18 @@ else. Each section has a question-mark button labelled **About &lt;section&gt;**
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![The top of Settings with concise Scheduling, Disciplines and device Schedule sections, each with an About button](../screenshots/flows/settings_overview.jpg)
+![The top of Settings with Scheduling, Global working days, Disciplines and Engagement grouping sections, each with an About button](../screenshots/flows/settings_overview.jpg)
+
+## Global working days
+
+**Global working days** is the company's shared outer boundary for starting work. New companies
+select the first five days of their configured week. You can select any combination of the seven
+checkboxes; their order follows the week start chosen when the company was created.
+
+The schedule combines this selection with each person's own working pattern and time off. On a
+blocked start date, the lane does not show the hover **+**, and clicking or beginning a draw does
+nothing. A draw that begins on an allowed date may still cross blocked dates. This setting controls
+where creation can start; it does not recalculate existing capacity or utilisation.
 
 ## Internal work visibility
 
@@ -45,7 +56,9 @@ The rest of Settings, roughly top to bottom:
 | Section                       | What it controls                                                                                                                                                                                                                                                                                                                       |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scheduling                    | Whether allocations are entered as Hours, Days or Blocks — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
+| Global working days           | The seven company weekdays on which a schedule click or draw may start work. Personal patterns and time off can restrict a person further.                                                                                                                                                                                              |
 | Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. On by default. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
+| Engagement grouping           | Whether Resources separates Studio and Supplementary people and the schedule orders Studio first inside each discipline. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |
 | Schedule (this device)        | Minimise weekends, snap to week start, and compact view — your own display preferences, not shared with teammates.                                                                                                                                                                                                                     |
 | Internal work colours         | Whether internal work uses grey bars (default) or the same colour palette as everything else.                                                                                                                                                                                                                                          |
 | Placeholders                  | Whether unfilled [placeholder](/reference/glossary) slots are available. Off by default. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                                                                                |

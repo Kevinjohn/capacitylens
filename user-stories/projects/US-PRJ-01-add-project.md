@@ -15,16 +15,20 @@ A project is meaningless without an owning client; that invariant keeps the whol
 **Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). Clients _Queen Consolidated_ and _LexCorp_ exist.
 
 1. Click **Add project**. The "Add project" dialog opens.
-2. Fill **Name** = `Spring Campaign` but leave **Client** unset.
-3. Click **Save** — observe it is rejected.
-4. Now choose **Client** = _LexCorp_.
-5. Open **Colour** and pick a swatch from the preset grid.
-6. Click **Save**. The dialog closes.
-7. Open the **Schedule** (`/`) and **Filter by project**; and start an allocation to check the **Project** picker.
+2. Open **Client**. **Internal** appears first, followed by a divider that cannot be selected, then
+   _LexCorp_ and _Queen Consolidated_ alphabetically. Close the picker without choosing.
+3. Fill **Name** = `Spring Campaign` but leave **Client** unset.
+4. Click **Save** — observe it is rejected.
+5. Now choose **Client** = _LexCorp_.
+6. Open **Colour** and pick a swatch from the preset grid.
+7. Click **Save**. The dialog closes.
+8. Open the **Schedule** (`/`) and **Filter by project**; and start an allocation to check the **Project** picker.
 
 ## Acceptance criteria
 
 - ✅ Saving with **Client** unset keeps the dialog open and shows the error **"A project must belong to a client."** (an `alert`).
+- ✅ The **Client** picker pins **Internal** first, separates it with a genuinely non-selectable
+  divider, then lists active ordinary clients alphabetically.
 - ✅ After choosing _LexCorp_ and Save, the dialog closes and **Spring Campaign** appears in the Projects list with its "Client / Project" label showing _LexCorp_.
 - ✅ **Spring Campaign** is selectable in the schedule's **Filter by project**.
 - ✅ When allocating, **Spring Campaign** is selectable in the **Project** picker.

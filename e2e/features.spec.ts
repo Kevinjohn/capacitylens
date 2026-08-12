@@ -113,11 +113,10 @@ test.describe("Feature flows", () => {
     const lane = page.locator('[data-resource-id="r-nike"]');
     const b = await box(lane);
     const y = b.y + b.height / 2;
-    // Draw on EMPTY lane space, just right of Clark's seeded allocation. A gesture
-    // started on the bar drags/resizes it (the bar stops propagation) instead of
-    // drawing — anchor to the bar's measured box so this is robust to zoom/origin.
-    const seededBar = await box(lane.getByTestId("allocation-bar"));
-    const x0 = seededBar.x + seededBar.width + 20;
+    // Start on Clark's next empty working day. The global/personal working-day
+    // contract deliberately rejects a time-off gesture that starts on a blocked day.
+    const monday = await box(page.locator('[data-date="2026-06-08"]'));
+    const x0 = monday.x + monday.width / 2;
     await page.mouse.move(x0, y);
     await page.mouse.down();
     await page.mouse.move(x0 + 72, y, { steps: 6 });

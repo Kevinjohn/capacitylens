@@ -24,9 +24,9 @@ field, so the fix is obvious to everyone.
    person."), rendered as an `alert` with its own id.
 3. Inspect the **Name** input (DevTools): it now has `aria-invalid="true"` and an
    `aria-describedby` whose value equals the id of that error element.
-4. Confirm the same wiring on another field — e.g. set **Working hours / day** = `0`
-   and Save; the hours field gets `aria-invalid` and points at the error.
-5. Fix the field (type a valid value) and Save — the field clears `aria-invalid` and
+4. Confirm the same wiring on another field — e.g. set every **Working days** row to
+   **Not working** and Save; the working-days group gets `aria-invalid` and points at the error.
+5. Fix the field (select at least one Full day or Half day) and Save — the field clears `aria-invalid` and
    the association/error is gone.
 
 ## Acceptance criteria

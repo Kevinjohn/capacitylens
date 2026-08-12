@@ -312,6 +312,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     role: "Senior Designer",
     disciplineId: "disc-1",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     projectId: undefined,
@@ -340,6 +341,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(result.role).toBe("Removed resource");
     expect(result.disciplineId).toBe(input.disciplineId);
     expect(result.employmentType).toBe(input.employmentType);
+    expect(result.engagement).toBe(input.engagement);
     expect(result.workingHoursPerDay).toBe(input.workingHoursPerDay);
     expect(result.workingDays).toEqual(input.workingDays);
     expect(result.halfDays).toEqual(input.halfDays);
@@ -432,6 +434,7 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
           name: "Active",
           role: "Designer",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           halfDays: [],
@@ -446,6 +449,7 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
           name: "Archived",
           role: "Designer",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           halfDays: [],
@@ -461,6 +465,7 @@ describe("activeOnly — VIEW/read projection that drops non-active resources/cl
           name: "Deleted",
           role: "Designer",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           halfDays: [],
@@ -802,6 +807,7 @@ describe("archiveImpact", () => {
           name: "R",
           role: "Dev",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           halfDays: [],

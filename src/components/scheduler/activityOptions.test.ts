@@ -31,15 +31,36 @@ describe("buildActivityOptions", () => {
     const projects = [project];
     const projectFind = vi.spyOn(projects, "find");
 
-    const options = buildActivityOptions(activities, phases, projects, project.id);
+    const options = buildActivityOptions(activities, phases, projects, "project", project.id);
 
     expect(options).toHaveLength(200);
-    expect(options.slice(0, 3)).toEqual([
+    expect(options.slice(0, 2)).toEqual([
       { value: "activity-0", label: "Workshop / Discovery (1)" },
       { value: "activity-1", label: "Workshop / Discovery (2)" },
-      { value: "activity-2", label: "Workshop / Phase 2" },
     ]);
     expect(phaseFind).not.toHaveBeenCalled();
     expect(projectFind).not.toHaveBeenCalled();
+  });
+
+  it("filters by exact activity kind and sorts labels alphabetically", () => {
+    const activities: Activity[] = [
+      { ...row, id: "repeat-z", name: "Strategy", kind: "repeatable" },
+      { ...row, id: "internal-z", name: "Support", kind: "internal" },
+      { ...row, id: "repeat-a", name: "Retrospective", kind: "repeatable" },
+      { ...row, id: "internal-a", name: "Admin", kind: "internal" },
+      { ...row, id: "project", name: "Briefing", kind: "project", projectId: "project" },
+    ];
+
+    expect(buildActivityOptions(activities, [], [], "internal")).toEqual([
+      { value: "internal-a", label: "Admin" },
+      { value: "internal-z", label: "Support" },
+    ]);
+    expect(buildActivityOptions(activities, [], [], "repeatable")).toEqual([
+      { value: "repeat-a", label: "Retrospective" },
+      { value: "repeat-z", label: "Strategy" },
+    ]);
+    expect(buildActivityOptions(activities, [], [], "project", "project")).toEqual([
+      { value: "project", label: "Briefing" },
+    ]);
   });
 });

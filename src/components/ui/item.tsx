@@ -41,7 +41,8 @@ const itemVariants = cva(
       },
       size: {
         default: "gap-4 p-4",
-        sm: "gap-2.5 px-4 py-3",
+        // Local deviation: CapacityLens uses small Items for dense fake-table rows across management and Settings views.
+        sm: "gap-2.5 px-4 py-1",
       },
     },
     defaultVariants: {

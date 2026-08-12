@@ -23,7 +23,10 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 2. Click **Add resource**.
 3. Fill in the fields below and save.
 
-![The Add resource form with details fields and a seven-day working pattern table offering Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
+![The Add resource form with compact label-and-control rows, Studio engagement and a right-aligned seven-day radio grid for Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
+
+At normal dialog widths, the resource details use compact label-and-control rows. They stack
+vertically on a narrow screen, while the **Working days** grid remains full width.
 
 - **Name** — required.
 - **Role** — a free-text label, for example "Senior Designer". Optional.
@@ -32,17 +35,16 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
   [disciplines](/reference/glossary), which is the default. Disciplines themselves are
   created and coloured on the standalone **Disciplines** page in the main navigation,
   not here — see [Settings](/guide/settings) for the on/off switch.
-- **Employment** — Permanent, Freelancer or Contractor. This is a label for your own
-  filtering and reporting; it doesn't change how utilisation is worked out. Adding
-  someone works exactly the same way whichever you pick.
-- **Working hours / day** — how many hours a full day makes this person available for.
-- **Working days** — choose **Full day**, **Half day** or **Not working** for every day
-  from Monday to Sunday. A half day is always four hours; a full day uses the person's
-  **Working hours / day** value.
+- **Engagement** — choose **Studio** for someone regarded as part of the core studio or
+  **Supplementary** for additional capacity. This is separate from both their contract status and
+  their discipline, and it doesn't change how utilisation is worked out.
+- **Working days** — use the compact radio grid to choose **Full day**, **Half day** or
+  **Not working** for every day from Monday to Sunday. A full day is eight hours, a half
+  day is four hours and a non-working day is zero hours.
 
-Working hours and working days drive the utilisation figures directly: they're what
-CapacityLens compares a person's bookings against to decide whether they're over
-capacity. Get these two fields right, or the overwork indicators on
+Working days drive the utilisation figures directly: CapacityLens compares that fixed
+8/4/0-hour pattern with the person's bookings to decide whether they're over capacity.
+Set the pattern correctly, or the overwork indicators on
 [the schedule](/guide/the-schedule#reading-overwork) will be wrong for that person.
 
 The new row appears on the schedule immediately, ready for allocations and time off.
@@ -63,13 +65,17 @@ a full day, and a day that was unselected remains not working.
 
 ## Find people quickly
 
-The Resources page keeps People, Placeholders and External as separate sections. Rows in
-each section are alphabetical, while the Disciplines page is alphabetical too.
+By default, the Resources page separates people into **Studio** and **Supplementary** sections,
+followed by the existing Placeholders and External sections. An Editor, Admin or Owner can turn
+**Group resources by engagement** off in [Settings](/guide/settings) to combine people into one
+list. Rows in each section are alphabetical, while the Disciplines page is alphabetical too.
 
 People and external parties have a star beside their edit and archive actions. Select it
 to add that row to the company's favourites; the star fills yellow and the row moves to
-the top of its section while favourites and non-favourites each stay alphabetical. The
-same ordering carries into each discipline and the External group on the schedule.
+the top of its engagement section while favourites and non-favourites each stay alphabetical. The
+schedule likewise keeps Studio before Supplementary within each discipline and favourites first
+inside each partition. When grouping is off, favourites lead the combined People list and each
+discipline instead. The External group keeps its own favourites-first order.
 Favourites are shared company data, so everyone sees the same order. Placeholders cannot
 be favourited.
 
@@ -111,7 +117,7 @@ External parties are off by default; an Owner or Admin turns them on for the com
 3. Fill in **Company** (required) and, optionally, a **Descriptor** — for example
    "Print" or "Overflow dev" — and save.
 
-![The Resources page with favourite people ordered first, yellow favourite stars and the External section with Kord Industries](../screenshots/flows/resources-external.jpg)
+![The Resources page with separate Studio and Supplementary sections, a yellow favourite star, and the External section with Kord Industries](../screenshots/flows/resources-external.jpg)
 
 Turning external parties off in Settings hides the section and its rows the same way
 placeholders do, without deleting anything.

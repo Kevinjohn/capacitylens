@@ -118,6 +118,7 @@ const person = (id: string, accountId: string) => ({
   kind: "person",
   role: "Designer",
   employmentType: "permanent",
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
@@ -1518,7 +1519,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect((await state(app)).resources[0].color).toBe("#eb7272");
   });
 
-  it("repairs junk fields and a missing legacy halfDays array on POST", async () => {
+  it("repairs junk fields and missing legacy halfDays/engagement values on POST", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     // A hand-crafted request that bypasses the UI forms with every value-field wrong.
@@ -1537,6 +1538,7 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     const r = (await state(app)).resources[0] as Record<string, unknown>;
     expect(r.kind).toBe("person");
     expect(r.employmentType).toBe("permanent");
+    expect(r.engagement).toBe("studio");
     expect(r.workingHoursPerDay).toBe(8);
     expect(r.workingDays).toEqual([1, 2, 3, 4, 5]);
     expect(r.halfDays).toEqual([]);
@@ -1561,6 +1563,51 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     expect(a.hoursPerDay).toBe(0);
   });
 
+  it("sanitizes repeat-series identity on create and preserves membership on every edit shape", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    expect(
+      (
+        await post(app, "allocations", {
+          ...allocation("al-series", "a1", "r1", "t1"),
+          seriesId: "  weekly-series  ",
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
+    ).toBe("weekly-series");
+
+    expect(
+      (
+        await put(app, "allocations", "al-series", {
+          ...allocation("al-series", "a1", "r1", "t1"),
+          note: "Legacy full replacement",
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
+    ).toBe("weekly-series");
+
+    expect((await patch(app, "allocations", "al-series", { seriesId: "another-series" })).statusCode).toBe(200);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-series")?.seriesId,
+    ).toBe("weekly-series");
+
+    expect(
+      (
+        await post(app, "allocations", {
+          ...allocation("al-blank-series", "a1", "r1", "t1"),
+          seriesId: "   ",
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (await state(app)).allocations.find((row: Record<string, unknown>) => row.id === "al-blank-series"),
+    ).not.toHaveProperty("seriesId");
+  });
+
   it("drops a junk account schedulingMode on a direct write but keeps a valid one", async () => {
     const { app } = freshApp();
     // A hand-crafted account write with a junk schedulingMode the scheduler can't handle.
@@ -1576,6 +1623,23 @@ describe("value-level sanitization on direct writes (server is the integrity bou
     // A valid mode persists unchanged.
     await patch(app, "accounts", "a1", { schedulingMode: "blocks" });
     expect((await state(app)).accounts[0].schedulingMode).toBe("blocks");
+  });
+
+  it("defaults, repairs and persists account working-day selections", async () => {
+    const { app } = freshApp();
+    expect((await post(app, "accounts", { ...account("a1"), weekStartsOn: 0 })).statusCode).toBe(201);
+    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
+
+    expect((await patch(app, "accounts", "a1", { workingDays: [1, 3, 5] })).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
+
+    // A pre-v31 full-replacement client does not know this field. Omission preserves the
+    // configured selection instead of resetting it to the week-start default.
+    expect((await put(app, "accounts", "a1", account("a1"))).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].workingDays).toEqual([1, 3, 5]);
+
+    expect((await patch(app, "accounts", "a1", { workingDays: [1, 9] })).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
   });
 });
 
@@ -1745,12 +1809,14 @@ describe("account frozen fields (P1.14): language / weekStartsOn / timezone", ()
     expect((await state(app)).accounts[0]).toMatchObject(FROZEN);
   });
 
-  it("PATCH name → 200; disciplinesEnabled → 200; schedulingMode → 200 (mutable regression)", async () => {
+  it("PATCH mutable account preferences, including engagement grouping", async () => {
     const { app } = freshApp();
     await seedFrozen(app);
     expect((await patch(app, "accounts", "a1", { name: "New Name" })).statusCode).toBe(200);
     expect((await patch(app, "accounts", "a1", { disciplinesEnabled: true })).statusCode).toBe(200);
+    expect((await patch(app, "accounts", "a1", { groupResourcesByEngagement: false })).statusCode).toBe(200);
     expect((await patch(app, "accounts", "a1", { schedulingMode: "blocks" })).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].groupResourcesByEngagement).toBe(false);
   });
 
   it("a batch PUT changing a frozen field returns the same reloadable 409 as direct writes", async () => {
@@ -3012,6 +3078,23 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app);
     expect((await post(app, "resources", FIXTURE_RESOURCE)).statusCode).toBe(201);
     expectFixture((await state(app)).resources[0], stripTombstones(FIXTURE_RESOURCE));
+  });
+
+  it("person resource: Supplementary engagement round-trips independently of employment", async () => {
+    const { app } = freshApp();
+    await seedFixtureDeps(app);
+    const supplementary = {
+      ...person("supplementary-person", FIXTURE_ACCOUNT.id),
+      name: "Fixture Supplementary Person",
+      employmentType: "permanent" as const,
+      engagement: "supplementary" as const,
+    };
+
+    expect((await post(app, "resources", supplementary)).statusCode).toBe(201);
+    expect((await state(app)).resources[0]).toMatchObject({
+      employmentType: "permanent",
+      engagement: "supplementary",
+    });
   });
 
   it("external resource: kind + company name round-trip (no discipline/project binding)", async () => {

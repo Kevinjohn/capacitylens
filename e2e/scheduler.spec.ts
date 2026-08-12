@@ -49,7 +49,7 @@ async function expectMonthLabelsVerticallyCentred(page: Page) {
   return monthBox.height;
 }
 
-async function expectWideMonthLabelsCentredInVisibleSegments(page: Page) {
+async function expectWideMonthLabelsAlignedToVisibleStarts(page: Page) {
   const grid = await box(page.getByTestId("scheduler-grid"));
   const resourceHeader = await box(page.getByTestId("scheduler-resource-header"));
   const timelineLeft = resourceHeader.x + resourceHeader.width;
@@ -70,10 +70,7 @@ async function expectWideMonthLabelsCentredInVisibleSegments(page: Page) {
           visibleWidth: Math.max(0, visibleRight - visibleLeft),
           leftDelta: placementRect ? placementRect.left - visibleLeft : Number.POSITIVE_INFINITY,
           rightDelta: placementRect ? placementRect.right - visibleRight : Number.POSITIVE_INFINITY,
-          centreDelta:
-            labelRect && visibleRight > visibleLeft
-              ? labelRect.left + labelRect.width / 2 - (visibleLeft + visibleRight) / 2
-              : Number.POSITIVE_INFINITY,
+          labelLeftDelta: labelRect ? labelRect.left - visibleLeft : Number.POSITIVE_INFINITY,
         };
       }),
     { left: timelineLeft, right: timelineRight },
@@ -85,7 +82,7 @@ async function expectWideMonthLabelsCentredInVisibleSegments(page: Page) {
     expect(sample.label).toMatch(/^[A-Z][a-z]{2} \d{4}$/);
     expect(Math.abs(sample.leftDelta)).toBeLessThanOrEqual(1);
     expect(Math.abs(sample.rightDelta)).toBeLessThanOrEqual(1);
-    expect(Math.abs(sample.centreDelta)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sample.labelLeftDelta)).toBeLessThanOrEqual(1);
   }
 }
 
@@ -296,7 +293,7 @@ test.describe("Scheduler", () => {
     expect(await settledSchedulerLeftDate(page)).toContain("Mon");
   });
 
-  test("centres month labels across zoom and density settings", async ({ page }) => {
+  test("vertically centres month labels across zoom and density settings", async ({ page }) => {
     await openApp(page);
     await goToSeedWeek(page);
 
@@ -328,7 +325,7 @@ test.describe("Scheduler", () => {
     expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
   });
 
-  test("centres wide month labels over their visible days and keeps compact labels separate", async ({ page }) => {
+  test("aligns wide month labels to their first visible day and keeps compact labels separate", async ({ page }) => {
     await openApp(page);
     await goToSeedWeek(page);
     // Mon 29 Jun gives both June and July a meaningful visible segment at 1- and 2-week zoom.
@@ -336,7 +333,7 @@ test.describe("Scheduler", () => {
 
     for (const weeks of [1, 2] as const) {
       await setZoom(page, weeks);
-      await expectWideMonthLabelsCentredInVisibleSegments(page);
+      await expectWideMonthLabelsAlignedToVisibleStarts(page);
     }
 
     for (const weeks of [4, 6, 8] as const) {
@@ -348,7 +345,7 @@ test.describe("Scheduler", () => {
       document.documentElement.style.fontSize = "20px";
     });
     await setZoom(page, 2);
-    await expectWideMonthLabelsCentredInVisibleSegments(page);
+    await expectWideMonthLabelsAlignedToVisibleStarts(page);
   });
 
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
@@ -469,7 +466,7 @@ test.describe("Scheduler", () => {
     // Mark Wireframes completed + add a note -> ✓ prefix and • marker.
     await page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit allocation" });
-    await selectShadOption(dialog.getByLabel("Status"), { label: "Completed" });
+    await dialog.getByRole("radiogroup", { name: "Status" }).getByRole("radio", { name: "Completed" }).click();
     await dialog.getByLabel("Note").fill("Handed off to QA");
     await page.getByRole("button", { name: "Save" }).click();
 

@@ -1,6 +1,6 @@
 # US-SET-07 — Show external / 3rd parties
 
-**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/external.spec.ts` → "hidden by default: the seeded external is absent from the schedule and the Resources tab", "turning it on in Settings reveals the External section (with explainer) in the Resources tab and the band on the schedule", "the choice survives a reload (per-account pref)"
+**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/external.spec.ts` → "hidden by default: the seeded external is absent from the schedule and the Resources tab", "turning it on reveals the External section with help in Resources and the band on the schedule", "the choice survives a reload (per-account pref)"
 
 ## Goal
 
@@ -28,7 +28,7 @@ old URL now redirects to `/resources`.)
 3. Open **Settings** (sidebar). In the **External** section, find the **Show external resources**
    switch — it's **off**. Its question-mark action opens the fuller explainer.
 4. Switch it **on**.
-5. Return to **Resources**: the **External** section now appears (with the same explainer copy and an **Add external party** button), showing the seeded external _Kord Industries_.
+5. Return to **Resources**: the **External** section now appears with the same explainer behind its labelled question-mark action and an **Add external party** button, showing the seeded external _Kord Industries_.
 6. Return to **Schedule**: a neutral **External / 3rd party** band now appears at the very bottom with _Kord Industries_'s Visual Design bar (no hours, no utilisation chip).
 7. Switch it back **off** in Settings — the external disappears again everywhere; its data is intact.
 8. (Optional) Reload the page and re-pick **Wayne Enterprises**: the choice is remembered (it's stored on the company).
@@ -40,6 +40,6 @@ old URL now redirects to `/resources`.)
   labelled question-mark help modal rather than permanently on the page.
 - The switch defaults to **off** (`aria-checked="false"`) — externals are hidden out of the box.
 - With it **off**: no External band appears on the schedule, no external option appears in the assignee picker or the ⌘K command palette, and the Resources page hides its **External** section and **Add external party** button. The (now-empty) External band header does **not** render. A dataset that already contains externals **hides** them — it never errors.
-- With it **on**: the External band renders at the bottom of the schedule (single neutral colour, no utilisation / over-markers), and the **External** section appears under the Resources tab with explainer copy. The assignee picker labels an external **"<Company> (external)"**.
+- With it **on**: the External band renders at the bottom of the schedule (single neutral colour, no utilisation / over-markers), and the **External** section appears under the Resources tab with its explainer in a labelled question-mark help modal rather than permanently in the page flow. The assignee picker labels an external **"<Company> (external)"**.
 - Editing an allocation that already targets an external keeps that external selectable in the assignee picker even while the pref is off, so editing never silently reassigns the work.
 - The choice survives a reload (stored **per-account** as `externalEnabled` on the Account, absent = off) and is carried in Export JSON like other account settings.

@@ -158,6 +158,9 @@ export const ResourceLane = memo(function ResourceLane({
     const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId;
     const startX = e.clientX;
     const start = indexAt(e.clientX);
+    // Creation is gated at the gesture boundary, not merely by hiding the hover hint. A span may
+    // cross later blocked dates, so only the pointer-down date is checked.
+    if (dayStates[start]?.creationBlocked) return;
     setDraw({ a: start, b: start });
     const onMove = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return;
@@ -222,6 +225,10 @@ export const ResourceLane = memo(function ResourceLane({
         if (!onDraw) return; // Viewer (P1.12): no create → no hover "+" hint to track.
         if (e.pointerType !== "mouse") return; // touch/pen have no hover state
         const i = indexAt(e.clientX);
+        if (dayStates[i]?.creationBlocked) {
+          setHoverDay(null);
+          return;
+        }
         setHoverDay((prev) => (prev === i ? prev : i));
       }}
       onPointerLeave={() => setHoverDay(null)}

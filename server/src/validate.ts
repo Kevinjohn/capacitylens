@@ -151,6 +151,7 @@ export function sanitizeWrite(
     );
   }
   if (table === "accounts") {
+    const workingDaysRequested = Object.hasOwn(copy, "workingDays");
     // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
     // snapToPresetColor — the SAME mapper the client uses and the one-time
     // snap-legacy-account-colors migration ran), not a fixed fallback purple. Before this, ANY
@@ -166,6 +167,11 @@ export function sanitizeWrite(
       delete copy.schedulingMode;
     }
     sanitizeAccount(copy);
+    // A full PUT from a pre-v31 client cannot express this field. Preserve the stored selection
+    // when it was omitted, while still repairing an explicitly malformed direct write above.
+    if (!workingDaysRequested && existing?.workingDays !== undefined) {
+      copy.workingDays = existing.workingDays;
+    }
     // Frozen account values are write-once, but old/API-created rows may legitimately have no
     // value yet. Preserve an existing value when a PUT omits it or sanitisation drops malformed
     // input; the route-level guard then rejects only a different valid value. This makes malformed
@@ -215,6 +221,13 @@ export function sanitizeWrite(
       else delete cleaned.archivedAt;
       if (typeof existing?.deletedAt === "string") cleaned.deletedAt = existing.deletedAt;
       else delete cleaned.deletedAt;
+    }
+    // Repeat-series membership is assigned only when an allocation is created. Generic PUT/PATCH
+    // edits may omit the hidden field (legacy clients) or attempt to change it (crafted requests),
+    // but neither can unlink a member, link a one-off or move an occurrence between series.
+    if (table === "allocations" && existing) {
+      if (typeof existing.seriesId === "string") cleaned.seriesId = existing.seriesId;
+      else delete cleaned.seriesId;
     }
     // P1.6 field-confidentiality PINS (note-erasure guard + private-name guard): same PIN mechanism
     // as the tombstones above, but the WHICH-fields-are-gated knowledge is single-sourced in

@@ -2,6 +2,7 @@ import type {
   AllocationStatus,
   EmploymentType,
   Resource,
+  ResourceEngagement,
   ResourceKind,
   TimeOffType,
 } from "@capacitylens/shared/types/entities";
@@ -38,6 +39,13 @@ export function employmentTypeLabels(): Record<EmploymentType, string> {
     permanent: m.enum_employment_type_permanent(),
     freelancer: m.enum_employment_type_freelancer(),
     contractor: m.enum_employment_type_contractor(),
+  };
+}
+
+export function resourceEngagementLabels(): Record<ResourceEngagement, string> {
+  return {
+    studio: m.enum_resource_engagement_studio(),
+    supplementary: m.enum_resource_engagement_supplementary(),
   };
 }
 
@@ -85,6 +93,9 @@ export function allocationStatusOptions(): LabelOption[] {
 }
 export function employmentTypeOptions(): LabelOption[] {
   return toOptions(employmentTypeLabels());
+}
+export function resourceEngagementOptions(): LabelOption[] {
+  return toOptions(resourceEngagementLabels());
 }
 export function resourceKindOptions(): LabelOption[] {
   return toOptions(resourceKindLabels());

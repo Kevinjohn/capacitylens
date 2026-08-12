@@ -53,8 +53,8 @@ off that resource record.
 1. Click **Add resource**. The "Add resource" dialog opens (locked to a person — there is no Type switcher; placeholders have their own **Add placeholder** button).
 2. Fill **Name** = `Dana Lee`, **Role** = `Motion Designer`.
 3. Choose **Discipline** = _Design_.
-4. Leave **Employment** = _Permanent_; set **Working hours / day** = `8`.
-5. In **Working days**, ensure Mon–Fri are selected (toggle Sat/Sun off if on).
+4. Leave **Engagement** = _Studio_.
+5. In **Working days**, ensure Mon–Fri are **Full day** and Sat/Sun are **Not working**.
 6. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
@@ -64,4 +64,4 @@ off that resource record.
 - ✅ Going to **Schedule** shows a _Dana Lee_ row under the **Design** group.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline error
   ("Name is required for a person.") associated with the Name field (`aria-invalid`).
-- ✅ Saving with **Working hours / day** = `0` is rejected ("must be greater than 0").
+- ✅ The saved resource uses the fixed **8-hour** full-day capacity.

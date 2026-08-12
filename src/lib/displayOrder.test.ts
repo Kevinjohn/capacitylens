@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { byName, compareDisplayNames, favouriteDisplayNameComparator } from "./displayOrder";
+import {
+  byName,
+  compareDisplayNames,
+  engagementFavouriteDisplayNameComparator,
+  favouriteDisplayNameComparator,
+} from "./displayOrder";
 
 describe("display ordering", () => {
   it("pins English alphabetical order instead of inheriting the host locale", () => {
@@ -47,5 +52,18 @@ describe("display ordering", () => {
       "normal-a",
       "normal-b",
     ]);
+  });
+
+  it("sorts Studio before Supplementary and favourites first within each engagement partition", () => {
+    const entries = [
+      { id: "supp-favourite", name: "Alpha", engagement: "supplementary" as const, isFavourite: true },
+      { id: "studio-normal", name: "Zulu", engagement: "studio" as const },
+      { id: "studio-favourite", name: "Beta", engagement: "studio" as const, isFavourite: true },
+      { id: "supp-normal", name: "Beta", engagement: "supplementary" as const },
+    ];
+
+    expect(
+      [...entries].sort(engagementFavouriteDisplayNameComparator((entry) => entry.name)).map((entry) => entry.id),
+    ).toEqual(["studio-favourite", "studio-normal", "supp-favourite", "supp-normal"]);
   });
 });

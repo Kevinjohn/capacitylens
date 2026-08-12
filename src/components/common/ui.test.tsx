@@ -23,6 +23,7 @@ import { Toggle } from "../ui/toggle";
 import { EmptyDescription } from "../ui/empty";
 import { Alert, AlertDescription } from "../ui/alert";
 import { FieldError } from "../ui/field";
+import { Item } from "../ui/item";
 import { Switch } from "../ui/switch";
 import { useStore } from "../../store/useStore";
 import { colorName, SWATCHES } from "../../lib/palette";
@@ -165,6 +166,21 @@ describe("Alert", () => {
 
     expect(screen.getByRole("alert")).toHaveClass("*:data-[slot=alert-description]:text-destructive");
     expect(screen.getByRole("alert")).not.toHaveClass("*:data-[slot=alert-description]:text-destructive/90");
+  });
+});
+
+describe("Item", () => {
+  it("keeps fake-table rows compact without changing the default item density", () => {
+    render(
+      <>
+        <Item>Default row</Item>
+        <Item size="sm">Compact row</Item>
+      </>,
+    );
+
+    expect(screen.getByText("Default row")).toHaveClass("p-4");
+    expect(screen.getByText("Compact row")).toHaveClass("px-4", "py-1");
+    expect(screen.getByText("Compact row")).not.toHaveClass("py-3");
   });
 });
 
@@ -671,6 +687,17 @@ describe("TextField", () => {
     render(<TextField label="Search" value="" onChange={vi.fn()} placeholder="Type here..." />);
     expect(screen.getByPlaceholderText("Type here...")).toBeInTheDocument();
   });
+
+  it("opts into a responsive label-control row without changing the default layout", () => {
+    const { rerender } = render(<TextField label="Name" value="" onChange={vi.fn()} />);
+    expect(screen.getByLabelText("Name").closest('[data-slot="field"]')).not.toHaveAttribute("data-product-layout");
+
+    rerender(<TextField label="Name" value="" onChange={vi.fn()} layout="label-control" />);
+    expect(screen.getByLabelText("Name").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
+  });
 });
 
 // ─── TextAreaField ─────────────────────────────────────────────────────────
@@ -722,6 +749,13 @@ describe("DateField", () => {
     });
     expect(onChange).toHaveBeenCalledWith("2026-07-01");
   });
+
+  it("forwards optional native date boundaries", () => {
+    render(<DateField label="Repeat until" value="" onChange={vi.fn()} min="2026-06-01" max="2026-12-01" required />);
+    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("min", "2026-06-01");
+    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("max", "2026-12-01");
+    expect(screen.getByLabelText("Repeat until")).toHaveAttribute("aria-required", "true");
+  });
 });
 
 // ─── SelectField ───────────────────────────────────────────────────────────
@@ -751,6 +785,35 @@ describe("SelectField", () => {
     fireEvent.keyDown(select, { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Option B" }));
     expect(onChange).toHaveBeenCalledWith("b");
+  });
+
+  it("opts into a responsive label-control row without changing the default layout", () => {
+    const { rerender } = render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />);
+    expect(screen.getByLabelText("Pick one").closest('[data-slot="field"]')).not.toHaveAttribute("data-product-layout");
+
+    rerender(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} layout="label-control" />);
+    expect(screen.getByLabelText("Pick one").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
+  });
+
+  it("renders an optional structural separator without creating another option", () => {
+    const { baseElement } = render(
+      <SelectField
+        label="Grouped choices"
+        value="internal"
+        onChange={vi.fn()}
+        options={[
+          { value: "internal", label: "Internal" },
+          { value: "client", label: "Client", separatorBefore: true },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Grouped choices"), { key: "ArrowDown" });
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(baseElement.querySelector('[data-slot="select-separator"]')).toHaveAttribute("aria-hidden", "true");
   });
 
   it("round-trips empty and sentinel-shaped option values without collision", () => {
@@ -991,15 +1054,20 @@ describe("WorkingDayPicker", () => {
       />,
     );
 
-  it("renders a labelled Monday–Sunday row with three choices per day", () => {
+  it("renders a right-aligned Monday–Sunday grid with the three choice headings written once", () => {
     renderPicker();
     expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Availability" })).toBeInTheDocument();
+    for (const option of ["Full day", "Half day", "Not working"]) {
+      expect(screen.getByRole("columnheader", { name: option })).toBeVisible();
+    }
+    const table = screen.getByRole("table");
+    expect(table.parentElement?.parentElement).toHaveClass("justify-end");
+    expect(screen.getAllByRole("radio")).toHaveLength(21);
     for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
       const row = screen.getByRole("row", { name: new RegExp(day) });
-      expect(row).toHaveTextContent("Full day");
-      expect(row).toHaveTextContent("Half day");
-      expect(row).toHaveTextContent("Not working");
+      expect(within(row).getByRole("radio", { name: `${day} Full day` })).toHaveAttribute("type", "radio");
+      expect(within(row).getByRole("radio", { name: `${day} Half day` })).toHaveAttribute("type", "radio");
+      expect(within(row).getByRole("radio", { name: `${day} Not working` })).toHaveAttribute("type", "radio");
     }
   });
 
@@ -1008,16 +1076,18 @@ describe("WorkingDayPicker", () => {
     const monday = screen.getByRole("row", { name: /Monday/ });
     const wednesday = screen.getByRole("row", { name: /Wednesday/ });
     const saturday = screen.getByRole("row", { name: /Saturday/ });
-    expect(within(monday).getByRole("radio", { name: "Full day" })).toHaveAttribute("aria-checked", "true");
-    expect(within(wednesday).getByRole("radio", { name: "Half day" })).toHaveAttribute("aria-checked", "true");
-    expect(within(saturday).getByRole("radio", { name: "Not working" })).toHaveAttribute("aria-checked", "true");
+    expect(within(monday).getByRole("radio", { name: "Monday Full day" })).toBeChecked();
+    expect(within(wednesday).getByRole("radio", { name: "Wednesday Half day" })).toBeChecked();
+    expect(within(saturday).getByRole("radio", { name: "Saturday Not working" })).toBeChecked();
   });
 
   it("moves a weekday between mutually exclusive choices", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderPicker(onChange);
-    await user.click(within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Half day" }));
+    await user.click(
+      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Half day" }),
+    );
     expect(onChange).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6], [3, 6]);
   });
 

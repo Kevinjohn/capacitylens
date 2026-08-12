@@ -38,7 +38,7 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(page.getByRole("heading", { name: "Resources", exact: true })).toBeVisible();
   });
 
-  test("turning it on in Settings reveals the External section (with explainer) in the Resources tab and the band on the schedule", async ({
+  test("turning it on reveals the External section with help in Resources and the band on the schedule", async ({
     page,
   }) => {
     await openApp(page);
@@ -50,11 +50,17 @@ test.describe("External / 3rd parties (per-account pref, default off)", () => {
     await expect(helpDialog.getByText(/outside companies you hand work to but/i)).toBeVisible();
     await helpDialog.getByRole("button", { name: "Close" }).click();
 
-    // Resources page now shows the External section + its explainer + the seeded external.
+    // Resources keeps the same explainer behind a labelled help action instead of in the page flow.
     await page.getByRole("link", { name: "Resources" }).click();
     await expect(page.getByRole("heading", { name: "External", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add external party" })).toBeVisible();
-    await expect(page.getByText(/never count toward your team’s capacity or utilisation/i)).toBeVisible();
+    await expect(page.getByText(/never count toward your team’s capacity or utilisation/i)).toHaveCount(0);
+    await page.getByRole("button", { name: "About External" }).click();
+    const resourcesHelpDialog = page.getByRole("dialog", { name: "External" });
+    await expect(
+      resourcesHelpDialog.getByText(/never count toward your team’s capacity or utilisation/i),
+    ).toBeVisible();
+    await resourcesHelpDialog.getByRole("button", { name: "Close" }).click();
     await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toBeVisible();
     // Externals are NOT mixed into the people rows.
     await expect(page.getByTestId("resource-row").filter({ hasText: "Kord Industries" })).toHaveCount(0);

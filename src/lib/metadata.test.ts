@@ -5,6 +5,8 @@ import {
   allocationStatusOptions,
   employmentTypeLabels,
   employmentTypeOptions,
+  resourceEngagementLabels,
+  resourceEngagementOptions,
   resourceKindLabels,
   resourceKindOptions,
   timeOffTypeLabels,
@@ -22,6 +24,7 @@ const makeResource = (over: Partial<Resource> = {}): Resource => ({
   kind: "person",
   role: "Developer",
   employmentType: "permanent",
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
@@ -35,6 +38,15 @@ describe("employmentTypeLabels", () => {
       permanent: m.enum_employment_type_permanent(),
       freelancer: m.enum_employment_type_freelancer(),
       contractor: m.enum_employment_type_contractor(),
+    });
+  });
+});
+
+describe("resourceEngagementLabels", () => {
+  it("maps every ResourceEngagement to its resolved message", () => {
+    expect(resourceEngagementLabels()).toEqual({
+      studio: m.enum_resource_engagement_studio(),
+      supplementary: m.enum_resource_engagement_supplementary(),
     });
   });
 });
@@ -80,9 +92,12 @@ describe("toOptions-derived option lists", () => {
     ]);
   });
 
-  it("employmentTypeOptions / allocationStatusOptions / timeOffTypeOptions each round-trip their label map", () => {
+  it("enum option lists each round-trip their label map", () => {
     for (const [value, label] of Object.entries(employmentTypeLabels())) {
       expect(employmentTypeOptions()).toContainEqual({ value, label });
+    }
+    for (const [value, label] of Object.entries(resourceEngagementLabels())) {
+      expect(resourceEngagementOptions()).toContainEqual({ value, label });
     }
     for (const [value, label] of Object.entries(allocationStatusLabels())) {
       expect(allocationStatusOptions()).toContainEqual({ value, label });

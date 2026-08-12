@@ -10,8 +10,30 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.40.0-alpha.1] — 2026-08-12
+
+CapacityLens now gives teams finer control over working patterns, resource engagement and recurring
+allocations, while making the schedule and its management forms faster to scan and safer to use.
+
 ### Added
 
+- **Repeat creation now ends on an explicit date.** Choosing a cadence requires a **Repeat until**
+  date, includes occurrences that start on that cutoff, and previews the complete linked batch.
+  The cutoff must allow at least one repeat and can extend up to six calendar months (#248).
+- **New repeat batches can be removed from any occurrence forward.** Repeated allocations now retain
+  a hidden series identity, so Delete can remove only the selected occurrence or it and every future
+  occurrence in one atomic, undoable action. Existing repeat batches remain independent. Portable
+  exports advance to schema v15 and self-hosted databases to schema v32 (#249).
+- **Companies can define global working days.** Settings exposes all seven weekdays in the
+  configured week order, with the first five selected by default. Schedule hover, click and draw
+  creation starts are blocked on globally non-working, personally non-working and time-off dates,
+  while allowed multi-day spans may cross them. Portable exports advance to schema v14 and
+  self-hosted databases to schema v31 (#252).
+- **Resources can now be grouped by Studio and Supplementary engagement.** A new company-wide,
+  default-on setting separates the two Resources sections and orders Studio before Supplementary
+  inside every schedule discipline, with favourites first and alphabetical within each partition.
+  Turning it off restores one favourites-first People list and schedule order. Portable exports
+  advance to schema v13 and self-hosted databases to schema v30 (#244).
 - **Working patterns now support full days, half days and non-working days.** Resource create and
   edit forms show one explicit choice for every Monday–Sunday row, and the schedule treats half
   days as four hours of capacity while preserving existing full-day and non-working selections
@@ -23,6 +45,45 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Linked repeat occurrences no longer offer Duplicate.** Unlinked allocations retain the action,
+  including one-offs that use Cross-project activities (#250).
+- **Allocation forms make work scope explicit.** The Project picker separates Internal and Any
+  Project work from client projects, sorts projects by client then project and activities
+  alphabetically, replaces Status with a three-way segmented choice, and uses a single-line Note
+  field while preserving untouched historical multiline notes (#247).
+- **Resource forms are shorter and easier to scan.** Name, Role, Discipline, Engagement and Bound
+  project use compact 25/75 label-and-control rows at normal dialog widths, stack on narrow screens,
+  and leave the Working days grid full width (#256).
+- **Resource forms now classify people by Engagement.** People can be marked Studio or
+  Supplementary independently of discipline and retained employment data. New and existing
+  resources default to Studio, placeholders remain Studio, and editing a person preserves their
+  hidden employment value. Portable exports advance to schema v12 and self-hosted databases to
+  schema v29 (#243).
+- **Resource availability now uses a fixed 8/4/0-hour working pattern.** Resource forms no longer
+  show a separate hours-per-day field, every form save records an eight-hour full day, and roster
+  rows omit the redundant hours text. Existing custom values remain stored for compatibility until
+  that resource is next edited, but no longer alter the fixed capacity calculation (#241).
+- **Working-day choices are now a compact radio grid.** Resource forms show Full day, Half day and
+  Not working once as column headings, with one radio per weekday and the grid aligned to the right
+  (#240).
+- **Wide schedule month labels now begin above their first visible day.** One- and two-week views
+  left-align each month and year within its visible segment instead of centring it (#253).
+- **External help no longer occupies permanent space on Resources.** The External section now keeps
+  its existing explainer behind the same labelled question-mark modal used in Settings (#242).
+- **Management and Settings lists are denser and easier to scan.** Resources, Disciplines,
+  Clients, Projects, Activities, Time off and table-like Settings rows now use compact vertical
+  spacing (#246).
+- **Schedule filters now follow the app's planning order.** Disciplines mirror the schedule grid;
+  Internal precedes alphabetically ordered clients and projects; and activities are alphabetical
+  within their existing Internal and Cross-project groups (#254).
+- **Project client choices now put internal work first.** The project form pins Internal above a
+  non-selectable divider, followed by active clients in alphabetical order (#239).
+- **Activity kind choices now follow the page's work hierarchy.** The Activity form presents
+  Internal, Cross-project and Project-specific in the same order used by the Activities page,
+  while keeping Project-specific selected by default (#245).
+- **Allocation hover cards keep the schedule clear.** The always-repeated drag, resize and
+  reassign instructions no longer occupy a visible footer, while the retained assistive label
+  continues to provide the appropriate interaction guidance to screen-reader users (#251).
 - **Settings now keeps controls concise and explanations on demand.** Every section has a
   question-mark help modal; Device data, Archived & deleted, and Import & export start collapsed;
   and company/calendar choices now appear in one compact read-only summary at the bottom (#213).
@@ -36,8 +97,8 @@ new features and **patch** versions carry fixes.
   The display-only ordering keeps resource sections separate and leaves schedule grouping and stored
   data order unchanged (#204).
 - **Month labels now follow the days they describe in wide schedule views.** At one- and two-week
-  zoom, each month and year is centred over the visible part of that month; compact zooms keep the
-  existing non-overlapping sticky label (#219).
+  zoom, each month and year stays with the visible part of that month; compact zooms keep the existing
+  non-overlapping sticky label (#219).
 - **Schedule filters are easier to find without crowding the page title.** The Show/Hide Filters
   button now sits at the right of the toolbar after Undo/Redo, and the expanded filter controls are
   centred while retaining their narrow-screen wrapping. The first-run checklist stays below the
@@ -51,6 +112,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- **Settings card titles now align with their help actions.** Every section heading is vertically
+  centred beside its question-mark button, including closed disclosure cards (#255).
 - **Month and year labels are vertically centred in the schedule header.** Labels retain their
   sticky positioning and truncation while sitting centrally within the month tier (#218).
 - **Selected segmented controls now have an even outline on every side.** Choosing a middle or last
@@ -3184,7 +3247,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.4-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.0-alpha.1...HEAD
+[0.40.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.4-alpha.1...v0.40.0-alpha.1
 [0.39.4-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.3-alpha.1...v0.39.4-alpha.1
 [0.39.3-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.2-alpha.1...v0.39.3-alpha.1
 [0.39.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.39.1-alpha.1...v0.39.2-alpha.1

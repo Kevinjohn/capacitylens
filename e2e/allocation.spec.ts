@@ -27,6 +27,45 @@ test.describe("Allocation editor", () => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
 
+  test("separates allocation scopes, sorts choices and uses compact status and note controls", async ({ page }) => {
+    await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
+    const dialog = page.getByRole("dialog", { name: "New allocation" });
+    const project = dialog.getByLabel("Project", { exact: true });
+    await expect(project).toHaveText("Internal");
+
+    await project.click();
+    await expect(page.getByRole("option")).toHaveText([
+      "Internal",
+      "Any Project",
+      "LexCorp / Metropolis Rebrand",
+      "Queen Consolidated / Project Watchtower",
+    ]);
+    await expect(page.locator('[data-slot="select-separator"]')).toHaveCount(1);
+    await page.getByRole("option", { name: "Internal", exact: true }).click();
+
+    const activity = dialog.getByRole("combobox", { name: "Activity", exact: true });
+    await activity.click();
+    await expect(page.getByRole("option")).toHaveText(["Admin / Internal"]);
+    await page.keyboard.press("Escape");
+
+    await project.click();
+    await page.getByRole("option", { name: "Any Project", exact: true }).click();
+    await activity.click();
+    await expect(page.getByRole("option")).toHaveText(["Design", "Workshop"]);
+    await page.keyboard.press("Escape");
+
+    await selectShadOption(project, "p-acme");
+    await activity.click();
+    await expect(page.getByRole("option")).toHaveText(["CMS Review", "Visual Design", "Wireframes"]);
+    await page.keyboard.press("Escape");
+
+    const status = dialog.getByRole("radiogroup", { name: "Status" });
+    await expect(status.getByRole("radio")).toHaveText(["Confirmed", "Tentative", "Completed"]);
+    await status.getByRole("radio", { name: "Tentative" }).click();
+    await expect(status.getByRole("radio", { name: "Tentative" })).toBeChecked();
+    await expect(dialog.getByLabel("Note")).toHaveJSProperty("tagName", "INPUT");
+  });
+
   test("creates and undoes a weekly repeat batch", async ({ page }) => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
@@ -36,7 +75,20 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-10");
     await dialog.getByLabel(/^End/).fill("2026-06-10");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
-    await expect(dialog).toContainText("Creates 14 independent allocations. Last start: Wed 9th Sep.");
+    const repeatUntil = dialog.getByLabel("Repeat until");
+    await expect(repeatUntil).toHaveValue("");
+    await expect(repeatUntil).toHaveAttribute("min", "2026-06-10");
+    await expect(repeatUntil).toHaveAttribute("max", "2026-12-10");
+    await repeatUntil.fill("2026-09-10");
+    await expect(dialog).toContainText("Creates 14 linked allocations through Thu 10th Sep. Last start: Wed 9th Sep.");
+    const dialogBox = await dialog.boundingBox();
+    const viewport = page.viewportSize();
+    expect(dialogBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(dialogBox!.y).toBeGreaterThanOrEqual(0);
+    expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(viewport!.height);
+    await dialog.getByRole("button", { name: "Save" }).scrollIntoViewIfNeeded();
+    await expect(dialog.getByRole("button", { name: "Save" })).toBeInViewport();
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(20);
     await page.keyboard.press("ControlOrMeta+z");
@@ -51,12 +103,15 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "every-three-weeks");
-    await expect(dialog).toContainText("Creates 5 independent allocations. Last start: Sat 5th Sep.");
+    await dialog.getByLabel("Repeat until").fill("2026-09-13");
+    await expect(dialog).toContainText("Creates 5 linked allocations through Sun 13th Sep. Last start: Sat 5th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(11);
   });
 
-  test("creates monthly batches on the 13th and across February, then edits one independently", async ({ page }) => {
+  test("edits one monthly occurrence, deletes its series tail and restores the tail with one Undo", async ({
+    page,
+  }) => {
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     let dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
@@ -64,7 +119,8 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
-    await expect(dialog).toContainText("Creates 4 independent allocations. Last start: Sun 13th Sep.");
+    await dialog.getByLabel("Repeat until").fill("2026-09-13");
+    await expect(dialog).toContainText("Creates 4 linked allocations through Sun 13th Sep. Last start: Sun 13th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
 
@@ -78,9 +134,18 @@ test.describe("Allocation editor", () => {
 
     await julyOccurrence.click();
     editor = page.getByRole("dialog", { name: "Edit allocation" });
+    await expect(editor.getByRole("button", { name: "Duplicate" })).toHaveCount(0);
     await editor.getByRole("button", { name: "Delete" }).click();
-    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByTestId("allocation-bar")).toHaveCount(9);
+    const repeatedDelete = page.getByRole("alertdialog", { name: "Delete repeated allocation?" });
+    await expect(repeatedDelete.getByRole("button", { name: "Delete this occurrence" })).toBeVisible();
+    await repeatedDelete.getByRole("button", { name: "Delete this and future occurrences" }).click();
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(7);
+    await expect(page.locator('[data-testid="allocation-bar"][aria-label*="13 Jun to 13 Jun"]')).toBeVisible();
+    await expect(julyOccurrence).toHaveCount(0);
+
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
+    await expect(julyOccurrence).toBeVisible();
 
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     dialog = page.getByRole("dialog", { name: "New allocation" });
@@ -89,7 +154,8 @@ test.describe("Allocation editor", () => {
     await dialog.getByLabel("Start Date").fill("2027-01-31");
     await dialog.getByLabel(/^End/).fill("2027-01-31");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
-    await expect(dialog).toContainText("Creates 4 independent allocations. Last start: Fri 30th Apr.");
+    await dialog.getByLabel("Repeat until").fill("2027-04-30");
+    await expect(dialog).toContainText("Creates 4 linked allocations through Fri 30th Apr. Last start: Fri 30th Apr.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);
@@ -192,16 +258,13 @@ test.describe("Allocation editor", () => {
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
     await expect(project).toHaveText(/Project Watchtower/); // bound project preselected
-    // "Locked" = restricted to the bound project + the project-less option, but the select
-    // stays ENABLED so a placeholder can still take project-less (internal/cross-project) activities. A
-    // non-bound project ("Metropolis Rebrand") is not offered.
+    // "Locked" = restricted to the bound project + both project-less scopes, but the select stays
+    // ENABLED so a placeholder can still take Internal or Any Project work. A non-bound project
+    // ("Metropolis Rebrand") is not offered.
     await expect(project).toBeEnabled();
     await project.click();
-    await expect(
-      page.getByRole("option", {
-        name: "No project (internal / cross-project)",
-      }),
-    ).toBeVisible();
+    await expect(page.getByRole("option", { name: "Internal", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Any Project", exact: true })).toBeVisible();
     await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
   });
 

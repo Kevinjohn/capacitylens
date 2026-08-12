@@ -335,7 +335,6 @@ export const AllocationBar = memo(function AllocationBar({
           {bar.allocation.note && (
             <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>
           )}
-          <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">{popoverFooter}</div>
         </TooltipContent>
       )}
     </TooltipRoot>

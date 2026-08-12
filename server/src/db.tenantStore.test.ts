@@ -82,6 +82,7 @@ const person = (id: string, accountId: string, disciplineId?: string) => ({
   role: "Designer",
   disciplineId,
   employmentType: "permanent",
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   // json column — must round-trip through the codec.
   workingDays: [1, 2, 3, 4, 5],

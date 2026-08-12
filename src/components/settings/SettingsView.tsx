@@ -27,10 +27,14 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useCanEdit } from "../../auth/permissionContext";
 import { Button } from "../ui/button";
-import { timeZoneFor, weekStartsOnFor } from "../../store/selectors";
+import { accountWorkingDaysFor, timeZoneFor, weekStartsOnFor } from "../../store/selectors";
 import { useOfflineState } from "../../data/useOfflineState";
 import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "../../data/persistenceDiagnostics";
 import { SettingsSection } from "./SettingsSection";
+import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { weekdayLabel } from "../../lib/weekdays";
+import { Checkbox } from "../ui/checkbox";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
 
 // Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
 // the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
@@ -120,8 +124,11 @@ export function SettingsView() {
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? "hourly";
   const weekStartsOn = weekStartsOnFor(data, activeAccountId);
+  const workingDays = accountWorkingDaysFor(data, activeAccountId);
+  const workingDayOrder = orderedWeekdays(weekStartsOn);
   const timezone = timeZoneFor(data, activeAccountId);
   const disciplinesEnabled: boolean = activeAccount?.disciplinesEnabled ?? true;
+  const groupResourcesByEngagement: boolean = activeAccount?.groupResourcesByEngagement ?? true;
   // Per-account view prefs (default OFF — absent reads as hidden), mirroring disciplinesEnabled
   // above. activeAccount is guaranteed non-null past the `if (!activeAccount) return null` below.
   const placeholdersEnabled: boolean = activeAccount?.placeholdersEnabled ?? false;
@@ -263,12 +270,54 @@ export function SettingsView() {
           />
         </SettingsSection>
 
+        <SettingsSection title={m.settings_working_days_heading()} help={m.settings_working_days_intro()}>
+          <FieldSet>
+            <FieldLegend variant="label" className="sr-only">
+              {m.settings_working_days_legend()}
+            </FieldLegend>
+            <FieldGroup data-slot="checkbox-group" className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
+              {workingDayOrder.map((day) => {
+                const id = `account-working-day-${day}`;
+                const checked = workingDays.includes(day);
+                return (
+                  <Field key={day} orientation="horizontal" data-disabled={!canEdit || undefined}>
+                    <Checkbox
+                      id={id}
+                      checked={checked}
+                      disabled={!canEdit}
+                      onCheckedChange={() =>
+                        updateSetting({
+                          workingDays: checked
+                            ? workingDays.filter((candidate) => candidate !== day)
+                            : [...workingDays, day].sort((a, b) => a - b),
+                        })
+                      }
+                    />
+                    <FieldLabel htmlFor={id}>{weekdayLabel(day)}</FieldLabel>
+                  </Field>
+                );
+              })}
+            </FieldGroup>
+          </FieldSet>
+        </SettingsSection>
+
         <SettingsSection title={m.settings_disciplines_heading()} help={m.settings_disciplines_intro()}>
           <div>
             <ToggleRow
               label={m.settings_disciplines_toggle()}
               on={disciplinesEnabled}
               onToggle={() => updateSetting({ disciplinesEnabled: !disciplinesEnabled })}
+              disabled={!canEdit}
+            />
+          </div>
+        </SettingsSection>
+
+        <SettingsSection title={m.settings_engagement_grouping_heading()} help={m.settings_engagement_grouping_intro()}>
+          <div>
+            <ToggleRow
+              label={m.settings_engagement_grouping_toggle()}
+              on={groupResourcesByEngagement}
+              onToggle={() => updateSetting({ groupResourcesByEngagement: !groupResourcesByEngagement })}
               disabled={!canEdit}
             />
           </div>
@@ -322,7 +371,7 @@ export function SettingsView() {
           title={m.settings_external_heading()}
           help={
             <>
-              {/* Explainer copy (editable, shared with the Resources-tab External section — see
+              {/* Explainer copy (editable, shared with the Resources-tab External help modal — see
               lib/externalCopy.ts). Set per company; off by default. */}
               <span className="block">{externalExplainer()}</span>
               <span className="mt-2 block">{m.settings_external_intro()}</span>

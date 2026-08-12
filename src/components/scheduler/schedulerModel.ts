@@ -25,8 +25,14 @@ import type {
   ISODate,
   Resource,
   TimeOff,
+  Weekday,
 } from "@capacitylens/shared/types/entities";
-import { displayNameComparator, favouriteDisplayNameComparator } from "../../lib/displayOrder";
+import { isCreationStartBlocked } from "./creationAvailability";
+import {
+  displayNameComparator,
+  engagementFavouriteDisplayNameComparator,
+  favouriteDisplayNameComparator,
+} from "../../lib/displayOrder";
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
@@ -67,6 +73,8 @@ function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: 
 const NO_ALLOCATIONS: Allocation[] = [];
 const NO_TIME_OFF: TimeOff[] = [];
 const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
+const byEngagementFavouriteResourceDisplayName =
+  engagementFavouriteDisplayNameComparator<Resource>(resourceDisplayName);
 const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
 
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
@@ -111,6 +119,7 @@ function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>
 export interface DayState {
   over: boolean;
   unavailable: boolean;
+  creationBlocked?: boolean;
 }
 
 /** A positioned time-off block. */
@@ -187,6 +196,10 @@ export interface SchedulerModelOptions {
     // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
     // when re-enabled. See selectors.ts / DECISIONS.md.
     externalEnabled: boolean;
+    /** Account-wide hard boundary for the start of a schedule creation gesture. */
+    accountWorkingDays?: Weekday[];
+    /** Default-on company preference: Studio then Supplementary, favourites first within each. */
+    groupResourcesByEngagement?: boolean;
     blocksMode?: boolean;
     // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
     // restores the normal project/resource colour path without changing persisted entity colours.
@@ -259,6 +272,8 @@ export function buildSchedulerModel({
     disciplinesEnabled,
     placeholdersEnabled,
     externalEnabled,
+    accountWorkingDays = [1, 2, 3, 4, 5],
+    groupResourcesByEngagement = true,
     blocksMode = false,
     internalColourMode = "grey",
     showInternalProjects = true,
@@ -431,14 +446,19 @@ export function buildSchedulerModel({
       title: group.external ? "External / 3rd party" : (group.discipline?.name ?? "No discipline"),
       color: group.external ? NEUTRAL_COLOR : group.discipline?.color,
       external: !!group.external,
-      // Keep discipline/external grouping intact while putting favourites first alphabetically.
-      // Placeholders remain after all people and have no favourite affordance.
+      // Keep discipline/external grouping intact. People are Studio then Supplementary when the
+      // default-on account preference is enabled, with favourites first alphabetically inside each
+      // partition. Placeholders remain after all people and have no favourite affordance.
       rows: group.resources
         .filter(resourceVisible)
         .sort(
           (a, b) =>
             Number(a.kind === "placeholder") - Number(b.kind === "placeholder") ||
-            (a.kind === "placeholder" ? byResourceDisplayName(a, b) : byFavouriteResourceDisplayName(a, b)),
+            (a.kind === "placeholder"
+              ? byResourceDisplayName(a, b)
+              : groupResourcesByEngagement
+                ? byEngagementFavouriteResourceDisplayName(a, b)
+                : byFavouriteResourceDisplayName(a, b)),
         )
         .map((resource) => {
           // This resource's data, pre-grouped above; capacity then scans only its own
@@ -487,7 +507,8 @@ export function buildSchedulerModel({
             };
           });
           // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-          // External rows carry none — flat, unmarked day cells and no time-off blocks.
+          // External rows carry none and have no time-off blocks; company-closed dates still receive
+          // the shared unavailable tint because allocation creation is blocked there for every row.
           const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode);
           // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
           // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
@@ -515,10 +536,18 @@ export function buildSchedulerModel({
             return computed;
           };
           const dayStates: DayState[] = isExternal
-            ? days.map(() => ({ over: false, unavailable: false }))
+            ? days.map((date) => {
+                const creationBlocked = isCreationStartBlocked(resource, date, [], accountWorkingDays);
+                return { over: false, unavailable: creationBlocked, creationBlocked };
+              })
             : days.map((d) => {
                 const cap = capacityOnDay(d);
-                return { over: cap.over, unavailable: cap.available === 0 };
+                const creationBlocked = isCreationStartBlocked(resource, d, resTimeOff, accountWorkingDays);
+                return {
+                  over: cap.over,
+                  unavailable: cap.available === 0 || creationBlocked,
+                  creationBlocked,
+                };
               });
           const timeOff: TimeOffBlock[] = isExternal
             ? []

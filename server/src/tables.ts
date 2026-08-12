@@ -70,8 +70,10 @@ const COLS_accounts = [
   { name: "schedulingMode", optional: true },
   { name: "timezone", optional: true },
   { name: "weekStartsOn", json: true, optional: true },
+  { name: "workingDays", json: true, optional: true },
   { name: "language", optional: true },
   { name: "disciplinesEnabled", json: true, optional: true },
+  { name: "groupResourcesByEngagement", json: true, optional: true },
   { name: "placeholdersEnabled", json: true, optional: true },
   { name: "externalEnabled", json: true, optional: true },
   { name: "internalColourMode", optional: true },
@@ -141,6 +143,7 @@ const COLS_resources = [
   { name: "role" },
   { name: "disciplineId", optional: true },
   { name: "employmentType" },
+  { name: "engagement" },
   { name: "workingHoursPerDay", sqlType: "REAL" },
   { name: "workingDays", json: true },
   { name: "halfDays", json: true },
@@ -176,6 +179,7 @@ const COLS_allocations = [
   // JSON so node:sqlite (which can't bind a raw boolean) round-trips it as
   // "true"/"false"; absent → NULL → omitted on read, matching the client object.
   { name: "ignoreWeekends", json: true, optional: true },
+  { name: "seriesId", optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 
@@ -359,7 +363,7 @@ CREATE TABLE IF NOT EXISTS timeOff (
  * shortcut around the ledger. */
 export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   "placeholdersEnabled TEXT, externalEnabled TEXT,",
-  "placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, " +
+  "placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, groupResourcesByEngagement TEXT, workingDays TEXT, " +
     "showInternalProjects TEXT, showInternalActivities TEXT, inlineActivityCreateEnabled TEXT,",
 )
   .replace(
@@ -369,6 +373,14 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   .replace(
     "  workingDays TEXT NOT NULL,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",
     "  workingDays TEXT NOT NULL, halfDays TEXT NOT NULL DEFAULT '[]',\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",
+  )
+  .replace(
+    "  employmentType TEXT NOT NULL, workingHoursPerDay REAL NOT NULL,",
+    "  employmentType TEXT NOT NULL, engagement TEXT NOT NULL DEFAULT 'studio', workingHoursPerDay REAL NOT NULL,",
+  )
+  .replace(
+    "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,",
+    "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT, seriesId TEXT,",
   )}\n${BOOTSTRAP_CLAIM_TABLE_SQL}`;
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */

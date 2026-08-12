@@ -7,6 +7,17 @@ test.describe("Projects", () => {
     await openApp(page, "Wayne Enterprises", "/projects");
     await page.getByRole("button", { name: "Add project" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Apollo");
+
+    await page.getByLabel("Client").click();
+    await expect(page.getByRole("option")).toHaveText(["Internal", "LexCorp", "Queen Consolidated"]);
+    const separator = page.locator('[data-slot="select-separator"]');
+    await expect(separator).toHaveCount(1);
+    await expect(separator).toHaveAttribute("aria-hidden", "true");
+    await expect(separator).not.toHaveAttribute("data-value");
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option", { name: "LexCorp" })).toHaveAttribute("data-highlighted", "");
+    await page.keyboard.press("Escape");
+
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("alert")).toContainText(/must belong to a client/i);
 

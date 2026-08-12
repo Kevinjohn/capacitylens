@@ -6,6 +6,7 @@ import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { DEFAULT_ACCOUNT_ID, makeAppData, setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
+import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 
 const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOffDays: 0 })));
 // The mock is declared without a parameter list, so reach its recorded arguments through a cast:
@@ -99,6 +100,58 @@ beforeEach(() => {
 });
 
 describe("AllocationModal create", () => {
+  it("orders project scopes and activities, and exposes status as a labelled radiogroup", async () => {
+    useStore.getState().addClient({ name: "Zeta", color: "#123456" });
+    const zetaClient = useStore.getState().data.clients.find((client) => client.name === "Zeta")!;
+    useStore.getState().addProject({ name: "Alpha", clientId: zetaClient.id, color: "#123456" });
+    useStore.getState().addActivity({ name: "Support", kind: "internal" });
+    useStore.getState().addActivity({ name: "Admin", kind: "internal" });
+    useStore.getState().addActivity({ name: "Strategy", kind: "repeatable" });
+    useStore.getState().addActivity({ name: "Retrospective", kind: "repeatable" });
+    const barbara = person("Barbara");
+    const resource = useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const project = screen.getByRole("combobox", { name: "Project" });
+    expect(project).toHaveTextContent("Internal");
+    fireEvent.keyDown(project, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Internal",
+      "Any Project",
+      "Acme / Lightning",
+      "Acme / Other",
+      "Zeta / Alpha",
+    ]);
+    fireEvent.click(screen.getByRole("option", { name: "Internal" }));
+
+    const activity = screen.getByRole("combobox", { name: "Activity" });
+    fireEvent.keyDown(activity, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Admin", "Support"]);
+    fireEvent.click(screen.getByRole("option", { name: "Admin" }));
+
+    await chooseOption(user, "Project", "Any Project");
+    fireEvent.keyDown(activity, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Retrospective", "Strategy"]);
+    await user.keyboard("{Escape}");
+
+    const status = screen.getByRole("radiogroup", { name: "Status" });
+    expect(
+      within(status)
+        .getAllByRole("radio")
+        .map((radio) => radio.textContent),
+    ).toEqual(["Confirmed", "Tentative", "Completed"]);
+    expect(within(status).getByRole("radio", { name: "Confirmed" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(status).getByRole("radio", { name: "Tentative" }));
+    expect(within(status).getByRole("radio", { name: "Tentative" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Note").tagName).toBe("INPUT");
+  });
+
   it("defaults hourly load to four hours when creation starts on a half day", () => {
     const resource = useStore
       .getState()
@@ -120,6 +173,7 @@ describe("AllocationModal create", () => {
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -150,6 +204,7 @@ describe("AllocationModal create", () => {
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -183,6 +238,7 @@ describe("AllocationModal create", () => {
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -229,6 +285,7 @@ describe("AllocationModal create", () => {
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -252,11 +309,12 @@ describe("AllocationModal create", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("restricts a placeholder to its bound project (plus general), defaulting to it", async () => {
+  it("restricts a placeholder to its bound project plus the two general scopes, defaulting to it", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -278,13 +336,10 @@ describe("AllocationModal create", () => {
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
     expect(projectSelect).toHaveTextContent("Acme / Lightning");
-    // Bound project + the project-less option are offered; another project (p2 / "Other") is not.
+    // Bound project + both project-less scopes are offered; another project (p2 / "Other") is not.
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
-    expect(
-      screen.getByRole("option", {
-        name: "No project (internal / cross-project)",
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Internal" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Any Project" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Acme / Other" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
@@ -305,6 +360,7 @@ const person = (name: string) => ({
   name,
   role: "Dev",
   employmentType: "permanent" as const,
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5] as const,
   halfDays: [],
@@ -372,6 +428,7 @@ describe("AllocationModal advisory work bounds", () => {
       name: "Kord Industries",
       role: "Partner studio",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -408,7 +465,9 @@ describe("AllocationModal days mode", () => {
 
   it("derives end date + hours/day from start, days of work and days over", async () => {
     enableDays();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = useStore
+      .getState()
+      .addResource({ ...person("Bruce"), workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5] });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -438,7 +497,8 @@ describe("AllocationModal days mode", () => {
 
     expect(onClose).toHaveBeenCalled();
     // 10 working days from Mon 2026-06-01 (Mon–Fri) lands on Fri 2026-06-12;
-    // 5 days of work spread over 10 at an 8h day = 4h/day.
+    // 5 days of work spread over 10 at the fixed 8h day = 4h/day. The legacy stored 6h value
+    // deliberately has no effect on scheduling math.
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: "2026-06-01",
       endDate: "2026-06-12",
@@ -865,6 +925,39 @@ describe("AllocationModal blocks mode", () => {
 });
 
 describe("AllocationModal edit", () => {
+  it("preserves an untouched historical multiline note but saves a direct note edit as one line", async () => {
+    const alice = person("Alice");
+    const resource = useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+      note: "First line\nSecond line",
+    });
+    const user = userEvent.setup();
+    const view = render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    const note = screen.getByLabelText("Note");
+    expect(note.tagName).toBe("INPUT");
+    expect(note).toHaveAttribute("maxlength", "2000");
+    fireEvent.change(screen.getByLabelText("Hours / day"), { target: { value: "6" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(
+      "First line\nSecond line",
+    );
+
+    view.unmount();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "First line Second line" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(
+      "First line Second line",
+    );
+  });
+
   it("keeps the modal open and surfaces the reason when deletion is rejected", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -896,6 +989,91 @@ describe("AllocationModal edit", () => {
     }
   });
 
+  it("offers one-or-future deletion for a linked occurrence and closes after the atomic removal", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const seriesId = "series-weekly";
+    const [earlier, selected, later] = useStore.getState().addAllocations([
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId,
+      },
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-08",
+        endDate: "2026-06-09",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId,
+      },
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-15",
+        endDate: "2026-06-16",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId,
+      },
+    ]);
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={selected.id} onClose={onClose} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Delete repeated allocation?" });
+    expect(within(dialog).getByRole("button", { name: "Delete this occurrence" })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Delete this and future occurrences" }));
+
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).toContain(earlier.id);
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(selected.id);
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(later.id);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes only the selected linked occurrence when that scope is chosen", async () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const [selected, later] = useStore.getState().addAllocations([
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-08",
+        endDate: "2026-06-09",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId: "series-weekly",
+      },
+      {
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-15",
+        endDate: "2026-06-16",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId: "series-weekly",
+      },
+    ]);
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={selected.id} onClose={onClose} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(
+      within(screen.getByRole("alertdialog", { name: "Delete repeated allocation?" })).getByRole("button", {
+        name: "Delete this occurrence",
+      }),
+    );
+
+    expect(useStore.getState().data.allocations.map(({ id }) => id)).toEqual([later.id]);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("reassigns an allocation to another resource", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const b = useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] });
@@ -922,6 +1100,7 @@ describe("AllocationModal edit", () => {
       kind: "placeholder",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -953,6 +1132,7 @@ describe("AllocationModal edit", () => {
       kind: "placeholder",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -988,6 +1168,7 @@ describe("AllocationModal edit", () => {
       name: "Kord Industries",
       role: "Partner studio",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1014,13 +1195,12 @@ describe("AllocationModal edit", () => {
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });
 
-  it("reopens a placeholder→general-activity allocation with the general activity still selected", async () => {
-    // A placeholder bound to p1, assigned a GENERAL (no-project) activity. On edit the
-    // form must seed Project='' (general) so the general activity stays in the Activity list.
+  it("reopens a placeholder cross-project allocation with its exact scope still selected", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1038,9 +1218,7 @@ describe("AllocationModal edit", () => {
     });
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
 
-    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(
-      "No project (internal / cross-project)",
-    );
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Any Project");
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Admin");
   });
 
@@ -1086,6 +1264,35 @@ describe("AllocationModal edit", () => {
     });
   });
 
+  it("keeps Duplicate for an unlinked cross-project allocation and hides it for a linked occurrence", () => {
+    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const oneOff = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const linked = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-08",
+      endDate: "2026-06-08",
+      hoursPerDay: 8,
+      status: "confirmed",
+      seriesId: "series-weekly",
+    });
+
+    const oneOffView = render(<AllocationModal allocationId={oneOff.id} onClose={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Duplicate" })).toBeInTheDocument();
+    oneOffView.unmount();
+
+    render(<AllocationModal allocationId={linked.id} onClose={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Duplicate" })).not.toBeInTheDocument();
+  });
+
   it("rejects duplicating a zero-hour block after the account switches to Hours mode", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
@@ -1117,6 +1324,7 @@ describe("AllocationModal inline activity creation pref", () => {
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1176,6 +1384,7 @@ describe("AllocationModal Enter key submission", () => {
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1199,12 +1408,13 @@ describe("AllocationModal Enter key submission", () => {
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
 
-  it("does NOT submit when Enter is pressed in the Note textarea", async () => {
+  it("submits when Enter is pressed in the single-line Note input", async () => {
     useStore.getState().addResource({
       kind: "person",
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1220,15 +1430,13 @@ describe("AllocationModal Enter key submission", () => {
     await chooseOption(user, "Project", "Acme / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
-    // Pressing Enter in a textarea inserts a newline — it must NOT submit the form
-    const noteTextarea = screen.getByLabelText("Note");
-    await user.click(noteTextarea);
+    const noteInput = screen.getByLabelText("Note");
+    expect(noteInput).toHaveAttribute("type", "text");
+    await user.click(noteInput);
     await user.keyboard("{Enter}");
 
-    expect(onClose).not.toHaveBeenCalled();
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-    // The textarea should now contain a newline
-    expect(noteTextarea).toHaveValue("\n");
+    expect(onClose).toHaveBeenCalled();
+    expect(useStore.getState().data.allocations).toHaveLength(1);
   });
 
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
@@ -1237,6 +1445,7 @@ describe("AllocationModal Enter key submission", () => {
       name: "Bruce",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1257,7 +1466,7 @@ describe("AllocationModal Enter key submission", () => {
     // The activity should have been created, modal not closed
     expect(onClose).not.toHaveBeenCalled();
     const activities = useStore.getState().data.activities;
-    expect(activities.some((t) => t.name === "Brand new activity")).toBe(true);
+    expect(activities.find((activity) => activity.name === "Brand new activity")).toMatchObject({ kind: "internal" });
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Brand new activity");
   });
 });
@@ -1269,6 +1478,7 @@ describe("AllocationModal repeat creation", () => {
       name: "Tyler",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1284,7 +1494,7 @@ describe("AllocationModal repeat creation", () => {
     const resource = addPerson();
     const { unmount } = render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
     );
@@ -1295,6 +1505,11 @@ describe("AllocationModal repeat creation", () => {
       expect(screen.getByRole("option", { name: option })).toBeInTheDocument();
     }
     fireEvent.click(screen.getByRole("option", { name: "Weekly" }));
+    const repeatUntil = screen.getByLabelText("Repeat until");
+    expect(repeatUntil).toHaveValue("");
+    expect(repeatUntil).toHaveAttribute("aria-required", "true");
+    expect(repeatUntil).toHaveAttribute("min", "2099-06-01");
+    expect(repeatUntil).toHaveAttribute("max", "2099-12-01");
     expect(useStore.getState().dirtyForm).toBe(true);
     unmount();
 
@@ -1318,7 +1533,7 @@ describe("AllocationModal repeat creation", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={onClose}
       />,
     );
@@ -1332,8 +1547,10 @@ describe("AllocationModal repeat creation", () => {
       ["Monthly", 4, "Tue 1st Sep"],
     ] as const) {
       await chooseOption(user, "Repeat", choice);
+      await user.clear(screen.getByLabelText("Repeat until"));
+      await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
       expect(
-        screen.getByText(`Creates ${count} independent allocations. Last start: ${lastStart}.`),
+        screen.getByText(`Creates ${count} linked allocations through Tue 1st Sep. Last start: ${lastStart}.`),
       ).toBeInTheDocument();
     }
 
@@ -1343,8 +1560,11 @@ describe("AllocationModal repeat creation", () => {
     expect(bulkSpy).toHaveBeenCalledTimes(1);
     const drafts = bulkSpy.mock.calls[0][0];
     expect(drafts).toHaveLength(14);
-    expect(drafts[0]).toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-03" });
-    expect(drafts.at(-1)).toMatchObject({ startDate: "2026-08-31", endDate: "2026-09-02" });
+    expect(drafts[0]).toMatchObject({ startDate: "2099-06-01", endDate: "2099-06-03" });
+    expect(drafts.at(-1)).toMatchObject({ startDate: "2099-08-31", endDate: "2099-09-02" });
+    const seriesIds = drafts.map(({ seriesId }) => seriesId);
+    expect(seriesIds[0]).toEqual(expect.any(String));
+    expect(new Set(seriesIds).size).toBe(1);
     expect(onClose).toHaveBeenCalledTimes(1);
     bulkSpy.mockRestore();
     oneSpy.mockRestore();
@@ -1356,20 +1576,23 @@ describe("AllocationModal repeat creation", () => {
     const user = userEvent.setup();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2027-01-31", endDate: "2027-02-02" }}
+        create={{ resourceId: resource.id, startDate: "2099-01-31", endDate: "2099-02-02" }}
         onClose={vi.fn()}
       />,
     );
     await completeAssignment(user);
     await chooseOption(user, "Repeat", "Monthly");
-    expect(screen.getByText("Creates 4 independent allocations. Last start: Fri 30th Apr.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Repeat until"), "2099-04-30");
+    expect(
+      screen.getByText("Creates 4 linked allocations through Thu 30th Apr. Last start: Thu 30th Apr."),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(bulkSpy.mock.calls[0][0].map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
-      ["2027-01-31", "2027-02-02"],
-      ["2027-02-28", "2027-03-02"],
-      ["2027-03-31", "2027-04-02"],
-      ["2027-04-30", "2027-05-02"],
+      ["2099-01-31", "2099-02-02"],
+      ["2099-02-28", "2099-03-02"],
+      ["2099-03-31", "2099-04-02"],
+      ["2099-04-30", "2099-05-02"],
     ]);
     bulkSpy.mockRestore();
   });
@@ -1393,12 +1616,13 @@ describe("AllocationModal repeat creation", () => {
       );
       await completeAssignment(user);
       await chooseOption(user, "Repeat", "Monthly");
-      expect(screen.queryByText(/creates 4 independent allocations/i)).not.toBeInTheDocument();
+      await user.type(screen.getByLabelText("Repeat until"), "9999-12-30");
+      expect(screen.queryByText(/creates 4 linked allocations/i)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "Repeating allocations cannot extend beyond the supported date range.",
+        "Choose an earlier Repeat until date or a longer cadence; this repeat cannot fit the supported date range.",
       );
       expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
       expect(bulkSpy).not.toHaveBeenCalled();
@@ -1414,7 +1638,7 @@ describe("AllocationModal repeat creation", () => {
     const user = userEvent.setup();
     const first = render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
     );
@@ -1433,12 +1657,13 @@ describe("AllocationModal repeat creation", () => {
     const onClose = vi.fn();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={onClose}
       />,
     );
     await completeAssignment(user);
     await chooseOption(user, "Repeat", "Every 3 weeks");
+    await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("dialog", { name: /new allocation/i })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("The generated batch was rejected.");
@@ -1446,12 +1671,82 @@ describe("AllocationModal repeat creation", () => {
     rejectBulk.mockRestore();
   });
 
+  it("validates the required, temporal and six-month Repeat until boundaries", async () => {
+    useStore.getState().updateAccount(ACC, { timezone: "UTC" });
+    const resource = addPerson();
+    const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Weekly");
+    const repeatUntil = screen.getByLabelText("Repeat until");
+    const save = screen.getByRole("button", { name: "Save" });
+
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent("Choose when the repeat should end.");
+
+    await user.type(repeatUntil, addDaysISO(todayISO("UTC"), -1));
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent("Repeat until cannot be before today.");
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-05-31");
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent("Repeat until cannot be before the allocation start.");
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-12-02");
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Repeat until cannot be later than Tue 1st Dec (six calendar months after the allocation start).",
+    );
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-06-07");
+    await user.click(save);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose a later Repeat until date so this cadence includes at least one repeat.",
+    );
+    expect(bulkSpy).not.toHaveBeenCalled();
+    bulkSpy.mockRestore();
+  });
+
+  it("includes an occurrence on the cutoff and supports the complete six-month weekly range", async () => {
+    const resource = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Weekly");
+    const repeatUntil = screen.getByLabelText("Repeat until");
+
+    await user.type(repeatUntil, "2099-06-08");
+    expect(
+      screen.getByText("Creates 2 linked allocations through Mon 8th Jun. Last start: Mon 8th Jun."),
+    ).toBeInTheDocument();
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2099-12-01");
+    expect(
+      screen.getByText("Creates 27 linked allocations through Tue 1st Dec. Last start: Mon 30th Nov."),
+    ).toBeInTheDocument();
+  });
+
   it("aggregates singular/plural repeat advisory fragments and keeps saving advisory-only", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
     render(
       <AllocationModal
-        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
         onClose={vi.fn()}
       />,
     );
@@ -1465,9 +1760,11 @@ describe("AllocationModal repeat creation", () => {
       return { overDays: 0, timeOffDays: 0 };
     });
     await chooseOption(user, "Repeat", "Weekly");
+    await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
     expect(screen.getByRole("status")).toHaveTextContent(
       "For this repeat, 1 allocation may exceed capacity and 2 allocations overlap time off. Saving is still allowed.",
     );
+    expect(capacityAdvisoryMock).toHaveBeenCalledTimes(14);
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 

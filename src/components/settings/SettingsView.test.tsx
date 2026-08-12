@@ -87,7 +87,9 @@ describe("SettingsView — section help", () => {
 
     for (const section of [
       "Scheduling",
+      "Global working days",
       "Disciplines",
+      "Engagement grouping",
       "Schedule",
       "Internal work colours",
       "Placeholders",
@@ -114,8 +116,49 @@ describe("SettingsView — section help", () => {
 
     expect(screen.getByRole("button", { name: "About Disciplines" })).toBeEnabled();
     expect(screen.getByRole("switch", { name: "Use disciplines" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Group resources by engagement" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Days" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Monday" })).toBeDisabled();
     expect(screen.getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
+  });
+});
+
+describe("SettingsView — global working days", () => {
+  it("defaults to the first five days and persists checkbox changes", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
+      expect(screen.getByRole("checkbox", { name: day })).toBeChecked();
+    }
+    expect(screen.getByRole("checkbox", { name: "Saturday" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sunday" })).not.toBeChecked();
+
+    await user.click(screen.getByRole("checkbox", { name: "Friday" }));
+    await user.click(screen.getByRole("checkbox", { name: "Saturday" }));
+
+    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual(
+      [1, 2, 3, 4, 6],
+    );
+  });
+
+  it("reorders from Sunday without changing an explicit saved selection", () => {
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
+    render(<SettingsView />);
+
+    expect(screen.getAllByRole("checkbox").map((checkbox) => checkbox.id)).toEqual([
+      "account-working-day-0",
+      "account-working-day-1",
+      "account-working-day-2",
+      "account-working-day-3",
+      "account-working-day-4",
+      "account-working-day-5",
+      "account-working-day-6",
+    ]);
+    expect(screen.getByRole("checkbox", { name: "Monday" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Wednesday" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Friday" })).toBeChecked();
+    expect(useStore.getState().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
   });
 });
 
@@ -305,6 +348,7 @@ describe("SettingsView — Schedule (minimise weekends)", () => {
 describe("SettingsView — account toggle wiring", () => {
   it.each([
     ["Use disciplines", "disciplinesEnabled"],
+    ["Group resources by engagement", "groupResourcesByEngagement"],
     ["Show placeholders", "placeholdersEnabled"],
     ["Show external resources", "externalEnabled"],
     ["Show internal projects", "showInternalProjects"],
@@ -321,7 +365,10 @@ describe("SettingsView — account toggle wiring", () => {
     expect(after).toBe(
       !(
         before ??
-        (key === "disciplinesEnabled" || key.startsWith("showInternal") || key === "inlineActivityCreateEnabled")
+        (key === "disciplinesEnabled" ||
+          key === "groupResourcesByEngagement" ||
+          key.startsWith("showInternal") ||
+          key === "inlineActivityCreateEnabled")
       ),
     );
   });

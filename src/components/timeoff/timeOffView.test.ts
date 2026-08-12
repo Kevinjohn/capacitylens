@@ -14,6 +14,7 @@ function resource(id: string, name: string, kind: Resource["kind"] = "person"): 
     name,
     role: "Designer",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],

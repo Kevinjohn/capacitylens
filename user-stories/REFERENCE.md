@@ -124,17 +124,17 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                                  |
-| ------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Schedule      | `/`            | Timeline scheduler                                                                                                                      |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                             |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                         |
-| Clients       | `/clients`     | Client list                                                                                                                             |
-| Projects      | `/projects`    | Project list                                                                                                                            |
-| Activities    | `/activities`  | Activity list                                                                                                                           |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                           |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                       |
-| Settings      | `/settings`    | Settings (scheduling, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Link label    | Route          | Screen                                                                                                                                                       |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Schedule      | `/`            | Timeline scheduler                                                                                                                                           |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                  |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                                              |
+| Clients       | `/clients`     | Client list                                                                                                                                                  |
+| Projects      | `/projects`    | Project list                                                                                                                                                 |
+| Activities    | `/activities`  | Activity list                                                                                                                                                |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                                                |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                            |
+| Settings      | `/settings`    | Settings (scheduling, global working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
 
 The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -321,17 +321,17 @@ week dominates the helicopter view. Weekends are not removed: people can still w
 bars span across them, and the narrowing only applies at a fine enough zoom to show per-day
 columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` labels.
 
-**Month header placement.** In the wide 1- and 2-week views, each month/year label is centred over
-the portion of that month currently visible in the timeline, including split-month windows and a
-partial month at either edge. The 4-, 6- and 8-week views retain the compact sticky label, bounded
-to its own month so neighbouring labels cannot overlap.
+**Month header placement.** In the wide 1- and 2-week views, each month/year label starts at the
+left edge of the first visible day in that month, including split-month windows and a partial month
+at either edge. The 4-, 6- and 8-week views retain the compact sticky label, bounded to its own month
+so neighbouring labels cannot overlap.
 
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
-`Employment`, `Bound project`, `Working hours / day`, `Working days` (a Monday–Sunday table whose
-rows each contain a labelled `radiogroup` offering the mutually exclusive `Full day`, `Half day`
-and `Not working` choices),
+`Engagement`, `Bound project`, `Working days` (a right-aligned Monday–Sunday
+radio grid whose `Full day`, `Half day` and `Not working` column headings appear once; every cell's
+native radio is labelled by both its weekday and availability, and each row permits one choice),
 `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
 `Colour (Blue dark)` for a known swatch, else the raw hex — that opens a `radiogroup` of preset
 colour swatches, each `radio` labelled by a human-readable name like `Blue dark` /
@@ -341,6 +341,17 @@ description. Allocation and time-off validation focus the associated invalid fie
 form-level alert), scroll it into view, and clear the stale error on the next edit. Other labels are
 `Start`, `End`, `Hours / day`, `Repeat`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
+In the resource add/edit modal only, `Name`, `Role`, `Discipline`, `Engagement` and `Bound project`
+use an approximately 25/75 label-to-control row at normal modal widths and stack vertically on
+narrow screens. The `Working days` grid stays full width. Other modal layouts are unchanged.
+The allocation modal's `Project` picker begins with `Internal` and `Any Project`, followed by a
+separator and the real projects sorted by client name and then project name. `Internal` exposes only
+internal activities; `Any Project` exposes only cross-project activities; a real project exposes
+only its project-specific activities. Each resulting `Activity` list is alphabetical. `Any Project`
+is wording local to this picker: cross-project activities keep their established name elsewhere.
+Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` radiogroup, and `Note`
+is a single-line text field. A historical multiline note remains byte-for-byte intact when another
+field is edited and saved; editing the note itself adopts the single-line value shown by the field.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
 `Quotation marks are added automatically.` Non-owners editing an already-private row do not see the
@@ -351,7 +362,8 @@ nothing, and shows `This client changed while you were editing. Close and reopen
 re-apply your changes.` or the equivalent `This project changed…` message.
 Resource, external-party and time-off edit forms use the same stale-edit contract and show the
 equivalent entity-specific `changed while you were editing` message.
-The **activity form** has an `Activity kind` radiogroup (`Project-specific` / `Internal` / `Cross-project`); the
+The **activity form** has an `Activity kind` radiogroup ordered `Internal` / `Cross-project` /
+`Project-specific` (with `Project-specific` selected by default); the
 `Project` field shows (and is required) only for the `Project-specific` kind — internal/cross-project
 activities are project-less.
 The **time-off form** shows and submits `Note` only for Owner/Admin (and open/demo mode, where no
@@ -385,19 +397,32 @@ section heading. Resource sections sort alphabetically, and their rows sort by s
 and id. Placeholder entries still follow **Show placeholders**; an unexpected dangling resource is
 kept visible in a final **(unknown)** section rather than crashing.
 
-An allocation **Delete** asks for confirmation, then closes its editor only after the store accepts
-the removal. If the mutation rejects, the dialog stays open and its form error surfaces the safe
-rejection reason. Viewers see no allocation mutation actions.
+An ordinary allocation **Delete** asks for confirmation, then closes its editor only after the store
+accepts the removal. A newly generated repeat batch carries one optional, system-owned series ID;
+legacy repeats and one-off allocations remain unlinked. Deleting a linked occurrence instead asks
+whether to delete only that occurrence or that occurrence and every later-starting allocation in the
+same account and series. Earlier occurrences remain. Either choice is one atomic, undoable mutation,
+and one Undo restores the complete removal. Editing a linked occurrence preserves its membership and
+never applies edits to future occurrences. Linked occurrences do not offer **Duplicate**; unlinked
+one-off allocations retain it regardless of activity kind. If any deletion rejects, the dialog stays
+open and its form error surfaces the safe rejection reason. Viewers see no allocation mutation actions.
 
 **Repeat allocation creation.** New allocation forms opened from either the row **+** or a drawn
 range include a **Repeat** dropdown between the scheduling controls and **Status**. It defaults to
 **Doesn’t repeat** and offers **Weekly**, **Every 2 weeks**, **Every 3 weeks**, **Every 4 weeks** and
-**Monthly**. A repeating choice previews the number of independent allocations and the final start
-date over a fixed three-calendar-month window. Saving creates ordinary allocations in one undoable
-operation; one Undo removes the whole generated batch. Each allocation can then be edited or deleted
-independently. Edit and Duplicate never show or inherit the Repeat choice. Capacity and time-off
-warnings count the generated allocations affected, remain advisory, and include conflicts between
-allocations in the same generated batch.
+**Monthly**. Choosing a cadence reveals a blank, required **Repeat until** date. The cutoff is
+inclusive by occurrence start: an occurrence whose start is on the chosen date is included, and its
+end may fall later. Repeat until cannot precede today or the allocation start, must allow at least one
+occurrence after the entered allocation, and cannot be later than six calendar months after the
+allocation start. A valid choice previews the number of linked allocations, chosen cutoff and final
+occurrence start. Saving gives the generated allocations one shared series ID in a single undoable
+operation; old independent repeats are never inferred or backfilled. Each occurrence can still be
+edited independently while retaining its series membership. Deletion can target one occurrence or
+that occurrence and all later starts in its series; earlier starts are untouched. Edit never shows
+the Repeat choice. Duplicate is available only for unlinked allocations, where it creates one
+independent allocation; linked occurrences hide it. Capacity and time-off warnings count the
+generated allocations affected, remain advisory, and include conflicts between allocations in the
+same generated batch.
 
 **Destructive confirmation** uses the action-specific title and buttons: lifecycle list actions use
 `Archive <entity>?`, `Archive`, and `Cancel`; actual deletion uses `Delete <entity>?`, `Delete`, and
@@ -450,11 +475,12 @@ Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
 The rest of the expanded filter row follows the draw-mode control:
 `Search people…` matches accent-insensitively across the displayed name, stored name and role as
-one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`,
-`Filter by client`, `Filter by project`,
+one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`
+(in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
+alphabetical), `Filter by project` (Internal-owned projects first, then alphabetical by project name),
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then a `Cross-project` optgroup with `Cross-project — All` +
-each cross-project activity; shown only when the account has internal/cross-project activities. Project-specific activities
+each group's activities alphabetically; shown only when the account has internal/cross-project activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
 clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
@@ -468,6 +494,18 @@ It's a **device-global** display pref (own `localStorage` key `capacitylens/mini
 account and NOT in export) — like the theme and bar-label toggles. On → narrow Sat/Sun columns
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
+
+**Global working days (account-level).** Settings → **Global working days** exposes seven
+checkboxes in the account's configured week order. A new company selects the first five days of
+that week by default (Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
+Changing the week-start presentation only reorders these controls; it never changes the saved
+selection. Editors and above may change the selection; Viewers can read it but cannot edit it.
+The account selection is the hard boundary for starting work in the schedule: the lane hover **+**
+is absent and a click or draw is rejected when its start date is globally non-working, outside the
+resource's personal working pattern, or covered by that resource's time off. A multi-day draw may
+still cross blocked dates after an allowed start. **Include weekends as working days** never permits
+a gesture to start on a globally non-working date. These interaction rules do not change existing
+capacity/utilisation calculations; that separate question remains outside this behaviour.
 
 **Schedule display (snap to week start).** The same Settings → **Schedule** section has a second
 switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
@@ -527,7 +565,9 @@ blocks mode; a `✓ ` prefix when completed, a trailing ` •` when it has a not
 and project parts are device-global toggles in Settings → **Allocation bars** — switches
 `Show client name` and `Show project name`, both **on** by default; a bar whose activity has no
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
-activity-first layout regardless of these toggles.
+activity-first layout regardless of these toggles. Its visible card contains allocation details
+only; the retained drag/resize/reassign guidance is exposed as the popover's assistive label rather
+than as a footer over the schedule.
 
 **Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
@@ -548,6 +588,16 @@ row, the Disciplines command-palette entry, and the **Show Discipline Utilisatio
 the schedule then renders **flat** (no `discipline-group` bands). It's stored on the account
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
+
+**Engagement grouping (account-level).** Settings → **Engagement grouping** has a single switch
+**Group resources by engagement**, on by default. When on, Resources renders people in separate
+**Studio** and **Supplementary** sections; each section puts favourites first and then sorts by
+display name. The schedule keeps its existing discipline bands but orders Studio people before
+Supplementary people within each band, with favourites first inside each engagement partition.
+When the switch is off, Resources returns to one People list and each schedule band returns to its
+single favourites-first alphabetical order. Placeholders and External remain separate and
+unaffected. The preference is stored on the account (`groupResourcesByEngagement`, absent = on), so
+every member of the company sees the same grouping.
 
 **Clear device data (Settings → Device data).** A closed-by-default maintenance disclosure near the
 bottom of Settings contains a `Clear device data` button
@@ -891,9 +941,10 @@ to **viewer**, the whole app goes **read-only**:
   lane creates nothing) and no hover **+** hint; allocation bars have **no resize grips**, no
   drag/resize, and don't open the edit modal (a viewer bar is `role="img"`, not a `button`). Viewer
   bars remain Tab-reachable so keyboard users can open and Escape-close the same read-only detail
-  popover available on hover. Its footer says **Read-only allocation details** rather than offering
-  edit gestures, and the bar's accessible name includes the full project/client context and note
-  text even when those optional face-label parts are hidden.
+  popover available on hover. The visible card has no instruction footer; its assistive label says
+  **Read-only allocation details** rather than offering edit gestures, and the bar's accessible name
+  includes the full project/client context and note text even when those optional face-label parts
+  are hidden.
 - **The toolbar hides the Draw-mode toggle and Undo/Redo** (nothing to draw/undo); navigation +
   filters (reads) stay.
 - A subtle **"View only" badge** (`data-testid="view-only"`) sits in the sidebar footer beside the
@@ -1061,18 +1112,22 @@ multiple).
   of exposing its real name or collapsing several private rows onto one indistinguishable label.
 
 - **Management list ordering.** The **Resources**, **Disciplines**, **Clients** and **Projects**
-  management lists are alphabetical by the name shown in each row. Resources keep People,
-  Placeholders and External as separate sections, and each section sorts independently. Favourite
-  people appear first in People and favourite external parties appear first in External; each
-  favourite and non-favourite partition remains alphabetical. Projects
+  management lists are alphabetical by the name shown in each row. With the default engagement
+  grouping on, Resources keeps Studio, Supplementary, Placeholders and External as separate
+  sections; turning it off combines Studio and Supplementary into one People list. Each section
+  sorts independently. Favourite people appear first within their engagement partition and
+  favourite external parties appear first in External; each favourite and non-favourite partition
+  remains alphabetical. Projects
   sort by project name; their client label is secondary text. The hidden built-in **Internal** client
   remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
   spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
   stored arrays are unchanged. The schedule keeps its deliberate discipline `sortOrder` and
-  resource grouping while sorting favourite people first within their own discipline, followed by
-  the remaining people and then placeholders. Favourite external parties similarly lead the
-  External band. Favourites are company data shared by every account member, not a per-user view
-  preference.
+  resource grouping while sorting Studio before Supplementary within each discipline, favourites
+  first and alphabetical inside each engagement partition, followed by placeholders. Turning
+  engagement grouping off removes that Studio/Supplementary partition but retains favourites-first
+  alphabetical order. Favourite external parties similarly lead the External band. Favourites and
+  the grouping preference are company data shared by every account member, not per-user view
+  preferences.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a _second_ Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it
@@ -1085,6 +1140,9 @@ multiple).
   bars/labels read "Internal", and **Filter by client → Internal** shows BOTH the project-less
   activities AND any activities under Internal-owned projects). No `clientId` is stored on the
   activity; the association is derived in the view-model.
+  In the project form, **Internal is pinned first**, followed by a non-selectable divider and then
+  active ordinary clients in alphabetical display-name order. An archived current client remains a
+  disabled final option while editing so an unrelated change can still preserve that relationship.
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus any
   project-less (internal/cross-project) activity**. They are **hidden by default** behind the
   per-account **Show placeholders** pref (Settings → Placeholders, `placeholdersEnabled` on the
@@ -1098,7 +1156,7 @@ multiple).
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
   **hidden by default** behind the per-account **Show external resources** pref (Settings → External,
   `externalEnabled` on the Account, default off); when on, an **External** section appears under the **Resources**
-  tab (with explainer copy + an `Add external party` button) and the band appears on the schedule. When
+  tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
 - **Archived & soft-deleted resources/clients/projects are hidden from all normal views** (the
@@ -1218,8 +1276,14 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
   renders flat — see the _Disciplines (account-level)_ note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
-- **Capacity:** a full day's available hours = the resource's configured working hours, a half
-  day is always **4 hours**, and a non-working weekday or time-off day is **0 hours**. Existing
+- **Engagement is separate from employment and discipline.** A person is either **Studio** or
+  **Supplementary**, defaulting to Studio. The resource form shows Engagement instead of the
+  retained employment field; editing preserves the existing employment value. Placeholders are
+  always Studio and do not show the Engagement control.
+- **Capacity:** a full day's available hours are always **8 hours**, a half day is always
+  **4 hours**, and a non-working weekday or time-off day is **0 hours**. Resource forms therefore
+  do not expose a separate working-hours field and always save `workingHoursPerDay: 8`; editing a
+  legacy resource with a custom value normalises it to 8 without a bulk data migration. Existing
   working-day patterns migrate to full days and existing non-working weekdays remain non-working.
   A day is **over-allocated** when allocated > available
   (STRICTLY greater — exactly at capacity is NOT over). Allocated hours are **weekend-aware**: a
@@ -1236,8 +1300,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
   rather than saved as a quietly-clamped 24h; **hourly mode** likewise rejects a _Hours / day_ above 24.
   _Days over_ itself must be a whole number from 1 through 36,500 in both Days and Blocks modes;
-  out-of-range or fractional values are rejected rather than rounded or clamped. Resource working
-  hours likewise must be finite, greater than 0 and no more than 24 hours/day. A directly entered
+  out-of-range or fractional values are rejected rather than rounded or clamped. A directly entered
   Start/End span in Hours mode, for an External resource or for time off cannot exceed 36,500
   calendar days; the form rejects a longer span with "Date span cannot exceed 36,500 calendar days."
   The previewed "…h/day" hint always equals what saves.

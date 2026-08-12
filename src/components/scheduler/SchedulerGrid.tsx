@@ -9,6 +9,7 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import {
   disciplinesEnabledFor,
   externalEnabledFor,
+  groupResourcesByEngagementFor,
   internalColourModeFor,
   placeholdersEnabledFor,
   schedulingModeFor,
@@ -16,7 +17,9 @@ import {
   showInternalProjectsFor,
   timeZoneFor,
   weekStartsOnFor,
+  accountWorkingDaysFor,
 } from "../../store/selectors";
+import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
 import { Avatar, EmptyState } from "../common/ui";
@@ -34,6 +37,7 @@ import { Button } from "../ui/button";
 import { TooltipProvider } from "../ui/tooltip";
 import { useCalendarToday } from "./useCalendarToday";
 import { realizedVisibleSpan } from "./visibleSpan";
+import { isCreationStartBlocked } from "./creationAvailability";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -75,6 +79,15 @@ type ModalState =
 export function SchedulerGrid() {
   const navigate = useNavigate();
   const data = useActiveScopedData();
+  const activeAccount = useStore((state) =>
+    state.data.accounts.find((account) => account.id === state.activeAccountId),
+  );
+  const accountWorkingDays = useMemo(() => {
+    const weekStartsOn = activeAccount?.weekStartsOn ?? 1;
+    return activeAccount?.workingDays === undefined
+      ? defaultAccountWorkingDays(weekStartsOn)
+      : normalizeAccountWorkingDays(activeAccount.workingDays, weekStartsOn);
+  }, [activeAccount]);
   // Viewer read-only (P1.12): when the active account's role is a viewer, the grid is display-only —
   // no row "+" create, no lane draw-to-create, no bar edit/drag/resize (the bar gating lives in
   // AllocationBar; the draw/create gating is the conditional onDraw/onEdit + the hidden "+" below).
@@ -100,6 +113,7 @@ export function SchedulerGrid() {
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
+  const groupResourcesByEngagement = useStore((s) => groupResourcesByEngagementFor(s.data, s.activeAccountId));
   // Per-account Internal work colour preference. Grey is the absent/default mode; palette restores
   // saved project colours without changing the underlying project records.
   const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));
@@ -218,6 +232,8 @@ export function SchedulerGrid() {
           disciplinesEnabled,
           placeholdersEnabled,
           externalEnabled,
+          accountWorkingDays,
+          groupResourcesByEngagement,
           blocksMode,
           internalColourMode,
           showInternalProjects,
@@ -235,6 +251,8 @@ export function SchedulerGrid() {
       disciplinesEnabled,
       placeholdersEnabled,
       externalEnabled,
+      accountWorkingDays,
+      groupResourcesByEngagement,
       blocksMode,
       internalColourMode,
       showInternalProjects,
@@ -263,10 +281,23 @@ export function SchedulerGrid() {
     // an EMPTY dep array keeps this callback referentially stable across a toggle. Time off is
     // meaningless for externals (no capacity), so a draw on their lane is a no-op rather than
     // opening a time-off form seeded with a resource the picker itself excludes.
-    const drawMode = useStore.getState().ui.drawMode;
+    const state = useStore.getState();
+    const drawMode = state.ui.drawMode;
+    const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
+    if (!resource) return;
+    const resourceTimeOff = state.data.timeOff.filter((entry) => entry.resourceId === resourceId);
+    if (
+      isCreationStartBlocked(
+        resource,
+        startDate,
+        resourceTimeOff,
+        accountWorkingDaysFor(state.data, state.activeAccountId),
+      )
+    ) {
+      return;
+    }
     if (drawMode === "timeoff") {
-      const r = useStore.getState().data.resources.find((x) => x.id === resourceId);
-      if (r && isExternalResource(r)) return;
+      if (isExternalResource(resource)) return;
     }
     setModal({
       kind: drawMode === "timeoff" ? "timeoff" : "create",
@@ -622,7 +653,7 @@ export function SchedulerGrid() {
           // property isn't in React's CSSProperties type.
           style={{
             ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
-            // DateHeader centres wide-view month labels within the VISIBLE part of their month.
+            // DateHeader aligns wide-view month labels to the VISIBLE part of their month.
             // The scroll offset is updated imperatively by useSchedulerViewport so horizontal
             // scrolling moves only a CSS variable instead of re-rendering the scheduler per pixel.
             ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,

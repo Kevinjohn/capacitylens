@@ -36,6 +36,7 @@ const person = (id: string, accountId: string) => ({
   kind: "person",
   role: "Designer",
   employmentType: "permanent",
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [],
@@ -952,7 +953,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     call(app, {
       method: "PATCH",
       url: `/api/accounts/${id}`,
-      payload: { name: "Renamed" },
+      payload: { workingDays: [1, 2, 3, 4] },
       headers: cookie ? { cookie } : {},
     });
   const batchPutAccount = (app: FastifyInstance, id: string, cookie?: string) =>
@@ -993,6 +994,7 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     upsertMember(db, { accountId: "a1", userId: editor.userId, role: "editor", status: "active", createdAt: TS });
     expect((await putAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
     expect((await patchAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
+    expect((await getState(app, "a1", editor.cookie)).json().accounts[0].workingDays).toEqual([1, 2, 3, 4]);
     expect((await batchPutAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
   });
 

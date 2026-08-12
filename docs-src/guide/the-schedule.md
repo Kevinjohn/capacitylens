@@ -38,8 +38,8 @@ arrow buttons (hover for "Back one week" / "Forward one week") to pan a week at 
 and **Today** to jump back to the current week.
 
 Weekend columns get a faint tint when you're zoomed in close enough to see individual
-days clearly. In the one- and two-week views, each month and year is centred over the
-visible days it describes. Wider views keep a compact month label in sight as you scroll.
+days clearly. In the one- and two-week views, each month and year starts above the first visible
+day it describes. Wider views keep a compact month label in sight as you scroll.
 
 ## Allocation bars
 

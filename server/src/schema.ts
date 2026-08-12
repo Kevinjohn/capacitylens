@@ -97,15 +97,53 @@ ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;
 ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;
 ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
-// v27 is the current entity contract immediately before required resources.halfDays. Keep this
-// historical assertion separate so the released v27 migration can still validate its own result
-// before v28 adds the new NOT NULL column.
+// Historical contracts let released migrations validate their own result without accidentally
+// requiring columns owned by a later migration.
+const V29_ACCOUNTS: TableSpec = {
+  ...TABLES.accounts,
+  columns: TABLES.accounts.columns.filter(
+    (column) => column.name !== "groupResourcesByEngagement" && column.name !== "workingDays",
+  ),
+};
+const V30_ACCOUNTS: TableSpec = {
+  ...TABLES.accounts,
+  columns: TABLES.accounts.columns.filter((column) => column.name !== "workingDays"),
+};
+const V31_ALLOCATIONS: TableSpec = {
+  ...TABLES.allocations,
+  columns: TABLES.allocations.columns.filter((column) => column.name !== "seriesId"),
+};
 const V27_TABLES: Record<string, TableSpec> = {
   ...TABLES,
+  accounts: V29_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
   resources: {
     ...TABLES.resources,
-    columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays"),
+    columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays" && column.name !== "engagement"),
   },
+};
+const V28_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: V29_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
+  resources: {
+    ...TABLES.resources,
+    columns: TABLES.resources.columns.filter((column) => column.name !== "engagement"),
+  },
+};
+const V29_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: V29_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
+};
+const V30_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: V30_ACCOUNTS,
+  allocations: V31_ALLOCATIONS,
+};
+const V31_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  allocations: V31_ALLOCATIONS,
 };
 
 /**
@@ -480,6 +518,26 @@ export function assertSchemaV16(db: Db): void {
 /** Assert the released v27 shape without requiring the v28 resource half-day column. */
 export function assertSchemaV27(db: Db): void {
   assertSchemaVersion(db, V27_TABLES, true);
+}
+
+/** Assert the released v28 shape without requiring the v29 resource engagement column. */
+export function assertSchemaV28(db: Db): void {
+  assertSchemaVersion(db, V28_TABLES, true);
+}
+
+/** Assert the released v29 shape without requiring the v30 engagement-grouping preference. */
+export function assertSchemaV29(db: Db): void {
+  assertSchemaVersion(db, V29_TABLES, true);
+}
+
+/** Assert the released v30 shape without requiring the v31 account working-days column. */
+export function assertSchemaV30(db: Db): void {
+  assertSchemaVersion(db, V30_TABLES, true);
+}
+
+/** Assert the released v31 shape without requiring the v32 allocation series column. */
+export function assertSchemaV31(db: Db): void {
+  assertSchemaVersion(db, V31_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

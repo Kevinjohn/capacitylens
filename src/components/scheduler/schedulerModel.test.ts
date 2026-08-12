@@ -7,6 +7,7 @@ import { emptyFilters } from "../../store/useStore";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData } from "@capacitylens/shared/types/entities";
+import { isCreationStartBlocked } from "./creationAvailability";
 
 const start = "2026-06-01";
 const end = "2026-06-07";
@@ -100,6 +101,7 @@ function dataset(): AppData {
         role: "Designer",
         disciplineId: "d-design",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -115,6 +117,7 @@ function dataset(): AppData {
         role: "Developer",
         disciplineId: "d-dev",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -193,13 +196,25 @@ const barIds = (model: GroupModel[]) =>
     .map((b) => b.allocation.id)
     .sort();
 
-it("keeps discipline groups while ordering favourite people and externals first alphabetically", () => {
+it("keeps discipline groups while ordering engagement partitions and externals deterministically", () => {
   const data = dataset();
   const designTemplate = data.resources[0]!;
   data.resources = [
     { ...designTemplate, id: "design-alpha", name: "Alpha" },
-    { ...designTemplate, id: "design-zulu", name: "Zulu", isFavourite: true },
+    {
+      ...designTemplate,
+      id: "design-zulu",
+      name: "Zulu",
+      engagement: "supplementary",
+      isFavourite: true,
+    },
     { ...designTemplate, id: "design-beta", name: "Beta", isFavourite: true },
+    {
+      ...designTemplate,
+      id: "design-gamma",
+      name: "Gamma",
+      engagement: "supplementary",
+    },
     data.resources[1]!,
     {
       ...designTemplate,
@@ -231,8 +246,24 @@ it("keeps discipline groups while ordering favourite people and externals first 
   });
 
   expect(model.map((group) => group.key)).toEqual(["d-design", "d-dev", "external"]);
-  expect(model[0]!.rows.map((row) => row.resource.name)).toEqual(["Beta", "Zulu", "Alpha"]);
+  expect(model[0]!.rows.map((row) => row.resource.name)).toEqual(["Beta", "Alpha", "Zulu", "Gamma"]);
   expect(model[2]!.rows.map((row) => row.resource.name)).toEqual(["Zeta", "Acme"]);
+
+  const ungroupedByEngagement = buildSchedulerModel({
+    data,
+    geom,
+    days,
+    visibleWindow: { start, end },
+    overSoonWindow: { start, end },
+    filters: emptyFilters(),
+    preferences: {
+      disciplinesEnabled: true,
+      placeholdersEnabled: true,
+      externalEnabled: true,
+      groupResourcesByEngagement: false,
+    },
+  });
+  expect(ungroupedByEngagement[0]!.rows.map((row) => row.resource.name)).toEqual(["Beta", "Zulu", "Alpha", "Gamma"]);
 });
 
 // dataset() + one external party booked on a project activity over a weekend (zero-capacity for a
@@ -248,6 +279,7 @@ function withExternal(): AppData {
     name: "Kord Industries",
     role: "Partner studio",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
@@ -303,6 +335,7 @@ describe("buildSchedulerModel", () => {
         role: "Designer",
         disciplineId: "d-design",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -340,6 +373,7 @@ describe("buildSchedulerModel", () => {
       role: "Designer",
       disciplineId: "d-design",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -889,6 +923,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
           name: "Dana",
           role: "Designer",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           halfDays: [],
@@ -1088,12 +1123,12 @@ describe("external / 3rd-party band", () => {
     expect(last.rows.map((r) => r.resource.id)).toEqual(["ext1"]);
   });
 
-  it("external rows carry NO capacity: utilisation 0, never overSoon, no day markers, no time-off", () => {
+  it("external rows carry no capacity while company-closed dates remain visibly blocked", () => {
     const ext = buildExt().at(-1)!.rows[0];
     expect(ext.utilization).toBe(0);
     expect(ext.overSoon).toBe(false);
-    // Its booking spans a weekend (zero-capacity for a person), yet no day is flagged.
-    expect(ext.dayStates.every((d) => !d.over && !d.unavailable)).toBe(true);
+    expect(ext.dayStates.every((d) => !d.over)).toBe(true);
+    expect(ext.dayStates.map((d) => d.unavailable)).toEqual([false, false, false, false, false, true, true]);
     expect(ext.timeOff).toEqual([]); // the stray time-off row is ignored for externals
   });
 
@@ -1482,6 +1517,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
         role: "Ops",
         disciplineId: "d-ops",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -1500,6 +1536,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
         role: "QA",
         disciplineId: "d-qa",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -1659,6 +1696,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       role: "Zed",
       disciplineId: "d-design",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1713,6 +1751,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       role: "Designer",
       disciplineId: "d-design",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1884,7 +1923,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       },
     });
     const ext = model.at(-1)!.rows[0];
-    expect(ext.dayStates[0]).toEqual({ over: false, unavailable: false });
+    expect(ext.dayStates[0]).toEqual({ over: false, unavailable: false, creationBlocked: false });
   });
 
   it("a dangling activityId (missing from `activities`) degrades to safe fallbacks, never throws", () => {
@@ -2009,6 +2048,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       name: "Noe",
       role: "Floater",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -2064,6 +2104,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         role: "Designer",
         disciplineId: "d-design",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -2079,6 +2120,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         role: "Designer",
         disciplineId: "d-design",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -2093,6 +2135,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         role: "Designer",
         disciplineId: "d-design",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -2108,6 +2151,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
         role: "Designer",
         disciplineId: "d-design",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -2286,6 +2330,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       role: "QA",
       disciplineId: "d-dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 6,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -2419,7 +2464,12 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       const off = d.timeOff.filter((t) => t.resourceId === resourceId);
       const row = rows.find((r) => r.resource.id === resourceId)!;
       const naiveTimeline = capacityForWindowOf(resource, allocs, off, days[0]!, days[days.length - 1]!);
-      expect(row.dayStates).toEqual(naiveTimeline.map((c) => ({ over: c.over, unavailable: c.available === 0 })));
+      expect(row.dayStates).toEqual(
+        naiveTimeline.map((c, index) => {
+          const creationBlocked = isCreationStartBlocked(resource, days[index]!, off, [1, 2, 3, 4, 5]);
+          return { over: c.over, unavailable: c.available === 0 || creationBlocked, creationBlocked };
+        }),
+      );
       expect(row.utilization).toBe(utilizationOf(resource, allocs, off, visStart, visEnd));
       expect(row.overSoon).toBe(capacityForWindowOf(resource, allocs, off, start, end).some((c) => c.over));
     }

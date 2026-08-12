@@ -59,9 +59,9 @@ export const DateHeader = memo(function DateHeader({
 }) {
   const showDays = dayWidth >= DAY_COLUMN_MIN_WIDTH; // per-day columns vs per-week blocks
   const showWeekday = dayWidth >= WEEKDAY_LABEL_MIN_WIDTH;
-  // The 1/2-week views have enough room to centre labels over the visible month segment.
+  // The 1/2-week views have enough room to place labels at the visible month segment's start.
   // At compact zooms that treatment would leave too little room, so keep the bounded sticky label.
-  const centreVisibleMonths = visibleWeeks <= 2 && showWeekday;
+  const alignVisibleMonths = visibleWeeks <= 2 && showWeekday;
   const totalWidth = geom.totalWidth;
   // Width of a span [start, start+days-1] from the real per-column widths.
   const spanWidth = (s: Span) => geom.spanWidth(s.start, s.start + s.days - 1);
@@ -84,7 +84,7 @@ export const DateHeader = memo(function DateHeader({
       {/* Month tier — padding-driven height (not a fixed px) so it scales with font size.
           Wide 1/2-week views position an absolute wrapper over the intersection of the month
           and visible timeline. useSchedulerViewport publishes scrollLeft as a CSS variable,
-          letting the browser keep that wrapper centred without a React render per scroll pixel.
+          letting the browser track that wrapper without a React render per scroll pixel.
           Compact zooms retain the bounded sticky label: no overflow-hidden ancestor in that
           branch, because it would trap position:sticky. */}
       <div className="flex shrink-0 border-b border-line">
@@ -101,7 +101,7 @@ export const DateHeader = memo(function DateHeader({
                 ["--month-width" as string]: `${width}px`,
               }}
             >
-              {centreVisibleMonths ? (
+              {alignVisibleMonths ? (
                 <>
                   {/* Absolute positioning must not collapse the padding-driven tier height. This
                       empty, invisible in-flow span carries the label's scalable line box. */}
@@ -113,7 +113,7 @@ export const DateHeader = memo(function DateHeader({
                   </span>
                   <div
                     data-month-placement="visible-segment"
-                    className="absolute inset-y-0 flex items-center justify-center overflow-hidden"
+                    className="absolute inset-y-0 flex items-center justify-start overflow-hidden"
                     style={{
                       left: "clamp(0px, calc(var(--sched-scroll-left, 0px) - var(--month-start)), var(--month-width))",
                       right:
@@ -157,6 +157,7 @@ export const DateHeader = memo(function DateHeader({
             return (
               <div
                 key={d}
+                data-date={d}
                 className={`flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? "border-l border-line" : ""} ${
                   isToday
                     ? "bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]"

@@ -1,5 +1,6 @@
 import type { Activity, Client, Project } from "@capacitylens/shared/types/entities";
 import { compareDisplayNames } from "../../lib/displayOrder";
+import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 
 type NamedEntity = { name: string } & ({ id: string } | { key: string });
 
@@ -18,6 +19,7 @@ export interface ClientActivityGroup {
 }
 
 export interface ActivityListModel {
+  kindOrder: typeof ACTIVITY_KIND_ORDER;
   internal: Activity[];
   crossProject: Activity[];
   clients: ClientActivityGroup[];
@@ -86,6 +88,7 @@ export function buildActivityListModel({
     activities.filter((activity) => activity.kind === kind).toSorted(compareNamed);
 
   return {
+    kindOrder: ACTIVITY_KIND_ORDER,
     internal: sortedActivities("internal"),
     crossProject: sortedActivities("repeatable"),
     clients: [...groupedClients.values()]

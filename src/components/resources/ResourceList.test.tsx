@@ -3,7 +3,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceList } from "./ResourceList";
 import { useStore } from "../../store/useStore";
-import { WORKDAYS, resetStoreWithAccount, setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
+import {
+  DEFAULT_ACCOUNT_ID,
+  WORKDAYS,
+  resetStoreWithAccount,
+  setExternalEnabled,
+  setPlaceholdersEnabled,
+} from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 
 beforeEach(() => {
@@ -21,6 +27,7 @@ const personDraft = (name: string) => ({
   name,
   role: "Developer",
   employmentType: "permanent" as const,
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
   halfDays: [],
@@ -32,6 +39,7 @@ const freelancerDraft = (name: string) => ({
   name,
   role: "Designer",
   employmentType: "freelancer" as const,
+  engagement: "studio" as const,
   workingHoursPerDay: 8,
   workingDays: WORKDAYS,
   halfDays: [],
@@ -97,6 +105,54 @@ describe("ResourceList display", () => {
     ]);
   });
 
+  it("separates Studio and Supplementary by default, with favourites first inside each section", () => {
+    useStore.getState().addResource(personDraft("Studio Zulu"));
+    useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
+    useStore.getState().addResource({
+      ...personDraft("Supplementary Alpha"),
+      engagement: "supplementary",
+    });
+    useStore.getState().addResource({
+      ...personDraft("Supplementary Zulu"),
+      engagement: "supplementary",
+      isFavourite: true,
+    });
+
+    render(<ResourceList />);
+
+    const studio = screen.getByRole("heading", { name: "Studio" }).closest("section")!;
+    const supplementary = screen.getByRole("heading", { name: "Supplementary" }).closest("section")!;
+    expect(
+      within(studio)
+        .getAllByTestId("resource-row")
+        .map((row) => row.textContent),
+    ).toEqual([expect.stringContaining("Studio Alpha"), expect.stringContaining("Studio Zulu")]);
+    expect(
+      within(supplementary)
+        .getAllByTestId("resource-row")
+        .map((row) => row.textContent),
+    ).toEqual([expect.stringContaining("Supplementary Zulu"), expect.stringContaining("Supplementary Alpha")]);
+  });
+
+  it("combines people into one favourites-first list when engagement grouping is off", () => {
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { groupResourcesByEngagement: false });
+    useStore.getState().addResource(personDraft("Studio Zulu"));
+    useStore.getState().addResource({
+      ...personDraft("Supplementary Alpha"),
+      engagement: "supplementary",
+      isFavourite: true,
+    });
+
+    render(<ResourceList />);
+
+    expect(screen.queryByRole("heading", { name: "Studio" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Supplementary" })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("resource-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
+      "Supplementary Alpha",
+      "Studio Zulu",
+    ]);
+  });
+
   it("hides direct section create actions from viewers", () => {
     useStore.getState().addResource(personDraft("Alice"));
     render(
@@ -121,6 +177,16 @@ describe("ResourceList display", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
+  it("omits both fixed hours text and dangling metadata separators", () => {
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+    useStore.getState().addResource({ ...personDraft("Alice"), role: "" });
+    render(<ResourceList />);
+
+    const row = screen.getByTestId("resource-row");
+    expect(row).not.toHaveTextContent(/\d+h\/day/);
+    expect(row).not.toHaveTextContent("·");
+  });
+
   it("gives repeated resource edit controls distinct contextual names", () => {
     useStore.getState().addResource(personDraft("Alice"));
     useStore.getState().addResource(personDraft("Bob"));
@@ -139,6 +205,19 @@ describe("ResourceList display", () => {
 
     expect(screen.getByRole("button", { name: "Edit Kord Industries" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Pixel Forge" })).toBeInTheDocument();
+  });
+
+  it("keeps the External explainer behind the section's labelled help action", async () => {
+    const user = userEvent.setup();
+    setExternalEnabled(true);
+    useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
+    render(<ResourceList />);
+
+    expect(screen.queryByText(/never count toward your team’s capacity or utilisation/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "About External" }));
+    const dialog = screen.getByRole("dialog", { name: "External" });
+    expect(within(dialog).getByText(/never count toward your team’s capacity or utilisation/i)).toBeInTheDocument();
   });
 
   it('does not show a "placeholder" tag or "Temp" tag for a permanent person', () => {
@@ -168,6 +247,7 @@ describe("ResourceList display", () => {
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
@@ -194,6 +274,7 @@ describe("ResourceList display", () => {
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
@@ -217,6 +298,7 @@ describe("ResourceList display", () => {
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
@@ -244,6 +326,7 @@ describe("ResourceList display", () => {
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],
@@ -367,6 +450,7 @@ describe("ResourceList archive flow", () => {
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: WORKDAYS,
       halfDays: [],

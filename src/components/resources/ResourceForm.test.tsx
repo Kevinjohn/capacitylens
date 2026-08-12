@@ -7,6 +7,29 @@ import { resetStoreWithAccount } from "../../test/fixtures";
 
 beforeEach(() => resetStoreWithAccount());
 
+describe("ResourceForm layout", () => {
+  it("uses compact label-control rows while leaving working days full width", () => {
+    render(<ResourceForm kind="person" onClose={vi.fn()} />);
+
+    for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+      expect(screen.getByLabelText(label).closest('[data-slot="field"]')).toHaveAttribute(
+        "data-product-layout",
+        "label-control",
+      );
+    }
+    expect(screen.getByRole("group", { name: "Working days" })).not.toHaveAttribute("data-product-layout");
+  });
+
+  it("uses the compact row for a placeholder's bound project", () => {
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+
+    expect(screen.getByLabelText("Bound project").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
+  });
+});
+
 describe("ResourceForm placeholder binding", () => {
   it("rejects a stale person edit instead of overwriting a concurrent change", async () => {
     const user = userEvent.setup();
@@ -16,6 +39,7 @@ describe("ResourceForm placeholder binding", () => {
       name: "Alice",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -38,6 +62,8 @@ describe("ResourceForm placeholder binding", () => {
     const onClose = vi.fn();
     render(<ResourceForm kind="placeholder" onClose={onClose} />);
 
+    expect(screen.queryByLabelText("Employment")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Engagement")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Role"), "Senior Designer");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -63,6 +89,7 @@ describe("ResourceForm placeholder binding", () => {
     expect(resources).toHaveLength(1);
     expect(resources[0].kind).toBe("placeholder");
     expect(resources[0].projectId).toBe(project.id);
+    expect(resources[0].engagement).toBe("studio");
   });
 
   // Editing a placeholder whose bound project is ARCHIVED (hidden from the active-only picker): the
@@ -78,6 +105,7 @@ describe("ResourceForm placeholder binding", () => {
       kind: "placeholder",
       role: "Designer",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -105,16 +133,63 @@ describe("ResourceForm placeholder binding", () => {
   });
 });
 
+describe("ResourceForm engagement", () => {
+  it("defaults new people to Studio and saves Supplementary without showing Employment", async () => {
+    const user = userEvent.setup();
+    render(<ResourceForm kind="person" onClose={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Employment")).not.toBeInTheDocument();
+    const engagement = screen.getByLabelText("Engagement");
+    expect(engagement).toHaveTextContent("Studio");
+
+    await user.type(screen.getByLabelText("Name"), "Selina Kyle");
+    fireEvent.keyDown(engagement, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      employmentType: "permanent",
+      engagement: "supplementary",
+    });
+  });
+
+  it("preserves hidden employment data when engagement is edited", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Barry Allen",
+      role: "Developer",
+      employmentType: "freelancer",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    });
+    render(<ResourceForm resource={resource} onClose={vi.fn()} />);
+
+    const engagement = screen.getByLabelText("Engagement");
+    fireEvent.keyDown(engagement, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      employmentType: "freelancer",
+      engagement: "supplementary",
+    });
+  });
+});
+
 describe("ResourceForm working days", () => {
   it("opens legacy working days as full days and unselected weekdays as not working", () => {
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     expect(
-      within(screen.getByRole("row", { name: /Monday/ })).getByRole("radio", { name: "Full day" }),
-    ).toHaveAttribute("aria-checked", "true");
+      within(screen.getByRole("row", { name: /Monday/ })).getByRole("radio", { name: "Monday Full day" }),
+    ).toBeChecked();
     expect(
-      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Not working" }),
-    ).toHaveAttribute("aria-checked", "true");
+      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Not working" }),
+    ).toBeChecked();
   });
 
   it("persists a mutually exclusive mixed full, half and non-working pattern", async () => {
@@ -122,28 +197,47 @@ describe("ResourceForm working days", () => {
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    await user.click(within(screen.getByRole("row", { name: /Tuesday/ })).getByRole("radio", { name: "Half day" }));
-    await user.click(within(screen.getByRole("row", { name: /Friday/ })).getByRole("radio", { name: "Not working" }));
+    await user.click(
+      within(screen.getByRole("row", { name: /Tuesday/ })).getByRole("radio", { name: "Tuesday Half day" }),
+    );
+    await user.click(
+      within(screen.getByRole("row", { name: /Friday/ })).getByRole("radio", { name: "Friday Not working" }),
+    );
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
+      workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4],
       halfDays: [2],
     });
   });
 
-  it("rejects working hours above the shared daily maximum", async () => {
+  it("hides working hours and normalises a legacy custom value to eight on edit", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<ResourceForm kind="person" onClose={onClose} />);
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Alice",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 6,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    });
+    render(<ResourceForm resource={resource} onClose={onClose} />);
 
-    await user.type(screen.getByLabelText("Name"), "Alice");
-    fireEvent.change(screen.getByLabelText("Working hours / day"), { target: { value: "40" } });
+    expect(screen.queryByLabelText("Working hours / day")).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Design lead");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/no more than 24/i);
-    expect(onClose).not.toHaveBeenCalled();
-    expect(useStore.getState().data.resources).toHaveLength(0);
+    expect(onClose).toHaveBeenCalled();
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      role: "Design lead",
+      workingHoursPerDay: 8,
+    });
   });
 
   it("blocks saving a resource with no working days selected", async () => {
@@ -155,7 +249,9 @@ describe("ResourceForm working days", () => {
     // Mark the default full Monday–Friday set as non-working.
     for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
       await user.click(
-        within(screen.getByRole("row", { name: new RegExp(day) })).getByRole("radio", { name: "Not working" }),
+        within(screen.getByRole("row", { name: new RegExp(day) })).getByRole("radio", {
+          name: `${day} Not working`,
+        }),
       );
     }
     await user.click(screen.getByRole("button", { name: "Save" }));

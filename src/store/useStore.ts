@@ -51,6 +51,7 @@ import type {
   Phase,
   Project,
   Resource,
+  ResourceEngagement,
   ScopedEntityKey,
   Activity,
   TimeOff,
@@ -58,6 +59,7 @@ import type {
 } from "@capacitylens/shared/types/entities";
 import { createRuntimeSlice } from "./slices/runtimeSlice";
 import { createSchedulerSlice } from "./slices/schedulerSlice";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -71,7 +73,10 @@ import { createSchedulerSlice } from "./slices/schedulerSlice";
 // runtime (see addClient/updateClient).
 type DraftFields<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
 export type Draft<T extends Entity> = T extends Resource
-  ? Omit<DraftFields<T>, "halfDays"> & { halfDays?: Weekday[] }
+  ? Omit<DraftFields<T>, "halfDays" | "engagement"> & {
+      halfDays?: Weekday[];
+      engagement?: ResourceEngagement;
+    }
   : DraftFields<T>;
 export type Patch<T extends Entity> = Partial<Draft<T>>;
 
@@ -415,6 +420,8 @@ export interface StoreState {
    * target disappeared before commit; validation/tenancy violations still throw. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean;
   deleteAllocation: (id: ID) => void;
+  /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */
+  deleteAllocationSeriesFrom: (id: ID) => void;
 
   addTimeOff: (input: Draft<TimeOff>) => TimeOff;
   updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void;
@@ -630,6 +637,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
       throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");
     }
   };
+  const assertAccountWorkingDays = (days: Weekday[]): void => {
+    if (
+      !Array.isArray(days) ||
+      new Set(days).size !== days.length ||
+      days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+    ) {
+      throw new Error("Company working days must be unique whole-number weekdays from 0 to 6.");
+    }
+  };
   const assertHalfDays = (halfDays: Weekday[], workingDays: Weekday[]): void => {
     if (
       !Array.isArray(halfDays) ||
@@ -747,6 +763,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
 
     addAccount: guarded((input: Draft<Account>): Account | null => {
       const ts = stamp();
+      const weekStartsOn = input.weekStartsOn ?? 1;
+      if (input.workingDays !== undefined) assertAccountWorkingDays(input.workingDays);
       // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
       // scheduling with disciplines OFF, placeholder + external features hidden, and Internal work
       // grey. `...input`
@@ -761,6 +779,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
         externalEnabled: false,
         internalColourMode: "grey",
         ...input,
+        workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
         color: snapColor(input.color),
         id: newId(),
         ...ts,
@@ -794,9 +813,17 @@ export const useStore = create<StoreState>()((set, get, store) => {
       if (state.activeAccountId !== id) {
         throw new Error("Cannot update a company other than the active company.");
       }
+      if (patch.workingDays !== undefined) assertAccountWorkingDays(patch.workingDays);
+      const safePatch =
+        patch.workingDays === undefined
+          ? patch
+          : {
+              ...patch,
+              workingDays: normalizeAccountWorkingDays(patch.workingDays, existing.weekStartsOn ?? 1),
+            };
       mutate((d) => ({
         ...d,
-        accounts: updateById(d.accounts, id, withSnappedColor(patch)),
+        accounts: updateById(d.accounts, id, withSnappedColor(safePatch)),
       }));
     }),
     // Cascade-drop every scoped entity belonging to this account; if it was the
@@ -1085,12 +1112,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
     addResource: guardedAdd(
       (input: Draft<Resource>): Resource => ({
         ...input,
+        // Engagement did not exist in older programmatic callers. Default them to Studio, and
+        // keep placeholders/external rows outside the people classification by forcing Studio.
+        engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
         // Programmatic callers written before half-day patterns existed retain the exact legacy
         // meaning: every selected working day is full, represented by an empty half-day subset.
         halfDays: input.halfDays ?? [],
-        // Clamp working hours/day (the store is the last line; the form caps it, but a non-form or
-        // pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a resource
-        // works a positive day) — distinct from an allocation, where 0 is legal.
+        // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
+        // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
+        // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
         workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
         id: newId(),
         accountId: requireAccount(),
@@ -1122,7 +1152,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
         if (patch.workingDays !== undefined || patch.halfDays !== undefined) {
           assertHalfDays(merged.halfDays, merged.workingDays);
         }
-        const colorPatch = withSnappedColor(patch, merged.kind === "external");
+        const engagementPatch = merged.kind !== "person" ? { ...patch, engagement: "studio" as const } : patch;
+        const colorPatch = withSnappedColor(engagementPatch, merged.kind === "external");
         return patch.workingHoursPerDay !== undefined
           ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
           : colorPatch;
@@ -1262,10 +1293,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
             existing,
           );
           assertDateRange(merged.startDate, merged.endDate);
+          // Repeat-series membership is system-owned at creation. An ordinary edit may change every
+          // visible allocation field but cannot link, unlink or move the row between series.
+          const safePatch = { ...patch };
+          if (existing.seriesId === undefined) delete safePatch.seriesId;
+          else safePatch.seriesId = existing.seriesId;
           // Clamp hours/day on the way in (a drag-resize rescale can exceed a real day).
-          return patch.hoursPerDay !== undefined
-            ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
-            : patch;
+          return safePatch.hoursPerDay !== undefined
+            ? { ...safePatch, hoursPerDay: clampHoursPerDay(safePatch.hoursPerDay) }
+            : safePatch;
         }),
       false,
     ),
@@ -1274,6 +1310,21 @@ export const useStore = create<StoreState>()((set, get, store) => {
       mutate((d) => ({
         ...d,
         allocations: d.allocations.filter((a) => a.id !== id),
+      }));
+    }),
+    deleteAllocationSeriesFrom: guarded((id: ID) => {
+      const target = findOwned(get().data, "allocations", id);
+      if (!target) return;
+      if (!target.seriesId) throw new Error("This allocation is not part of a repeat series.");
+      const { accountId, seriesId, startDate } = target;
+      // One mutation produces one history snapshot and one persistence diff/batch: a single Undo
+      // restores the whole tail, and server mode commits all DELETE operations transactionally.
+      mutate((d) => ({
+        ...d,
+        allocations: d.allocations.filter(
+          (allocation) =>
+            allocation.accountId !== accountId || allocation.seriesId !== seriesId || allocation.startDate < startDate,
+        ),
       }));
     }),
 

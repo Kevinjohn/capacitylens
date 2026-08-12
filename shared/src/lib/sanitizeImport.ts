@@ -3,6 +3,7 @@ import { INTERNAL_CLIENT_COLOR } from "../data/internalClient";
 import { cleanText } from "./strings";
 import { parseISOTimestamp } from "./integrity";
 import { normalizeCodeName, privateCodeNameFallback } from "../domain/privateNames";
+import { normalizeAccountWorkingDays } from "./accountWorkingDays";
 import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
@@ -23,6 +24,7 @@ const VALID_STATUS = ["confirmed", "tentative", "completed"] as const;
 const VALID_KIND = ["person", "placeholder", "external"] as const;
 const VALID_ACTIVITY_KIND = ["project", "internal", "repeatable"] as const;
 const VALID_EMPLOYMENT = ["permanent", "freelancer", "contractor"] as const;
+const VALID_ENGAGEMENT = ["studio", "supplementary"] as const;
 const VALID_TIMEOFF = ["holiday", "sick", "unpaid", "other"] as const;
 
 const SCOPED_META_FIELDS = ["id", "accountId", "createdAt", "updatedAt"] as const;
@@ -40,6 +42,7 @@ const IMPORTED_FIELDS = {
     "role",
     "disciplineId",
     "employmentType",
+    "engagement",
     "workingHoursPerDay",
     "workingDays",
     "halfDays",
@@ -57,6 +60,7 @@ const IMPORTED_FIELDS = {
     ...SCOPED_META_FIELDS,
     "resourceId",
     "activityId",
+    "seriesId",
     "startDate",
     "endDate",
     "hoursPerDay",
@@ -206,6 +210,7 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   if (rec.weekStartsOn !== undefined && rec.weekStartsOn !== 0 && rec.weekStartsOn !== 1) {
     delete rec.weekStartsOn;
   }
+  rec.workingDays = normalizeAccountWorkingDays(rec.workingDays, rec.weekStartsOn === 0 ? 0 : 1);
   // Drop any language that isn't the one supported value ('en'). English-only until P1.5.1
   // (Paraglide); a hand-edited 'fr'/123/etc. must not persist — its absence reads back as 'en'.
   if (rec.language !== undefined && rec.language !== "en") {
@@ -215,6 +220,10 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   // back as the default (true) on the client.
   if (rec.disciplinesEnabled !== undefined && typeof rec.disciplinesEnabled !== "boolean") {
     delete rec.disciplinesEnabled;
+  }
+  // Drop malformed engagement-grouping values; absence is the default-on representation.
+  if (rec.groupResourcesByEngagement !== undefined && typeof rec.groupResourcesByEngagement !== "boolean") {
+    delete rec.groupResourcesByEngagement;
   }
   // Drop a non-boolean placeholdersEnabled rather than persist junk; its absence reads
   // back as the default (false — hidden) on the client.
@@ -260,6 +269,7 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
         delete rec.projectId;
       } else {
         rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, "permanent");
+        rec.engagement = rec.kind === "placeholder" ? "studio" : oneOf(rec.engagement, VALID_ENGAGEMENT, "studio");
         rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay);
         rec.workingDays = safeWorkingDays(rec.workingDays);
         rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);
@@ -285,6 +295,11 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       rec.status = oneOf(rec.status, VALID_STATUS, "confirmed");
       rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8);
       if (typeof rec.ignoreWeekends !== "boolean") delete rec.ignoreWeekends;
+      if (rec.seriesId !== undefined) {
+        const seriesId = typeof rec.seriesId === "string" ? cleanText(rec.seriesId) : "";
+        if (seriesId) rec.seriesId = seriesId;
+        else delete rec.seriesId;
+      }
       rec.startDate = normalizeISODate(rec.startDate);
       rec.endDate = normalizeISODate(rec.endDate);
       cleanField(rec, "note", true);

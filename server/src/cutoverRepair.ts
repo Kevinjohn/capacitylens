@@ -55,10 +55,14 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
     const plan = planDatabaseMigrations(db);
     // v25 is the identity-link migration this tool may unblock. v26 adds only the reviewed,
     // default-off member sign-in confirmation shape; v27 adds only the optional resource-favourite
-    // column; and v28 adds only the required resource half-day JSON column with an empty default.
+    // column; v28 adds only the required resource half-day JSON column with an empty default; and
+    // v29 adds only the required resource engagement column with the Studio default; v30 adds
+    // only the optional default-on engagement-grouping account preference; and v31 adds the
+    // optional account working-day JSON selection with a deterministic legacy default; and v32
+    // adds only the optional forward-only repeat-series identity on allocations.
     // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
     // so a future migration requires review.
-    if (plan.migrations.some(({ version }) => ![25, 26, 27, 28].includes(version))) {
+    if (plan.migrations.some(({ version }) => ![25, 26, 27, 28, 29, 30, 31, 32].includes(version))) {
       throw new Error(
         `Database schema v${plan.fromVersion} has unrelated pending migrations; start the matching release before repair.`,
       );

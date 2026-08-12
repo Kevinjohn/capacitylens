@@ -1,4 +1,5 @@
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
+import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { byAccount } from "@capacitylens/shared/domain/tenancy";
 import {
   emptyAppData,
@@ -14,6 +15,7 @@ import type {
   InternalColourMode,
   Resource,
   SchedulingMode,
+  Weekday,
 } from "@capacitylens/shared/types/entities";
 import type { SchedulerUI } from "./useStore";
 
@@ -30,6 +32,11 @@ export const schedulingModeFor = (data: AppData, activeAccountId: ID | null): Sc
  *  form, schedule grouping + filter, lists, command palette) gates on the same value. */
 export const disciplinesEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
   data.accounts.find((a) => a.id === activeAccountId)?.disciplinesEnabled ?? true;
+
+/** Whether the active company partitions people by engagement in Resources and within schedule
+ * groups. Absent reads as TRUE so existing and new accounts receive the default-on behaviour. */
+export const groupResourcesByEngagementFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.groupResourcesByEngagement ?? true;
 
 /** Whether the active company shows placeholder ("slot") rows. Absent on the account reads as
  *  FALSE (hidden) — the documented default-off behaviour. NOTE the `?? false` (contrast
@@ -73,6 +80,15 @@ export const timeZoneFor = (data: AppData, activeAccountId: ID | null): string =
 
 export const weekStartsOnFor = (data: AppData, activeAccountId: ID | null): 0 | 1 =>
   data.accounts.find((a) => a.id === activeAccountId)?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON;
+
+/** Account-wide dates on which a schedule creation gesture may start. */
+export const accountWorkingDaysFor = (data: AppData, activeAccountId: ID | null): Weekday[] => {
+  const account = data.accounts.find((candidate) => candidate.id === activeAccountId);
+  const weekStartsOn = account?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON;
+  return account?.workingDays === undefined
+    ? defaultAccountWorkingDays(weekStartsOn)
+    : normalizeAccountWorkingDays(account.workingDays, weekStartsOn);
+};
 
 /** Narrow the full store data to a single account: every scoped array filtered to
  *  `accountId`, and `accounts` blanked (scoped views never read the tenant list).

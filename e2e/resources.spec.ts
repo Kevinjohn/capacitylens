@@ -20,6 +20,53 @@ test.describe("Resources", () => {
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Dana Lee" })).toBeVisible();
   });
 
+  test("keeps resource details compact at normal widths and stacks them on a narrow screen", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/resources");
+    await page.getByRole("button", { name: "Add resource" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Add resource" });
+    const compactFields = dialog.locator('[data-product-layout="label-control"]');
+    await expect(compactFields).toHaveCount(4);
+
+    const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
+    const workingDaysBox = await dialog.getByRole("group", { name: "Working days" }).boundingBox();
+    expect(fieldGroupBox).not.toBeNull();
+    expect(workingDaysBox).not.toBeNull();
+    expect(Math.abs(fieldGroupBox!.width - workingDaysBox!.width)).toBeLessThanOrEqual(2);
+
+    for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+      const control = dialog.getByLabel(label, { exact: true });
+      const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+      const fieldBox = await field.boundingBox();
+      const controlBox = await control.boundingBox();
+      expect(fieldBox).not.toBeNull();
+      expect(controlBox).not.toBeNull();
+      const controlStart = (controlBox!.x - fieldBox!.x) / fieldBox!.width;
+      const controlShare = controlBox!.width / fieldBox!.width;
+      expect(controlStart).toBeGreaterThan(0.24);
+      expect(controlStart).toBeLessThan(0.32);
+      expect(controlShare).toBeGreaterThan(0.68);
+      expect(controlShare).toBeLessThan(0.76);
+    }
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await expect(dialog).toBeVisible();
+    for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+      const control = dialog.getByLabel(label, { exact: true });
+      const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+      const labelBox = await field.locator(":scope > :first-child").boundingBox();
+      const fieldBox = await field.boundingBox();
+      const controlBox = await control.boundingBox();
+      expect(labelBox).not.toBeNull();
+      expect(fieldBox).not.toBeNull();
+      expect(controlBox).not.toBeNull();
+      expect(controlBox!.y).toBeGreaterThanOrEqual(labelBox!.y + labelBox!.height);
+      expect(Math.abs(controlBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(controlBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
+    }
+  });
+
   test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — turn them on so the management
@@ -66,8 +113,23 @@ test.describe("Resources", () => {
     await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Barbara Gordon");
-    await page.getByRole("radiogroup", { name: "Tuesday" }).getByRole("radio", { name: "Half day" }).click();
-    await page.getByRole("radiogroup", { name: "Friday" }).getByRole("radio", { name: "Not working" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add resource" });
+    await expect(dialog.getByRole("columnheader", { name: "Full day" })).toBeVisible();
+    await expect(dialog.getByRole("columnheader", { name: "Half day" })).toBeVisible();
+    await expect(dialog.getByRole("columnheader", { name: "Not working" })).toBeVisible();
+    const tableBox = await dialog.getByRole("table").boundingBox();
+    const dialogBox = await dialog.boundingBox();
+    expect(tableBox).not.toBeNull();
+    expect(dialogBox).not.toBeNull();
+    expect(Math.abs(dialogBox!.x + dialogBox!.width - (tableBox!.x + tableBox!.width))).toBeLessThanOrEqual(30);
+    const mondayFull = dialog.getByRole("radio", { name: "Monday Full day" });
+    await mondayFull.click();
+    await mondayFull.press("ArrowRight");
+    await expect(dialog.getByRole("radio", { name: "Monday Half day" })).toBeChecked();
+    await dialog.getByRole("radio", { name: "Monday Half day" }).press("ArrowLeft");
+    await expect(mondayFull).toBeChecked();
+    await dialog.getByRole("radio", { name: "Tuesday Half day" }).click();
+    await dialog.getByRole("radio", { name: "Friday Not working" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
     await page
@@ -75,15 +137,9 @@ test.describe("Resources", () => {
       .filter({ hasText: "Barbara Gordon" })
       .getByRole("button", { name: /^Edit / })
       .click();
-    await expect(
-      page.getByRole("radiogroup", { name: "Monday" }).getByRole("radio", { name: "Full day" }),
-    ).toBeChecked();
-    await expect(
-      page.getByRole("radiogroup", { name: "Tuesday" }).getByRole("radio", { name: "Half day" }),
-    ).toBeChecked();
-    await expect(
-      page.getByRole("radiogroup", { name: "Friday" }).getByRole("radio", { name: "Not working" }),
-    ).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Monday Full day" })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Tuesday Half day" })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Friday Not working" })).toBeChecked();
   });
 
   test("favourites a person and keeps them first in the resource list and discipline group", async ({ page }) => {
@@ -107,6 +163,50 @@ test.describe("Resources", () => {
         return [
           rows.findIndex((row) => row.includes("Clark Kent")),
           rows.findIndex((row) => row.includes("Barry Allen")),
+        ];
+      })
+      .toEqual([1, 2]);
+  });
+
+  test("groups Studio before Supplementary and restores one People order when disabled", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/resources");
+    await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Supplementary" })).toBeVisible();
+
+    const barry = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
+    await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
+    await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+    await page.getByRole("button", { name: "Save" }).click();
+    await barry.getByRole("button", { name: "Add Barry Allen to favourites" }).click();
+
+    const supplementary = page.getByRole("heading", { name: "Supplementary" }).locator("..");
+    await expect(supplementary.getByTestId("resource-row")).toContainText("Barry Allen");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect
+      .poll(async () => {
+        const rows = await page.getByTestId("scheduler-row").allTextContents();
+        return [
+          rows.findIndex((row) => row.includes("Clark Kent")),
+          rows.findIndex((row) => row.includes("Barry Allen")),
+        ];
+      })
+      .toEqual([1, 2]);
+
+    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("switch", { name: "Group resources by engagement" }).click();
+    await page.getByRole("link", { name: "Resources" }).click();
+    await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Supplementary" })).toHaveCount(0);
+    await expect(page.getByTestId("resource-row").first()).toContainText("Barry Allen");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect
+      .poll(async () => {
+        const rows = await page.getByTestId("scheduler-row").allTextContents();
+        return [
+          rows.findIndex((row) => row.includes("Barry Allen")),
+          rows.findIndex((row) => row.includes("Clark Kent")),
         ];
       })
       .toEqual([1, 2]);
@@ -138,23 +238,31 @@ test.describe("Resources", () => {
     await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
   });
 
-  test("rejects zero working hours", async ({ page }) => {
+  test("uses fixed working hours without showing an hours field", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
     await page.getByRole("button", { name: "Add resource" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Edge Case");
+    await expect(page.getByLabel("Working hours / day")).toHaveCount(0);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Fixed Hours");
     await page.getByLabel("Role").fill("Tester");
-
-    await page.getByLabel("Working hours / day").fill("0");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("alert")).toContainText(/greater than 0/i);
+
+    const row = page.getByTestId("resource-row").filter({ hasText: "Fixed Hours" });
+    await expect(row).toBeVisible();
+    await expect(row).not.toContainText(/\d+h\/day/);
   });
 
-  test("the Temp tag is parked: freelancers render untagged", async ({ page }) => {
-    // Employment type is still captured on the form, but the visual pill is hidden
-    // Employment type is recorded without adding a roster badge (DECISIONS.md).
+  test("edits Engagement while Employment stays hidden and unbadged", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
-    // Barry Allen is a seeded freelancer — visible, but with no Temp tag anywhere.
-    await expect(page.getByTestId("resource-row").filter({ hasText: "Barry Allen" })).toBeVisible();
+    const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
+    await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
+
+    await expect(page.getByLabel("Employment")).toHaveCount(0);
+    await expect(page.getByLabel("Engagement")).toContainText("Studio");
+    await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
+    await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
     await expect(page.getByText("Temp", { exact: true })).toHaveCount(0);
   });
 });

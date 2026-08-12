@@ -15,6 +15,7 @@ describe("sanitizeImportedRecord", () => {
     const out = sanitizeImportedRecord("resources", {
       kind: "wizard",
       employmentType: "slave",
+      engagement: "associate",
       workingHoursPerDay: -5,
       workingDays: "nope",
       color: "red",
@@ -22,11 +23,21 @@ describe("sanitizeImportedRecord", () => {
     expect(out).toMatchObject({
       kind: "person",
       employmentType: "permanent",
+      engagement: "studio",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
       color: FALLBACK_PRESET_COLOR,
     });
+  });
+
+  it("preserves valid engagement and forces placeholders to Studio", () => {
+    expect(sanitizeImportedRecord("resources", { kind: "person", engagement: "supplementary" }).engagement).toBe(
+      "supplementary",
+    );
+    expect(sanitizeImportedRecord("resources", { kind: "placeholder", engagement: "supplementary" }).engagement).toBe(
+      "studio",
+    );
   });
 
   it("preserves boolean resource favourites and drops malformed values", () => {
@@ -92,6 +103,12 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("allocations", { ignoreWeekends: false }).ignoreWeekends).toBe(false);
   });
 
+  it("preserves a clean repeat-series id and drops malformed or blank values", () => {
+    expect(sanitizeImportedRecord("allocations", { seriesId: " series-1 " }).seriesId).toBe("series-1");
+    expect(sanitizeImportedRecord("allocations", { seriesId: 42 })).not.toHaveProperty("seriesId");
+    expect(sanitizeImportedRecord("allocations", { seriesId: "  " })).not.toHaveProperty("seriesId");
+  });
+
   it("repairs missing names by resource kind while preserving nameless placeholders", () => {
     expect(sanitizeImportedRecord("resources", { kind: "person" }).name).toBe("Unnamed person");
     expect(sanitizeImportedRecord("resources", { kind: "external", name: "  " }).name).toBe("Unnamed company");
@@ -108,12 +125,14 @@ describe("sanitizeImportedRecord", () => {
       disciplineId: "d1",
       projectId: "p1",
       employmentType: "contractor",
+      engagement: "supplementary",
       workingHoursPerDay: 12,
       workingDays: [1],
       color: "#abcdef",
     });
     expect(external).toMatchObject({
       employmentType: "permanent",
+      engagement: "studio",
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -421,6 +440,13 @@ describe("sanitizeAccount", () => {
     expect(sanitizeAccount({ weekStartsOn: 1 }).weekStartsOn).toBe(1);
   });
 
+  it("repairs account working days from the configured week while preserving valid selections", () => {
+    expect(sanitizeAccount({ weekStartsOn: 0 }).workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [5, 1, 5] }).workingDays).toEqual([1, 5]);
+    expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [] }).workingDays).toEqual([]);
+    expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [1, 9] }).workingDays).toEqual([1, 2, 3, 4, 5]);
+  });
+
   it("strips a non-boolean disciplinesEnabled", () => {
     expect(sanitizeAccount({ disciplinesEnabled: "yes" }).disciplinesEnabled).toBeUndefined();
     expect(sanitizeAccount({ disciplinesEnabled: 1 }).disciplinesEnabled).toBeUndefined();
@@ -430,6 +456,13 @@ describe("sanitizeAccount", () => {
   it("keeps a boolean disciplinesEnabled", () => {
     expect(sanitizeAccount({ disciplinesEnabled: false }).disciplinesEnabled).toBe(false);
     expect(sanitizeAccount({ disciplinesEnabled: true }).disciplinesEnabled).toBe(true);
+  });
+
+  it("keeps boolean engagement grouping and drops malformed values", () => {
+    expect(sanitizeAccount({ groupResourcesByEngagement: false }).groupResourcesByEngagement).toBe(false);
+    expect(sanitizeAccount({ groupResourcesByEngagement: true }).groupResourcesByEngagement).toBe(true);
+    expect(sanitizeAccount({ groupResourcesByEngagement: "yes" }).groupResourcesByEngagement).toBeUndefined();
+    expect(sanitizeAccount({ groupResourcesByEngagement: null }).groupResourcesByEngagement).toBeUndefined();
   });
 
   it("strips a non-boolean placeholdersEnabled", () => {

@@ -37,6 +37,7 @@ function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
     name: "Ty",
     role: "Dev",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
@@ -66,6 +67,7 @@ function seedVisibleAllocationWithHiddenCapacity(): Allocation {
     name: "Ty",
     role: "Dev",
     employmentType: "permanent",
+    engagement: "studio" as const,
     workingHoursPerDay: 8,
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
@@ -121,7 +123,8 @@ describe("AllocationBar interactions", () => {
     const pop = screen.getByTestId("allocation-popover");
     expect(pop).toHaveTextContent("Project Watchtower");
     expect(pop).toHaveTextContent("Acme");
-    expect(pop).toHaveTextContent(/drag to move/i);
+    expect(pop.querySelector(".text-2xs.text-faint")).toBeNull();
+    expect(bar).toHaveAccessibleDescription("Drag to move · edges to resize · drop on another row to reassign");
     fireEvent.mouseLeave(bar);
     expect(screen.queryByTestId("allocation-popover")).toBeNull();
   });
@@ -157,7 +160,8 @@ describe("AllocationBar interactions", () => {
       const popover = screen.getByTestId("allocation-popover");
       expect(popover).toHaveTextContent("Project Watchtower");
       expect(popover).toHaveTextContent("Call the client before kickoff");
-      expect(popover).toHaveTextContent("Read-only allocation details");
+      expect(popover.querySelector(".text-2xs.text-faint")).toBeNull();
+      expect(bar).toHaveAccessibleDescription("Read-only allocation details");
       expect(popover).not.toHaveTextContent(/drag|resize|reassign/i);
       expect(bar).toHaveAccessibleName(
         /Wires, Project Watchtower · Acme, 8h per day, Confirmed, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
@@ -403,6 +407,7 @@ describe("AllocationBar interactions", () => {
       name: "Ty",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -413,6 +418,7 @@ describe("AllocationBar interactions", () => {
       kind: "placeholder",
       role: "Slot",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -478,6 +484,7 @@ describe("AllocationBar interactions", () => {
       name: "Ty",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -488,6 +495,7 @@ describe("AllocationBar interactions", () => {
       name: "Sam",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -547,6 +555,7 @@ describe("AllocationBar interactions", () => {
       name: "Ty",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -557,6 +566,7 @@ describe("AllocationBar interactions", () => {
       name: "Sam",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -614,6 +624,7 @@ describe("AllocationBar interactions", () => {
       name: "Kord Industries",
       role: "Partner studio",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -624,6 +635,7 @@ describe("AllocationBar interactions", () => {
       name: "Ty",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -692,6 +704,7 @@ describe("AllocationBar interactions", () => {
           name: "Ty",
           role: "Dev",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           halfDays: [],
@@ -702,6 +715,7 @@ describe("AllocationBar interactions", () => {
           name: "Sam",
           role: "Dev",
           employmentType: "permanent",
+          engagement: "studio" as const,
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
           halfDays: [],
@@ -812,6 +826,7 @@ describe("AllocationBar interactions", () => {
         name: "Ty",
         role: "Dev",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -872,6 +887,7 @@ describe("AllocationBar interactions", () => {
         name: "Ty",
         role: "Dev",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -949,6 +965,7 @@ describe("AllocationBar interactions", () => {
         name: "Ty",
         role: "Dev",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -1032,6 +1049,7 @@ describe("AllocationBar interactions", () => {
         name: "Ty",
         role: "Dev",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1, 2, 3, 4, 5],
         halfDays: [],
@@ -1151,6 +1169,7 @@ describe("AllocationBar interactions", () => {
       name: "Sev",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [0, 1, 2, 3, 4, 5, 6],
       halfDays: [],
@@ -1161,6 +1180,7 @@ describe("AllocationBar interactions", () => {
       name: "Wk",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -1225,6 +1245,7 @@ describe("AllocationBar interactions", () => {
       name: "Ty",
       role: "Dev",
       employmentType: "permanent",
+      engagement: "studio" as const,
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],

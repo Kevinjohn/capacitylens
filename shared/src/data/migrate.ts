@@ -1,5 +1,6 @@
 import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
 import { availableInternalClientId, buildInternalClient, ensureInternalClients } from "./internalClient";
+import { normalizeAccountWorkingDays } from "../lib/accountWorkingDays";
 import type { AppData } from "../types/entities";
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
@@ -277,6 +278,49 @@ function migrateV10toV11(data: Record<string, unknown>): Record<string, unknown>
   return { ...data, resources };
 }
 
+// v11 → v12 adds required Resource.engagement. Existing people, placeholders and external rows all
+// start as Studio; later edits can explicitly classify people as Supplementary.
+function migrateV11toV12(data: Record<string, unknown>): Record<string, unknown> {
+  const resources = Array.isArray(data.resources)
+    ? data.resources.map((resource) =>
+        resource && typeof resource === "object"
+          ? { ...(resource as Record<string, unknown>), engagement: "studio" }
+          : resource,
+      )
+    : data.resources;
+  return { ...data, resources };
+}
+
+// v12 → v13 adds optional Account.groupResourcesByEngagement. No transform is needed: absence
+// deliberately reads as true, and sanitizeAccount drops malformed present values.
+function migrateV12toV13(data: Record<string, unknown>): Record<string, unknown> {
+  return data;
+}
+
+// v13 → v14 adds account-wide working weekdays. Backfill the first five days of each account's
+// configured week; malformed present values take the same repair path as a direct server write.
+function migrateV13toV14(data: Record<string, unknown>): Record<string, unknown> {
+  const accounts = Array.isArray(data.accounts)
+    ? data.accounts.map((account) => {
+        if (!account || typeof account !== "object") return account;
+        const record = account as Record<string, unknown>;
+        const weekStartsOn = record.weekStartsOn === 0 ? 0 : 1;
+        return {
+          ...record,
+          workingDays: normalizeAccountWorkingDays(record.workingDays, weekStartsOn),
+        };
+      })
+    : data.accounts;
+  return { ...data, accounts };
+}
+
+// v14 → v15 introduces optional repeat-series identity. Existing repeated allocations were
+// independent rows with no durable evidence of which creation batch produced them, so forward-only
+// migration deliberately leaves every legacy allocation unlinked.
+function migrateV14toV15(data: Record<string, unknown>): Record<string, unknown> {
+  return data;
+}
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -332,6 +376,18 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   }
   if (data && typeof data === "object" && version < 11) {
     data = migrateV10toV11(data);
+  }
+  if (data && typeof data === "object" && version < 12) {
+    data = migrateV11toV12(data);
+  }
+  if (data && typeof data === "object" && version < 13) {
+    data = migrateV12toV13(data);
+  }
+  if (data && typeof data === "object" && version < 14) {
+    data = migrateV13toV14(data);
+  }
+  if (data && typeof data === "object" && version < 15) {
+    data = migrateV14toV15(data);
   }
 
   return {

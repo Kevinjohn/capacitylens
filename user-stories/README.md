@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-121 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
+122 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -57,8 +57,8 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-RES-03](resources/US-RES-03-edit-resource.md)         | Edit a resource                             | `e2e/resources.spec.ts`                                  |
 | [US-RES-04](resources/US-RES-04-archive-resource.md)      | Archive a resource (retain children + undo) | `e2e/resources.spec.ts`                                  |
 | [US-RES-05](resources/US-RES-05-working-days.md)          | Set working days                            | unit (`capacity.test.ts`) + manual                       |
-| [US-RES-06](resources/US-RES-06-working-hours.md)         | Set working hours (> 0)                     | `e2e/resources.spec.ts`                                  |
-| [US-RES-07](resources/US-RES-07-employment-temp-tag.md)   | Employment type (Temp tag parked)           | `e2e/resources.spec.ts`                                  |
+| [US-RES-06](resources/US-RES-06-working-hours.md)         | Use fixed working hours                     | unit + `e2e/resources.spec.ts`                           |
+| [US-RES-07](resources/US-RES-07-engagement.md)            | Studio or Supplementary engagement          | `e2e/resources.spec.ts`                                  |
 | [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group under a discipline                    | `e2e/resources.spec.ts` + `e2e/disciplines.spec.ts`      |
 | [US-RES-09](resources/US-RES-09-resource-colour.md)       | Colour derives from discipline              | `e2e/resources.spec.ts`                                  |
 | [US-RES-10](resources/US-RES-10-resource-list-display.md) | Resource list display                       | `e2e/resources.spec.ts` + unit (`ResourceList.test.tsx`) |
@@ -201,6 +201,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Archived & deleted (restore / purge)                  | `e2e/archived.spec.ts`                                  |
 | [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links                     | `e2e/reset-password.auth.spec.ts`                       |
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                                 | `e2e/internal-colours.spec.ts`                          |
+| [US-SET-15](settings/US-SET-15-global-working-days.md)   | Global working days                                   | `e2e/global-working-days.spec.ts`                       |
 
 ## Keyboard & accessibility — `accessibility/`
 

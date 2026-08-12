@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   disciplinesEnabledFor,
   externalEnabledFor,
+  groupResourcesByEngagementFor,
   inlineActivityCreateEnabledFor,
   internalColourModeFor,
   placeholdersEnabledFor,
@@ -10,6 +11,7 @@ import {
   showInternalActivitiesFor,
   showInternalProjectsFor,
   activitiesForProject,
+  accountWorkingDaysFor,
   timeZoneFor,
   visibleRange,
   weekStartsOnFor,
@@ -36,6 +38,7 @@ function data(): AppData {
         role: "x",
         disciplineId: "d1",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1],
         halfDays: [],
@@ -51,6 +54,7 @@ function data(): AppData {
         role: "x",
         disciplineId: "d2",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1],
         halfDays: [],
@@ -65,6 +69,7 @@ function data(): AppData {
         name: "C",
         role: "x",
         employmentType: "permanent",
+        engagement: "studio" as const,
         workingHoursPerDay: 8,
         workingDays: [1],
         halfDays: [],
@@ -161,6 +166,15 @@ describe("account feature selector defaults", () => {
       values: (externalEnabled) => ({ externalEnabled: externalEnabled as boolean }),
     },
     {
+      name: "engagement grouping",
+      selector: groupResourcesByEngagementFor,
+      fallback: true,
+      explicit: [true, false],
+      values: (groupResourcesByEngagement) => ({
+        groupResourcesByEngagement: groupResourcesByEngagement as boolean,
+      }),
+    },
+    {
       name: "internal projects",
       selector: showInternalProjectsFor,
       fallback: true,
@@ -207,6 +221,20 @@ describe("calendar primitive selectors", () => {
     const data = accounts({ timezone: "Europe/London", weekStartsOn: 0 });
     expect(timeZoneFor(data, "a1")).toBe("Europe/London");
     expect(weekStartsOnFor(data, "a1")).toBe(0);
+  });
+
+  it("derives legacy account working days from week start and preserves an explicit selection", () => {
+    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 1 }), "a1")).toEqual([1, 2, 3, 4, 5]);
+    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 0 }), "a1")).toEqual([0, 1, 2, 3, 4]);
+    expect(
+      accountWorkingDaysFor(
+        {
+          ...accounts({ weekStartsOn: 0 }),
+          accounts: [{ ...accounts({ weekStartsOn: 0 }).accounts[0]!, workingDays: [1, 3, 5] }],
+        },
+        "a1",
+      ),
+    ).toEqual([1, 3, 5]);
   });
 });
 

@@ -29,13 +29,13 @@ describe("DateHeader", () => {
     expect(screen.getByText("Jun 2026")).toBeInTheDocument();
   });
 
-  it("centres wide-view labels in the visible month segment", () => {
+  it("left-aligns wide-view labels in the visible month segment", () => {
     renderHeader(48);
     const label = screen.getByText("Jun 2026");
     const placement = label.parentElement;
 
     expect(placement).toHaveAttribute("data-month-placement", "visible-segment");
-    expect(placement).toHaveClass("absolute", "items-center", "justify-center", "overflow-hidden");
+    expect(placement).toHaveClass("absolute", "items-center", "justify-start", "overflow-hidden");
     expect(label).toHaveClass("max-w-full", "truncate");
     expect(label).not.toHaveClass("sticky", "bg-surface");
   });

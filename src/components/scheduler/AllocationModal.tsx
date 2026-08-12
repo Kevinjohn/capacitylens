@@ -5,7 +5,12 @@ import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { daysInclusive, eachDayISO, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
+import {
+  generateRepeatingStartDates,
+  maximumRepeatUntilDate,
+  RepeatingDateError,
+} from "@capacitylens/shared/lib/repeatingDates";
+import { newId } from "@capacitylens/shared/lib/id";
 import {
   blockHoursPerDay,
   daysOfWorkFor,
@@ -26,22 +31,42 @@ import { validateAllocationAssignment } from "@capacitylens/shared/lib/integrity
 import { validateText } from "../../lib/validation";
 import { domainErrorMessage, errorMessage } from "../../lib/errorMessage";
 import { m } from "@/i18n";
-import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
+import {
+  MAX_NAME_INPUT_CODE_UNITS,
+  MAX_NOTE_INPUT_CODE_UNITS,
+  MAX_NOTE_LENGTH,
+} from "@capacitylens/shared/lib/strings";
 import { Plus } from "lucide-react";
-import { DateField, Modal, NumberField, RequiredLegend, SelectField, TextAreaField, type Option } from "../common/ui";
+import {
+  DateField,
+  Modal,
+  NumberField,
+  RequiredLegend,
+  SegmentedControl,
+  SelectField,
+  TextField,
+  type Option,
+} from "../common/ui";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import { capacityAdvisory, capacityAllocationsForMode, scheduledHoursOnDay } from "../../lib/capacity";
-import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
-import { isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import type { AllocationStatus, ISODate, Resource, SchedulingMode } from "@capacitylens/shared/types/entities";
+import { allocationStatusLabels, resourceDisplayName } from "../../lib/metadata";
+import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import type {
+  Activity,
+  AllocationStatus,
+  ISODate,
+  Resource,
+  SchedulingMode,
+} from "@capacitylens/shared/types/entities";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ConfirmDialog } from "../common/dialogs";
+import { RepeatedAllocationDeleteDialog } from "./RepeatedAllocationDeleteDialog";
 import { buildActivityOptions } from "./activityOptions";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { formatShortDate } from "../../lib/dateDisplay";
@@ -59,6 +84,21 @@ import {
 const roundDays = (n: number) => Math.round(n * 1e6) / 1e6;
 /** 2-dp rounding for the human-readable "…h/day" hint only — never fed back into a value. */
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+const INTERNAL_PROJECT_SELECTION = "__allocation_internal__";
+const ANY_PROJECT_SELECTION = "__allocation_any_project__";
+
+function projectSelectionForActivity(activity: Activity | undefined): string {
+  if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
+  if (activity?.kind === "project" && activity.projectId) return activity.projectId;
+  return INTERNAL_PROJECT_SELECTION;
+}
+
+function activityScopeForProjectSelection(selection: string): { kind: Activity["kind"]; projectId?: string } {
+  if (selection === INTERNAL_PROJECT_SELECTION) return { kind: "internal" };
+  if (selection === ANY_PROJECT_SELECTION) return { kind: "repeatable" };
+  return { kind: "project", projectId: selection };
+}
 
 const repeatOptions = (): Option[] => [
   { value: "none", label: m.form_allocation_repeat_none() },
@@ -101,7 +141,7 @@ function effectiveAllocationValues({
 }: EffectiveAllocationInput) {
   const resource = resources.find((candidate) => candidate.id === resourceId);
   const external = !!resource && isExternalResource(resource);
-  const workingHoursPerDay = resource?.workingHoursPerDay ?? 8;
+  const workingHoursPerDay = FULL_DAY_HOURS;
   const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const spanOpts = { workingDays: resource?.workingDays, ignoreWeekends };
   const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOpts) : MAX_SPAN_DAYS;
@@ -140,6 +180,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const addAllocations = useStore((s) => s.addAllocations);
   const updateAllocation = useStore((s) => s.updateAllocation);
   const deleteAllocation = useStore((s) => s.deleteAllocation);
+  const deleteAllocationSeriesFrom = useStore((s) => s.deleteAllocationSeriesFrom);
   const addActivity = useStore((s) => s.addActivity);
   const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId));
   // Per-account view pref (default OFF): when off, placeholders are dropped from the assignee
@@ -163,23 +204,27 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
   const initialResource = data.resources.find((r) => r.id === initialResourceId);
   const initialLocked = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
-  const initialWhpd = initialResource?.workingHoursPerDay ?? 8;
+  const initialWhpd = FULL_DAY_HOURS;
   const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
   const initialScheduledHours = initialResource ? scheduledHoursOnDay(initialResource, initialStart) : initialWhpd;
 
   const [resourceId, setResourceId] = useState(initialResourceId);
-  // When editing, the existing activity's project wins (undefined → '' = general), so a
-  // placeholder→general allocation reopens with the Activity select correctly populated.
-  // `initialLocked` is only the CREATE-time default for a placeholder's bound project.
-  const [projectId, setProjectId] = useState(editing ? (initialActivity?.projectId ?? "") : (initialLocked ?? ""));
+  // Editing derives the exact activity scope so project-less Internal and Any Project work no
+  // longer reopen as one ambiguous bucket. `initialLocked` remains only the create-time default
+  // for a placeholder's bound project.
+  const [projectSelection, setProjectSelection] = useState(
+    editing ? projectSelectionForActivity(initialActivity) : (initialLocked ?? INTERNAL_PROJECT_SELECTION),
+  );
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
   const [startDate, setStartDate] = useState<ISODate>(initialStart);
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone));
   const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? (initialScheduledHours || initialWhpd));
   const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? "confirmed");
   const [note, setNote] = useState(editing?.note ?? "");
+  const [noteEdited, setNoteEdited] = useState(false);
   const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false);
   const [repeat, setRepeat] = useState<RepeatSelection>("none");
+  const [repeatUntil, setRepeatUntil] = useState("");
   // Days-mode inputs (used only when isDays). For an EXISTING allocation we invert
   // hours/dates against the assignee's working week; for a NEW one we honour the span
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
@@ -205,11 +250,14 @@ export function AllocationModal(props: AllocationModalProps) {
       : roundDays(initialCapacityHours > 0 ? initialCapacityHours / initialWhpd : initialDaysOver),
   );
   const [newActivityName, setNewActivityName] = useState("");
-  const [inlineActivityOption, setInlineActivityOption] = useState<(Option & { projectId?: string }) | null>(null);
+  const [inlineActivityOption, setInlineActivityOption] = useState<
+    (Option & { kind: Activity["kind"]; projectId?: string }) | null
+  >(null);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
   const includeWeekendsId = useId();
+  const statusLabelId = useId();
 
   // If the edited allocation is removed out from under us (e.g. undo), close
   // rather than silently turning into a "create" that would resurrect it.
@@ -260,6 +308,9 @@ export function AllocationModal(props: AllocationModalProps) {
   // the multi-million-day render freeze this guard prevents.
   const typedDateSpanDays = startDate && endDate ? daysInclusive(startDate, endDate) : 0;
   const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
+  const repeatToday = todayISO(calendarTimeZone);
+  const repeatUntilMinimum = isValidISODate(startDate) && startDate > repeatToday ? startDate : repeatToday;
+  const repeatUntilMaximum = isValidISODate(startDate) ? maximumRepeatUntilDate(startDate) : undefined;
 
   // Repeating preview/advisory inputs mirror the effective persisted fields without invoking the
   // submit validator (which owns focus/error side effects). Invalid partial form state gets no
@@ -267,6 +318,13 @@ export function AllocationModal(props: AllocationModalProps) {
   const repeatProjection = useMemo(() => {
     if (!create || repeat === "none" || !selectedResource || !resourceId || !activityId) return null;
     if (!isValidISODate(startDate) || !isValidISODate(effEndDate) || effEndDate < startDate) return null;
+    if (
+      !isValidISODate(repeatUntil) ||
+      repeatUntil < repeatUntilMinimum ||
+      !repeatUntilMaximum ||
+      repeatUntil > repeatUntilMaximum
+    )
+      return null;
     if (daysInclusive(startDate, effEndDate) > MAX_SPAN_DAYS) return null;
     if ((isDays || isBlocks) && (!validDaysOver || !spanFitsDateDomain)) return null;
     if (isDays && !(daysOfWork > 0)) return null;
@@ -279,7 +337,7 @@ export function AllocationModal(props: AllocationModalProps) {
     const activity = data.activities.find((candidate) => candidate.id === activityId);
     if (!activity || !validateAllocationAssignment(selectedResource, activity.projectId).ok) return null;
     try {
-      const { startDates } = generateRepeatingStartDates(startDate, repeatPatternForSelection(repeat));
+      const { startDates } = generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
       const drafts = projectAllocationDates(
         {
           resourceId,
@@ -296,8 +354,8 @@ export function AllocationModal(props: AllocationModalProps) {
       );
       return { drafts, startDates };
     } catch (error) {
-      // A near-boundary date is valid form input but cannot form a three-month repeat. Save owns the
-      // localized error surface; invariant/programming errors remain loud instead of disappearing.
+      // A near-boundary date can be valid input while a projected occurrence cannot fit. Save owns
+      // the localized error surface; invariant/programming errors remain loud instead of disappearing.
       if (error instanceof RangeError) return null;
       throw error;
     }
@@ -316,6 +374,9 @@ export function AllocationModal(props: AllocationModalProps) {
     mode,
     note,
     repeat,
+    repeatUntil,
+    repeatUntilMaximum,
+    repeatUntilMinimum,
     resourceId,
     selectedResource,
     spanFitsDateDomain,
@@ -436,67 +497,84 @@ export function AllocationModal(props: AllocationModalProps) {
             : ""
       }`,
     }));
-  // "No project" lets you pick project-less activities (internal + cross-project). A placeholder is
-  // offered only its bound project plus this option (it can take project-less activities too).
+  const clientNameById = new Map(data.clients.map((client) => [client.id, client.name]));
+  const sortedProjects = data.projects
+    .filter((project) => (lockedProjectId ? project.id === lockedProjectId : true))
+    .toSorted((left, right) => {
+      const clientOrder = (clientNameById.get(left.clientId) ?? "").localeCompare(
+        clientNameById.get(right.clientId) ?? "",
+        undefined,
+        { sensitivity: "base" },
+      );
+      return (
+        clientOrder ||
+        left.name.localeCompare(right.name, undefined, { sensitivity: "base" }) ||
+        left.id.localeCompare(right.id)
+      );
+    });
   const projectOptions: Option[] = [
-    { value: "", label: m.form_no_project_internal_repeatable() },
-    ...data.projects
-      .filter((p) => (lockedProjectId ? p.id === lockedProjectId : true))
-      .map((p) => {
-        const client = data.clients.find((c) => c.id === p.clientId);
-        return {
-          value: p.id,
-          label: client ? `${client.name} / ${p.name}` : p.name,
-        };
-      }),
+    { value: INTERNAL_PROJECT_SELECTION, label: m.form_allocation_project_internal() },
+    { value: ANY_PROJECT_SELECTION, label: m.form_allocation_project_any() },
+    ...sortedProjects.map((project, index) => {
+      const clientName = clientNameById.get(project.clientId);
+      return {
+        value: project.id,
+        label: clientName ? `${clientName} / ${project.name}` : project.name,
+        separatorBefore: index === 0,
+      };
+    }),
   ];
+  const activityScope = activityScopeForProjectSelection(projectSelection);
   const baseActivityOptions = useMemo(
-    () => buildActivityOptions(data.activities, data.phases, data.projects, projectId),
-    [data.activities, data.phases, data.projects, projectId],
+    () =>
+      buildActivityOptions(data.activities, data.phases, data.projects, activityScope.kind, activityScope.projectId),
+    [activityScope.kind, activityScope.projectId, data.activities, data.phases, data.projects],
   );
   const activityOptions = useMemo(() => {
     if (
       inlineActivityOption &&
-      inlineActivityOption.projectId === (projectId || undefined) &&
+      inlineActivityOption.kind === activityScope.kind &&
+      inlineActivityOption.projectId === activityScope.projectId &&
       !baseActivityOptions.some((option) => option.value === inlineActivityOption.value)
     ) {
-      return [...baseActivityOptions, inlineActivityOption];
+      return [...baseActivityOptions, inlineActivityOption].toSorted(
+        (left, right) =>
+          left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) ||
+          left.value.localeCompare(right.value),
+      );
     }
     return baseActivityOptions;
-  }, [baseActivityOptions, inlineActivityOption, projectId]);
+  }, [activityScope.kind, activityScope.projectId, baseActivityOptions, inlineActivityOption]);
   const onAssigneeChange = (v: string) => {
     clear();
     setResourceId(v);
     const r = data.resources.find((x) => x.id === v);
     if (r?.kind === "placeholder" && r.projectId) {
       // A placeholder forces its bound project; reset downstream selections.
-      setProjectId(r.projectId);
+      setProjectSelection(r.projectId);
       setActivityId("");
     }
   };
   const onProjectChange = (v: string) => {
     clear();
-    setProjectId(v);
+    setProjectSelection(v);
     setActivityId("");
   };
   const onAddActivity = () => {
     if (!canEdit) return;
-    // No project selected → create a project-less, cross-project activity; otherwise a project-specific activity
-    // bound to the chosen project. Was a silent no-op on a blank name — give feedback.
     const cleanActivityName = validateText(newActivityName, fail, {
       field: "newactivity",
       requiredMessage: m.form_allocation_err_new_activity_name(),
     });
     if (cleanActivityName === null) return;
     try {
-      const activity = projectId
-        ? addActivity({ name: cleanActivityName, kind: "project", projectId })
-        : addActivity({ name: cleanActivityName, kind: "repeatable" });
+      const activity = addActivity({ name: cleanActivityName, ...activityScope });
       // Radix must register a newly inserted item before its controlled value can select it.
       flushSync(() => {
         setInlineActivityOption({
           value: activity.id,
           label: activity.name,
+          kind: activity.kind,
           projectId: activity.projectId,
         });
       });
@@ -587,6 +665,48 @@ export function AllocationModal(props: AllocationModalProps) {
         return null;
       }
     }
+    if (create && repeat !== "none") {
+      if (!repeatUntil || !isValidISODate(repeatUntil)) {
+        fail("repeatUntil", m.form_allocation_err_repeat_until_required());
+        return null;
+      }
+      if (repeatUntil < repeatToday) {
+        fail("repeatUntil", m.form_allocation_err_repeat_until_past());
+        return null;
+      }
+      if (repeatUntil < startDate) {
+        fail("repeatUntil", m.form_allocation_err_repeat_until_before_start());
+        return null;
+      }
+      if (!repeatUntilMaximum) {
+        fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+        return null;
+      }
+      if (repeatUntil > repeatUntilMaximum) {
+        fail(
+          "repeatUntil",
+          m.form_allocation_err_repeat_until_after_max({
+            max: formatShortDate(repeatUntilMaximum),
+          }),
+        );
+        return null;
+      }
+      try {
+        generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
+      } catch (error) {
+        if (error instanceof RepeatingDateError) {
+          fail(
+            "repeatUntil",
+            error.code === "no-repeat"
+              ? m.form_allocation_err_repeat_until_no_occurrence()
+              : m.form_allocation_err_repeat_date_domain(),
+          );
+        } else {
+          fail(null, error instanceof Error ? errorMessage(error) : m.form_allocation_err_save_failed());
+        }
+        return null;
+      }
+    }
     // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
     // 0-load span and blocks derive a safe block load, so both are excluded). The store clamps an
     // allocation's load into [0, MAX_HOURS_PER_DAY] AND collapses a non-finite value to 0 — so a
@@ -609,7 +729,8 @@ export function AllocationModal(props: AllocationModalProps) {
     const cleanNote = validateText(note, fail, {
       field: "note",
       required: false,
-      multiline: true,
+      multiline: !noteEdited,
+      maxLength: MAX_NOTE_LENGTH,
     });
     if (cleanNote === null) return null;
     const activity = data.activities.find((act) => act.id === activityId);
@@ -661,24 +782,26 @@ export function AllocationModal(props: AllocationModalProps) {
         if (!selectedResource) {
           throw new Error("The selected resource could not be resolved for repeat projection.");
         }
-        const { startDates } = generateRepeatingStartDates(draft.startDate, repeatPatternForSelection(repeat));
+        const { startDates } = generateRepeatingStartDates(
+          draft.startDate,
+          repeatUntil as ISODate,
+          repeatPatternForSelection(repeat),
+        );
         const drafts = projectAllocationDates(draft, startDates, {
           schedulingMode: mode,
           daysOver,
           resource: selectedResource,
         });
-        addAllocations(drafts);
+        const seriesId = newId();
+        addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })));
       }
       onClose();
     } catch (e) {
-      fail(
-        null,
-        repeat !== "none" && e instanceof RangeError
-          ? m.form_allocation_err_repeat_date_domain()
-          : e instanceof Error
-            ? errorMessage(e)
-            : m.form_allocation_err_save_failed(),
-      );
+      if (repeat !== "none" && e instanceof RangeError) {
+        fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
+      } else {
+        fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_save_failed());
+      }
     }
   };
 
@@ -694,12 +817,12 @@ export function AllocationModal(props: AllocationModalProps) {
     }
   };
 
-  const onDelete = () => {
+  const onDelete = (scope: "one" | "future" = "one") => {
     if (!editing || !canEdit) return;
     setConfirmDelete(false);
     try {
-      deleteAllocation(editing.id);
-      onClose();
+      if (scope === "future") deleteAllocationSeriesFrom(editing.id);
+      else deleteAllocation(editing.id);
     } catch (e) {
       fail(null, e instanceof Error ? errorMessage(e) : m.form_allocation_err_delete_failed());
     }
@@ -738,9 +861,11 @@ export function AllocationModal(props: AllocationModalProps) {
               <Button size="sm" type="button" variant="danger-soft" onClick={() => setConfirmDelete(true)}>
                 {m.form_delete()}
               </Button>
-              <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
-                {m.form_allocation_duplicate()}
-              </Button>
+              {!editing.seriesId && (
+                <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
+                  {m.form_allocation_duplicate()}
+                </Button>
+              )}
             </>
           )}
           <span className="flex-1" />
@@ -755,14 +880,20 @@ export function AllocationModal(props: AllocationModalProps) {
         </>
       }
     >
-      {confirmDelete && (
+      {confirmDelete && editing?.seriesId ? (
+        <RepeatedAllocationDeleteDialog
+          onDeleteOne={() => onDelete("one")}
+          onDeleteFuture={() => onDelete("future")}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      ) : confirmDelete ? (
         <ConfirmDialog
           title={m.form_allocation_delete_title()}
           message={m.form_allocation_delete_message({ shortcut: undoShortcut() })}
-          onConfirm={onDelete}
+          onConfirm={() => onDelete("one")}
           onCancel={() => setConfirmDelete(false)}
         />
-      )}
+      ) : null}
       {!create && (
         <SelectField
           label={m.form_allocation_assignee_label()}
@@ -779,7 +910,7 @@ export function AllocationModal(props: AllocationModalProps) {
 
       <SelectField
         label={m.form_allocation_project_label()}
-        value={projectId}
+        value={projectSelection}
         onChange={onProjectChange}
         options={projectOptions}
       />
@@ -799,9 +930,11 @@ export function AllocationModal(props: AllocationModalProps) {
             value={newActivityName}
             maxLength={MAX_NAME_INPUT_CODE_UNITS}
             placeholder={
-              projectId
-                ? m.form_allocation_new_activity_placeholder()
-                : m.form_allocation_new_repeatable_activity_placeholder()
+              activityScope.kind === "internal"
+                ? m.form_allocation_new_internal_activity_placeholder()
+                : activityScope.kind === "repeatable"
+                  ? m.form_allocation_new_repeatable_activity_placeholder()
+                  : m.form_allocation_new_activity_placeholder()
             }
             aria-label={m.form_allocation_new_activity_aria()}
             aria-invalid={errorField === "newactivity" || undefined}
@@ -966,26 +1099,50 @@ export function AllocationModal(props: AllocationModalProps) {
             onChange={(value) => setRepeat(value as RepeatSelection)}
             options={repeatOptions()}
           />
+          {repeat !== "none" && (
+            <DateField
+              label={m.form_allocation_repeat_until_label()}
+              value={repeatUntil}
+              onChange={setRepeatUntil}
+              required
+              invalid={errorField === "repeatUntil"}
+              describedById={errorId}
+              min={repeatUntilMinimum}
+              max={repeatUntilMaximum}
+            />
+          )}
           {repeatProjection && repeatLastStart && (
             <p className="text-xs text-muted-foreground">
               {m.form_allocation_repeat_preview({
                 count: repeatProjection.startDates.length,
+                repeatUntil: formatShortDate(repeatUntil as ISODate),
                 lastStart: formatShortDate(repeatLastStart),
               })}
             </p>
           )}
         </>
       )}
-      <SelectField
-        label={m.form_allocation_status_label()}
-        value={status}
-        onChange={(v) => setStatus(v as AllocationStatus)}
-        options={allocationStatusOptions()}
-      />
-      <TextAreaField
+      <Field>
+        <FieldLabel id={statusLabelId}>{m.form_allocation_status_label()}</FieldLabel>
+        <SegmentedControl
+          value={status}
+          onChange={setStatus}
+          options={Object.entries(allocationStatusLabels()).map(([value, label]) => ({
+            value: value as AllocationStatus,
+            label,
+          }))}
+          ariaLabelledby={statusLabelId}
+          className="w-full [&>*]:flex-1"
+        />
+      </Field>
+      <TextField
         label={m.form_allocation_note_label()}
         value={note}
-        onChange={setNote}
+        onChange={(value) => {
+          setNoteEdited(true);
+          setNote(value);
+        }}
+        maxLength={MAX_NOTE_INPUT_CODE_UNITS}
         invalid={errorField === "note"}
         describedById={errorId}
       />

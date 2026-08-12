@@ -8,6 +8,28 @@ import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../../te
 beforeEach(() => resetStoreWithAccount());
 
 describe("ActivityList", () => {
+  it("orders activity kinds from internal through project-specific while keeping the project default", async () => {
+    const user = userEvent.setup();
+    render(<ActivityList />);
+
+    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      "Internal activities",
+      "Cross-project activities",
+      "Project-specific activities",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    const dialog = screen.getByRole("dialog", { name: "Add activity" });
+
+    expect(
+      within(dialog)
+        .getAllByRole("radio")
+        .map((radio) => radio.textContent),
+    ).toEqual(["Internal", "Cross-project", "Project-specific"]);
+    expect(within(dialog).getByRole("radio", { name: "Project-specific" })).toBeChecked();
+    expect(within(dialog).getByLabelText("Project")).toBeInTheDocument();
+  });
+
   it("focuses the activity selected by a command-palette deep link", () => {
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
