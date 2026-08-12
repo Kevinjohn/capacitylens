@@ -110,11 +110,11 @@ describe("ResourceForm working days", () => {
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     expect(
-      within(screen.getByRole("row", { name: /Monday/ })).getByRole("radio", { name: "Full day" }),
-    ).toHaveAttribute("aria-checked", "true");
+      within(screen.getByRole("row", { name: /Monday/ })).getByRole("radio", { name: "Monday Full day" }),
+    ).toBeChecked();
     expect(
-      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Not working" }),
-    ).toHaveAttribute("aria-checked", "true");
+      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Not working" }),
+    ).toBeChecked();
   });
 
   it("persists a mutually exclusive mixed full, half and non-working pattern", async () => {
@@ -122,8 +122,12 @@ describe("ResourceForm working days", () => {
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    await user.click(within(screen.getByRole("row", { name: /Tuesday/ })).getByRole("radio", { name: "Half day" }));
-    await user.click(within(screen.getByRole("row", { name: /Friday/ })).getByRole("radio", { name: "Not working" }));
+    await user.click(
+      within(screen.getByRole("row", { name: /Tuesday/ })).getByRole("radio", { name: "Tuesday Half day" }),
+    );
+    await user.click(
+      within(screen.getByRole("row", { name: /Friday/ })).getByRole("radio", { name: "Friday Not working" }),
+    );
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
@@ -155,7 +159,9 @@ describe("ResourceForm working days", () => {
     // Mark the default full Monday–Friday set as non-working.
     for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
       await user.click(
-        within(screen.getByRole("row", { name: new RegExp(day) })).getByRole("radio", { name: "Not working" }),
+        within(screen.getByRole("row", { name: new RegExp(day) })).getByRole("radio", {
+          name: `${day} Not working`,
+        }),
       );
     }
     await user.click(screen.getByRole("button", { name: "Save" }));

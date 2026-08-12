@@ -1025,15 +1025,20 @@ describe("WorkingDayPicker", () => {
       />,
     );
 
-  it("renders a labelled Monday–Sunday row with three choices per day", () => {
+  it("renders a right-aligned Monday–Sunday grid with the three choice headings written once", () => {
     renderPicker();
     expect(screen.getByRole("columnheader", { name: "Weekday" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Availability" })).toBeInTheDocument();
+    for (const option of ["Full day", "Half day", "Not working"]) {
+      expect(screen.getByRole("columnheader", { name: option })).toBeVisible();
+    }
+    const table = screen.getByRole("table");
+    expect(table.parentElement?.parentElement).toHaveClass("justify-end");
+    expect(screen.getAllByRole("radio")).toHaveLength(21);
     for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
       const row = screen.getByRole("row", { name: new RegExp(day) });
-      expect(row).toHaveTextContent("Full day");
-      expect(row).toHaveTextContent("Half day");
-      expect(row).toHaveTextContent("Not working");
+      expect(within(row).getByRole("radio", { name: `${day} Full day` })).toHaveAttribute("type", "radio");
+      expect(within(row).getByRole("radio", { name: `${day} Half day` })).toHaveAttribute("type", "radio");
+      expect(within(row).getByRole("radio", { name: `${day} Not working` })).toHaveAttribute("type", "radio");
     }
   });
 
@@ -1042,16 +1047,18 @@ describe("WorkingDayPicker", () => {
     const monday = screen.getByRole("row", { name: /Monday/ });
     const wednesday = screen.getByRole("row", { name: /Wednesday/ });
     const saturday = screen.getByRole("row", { name: /Saturday/ });
-    expect(within(monday).getByRole("radio", { name: "Full day" })).toHaveAttribute("aria-checked", "true");
-    expect(within(wednesday).getByRole("radio", { name: "Half day" })).toHaveAttribute("aria-checked", "true");
-    expect(within(saturday).getByRole("radio", { name: "Not working" })).toHaveAttribute("aria-checked", "true");
+    expect(within(monday).getByRole("radio", { name: "Monday Full day" })).toBeChecked();
+    expect(within(wednesday).getByRole("radio", { name: "Wednesday Half day" })).toBeChecked();
+    expect(within(saturday).getByRole("radio", { name: "Saturday Not working" })).toBeChecked();
   });
 
   it("moves a weekday between mutually exclusive choices", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderPicker(onChange);
-    await user.click(within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Half day" }));
+    await user.click(
+      within(screen.getByRole("row", { name: /Saturday/ })).getByRole("radio", { name: "Saturday Half day" }),
+    );
     expect(onChange).toHaveBeenCalledWith([1, 2, 3, 4, 5, 6], [3, 6]);
   });
 
