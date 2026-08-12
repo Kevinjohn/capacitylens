@@ -141,6 +141,19 @@ describe("ResourceList display", () => {
     expect(screen.getByRole("button", { name: "Edit Pixel Forge" })).toBeInTheDocument();
   });
 
+  it("keeps the External explainer behind the section's labelled help action", async () => {
+    const user = userEvent.setup();
+    setExternalEnabled(true);
+    useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
+    render(<ResourceList />);
+
+    expect(screen.queryByText(/never count toward your team’s capacity or utilisation/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "About External" }));
+    const dialog = screen.getByRole("dialog", { name: "External" });
+    expect(within(dialog).getByText(/never count toward your team’s capacity or utilisation/i)).toBeInTheDocument();
+  });
+
   it('does not show a "placeholder" tag or "Temp" tag for a permanent person', () => {
     useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);

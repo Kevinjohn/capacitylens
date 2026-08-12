@@ -322,7 +322,7 @@ export function SettingsView() {
           title={m.settings_external_heading()}
           help={
             <>
-              {/* Explainer copy (editable, shared with the Resources-tab External section — see
+              {/* Explainer copy (editable, shared with the Resources-tab External help modal — see
               lib/externalCopy.ts). Set per company; off by default. */}
               <span className="block">{externalExplainer()}</span>
               <span className="mt-2 block">{m.settings_external_intro()}</span>

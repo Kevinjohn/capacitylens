@@ -23,6 +23,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **External help no longer occupies permanent space on Resources.** The External section now keeps
+  its existing explainer behind the same labelled question-mark modal used in Settings (#242).
 - **Management and Settings lists are denser and easier to scan.** Resources, Disciplines,
   Clients, Projects, Activities, Time off and table-like Settings rows now use compact vertical
   spacing (#246).
