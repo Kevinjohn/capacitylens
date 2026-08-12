@@ -5,10 +5,13 @@ All notable changes to CapacityLens are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
-> Entries before 0.6.0 use the project's former name **"Floaty"** (and the `FLOATY_*` env prefix),
-> since renamed to **CapacityLens** / `CAPACITYLENS_*`.
-
 ## [Unreleased]
+
+### Changed
+
+- Expanded the everyday-use documentation with authentic visual walkthroughs for opening,
+  applying and clearing schedule filters, finding unallocated people, choosing Studio or
+  Supplementary engagement, and reading or collapsing engagement bands.
 
 ## [0.40.8-alpha.1] — 2026-08-12
 
@@ -1700,7 +1703,7 @@ the browser, shared domain and SQLite server.
   near-instant iteration instead of repeatedly sampling them as a rapid flicker.
 - The responsive Sidebar now forwards its documented class, style, accessibility and data props to
   the mobile sheet content just as it does to the desktop sidebar container.
-- The first-run checklist now accepts wheel and touch scrolling when its floating card overflows a
+- The first-run checklist now accepts wheel and touch scrolling when its overlay card overflows a
   short viewport, while the schedule remains interactive outside the non-modal card.
 - Guided-tour copy and its close control now use the AA-contrast muted ink token in both themes,
   while dimmed allocation bars retain the intended neutral-grey treatment in Time-off draw mode.
@@ -2592,7 +2595,7 @@ are recorded in `DECISIONS.md`.
 ## [0.19.0] — 2026-07-14
 
 - Polished company onboarding and first-run guidance: empty picker choices are now explicit, company
-  colours use the default preset, timezones show their UTC offsets, and the checklist floats over the
+  colours use the default preset, timezones show their UTC offsets, and the checklist overlays the
   schedule without shifting its toolbar or grid.
 - Refreshed the visual language with accessible blue identity accents, green positive-action buttons,
   and blue defaults for new companies and resources.
@@ -2808,7 +2811,7 @@ several accessibility/interaction fixes, and hardening of the lint and CI safety
 
 ### Internal
 
-- Type-aware ESLint (`no-floating-promises` / `no-misused-promises`) now covers the `server/`
+- Type-aware ESLint promise-safety rules now cover the `server/`
   and `shared/` workspaces and runs as part of `gate:server`.
 - CI builds the Docker images and smoke-tests the Compose + Nginx deployment (health endpoint,
   security headers, and the 6 MB request-body limit) on pull requests and on demand.
@@ -2913,8 +2916,7 @@ mutation round.
 
 ### Changed
 
-- **Repository renamed** `floaty-v1` → `capacitylens` (GitHub redirects the old URL); all
-  in-repo links updated.
+- **Repository renamed** to `capacitylens`; all in-repo links updated.
 - **README rewritten human-first** — pitch, quickstart with prerequisites, self-hosting,
   contributing, license; deployment documentation rewritten as an end-to-end production runsheet for the
   server-backed password-auth build.
@@ -3161,9 +3163,9 @@ Clearer capacity at a glance, and a tidier home for non-client work.
 - **Over-capacity days turn red.** Any day where someone is booked beyond their capacity
   (strictly over — exactly at capacity is fine) now gets a clear red background, so overload
   jumps out at a glance.
-- **A short "What Floaty is" welcome.** A minimal post-login page frames Floaty as a
+- **A short "What CapacityLens is" welcome.** A minimal post-login page frames CapacityLens as a
   resourcing tool — who's busy, who's free — not a project manager. (Placeholder copy for now.)
-- **Clear local storage (Settings).** A new destructive action wipes Floaty's browser-stored
+- **Clear local storage (Settings).** A new destructive action wipes CapacityLens's browser-stored
   data and preferences after a confirmation — handy for resetting a device. On the hosted
   site your data lives in the database and reloads from there.
 
@@ -3229,7 +3231,7 @@ A cosmetic preview of the planned sign-in step.
   flow. It is **not** real authentication — there's no password and no popup; clicking the
   account just continues. You stay "signed in" across reloads, with **Sign out** on the picker
   and in the sidebar to return to it. It never appears when the optional real login wall
-  (`CAPACITYLENS_AUTH`, formerly `FLOATY_AUTH`) is enabled.
+  (`CAPACITYLENS_AUTH`) is enabled.
 
 ## [0.4.0] — 2026-06-16
 

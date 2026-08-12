@@ -47,6 +47,12 @@ Working days drive the utilisation figures directly: CapacityLens compares that 
 Set the pattern correctly, or the overwork indicators on
 [the schedule](/guide/the-schedule#reading-overwork) will be wrong for that person.
 
+Open **Engagement** to choose between the two company-facing groups. The current choice
+has a tick. Saving **Supplementary** moves the person into that section immediately; it
+does not change their discipline, role or working days.
+
+![The Edit resource form with the Engagement menu open and Supplementary selected below Studio](../screenshots/flows/resource_engagement_choice.jpg)
+
 The new row appears on the schedule immediately, ready for allocations and time off.
 There's no account to create and nothing for the person to sign in to.
 
@@ -69,6 +75,8 @@ By default, the Resources page separates people into **Studio** and **Supplement
 followed by the existing Placeholders and External sections. An Editor, Admin or Owner can turn
 **Group resources by engagement** off in [Settings](/guide/settings) to combine people into one
 list. Rows in each section are alphabetical, while the Disciplines page is alphabetical too.
+
+![The Resources page with Barry Allen, Bruce Wayne and Clark Kent in Studio, and Diana Prince in Supplementary](../screenshots/flows/resources_engagement_groups.jpg)
 
 People and external parties have a star beside their edit and archive actions. Select it
 to add that row to the company's favourites; the star fills yellow and the row moves to
