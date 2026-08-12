@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
@@ -40,10 +40,11 @@ import {
 import { Plus } from "lucide-react";
 import {
   DateField,
+  CheckboxField,
   Modal,
   NumberField,
   RequiredLegend,
-  SegmentedControl,
+  SegmentedField,
   SelectField,
   TextField,
   type Option,
@@ -61,8 +62,7 @@ import type {
   Resource,
   SchedulingMode,
 } from "@capacitylens/shared/types/entities";
-import { Checkbox } from "../ui/checkbox";
-import { Field, FieldLabel } from "../ui/field";
+import { Field } from "../ui/field";
 import { Input } from "../ui/input";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { useCanEdit } from "../../auth/permissionContext";
@@ -88,6 +88,18 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const INTERNAL_PROJECT_SELECTION = "__allocation_internal__";
 const ANY_PROJECT_SELECTION = "__allocation_any_project__";
+
+/** Keeps compound controls and their supporting text inside the shared 75% control column. */
+function AllocationControlColumn({ children }: { children: ReactNode }) {
+  return (
+    <div data-allocation-control-column className="min-w-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3">
+      <span aria-hidden="true" className="hidden sm:block" />
+      <div className="flex min-w-0 flex-col gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+const compoundControlsClassName = "flex min-w-0 gap-2 [&>*]:min-w-0 [&>*]:flex-1";
 
 function projectSelectionForActivity(activity: Activity | undefined): string {
   if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
@@ -258,8 +270,6 @@ export function AllocationModal(props: AllocationModalProps) {
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
-  const ignoreWorkingDaysId = useId();
-  const statusLabelId = useId();
 
   // If the edited allocation is removed out from under us (e.g. undo), close
   // rather than silently turning into a "create" that would resurrect it.
@@ -929,15 +939,21 @@ export function AllocationModal(props: AllocationModalProps) {
           required
           invalid={errorField === "resource"}
           describedById={errorId}
+          layout="label-control"
         />
       )}
-      {isPlaceholder && <p className="text-xs text-muted-foreground">{m.form_allocation_placeholder_locked()}</p>}
+      {isPlaceholder && (
+        <AllocationControlColumn>
+          <p className="text-xs text-muted-foreground">{m.form_allocation_placeholder_locked()}</p>
+        </AllocationControlColumn>
+      )}
 
       <SelectField
         label={m.form_allocation_project_label()}
         value={projectSelection}
         onChange={onProjectChange}
         options={projectOptions}
+        layout="label-control"
       />
       <SelectField
         label={m.form_allocation_activity_label()}
@@ -948,40 +964,43 @@ export function AllocationModal(props: AllocationModalProps) {
         required
         invalid={errorField === "activity"}
         describedById={errorId}
+        layout="label-control"
       />
       {inlineActivityCreateEnabled && canEdit && (
-        <Field orientation="horizontal">
-          <Input
-            value={newActivityName}
-            maxLength={MAX_NAME_INPUT_CODE_UNITS}
-            placeholder={
-              activityScope.kind === "internal"
-                ? m.form_allocation_new_internal_activity_placeholder()
-                : activityScope.kind === "repeatable"
-                  ? m.form_allocation_new_repeatable_activity_placeholder()
-                  : m.form_allocation_new_activity_placeholder()
-            }
-            aria-label={m.form_allocation_new_activity_aria()}
-            aria-invalid={errorField === "newactivity" || undefined}
-            aria-describedby={errorField === "newactivity" ? errorId : undefined}
-            onChange={(e) => setNewActivityName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onAddActivity();
+        <AllocationControlColumn>
+          <Field orientation="horizontal">
+            <Input
+              value={newActivityName}
+              maxLength={MAX_NAME_INPUT_CODE_UNITS}
+              placeholder={
+                activityScope.kind === "internal"
+                  ? m.form_allocation_new_internal_activity_placeholder()
+                  : activityScope.kind === "repeatable"
+                    ? m.form_allocation_new_repeatable_activity_placeholder()
+                    : m.form_allocation_new_activity_placeholder()
               }
-            }}
-          />
-          <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
-            <Plus data-icon="inline-start" />
-            {m.form_allocation_add_activity()}
-          </Button>
-        </Field>
+              aria-label={m.form_allocation_new_activity_aria()}
+              aria-invalid={errorField === "newactivity" || undefined}
+              aria-describedby={errorField === "newactivity" ? errorId : undefined}
+              onChange={(e) => setNewActivityName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onAddActivity();
+                }
+              }}
+            />
+            <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
+              <Plus data-icon="inline-start" />
+              {m.form_allocation_add_activity()}
+            </Button>
+          </Field>
+        </AllocationControlColumn>
       )}
 
       {isExternal ? (
-        <div className="flex gap-2">
-          <div className="flex-1">
+        <AllocationControlColumn>
+          <div className={compoundControlsClassName}>
             <DateField
               label={m.form_allocation_start_date_label()}
               value={startDate}
@@ -990,8 +1009,6 @@ export function AllocationModal(props: AllocationModalProps) {
               invalid={errorField === "dates"}
               describedById={errorId}
             />
-          </div>
-          <div className="flex-1">
             <DateField
               label={m.form_allocation_end_label()}
               value={endDate}
@@ -1001,74 +1018,64 @@ export function AllocationModal(props: AllocationModalProps) {
               describedById={errorId}
             />
           </div>
-        </div>
+        </AllocationControlColumn>
       ) : isBlocks ? (
-        <>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <DateField
-                label={m.form_allocation_start_date_label()}
-                value={startDate}
-                onChange={setStartDate}
-                required
-                invalid={errorField === "dates"}
-                describedById={errorId}
-              />
-            </div>
-            <div className="flex-1">
-              <NumberField
-                label={m.form_allocation_days_over_label()}
-                value={daysOver}
-                onChange={setDaysOver}
-                min={1}
-                max={maximumDaysOver}
-                step={1}
-                invalid={errorField === "daysOver"}
-                describedById={errorId}
-              />
-            </div>
+        <AllocationControlColumn>
+          <div className={compoundControlsClassName}>
+            <DateField
+              label={m.form_allocation_start_date_label()}
+              value={startDate}
+              onChange={setStartDate}
+              required
+              invalid={errorField === "dates"}
+              describedById={errorId}
+            />
+            <NumberField
+              label={m.form_allocation_days_over_label()}
+              value={daysOver}
+              onChange={setDaysOver}
+              min={1}
+              max={maximumDaysOver}
+              step={1}
+              invalid={errorField === "daysOver"}
+              describedById={errorId}
+            />
           </div>
           {startDate && endDateHint && (
             <p className="text-xs text-muted-foreground">{m.form_allocation_ends_hint({ date: endDateHint })}</p>
           )}
-        </>
+        </AllocationControlColumn>
       ) : isDays ? (
-        <>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <DateField
-                label={m.form_allocation_start_date_label()}
-                value={startDate}
-                onChange={setStartDate}
-                required
-                invalid={errorField === "dates"}
-                describedById={errorId}
-              />
-            </div>
-            <div className="flex-1">
-              <NumberField
-                label={m.form_allocation_days_of_work_label()}
-                value={daysOfWork}
-                onChange={setDaysOfWork}
-                min={0}
-                step={0.5}
-                required
-                invalid={errorField === "daysOfWork"}
-                describedById={errorId}
-              />
-            </div>
-            <div className="flex-1">
-              <NumberField
-                label={m.form_allocation_days_over_label()}
-                value={daysOver}
-                onChange={setDaysOver}
-                min={1}
-                max={maximumDaysOver}
-                step={1}
-                invalid={errorField === "daysOver"}
-                describedById={errorId}
-              />
-            </div>
+        <AllocationControlColumn>
+          <div className={compoundControlsClassName}>
+            <DateField
+              label={m.form_allocation_start_date_label()}
+              value={startDate}
+              onChange={setStartDate}
+              required
+              invalid={errorField === "dates"}
+              describedById={errorId}
+            />
+            <NumberField
+              label={m.form_allocation_days_of_work_label()}
+              value={daysOfWork}
+              onChange={setDaysOfWork}
+              min={0}
+              step={0.5}
+              required
+              invalid={errorField === "daysOfWork"}
+              describedById={errorId}
+            />
+            <NumberField
+              label={m.form_allocation_days_over_label()}
+              value={daysOver}
+              onChange={setDaysOver}
+              min={1}
+              max={maximumDaysOver}
+              step={1}
+              invalid={errorField === "daysOver"}
+              describedById={errorId}
+            />
           </div>
           {startDate && endDateHint && (
             <p className="text-xs text-muted-foreground">
@@ -1078,11 +1085,11 @@ export function AllocationModal(props: AllocationModalProps) {
               })}
             </p>
           )}
-        </>
+        </AllocationControlColumn>
       ) : (
         <>
-          <div className="flex gap-2">
-            <div className="flex-1">
+          <AllocationControlColumn>
+            <div className={compoundControlsClassName}>
               <DateField
                 label={m.form_allocation_start_date_label()}
                 value={startDate}
@@ -1091,8 +1098,6 @@ export function AllocationModal(props: AllocationModalProps) {
                 invalid={errorField === "dates"}
                 describedById={errorId}
               />
-            </div>
-            <div className="flex-1">
               <DateField
                 label={m.form_allocation_end_label()}
                 value={endDate}
@@ -1102,7 +1107,7 @@ export function AllocationModal(props: AllocationModalProps) {
                 describedById={errorId}
               />
             </div>
-          </div>
+          </AllocationControlColumn>
 
           <NumberField
             label={m.form_allocation_hours_per_day_label()}
@@ -1113,6 +1118,7 @@ export function AllocationModal(props: AllocationModalProps) {
             required
             invalid={errorField === "hours"}
             describedById={errorId}
+            layout="label-control"
           />
         </>
       )}
@@ -1123,6 +1129,7 @@ export function AllocationModal(props: AllocationModalProps) {
             value={repeat}
             onChange={onRepeatChange}
             options={repeatOptions()}
+            layout="label-control"
           />
           {repeat !== "none" && (
             <DateField
@@ -1134,32 +1141,33 @@ export function AllocationModal(props: AllocationModalProps) {
               describedById={errorId}
               min={repeatUntilMinimum}
               max={repeatUntilMaximum}
+              layout="label-control"
             />
           )}
           {repeatProjection && repeatLastStart && (
-            <p className="text-xs text-muted-foreground">
-              {m.form_allocation_repeat_preview({
-                count: repeatProjection.startDates.length,
-                repeatUntil: formatShortDate(repeatUntil as ISODate),
-                lastStart: formatShortDate(repeatLastStart),
-              })}
-            </p>
+            <AllocationControlColumn>
+              <p className="text-xs text-muted-foreground">
+                {m.form_allocation_repeat_preview({
+                  count: repeatProjection.startDates.length,
+                  repeatUntil: formatShortDate(repeatUntil as ISODate),
+                  lastStart: formatShortDate(repeatLastStart),
+                })}
+              </p>
+            </AllocationControlColumn>
           )}
         </>
       )}
-      <Field>
-        <FieldLabel id={statusLabelId}>{m.form_allocation_status_label()}</FieldLabel>
-        <SegmentedControl
-          value={status}
-          onChange={setStatus}
-          options={Object.entries(allocationStatusLabels()).map(([value, label]) => ({
-            value: value as AllocationStatus,
-            label,
-          }))}
-          ariaLabelledby={statusLabelId}
-          className="w-full [&>*]:flex-1"
-        />
-      </Field>
+      <SegmentedField
+        label={m.form_allocation_status_label()}
+        value={status}
+        onChange={setStatus}
+        options={Object.entries(allocationStatusLabels()).map(([value, label]) => ({
+          value: value as AllocationStatus,
+          label,
+        }))}
+        controlClassName="w-full [&>*]:flex-1"
+        layout="label-control"
+      />
       <TextField
         label={m.form_allocation_note_label()}
         value={note}
@@ -1170,19 +1178,18 @@ export function AllocationModal(props: AllocationModalProps) {
         maxLength={MAX_NOTE_INPUT_CODE_UNITS}
         invalid={errorField === "note"}
         describedById={errorId}
+        layout="label-control"
       />
 
       {/* Externals have no working pattern — their booking is already a literal start/end span, so
           this checkbox is meaningless and hidden (they store ignoreWeekends: true). */}
       {!isExternal && (
-        <Field orientation="horizontal">
-          <Checkbox
-            id={ignoreWorkingDaysId}
-            checked={ignoreWeekends}
-            onCheckedChange={(checked) => setIgnoreWeekends(checked === true)}
-          />
-          <FieldLabel htmlFor={ignoreWorkingDaysId}>{m.form_allocation_ignore_working_days()}</FieldLabel>
-        </Field>
+        <CheckboxField
+          label={m.form_allocation_ignore_working_days()}
+          checked={ignoreWeekends}
+          onChange={setIgnoreWeekends}
+          layout="label-control"
+        />
       )}
 
       {advisory && (

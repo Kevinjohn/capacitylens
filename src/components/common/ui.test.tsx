@@ -19,6 +19,7 @@ import {
   SegmentedControl,
   SegmentedField,
   SwitchField,
+  CheckboxField,
 } from "./ui";
 import { Button } from "../ui/button";
 import { Toggle } from "../ui/toggle";
@@ -685,6 +686,17 @@ describe("compact product fields", () => {
     expect(control.parentElement).toHaveClass("min-h-9");
   });
 
+  it("lays out a checkbox with the shared responsive label-control contract", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<CheckboxField label="Ignore working days" checked={false} onChange={onChange} layout="label-control" />);
+    const control = screen.getByRole("checkbox", { name: "Ignore working days" });
+    expect(control.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+    expect(control.parentElement).toHaveClass("min-h-9");
+    await user.click(control);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
   it("labels a segmented field and applies the shared responsive row", () => {
     render(
       <SegmentedField
@@ -774,6 +786,14 @@ describe("NumberField", () => {
     render(<NumberField label="Qty" value={5} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText("Qty"), { target: { value: "10" } });
     expect(onChange).toHaveBeenCalledWith(10);
+  });
+
+  it("opts into the shared responsive label-control row", () => {
+    render(<NumberField label="Qty" value={5} onChange={vi.fn()} layout="label-control" />);
+    expect(screen.getByLabelText("Qty").closest('[data-slot="field"]')).toHaveAttribute(
+      "data-product-layout",
+      "label-control",
+    );
   });
 });
 

@@ -26,3 +26,5 @@ A booking with no resource, no activity, empty or reversed dates, or zero hours 
 - ✅ Reversed dates (end < start): dialog stays open, message **"End date cannot be before the start date."** on the date fields.
 - ✅ Zero hours: dialog stays open, message **"Hours per day must be greater than 0."**, **Hours / day** marked `aria-invalid`.
 - ✅ In every invalid case the dialog stays open and no new bar appears on the schedule until the input is valid.
+- ✅ The responsive layout does not disturb error association or focus: the rejected control keeps
+  `aria-invalid`, describes the form alert and receives focus in both stacked and 25/75 layouts.

@@ -7,6 +7,7 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
+import { Checkbox } from "../ui/checkbox";
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
 import {
   Select,
@@ -98,6 +99,57 @@ export function SwitchField({
         {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
       </FieldContent>
       {layout === "label-control" ? <div className="flex min-h-9 items-center">{control}</div> : control}
+    </Field>
+  );
+}
+
+/** Accessible checkbox field with the same opt-in product layouts as the other form controls. */
+export function CheckboxField({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+  layout = "stacked",
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
+}) {
+  const markDirty = useMarkFormDirty();
+  const controlId = useId();
+  const control = (
+    <Checkbox
+      id={controlId}
+      data-form-dirty-managed
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={(next) => {
+        markDirty();
+        onChange(next === true);
+      }}
+    />
+  );
+  return (
+    <Field
+      orientation={layout === "label-control" ? "vertical" : "horizontal"}
+      data-disabled={disabled || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
+      {layout === "label-control" ? (
+        <>
+          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+          <div className="flex min-h-9 items-center">{control}</div>
+        </>
+      ) : (
+        <>
+          {control}
+          <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+        </>
+      )}
     </Field>
   );
 }
@@ -220,6 +272,7 @@ export function NumberField({
   invalid,
   required,
   describedById,
+  layout = "stacked",
 }: {
   label: string;
   value: number;
@@ -230,10 +283,16 @@ export function NumberField({
   invalid?: boolean;
   required?: boolean;
   describedById?: string;
+  /** Opt-in compact row that stacks below the small viewport breakpoint. */
+  layout?: ProductFieldLayout;
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-product-layout={layout === "label-control" ? layout : undefined}
+      className={cn(layout === "label-control" && labelControlLayout)}
+    >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}

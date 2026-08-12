@@ -27,3 +27,5 @@ When booking work, the right activity often doesn't exist yet. Forcing the manag
 - ✅ The new activity is a real activity of that project — it appears on the **Activities** page and in the **Activity** dropdown afterwards.
 - ✅ Clicking **Add activity** with an empty name creates no activity and shows "Enter a name for the new activity." With _Internal_ or _Any Project_ selected, a named **Add activity** creates the corresponding internal or cross-project activity.
 - ✅ Saving with the newly-added activity selected creates an allocation bar labelled _Accessibility Audit_.
+- ✅ The inline name and **Add activity** button remain side by side inside the allocation form's
+  control column and stack with the surrounding fields without horizontal overflow on narrow screens.
