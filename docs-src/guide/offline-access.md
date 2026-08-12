@@ -60,9 +60,8 @@ back to old data — so you're never looking at a stale schedule without knowing
 
 Turning off **Make this device available offline** in Settings — or signing out —
 clears the cached snapshot and everything CapacityLens stored to protect it on that
-device. **Clear device data**, further down the same Settings page, does the same
-cleanup along with the rest of your local preferences, if you want to wipe the slate
-without waiting.
+device. To wipe the same snapshot together with the rest of your local preferences,
+open **Device data** further down the page and choose **Clear device data**.
 
 ::: warning
 Don't turn on offline access on a shared or borrowed device. The cached snapshot is

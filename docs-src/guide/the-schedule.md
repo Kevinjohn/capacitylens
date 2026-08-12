@@ -25,6 +25,11 @@ Each row starts with an avatar and name, with the person's role shown underneath
 placeholder row is labelled with the word "Placeholder" instead of a name, and has a
 faint diagonal hatch on its header so it reads as unfilled at a glance.
 
+People marked as favourites stay at the top of their discipline, in alphabetical order.
+Everyone else follows alphabetically, then placeholders. Favourite external parties lead
+the separate External group. Favourites are shared with everyone in the company rather
+than being a personal display preference.
+
 ## Columns: the visible weeks
 
 Columns are days, grouped into a zoomable range of one, two, four, six or eight weeks
@@ -33,7 +38,8 @@ arrow buttons (hover for "Back one week" / "Forward one week") to pan a week at 
 and **Today** to jump back to the current week.
 
 Weekend columns get a faint tint when you're zoomed in close enough to see individual
-days clearly.
+days clearly. In the one- and two-week views, each month and year is centred over the
+visible days it describes. Wider views keep a compact month label in sight as you scroll.
 
 ## Allocation bars
 
@@ -85,11 +91,14 @@ is always visible in one place rather than hidden in a separate calendar.
 
 ## Filtering and searching
 
-The toolbar above the grid lets you narrow what's shown: search people by name, filter
-by discipline, client, project or activity, hide tentative work, or show only people
-with no work booked against your current filter (useful when you're trying to find
-someone free to staff a project). A **Clear** button appears whenever a filter is
-active.
+Use **Show filters** at the right of the toolbar, after Undo and Redo, to open the filter
+row. You can search people by name, filter by discipline, client, project or activity,
+hide tentative work, or show people with no work booked against the current filter. The
+latter is useful when you're trying to find someone free to staff a project.
+
+**Clear Filters** stays at the far right of the open row. It is quiet and disabled when
+nothing is filtered, then turns red with a bin icon when a filter is active. One click
+resets the search, every dropdown, **Hide tentative** and **Show unallocated**.
 
 Every change on the schedule — dragging, resizing, deleting an allocation — can be
 undone and redone from the toolbar, or with Ctrl/Cmd+Z, if you have edit access.

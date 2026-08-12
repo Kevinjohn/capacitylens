@@ -53,13 +53,11 @@ email address.
 For example: Dave signed up for CapacityLens with the password `dave@agency.com`, but
 his company's login system knows him as `david.smith@agency.co.uk`. CapacityLens
 won't silently treat those as the same person just because they sound alike. Instead,
-Dave signs in with his password as usual, goes to Settings, and clicks **Connect** next
-to company login. He's sent to that login system, signs in there, and comes back —
+Dave signs in with his password as usual, opens **Settings → Security → Company sign-in**
+and clicks **Connect**. He's sent to that login system, signs in there, and comes back —
 and only then are the two identities linked. From that point on, CapacityLens
 remembers him by a stable ID the login system issues (not by his email address), so
 even if his email changes again later, the link holds.
-
-![The Company sign-in card in Settings, explaining that the organisation is moving to Northwind Identity sign-in, with a Connect Northwind Identity button](../screenshots/flows/sso-settings-connect.jpg)
 
 The one rule that can't be skipped: at the moment someone connects, the email their
 login system reports has to be **identical** to their CapacityLens email. If it

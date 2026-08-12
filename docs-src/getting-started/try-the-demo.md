@@ -6,9 +6,9 @@ description: See CapacityLens running with sample data in about two minutes, wit
 # Try the demo
 
 This page gets you looking at a working schedule in about two minutes, using a sample
-agency's data. Nothing is written to disk or browser storage, there's no sign-in, and
-nothing here is worth keeping — it resets the moment you refresh the page. If you're
-ready to install CapacityLens for real instead, skip to [Install
+agency's data. Schedule changes stay in memory and reset when you refresh. The cosmetic
+signed-in state and device display preferences can stay in browser storage, but there are
+no credentials or real sign-in. If you're ready to install CapacityLens for real instead, skip to [Install
 CapacityLens](/getting-started/install).
 
 You'll need [Node.js](https://nodejs.org) 24 or newer and [pnpm](https://pnpm.io) (by
@@ -38,8 +38,9 @@ That's it — no setup token, no `.env` file, no database.
 
 ## What you'll see
 
-The demo loads an in-memory sample agency, fully editable, with people, clients, projects
-and allocations already on the schedule. There's no sign-in wall in this mode.
+The demo starts with a cosmetic **Choose an account** screen, then loads an in-memory
+sample agency with people, clients, projects and allocations already on the schedule.
+Choose the sample account; no password or pop-up is involved.
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)
 
@@ -54,8 +55,9 @@ Try the things you'd do in a real resourcing meeting:
 Everything is editable, so there's no wrong button to press.
 
 ::: tip
-Demo data is throwaway. Refreshing the page resets it, and nothing you do here is saved
-anywhere. When you're ready to keep real data, move on to [Install
+Schedule data is throwaway. Refreshing the page resets it, while the cosmetic signed-in
+state and device display preferences may remain on that browser. When you're ready to
+keep real data, move on to [Install
 CapacityLens](/getting-started/install).
 :::
 

@@ -9,8 +9,6 @@ Once you've [installed CapacityLens](/getting-started/install) and claimed the
 [Owner](/reference/glossary) account, this page covers the first few minutes inside the
 app: signing in, the welcome message, and getting oriented on the schedule.
 
-![Animated recording of the full first-run flow: sign in, choose a company, read the welcome, land on the schedule](../screenshots/flows/first-run.gif)
-
 ## Sign in
 
 Every visit after you've created the Owner account shows the plain sign-in screen: email

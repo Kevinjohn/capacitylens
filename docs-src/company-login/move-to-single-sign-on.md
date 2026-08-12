@@ -179,10 +179,8 @@ updates as people connect.
 _2 minutes each · Every member_
 
 This is the part your people do, and it's the part you can't do for them — that's the
-security property. Send them this: _"Go to Settings, find Company sign-in, click
-Connect."_
-
-![The Company sign-in card in Settings, explaining that the organisation is moving to Northwind Identity sign-in, with a Connect Northwind Identity button](../screenshots/flows/sso-settings-connect.jpg)
+security property. Send them this: _"Go to Settings, open Security, find Company
+sign-in, and click Connect."_
 
 Settings → Security → Company sign-in. One button.
 
@@ -193,8 +191,6 @@ come straight back.
 
 Your own company login page — whatever that looks like for you, including any
 two-factor prompt.
-
-![The Company sign-in card now showing a Connected to Northwind Identity badge instead of a Connect button](../screenshots/flows/sso-settings-connected.jpg)
 
 Done. That person is ready for cutover.
 
@@ -424,8 +420,6 @@ Company login only. One door.
 
 Sign in through the provider. You should land straight in the schedule, with your role
 intact:
-
-![The CapacityLens schedule after signing in through the company login, showing Wayne Enterprises with the Owner badge and all allocations present](../screenshots/flows/sso-after-cutover.jpg)
 
 Same company, same Owner badge, same allocations, same everything. Only the front door
 changed.

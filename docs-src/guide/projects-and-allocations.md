@@ -18,7 +18,10 @@ as bars on [the schedule](/guide/the-schedule).
 4. Click **Add project**. Every project belongs to a client, so choose one from the
    list.
 
-![The Projects page listing projects with their client names and an Add project button](../screenshots/flows/projects-page.jpg)
+![The Projects page listing Metropolis Rebrand before Project Watchtower alphabetically, with client names and an Add project button](../screenshots/flows/projects-page.jpg)
+
+The Clients and Projects pages keep their rows alphabetical. A project is sorted by its
+project name; its client appears as supporting information underneath.
 
 Every company starts with one built-in client called **Internal** for non-billable
 work — general admin, internal meetings, anything that isn't client work. It can't be
@@ -40,6 +43,12 @@ it comes in three kinds:
 - **Internal** — non-billable work that isn't tied to a project.
 - **Cross-project** — work that applies across projects, like general account
   management.
+
+Internal and cross-project activities are alphabetical. Project-specific activities are
+grouped in client, project and then activity order, with each client and project name
+shown once as a heading rather than repeated on every row.
+
+![The Activities page with alphabetical Internal and Cross-project sections followed by project-specific activities grouped under client and project headings](../screenshots/flows/activities_grouped.jpg)
 
 ## Create an allocation
 
