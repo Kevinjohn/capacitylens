@@ -58,6 +58,7 @@ export function RequiredLegend() {
 export function SwitchField({
   label,
   description,
+  descriptionPlacement = "label",
   checked,
   onChange,
   disabled = false,
@@ -65,6 +66,8 @@ export function SwitchField({
 }: {
   label: string;
   description?: string;
+  /** Keep the default beside the label, or group it below the control in compact rows. */
+  descriptionPlacement?: "label" | "control";
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
@@ -74,6 +77,7 @@ export function SwitchField({
   const markDirty = useMarkFormDirty();
   const descriptionId = useId();
   const controlId = useId();
+  const descriptionInControl = description && descriptionPlacement === "control";
   const control = (
     <Switch
       id={controlId}
@@ -96,9 +100,18 @@ export function SwitchField({
     >
       <FieldContent>
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
-        {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+        {description && !descriptionInControl && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
       </FieldContent>
-      {layout === "label-control" ? <div className="flex min-h-9 items-center">{control}</div> : control}
+      {descriptionInControl ? (
+        <FieldContent className="min-h-9 justify-center">
+          {control}
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        </FieldContent>
+      ) : layout === "label-control" ? (
+        <div className="flex min-h-9 items-center">{control}</div>
+      ) : (
+        control
+      )}
     </Field>
   );
 }
@@ -159,6 +172,7 @@ export function TextField({
   value,
   onChange,
   placeholder,
+  description,
   autoFocus,
   invalid,
   required,
@@ -176,6 +190,7 @@ export function TextField({
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  description?: string;
   autoFocus?: boolean;
   invalid?: boolean;
   required?: boolean;
@@ -191,6 +206,32 @@ export function TextField({
   layout?: ProductFieldLayout;
 }) {
   const id = useId();
+  const descriptionId = useId();
+  const input = (
+    <Input
+      id={id}
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      // Mark the intended autofocus target so Modal's focus trap honours it instead of
+      // grabbing the first focusable (often a leading button).
+      data-autofocus={autoFocus ? "" : undefined}
+      maxLength={maxLength}
+      minLength={minLength}
+      autoComplete={autoComplete}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      data-testid={testId}
+      aria-required={required || undefined}
+      aria-invalid={invalid || undefined}
+      aria-describedby={
+        [description ? descriptionId : undefined, invalid ? describedById : undefined].filter(Boolean).join(" ") ||
+        undefined
+      }
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
   return (
     <Field
       data-invalid={invalid || undefined}
@@ -199,26 +240,14 @@ export function TextField({
       className={cn(layout === "label-control" && labelControlLayout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        autoFocus={autoFocus}
-        // Mark the intended autofocus target so Modal's focus trap honours it instead of
-        // grabbing the first focusable (often a leading button).
-        data-autofocus={autoFocus ? "" : undefined}
-        maxLength={maxLength}
-        minLength={minLength}
-        autoComplete={autoComplete}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        data-testid={testId}
-        aria-required={required || undefined}
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? describedById : undefined}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {description ? (
+        <FieldContent>
+          {input}
+          <FieldDescription id={descriptionId}>{description}</FieldDescription>
+        </FieldContent>
+      ) : (
+        input
+      )}
     </Field>
   );
 }

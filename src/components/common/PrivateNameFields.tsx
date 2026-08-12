@@ -24,6 +24,7 @@ export function PrivateNameFields({
       <SwitchField
         label={m.form_private_toggle_label()}
         description={m.form_private_toggle_description()}
+        descriptionPlacement="control"
         checked={fields.isPrivate}
         onChange={fields.setIsPrivate}
         layout={layout}
@@ -35,12 +36,12 @@ export function PrivateNameFields({
             value={fields.codeName}
             onChange={fields.setCodeName}
             placeholder={m.form_private_code_name_placeholder()}
+            description={m.form_private_code_name_hint()}
             required
             invalid={errorField === "codeName"}
             describedById={errorId}
             layout={layout}
           />
-          <p className="text-xs text-muted-foreground">{m.form_private_code_name_hint()}</p>
         </>
       )}
     </>

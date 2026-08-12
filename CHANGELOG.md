@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Client and Project privacy explanations now sit with their controls in the right-hand form column.
+
 ## [0.41.5-alpha.1] — 2026-08-12
 
 ### Changed
