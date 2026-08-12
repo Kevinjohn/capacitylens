@@ -7,6 +7,56 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.41.0-alpha.3] — 2026-08-12
+
+Alpha 3 brings the planning, team-management and production-reliability work completed since the
+Alpha 2 milestone into one supported prerelease.
+
+### Added
+
+- **Plan recurring work as a series.** New allocations can repeat weekly, every two to four weeks
+  or monthly up to an explicit cutoff date. The form previews the batch, the schedule identifies
+  repeated work, and deleting one occurrence can remove either that item or the rest of its series.
+- **Model real working patterns.** Companies can choose their global working days, while each person
+  has an explicit Full day, Half day or Not working choice for Monday through Sunday. Capacity uses
+  a predictable 8/4/0-hour model and blocks new work from starting on unavailable days or time off.
+- **Organise people the way agencies work.** People can be grouped into Studio and Supplementary
+  teams, marked as favourites and ordered consistently. Discipline views retain useful fallbacks
+  for unassigned people, and external partners remain clearly separated.
+
+### Changed
+
+- **The schedule is faster to read and control.** Filters start out of the way, follow the same
+  order as the planning grid and can be cleared in one action. Date headings, zoom boundaries,
+  selection states, pressed feedback and allocation guidance are clearer without crowding the
+  working view.
+- **Everyday management is easier to scan.** Resources, disciplines, clients and projects are
+  alphabetical; activities and current/future time off are grouped meaningfully; forms use compact,
+  consistent layouts; and Settings keeps detailed explanations available on demand.
+- **Team access has safer day-to-day controls.** Owners and administrators can disable, archive,
+  restore and remove members, optionally confirm whether someone has signed in, revoke sessions and
+  issue reset links without weakening server-side permissions.
+- **The documentation now shows the product as well as describing it.** Expanded visual walkthroughs
+  cover schedule filters, unallocated people, Studio/Supplementary choices, grouped lists, working
+  patterns, Settings and the main planning flow.
+
+### Fixed
+
+- **Saved planning choices now remain saved.** Fresh server-backed sessions preserve engagement and
+  half-day values instead of replacing them with legacy defaults.
+- **Bookmarks and browser refreshes work in production.** Fixed application routes and arbitrary
+  extensionless paths return the application shell while genuine missing assets, files and API
+  requests remain real 404s. Single-company sign-ins also resume the requested page automatically.
+- **Capacity conflicts remain visible.** Work scheduled during time off keeps its red over-capacity
+  warning above the holiday treatment, and filters, forms and working-day layouts retain their
+  expected state at narrow and wide sizes.
+
+### Security
+
+- Expanded the self-hosted sign-in and recovery paths with strict OIDC cutover tooling, a deliberate
+  sole-Owner password-recovery command, identity-global session controls and stronger automated
+  security, migration and cross-browser verification.
+
 ## [0.40.9-alpha.1] — 2026-08-12
 
 ### Changed
@@ -3315,7 +3365,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.9-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.0-alpha.3...HEAD
+[0.41.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/compare/ab823d3a1a33df5a00957551cc65b1f169f993b3...v0.41.0-alpha.3
 [0.40.9-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.8-alpha.1...v0.40.9-alpha.1
 [0.40.8-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.7-alpha.1...v0.40.8-alpha.1
 [0.40.7-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.40.6-alpha.1...v0.40.7-alpha.1
