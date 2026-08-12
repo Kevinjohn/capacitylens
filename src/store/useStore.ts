@@ -217,6 +217,9 @@ export interface StoreState {
    *  server mode `data` holds only the ACTIVE account's slice, so it can't list the other tenants.
    *  Never persisted. */
   accountSummaries: AccountSummary[];
+  /** Whether the published directory was wholly valid. A partial response may populate the picker,
+   *  but cannot prove that exactly one company exists. Transient and never persisted. */
+  accountSummariesComplete: boolean;
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    *  response cannot overwrite a create/delete/join result. Transient and never persisted. */
   accountSummariesRequestId: number;
@@ -325,7 +328,7 @@ export interface StoreState {
   beginAccountSummariesRequest: () => number;
   /** Replace the picker list. A request-bound result applies only while it is still the latest;
    *  an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
-  setAccountSummaries: (list: AccountSummary[], requestId?: number) => boolean;
+  setAccountSummaries: (list: AccountSummary[], requestId?: number, complete?: boolean) => boolean;
 
   replaceAll: (data: AppData) => void;
   /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
@@ -755,6 +758,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     activeAccountId: null,
     previousAccountId: null,
     accountSummaries: [],
+    accountSummariesComplete: false,
     accountSummariesRequestId: 0,
     past: [],
     future: [],
@@ -800,6 +804,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       // added it can't duplicate.
       set((s) => ({
         accountSummariesRequestId: s.accountSummariesRequestId + 1,
+        accountSummariesComplete: true,
         accountSummaries: s.accountSummaries.some((a) => a.id === e.id)
           ? s.accountSummaries
           : [...s.accountSummaries, { id: e.id, name: e.name, role: "owner" as const }],
@@ -843,6 +848,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
           activeAccountId: s.activeAccountId === id ? null : s.activeAccountId,
           previousAccountId: s.activeAccountId === id ? id : s.previousAccountId,
           accountSummaries: s.accountSummaries.filter((account) => account.id !== id),
+          accountSummariesComplete: true,
           accountSummariesRequestId: s.accountSummariesRequestId + 1,
           notice: null,
           srAnnouncement: null,
@@ -944,16 +950,17 @@ export const useStore = create<StoreState>()((set, get, store) => {
       set({ accountSummariesRequestId: requestId });
       return requestId;
     },
-    setAccountSummaries: (list, requestId) => {
+    setAccountSummaries: (list, requestId, complete = true) => {
       if (requestId !== undefined) {
         if (requestId !== get().accountSummariesRequestId) return false;
-        set({ accountSummaries: list });
+        set({ accountSummaries: list, accountSummariesComplete: complete });
         return true;
       }
       // A direct mutation (optimistic create/delete, demo derivation or test setup) is newer than
       // every response already in flight, so advance the same sequence before publishing it.
       set((state) => ({
         accountSummaries: list,
+        accountSummariesComplete: complete,
         accountSummariesRequestId: state.accountSummariesRequestId + 1,
       }));
       return true;

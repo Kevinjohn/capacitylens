@@ -1,6 +1,6 @@
 # US-NAV-01 — Navigate between all nine sections
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "sidebar links route to each section", "valid deep link … survives a browser reload"
+**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "sidebar links route to each section", "valid deep link … survives a browser reload"; `e2e/navigation.db.spec.ts` → single-company reload and picker boundaries
 
 ## Goal
 
@@ -48,7 +48,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
   **Account Options Selected at Creation** heading on Settings).
 - ✅ Navigating away and back (e.g. Resources → Schedule) re-renders each screen
   without a blank page or console error.
-- ✅ Loading or reloading a valid destination URL serves the application shell rather than an HTTP 404. Because the active company is intentionally session-only, the company picker appears after a
-  reload; choosing a company continues to the originally requested destination.
+- ✅ Loading or reloading a valid destination URL serves the application shell rather than an HTTP 404. A reload with exactly one valid company opens it automatically at the originally requested
+  destination. First entry, explicit **Switch company**, and multi-company reloads keep the picker.
 - ✅ An unknown extensionless URL reaches the application's **Page not found** screen, while missing
   asset and API paths remain real HTTP errors rather than receiving the application shell.

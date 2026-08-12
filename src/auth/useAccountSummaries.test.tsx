@@ -360,9 +360,21 @@ describe("refreshAccountSummaries — shared request ordering", () => {
     await refreshAccountSummaries();
 
     expect(useStore.getState().accountSummaries).toEqual([{ id: "other", name: "Other", role: "viewer" }]);
+    expect(useStore.getState().accountSummariesComplete).toBe(false);
     expect(useStore.getState().activeAccountId).toBe("active");
     expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), expect.any(Array));
+  });
+
+  it("marks a wholly valid directory as complete", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, [{ id: "only", name: "Only Co", role: "owner" }])),
+    );
+
+    await refreshAccountSummaries();
+
+    expect(useStore.getState().accountSummariesComplete).toBe(true);
   });
 });
 

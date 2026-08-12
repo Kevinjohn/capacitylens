@@ -12,6 +12,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Browser reloads now resume the requested page automatically when the login has exactly one valid
+  company, while first entry, explicit switching and multi-company logins retain the company picker
+  (#279).
 - Fresh server-backed sessions now preserve saved Studio/Supplementary classifications and half-day
   working patterns instead of replacing them with legacy defaults during client hydration.
 
