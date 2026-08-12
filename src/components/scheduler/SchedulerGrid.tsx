@@ -110,8 +110,8 @@ export function SchedulerGrid() {
   // Per-account display pref (default OFF): when off, external / 3rd-party rows are hidden from the
   // schedule (and their now-empty band header is dropped) by buildSchedulerModel's resourceVisible filter.
   const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
-  // Account-level: when disciplines are off, the schedule renders flat (no discipline
-  // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
+  // Account-level: when disciplines are off, discipline bands disappear and the model uses the
+  // Studio/Supplementary (or Unassigned) fallback. The discipline filter is ignored.
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
   const groupResourcesByEngagement = useStore((s) => groupResourcesByEngagementFor(s.data, s.activeAccountId));
   // Per-account Internal work colour preference. Grey is the absent/default mode; palette restores
@@ -324,18 +324,13 @@ export function SchedulerGrid() {
   const items = useMemo(() => {
     const out: Item[] = [];
     for (const group of model) {
-      // Disciplines off → render the rows flat (no group-header band, no collapse) — EXCEPT the
-      // external band, which always keeps its header so it reads as a distinct band at the bottom
-      // regardless of disciplines being on/off.
-      if (!disciplinesEnabled && !group.external) {
-        for (const row of group.rows) out.push({ kind: "row", group, row });
-        continue;
-      }
+      // Every model group is now meaningful and labelled: a discipline, Studio/Supplementary,
+      // Unassigned, or External. Keep the same collapse behaviour for synthetic fallback bands.
       out.push({ kind: "group", group });
       if (!ui.collapsedGroups.includes(group.key)) for (const row of group.rows) out.push({ kind: "row", group, row });
     }
     return out;
-  }, [model, ui.collapsedGroups, disciplinesEnabled]);
+  }, [model, ui.collapsedGroups]);
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
   // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
@@ -503,8 +498,8 @@ export function SchedulerGrid() {
               The "+/%" box stays self-stretch (full height); only this block is banded. */}
           <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
             {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
-                discipline reads as one colour; fall back to the resource's own colour for
-                the ungrouped "No discipline" bucket. */}
+                discipline reads as one colour; synthetic engagement/unassigned groups fall
+                back to each resource's own colour. */}
             <Avatar
               name={resource.name ?? resource.role}
               color={group.color ?? resource.color}

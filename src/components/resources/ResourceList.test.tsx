@@ -187,6 +187,40 @@ describe("ResourceList display", () => {
     expect(row).not.toHaveTextContent("·");
   });
 
+  it("omits missing and dangling disciplines without losing valid role or discipline metadata", () => {
+    const discipline = useStore.getState().addDiscipline({ name: "Design", color: "#123456", sortOrder: 0 });
+    useStore.getState().addResource(personDraft("Role only"));
+    useStore.getState().addResource({ ...personDraft("Discipline only"), role: "", disciplineId: discipline.id });
+    useStore.getState().addResource({ ...personDraft("No metadata"), role: "" });
+    const dangling = useStore.getState().addResource({ ...personDraft("Dangling discipline"), role: "Researcher" });
+    // Ordinary writes reject dangling references. Inject one at the view boundary to prove a
+    // malformed/legacy slice still renders safely rather than exposing a placeholder glyph.
+    useStore.setState((state) => ({
+      data: {
+        ...state.data,
+        resources: state.data.resources.map((resource) =>
+          resource.id === dangling.id ? { ...resource, disciplineId: "deleted-discipline" } : resource,
+        ),
+      },
+    }));
+
+    render(<ResourceList />);
+
+    const rows = new Map(
+      screen
+        .getAllByTestId("resource-row")
+        .map((row) => [
+          row.querySelector(".font-medium")?.textContent,
+          row.querySelector("span.text-sm.text-muted-foreground")?.textContent,
+        ]),
+    );
+    expect(rows.get("Role only")).toBe(" · Developer");
+    expect(rows.get("Discipline only")).toBe(" · Design");
+    expect(rows.get("No metadata")).toBeUndefined();
+    expect(rows.get("Dangling discipline")).toBe(" · Researcher");
+    expect(screen.getAllByTestId("resource-row").every((row) => !row.textContent?.includes("—"))).toBe(true);
+  });
+
   it("gives repeated resource edit controls distinct contextual names", () => {
     useStore.getState().addResource(personDraft("Alice"));
     useStore.getState().addResource(personDraft("Bob"));

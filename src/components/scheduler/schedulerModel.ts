@@ -148,8 +148,8 @@ export interface GroupModel {
   key: string;
   title: string;
   color?: string;
-  /** True for the external / 3rd-party band. The view reads THIS (not the key string) to keep the
-   *  band's header in flat mode and to suppress its utilisation average. */
+  /** True for the external / 3rd-party band. The view reads THIS (not the key string) to suppress
+   *  its utilisation average. */
   external: boolean;
   rows: RowModel[];
 }
@@ -181,9 +181,9 @@ export interface SchedulerModelOptions {
   overSoonWindow: { start: ISODate; end: ISODate };
   filters: Filters;
   preferences: {
-    // When false (account.disciplinesEnabled === false) the schedule renders FLAT: one
-    // synthetic group holding every resource (no discipline bands), and the discipline
-    // filter is ignored. SchedulerGrid skips the group-header row for the flat group.
+    // When false (account.disciplinesEnabled === false), discipline bands disappear and the
+    // discipline filter is ignored. Capacity-tracked rows instead use the engagement fallback
+    // bands described by groupResourcesByEngagement below.
     disciplinesEnabled: boolean;
     // Per-account view pref (default OFF). When false, placeholder ("slot") resources are dropped
     // by `resourceVisible` below — this ONE filter removes the lane, its bars/day-states, AND its
@@ -200,7 +200,8 @@ export interface SchedulerModelOptions {
     externalEnabled: boolean;
     /** Account-wide hard boundary for the start of a schedule creation gesture. */
     accountWorkingDays?: Weekday[];
-    /** Default-on company preference: Studio then Supplementary, favourites first within each. */
+    /** Default-on company preference: Studio then Supplementary, favourites first within each.
+     *  It also owns the unassigned schedule fallback; false produces one Unassigned band. */
     groupResourcesByEngagement?: boolean;
     blocksMode?: boolean;
     // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
@@ -289,6 +290,12 @@ export function buildSchedulerModel({
       .replace(/\p{Diacritic}/gu, "")
       .toLocaleLowerCase();
   const search = searchable(filters.search.trim());
+  // A stale discipline filter can survive deleting the final discipline. It must not make the
+  // engagement fallback look empty; only a filter that still resolves to a real discipline applies.
+  const filteredDisciplineId =
+    disciplinesEnabled && filters.disciplineId && data.disciplines.some((d) => d.id === filters.disciplineId)
+      ? filters.disciplineId
+      : null;
   const projectById = new Map(data.projects.map((p) => [p.id, p]));
   const clientById = new Map(data.clients.map((c) => [c.id, c]));
   const activityById = new Map(data.activities.map((act) => [act.id, act]));
@@ -395,7 +402,7 @@ export function buildSchedulerModel({
     // like placeholders. Dropping the row here empties the external band; the trailing
     // `rows.length > 0` filter then removes the band group so no empty header is drawn (risk #2).
     if (!externalEnabled && isExternalResource(r)) return false;
-    if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false;
+    if (filteredDisciplineId && r.disciplineId !== filteredDisciplineId) return false;
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
     // user sees — matching the command palette — as well as by its underlying role/name.
     const resourceSearchFields = [resourceDisplayName(r), r.name, r.role].map(searchable);
@@ -430,29 +437,66 @@ export function buildSchedulerModel({
     row.endDate >= timelineStart &&
     row.startDate <= timelineEnd;
 
-  // Disciplines on → group by discipline (ungrouped bucket, then the external band, last). Off →
-  // one flat group of every NON-external resource, with the external band STILL trailing (the band
-  // is required regardless of disciplines on/off). SchedulerGrid renders the flat group without a
-  // header but still draws the external band's header. Build the flat groups LAZILY so the common
-  // disciplines-on path doesn't scan resources for a value it discards.
-  const groups = disciplinesEnabled
-    ? resourcesByDiscipline(data)
-    : (() => {
-        const flat: DisciplineGroup[] = [
-          {
-            discipline: null,
-            resources: data.resources.filter(isCapacityTracked),
-          },
-        ];
-        const band = externalBand(data.resources);
-        if (band) flat.push(band);
-        return flat;
-      })();
+  interface SchedulerResourceGroup extends DisciplineGroup {
+    key: string;
+    title: string;
+    color?: string;
+  }
+  const fallbackGroups = (resources: Resource[]): SchedulerResourceGroup[] => {
+    if (!groupResourcesByEngagement) {
+      return resources.length ? [{ key: "unassigned", title: "Unassigned", discipline: null, resources }] : [];
+    }
+    return [
+      {
+        key: "engagement-studio",
+        title: "Studio",
+        discipline: null,
+        resources: resources.filter((resource) => resource.engagement === "studio"),
+      },
+      {
+        key: "engagement-supplementary",
+        title: "Supplementary",
+        discipline: null,
+        resources: resources.filter((resource) => resource.engagement === "supplementary"),
+      },
+    ].filter((group) => group.resources.length > 0);
+  };
+
+  // Assigned resources retain canonical discipline order. Every unassigned capacity-tracked row
+  // then receives a useful engagement home; with disciplines off, that fallback becomes the whole
+  // capacity grouping. External / 3rd party is deliberately appended last in both modes.
+  const groups: SchedulerResourceGroup[] = [];
+  if (disciplinesEnabled) {
+    const disciplineGroups = resourcesByDiscipline(data);
+    for (const group of disciplineGroups) {
+      if (group.discipline) {
+        groups.push({
+          ...group,
+          key: group.discipline.id,
+          title: group.discipline.name,
+          color: group.discipline.color,
+        });
+      }
+    }
+    const unassigned = disciplineGroups.find((group) => !group.discipline && !group.external)?.resources ?? [];
+    groups.push(...fallbackGroups(unassigned));
+  } else {
+    groups.push(...fallbackGroups(data.resources.filter(isCapacityTracked)));
+  }
+  const external = externalBand(data.resources);
+  if (external) {
+    groups.push({
+      ...external,
+      key: "external",
+      title: "External / 3rd party",
+      color: NEUTRAL_COLOR,
+    });
+  }
   return groups
     .map((group) => ({
-      key: group.external ? "external" : (group.discipline?.id ?? "none"),
-      title: group.external ? "External / 3rd party" : (group.discipline?.name ?? "No discipline"),
-      color: group.external ? NEUTRAL_COLOR : group.discipline?.color,
+      key: group.key,
+      title: group.title,
+      color: group.color,
       external: !!group.external,
       // Keep discipline/external grouping intact. People are Studio then Supplementary when the
       // default-on account preference is enabled, with favourites first alphabetically inside each

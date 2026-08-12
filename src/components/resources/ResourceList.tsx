@@ -120,7 +120,9 @@ export function ResourceList() {
   const visibleResourceCount =
     people.length + (placeholdersEnabled ? placeholders.length : 0) + (externalEnabled ? externals.length : 0);
 
-  const disciplineName = (id?: string) => (id ? disciplineById.get(id)?.name : undefined) ?? "—";
+  // A missing or dangling discipline is unassigned. This metadata is appended to the role, so an
+  // empty-value glyph would become a misleading trailing "· —" rather than useful information.
+  const disciplineName = (id?: string) => (id ? disciplineById.get(id)?.name : undefined);
   // A resource's colour follows its discipline (resources no longer pick their own);
   // fall back to the stored colour for the disciplineless ones — and for everyone when
   // the account doesn't use disciplines.

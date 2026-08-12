@@ -601,20 +601,24 @@ kind and retain their existing resource-derived colours in both modes.
 (on by default). Turning it off hides disciplines across the whole app — the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
-row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle — and
-the schedule then renders **flat** (no `discipline-group` bands). It's stored on the account
+row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
+schedule then groups capacity-tracked resources by **Studio** and **Supplementary** engagement
+(or one **Unassigned** band when engagement grouping is off), followed by External / 3rd party.
+It's stored on the account
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
 **Engagement grouping (account-level).** Settings → **Engagement grouping** has a single switch
 **Group resources by engagement**, on by default. When on, Resources renders people in separate
 **Studio** and **Supplementary** sections; each section puts favourites first and then sorts by
-display name. The schedule keeps its existing discipline bands but orders Studio people before
-Supplementary people within each band, with favourites first inside each engagement partition.
-When the switch is off, Resources returns to one People list and each schedule band returns to its
-single favourites-first alphabetical order. Placeholders and External remain separate and
-unaffected. The preference is stored on the account (`groupResourcesByEngagement`, absent = on), so
-every member of the company sees the same grouping.
+display name. On the schedule, assigned resources stay in canonical discipline order and unassigned
+resources follow in separate **Studio** then **Supplementary** bands. With disciplines off, those
+engagement bands become the primary schedule grouping. Empty bands never render and External /
+3rd party remains last. When the switch is off, Resources returns to one People list and the
+schedule uses one **Unassigned** fallback band for resources outside a discipline. Placeholders
+remain after people inside the applicable band. The preference is
+stored on the account (`groupResourcesByEngagement`, absent = on), so every member of the company
+sees the same grouping.
 
 **Clear device data (Settings → Device data).** A closed-by-default maintenance disclosure near the
 bottom of Settings contains a `Clear device data` button
@@ -1140,9 +1144,12 @@ multiple).
   spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
   stored arrays are unchanged. The schedule keeps its deliberate discipline `sortOrder` and
   resource grouping while sorting Studio before Supplementary within each discipline, favourites
-  first and alphabetical inside each engagement partition, followed by placeholders. Turning
-  engagement grouping off removes that Studio/Supplementary partition but retains favourites-first
-  alphabetical order. Favourite external parties similarly lead the External band. Favourites and
+  first and alphabetical inside each engagement partition, followed by placeholders. Unassigned
+  resources follow the assigned discipline bands as separate Studio and Supplementary bands; those
+  engagement bands become the complete capacity grouping when disciplines are off. Turning
+  engagement grouping off replaces the fallback engagement bands with one **Unassigned** band while
+  retaining favourites-first alphabetical order. Favourite external parties similarly lead the
+  final External band. Favourites and
   the grouping preference are company data shared by every account member, not per-user view
   preferences.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
@@ -1291,7 +1298,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   local undo/redo history so a destructive lifecycle action cannot be restored accidentally.
 - **Disciplines are optional (account-level).** Default **on**. When a company turns them off
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
-  renders flat — see the _Disciplines (account-level)_ note above. The seed companies leave it
+  uses engagement fallback bands — see the _Disciplines (account-level)_ note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
 - **Engagement is separate from employment and discipline.** A person is either **Studio** or
   **Supplementary**, defaulting to Studio. The resource form shows Engagement instead of the

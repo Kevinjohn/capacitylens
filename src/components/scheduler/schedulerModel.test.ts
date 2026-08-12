@@ -877,9 +877,10 @@ describe("buildSchedulerModel", () => {
     expect(search("alvarez research")).not.toContain("r1");
   });
 
-  it("disciplines off → one flat group holding every resource (no discipline bands)", () => {
+  it("disciplines off → one Studio band holds the all-Studio fixture", () => {
     const model = build(emptyFilters(), false);
     expect(model).toHaveLength(1);
+    expect(model[0]).toMatchObject({ key: "engagement-studio", title: "Studio" });
     expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
     expect(model[0].color).toBeUndefined(); // no discipline colour → avatar falls back to resource colour
     expect(barIds(model)).toEqual(["a1", "a2", "a3"]);
@@ -888,6 +889,7 @@ describe("buildSchedulerModel", () => {
   it("disciplines off → the discipline filter is ignored (everyone still shown)", () => {
     const model = build({ ...emptyFilters(), disciplineId: "d-dev" }, false);
     expect(model).toHaveLength(1);
+    expect(model[0].title).toBe("Studio");
     expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
   });
 });
@@ -1164,9 +1166,10 @@ describe("external / 3rd-party band", () => {
     expect(ext.bars.map((b) => b.allocation.id)).toEqual(["aext"]);
   });
 
-  it("disciplines off → external STILL forms its own trailing band (below the flat group)", () => {
+  it("disciplines off → external STILL forms its own trailing band after engagement", () => {
     const model = buildExt(emptyFilters(), false);
-    expect(model).toHaveLength(2); // flat (our people) + external
+    expect(model).toHaveLength(2); // Studio + external
+    expect(model[0].title).toBe("Studio");
     expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
     expect(model[1].key).toBe("external");
     expect(model[1].rows.map((r) => r.resource.id)).toEqual(["ext1"]);
@@ -1190,7 +1193,7 @@ describe("external / 3rd-party band", () => {
     // model's `rows.length > 0` filter drops the whole group, so no 'external' key survives.
     const off = buildExt(emptyFilters(), true, false);
     expect(off.map((g) => g.key)).not.toContain("external");
-    // And with disciplines off too, only the flat people group remains (no empty external band).
+    // And with disciplines off too, only the Studio group remains (no empty external band).
     const offFlat = buildExt(emptyFilters(), false, false);
     expect(offFlat.map((g) => g.key)).not.toContain("external");
     expect(offFlat).toHaveLength(1);
@@ -2110,39 +2113,170 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     expect(allBars(model).map((b) => b.allocation.id)).not.toContain("a-ghost2");
   });
 
-  it('the ungrouped ("No discipline") bucket keys as "none" with title "No discipline" (not empty strings)', () => {
-    const d = dataset();
-    d.resources.push({
-      id: "r-nodisc",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      kind: "person",
-      name: "Noe",
-      role: "Floater",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#c",
-    });
+  it("keeps assigned discipline bands before unassigned Studio, Supplementary and External bands", () => {
+    const d = withExternal();
+    const template = d.resources[0]!;
+    d.resources.push(
+      { ...template, id: "unassigned-studio", name: "Studio Floater", disciplineId: undefined },
+      {
+        ...template,
+        id: "unassigned-supplementary",
+        name: "Supplementary Floater",
+        disciplineId: undefined,
+        engagement: "supplementary",
+      },
+      { ...template, id: "dangling-studio", name: "Deleted Discipline", disciplineId: "deleted-discipline" },
+    );
+
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+
+    expect(model.map((group) => group.title)).toEqual([
+      "Design",
+      "Development",
+      "Studio",
+      "Supplementary",
+      "External / 3rd party",
+    ]);
+    expect(model.map((group) => group.key)).toEqual([
+      "d-design",
+      "d-dev",
+      "engagement-studio",
+      "engagement-supplementary",
+      "external",
+    ]);
+    expect(
+      model
+        .find((group) => group.title === "Studio")!
+        .rows.map((row) => row.resource.id)
+        .sort(),
+    ).toEqual(["dangling-studio", "unassigned-studio"]);
+  });
+
+  it("uses engagement bands when no disciplines exist and ignores a stale discipline filter", () => {
+    const d = withExternal();
+    d.disciplines = [];
+    d.resources[1] = { ...d.resources[1]!, engagement: "supplementary" };
+
+    const model = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: { ...emptyFilters(), disciplineId: "deleted-discipline" },
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+
+    expect(model.map((group) => group.title)).toEqual(["Studio", "Supplementary", "External / 3rd party"]);
+    expect(
+      model
+        .flatMap((group) => group.rows)
+        .map((row) => row.resource.id)
+        .sort(),
+    ).toEqual(["ext1", "r1", "r2"]);
+  });
+
+  it("uses engagement fallback bands when disciplines exist but nobody is assigned", () => {
+    const d = dataset();
+    d.resources = d.resources.map((resource, index) => ({
+      ...resource,
+      disciplineId: undefined,
+      engagement: index === 0 ? "studio" : "supplementary",
+    }));
+
+    const model = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+
+    expect(model.map((group) => group.title)).toEqual(["Studio", "Supplementary"]);
+    expect(
+      model
+        .flatMap((group) => group.rows)
+        .map((row) => row.resource.id)
+        .sort(),
+    ).toEqual(["r1", "r2"]);
+  });
+
+  it("does not render empty fallback bands, including an external-only schedule", () => {
+    const studioOnly = dataset();
+    studioOnly.disciplines = [];
+    expect(
+      buildSchedulerModel({
+        data: studioOnly,
+        geom,
+        days,
+        visibleWindow: { start, end },
+        overSoonWindow: { start, end },
+        filters: emptyFilters(),
+        preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+      }).map((group) => group.title),
+    ).toEqual(["Studio"]);
+
+    const externalOnly = withExternal();
+    externalOnly.disciplines = [];
+    externalOnly.resources = externalOnly.resources.filter((resource) => resource.id === "ext1");
+    expect(
+      buildSchedulerModel({
+        data: externalOnly,
+        geom,
+        days,
+        visibleWindow: { start, end },
+        overSoonWindow: { start, end },
+        filters: emptyFilters(),
+        preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+      }).map((group) => group.title),
+    ).toEqual(["External / 3rd party"]);
+  });
+
+  it("uses one Unassigned fallback when engagement grouping is disabled", () => {
+    const d = withExternal();
+    d.resources[0] = { ...d.resources[0]!, disciplineId: undefined };
+    const withDisciplines = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
       filters: emptyFilters(),
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
         externalEnabled: true,
+        groupResourcesByEngagement: false,
       },
     });
-    const nodisc = model.find((g) => g.rows.some((r) => r.resource.id === "r-nodisc"))!;
-    expect(nodisc.key).toBe("none");
-    expect(nodisc.title).toBe("No discipline");
+    expect(withDisciplines.map((group) => group.title)).toEqual(["Development", "Unassigned", "External / 3rd party"]);
+
+    const withoutDisciplines = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: { ...emptyFilters(), disciplineId: "d-dev" },
+      preferences: {
+        disciplinesEnabled: false,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        groupResourcesByEngagement: false,
+      },
+    });
+    expect(withoutDisciplines.map((group) => group.title)).toEqual(["Unassigned", "External / 3rd party"]);
+    expect(withoutDisciplines[0]!.rows).toHaveLength(2);
   });
 
   it("group.external is a real boolean: true for the external band, false (not undefined) for a discipline group", () => {

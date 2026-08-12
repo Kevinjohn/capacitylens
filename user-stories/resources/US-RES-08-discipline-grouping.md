@@ -1,11 +1,11 @@
 # US-RES-08 — Group a resource under a discipline
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "deletes a discipline and ungroups its resources without deleting them" (exercises resource-under-discipline grouping and the _No discipline_ group)
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "deletes a discipline and ungroups its resources without deleting them" (exercises resource-under-discipline grouping and the engagement fallback)
 
 ## Goal
 
 Assign a resource to a discipline so they group under that discipline's header on the
-schedule, or leave them ungrouped with "— None —".
+schedule, or leave them unassigned with "— None —" and grouped by engagement.
 
 ## Why
 
@@ -27,6 +27,7 @@ legible; an unassigned resource still has a home in a catch-all bucket.
 
 - ✅ With a discipline chosen, the resource appears under that discipline's group header on
   **Schedule** (`data-testid="discipline-group"`).
-- ✅ With **Discipline** = _— None —_, the resource appears under a group titled
-  **"No discipline"**.
+- ✅ With **Discipline** = _— None —_, the resource appears after the assigned discipline bands in
+  **Studio** or **Supplementary** according to engagement. If engagement grouping is off, it appears
+  in **Unassigned** instead.
 - ✅ The grouping reflects the saved discipline immediately on returning to the schedule.
