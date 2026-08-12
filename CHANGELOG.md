@@ -23,6 +23,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Schedule filters now follow the app's planning order.** Disciplines mirror the schedule grid;
+  Internal precedes alphabetically ordered clients and projects; and activities are alphabetical
+  within their existing Internal and Cross-project groups (#254).
 - **Project client choices now put internal work first.** The project form pins Internal above a
   non-selectable divider, followed by active clients in alphabetical order (#239).
 - **Activity kind choices now follow the page's work hierarchy.** The Activity form presents

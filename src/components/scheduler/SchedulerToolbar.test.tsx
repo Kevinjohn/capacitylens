@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PermissionContext } from "../../auth/permissionContext";
+import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { emptyFilters, useStore } from "../../store/useStore";
-import { resetStoreWithAccount } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
 
 async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: string | RegExp, optionName: string) {
   const trigger = screen.getByRole("combobox", { name: label });
@@ -145,6 +146,79 @@ describe("SchedulerToolbar filter panel", () => {
     expect(actions.children).toHaveLength(2);
     expect(actions.children[0]).toHaveAttribute("data-slot", "separator");
     expect(actions.children[1]).toBe(show);
+  });
+});
+
+describe("SchedulerToolbar filter ordering", () => {
+  const optionNames = (label: string) => {
+    fireEvent.keyDown(screen.getByRole("combobox", { name: label }), { key: "ArrowDown" });
+    return screen.getAllByRole("option").map((option) => option.textContent);
+  };
+
+  it("follows the scheduler discipline order rather than alphabetising disciplines", () => {
+    useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
+    useStore.getState().addDiscipline({ name: "Account Management", color: "#222", sortOrder: 2 });
+    useStore.getState().addDiscipline({ name: "Development", color: "#333", sortOrder: 1 });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(optionNames("Filter by discipline")).toEqual([
+      "All disciplines",
+      "Design",
+      "Development",
+      "Account Management",
+    ]);
+  });
+
+  it("pins Internal before alphabetically ordered clients", () => {
+    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
+    useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
+    useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(optionNames("Filter by client")).toEqual(["All clients", "Internal", "LexCorp", "Queen Consolidated"]);
+  });
+
+  it("pins Internal-owned projects before alphabetically ordered external projects", () => {
+    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
+    useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
+    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: lex.id, color: "#444" });
+    useStore.getState().addProject({ name: "Website", clientId: internal.id, color: "#555" });
+    useStore.getState().addProject({ name: "Admin", clientId: internal.id, color: "#666" });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(optionNames("Filter by project")).toEqual([
+      "All projects",
+      "Internal / Admin",
+      "Internal / Website",
+      "LexCorp / Metropolis Rebrand",
+      "Queen Consolidated / Project Watchtower",
+    ]);
+  });
+
+  it("alphabetises activities within the existing Internal and Cross-project groups", () => {
+    useStore.getState().addActivity({ name: "Studio meeting", kind: "internal" });
+    useStore.getState().addActivity({ name: "Admin", kind: "internal" });
+    useStore.getState().addActivity({ name: "Workshop", kind: "repeatable" });
+    useStore.getState().addActivity({ name: "Design", kind: "repeatable" });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(optionNames("Filter by activity")).toEqual([
+      "All activities",
+      "Internal — All",
+      "Admin",
+      "Studio meeting",
+      "Cross-project — All",
+      "Design",
+      "Workshop",
+    ]);
   });
 });
 

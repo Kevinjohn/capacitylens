@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
+import { byName } from "../../lib/displayOrder";
 import { redoShortcut, undoShortcut } from "../../lib/keyboardShortcuts";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
-import { disciplinesEnabledFor } from "../../store/selectors";
+import { byDisciplineOrder, disciplinesEnabledFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { errorMessage } from "../../lib/errorMessage";
 import { ZOOM_LEVELS, type WeeksZoom } from "../../lib/schedulerConfig";
@@ -56,14 +57,21 @@ export function SchedulerToolbar() {
   const clearFilters = useStore((s) => s.clearFilters);
   const filtersActive = hasActiveFilters(filters);
   const data = useActiveScopedData();
-  const disciplines = data.disciplines;
-  const clients = data.clients;
-  const projects = data.projects;
+  // These are display-only projections: keep stored order untouched while making each menu follow
+  // the planning hierarchy used elsewhere in the app.
+  const disciplines = [...data.disciplines].sort(byDisciplineOrder);
+  const clients = [...data.clients].sort(
+    (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b),
+  );
+  const internalClientId = clients.find((client) => client.builtin === true)?.id;
+  const projects = [...data.projects].sort(
+    (a, b) => Number(b.clientId === internalClientId) - Number(a.clientId === internalClientId) || byName(a, b),
+  );
   const clientNames = new Map(clients.map((client) => [client.id, client.name]));
   // The activity lens covers only the project-LESS kinds — project-specific activities are reached via the
   // Projects dropdown above.
-  const internalActivities = data.activities.filter((t) => t.kind === "internal");
-  const repeatableActivities = data.activities.filter((t) => t.kind === "repeatable");
+  const internalActivities = data.activities.filter((t) => t.kind === "internal").sort(byName);
+  const repeatableActivities = data.activities.filter((t) => t.kind === "repeatable").sort(byName);
 
   const activeAccountId = useStore((s) => s.activeAccountId);
   // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
