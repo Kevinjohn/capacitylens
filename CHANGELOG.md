@@ -23,6 +23,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Activity kind choices now follow the page's work hierarchy.** The Activity form presents
+  Internal, Cross-project and Project-specific in the same order used by the Activities page,
+  while keeping Project-specific selected by default (#245).
 - **Allocation hover cards keep the schedule clear.** The always-repeated drag, resize and
   reassign instructions no longer occupy a visible footer, while the retained assistive label
   continues to provide the appropriate interaction guidance to screen-reader users (#251).

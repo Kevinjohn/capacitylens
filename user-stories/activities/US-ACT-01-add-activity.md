@@ -14,7 +14,8 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 
 **Precondition:** Seeded app open; click **Activities** in the sidebar (`/activities`). Projects _Project Watchtower_ and _Metropolis Rebrand_ exist. The page shows three sections: **Internal activities**, **Cross-project activities**, **Project-specific activities**.
 
-1. Click **Add activity**. The "Add activity" dialog opens with an **Activity kind** radiogroup (default **Project-specific**).
+1. Click **Add activity**. The "Add activity" dialog opens with an **Activity kind** radiogroup ordered
+   **Internal**, **Cross-project**, **Project-specific** (default **Project-specific**).
 2. Fill **Name** = `Internal sync`, click the **Internal** kind. The **Project** field disappears. Click **Save**.
 3. Click **Add activity**; **Name** = `Discovery workshop`, click **Cross-project**, **Save**.
 4. Click **Add activity**; **Name** = `Spec review`, leave kind **Project-specific**, choose **Project** = _Project Watchtower_, **Save**.
@@ -24,6 +25,8 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 
 - ✅ **Internal sync** saves into the **Internal activities** section (testid `internal-activities`),
   with **no** project label. Internal activities are alphabetical.
+- ✅ **Activity kind** is ordered **Internal**, **Cross-project**, **Project-specific**, while
+  **Project-specific** remains selected by default.
 - ✅ **Discovery workshop** saves into the **Cross-project activities** section (testid
   `cross-project-activities`). Cross-project activities are alphabetical.
 - ✅ **Spec review** saves into the **Project-specific activities** section (testid

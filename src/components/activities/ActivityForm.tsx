@@ -9,14 +9,18 @@ import { Modal, RequiredLegend, SegmentedControl, SelectField, TextField, type O
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import type { Activity, ActivityKind } from "@capacitylens/shared/types/entities";
+import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
 // switch rather than freezing to the import-time locale — per the i18n key convention (DECISIONS).
-const kindOptions = (): { value: ActivityKind; label: string }[] => [
-  { value: "project", label: m.form_activity_kind_project() },
-  { value: "internal", label: m.form_activity_kind_internal() },
-  { value: "repeatable", label: m.form_activity_kind_repeatable() },
-];
+const kindOptions = (): { value: ActivityKind; label: string }[] => {
+  const labels: Record<ActivityKind, string> = {
+    internal: m.form_activity_kind_internal(),
+    repeatable: m.form_activity_kind_repeatable(),
+    project: m.form_activity_kind_project(),
+  };
+  return ACTIVITY_KIND_ORDER.map((value) => ({ value, label: labels[value] }));
+};
 
 /** Add (no `activity`) or edit an activity. Pick a kind first: a `project` activity takes a project (and keeps
  *  its phase); `internal`/cross-project (`repeatable`) are project-less, so the project picker is hidden and their

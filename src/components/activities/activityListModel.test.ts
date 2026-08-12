@@ -56,6 +56,7 @@ describe("buildActivityListModel", () => {
       unavailableProject: "Unavailable project",
     });
 
+    expect(model.kindOrder).toEqual(["internal", "repeatable", "project"]);
     expect(model.internal.map(({ id }) => id)).toEqual(["internal-a", "internal-b", "internal-z"]);
     expect(model.crossProject.map(({ name }) => name)).toEqual(["Workshop 2", "Workshop 10"]);
     expect(model.clients.map(({ name }) => name)).toEqual(["Alpha Client", "Zulu Client", "Unavailable client"]);
