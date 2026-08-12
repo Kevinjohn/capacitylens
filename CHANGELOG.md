@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Global working days now use a compact two-row weekday table in the company's configured week order
+  (#317).
+
 ## [0.41.7-alpha.1] — 2026-08-12
 
 ### Changed

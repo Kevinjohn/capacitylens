@@ -16,9 +16,10 @@ text on the page.
 
 ## Global working days
 
-**Global working days** is the company's shared outer boundary for starting work. New companies
-select the first five days of their configured week. You can select any combination of the seven
-checkboxes; their order follows the week start chosen when the company was created.
+**Global working days** is the company's shared outer boundary for starting work. Seven abbreviated
+weekday headings sit in one row with their checkboxes directly underneath, beginning with the first
+day of the company's configured week. New companies select the first five days. You can select any
+combination of the seven checkboxes.
 
 The schedule combines this selection with each person's own working pattern and time off. On a
 blocked start date, the lane does not show the hover **+**, and clicking or beginning a draw does

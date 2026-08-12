@@ -124,6 +124,21 @@ describe("SettingsView — section help", () => {
 });
 
 describe("SettingsView — global working days", () => {
+  it("renders one abbreviated heading row above one checkbox row", () => {
+    render(<SettingsView />);
+
+    const table = screen.getByRole("table", { name: "Company working days" });
+    expect(within(table).getAllByRole("row")).toHaveLength(2);
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((heading) => heading.textContent),
+    ).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+      expect(within(table).getByRole("checkbox", { name: day })).toBeInTheDocument();
+    }
+  });
+
   it("defaults to the first five days and persists checkbox changes", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
@@ -154,6 +169,15 @@ describe("SettingsView — global working days", () => {
       "account-working-day-4",
       "account-working-day-5",
       "account-working-day-6",
+    ]);
+    expect(screen.getAllByRole("columnheader").map((heading) => heading.textContent)).toEqual([
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
     ]);
     expect(screen.getByRole("checkbox", { name: "Monday" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Wednesday" })).toBeChecked();

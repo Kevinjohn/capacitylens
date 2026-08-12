@@ -16,8 +16,8 @@ than displaying a misleading add hint and opening a form that cannot represent a
 ## How (end-to-end)
 
 1. Open **Settings** and find **Global working days**.
-2. Confirm the seven weekday checkboxes follow the company's configured week start and the first five
-   are selected for a new company.
+2. Confirm one row of seven abbreviated weekday headings appears above one row of seven checkboxes,
+   following the company's configured week start, with the first five selected for a new company.
 3. Clear **Friday**, then return to **Schedule**.
 4. Hover and click Bruce Wayne's Friday lane cell. Confirm there is no hover **+** and no allocation
    form opens.
@@ -29,6 +29,7 @@ than displaying a misleading add hint and opening a form that cannot represent a
 ## Acceptance criteria
 
 - ✅ Editors and above can change all seven account weekdays; Viewers see disabled checkboxes.
+- ✅ The weekdays remain exactly two table rows: abbreviated headings above their associated controls.
 - ✅ The saved set is independent of presentation order: changing week start only reorders it.
 - ✅ A lane start on a global non-working, personal non-working or time-off date has no hover add hint
   and does not open a form from click or draw.

@@ -32,9 +32,9 @@ import { useOfflineState } from "../../data/useOfflineState";
 import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "../../data/persistenceDiagnostics";
 import { SettingsSection } from "./SettingsSection";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { weekdayLabel } from "../../lib/weekdays";
+import { weekdayLabel, weekdayShortLabel } from "../../lib/weekdays";
 import { Checkbox } from "../ui/checkbox";
-import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
+import { Field, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
 
 // Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
 // the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
@@ -275,29 +275,50 @@ export function SettingsView() {
             <FieldLegend variant="label" className="sr-only">
               {m.settings_working_days_legend()}
             </FieldLegend>
-            <FieldGroup data-slot="checkbox-group" className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
-              {workingDayOrder.map((day) => {
-                const id = `account-working-day-${day}`;
-                const checked = workingDays.includes(day);
-                return (
-                  <Field key={day} orientation="horizontal" data-disabled={!canEdit || undefined}>
-                    <Checkbox
-                      id={id}
-                      checked={checked}
-                      disabled={!canEdit}
-                      onCheckedChange={() =>
-                        updateSetting({
-                          workingDays: checked
-                            ? workingDays.filter((candidate) => candidate !== day)
-                            : [...workingDays, day].sort((a, b) => a - b),
-                        })
-                      }
-                    />
-                    <FieldLabel htmlFor={id}>{weekdayLabel(day)}</FieldLabel>
-                  </Field>
-                );
-              })}
-            </FieldGroup>
+            <table aria-label={m.settings_working_days_legend()} className="w-full table-fixed border-collapse">
+              <thead>
+                <tr>
+                  {workingDayOrder.map((day) => (
+                    <th key={day} scope="col" className="px-1 pb-2 text-center text-sm font-medium">
+                      {weekdayShortLabel(day)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {workingDayOrder.map((day) => {
+                    const id = `account-working-day-${day}`;
+                    const checked = workingDays.includes(day);
+                    return (
+                      <td key={day} className="px-1 text-center">
+                        <Field
+                          orientation="horizontal"
+                          data-disabled={!canEdit || undefined}
+                          className="justify-center gap-0"
+                        >
+                          <Checkbox
+                            id={id}
+                            checked={checked}
+                            disabled={!canEdit}
+                            onCheckedChange={() =>
+                              updateSetting({
+                                workingDays: checked
+                                  ? workingDays.filter((candidate) => candidate !== day)
+                                  : [...workingDays, day].sort((a, b) => a - b),
+                              })
+                            }
+                          />
+                          <FieldLabel htmlFor={id} className="sr-only">
+                            {weekdayLabel(day)}
+                          </FieldLabel>
+                        </Field>
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tbody>
+            </table>
           </FieldSet>
         </SettingsSection>
 

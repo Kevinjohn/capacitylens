@@ -26,6 +26,9 @@ test("sets global working days and gates schedule creation starts", async ({ pag
   await openApp(page, "Wayne Enterprises", "/settings");
 
   const weekdays = page.getByRole("group", { name: "Company working days" }).getByRole("checkbox");
+  const table = page.getByRole("table", { name: "Company working days" });
+  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table.getByRole("columnheader")).toHaveText(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
   await expect(weekdays).toHaveCount(7);
   await expect
     .poll(() => weekdays.evaluateAll((controls) => controls.map((control) => control.id)))

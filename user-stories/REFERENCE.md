@@ -519,9 +519,10 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
 
-**Global working days (account-level).** Settings → **Global working days** exposes seven
-checkboxes in the account's configured week order. A new company selects the first five days of
-that week by default (Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
+**Global working days (account-level).** Settings → **Global working days** exposes a two-row table:
+seven abbreviated weekday headings and seven checkboxes directly beneath them, in the account's
+configured week order. A new company selects the first five days of that week by default
+(Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
 Changing the week-start presentation only reorders these controls; it never changes the saved
 selection. Editors and above may change the selection; Viewers can read it but cannot edit it.
 The account selection is the hard boundary for starting work in the schedule: the lane hover **+**
