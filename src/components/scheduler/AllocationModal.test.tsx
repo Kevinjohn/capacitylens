@@ -367,6 +367,127 @@ const person = (name: string) => ({
   color: "#111",
 });
 
+function expectLabelControl(control: HTMLElement) {
+  expect(control.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+}
+
+function expectInAllocationControlColumn(control: HTMLElement) {
+  expect(control.closest("[data-allocation-control-column]")).toBeInTheDocument();
+}
+
+describe("AllocationModal compact layout", () => {
+  it("aligns Hours-mode create fields, compound dates, inline creation and repeat hints", async () => {
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    for (const control of [
+      screen.getByRole("combobox", { name: "Project" }),
+      screen.getByRole("combobox", { name: "Activity" }),
+      screen.getByLabelText("Hours / day"),
+      screen.getByRole("combobox", { name: "Repeat" }),
+      screen.getByRole("radiogroup", { name: "Status" }),
+      screen.getByLabelText("Note"),
+      screen.getByRole("checkbox", { name: "Ignore working days" }),
+    ]) {
+      expectLabelControl(control);
+    }
+    expect(screen.getByRole("radiogroup", { name: "Status" })).toHaveClass("w-full");
+    expectInAllocationControlColumn(screen.getByLabelText("Start Date"));
+    expectInAllocationControlColumn(screen.getByLabelText("End"));
+    expectInAllocationControlColumn(screen.getByRole("textbox", { name: "New activity name" }));
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await chooseOption(user, "Repeat", "Weekly");
+    expectLabelControl(screen.getByLabelText("Repeat until"));
+    expectInAllocationControlColumn(screen.getByText(/Creates \d+ linked allocations/));
+  });
+
+  it("adds Assignee to the shared rows in edit mode without adding Repeat", () => {
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    expectLabelControl(screen.getByRole("combobox", { name: "Assignee" }));
+    expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
+    expectInAllocationControlColumn(screen.getByLabelText("Start Date"));
+    expectInAllocationControlColumn(screen.getByLabelText("End"));
+  });
+
+  it.each([
+    ["days", ["Start Date", "Days of work", "Days over"]],
+    ["blocks", ["Start Date", "Days over"]],
+  ] as const)("keeps %s-mode compound inputs and the end hint in the control column", (mode, labels) => {
+    useStore.getState().updateAccount(ACC, { schedulingMode: mode });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    for (const label of labels) expectInAllocationControlColumn(screen.getByLabelText(label));
+    expectInAllocationControlColumn(screen.getByText(/^Ends /));
+  });
+
+  it("keeps External dates aligned and the placeholder hint under the control area", () => {
+    const external = useStore.getState().addResource({
+      kind: "external",
+      name: "Kord Industries",
+      role: "Partner studio",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#9ca3af",
+    });
+    const externalView = render(
+      <AllocationModal
+        create={{ resourceId: external.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    expectInAllocationControlColumn(screen.getByLabelText("Start Date"));
+    expectInAllocationControlColumn(screen.getByLabelText("End"));
+    expect(screen.queryByRole("checkbox", { name: "Ignore working days" })).not.toBeInTheDocument();
+    externalView.unmount();
+
+    const placeholder = useStore.getState().addResource({
+      kind: "placeholder",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#a855f7",
+      projectId: "p1",
+    });
+    render(
+      <AllocationModal
+        create={{ resourceId: placeholder.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    expectInAllocationControlColumn(screen.getByText("Placeholder — locked to its bound project."));
+  });
+});
+
 describe("AllocationModal advisory work bounds", () => {
   it("does not recompute the advisory when only the note changes", () => {
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });

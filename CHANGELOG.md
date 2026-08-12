@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Allocation create/edit forms now match the other product modals with responsive 25/75
+  label-to-control rows, contained compound controls and aligned supporting hints, without changing
+  allocation values or behaviour (#306).
+
 ## [0.41.2-alpha.1] — 2026-08-12
 
 ### Fixed
