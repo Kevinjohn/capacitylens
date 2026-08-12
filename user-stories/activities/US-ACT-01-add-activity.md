@@ -19,7 +19,7 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 2. Fill **Name** = `Internal sync`, click the **Internal** kind. The **Project** field disappears. Click **Save**.
 3. Click **Add activity**; **Name** = `Discovery workshop`, click **Cross-project**, **Save**.
 4. Click **Add activity**; **Name** = `Spec review`, leave kind **Project-specific**, choose **Project** = _Project Watchtower_, **Save**.
-5. Open the **Schedule** (`/`) and start an allocation against a resource. Choose _Project Watchtower_ and open the **Activity** picker; it offers that project's activities, including **Spec review**. Then choose **No project (internal / cross-project)**; the **Activity** picker offers **Internal sync** and **Discovery workshop**.
+5. Open the **Schedule** (`/`) and start an allocation against a resource. Choose _Project Watchtower_ and open the **Activity** picker; it offers that project's activities, including **Spec review**. Then choose **Internal** or **Any Project**; each **Activity** picker offers only that exact kind.
 
 ## Acceptance criteria
 
@@ -37,4 +37,4 @@ An activity is a unit of work people get allocated to. Most belong to a project,
 - ✅ Saving an empty **Name** is rejected (required-field error; the dialog stays open).
 - ✅ Saving a **Project-specific**-kind activity with **no project chosen** is rejected ("A project-specific activity must be assigned to a project."); the dialog stays open.
 - ✅ With _Project Watchtower_ chosen, the **Activity** picker offers only that project's project-specific activities, including **Spec review**.
-- ✅ With **No project (internal / cross-project)** chosen, the **Activity** picker offers project-less internal and cross-project activities, including **Internal sync** and **Discovery workshop**.
+- ✅ With **Internal** chosen, the **Activity** picker offers **Internal sync**; with **Any Project** chosen, it offers the cross-project **Discovery workshop**.

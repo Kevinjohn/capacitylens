@@ -28,6 +28,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- **Allocation forms make work scope explicit.** The Project picker separates Internal and Any
+  Project work from client projects, sorts projects by client then project and activities
+  alphabetically, replaces Status with a three-way segmented choice, and uses a single-line Note
+  field while preserving untouched historical multiline notes (#247).
 - **Resource forms are shorter and easier to scan.** Name, Role, Discipline, Engagement and Bound
   project use compact 25/75 label-and-control rows at normal dialog widths, stack on narrow screens,
   and leave the Working days grid full width (#256).

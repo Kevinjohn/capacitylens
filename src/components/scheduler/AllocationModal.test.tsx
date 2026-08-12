@@ -99,6 +99,58 @@ beforeEach(() => {
 });
 
 describe("AllocationModal create", () => {
+  it("orders project scopes and activities, and exposes status as a labelled radiogroup", async () => {
+    useStore.getState().addClient({ name: "Zeta", color: "#123456" });
+    const zetaClient = useStore.getState().data.clients.find((client) => client.name === "Zeta")!;
+    useStore.getState().addProject({ name: "Alpha", clientId: zetaClient.id, color: "#123456" });
+    useStore.getState().addActivity({ name: "Support", kind: "internal" });
+    useStore.getState().addActivity({ name: "Admin", kind: "internal" });
+    useStore.getState().addActivity({ name: "Strategy", kind: "repeatable" });
+    useStore.getState().addActivity({ name: "Retrospective", kind: "repeatable" });
+    const barbara = person("Barbara");
+    const resource = useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-02", endDate: "2026-06-02" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const project = screen.getByRole("combobox", { name: "Project" });
+    expect(project).toHaveTextContent("Internal");
+    fireEvent.keyDown(project, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Internal",
+      "Any Project",
+      "Acme / Lightning",
+      "Acme / Other",
+      "Zeta / Alpha",
+    ]);
+    fireEvent.click(screen.getByRole("option", { name: "Internal" }));
+
+    const activity = screen.getByRole("combobox", { name: "Activity" });
+    fireEvent.keyDown(activity, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Admin", "Support"]);
+    fireEvent.click(screen.getByRole("option", { name: "Admin" }));
+
+    await chooseOption(user, "Project", "Any Project");
+    fireEvent.keyDown(activity, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Retrospective", "Strategy"]);
+    await user.keyboard("{Escape}");
+
+    const status = screen.getByRole("radiogroup", { name: "Status" });
+    expect(
+      within(status)
+        .getAllByRole("radio")
+        .map((radio) => radio.textContent),
+    ).toEqual(["Confirmed", "Tentative", "Completed"]);
+    expect(within(status).getByRole("radio", { name: "Confirmed" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(status).getByRole("radio", { name: "Tentative" }));
+    expect(within(status).getByRole("radio", { name: "Tentative" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Note").tagName).toBe("INPUT");
+  });
+
   it("defaults hourly load to four hours when creation starts on a half day", () => {
     const resource = useStore
       .getState()
@@ -256,7 +308,7 @@ describe("AllocationModal create", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("restricts a placeholder to its bound project (plus general), defaulting to it", async () => {
+  it("restricts a placeholder to its bound project plus the two general scopes, defaulting to it", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
@@ -283,13 +335,10 @@ describe("AllocationModal create", () => {
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
     expect(projectSelect).toHaveTextContent("Acme / Lightning");
-    // Bound project + the project-less option are offered; another project (p2 / "Other") is not.
+    // Bound project + both project-less scopes are offered; another project (p2 / "Other") is not.
     fireEvent.keyDown(projectSelect, { key: "ArrowDown" });
-    expect(
-      screen.getByRole("option", {
-        name: "No project (internal / cross-project)",
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Internal" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Any Project" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Acme / Other" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
@@ -875,6 +924,39 @@ describe("AllocationModal blocks mode", () => {
 });
 
 describe("AllocationModal edit", () => {
+  it("preserves an untouched historical multiline note but saves a direct note edit as one line", async () => {
+    const alice = person("Alice");
+    const resource = useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+      note: "First line\nSecond line",
+    });
+    const user = userEvent.setup();
+    const view = render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    const note = screen.getByLabelText("Note");
+    expect(note.tagName).toBe("INPUT");
+    expect(note).toHaveAttribute("maxlength", "2000");
+    fireEvent.change(screen.getByLabelText("Hours / day"), { target: { value: "6" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(
+      "First line\nSecond line",
+    );
+
+    view.unmount();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "First line Second line" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe(
+      "First line Second line",
+    );
+  });
+
   it("keeps the modal open and surfaces the reason when deletion is rejected", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1027,9 +1109,7 @@ describe("AllocationModal edit", () => {
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });
 
-  it("reopens a placeholder→general-activity allocation with the general activity still selected", async () => {
-    // A placeholder bound to p1, assigned a GENERAL (no-project) activity. On edit the
-    // form must seed Project='' (general) so the general activity stays in the Activity list.
+  it("reopens a placeholder cross-project allocation with its exact scope still selected", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
       role: "Designer",
@@ -1052,9 +1132,7 @@ describe("AllocationModal edit", () => {
     });
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />);
 
-    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(
-      "No project (internal / cross-project)",
-    );
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Any Project");
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Admin");
   });
 
@@ -1215,7 +1293,7 @@ describe("AllocationModal Enter key submission", () => {
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
 
-  it("does NOT submit when Enter is pressed in the Note textarea", async () => {
+  it("submits when Enter is pressed in the single-line Note input", async () => {
     useStore.getState().addResource({
       kind: "person",
       name: "Bruce",
@@ -1237,15 +1315,13 @@ describe("AllocationModal Enter key submission", () => {
     await chooseOption(user, "Project", "Acme / Lightning");
     await chooseOption(user, "Activity", "Wireframes");
 
-    // Pressing Enter in a textarea inserts a newline — it must NOT submit the form
-    const noteTextarea = screen.getByLabelText("Note");
-    await user.click(noteTextarea);
+    const noteInput = screen.getByLabelText("Note");
+    expect(noteInput).toHaveAttribute("type", "text");
+    await user.click(noteInput);
     await user.keyboard("{Enter}");
 
-    expect(onClose).not.toHaveBeenCalled();
-    expect(useStore.getState().data.allocations).toHaveLength(0);
-    // The textarea should now contain a newline
-    expect(noteTextarea).toHaveValue("\n");
+    expect(onClose).toHaveBeenCalled();
+    expect(useStore.getState().data.allocations).toHaveLength(1);
   });
 
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
@@ -1275,7 +1351,7 @@ describe("AllocationModal Enter key submission", () => {
     // The activity should have been created, modal not closed
     expect(onClose).not.toHaveBeenCalled();
     const activities = useStore.getState().data.activities;
-    expect(activities.some((t) => t.name === "Brand new activity")).toBe(true);
+    expect(activities.find((activity) => activity.name === "Brand new activity")).toMatchObject({ kind: "internal" });
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Brand new activity");
   });
 });
