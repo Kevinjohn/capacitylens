@@ -7,7 +7,13 @@ import type {
 } from "@capacitylens/shared/account/ports";
 import type { AccountMode, CommandIdentity } from "@capacitylens/shared/account/types";
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
-import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import {
+  isAccountCommandId,
+  isAccountEmail,
+  isAccountIdempotencyKey,
+  isAccountSessionId,
+  normalizeAccountEmail,
+} from "@capacitylens/shared/account/validation";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import type { Action } from "@capacitylens/shared/domain/access";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
@@ -111,10 +117,8 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       idempotencyKey?: unknown;
     };
     if (
-      typeof body.commandId !== "string" ||
-      !/^[A-Za-z0-9_-]{16,128}$/.test(body.commandId) ||
-      typeof body.idempotencyKey !== "string" ||
-      !/^[A-Za-z0-9_-]{16,128}$/.test(body.idempotencyKey) ||
+      !isAccountCommandId(body.commandId) ||
+      !isAccountIdempotencyKey(body.idempotencyKey) ||
       !isFlowOperation(body.operation)
     )
       return reply.code(400).send({
@@ -181,7 +185,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   app.delete("/api/account/sessions/:sessionId", async (req, reply) => {
     const { sessionId } = req.params as { sessionId: string };
-    if (!/^[A-Za-z0-9_-]{16,128}$/.test(sessionId)) {
+    if (!isAccountSessionId(sessionId)) {
       return reply.code(400).send({ error: "Invalid session id." });
     }
     try {

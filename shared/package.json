@@ -8,7 +8,6 @@
     "node": ">=24"
   },
   "exports": {
-    "./account": "./src/account/index.ts",
     "./account/audit": "./src/account/audit.ts",
     "./account/conformance": "./src/account/conformance.ts",
     "./account/errors": "./src/account/errors.ts",

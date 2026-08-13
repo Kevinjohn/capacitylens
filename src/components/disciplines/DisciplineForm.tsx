@@ -5,8 +5,7 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
 import { m } from "@/i18n";
-import { ColorField, Modal, RequiredLegend, TextField } from "../common/ui";
-import { Button } from "../ui/button";
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { Discipline } from "@capacitylens/shared/types/entities";
@@ -55,16 +54,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
       title={discipline ? m.form_discipline_edit_title() : m.form_discipline_add_title()}
       onClose={onClose}
       onSubmit={submit}
-      footer={
-        <>
-          <Button size="sm" type="button" variant="outline" onClick={onClose}>
-            {m.form_cancel()}
-          </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
-        </>
-      }
+      footer={<FormActions onCancel={onClose} />}
     >
       <TextField
         label={m.form_discipline_name_label()}

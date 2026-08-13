@@ -27,7 +27,7 @@ import type { TenantStore } from "./tenantStore";
 // status codes, the server-enforced interlocks (409s), the purge cascade, the persisted resource
 // obfuscation (P2.3 carry-forward) and the built-in-Internal-client guard. The pure transitions
 // themselves are unit-tested in shared/domain/lifecycle.test.ts; here we prove the WIRING:
-// authorize tiers, findOwned tenancy, replaceAccountSlice round-trip and the audit line.
+// authorize tiers, owned targeted writes and the audit line.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -125,12 +125,6 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
   const store: TenantStore = {
     readSlice: () => data as ProjectedAccountSlice,
     readFullSlice: () => data as CompleteAccountSlice,
-    write: (_accountId, next) => {
-      data = next;
-    },
-    transact: () => {
-      throw new Error("Lifecycle routes must not use whole-slice transactions.");
-    },
     readLifecycleRow: (accountId, entity, id) =>
       (data[entity] as Array<Resource | Client | Project>).find((row) => row.id === id && row.accountId === accountId),
     writeLifecycleRow: (accountId, entity, row) => {
@@ -814,13 +808,9 @@ describe("P2.5a lifecycle — cross-tenant: a1 member acting on a2 row → 403/4
   });
 });
 
-describe("P2.5a lifecycle — read-modify-write preserves UNRELATED siblings (whole-slice round-trip)", () => {
-  // The routes mutate ONE row by reading the WHOLE account slice with
-  // { includeTimeOffNote: true, includeInactive: true }, editing the target, then writing the ENTIRE
-  // slice back via replaceAccountSlice (a delete-all + re-insert). So every read-opt is LOAD-BEARING:
-  // narrow includeInactive and the unrelated archived/tombstone siblings vanish on persist; narrow
-  // includeTimeOffNote and every sibling time-off note is blanked. This guards BOTH so a future edit
-  // that drops EITHER opt fails the suite.
+describe("P2.5a lifecycle — targeted writes preserve unrelated siblings", () => {
+  // Lifecycle routes update one owned row. Unrelated inactive rows and confidential notes must not
+  // be rewritten as a side effect of that targeted operation.
   const TIMEOFF_NOTE = "PRESERVE_ME_TIMEOFF_NOTE_QPR";
 
   it("archiving one active row leaves an unrelated archived row, a tombstone, and a time-off note intact", async () => {
@@ -833,8 +823,7 @@ describe("P2.5a lifecycle — read-modify-write preserves UNRELATED siblings (wh
       person("rArc", "a1", justArchived), // UNRELATED already-archived sibling (archivedAt must survive)
       person("rDel", "a1", archivedTombstone), // UNRELATED soft-delete tombstone (deletedAt must survive)
     ];
-    // A time-off row on the UNTOUCHED active resource, carrying a non-empty note that readSlice
-    // redacts unless includeTimeOffNote:true — the field a narrowed read would silently blank on write-back.
+    // A time-off row on the mutation target carries a note the lifecycle write must not touch.
     d.timeOff = [
       {
         id: "to1",
@@ -849,7 +838,7 @@ describe("P2.5a lifecycle — read-modify-write preserves UNRELATED siblings (wh
     ];
     insertAll(db, d as unknown as AppData);
 
-    // Mutate a DIFFERENT, active row — this triggers the read-whole-slice / replaceAccountSlice round-trip.
+    // Mutate one active row through the owned lifecycle operation.
     expect((await lifecycleAction(app, "resources", "rActive", "archive", "a1")).statusCode).toBe(200);
 
     // Admin read (includeInactive=1) so the inactive siblings are visible to assert against.
@@ -858,13 +847,11 @@ describe("P2.5a lifecycle — read-modify-write preserves UNRELATED siblings (wh
     const body = after.json();
     const byId = (id: string) => body.resources.find((r: { id: string }) => r.id === id);
 
-    // (a) the unrelated ARCHIVED sibling still carries its archivedAt (includeInactive guard #1).
+    // (a) the unrelated archived sibling still carries its archivedAt.
     expect(byId("rArc").archivedAt).toBe(TS);
-    // (b) the unrelated TOMBSTONE still carries its deletedAt (includeInactive guard #2 — a narrowed
-    //     read would have dropped this row entirely and replaceAccountSlice would have erased it).
+    // (b) the unrelated tombstone still carries its deletedAt.
     expect(byId("rDel").deletedAt).toBe(THIRTY_ONE_DAYS_AGO);
-    // (c) the time-off note SURVIVES the round-trip (includeTimeOffNote guard — a narrowed read would
-    //     strip the note before write-back, permanently blanking it).
+    // (c) the time-off note survives the unrelated lifecycle write.
     const to = body.timeOff.find((t: { id: string }) => t.id === "to1");
     expect(to.note).toBe(TIMEOFF_NOTE);
   });

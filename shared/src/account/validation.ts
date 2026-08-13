@@ -11,6 +11,31 @@ import type { BoundApplication } from "./types";
 /** Maximum number of application-specific terms screened from each password. */
 export const MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS = 32;
 const INVALID_APPLICATION_BINDING = "The account application binding could not be validated.";
+const OPAQUE_CREDENTIAL_RE = /^[A-Za-z0-9_-]{16,128}$/;
+
+function hasOpaqueCredentialShape(value: unknown): value is string {
+  return typeof value === "string" && OPAQUE_CREDENTIAL_RE.test(value);
+}
+
+/** Validate the reconciliation handle for one account command. */
+export function isAccountCommandId(value: unknown): value is string {
+  return hasOpaqueCredentialShape(value);
+}
+
+/** Validate the independent idempotency key for one account command. */
+export function isAccountIdempotencyKey(value: unknown): value is string {
+  return hasOpaqueCredentialShape(value);
+}
+
+/** Validate an identity-provider session id before displaying or revoking it. */
+export function isAccountSessionId(value: unknown): value is string {
+  return hasOpaqueCredentialShape(value);
+}
+
+/** Validate the per-tab session id used to order browser sync batches. */
+export function isBrowserSyncSessionId(value: unknown): value is string {
+  return hasOpaqueCredentialShape(value);
+}
 
 /**
  * Validate an untrusted application binding without throwing.

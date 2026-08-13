@@ -15,7 +15,12 @@ import {
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { AccountContractError, statusForAccountFailure } from "@capacitylens/shared/account/errors";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
-import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
+import {
+  boundApplicationFailure,
+  isAccountCommandId,
+  isAccountIdempotencyKey,
+  isBrowserSyncSessionId,
+} from "@capacitylens/shared/account/validation";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import { betterAuthIdentityPort, type SsoCutoverIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { sqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
@@ -532,13 +537,10 @@ function betterAuthProxyRouteAllowed(authMode: Exclude<AuthMode, "off">, method:
   ]).has(`${method} ${pathname}`);
 }
 
-const validAccountCommandHeader = (value: unknown): value is string =>
-  typeof value === "string" && /^[A-Za-z0-9_-]{16,128}$/.test(value);
-
 function replayAccountCommand(req: FastifyRequest): CommandIdentity | null {
   const idempotencyKey = req.headers["idempotency-key"];
   const commandId = req.headers["x-account-command-id"];
-  return validAccountCommandHeader(idempotencyKey) && validAccountCommandHeader(commandId)
+  return isAccountIdempotencyKey(idempotencyKey) && isAccountCommandId(commandId)
     ? { commandId, idempotencyKey }
     : null;
 }
@@ -546,14 +548,14 @@ function replayAccountCommand(req: FastifyRequest): CommandIdentity | null {
 function accountCommand(req: FastifyRequest): CommandIdentity {
   const rawIdempotency = req.headers["idempotency-key"];
   const rawCommand = req.headers["x-account-command-id"];
-  if (rawIdempotency !== undefined && !validAccountCommandHeader(rawIdempotency)) {
+  if (rawIdempotency !== undefined && !isAccountIdempotencyKey(rawIdempotency)) {
     throw new AccountContractError({
       code: "VALIDATION_FAILED",
       message: "Idempotency-Key must be a 16–128 character opaque base64url-style identifier.",
       retryable: false,
     });
   }
-  if (rawCommand !== undefined && !validAccountCommandHeader(rawCommand)) {
+  if (rawCommand !== undefined && !isAccountCommandId(rawCommand)) {
     throw new AccountContractError({
       code: "VALIDATION_FAILED",
       message:
@@ -568,11 +570,11 @@ function accountCommand(req: FastifyRequest): CommandIdentity {
       retryable: false,
     });
   }
-  const idempotencyKey = validAccountCommandHeader(rawIdempotency) ? rawIdempotency : newId();
+  const idempotencyKey = isAccountIdempotencyKey(rawIdempotency) ? rawIdempotency : newId();
   // They serve different purposes and remain independent even for compatibility callers that do
   // not yet send either header: the command id is the reconciliation handle, while the
   // idempotency key identifies one semantic retry ceremony.
-  const commandId = validAccountCommandHeader(rawCommand) ? rawCommand : newId();
+  const commandId = isAccountCommandId(rawCommand) ? rawCommand : newId();
   return { commandId, idempotencyKey };
 }
 
@@ -1356,10 +1358,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     return drainProductAudit(reply);
   };
 
-  // The tenancy swap point (P1.4): the per-account scoped read/write seam every permissioned route
-  // goes through. Built ONCE here (factory state, like healthStmt) so the same instance backs every
-  // request. Today it wraps the shared SQLite file; a future per-agency-DB / Postgres backend swaps
-  // inside tenantStore.ts with no route change. See tenantStore.ts for the no-cross-tenant contract.
+  // The tenant-scoping storage seam: account-keyed reads, validation projections and lifecycle
+  // operations enforce the no-cross-tenant contract in one shared-SQLite implementation. Built once
+  // here (factory state, like healthStmt) so the same instance backs every request.
   const store = sqliteTenantStore(db);
 
   /**
@@ -2287,11 +2288,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           typeof rawSyncSequence === "string" && /^[1-9]\d{0,15}$/.test(rawSyncSequence)
             ? Number(rawSyncSequence)
             : Number.NaN;
-        if (
-          typeof rawSyncSession !== "string" ||
-          !/^[A-Za-z0-9_-]{16,128}$/.test(rawSyncSession) ||
-          !Number.isSafeInteger(sequence)
-        ) {
+        if (!isBrowserSyncSessionId(rawSyncSession) || !Number.isSafeInteger(sequence)) {
           return reply.code(400).send({ error: "Invalid browser sync ordering headers." });
         }
         syncOrder = { sessionId: rawSyncSession, sequence };

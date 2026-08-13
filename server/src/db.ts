@@ -1351,11 +1351,9 @@ export function wipe(db: Db): void {
 }
 
 /** Replace one account's scoped slice with the rows for that account in a branded complete `next`.
- *  Used by /api/import, the P2.5 lifecycle routes (archive/unarchive/delete/purge), and
- *  TenantStore.write — every path that rewrites one account's scoped tables wholesale.
- *  The rewrite erases any sibling row not re-supplied. Read-modify-write callers must bracket the
- *  full slice read and this replacement with TenantStore.transact; an independently validated
- *  complete import must cross the explicit {@link validatedCompleteAccountSlice} boundary. */
+ *  Used by /api/import after its snapshot is revalidated inside the surrounding write transaction.
+ *  The rewrite erases any sibling row not re-supplied; independently validated replacement data
+ *  must cross the explicit {@link validatedCompleteAccountSlice} boundary. */
 export function replaceAccountSlice(db: Db, accountId: string, next: CompleteAccountSlice): void {
   const d = next as unknown as Record<string, Row[]>;
   tx(db, () => {

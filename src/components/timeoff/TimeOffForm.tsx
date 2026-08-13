@@ -8,8 +8,7 @@ import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { validateText } from "../../lib/validation";
 import { errorMessage } from "../../lib/errorMessage";
 import { m } from "@/i18n";
-import { DateField, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
-import { Button } from "../ui/button";
+import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
 import { timeOffTypeOptions, resourceDisplayName } from "../../lib/metadata";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
@@ -105,16 +104,7 @@ export function TimeOffForm({
       onClose={onClose}
       onSubmit={submit}
       onEdit={clear}
-      footer={
-        <>
-          <Button size="sm" type="button" variant="outline" onClick={onClose}>
-            {m.form_cancel()}
-          </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
-        </>
-      }
+      footer={<FormActions onCancel={onClose} />}
     >
       <SelectField
         label={m.form_timeoff_resource_label()}

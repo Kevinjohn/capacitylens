@@ -16,6 +16,7 @@ import { Separator } from "../ui/separator";
 import { useAuth } from "../../auth/authContext";
 import { Badge } from "../ui/badge";
 import { SettingsSection } from "./SettingsSection";
+import { isAccountSessionId } from "@capacitylens/shared/account/validation";
 
 interface SessionView {
   id: string;
@@ -130,8 +131,7 @@ export function SecuritySection() {
         if (!value || typeof value !== "object") return false;
         const row = value as Partial<SessionView>;
         return (
-          typeof row.id === "string" &&
-          /^[A-Za-z0-9_-]{16,128}$/.test(row.id) &&
+          isAccountSessionId(row.id) &&
           typeof row.createdAt === "string" &&
           Number.isFinite(Date.parse(row.createdAt)) &&
           (row.expiresAt === null ||

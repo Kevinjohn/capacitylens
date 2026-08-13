@@ -12,9 +12,11 @@
 //   ./badges            ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
 //   ./SegmentedControl  SegmentedControl, SegmentedOption  (the pill radio-group chooser)
 //   ./SectionHelp       SectionHelp  (labelled question-mark action + help modal)
+//   ./FormActions       FormActions  (standard Cancel/submit footer actions)
 
 export * from "./dialogs";
 export * from "./fields";
 export * from "./badges";
 export * from "./SegmentedControl";
 export * from "./SectionHelp";
+export * from "./FormActions";
