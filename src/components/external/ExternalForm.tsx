@@ -4,8 +4,7 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateText } from "../../lib/validation";
 import { m } from "@/i18n";
-import { Modal, RequiredLegend, TextField } from "../common/ui";
-import { Button } from "../ui/button";
+import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
 import { NEUTRAL_COLOR } from "../../lib/palette";
 import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
@@ -64,16 +63,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
       onSubmit={submit}
-      footer={
-        <>
-          <Button size="sm" type="button" variant="outline" onClick={onClose}>
-            {m.form_cancel()}
-          </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
-        </>
-      }
+      footer={<FormActions onCancel={onClose} />}
     >
       <TextField
         label={m.form_external_company_label()}

@@ -17,13 +17,9 @@ import {
   type ProjectedAccountSlice,
   readFullSlice,
   readSlice,
-  replaceAccountSlice,
   upsertRow,
 } from "./db";
-import { tx } from "./txn";
 import { nextServerRevision } from "./revision";
-
-type SynchronousResult<Result> = [Extract<Result, PromiseLike<unknown>>] extends [never] ? Result : never;
 
 export type LifecycleRow = Resource | Client | Project;
 
@@ -128,64 +124,26 @@ function purgeLifecycleRow(
   return { removedCounts };
 }
 
-function transactSlice<Result>(
-  db: Db,
-  accountId: string,
-  opts: Readonly<{ includeTimeOffNote: true; includeInactive: true; includePrivateNames: true }>,
-  operation: (slice: CompleteAccountSlice) => {
-    next: CompleteAccountSlice;
-    result: SynchronousResult<Result>;
-  },
-): Result {
-  let output!: Result;
-  tx(
-    db,
-    () => {
-      void opts;
-      const { next, result } = operation(readFullSlice(db, accountId));
-      replaceAccountSlice(db, accountId, next);
-      output = result as Result;
-    },
-    "immediate",
-  );
-  return output;
-}
-
-// THE TENANT-STORE SWAP POINT (P1.4). The single per-account scoped read/write primitive every
-// permissioned route goes through — "code as if one-instance-per-agency, run shared for now."
-//
-// TODAY: one shared SQLite file, scoped by `WHERE accountId = ?` (readSlice / replaceAccountSlice in
-// db.ts). TOMORROW: a per-agency DB, a per-instance deployment, or Postgres — all of which swap in
-// BEHIND THIS INTERFACE ONLY, with no change to any caller. That is the whole point of the seam: the
-// routes depend on TenantStore, not on db.ts, so the storage backend is replaceable in one place.
+// TENANT-SCOPING STORAGE SEAM. Permissioned routes use these accountId-keyed reads, validation
+// lookups and lifecycle operations where the storage boundary adds tenant ownership or projection.
+// Generic mutations and whole-slice import remain explicit SQLite operations in their owning paths;
+// this interface is intentionally not a complete or transparently replaceable database abstraction.
 //
 // THE NO-CROSS-TENANT INVARIANT (mirrors the account-boundary contract): no caller may
 // issue a cross-tenant query. Every method is keyed by a single accountId and returns/writes ONLY
-// that account's slice; readSlice's predicates (db.ts) enforce it at the SQL layer. A future
-// implementation MUST preserve this — a method that could touch >1 account breaks the seam's contract.
-//
-// ATOMICITY INVARIANT: a read that feeds a whole-slice replacement belongs inside `transact`; never
-// pair readSlice and write across a suspension point. The interface is deliberately synchronous for
-// node:sqlite. A future async backend must preserve `transact` as one storage transaction and update
-// callers to await that complete unit; changing readSlice/write to promises independently is unsafe.
-//
-// SCOPE NOTE (P1.4): `write` is a THIN wrap of replaceAccountSlice for independently complete
-// imports. Lifecycle routes use the semantic row/cascade methods below so one tombstone change never
-// rewrites every tenant row. /api/batch assembles its validation projection from scoped reads but
-// applies individual mutations through lower-level helpers. Generic per-entity routes likewise use
-// scoped validation reads and lower-level row writes.
+// that account's data; readSlice's predicates and the owned lifecycle operations enforce it at the
+// SQL layer. A method that could touch more than one account breaks this seam's contract.
 
 /**
- * The per-account scoped storage seam — the documented swap point for the tenancy backend.
+ * The account-scoped storage seam for tenant-isolated reads, validation and lifecycle operations.
  *
- * Both methods are keyed by a single `accountId` and operate on ONLY that account's slice; neither
- * can read or write another tenant's data (the no-cross-tenant invariant). A future per-agency-DB /
- * per-instance / Postgres backend replaces the implementation here without changing any caller.
+ * Every method is keyed by a single `accountId` and operates on only that account's data. The
+ * interface records that isolation contract without pretending to abstract every database access.
  */
 export interface TenantStore {
   /**
    * Read ONLY `accountId`'s serialization projection (every AppData key present; arrays may be
-   * empty). The projected brand cannot be passed to {@link write}. An unknown id yields an empty
+   * empty). The projected brand cannot be passed to a destructive replacement. An unknown id yields an empty
    * slice (`accounts: []` + empty scoped arrays), never a throw.
    *
    * `opts.includeTimeOffNote` is REQUIRED (P1.6) — the caller must decide whether the owner/admin-only
@@ -207,32 +165,10 @@ export interface TenantStore {
       includePrivateNames: boolean;
     },
   ): ProjectedAccountSlice;
-  /** Read every field and lifecycle row for an atomic read-modify-write operation. */
+  /** Read every field and lifecycle row for validation or fingerprinting. */
   readFullSlice(accountId: string): CompleteAccountSlice;
   /** Indexed point/reverse lookups for validating one generic write without materialising a slice. */
   validationLookup?(): ValidationDataLookup;
-  /**
-   * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
-   * account's scoped tables; the global `accounts` row and every other account are left untouched.
-   * This is a complete replacement: an owned row omitted from `next` is deleted. If `next` came
-   * from a prior slice read, use {@link transact}; separating that read from this destructive
-   * replacement is unsafe.
-   */
-  write(accountId: string, next: CompleteAccountSlice): void;
-  /**
-   * Atomically read, transform and replace one complete tenant slice. Only full-read options are
-   * accepted at the type boundary. `operation` must be
-   * synchronous and returns both the replacement and a caller result. Throwing rolls the whole
-   * unit back. Any read that will feed {@link write} must use this boundary.
-   */
-  transact<Result>(
-    accountId: string,
-    opts: Readonly<{ includeTimeOffNote: true; includeInactive: true; includePrivateNames: true }>,
-    operation: (slice: CompleteAccountSlice) => {
-      next: CompleteAccountSlice;
-      result: SynchronousResult<Result>;
-    },
-  ): Result;
   /** Read one lifecycle row, concealed as absent unless it belongs to `accountId`. */
   readLifecycleRow(accountId: string, entity: LifecycleEntityKey, id: string): LifecycleRow | undefined;
   /** Replace one owned lifecycle row without rewriting its tenant siblings. */
@@ -244,13 +180,12 @@ export interface TenantStore {
 }
 
 /**
- * THE single shared-SQLite {@link TenantStore} — the documented swap point (see the module header).
+ * Build the shared-SQLite {@link TenantStore} used by permissioned routes.
  *
  * `readSlice` delegates to db.ts's {@link readSlice} (`WHERE accountId = ?` on all scoped tables +
- * accounts-by-id); `write` delegates to {@link replaceAccountSlice} for complete imports. Lifecycle
- * methods use owned point reads, one-row upserts, bounded dependent-note updates and database
- * cascades with explicit nullable-survivor revisions. The isolation logic stays behind this seam,
- * and no method issues a cross-tenant query.
+ * accounts-by-id). Lifecycle methods use owned point reads, one-row upserts, bounded dependent-note
+ * updates and database cascades with explicit nullable-survivor revisions. No method issues a
+ * cross-tenant query.
  *
  * @param db  The open SQLite handle this store reads from / writes to.
  * @returns A {@link TenantStore} bound to `db`.
@@ -282,8 +217,6 @@ export function sqliteTenantStore(db: Db): TenantStore {
     readSlice: (accountId, opts) => readSlice(db, accountId, opts),
     readFullSlice: (accountId) => readFullSlice(db, accountId),
     validationLookup: () => validationLookup,
-    write: (accountId, next) => replaceAccountSlice(db, accountId, next),
-    transact: (accountId, opts, operation) => transactSlice(db, accountId, opts, operation),
     readLifecycleRow: (accountId, entity, id) => ownedLifecycleRow(db, accountId, entity, id),
     writeLifecycleRow: (accountId, entity, row) => {
       if (row.accountId !== accountId || !ownedLifecycleRow(db, accountId, entity, row.id)) {

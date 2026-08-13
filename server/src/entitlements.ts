@@ -1,5 +1,5 @@
-// THE ENTITLEMENTS SWAP POINT (P1.16) — the control-plane seam, mirroring tenantStore.ts's
-// documented-swap-point style. It answers "what is this account allowed to do?" in ONE place.
+// THE ENTITLEMENTS SWAP POINT (P1.16) — the control-plane seam that answers
+// "what is this account allowed to do?" in ONE place.
 //
 // TODAY: every account is UNLIMITED. There is NO billing, NO plan/tier field, NO quota, and NO
 // enforcement anywhere — this module is PARKED-but-SHAPED: it establishes the call site and the

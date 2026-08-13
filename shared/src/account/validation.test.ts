@@ -4,10 +4,34 @@ import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from "../lib/strings";
 import {
   MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS,
   boundApplicationFailure,
+  isAccountCommandId,
   isAccountEmail,
+  isAccountIdempotencyKey,
+  isAccountSessionId,
+  isBrowserSyncSessionId,
   normalizeAccountEmail,
   validateCredentialInput,
 } from "./validation";
+
+const opaqueCredentialValidators = [
+  ["account command id", isAccountCommandId],
+  ["account idempotency key", isAccountIdempotencyKey],
+  ["account session id", isAccountSessionId],
+  ["browser sync session id", isBrowserSyncSessionId],
+] as const;
+
+describe.each(opaqueCredentialValidators)("%s validation", (_name, validate) => {
+  it.each([
+    ["a".repeat(16), true],
+    ["A0_-".repeat(32), true],
+    ["a".repeat(15), false],
+    ["a".repeat(129), false],
+    ["contains+plus", false],
+    [undefined, false],
+  ])("classifies %j", (value, expected) => {
+    expect(validate(value)).toBe(expected);
+  });
+});
 
 const validApplication = {
   applicationId: "sibling_app",

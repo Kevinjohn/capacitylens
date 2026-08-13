@@ -5,8 +5,7 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateName } from "../../lib/validation";
 import { m } from "@/i18n";
-import { Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
-import { Button } from "../ui/button";
+import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
 import type { Activity, ActivityKind } from "@capacitylens/shared/types/entities";
 import { ACTIVITY_KIND_ORDER } from "./activityKinds";
@@ -120,16 +119,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       title={activity ? m.form_activity_edit_title() : m.form_activity_add_title()}
       onClose={onClose}
       onSubmit={submit}
-      footer={
-        <>
-          <Button size="sm" type="button" variant="outline" onClick={onClose}>
-            {m.form_cancel()}
-          </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
-        </>
-      }
+      footer={<FormActions onCancel={onClose} />}
     >
       <TextField
         label={m.form_activity_name_label()}

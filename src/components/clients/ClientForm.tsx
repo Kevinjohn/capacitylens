@@ -4,10 +4,9 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
 import { m } from "@/i18n";
-import { ColorField, Modal, RequiredLegend, TextField } from "../common/ui";
+import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { PrivateNameFields } from "../common/PrivateNameFields";
 import { usePrivateNameFields } from "../common/usePrivateNameFields";
-import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { Client } from "@capacitylens/shared/types/entities";
@@ -53,16 +52,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
       title={client ? m.form_client_edit_title() : m.form_client_add_title()}
       onClose={onClose}
       onSubmit={submit}
-      footer={
-        <>
-          <Button size="sm" type="button" variant="outline" onClick={onClose}>
-            {m.form_cancel()}
-          </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
-        </>
-      }
+      footer={<FormActions onCancel={onClose} />}
     >
       <TextField
         label={m.form_client_name_label()}

@@ -9,10 +9,9 @@ import { DEFAULT_COLORS } from "../../lib/palette";
 import { byName } from "../../lib/displayOrder";
 import { internalColourModeFor } from "../../store/selectors";
 import { m } from "@/i18n";
-import { ColorField, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
+import { ColorField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { PrivateNameFields } from "../common/PrivateNameFields";
 import { usePrivateNameFields } from "../common/usePrivateNameFields";
-import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import type { Project } from "@capacitylens/shared/types/entities";
 
@@ -96,16 +95,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
       onSubmit={submit}
-      footer={
-        <>
-          <Button size="sm" type="button" variant="outline" onClick={onClose}>
-            {m.form_cancel()}
-          </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
-        </>
-      }
+      footer={<FormActions onCancel={onClose} />}
     >
       <TextField
         label={m.form_project_name_label()}

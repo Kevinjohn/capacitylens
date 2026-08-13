@@ -20,6 +20,7 @@ import {
   SegmentedField,
   SwitchField,
   CheckboxField,
+  FormActions,
 } from "./ui";
 import { Button } from "../ui/button";
 import { Toggle } from "../ui/toggle";
@@ -126,6 +127,23 @@ describe("Button", () => {
     const button = screen.getByRole("button", { name: "Unavailable" });
     expect(button).toHaveClass("enabled:active:scale-95", "disabled:pointer-events-none");
     expect(button).not.toHaveClass("active:scale-95");
+  });
+});
+
+describe("FormActions", () => {
+  it("renders the standard actions and supports a submit-label override", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <form>
+        <FormActions onCancel={onCancel} submitLabel="Create" />
+      </form>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Create" })).toHaveAttribute("type", "submit");
   });
 });
 

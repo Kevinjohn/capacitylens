@@ -9,7 +9,9 @@ import {
   insertAll,
   insertRow,
   loadState,
+  readFullSlice,
   readSlice,
+  replaceAccountSlice,
   type CompleteAccountSlice,
   type Db,
   validatedCompleteAccountSlice,
@@ -262,6 +264,57 @@ describe("readSlice — tenant isolation", () => {
   });
 });
 
+describe("replaceAccountSlice", () => {
+  it("replaces only the requested account and preserves every other tenant", () => {
+    const db = openDb(":memory:");
+    insertAll(db, seedTwoAccounts());
+
+    // Replace a1's slice with a single new allocation (drop everything else of a1's).
+    const next = emptyAppData() as unknown as Record<string, unknown[]>;
+    next.accounts = [account("a1")];
+    next.clients = [client("c1", "a1")];
+    next.disciplines = [discipline("d1", "a1")];
+    next.projects = [project("p1", "a1", "c1")];
+    next.resources = [person("r1", "a1", "d1")];
+    next.activities = [activity("act1", "a1", "p1")];
+    next.allocations = [allocation("al1b", "a1", "r1", "act1")];
+    replaceAccountSlice(db, "a1", validatedCompleteAccountSlice(next as unknown as AppData));
+
+    const a1 = readSlice(db, "a1", FULL);
+    expect(a1.allocations.map((row) => row.id)).toEqual(["al1b"]);
+    expect(a1.phases).toEqual([]);
+
+    const a2 = readSlice(db, "a2", FULL);
+    expect(a2.accounts.map((accountRow) => accountRow.id)).toEqual(["a2"]);
+    for (const key of SCOPED_KEYS) {
+      expect(a2[key].length).toBe(1);
+      expect((a2[key][0] as { accountId: string }).accountId).toBe("a2");
+    }
+    expect(
+      loadState(db)
+        .accounts.map((accountRow) => accountRow.id)
+        .sort(),
+    ).toEqual(["a1", "a2"]);
+  });
+
+  it("rolls a destructive replacement back when reinsertion fails", () => {
+    const db = openDb(":memory:");
+    insertAll(db, seedTwoAccounts());
+    const before = readFullSlice(db, "a1");
+    const invalid = validatedCompleteAccountSlice({
+      ...before,
+      allocations: before.allocations.map((row) => ({
+        ...row,
+        resourceId: "missing-resource",
+      })),
+    });
+
+    expect(() => replaceAccountSlice(db, "a1", invalid)).toThrow();
+
+    expect(readFullSlice(db, "a1")).toEqual(before);
+  });
+});
+
 describe("sqliteTenantStore", () => {
   it("keeps projected reads type-incompatible with complete replacement input", () => {
     const db = openDb(":memory:");
@@ -310,88 +363,6 @@ describe("sqliteTenantStore", () => {
       { operation: "update", tableName: "resources", rowId: "r1" },
     ]);
     expect(store.readSlice("a2", FULL)).toEqual(readSlice(db, "a2", FULL));
-  });
-
-  it("write(id, slice) replaces ONLY that account; the other account is untouched", () => {
-    const db = openDb(":memory:");
-    insertAll(db, seedTwoAccounts());
-    const store = sqliteTenantStore(db);
-
-    // Replace a1's slice with a single new allocation (drop everything else of a1's).
-    const next = emptyAppData() as unknown as Record<string, unknown[]>;
-    next.accounts = [account("a1")];
-    next.clients = [client("c1", "a1")];
-    next.disciplines = [discipline("d1", "a1")];
-    next.projects = [project("p1", "a1", "c1")];
-    next.resources = [person("r1", "a1", "d1")];
-    next.activities = [activity("act1", "a1", "p1")];
-    next.allocations = [allocation("al1b", "a1", "r1", "act1")]; // a NEW allocation id; old al1 must be gone
-    store.write("a1", validatedCompleteAccountSlice(next as unknown as AppData));
-
-    const a1 = store.readSlice("a1", FULL);
-    expect(a1.allocations.map((r) => r.id)).toEqual(["al1b"]); // a1's scoped rows were REPLACED
-    expect(a1.phases).toEqual([]); // dropped phase ph1
-
-    // a2 is fully intact — write touched ONLY a1's scoped rows.
-    const a2 = store.readSlice("a2", FULL);
-    expect(a2.accounts.map((a) => a.id)).toEqual(["a2"]);
-    for (const key of SCOPED_KEYS) {
-      expect(a2[key].length).toBe(1);
-      expect((a2[key][0] as { accountId: string }).accountId).toBe("a2");
-    }
-    // The global accounts row for a2 still loads from the whole tree.
-    expect(
-      loadState(db)
-        .accounts.map((a) => a.id)
-        .sort(),
-    ).toEqual(["a1", "a2"]);
-  });
-
-  it("transact reads and replaces the complete slice inside one synchronous transaction", () => {
-    const db = openDb(":memory:");
-    insertAll(db, seedTwoAccounts());
-    const store = sqliteTenantStore(db);
-    const otherTenantBefore = store.readSlice("a2", FULL);
-
-    const result = store.transact("a1", FULL, (current) => {
-      expect(db.isTransaction).toBe(true);
-      return {
-        next: {
-          ...current,
-          allocations: current.allocations.map((row) => ({
-            ...row,
-            note: "Atomic update",
-          })),
-        },
-        result: "committed",
-      };
-    });
-
-    expect(result).toBe("committed");
-    expect(store.readSlice("a1", FULL).allocations[0]?.note).toBe("Atomic update");
-    expect(store.readSlice("a2", FULL)).toEqual(otherTenantBefore);
-  });
-
-  it("transact rolls a destructive replacement back when reinsertion fails", () => {
-    const db = openDb(":memory:");
-    insertAll(db, seedTwoAccounts());
-    const store = sqliteTenantStore(db);
-    const before = store.readSlice("a1", FULL);
-
-    expect(() =>
-      store.transact("a1", FULL, (current) => ({
-        next: {
-          ...current,
-          allocations: current.allocations.map((row) => ({
-            ...row,
-            resourceId: "missing-resource",
-          })),
-        },
-        result: undefined,
-      })),
-    ).toThrow();
-
-    expect(store.readSlice("a1", FULL)).toEqual(before);
   });
 
   it("serves indexed mutation-validation lookups without crossing tenant boundaries", () => {

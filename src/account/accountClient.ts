@@ -2,6 +2,7 @@ import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
+import { isAccountCommandId, isAccountIdempotencyKey } from "@capacitylens/shared/account/validation";
 
 export interface BrowserAccountCommand {
   commandId: string;
@@ -137,13 +138,7 @@ function storedCommand(operationKey: string): BrowserAccountCommand {
   if (memoryCommand) return memoryCommand;
   try {
     const parsed = JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as Partial<BrowserAccountCommand> | null;
-    if (
-      parsed &&
-      typeof parsed.commandId === "string" &&
-      typeof parsed.idempotencyKey === "string" &&
-      /^[A-Za-z0-9_-]{16,128}$/.test(parsed.commandId) &&
-      /^[A-Za-z0-9_-]{16,128}$/.test(parsed.idempotencyKey)
-    ) {
+    if (parsed && isAccountCommandId(parsed.commandId) && isAccountIdempotencyKey(parsed.idempotencyKey)) {
       const command = {
         commandId: parsed.commandId,
         idempotencyKey: parsed.idempotencyKey,

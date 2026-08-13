@@ -6,8 +6,15 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import { m } from "@/i18n";
-import { Modal, RequiredLegend, SelectField, TextField, WorkingDayPicker, type Option } from "../common/ui";
-import { Button } from "../ui/button";
+import {
+  FormActions,
+  Modal,
+  RequiredLegend,
+  SelectField,
+  TextField,
+  WorkingDayPicker,
+  type Option,
+} from "../common/ui";
 import { FieldError, FieldGroup } from "../ui/field";
 import { resourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
@@ -162,16 +169,7 @@ export function ResourceForm({
       }
       onClose={onClose}
       onSubmit={submit}
-      footer={
-        <>
-          <Button size="sm" type="button" variant="outline" onClick={onClose}>
-            {m.form_cancel()}
-          </Button>
-          <Button size="sm" type="submit">
-            {m.form_save()}
-          </Button>
-        </>
-      }
+      footer={<FormActions onCancel={onClose} />}
     >
       <FieldGroup className="gap-3">
         <TextField
