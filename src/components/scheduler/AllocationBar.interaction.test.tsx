@@ -14,7 +14,7 @@ import { buildColumnGeometry } from "./columnGeometry";
 import type { BarLayout } from "./schedulerModel";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { useStore } from "../../store/useStore";
-import { type Allocation } from "@capacitylens/shared/types/entities";
+import { type Allocation, type Weekday } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 import { visibleRange } from "../../store/selectors";
 
@@ -102,6 +102,19 @@ const barFor = (allocation: Allocation): BarLayout => ({
   label: "Wires",
   external: false,
 });
+
+const laneRect = (top: number, bottom: number): DOMRect =>
+  ({
+    left: 0,
+    right: 500,
+    top,
+    bottom,
+    width: 500,
+    height: bottom - top,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  }) as DOMRect;
 
 beforeEach(() => resetStoreWithAccount());
 
@@ -543,6 +556,163 @@ describe("AllocationBar interactions", () => {
 
     expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.resourceId).toBe(r2.id);
     expect(screen.getByTestId("lane-dst").hasAttribute("data-droptarget")).toBe(false); // cleared on commit
+  });
+
+  it.each([
+    {
+      boundary: "personal",
+      accountWorkingDays: [1, 2, 3, 4, 5] as Weekday[],
+      targetWorkingDays: [1, 2, 3] as Weekday[],
+    },
+    {
+      boundary: "company",
+      accountWorkingDays: [1, 2, 3, 4] as Weekday[],
+      targetWorkingDays: [1, 2, 3, 4, 5] as Weekday[],
+    },
+  ])(
+    "rejects a purely vertical drop onto a $boundary non-working start date",
+    ({ accountWorkingDays, targetWorkingDays }) => {
+      const st = useStore.getState();
+      st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
+      const client = st.addClient({ name: "Acme", color: "#1" });
+      const project = st.addProject({ name: "P", clientId: client.id, color: "#2" });
+      const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
+      const source = st.addResource({
+        kind: "person",
+        name: "Jess Chambers",
+        role: "Dev",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#3",
+      });
+      const destination = st.addResource({
+        kind: "person",
+        name: "Marie Moreau",
+        role: "PM",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: targetWorkingDays,
+        halfDays: [],
+        color: "#4",
+      });
+      const allocation = st.addAllocation({
+        resourceId: source.id,
+        activityId: activity.id,
+        startDate: "2026-06-05", // Friday
+        endDate: "2026-06-05",
+        hoursPerDay: 8,
+        status: "confirmed",
+      });
+
+      render(
+        <>
+          <div data-resource-id={source.id} data-testid="lane-src" />
+          <div data-resource-id={destination.id} data-testid="lane-dst" />
+          <AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+        </>,
+      );
+      screen.getByTestId("lane-src").getBoundingClientRect = () => laneRect(0, 50);
+      screen.getByTestId("lane-dst").getBoundingClientRect = () => laneRect(100, 150);
+
+      const bar = screen.getByTestId("allocation-bar");
+      fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: 50, clientY: 125, bubbles: true }));
+      expect(screen.getByTestId("lane-dst")).not.toHaveAttribute("data-droptarget");
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: 50, clientY: 125, bubbles: true }));
+
+      expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toMatchObject({
+        resourceId: source.id,
+        startDate: "2026-06-05",
+        endDate: "2026-06-05",
+      });
+      expect(useStore.getState().notice).toMatchObject({
+        message: "That allocation cannot start there because it is not a working day.",
+        tone: "error",
+      });
+    },
+  );
+
+  it("allows that literal vertical drop when the allocation ignores working days", () => {
+    const st = useStore.getState();
+    st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
+    const client = st.addClient({ name: "Acme", color: "#1" });
+    const project = st.addProject({ name: "P", clientId: client.id, color: "#2" });
+    const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
+    const source = st.addResource({
+      kind: "person",
+      name: "Jess Chambers",
+      role: "Dev",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#3",
+    });
+    const destination = st.addResource({
+      kind: "person",
+      name: "Marie Moreau",
+      role: "PM",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3],
+      halfDays: [],
+      color: "#4",
+    });
+    const allocation = st.addAllocation({
+      resourceId: source.id,
+      activityId: activity.id,
+      startDate: "2026-06-05", // Friday, closed by both destination calendars
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+      ignoreWeekends: true,
+    });
+
+    render(
+      <>
+        <div data-resource-id={source.id} data-testid="lane-src" />
+        <div data-resource-id={destination.id} data-testid="lane-dst" />
+        <AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+      </>,
+    );
+    screen.getByTestId("lane-src").getBoundingClientRect = () => laneRect(0, 50);
+    screen.getByTestId("lane-dst").getBoundingClientRect = () => laneRect(100, 150);
+
+    const bar = screen.getByTestId("allocation-bar");
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
+    document.dispatchEvent(new MouseEvent("pointermove", { clientX: 50, clientY: 125, bubbles: true }));
+    expect(screen.getByTestId("lane-dst")).toHaveAttribute("data-droptarget", "");
+    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 50, clientY: 125, bubbles: true }));
+
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toMatchObject({
+      resourceId: destination.id,
+      startDate: "2026-06-05",
+      endDate: "2026-06-05",
+      ignoreWeekends: true,
+    });
+  });
+
+  it("updates a vertical drag without a trailing transform transition", () => {
+    const allocation = seedAllocation();
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    const bar = screen.getByTestId("allocation-bar");
+
+    expect(bar).toHaveClass("transition-shadow");
+    expect(bar.className).not.toContain("transition-[box-shadow,transform]");
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: 50, clientY: 75, bubbles: true }));
+    });
+    expect(bar).toHaveStyle({ transform: "translateY(50px)" });
+    act(() => {
+      document.dispatchEvent(new Event("pointercancel"));
+    });
   });
 
   it("assigns a shared lane-boundary drop to the following lane", () => {

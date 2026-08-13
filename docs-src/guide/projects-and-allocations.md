@@ -96,7 +96,10 @@ a single allocation.
 ## Edit, move and remove allocations
 
 - **Move** a bar by dragging it to a different set of days, or drop it on another
-  person's row to reassign the work.
+  person's row to reassign the work. A vertical reassignment keeps its start date: if that
+  date is outside either the company or person's working pattern, the drop is rejected and
+  the original allocation stays put. An allocation with **Ignore working days** enabled may
+  use those dates literally.
 - **Resize** a bar from either edge to change its start or end date.
 - **Open** a bar to change its status between tentative, confirmed and completed, or
   to duplicate or delete it. Duplicate is available for unlinked allocations, but not
