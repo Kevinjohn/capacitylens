@@ -728,6 +728,7 @@
   "scheduler_toast_undo_hint": " Press {shortcut} to undo.",
   "scheduler_toast_move_failed": "Could not move this allocation.",
   "scheduler_toast_move_rejected": "That allocation could not be moved there.",
+  "scheduler_toast_non_working_drop": "That allocation cannot start there because it is not a working day.",
   "scheduler_toast_capped": "Work volume was capped at {max}h/day. Press {shortcut} to undo.",
   "scheduler_toast_move_disallowed": "That move was not allowed.",
   "scheduler_advisory_over_one": "over capacity on {count} day",

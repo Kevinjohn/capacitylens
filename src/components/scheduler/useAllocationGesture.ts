@@ -10,7 +10,7 @@ import { emptyAppData, isCapacityTracked, MAX_HOURS_PER_DAY } from "@capacitylen
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 import { useDragResize } from "../../hooks/useDragResize";
 import { resourceDisplayName } from "../../lib/metadata";
-import { schedulingModeFor, scopeData, visibleRange } from "../../store/selectors";
+import { accountWorkingDaysFor, schedulingModeFor, scopeData, visibleRange } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
 import {
   computeGesture,
@@ -19,6 +19,7 @@ import {
   volumePreservingHoursClamped,
 } from "./allocationDrag";
 import type { ColumnGeometry } from "./columnGeometry";
+import { effectiveWorkingDays, isAllocationMoveStartBlocked } from "./creationAvailability";
 import type { BarLayout } from "./schedulerModel";
 
 interface LaneSnapshot {
@@ -112,9 +113,6 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
   const announceCapacity = useStore((state) => state.announceCapacity);
   const setDraggingAllocation = useStore((state) => state.setDraggingAllocation);
   const resourceId = bar.allocation.resourceId;
-  const workingDays = useStore(
-    (state) => state.data.resources.find((resource) => resource.id === resourceId)?.workingDays,
-  );
   const schedulingMode = useStore((state) => schedulingModeFor(state.data, state.activeAccountId));
   const isDays = schedulingMode === "days";
   const isBlocks = schedulingMode === "blocks";
@@ -123,6 +121,13 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
   const lanesDirtyRef = useRef(false);
   const dropElRef = useRef<HTMLElement | null>(null);
   const geometryWatchRef = useRef<(() => void) | null>(null);
+
+  const workingDaysFor = (targetResourceId: ID) => {
+    const state = useStore.getState();
+    const resource = state.data.resources.find((candidate) => candidate.id === targetResourceId);
+    if (!resource) return undefined;
+    return effectiveWorkingDays(resource, accountWorkingDaysFor(state.data, state.activeAccountId));
+  };
 
   const setDropTarget = (el: HTMLElement | null) => {
     if (dropElRef.current === el) return;
@@ -188,7 +193,39 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
         deltaY,
         targetResourceId: target?.id ?? null,
       });
-      if (mode === "move") setDropTarget(target && target.id !== resourceId ? target.el : null);
+      if (mode === "move") {
+        const destination = target && target.id !== resourceId ? target : null;
+        const state = useStore.getState();
+        const targetResource = destination
+          ? state.data.resources.find((candidate) => candidate.id === destination.id)
+          : undefined;
+        const proposed = targetResource
+          ? computeGesture(
+              mode,
+              { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
+              deltaDays,
+              {
+                workingDays: effectiveWorkingDays(
+                  targetResource,
+                  accountWorkingDaysFor(state.data, state.activeAccountId),
+                ),
+                ignoreWeekends: bar.allocation.ignoreWeekends,
+              },
+              bar.allocation.hoursPerDay,
+              isDays,
+            ).dates
+          : null;
+        const blocked =
+          !!targetResource &&
+          !!proposed &&
+          isAllocationMoveStartBlocked(
+            targetResource,
+            proposed.startDate,
+            accountWorkingDaysFor(state.data, state.activeAccountId),
+            bar.allocation.ignoreWeekends,
+          );
+        setDropTarget(destination && !blocked ? destination.el : null);
+      }
     },
     onClick: () => {
       stopGeometryWatch();
@@ -218,16 +255,12 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       if (deltaDays === 0 && !reassignTo) return;
 
       const computeFor = (targetResourceId: ID) => {
-        const targetWorkingDays =
-          targetResourceId === resourceId
-            ? workingDays
-            : useStore.getState().data.resources.find((resource) => resource.id === targetResourceId)?.workingDays;
         return computeGesture(
           mode,
           current,
           deltaDays,
           {
-            workingDays: targetWorkingDays,
+            workingDays: workingDaysFor(targetResourceId),
             ignoreWeekends: bar.allocation.ignoreWeekends,
           },
           bar.allocation.hoursPerDay,
@@ -237,9 +270,24 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
 
       const effectiveResourceId = reassignTo ?? resourceId;
       const { dates, hours, clamped } = computeFor(effectiveResourceId);
+      const state = useStore.getState();
+      const effectiveResource = state.data.resources.find((resource) => resource.id === effectiveResourceId);
       const targetResource = reassignTo
-        ? useStore.getState().data.resources.find((resource) => resource.id === reassignTo)
+        ? state.data.resources.find((resource) => resource.id === reassignTo)
         : undefined;
+      if (effectiveResource && (mode === "move" || dates.startDate !== current.startDate)) {
+        if (
+          isAllocationMoveStartBlocked(
+            effectiveResource,
+            dates.startDate,
+            accountWorkingDaysFor(state.data, state.activeAccountId),
+            bar.allocation.ignoreWeekends,
+          )
+        ) {
+          setNotice(m.scheduler_toast_non_working_drop(), "error");
+          return;
+        }
+      }
       const reconciledHours = targetResource
         ? reconcileReassignedHours(hours, targetResource, isBlocks, dates.startDate)
         : hours;
@@ -323,7 +371,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
 
   const nudge = (mode: DragMode, delta: number) => {
     const options = {
-      workingDays,
+      workingDays: workingDaysFor(resourceId),
       ignoreWeekends: bar.allocation.ignoreWeekends,
     };
     const current = {
@@ -332,6 +380,21 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     };
     const next = applyGesture(mode, current, delta, options);
     if (next.endDate < next.startDate) return;
+    const state = useStore.getState();
+    const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
+    if (
+      (mode === "move" || next.startDate !== current.startDate) &&
+      resource &&
+      isAllocationMoveStartBlocked(
+        resource,
+        next.startDate,
+        accountWorkingDaysFor(state.data, state.activeAccountId),
+        bar.allocation.ignoreWeekends,
+      )
+    ) {
+      setNotice(m.scheduler_toast_non_working_drop(), "error");
+      return;
+    }
     const visible = visibleRange(useStore.getState().ui);
     const currentIntersectsTimeline = current.endDate >= visible.start && current.startDate <= visible.end;
     const nextIntersectsTimeline = next.endDate >= visible.start && next.startDate <= visible.end;
@@ -379,8 +442,8 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     if (preview.deltaDays !== 0) {
       const previewWorkingDays =
         preview.targetResourceId && preview.targetResourceId !== resourceId
-          ? useStore.getState().data.resources.find((resource) => resource.id === preview.targetResourceId)?.workingDays
-          : workingDays;
+          ? workingDaysFor(preview.targetResourceId)
+          : workingDaysFor(resourceId);
       const geometry = snappedBarGeometry(
         preview.mode,
         {

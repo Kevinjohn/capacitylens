@@ -229,7 +229,7 @@ export const AllocationBar = memo(function AllocationBar({
           // pinned regression in src/lib/color.test.ts. Defined in CSS (not Tailwind utilities here); on
           // focus this box-shadow overrides the resting `ring-1 ring-black/5` (intentional — the bold focus
           // ring replaces the faint resting ring while focused).
-          className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md ${dragging ? "shadow-lg ring-black/10" : ""}`}
+          className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md ${dragging ? "shadow-lg ring-black/10" : ""}`}
           style={{
             left: insetLeft,
             width: insetWidth,

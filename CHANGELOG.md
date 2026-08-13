@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Vertical allocation reassignment now rejects personal or company non-working start dates unless
+  **Ignore working days** is enabled, and vertical dragging follows the pointer without an animation
+  delay (#336, #337).
+
 ## [0.41.9-alpha.1] — 2026-08-12
 
 ### Changed

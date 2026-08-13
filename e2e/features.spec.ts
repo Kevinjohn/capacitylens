@@ -103,6 +103,53 @@ test.describe("Feature flows", () => {
     await expect(clarkLane).not.toHaveAttribute("data-droptarget", "");
   });
 
+  test("rejects a vertical reassignment onto a non-working start date unless explicitly ignored", async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+
+    await page.getByRole("button", { name: "Add allocation for Diana Prince" }).click();
+    const createDialog = page.getByRole("dialog", { name: "New allocation" });
+    await selectShadOption(createDialog.getByLabel("Project", { exact: true }), "p-brand");
+    await selectShadOption(createDialog.getByRole("combobox", { name: "Activity", exact: true }), "t-brand");
+    await createDialog.getByLabel("Start").fill("2026-06-05"); // Friday
+    await createDialog.getByLabel("End").fill("2026-06-05");
+    await createDialog.getByRole("button", { name: "Save" }).click();
+
+    const dianaLane = page.locator('[data-resource-id="r-pam"]');
+    const bar = dianaLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ });
+    const barBox = await box(bar);
+    const barX = barBox.x + barBox.width / 2;
+    const barY = barBox.y + barBox.height / 2;
+    const barryLane = page.locator('[data-resource-id="r-alex"]');
+    const barryBox = await box(barryLane);
+    const targetY = barryBox.y + barryBox.height / 2;
+
+    await page.mouse.move(barX, barY);
+    await page.mouse.down();
+    await page.mouse.move(barX, targetY, { steps: 10 });
+    await expect(barryLane).not.toHaveAttribute("data-droptarget", "");
+    expect(await bar.evaluate((element) => getComputedStyle(element).transitionProperty)).not.toContain("transform");
+    await page.mouse.up();
+
+    await expect(page.getByText("That allocation cannot start there because it is not a working day.")).toBeVisible();
+    await expect(dianaLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ })).toBeVisible();
+    await expect(barryLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ })).toHaveCount(0);
+
+    await bar.click();
+    const editDialog = page.getByRole("dialog", { name: "Edit allocation" });
+    await editDialog.getByRole("checkbox", { name: "Ignore working days" }).check();
+    await editDialog.getByRole("button", { name: "Save" }).click();
+
+    const ignoredBarBox = await box(bar);
+    await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, ignoredBarBox.y + ignoredBarBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, targetY, { steps: 10 });
+    await expect(barryLane).toHaveAttribute("data-droptarget", "");
+    await page.mouse.up();
+
+    await expect(barryLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ })).toBeVisible();
+  });
+
   test("drawing in Time off mode opens a prefilled time-off form", async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);

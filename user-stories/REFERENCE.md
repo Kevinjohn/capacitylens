@@ -320,6 +320,12 @@ than the preceding one. While a large schedule scrolls vertically during a drag,
 become drop targets and the original allocation remains pinned until the gesture completes. A
 keyboard move or resize cannot move a currently visible bar wholly beyond the rendered timeline;
 after a successful nudge the grid follows the bar and restores focus to it.
+Reassignment also applies one start-date rule in every drag direction: the destination date must be
+both a company working day and one of that person's working days. A purely vertical drop onto an
+unavailable destination date is rejected atomically; the original assignee and dates remain
+unchanged. An allocation with **Ignore working days** enabled deliberately bypasses both recurring
+calendars during a move. Time off remains a visible capacity conflict rather than silently moving
+the allocation to another date.
 
 **Weekend columns.** By default the **Minimise weekends** display pref (Settings → Schedule,
 on by default) shrinks the Saturday and Sunday columns to a sliver — just wide enough for the
@@ -528,9 +534,12 @@ selection. Editors and above may change the selection; Viewers can read it but c
 The account selection is the hard boundary for starting work in the schedule: the lane hover **+**
 is absent and a click or draw is rejected when its start date is globally non-working, outside the
 resource's personal working pattern, or covered by that resource's time off. A multi-day draw may
-still cross blocked dates after an allowed start. **Ignore working days** never permits
-a gesture to start on a globally non-working date. These interaction rules do not change existing
-capacity/utilisation calculations; that separate question remains outside this behaviour.
+still cross blocked dates after an allowed start. A new click/draw has no allocation-level override
+yet, so it cannot begin on a globally non-working date. Moving an existing allocation whose
+**Ignore working days** checkbox is already enabled is different: that explicit override permits a
+literal start on either a company or personal non-working date. These interaction rules do not
+change existing capacity/utilisation calculations; that separate question remains outside this
+behaviour.
 
 **Schedule display (snap to week start).** The same Settings → **Schedule** section has a second
 switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
