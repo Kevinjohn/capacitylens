@@ -1,4 +1,5 @@
 import { laneTop, packLanes, rowHeightForLanes, type LaneLayout } from "../../lib/lanePacking";
+import { foldForSearch } from "../../lib/fuzzy";
 import {
   capacityAllocationsForMode,
   dayCapacity,
@@ -9,7 +10,7 @@ import {
 import { eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
-import { timeOffTypeLabels, resourceDisplayName } from "../../lib/metadata";
+import { timeOffTypeLabel, resourceDisplayName } from "../../lib/metadata";
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from "../../store/selectors";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
@@ -289,12 +290,9 @@ export function buildSchedulerModel({
   },
   laneLayout = compactLaneLayout,
 }: SchedulerModelOptions): GroupModel[] {
-  const searchable = (value: string | undefined): string =>
-    (value ?? "")
-      .normalize("NFD")
-      .replace(/\p{Diacritic}/gu, "")
-      .toLocaleLowerCase();
-  const search = searchable(filters.search.trim());
+  // Same diacritic-insensitive fold the fuzzy matcher uses, so typing "Jose" finds "José" whether
+  // the query lands here or in a command palette.
+  const search = foldForSearch(filters.search.trim());
   // A stale discipline filter can survive deleting the final discipline. It must not make the
   // engagement fallback look empty; only a filter that still resolves to a real discipline applies.
   const filteredDisciplineId =
@@ -410,7 +408,7 @@ export function buildSchedulerModel({
     if (filteredDisciplineId && r.disciplineId !== filteredDisciplineId) return false;
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
     // user sees — matching the command palette — as well as by its underlying role/name.
-    const resourceSearchFields = [resourceDisplayName(r), r.name, r.role].map(searchable);
+    const resourceSearchFields = [resourceDisplayName(r), r.name, r.role].map((field) => foldForSearch(field ?? ""));
     if (search && !resourceSearchFields.some((field) => field.includes(search))) return false;
     return true;
   };
@@ -627,7 +625,7 @@ export function buildSchedulerModel({
                 id: t.id,
                 x: geom.xForDateInGeom(t.startDate),
                 width: geom.widthForDates(t.startDate, t.endDate),
-                label: timeOffTypeLabels()[t.type],
+                label: timeOffTypeLabel(t.type),
                 note: t.note,
               }));
           // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the

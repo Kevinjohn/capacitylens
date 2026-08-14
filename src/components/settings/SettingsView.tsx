@@ -231,7 +231,7 @@ export function SettingsView() {
   const stamp = buildStamp();
   const feedback = feedbackMailto();
   const weekStartLabel = weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
-  const timeZoneLabel = timeZoneOptionLabel(timezone, timezone === "Etc/GMT" ? m.settings_timezone_gmt() : timezone);
+  const timeZoneLabel = timeZoneOptionLabel(timezone);
 
   return (
     <ListPage title={m.settings_title()}>

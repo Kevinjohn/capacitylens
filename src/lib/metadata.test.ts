@@ -1,14 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { m } from "@/i18n";
 import {
+  allocationStatusLabel,
   allocationStatusLabels,
   allocationStatusOptions,
-  employmentTypeLabels,
-  employmentTypeOptions,
-  resourceEngagementLabels,
   resourceEngagementOptions,
-  resourceKindLabels,
-  resourceKindOptions,
+  timeOffTypeLabel,
   timeOffTypeLabels,
   timeOffTypeOptions,
   resourceDisplayName,
@@ -32,25 +29,6 @@ const makeResource = (over: Partial<Resource> = {}): Resource => ({
   ...over,
 });
 
-describe("employmentTypeLabels", () => {
-  it("maps every EmploymentType to its resolved message", () => {
-    expect(employmentTypeLabels()).toEqual({
-      permanent: m.enum_employment_type_permanent(),
-      freelancer: m.enum_employment_type_freelancer(),
-      contractor: m.enum_employment_type_contractor(),
-    });
-  });
-});
-
-describe("resourceEngagementLabels", () => {
-  it("maps every ResourceEngagement to its resolved message", () => {
-    expect(resourceEngagementLabels()).toEqual({
-      studio: m.enum_resource_engagement_studio(),
-      supplementary: m.enum_resource_engagement_supplementary(),
-    });
-  });
-});
-
 describe("timeOffTypeLabels", () => {
   it("maps every TimeOffType to its resolved message", () => {
     expect(timeOffTypeLabels()).toEqual({
@@ -58,16 +36,6 @@ describe("timeOffTypeLabels", () => {
       sick: m.enum_time_off_type_sick(),
       unpaid: m.enum_time_off_type_unpaid(),
       other: m.enum_time_off_type_other(),
-    });
-  });
-});
-
-describe("resourceKindLabels", () => {
-  it("maps every ResourceKind to its resolved message", () => {
-    expect(resourceKindLabels()).toEqual({
-      person: m.enum_resource_kind_person(),
-      placeholder: m.enum_resource_kind_placeholder(),
-      external: m.enum_resource_kind_external(),
     });
   });
 });
@@ -82,23 +50,37 @@ describe("allocationStatusLabels", () => {
   });
 });
 
+describe("single-value label getters", () => {
+  it("allocationStatusLabel agrees with the map for every status", () => {
+    for (const [status, label] of Object.entries(allocationStatusLabels())) {
+      expect(allocationStatusLabel(status as "confirmed" | "tentative" | "completed")).toBe(label);
+    }
+  });
+
+  it("timeOffTypeLabel agrees with the map for every type", () => {
+    for (const [type, label] of Object.entries(timeOffTypeLabels())) {
+      expect(timeOffTypeLabel(type as "holiday" | "sick" | "unpaid" | "other")).toBe(label);
+    }
+  });
+});
+
 describe("toOptions-derived option lists", () => {
-  it("resourceKindOptions turns the label map into {value,label} pairs", () => {
-    const options = resourceKindOptions();
-    expect(options).toEqual([
-      { value: "person", label: m.enum_resource_kind_person() },
-      { value: "placeholder", label: m.enum_resource_kind_placeholder() },
-      { value: "external", label: m.enum_resource_kind_external() },
+  it("turns a label map into ordered {value,label} pairs", () => {
+    expect(allocationStatusOptions()).toEqual([
+      { value: "confirmed", label: m.enum_allocation_status_confirmed() },
+      { value: "tentative", label: m.enum_allocation_status_tentative() },
+      { value: "completed", label: m.enum_allocation_status_completed() },
+    ]);
+  });
+
+  it("resourceEngagementOptions covers every ResourceEngagement", () => {
+    expect(resourceEngagementOptions()).toEqual([
+      { value: "studio", label: m.enum_resource_engagement_studio() },
+      { value: "supplementary", label: m.enum_resource_engagement_supplementary() },
     ]);
   });
 
   it("enum option lists each round-trip their label map", () => {
-    for (const [value, label] of Object.entries(employmentTypeLabels())) {
-      expect(employmentTypeOptions()).toContainEqual({ value, label });
-    }
-    for (const [value, label] of Object.entries(resourceEngagementLabels())) {
-      expect(resourceEngagementOptions()).toContainEqual({ value, label });
-    }
     for (const [value, label] of Object.entries(allocationStatusLabels())) {
       expect(allocationStatusOptions()).toContainEqual({ value, label });
     }

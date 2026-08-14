@@ -11,11 +11,16 @@ import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOffDays: 0 })));
 // The mock is declared without a parameter list, so reach its recorded arguments through a cast:
 // tests assert on the `otherAllocations` the modal passes (its scheduling-mode projection of the
-// existing load), not merely on how often the advisory ran.
-const lastAdvisoryOthers = () => (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[1];
+// existing load), not merely on how often the advisory ran. It is the THIRD argument — the second
+// is the proposed allocation itself.
+const lastAdvisoryOthers = () => (capacityAdvisoryMock.mock.calls.at(-1) as unknown as unknown[] | undefined)?.[2];
+// Both entry points share one mock: the repeat path advises against a batch-shared load bucket
+// (`capacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
+// care only about the advisory VERDICTS the modal renders.
 vi.mock("../../lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/capacity")>()),
   capacityAdvisory: capacityAdvisoryMock,
+  capacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
 const ACC = DEFAULT_ACCOUNT_ID;

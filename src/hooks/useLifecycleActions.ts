@@ -1,4 +1,5 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import { newId } from "@capacitylens/shared/lib/id";
 import { API_BASE, isServerConfigured } from "../data/apiConfig";
 import { persistenceAdapter } from "../data/storageAdapter";
 import { refreshActiveAccountSlice, type RefreshOutcome } from "../data/persist";
@@ -162,7 +163,10 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           {
             method: "POST",
             credentials: "include",
-            headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+            // newId(), not raw crypto.randomUUID(): on the destructive archive/delete/purge path an
+            // absent secure context must fail with the shared diagnostic (and land in the catch
+            // below as an unconfirmed outcome), never a cryptic native TypeError.
+            headers: { "Content-Type": "application/json", "Idempotency-Key": newId() },
             body: JSON.stringify({ accountId: activeAccountId }),
           },
           API_BULK_TIMEOUT_MS,
@@ -226,21 +230,17 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   // React error. purgeEntity surfaces its own <30d notice and no-ops (doesn't throw), handled inside.
   const dispatchLocal = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
+      // A TOTAL verb→store-action map rather than a switch: a new LifecycleVerb without its store
+      // action wired here is a compile error, where an unhandled `case` would fall straight through
+      // and silently no-op in the demo build.
+      const storeAction: Record<LifecycleVerb, (entity: LifecycleEntity, id: string) => void> = {
+        archive: archiveEntity,
+        unarchive: unarchiveEntity,
+        delete: softDeleteEntity,
+        purge: purgeEntity,
+      };
       try {
-        switch (verb) {
-          case "archive":
-            archiveEntity(entity, id);
-            break;
-          case "unarchive":
-            unarchiveEntity(entity, id);
-            break;
-          case "delete":
-            softDeleteEntity(entity, id);
-            break;
-          case "purge":
-            purgeEntity(entity, id);
-            break;
-        }
+        storeAction[verb](entity, id);
       } catch (e) {
         setNotice(errorMessage(e), "error");
       }
@@ -274,10 +274,16 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     [dispatchServer, dispatchLocal, setNotice],
   );
 
-  return {
-    archive: useCallback((entity, id) => run("archive", entity, id), [run]),
-    unarchive: useCallback((entity, id) => run("unarchive", entity, id), [run]),
-    softDelete: useCallback((entity, id) => run("delete", entity, id), [run]),
-    purge: useCallback((entity, id) => run("purge", entity, id), [run]),
-  };
+  // One memo, not four callbacks inside a fresh object literal: the returned OBJECT identity is now
+  // stable too, so a consumer that passes the whole surface down (ArchivedSection) or lists it in a
+  // dependency array doesn't re-render on every render of this hook's owner.
+  return useMemo<LifecycleActions>(
+    () => ({
+      archive: (entity, id) => run("archive", entity, id),
+      unarchive: (entity, id) => run("unarchive", entity, id),
+      softDelete: (entity, id) => run("delete", entity, id),
+      purge: (entity, id) => run("purge", entity, id),
+    }),
+    [run],
+  );
 }

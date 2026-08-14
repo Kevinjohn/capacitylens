@@ -14,7 +14,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { FAKE_USER, useDemoAuthActive } from "../../lib/fakeAuth";
 import { validateName } from "../../lib/validation";
 import { AddButton, Avatar, DeleteButton, SegmentedControl, SelectField, TextField } from "../common/ui";
-import { supportedTimeZones, timeZoneOptionLabel } from "../../lib/timezones";
+import { DEFAULT_TIME_ZONE, supportedTimeZones, timeZoneOptionLabel } from "../../lib/timezones";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { AccountSummary } from "../../store/useStore";
@@ -41,7 +41,7 @@ const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
   { value: 0, label: () => m.picker_week_sunday() },
 ];
 const DEFAULT_WEEK_STARTS_ON = 1 as const;
-const DEFAULT_TIMEZONE = "Etc/GMT";
+const DEFAULT_TIMEZONE = DEFAULT_TIME_ZONE;
 const DEFAULT_LANGUAGE = "en";
 
 /** Validate the UNTRUSTED 2xx body of POST /api/orgs — same stance as useAccountSummaries'
@@ -458,7 +458,7 @@ export function AccountPicker() {
                   onChange={setTimezone}
                   options={tzOptions.map((tz) => ({
                     value: tz,
-                    label: timeZoneOptionLabel(tz, tz === "Etc/GMT" ? m.settings_timezone_gmt() : tz),
+                    label: timeZoneOptionLabel(tz),
                   }))}
                 />
                 <div>

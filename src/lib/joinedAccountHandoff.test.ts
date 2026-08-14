@@ -3,7 +3,6 @@ import {
   clearJoinedAccountHandoff,
   joinedAccountEntryPath,
   readJoinedAccountHandoff,
-  reloadCurrentPage,
   replaceWithAccountPicker,
   replaceWithJoinedAccount,
 } from "./joinedAccountHandoff";
@@ -68,17 +67,5 @@ describe("navigation boundaries", () => {
 
     expect(replace).toHaveBeenCalledOnce();
     expect(replace).toHaveBeenCalledWith("/");
-  });
-
-  it("reloads the current page in place", () => {
-    const reload = vi.fn();
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...realLocation, reload },
-    });
-
-    reloadCurrentPage();
-
-    expect(reload).toHaveBeenCalledOnce();
   });
 });

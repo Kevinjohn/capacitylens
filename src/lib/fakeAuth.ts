@@ -17,7 +17,13 @@ export const FAKE_USER = {
 /** Whether the cosmetic demo sign-in chrome is active — i.e. the real auth seam is OFF
  *  (`authMode === 'off'`). Single source for that predicate so the demo gate, the picker's
  *  "Signed in as" line, and the demo "Sign out" can't drift; when real auth is on, every demo
- *  surface is suppressed and `src/auth/` owns sign-in/out. */
+ *  surface is suppressed and `src/auth/` owns sign-in/out.
+ *
+ *  In terms of the other demo predicate: this is `accessExperienceFor(authMode) === "demo" &&
+ *  authMode === "off"` (see lib/accessMode.ts). It is deliberately the NARROWER of the two —
+ *  `accessExperienceFor` answers "what access posture do we describe to the viewer?" and drives
+ *  the access copy, whereas this answers only "is the fake sign-in chrome on screen?". A demo
+ *  build running WITH real auth on still has a "demo" experience but no demo chrome. */
 export function useDemoAuthActive(): boolean {
   const { authMode } = useAuth();
   return isDemoMode() && authMode === "off";

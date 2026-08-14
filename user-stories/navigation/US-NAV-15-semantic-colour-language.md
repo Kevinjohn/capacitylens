@@ -1,6 +1,6 @@
 # US-NAV-15 — Blue identity, green positive actions, red destructive actions
 
-**Area:** Navigation & shell · **Persona:** Any CapacityLens user · **Linked automated coverage:** `e2e/navigation.spec.ts` (rendered identity/action roles), `src/components/common/ui.test.tsx` (button role classes), `src/lib/color.test.ts` (token contrast), `e2e/a11y.spec.ts` (light/dark rendered accessibility)
+**Area:** Navigation & shell · **Persona:** Any CapacityLens user · **Linked automated coverage:** `e2e/navigation.spec.ts` (rendered identity/action roles), `src/components/common/ui.test.tsx` (button role classes), `src/lib/designTokens.test.ts` (token contrast), `e2e/a11y.spec.ts` (light/dark rendered accessibility)
 
 ## Goal
 

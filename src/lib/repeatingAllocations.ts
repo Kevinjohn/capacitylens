@@ -1,9 +1,16 @@
 import { addDaysISO, daysInclusive } from "@capacitylens/shared/lib/dateMath";
 import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
+import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, ISODate, Resource, SchedulingMode, TimeOff } from "@capacitylens/shared/types/entities";
 import type { Draft } from "../store/useStore";
-import { capacityAdvisory, type CapacityAllocationInput } from "./capacity";
+import {
+  addCapacityLoad,
+  bucketCapacityLoad,
+  capacityAdvisory,
+  capacityAdvisoryFromLoad,
+  type CapacityAllocationInput,
+} from "./capacity";
 
 /** Transient choice shown only while creating an allocation. */
 export type RepeatSelection =
@@ -54,7 +61,7 @@ export function projectAllocationDates(
   if (startDates.length === 0 || startDates[0] !== baseDraft.startDate) {
     throw new Error("Repeat projection must begin with the validated allocation draft.");
   }
-  const external = context.resource.kind === "external";
+  const external = isExternalResource(context.resource);
   if (
     !external &&
     context.schedulingMode !== "hourly" &&
@@ -98,23 +105,46 @@ export function repeatingAllocationAdvisory(
   timeOff: TimeOff[],
   proposedDrafts: readonly Draft<Allocation>[],
 ): RepeatingAllocationAdvisory {
-  if (resource.kind === "external") return { overCapacityAllocations: 0, timeOffAllocations: 0 };
-  const comparisonLoad: CapacityAllocationInput[] = [...existingLoad];
+  if (!isCapacityTracked(resource)) return { overCapacityAllocations: 0, timeOffAllocations: 0 };
+  // Bucket the existing load by day ONCE for the whole batch and add each checked draft to that
+  // SAME map, instead of handing capacityAdvisory a comparison list that grows by one allocation
+  // per draft — which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
+  // day-string work. Hours still land existing-load-first, then draft 0, 1, …, so every per-day sum
+  // is bit-identical to the per-draft rebuild (float addition is not associative).
+  const batchWindow = sharedLoadWindow(proposedDrafts);
+  const shared = batchWindow
+    ? { window: batchWindow, load: bucketCapacityLoad(resource, existingLoad, batchWindow.start, batchWindow.end) }
+    : null;
+  // Only reachable from an absurd (~100-year) span, where the batch is wider than one
+  // materialisable window: keep the original per-draft rebuild rather than trade a slow answer for
+  // a thrown range error.
+  const rebuiltLoad: CapacityAllocationInput[] = shared ? [] : [...existingLoad];
   let overCapacityAllocations = 0;
   let timeOffAllocations = 0;
   for (const draft of proposedDrafts) {
-    const result = capacityAdvisory(
-      resource,
-      comparisonLoad,
-      timeOff,
-      draft.startDate,
-      draft.endDate,
-      draft.hoursPerDay,
-      draft.ignoreWeekends,
-    );
+    const result = shared
+      ? capacityAdvisoryFromLoad(resource, draft, shared.load, timeOff)
+      : capacityAdvisory(resource, draft, rebuiltLoad, timeOff);
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
-    comparisonLoad.push(draft);
+    if (shared) addCapacityLoad(shared.load, resource, draft, shared.window.start, shared.window.end);
+    else rebuiltLoad.push(draft);
   }
   return { overCapacityAllocations, timeOffAllocations };
+}
+
+/** The one window every draft in the batch falls inside, or `null` when it is too wide to
+ *  materialise (the ceiling `capacityAdvisory` already refuses a single window at). */
+function sharedLoadWindow(drafts: readonly Draft<Allocation>[]): { start: ISODate; end: ISODate } | null {
+  const first = drafts[0];
+  if (!first) return null;
+  // Zero-padded ISO dates compare lexicographically, so plain min/max is chronological.
+  let start = first.startDate;
+  let end = first.endDate;
+  for (const draft of drafts) {
+    if (draft.startDate < start) start = draft.startDate;
+    if (draft.endDate > end) end = draft.endDate;
+  }
+  const span = daysInclusive(start, end);
+  return span >= 1 && span <= MAX_SPAN_DAYS ? { start, end } : null;
 }

@@ -1,7 +1,7 @@
 # US-NAV-04 — Save-failure banner
 
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked tests:**
-`src/data/persist.test.ts`, `src/components/common/ui.test.tsx`, `src/lib/color.test.ts`
+`src/data/persist.test.ts`, `src/components/common/ui.test.tsx`, `src/lib/designTokens.test.ts`
 
 ## Goal
 

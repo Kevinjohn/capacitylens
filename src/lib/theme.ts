@@ -15,35 +15,45 @@ const LEGACY_STORAGE_KEY = "floaty/theme";
 
 const isThemePref = (value: unknown): value is ThemePref => value === "light" || value === "dark" || value === "system";
 
+/** Promote the pre-rebrand device preference to the current key, returning it — or null when
+ *  there is nothing valid to migrate (and when storage itself is unreadable). Called only once a
+ *  read has established that the current key is absent, so it can never override a live choice;
+ *  a successful write makes the current key authoritative, which is what stops it running again. */
+function migrateLegacyTheme(): ThemePref | null {
+  let migrated: ThemePref | null = null;
+  try {
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!isThemePref(legacy)) return null;
+    // Recorded BEFORE the write: migration persistence is best-effort, and the readable legacy
+    // preference still governs this session even when the browser refuses the write.
+    migrated = legacy;
+    localStorage.setItem(STORAGE_KEY, legacy);
+  } catch {
+    // storage blocked (private mode / quota) — `migrated` carries whatever was readable
+    return migrated;
+  }
+  try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // The current key is already authoritative; stale-key cleanup is best-effort.
+  }
+  return migrated;
+}
+
 /** Read the saved preference. Defaults to 'light' (the product default) when
  *  nothing is stored or storage is unavailable. */
 export function readStoredTheme(): ThemePref {
+  let current: string | null;
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (isThemePref(v)) return v;
-    // Migrate the pre-rebrand device preference only when the current key does not exist. An
-    // explicit but invalid current value remains invalid rather than being silently overridden.
-    if (v === null) {
-      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (isThemePref(legacy)) {
-        try {
-          localStorage.setItem(STORAGE_KEY, legacy);
-          try {
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-          } catch {
-            // The current key is already authoritative; stale-key cleanup is best-effort.
-          }
-        } catch {
-          // Migration persistence is best-effort. The readable legacy preference still governs
-          // this session even when the browser refuses the write.
-        }
-        return legacy;
-      }
-    }
+    current = localStorage.getItem(STORAGE_KEY);
   } catch {
     // storage blocked (private mode / quota) — fall through to the default
+    return "light";
   }
-  return "light";
+  if (isThemePref(current)) return current;
+  // Migrate only when the current key does not exist. An explicit but invalid current value
+  // remains invalid rather than being silently overridden.
+  return (current === null ? migrateLegacyTheme() : null) ?? "light";
 }
 
 /** Persist the preference. Best-effort: if storage is unavailable the in-memory

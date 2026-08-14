@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { validateName, validateHex, validateWorkingDays, validateText, validationMessages } from "./validation";
+import { validateName, validateHex, validateWorkingDays, validateText } from "./validation";
+import { m } from "@/i18n";
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
 
 describe("validateName", () => {
@@ -11,18 +12,18 @@ describe("validateName", () => {
   it("fails an empty/whitespace name", () => {
     const fail = vi.fn();
     expect(validateName("   ", fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", validationMessages().nameRequired);
+    expect(fail).toHaveBeenCalledWith("name", m.validation_name_required());
   });
   it("rejects emoji / control junk", () => {
     const fail = vi.fn();
     expect(validateName(`Bad ${String.fromCodePoint(0x1f4a9)}`, fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", validationMessages().textInvalid);
+    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
   });
 
   it('reports failures against the custom field name passed through, not the "name" default', () => {
     const fail = vi.fn();
     expect(validateName("   ", fail, "discipline")).toBeNull();
-    expect(fail).toHaveBeenCalledWith("discipline", validationMessages().nameRequired);
+    expect(fail).toHaveBeenCalledWith("discipline", m.validation_name_required());
   });
 });
 
@@ -36,19 +37,19 @@ describe("validateText (optional fields)", () => {
   it('defaults the field to "name" when no options are given', () => {
     const fail = vi.fn();
     expect(validateText("   ", fail)).toBeNull(); // default required: true, so blank fails
-    expect(fail).toHaveBeenCalledWith("name", validationMessages().nameRequired);
+    expect(fail).toHaveBeenCalledWith("name", m.validation_name_required());
   });
 
   it("defaults required to true when no options are given", () => {
     const fail = vi.fn();
     expect(validateText("", fail, {})).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", validationMessages().nameRequired);
+    expect(fail).toHaveBeenCalledWith("name", m.validation_name_required());
   });
 
   it("defaults multiline to false, so newlines are disallowed by default", () => {
     const fail = vi.fn();
     expect(validateText("line1\nline2", fail)).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", validationMessages().textInvalid);
+    expect(fail).toHaveBeenCalledWith("name", m.validation_text_invalid());
   });
 
   it("allows newlines when multiline is explicitly true", () => {
@@ -64,7 +65,7 @@ describe("validateText (optional fields)", () => {
     expect(validateText(atLimit, fail)).toBe(atLimit); // exactly at cap: NOT too long
     expect(fail).not.toHaveBeenCalled();
     expect(validateText(overLimit, fail)).toBeNull(); // one over: too long
-    expect(fail).toHaveBeenCalledWith("name", validationMessages().textTooLong);
+    expect(fail).toHaveBeenCalledWith("name", m.validation_text_too_long());
   });
 
   it("measures an astral-letter name in Unicode code points", () => {
@@ -88,7 +89,7 @@ describe("validateText (optional fields)", () => {
     expect(fail).not.toHaveBeenCalled();
     fail.mockClear();
     expect(validateText("a".repeat(11), fail, { maxLength: 10 })).toBeNull();
-    expect(fail).toHaveBeenCalledWith("name", validationMessages().textTooLong);
+    expect(fail).toHaveBeenCalledWith("name", m.validation_text_too_long());
   });
 });
 
@@ -98,7 +99,7 @@ describe("validateHex", () => {
     expect(validateHex("#5c34d4", fail)).toBe(true);
     expect(validateHex("#3b82f6", fail)).toBe(false);
     expect(validateHex("nope", fail)).toBe(false);
-    expect(fail).toHaveBeenCalledWith("color", validationMessages().hexInvalid);
+    expect(fail).toHaveBeenCalledWith("color", m.validation_hex_invalid());
   });
 });
 
@@ -111,7 +112,7 @@ describe("validateWorkingDays", () => {
   it("fails on an empty set and reports the field", () => {
     const fail = vi.fn();
     expect(validateWorkingDays([], fail)).toBe(false);
-    expect(fail).toHaveBeenCalledWith("workingDays", validationMessages().workingDaysRequired);
+    expect(fail).toHaveBeenCalledWith("workingDays", m.validation_working_days_required());
   });
   it.each([
     [[1, 1], "duplicate days"],
@@ -122,6 +123,6 @@ describe("validateWorkingDays", () => {
     expect(description.length).toBeGreaterThan(0);
     const fail = vi.fn();
     expect(validateWorkingDays([...days], fail, "availability")).toBe(false);
-    expect(fail).toHaveBeenCalledWith("availability", validationMessages().workingDaysRequired);
+    expect(fail).toHaveBeenCalledWith("availability", m.validation_working_days_required());
   });
 });

@@ -178,6 +178,45 @@ describe("repeatingAllocationAdvisory", () => {
     });
   });
 
+  it("attributes existing load to the drafts whose window it actually covers", () => {
+    // The batch shares ONE day→hours bucket across every draft, so existing load has to stay
+    // pinned to its own dates: an allocation sitting only in the LAST draft's week must not make
+    // the first draft read as over, and vice versa.
+    const drafts = [
+      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 5 }),
+      baseDraft({ startDate: "2026-06-15", endDate: "2026-06-15", hoursPerDay: 5 }),
+    ];
+    const lateOnly: Draft<Allocation>[] = [
+      baseDraft({ startDate: "2026-06-15", endDate: "2026-06-15", hoursPerDay: 4 }),
+    ];
+    expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], drafts)).toEqual({
+      overCapacityAllocations: 1,
+      timeOffAllocations: 0,
+    });
+    // Same load, no draft covering its day: nothing is over.
+    expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], [drafts[0]!])).toEqual({
+      overCapacityAllocations: 0,
+      timeOffAllocations: 0,
+    });
+  });
+
+  it("does not double-count existing load across the drafts of one batch", () => {
+    // Each draft is advised against the existing load ONCE (plus the drafts before it). A bucket
+    // that re-added the same allocation per draft would push the later occurrences over.
+    const drafts = [
+      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 4 }),
+      baseDraft({ startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4 }),
+      baseDraft({ startDate: "2026-06-03", endDate: "2026-06-03", hoursPerDay: 4 }),
+    ];
+    const existing: Draft<Allocation>[] = [
+      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-05", hoursPerDay: 4 }),
+    ];
+    expect(repeatingAllocationAdvisory(fullResource(), existing, [], drafts)).toEqual({
+      overCapacityAllocations: 0, // 4 + 4 fits exactly in an 8h day, on every occurrence
+      timeOffAllocations: 0,
+    });
+  });
+
   it("counts allocations overlapping time off once and keeps categories independent", () => {
     const timeOff: TimeOff[] = [
       {

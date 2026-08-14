@@ -149,6 +149,27 @@ describe("resolveBarColor", () => {
     const m = maps({ activities: [crossProject], resources: [resource("r", "person")] });
     expect(resolveBarColor(alloc("r", "cross"), m)).toBe("#123456");
   });
+
+  it("falls back to the client's colour when its project has no colour of its own", () => {
+    // project.color is "" (falsy), so `if (project?.color)` must skip past it to the
+    // `if (client?.color)` branch rather than short-circuiting to the resource/neutral fallback.
+    const client: Client = { id: "c", accountId: "acct", createdAt: TS, updatedAt: TS, name: "Acme", color: "#112233" };
+    const m = maps({
+      activities: [activity("t", "p")],
+      projects: [project("p", "")],
+      clients: [client],
+      resources: [resource("r", "person")],
+    });
+    expect(resolveBarColor(alloc("r", "t"), m)).toBe("#112233");
+  });
+
+  it("falls all the way through to neutral grey when nothing in the chain resolves", () => {
+    // Empty maps: the activity/project/client/resource lookups all miss, so this exercises the
+    // terminal `resource?.color ?? NEUTRAL_COLOR` fallback directly, not the external/internal
+    // early returns above it.
+    const m = maps();
+    expect(resolveBarColor(alloc("missing-r", "missing-t"), m)).toBe("#9ca3af");
+  });
 });
 
 describe("contrastRatio", () => {
@@ -196,6 +217,13 @@ describe("readableTextColor", () => {
     // mutated numerator (1 - 0.05) undershoots and flips the decision to dark ink.
     expect(readableTextColor("#7c7c7c")).toBe("#ffffff");
   });
+
+  it("returns the dark-ink guard value directly for an unparseable hex", () => {
+    // relativeLuminance(hex) is null here, so the load-bearing guard must return DARK_INK
+    // itself — not fall through into contrastRatio, where both sides would tie at the
+    // "no contrast info" value of 1 and hand the answer to white ink instead.
+    expect(readableTextColor("#zzzzzz")).toBe("#1c2230");
+  });
 });
 
 describe("ensureBarColors", () => {
@@ -225,6 +253,13 @@ describe("ensureBarColors", () => {
     // that MUST be left-padded to "00" — dropping the padStart pad character
     // would shorten the whole hex string.
     expect(ensureBarColors("#0070f8")).toEqual({ bg: "#0067e4", ink: "#ffffff" });
+  });
+
+  it("passes an already-AA-compliant colour through verbatim, never entering the nudge loop", () => {
+    // Pure black clears 4.5:1 against white ink on the very first contrastWithInk() check
+    // (21:1), so the loop body never runs and `nudged` stays false — bg must equal the input
+    // hex exactly (the caller's own string), not a toHex() round-trip of the same RGB.
+    expect(ensureBarColors("#000000")).toEqual({ bg: "#000000", ink: "#ffffff" });
   });
 });
 
