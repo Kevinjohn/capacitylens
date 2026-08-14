@@ -1,27 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render as rtlRender, screen, fireEvent, type RenderOptions } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { screen, fireEvent } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
-import { TooltipProvider } from "../ui/tooltip";
-
-// AllocationBar now uses a provider-less TooltipRoot (the single TooltipProvider is hoisted to
-// SchedulerGrid), so isolated bar renders must supply their own provider.
-const render = (ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) =>
-  rtlRender(ui, { wrapper: TooltipProvider, ...options });
-import { buildColumnGeometry } from "./columnGeometry";
 import type { BarLayout } from "./schedulerModel";
-import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { useStore } from "../../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
-
-// Uniform geometry over June at 48px/day (minimise off). These tests don't drag across columns;
-// the resolver only needs to exist for the prop contract (origin at clientX 0).
-const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 48, {
-  minimiseWeekends: false,
-  weekendWidth: 22,
-});
-const indexAtClientX = (clientX: number) => GEOM.indexAt(clientX);
+import { makeAllocation as makeAllocationBase, makeBar as makeBarBase } from "../../test/fixtures";
+import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
@@ -32,7 +17,7 @@ beforeEach(() => {
 });
 
 function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
-  return {
+  return makeAllocationBase({
     id: "alloc-1",
     accountId: "acct-test",
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -41,22 +26,12 @@ function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
     activityId: "activity-1",
     startDate: "2026-06-01",
     endDate: "2026-06-07",
-    hoursPerDay: 8,
-    status: "confirmed",
     ...overrides,
-  };
+  });
 }
 
 function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
-  return {
-    allocation,
-    x: 0,
-    width: 336,
-    top: 0,
-    color: "#ec4899",
-    label: labelOverride ?? "My Activity",
-    external: false,
-  };
+  return makeBarBase({ allocation, width: 336, color: "#ec4899", label: labelOverride ?? "My Activity" });
 }
 
 describe("AllocationBar rendering", () => {

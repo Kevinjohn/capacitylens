@@ -1,10 +1,9 @@
 import { memo, useMemo, useState } from "react";
-import { format } from "date-fns";
 import { m } from "@/i18n";
 import { useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ensureBarColors } from "@capacitylens/shared/lib/color";
-import { parseDate } from "@capacitylens/shared/lib/dateMath";
+import { formatDayMonth } from "../../lib/dateDisplay";
 import { allocationStatusLabel } from "../../lib/metadata";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
@@ -127,7 +126,37 @@ export const AllocationBar = memo(function AllocationBar({
   const viewerLabelText = [bar.label, [bar.project, bar.client].filter(Boolean).join(" · ")].filter(Boolean).join(", ");
   const popoverFooter = canEdit ? m.scheduler_bar_pop_footer() : m.scheduler_bar_pop_footer_viewer();
 
-  const fmt = (d: string) => format(parseDate(d), "d MMM");
+  // The accessible name, built ONCE per allocation rather than on every render — a drag re-renders
+  // this bar on every pointermove frame, and the name it produces cannot change mid-gesture (the
+  // preview only moves pixels; the committed dates land as a new `bar.allocation`). The editor and
+  // viewer forms differ only in their label and note fields, so the rest is assembled once here
+  // instead of drifting between two hand-kept copies. Locale is account-scoped and every account
+  // switch rebuilds the allocation, so `bar.allocation` covers that too.
+  const ariaLabel = useMemo(() => {
+    const shared = {
+      hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
+      // Speak the HUMANISED status + 'd MMM' dates the popover already shows — a SR must hear
+      // "Tentative … 1 Jun to 5 Jun", not the raw enum + ISO ("tentative … 2026-06-01").
+      status: allocationStatusLabel(bar.allocation.status),
+      start: formatDayMonth(bar.allocation.startDate),
+      end: formatDayMonth(bar.allocation.endDate),
+      series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: formatDayMonth(bar.seriesEnd) }) : "",
+    };
+    return canEdit
+      ? m.scheduler_bar_aria_editor({
+          ...shared,
+          label: labelText,
+          // The visible "•" note dot (below) is otherwise lost to AT; surface its PRESENCE here
+          // (the note CONTENT lives in the edit modal). Empty when there's no note.
+          note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : "",
+        })
+      : m.scheduler_bar_aria_viewer({
+          ...shared,
+          label: viewerLabelText,
+          note: bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : "",
+        });
+  }, [bar.allocation, bar.seriesEnd, hideHours, canEdit, labelText, viewerLabelText]);
+
   const gripClass = "group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center";
   const gripLine = (
     <span
@@ -155,31 +184,7 @@ export const AllocationBar = memo(function AllocationBar({
           // full interactive button semantics below.
           role={canEdit ? "button" : "img"}
           tabIndex={0}
-          aria-label={
-            canEdit
-              ? m.scheduler_bar_aria_editor({
-                  label: labelText,
-                  hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
-                  // Speak the HUMANISED status + 'd MMM' dates the popover already shows — a SR must hear
-                  // "Tentative … 1 Jun to 5 Jun", not the raw enum + ISO ("tentative … 2026-06-01").
-                  status: allocationStatusLabel(bar.allocation.status),
-                  start: fmt(bar.allocation.startDate),
-                  end: fmt(bar.allocation.endDate),
-                  // The visible "•" note dot (below) is otherwise lost to AT; surface its PRESENCE here
-                  // (the note CONTENT lives in the edit modal). Empty when there's no note.
-                  note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : "",
-                  series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: fmt(bar.seriesEnd) }) : "",
-                })
-              : m.scheduler_bar_aria_viewer({
-                  label: viewerLabelText,
-                  hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
-                  status: allocationStatusLabel(bar.allocation.status),
-                  start: fmt(bar.allocation.startDate),
-                  end: fmt(bar.allocation.endDate),
-                  note: bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : "",
-                  series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: fmt(bar.seriesEnd) }) : "",
-                })
-          }
+          aria-label={ariaLabel}
           onPointerDown={
             canEdit
               ? (e) => {
@@ -337,14 +342,14 @@ export const AllocationBar = memo(function AllocationBar({
             </div>
           )}
           <div className="text-muted-foreground">
-            {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
+            {formatDayMonth(bar.allocation.startDate)} – {formatDayMonth(bar.allocation.endDate)}
             {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} ·{" "}
             {allocationStatusLabel(bar.allocation.status)}
           </div>
           {bar.seriesEnd && (
             <div className="mt-1 text-muted-foreground">
               <Repeat2 aria-hidden className="mr-1 inline size-3" />
-              {m.scheduler_bar_pop_series({ end: fmt(bar.seriesEnd) })}
+              {m.scheduler_bar_pop_series({ end: formatDayMonth(bar.seriesEnd) })}
             </div>
           )}
           {bar.allocation.note && (

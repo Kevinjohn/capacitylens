@@ -7,6 +7,25 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.45.0-alpha.1] — 2026-08-14
+
+### Changed
+
+- Simplified the scheduler component layer (`src/components/scheduler`) with no behaviour changes:
+  merged the duplicated external/internal day-state build paths behind an explicit capacity-source
+  seam (verified by differential fuzzing — 182,370 day states, zero mismatches); moved derived
+  column facts (weekdays, per-day mode, scroll-index rounding) onto the shared geometry object;
+  collapsed the grid's per-field store subscriptions and the toolbar's repeated option derivations;
+  extracted pure allocation-draft validation, a shared date-overlap helper, and a locale-aware
+  short-date formatter; merged the allocation modal's create/edit render arms; and consolidated
+  scheduler test fixtures behind shared factories (net −508 test lines, assertions unchanged)
+  (#345).
+
+### Fixed
+
+- Restored the `0.43.0-alpha.1` release heading below, which was accidentally dropped from this
+  changelog during the `0.44.0-alpha.1` release edit.
+
 ## [0.44.0-alpha.1] — 2026-08-14
 
 ### Changed
@@ -18,6 +37,8 @@ new features and **patch** versions carry fixes.
   transaction plumbing; table-driven store cascades, tenant-boundary resets, and account selectors;
   shared weekday validators in the domain core; and removal of dead exports and test-only
   selectors (#344).
+
+## [0.43.0-alpha.1] — 2026-08-14
 
 ### Changed
 
@@ -3464,7 +3485,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.44.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.45.0-alpha.1...HEAD
+[0.45.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.44.0-alpha.1...v0.45.0-alpha.1
 [0.44.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.43.0-alpha.1...v0.44.0-alpha.1
 [0.43.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.42.0-alpha.1...v0.43.0-alpha.1
 [0.42.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.9-alpha.1...v0.42.0-alpha.1

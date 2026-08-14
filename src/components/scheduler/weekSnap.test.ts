@@ -11,10 +11,12 @@ const DAYS = eachDayISO("2026-06-01", "2026-06-21");
 const DAY_W = 48;
 const OFF = { minimiseWeekends: false, weekendWidth: 20 };
 const ON = { minimiseWeekends: true, weekendWidth: 20 };
+// Shared uniform-grid geometry + Monday-of-week-1 offset, reused by every describe block below that
+// doesn't need its own (minimised-weekend / describe.each) geometry variant.
+const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
+const mon1 = geom.xForDateInGeom("2026-06-01"); // 0
 
 describe("weekStartSnapTarget — floor to the current week start (uniform grid)", () => {
-  const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
-  const mon1 = geom.xForDateInGeom("2026-06-01"); // 0
   const mon2 = geom.xForDateInGeom("2026-06-08"); // 336
 
   it("a left edge mid-week (Wed) floors BACK to the same Monday", () => {
@@ -45,8 +47,6 @@ describe("weekStartSnapTarget — floor to the current week start (uniform grid)
 });
 
 describe("weekStartSnapTarget — Sunday week start (weekStartsOn=0)", () => {
-  const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
-
   it("clamps the first partial week's preceding Sunday to the window origin", () => {
     const tueX = geom.xForDateInGeom("2026-06-02");
     expect(weekStartSnapTarget(geom, DAYS, tueX, 0)).toBe(0);
@@ -62,9 +62,6 @@ describe("weekStartSnapTarget — Sunday week start (weekStartsOn=0)", () => {
 });
 
 describe("weekStartSnapTarget — convergence boundary is <=, not <", () => {
-  const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
-  const mon1 = geom.xForDateInGeom("2026-06-01");
-
   it("a distance EXACTLY equal to a custom epsilon still counts as converged (returns null)", () => {
     // scrollLeft sits exactly `epsilon` px from the target (mon1) — the doc'd "within epsilon"
     // band is inclusive of the boundary itself, not just strictly inside it.
@@ -73,8 +70,6 @@ describe("weekStartSnapTarget — convergence boundary is <=, not <", () => {
 });
 
 describe("weekStartSnapTarget — degenerate inputs stay finite", () => {
-  const geom = buildColumnGeometry(DAYS, DAY_W, OFF);
-
   it("an out-of-range (negative / huge) scrollLeft falls back via days[0]/last day, never NaN", () => {
     // indexAt clamps px<=0 → 0 and px>=totalWidth → n-1, so the left day is always in-window.
     // A hugely-negative scrollLeft clamps to days[0] (Monday 06-01, offset 0); target 0 is far from

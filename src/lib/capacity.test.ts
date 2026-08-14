@@ -6,9 +6,10 @@ import {
   capacityAdvisory,
   capacityForWindow,
   dayCapacity,
+  formatCapacityAdvisory,
+  isHalfDay,
   isOnTimeOff,
   isWorkingDay,
-  overAllocatedInWindow,
   utilization,
   utilizationFromCapacity,
   type CapacityAllocationInput,
@@ -328,7 +329,7 @@ describe("dayCapacity over-allocation", () => {
     for (const order of orders) {
       const ordered = order.map((index) => allocations[index]);
       expect(dayCapacity(resource, "2026-06-01", ordered, []).over).toBe(false);
-      expect(overAllocatedInWindow(resource, ordered, [], "2026-06-01", "2026-06-01")).toBe(false);
+      expect(capacityForWindow(resource, ordered, [], "2026-06-01", "2026-06-01").some((c) => c.over)).toBe(false);
     }
 
     const genuinelyOver = allocations.map((allocation, index) =>
@@ -420,8 +421,13 @@ describe("utilization", () => {
   });
 });
 
-describe("overAllocatedInWindow", () => {
+// The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity — the
+// scheduler model runs it against its own memoised per-date capacity, so these cases pin the RULE
+// (which days may read as over) on the straight-line definition both paths agree on.
+describe("over-allocated inside a window", () => {
   const r = makeResource();
+  const overInWindow = (allocations: Allocation[], start: ISODate, end: ISODate) =>
+    capacityForWindow(r, allocations, [], start, end).some((day) => day.over);
 
   it("is true when a working day is genuinely over-allocated", () => {
     const allocs = [
@@ -431,7 +437,7 @@ describe("overAllocatedInWindow", () => {
         hoursPerDay: 10,
       }),
     ]; // Mon, 10h > 8h
-    expect(overAllocatedInWindow(r, allocs, [], "2026-06-01", "2026-06-14")).toBe(true);
+    expect(overInWindow(allocs, "2026-06-01", "2026-06-14")).toBe(true);
   });
 
   it("is false when an allocation only spans non-working (weekend) days", () => {
@@ -444,7 +450,7 @@ describe("overAllocatedInWindow", () => {
         hoursPerDay: 8,
       }),
     ];
-    expect(overAllocatedInWindow(r, allocs, [], "2026-06-01", "2026-06-14")).toBe(false);
+    expect(overInWindow(allocs, "2026-06-01", "2026-06-14")).toBe(false);
   });
 
   it("is true on a zero-capacity day when an ignoreWeekends allocation books hours there", () => {
@@ -456,7 +462,7 @@ describe("overAllocatedInWindow", () => {
         ignoreWeekends: true,
       }),
     ];
-    expect(overAllocatedInWindow(r, allocs, [], "2026-06-06", "2026-06-06")).toBe(true);
+    expect(overInWindow(allocs, "2026-06-06", "2026-06-06")).toBe(true);
   });
 });
 
@@ -610,5 +616,35 @@ describe("capacityAdvisory", () => {
     ];
     const { overDays } = capacityAdvisory(r, proposal("2026-06-06", "2026-06-06", 0, true), others, []);
     expect(overDays).toBe(0);
+  });
+});
+
+describe("isHalfDay", () => {
+  it("reads the resource's saved half-day pattern for a weekday", () => {
+    const r = makeResource({ halfDays: [3] });
+    expect(isHalfDay(r, 3)).toBe(true);
+    expect(isHalfDay(r, 2)).toBe(false);
+  });
+});
+
+describe("formatCapacityAdvisory", () => {
+  it("says nothing when neither count is set", () => {
+    expect(formatCapacityAdvisory({ overDays: 0, timeOffDays: 0 }, "toast")).toBe("");
+    expect(formatCapacityAdvisory({ overDays: 0, timeOffDays: 0 }, "form")).toBe("");
+  });
+
+  it("names the over-capacity bit before the time-off bit, joined and wrapped per surface", () => {
+    expect(formatCapacityAdvisory({ overDays: 2, timeOffDays: 1 }, "toast")).toBe(
+      " — now over capacity on 2 days and on time off for 1 day",
+    );
+    expect(formatCapacityAdvisory({ overDays: 1, timeOffDays: 0 }, "form")).toBe(
+      "This allocation is over capacity on 1 day. Saving is still allowed.",
+    );
+  });
+
+  it("counts allocations, not days, on the repeat surface", () => {
+    expect(formatCapacityAdvisory({ overDays: 0, timeOffDays: 3 }, "repeat")).toBe(
+      "For this repeat, 3 allocations overlap time off. Saving is still allowed.",
+    );
   });
 });

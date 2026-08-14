@@ -1,48 +1,36 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render as rtlRender, screen, fireEvent, act, type RenderOptions } from "@testing-library/react";
+import { screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
 import { AllocationBar } from "./AllocationBar";
-import { TooltipProvider } from "../ui/tooltip";
 import { PermissionContext } from "../../auth/permissionContext";
-
-// AllocationBar now uses a provider-less TooltipRoot (the single TooltipProvider is hoisted to
-// SchedulerGrid), so isolated bar renders must supply their own provider.
-const render = (ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) =>
-  rtlRender(ui, { wrapper: TooltipProvider, ...options });
-import { buildColumnGeometry } from "./columnGeometry";
 import type { BarLayout } from "./schedulerModel";
-import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { useStore } from "../../store/useStore";
 import { type Allocation, type Weekday } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "../../test/fixtures";
 import { visibleRange } from "../../store/selectors";
+import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
-// Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01. Standalone bars are
-// rendered without a lane, so the clientX→index resolver assumes the lane sits at clientX 0:
-// floor(clientX / 48), exactly the old snapDeltaToDays behaviour for these single-lane drags.
-const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 48, {
-  minimiseWeekends: false,
-  weekendWidth: 22,
-});
-const indexAtClientX = (clientX: number) => GEOM.indexAt(clientX);
+// A fixed-width (500px) lane DOMRect stub for pointer-geometry math in drag/resize tests — only
+// `top`/`bottom` (and the `height` they imply) vary per case.
+const rect = (top: number, bottom: number): DOMRect =>
+  ({
+    left: 0,
+    right: 500,
+    top,
+    bottom,
+    width: 500,
+    height: bottom - top,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  }) as DOMRect;
 
 function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
   const s = useStore.getState();
   const c = s.addClient({ name: "Acme", color: "#1" });
   const p = s.addProject({ name: "P", clientId: c.id, color: "#2" });
   const t = s.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-  const r = s.addResource({
-    kind: "person",
-    name: "Ty",
-    role: "Dev",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#3",
-  });
+  const r = s.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
   return s.addAllocation({
     resourceId: r.id,
     activityId: t.id,
@@ -62,17 +50,7 @@ function seedVisibleAllocationWithHiddenCapacity(): Allocation {
   const visibleClient = st.addClient({ name: "Visible client", color: "#3" });
   const visibleProject = st.addProject({ name: "Visible work", clientId: visibleClient.id, color: "#4" });
   const visibleActivity = st.addActivity({ name: "Visible work", kind: "project", projectId: visibleProject.id });
-  const resource = st.addResource({
-    kind: "person",
-    name: "Ty",
-    role: "Dev",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#5",
-  });
+  const resource = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#5" }));
   st.addAllocation({
     resourceId: resource.id,
     activityId: hiddenActivity.id,
@@ -415,17 +393,7 @@ describe("AllocationBar interactions", () => {
     const p1 = st.addProject({ name: "P1", clientId: c.id, color: "#2" });
     const p2 = st.addProject({ name: "P2", clientId: c.id, color: "#3" });
     const t1 = st.addActivity({ name: "Wires", kind: "project", projectId: p1.id });
-    const person = st.addResource({
-      kind: "person",
-      name: "Ty",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#3",
-    });
+    const person = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
     // A placeholder bound to p2 cannot take a p1 activity — dropping onto it must be rejected.
     const slot = st.addResource({
       kind: "placeholder",
@@ -446,19 +414,6 @@ describe("AllocationBar interactions", () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
-
-    const rect = (top: number, bottom: number): DOMRect =>
-      ({
-        left: 0,
-        right: 500,
-        top,
-        bottom,
-        width: 500,
-        height: bottom - top,
-        x: 0,
-        y: top,
-        toJSON: () => ({}),
-      }) as DOMRect;
 
     render(
       <>
@@ -492,17 +447,7 @@ describe("AllocationBar interactions", () => {
     const c = st.addClient({ name: "Acme", color: "#1" });
     const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r1 = st.addResource({
-      kind: "person",
-      name: "Ty",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#3",
-    });
+    const r1 = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
     const r2 = st.addResource({
       kind: "person",
       name: "Sam",
@@ -522,19 +467,6 @@ describe("AllocationBar interactions", () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
-
-    const rect = (top: number, bottom: number): DOMRect =>
-      ({
-        left: 0,
-        right: 500,
-        top,
-        bottom,
-        width: 500,
-        height: bottom - top,
-        x: 0,
-        y: top,
-        toJSON: () => ({}),
-      }) as DOMRect;
 
     render(
       <>
@@ -720,17 +652,7 @@ describe("AllocationBar interactions", () => {
     const client = st.addClient({ name: "Acme", color: "#1" });
     const project = st.addProject({ name: "P", clientId: client.id, color: "#2" });
     const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
-    const source = st.addResource({
-      kind: "person",
-      name: "Ty",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#3",
-    });
+    const source = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
     const destination = st.addResource({
       kind: "person",
       name: "Sam",
@@ -750,18 +672,6 @@ describe("AllocationBar interactions", () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
-    const rect = (top: number, bottom: number): DOMRect =>
-      ({
-        left: 0,
-        right: 500,
-        top,
-        bottom,
-        width: 500,
-        height: bottom - top,
-        x: 0,
-        y: top,
-        toJSON: () => ({}),
-      }) as DOMRect;
 
     render(
       <>
@@ -800,17 +710,7 @@ describe("AllocationBar interactions", () => {
       halfDays: [],
       color: "#3",
     });
-    const person = st.addResource({
-      kind: "person",
-      name: "Ty",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#4",
-    });
+    const person = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#4" }));
     const allocation = st.addAllocation({
       resourceId: external.id,
       activityId: activity.id,
@@ -820,18 +720,6 @@ describe("AllocationBar interactions", () => {
       status: "confirmed",
       ignoreWeekends: true,
     });
-    const rect = (top: number, bottom: number): DOMRect =>
-      ({
-        left: 0,
-        right: 500,
-        top,
-        bottom,
-        width: 500,
-        height: bottom - top,
-        x: 0,
-        y: top,
-        toJSON: () => ({}),
-      }) as DOMRect;
 
     render(
       <>
@@ -869,17 +757,7 @@ describe("AllocationBar interactions", () => {
         const c = st.addClient({ name: "Acme", color: "#1" });
         const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
         const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-        const r1 = st.addResource({
-          kind: "person",
-          name: "Ty",
-          role: "Dev",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#3",
-        });
+        const r1 = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
         const r2 = st.addResource({
           kind: "person",
           name: "Sam",
@@ -899,18 +777,6 @@ describe("AllocationBar interactions", () => {
           hoursPerDay: 8,
           status: "confirmed",
         });
-        const rect = (top: number, bottom: number): DOMRect =>
-          ({
-            left: 0,
-            right: 500,
-            top,
-            bottom,
-            width: 500,
-            height: bottom - top,
-            x: 0,
-            y: top,
-            toJSON: () => ({}),
-          }) as DOMRect;
 
         render(
           <>
@@ -991,17 +857,7 @@ describe("AllocationBar interactions", () => {
       const c = st.addClient({ name: "Acme", color: "#1" });
       const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
       const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-      const r = st.addResource({
-        kind: "person",
-        name: "Ty",
-        role: "Dev",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: "#3",
-      });
+      const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
       // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
       // day would need 48h/day — clamped to 24, so half the volume is lost (the user must be told).
       const a = st.addAllocation({
@@ -1052,17 +908,7 @@ describe("AllocationBar interactions", () => {
       const c = st.addClient({ name: "Acme", color: "#1" });
       const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
       const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-      const r = st.addResource({
-        kind: "person",
-        name: "Ty",
-        role: "Dev",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: "#3",
-      });
+      const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
       // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h. Dragging the end grip inward to a
       // single day needs 48h/day — clamped to 24, half the volume lost.
       const a = st.addAllocation({
@@ -1130,17 +976,7 @@ describe("AllocationBar interactions", () => {
       const c = st.addClient({ name: "Acme", color: "#1" });
       const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
       const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-      const r = st.addResource({
-        kind: "person",
-        name: "Ty",
-        role: "Dev",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: "#3",
-      });
+      const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
       st.addAllocation({
         resourceId: r.id,
         activityId: t.id,
@@ -1214,17 +1050,7 @@ describe("AllocationBar interactions", () => {
       const c = st.addClient({ name: "Acme", color: "#1" });
       const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
       const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-      const r = st.addResource({
-        kind: "person",
-        name: "Ty",
-        role: "Dev",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: "#3",
-      });
+      const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
       // A fixed on Wed 2026-09-02; B starts Tue 09-01 (no overlap). ArrowRight slides B onto 09-02 →
       // a REAL over-day (16h vs 8h), but 09-02 is far OUTSIDE the [06-01..06-14] visible window.
       st.addAllocation({
@@ -1366,18 +1192,6 @@ describe("AllocationBar interactions", () => {
       status: "confirmed",
     });
 
-    const rect = (top: number, bottom: number): DOMRect =>
-      ({
-        left: 0,
-        right: 500,
-        top,
-        bottom,
-        width: 500,
-        height: bottom - top,
-        x: 0,
-        y: top,
-        toJSON: () => ({}),
-      }) as DOMRect;
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -1410,17 +1224,7 @@ describe("AllocationBar interactions", () => {
     const c = st.addClient({ name: "Acme", color: "#1" });
     const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r = st.addResource({
-      kind: "person",
-      name: "Ty",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#3",
-    });
+    const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
     // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.
     const a = st.addAllocation({
       resourceId: r.id,

@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
 import { byName } from "../../lib/displayOrder";
 import { redoShortcut, undoShortcut } from "../../lib/keyboardShortcuts";
-import { hasActiveFilters, useStore } from "../../store/useStore";
+import { hasActiveFilters, hasLensFilter, useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { byDisciplineOrder, disciplinesEnabledFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { errorMessage } from "../../lib/errorMessage";
 import { ZOOM_LEVELS, type WeeksZoom } from "../../lib/schedulerConfig";
-import { schedulerDensity } from "./layout";
+import { useSchedulerDensity } from "./layout";
 import { JumpToDateInput } from "./JumpToDateInput";
 import { SegmentedControl } from "../common/ui";
 import { Button } from "../ui/button";
@@ -32,13 +32,64 @@ const SHOW_JUMP_TO_DATE: boolean = false;
 const zoomLabel = (weeks: number) =>
   weeks > 1 ? m.scheduler_weeks_option_other({ count: weeks }) : m.scheduler_weeks_option_one({ count: weeks });
 
+/** One entity option in a {@link FilterSelect} — the stored id and the text the menu shows. */
+interface FilterOption {
+  id: string;
+  label: string;
+}
+
+/**
+ * One "filter by <entity>" dropdown. The discipline / client / project lenses are the same control
+ * three times over — a flat list with an "All …" row on top — differing only in their label, their
+ * accessible name and their options, so they share this rather than repeating the Select scaffold.
+ *
+ * It also owns the ONE mapping the three had to get right independently: the store's `null` ("no
+ * filter") against Radix's `"all"` sentinel, in both directions. The grouped activity lens is
+ * deliberately NOT folded in — its encoded `kind:` values and section headers are a different
+ * control that happens to look similar.
+ *
+ * `ariaLabel`/`allLabel` are UNCALLED message functions, invoked during render. A caller passing
+ * `m.x()` instead would resolve the string once, at module scope, and never follow a locale change.
+ */
+function FilterSelect({
+  value,
+  onValueChange,
+  ariaLabel,
+  allLabel,
+  options,
+}: {
+  value: string | null;
+  onValueChange: (value: string | null) => void;
+  ariaLabel: () => string;
+  allLabel: () => string;
+  options: FilterOption[];
+}) {
+  return (
+    <Select value={value ?? "all"} onValueChange={(selected) => onValueChange(selected === "all" ? null : selected)}>
+      <SelectTrigger aria-label={ariaLabel()} className="w-auto">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="all">{allLabel()}</SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option.id} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function SchedulerToolbar() {
   // Viewer read-only (P1.12): a viewer has nothing to draw / mutate / undo, so the draw-mode toggle
   // and Undo/Redo are hidden. Navigation + filters (reads) stay. null/owner/admin/editor (incl.
   // OFF/local) → all affordances shown, byte-identical to today.
   const canEdit = useCanEdit();
   const compactView = useStore((s) => s.compactView);
-  const density = schedulerDensity(compactView);
+  const density = useSchedulerDensity();
   const zoom = useStore((s) => s.ui.zoom);
   const setZoom = useStore((s) => s.setZoom);
   const panDays = useStore((s) => s.panDays);
@@ -58,20 +109,32 @@ export function SchedulerToolbar() {
   const filtersActive = hasActiveFilters(filters);
   const data = useActiveScopedData();
   // These are display-only projections: keep stored order untouched while making each menu follow
-  // the planning hierarchy used elsewhere in the app.
-  const disciplines = [...data.disciplines].sort(byDisciplineOrder);
-  const clients = [...data.clients].sort(
-    (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b),
-  );
-  const internalClientId = clients.find((client) => client.builtin === true)?.id;
-  const projects = [...data.projects].sort(
-    (a, b) => Number(b.clientId === internalClientId) - Number(a.clientId === internalClientId) || byName(a, b),
-  );
-  const clientNames = new Map(clients.map((client) => [client.id, client.name]));
-  // The activity lens covers only the project-LESS kinds — project-specific activities are reached via the
-  // Projects dropdown above.
-  const internalActivities = data.activities.filter((t) => t.kind === "internal").sort(byName);
-  const repeatableActivities = data.activities.filter((t) => t.kind === "repeatable").sort(byName);
+  // the planning hierarchy used elsewhere in the app. Derived in ONE memo because they share a
+  // single input — the (identity-stable) scoped data — and the toolbar re-renders on every
+  // keystroke of the search box, where re-sorting four entity lists buys nothing.
+  const { disciplineOptions, clientOptions, projectOptions, internalActivities, repeatableActivities } = useMemo(() => {
+    const clients = [...data.clients].sort(
+      (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b),
+    );
+    const internalClientId = clients.find((client) => client.builtin === true)?.id;
+    const clientNames = new Map(clients.map((client) => [client.id, client.name]));
+    return {
+      disciplineOptions: [...data.disciplines].sort(byDisciplineOrder).map((d) => ({ id: d.id, label: d.name })),
+      clientOptions: clients.map((client) => ({ id: client.id, label: client.name })),
+      projectOptions: [...data.projects]
+        .sort(
+          (a, b) => Number(b.clientId === internalClientId) - Number(a.clientId === internalClientId) || byName(a, b),
+        )
+        .map((project) => {
+          const clientName = clientNames.get(project.clientId);
+          return { id: project.id, label: clientName ? `${clientName} / ${project.name}` : project.name };
+        }),
+      // The activity lens covers only the project-LESS kinds — project-specific activities are
+      // reached via the Projects dropdown above.
+      internalActivities: data.activities.filter((t) => t.kind === "internal").sort(byName),
+      repeatableActivities: data.activities.filter((t) => t.kind === "repeatable").sort(byName),
+    };
+  }, [data]);
 
   const activeAccountId = useStore((s) => s.activeAccountId);
   // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
@@ -252,6 +315,9 @@ export function SchedulerToolbar() {
       </div>
 
       {filtersOpen && (
+        // The filters row keeps its own Tailwind step (12px roomy) rather than `density.toolbarGapY`
+        // (16px): an owner DECISION, not drift. This row wraps much sooner than the chrome above it,
+        // so the roomy rhythm that suits one line of controls stacks up here.
         <div
           id="scheduler-filters"
           className={`flex flex-wrap items-center justify-center gap-x-2 px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
@@ -283,68 +349,28 @@ export function SchedulerToolbar() {
             className="w-44 @max-[680px]:w-full"
           />
           {disciplinesEnabled && (
-            <Select
-              value={filters.disciplineId ?? "all"}
-              onValueChange={(value) =>
-                setToolbarFilters({
-                  disciplineId: value === "all" ? null : value,
-                })
-              }
-            >
-              <SelectTrigger aria-label={m.scheduler_filter_discipline_aria()} className="w-auto">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="all">{m.scheduler_filter_all_disciplines()}</SelectItem>
-                  {disciplines.map((discipline) => (
-                    <SelectItem key={discipline.id} value={discipline.id}>
-                      {discipline.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <FilterSelect
+              value={filters.disciplineId}
+              onValueChange={(disciplineId) => setToolbarFilters({ disciplineId })}
+              ariaLabel={m.scheduler_filter_discipline_aria}
+              allLabel={m.scheduler_filter_all_disciplines}
+              options={disciplineOptions}
+            />
           )}
-          <Select
-            value={filters.clientId ?? "all"}
-            onValueChange={(value) => setToolbarFilters({ clientId: value === "all" ? null : value })}
-          >
-            <SelectTrigger aria-label={m.scheduler_filter_client_aria()} className="w-auto">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">{m.scheduler_filter_all_clients()}</SelectItem>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.projectId ?? "all"}
-            onValueChange={(value) => setToolbarFilters({ projectId: value === "all" ? null : value })}
-          >
-            <SelectTrigger aria-label={m.scheduler_filter_project_aria()} className="w-auto">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">{m.scheduler_filter_all_projects()}</SelectItem>
-                {projects.map((project) => {
-                  const clientName = clientNames.get(project.clientId);
-                  return (
-                    <SelectItem key={project.id} value={project.id}>
-                      {clientName ? `${clientName} / ${project.name}` : project.name}
-                    </SelectItem>
-                  );
-                })}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            value={filters.clientId}
+            onValueChange={(clientId) => setToolbarFilters({ clientId })}
+            ariaLabel={m.scheduler_filter_client_aria}
+            allLabel={m.scheduler_filter_all_clients}
+            options={clientOptions}
+          />
+          <FilterSelect
+            value={filters.projectId}
+            onValueChange={(projectId) => setToolbarFilters({ projectId })}
+            ariaLabel={m.scheduler_filter_project_aria}
+            allLabel={m.scheduler_filter_all_projects}
+            options={projectOptions}
+          />
           {(internalActivities.length > 0 || repeatableActivities.length > 0) && (
             <Select
               // Encoded value: 'all' = all, 'kind:internal'/'kind:repeatable' = a whole group,
@@ -408,7 +434,7 @@ export function SchedulerToolbar() {
             />
             <FieldLabel htmlFor="hide-tentative">{m.scheduler_hide_tentative()}</FieldLabel>
           </Field>
-          {(filters.projectId || filters.clientId || filters.activityId || filters.activityKind) && (
+          {hasLensFilter(filters) && (
             <Field orientation="horizontal" className="w-auto gap-1.5" title={m.scheduler_show_unallocated_title()}>
               <Checkbox
                 id="show-unmatched"

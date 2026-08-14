@@ -19,6 +19,15 @@ export type SchedulingMode = "hourly" | "days" | "blocks";
 /** Runtime list of the valid scheduling modes — the single source the server's
  *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
+/** Does an allocation entered in this mode carry an HOURLY load? Only 'blocks' does not — a block
+ *  records placement and its load is projected as `blockHoursPerDay` instead of the typed hours.
+ *  This is the SINGLE predicate every load-sensitive surface gates on (capacity projection, the
+ *  bar's hours suffix, reassignment reconciliation, the modal's hours validation), so the four
+ *  local spellings that used to re-test `mode === "blocks"` — blocksMode / isBlocks / zeroLoadMode —
+ *  now all resolve from one place. */
+export function carriesHourlyLoad(mode: SchedulingMode): boolean {
+  return mode !== "blocks";
+}
 /** How work filed under the built-in Internal client is coloured. */
 export type InternalColourMode = "grey" | "palette";
 /** Runtime list used by the server/import sanitiser to reject an unknown Internal colour mode. */

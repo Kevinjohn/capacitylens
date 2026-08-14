@@ -3,13 +3,12 @@ import { flushSync } from "react-dom";
 import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { daysInclusive, eachDayISO, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { daysInclusive, eachDayISO, MAX_ISO_DATE, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import {
   generateRepeatingStartDates,
   defaultRepeatUntilDate,
   maximumRepeatUntilDate,
-  RepeatingDateError,
 } from "@capacitylens/shared/lib/repeatingDates";
 import { newId } from "@capacitylens/shared/lib/id";
 import {
@@ -52,9 +51,19 @@ import {
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
-import { capacityAdvisory, capacityAllocationsForMode, scheduledHoursOnDay } from "../../lib/capacity";
+import {
+  capacityAdvisory,
+  capacityAllocationsForMode,
+  formatCapacityAdvisory,
+  scheduledHoursOnDay,
+} from "../../lib/capacity";
 import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
-import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import {
+  carriesHourlyLoad,
+  FULL_DAY_HOURS,
+  isExternalResource,
+  MAX_HOURS_PER_DAY,
+} from "@capacitylens/shared/types/entities";
 import type {
   Activity,
   AllocationStatus,
@@ -77,6 +86,7 @@ import {
   repeatPatternForSelection,
   type RepeatSelection,
 } from "../../lib/repeatingAllocations";
+import { deriveEndDate, validateAllocationDraft } from "./allocationDraft";
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
  *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
@@ -100,6 +110,47 @@ function AllocationControlColumn({ children }: { children: ReactNode }) {
 }
 
 const compoundControlsClassName = "flex min-w-0 gap-2 [&>*]:min-w-0 [&>*]:flex-1";
+
+/** The raw Start/End pair, for the modes that take a literal date range rather than deriving the
+ *  end from a span (see `usesTypedDateRange`). Both fields report the SAME `dates` error field, so
+ *  they are invalid together — which is the reason they live in one component instead of two
+ *  hand-kept copies that could drift apart. */
+function DateRangeFields({
+  startDate,
+  endDate,
+  onStartChange,
+  onEndChange,
+  invalid,
+  describedById,
+}: {
+  startDate: ISODate;
+  endDate: ISODate;
+  onStartChange: (value: ISODate) => void;
+  onEndChange: (value: ISODate) => void;
+  invalid: boolean;
+  describedById?: string;
+}) {
+  return (
+    <div className={compoundControlsClassName}>
+      <DateField
+        label={m.form_allocation_start_date_label()}
+        value={startDate}
+        onChange={onStartChange}
+        required
+        invalid={invalid}
+        describedById={describedById}
+      />
+      <DateField
+        label={m.form_allocation_end_label()}
+        value={endDate}
+        onChange={onEndChange}
+        required
+        invalid={invalid}
+        describedById={describedById}
+      />
+    </div>
+  );
+}
 
 function projectSelectionForActivity(activity: Activity | undefined): string {
   if (activity?.kind === "repeatable") return ANY_PROJECT_SELECTION;
@@ -130,8 +181,7 @@ type AllocationModalProps =
     };
 
 interface EffectiveAllocationInput {
-  resources: readonly Resource[];
-  resourceId: string;
+  resource: Resource | undefined;
   mode: SchedulingMode;
   startDate: ISODate;
   endDate: ISODate;
@@ -142,8 +192,7 @@ interface EffectiveAllocationInput {
 }
 
 function effectiveAllocationValues({
-  resources,
-  resourceId,
+  resource,
   mode,
   startDate,
   endDate,
@@ -152,13 +201,11 @@ function effectiveAllocationValues({
   daysOfWork,
   ignoreWeekends,
 }: EffectiveAllocationInput) {
-  const resource = resources.find((candidate) => candidate.id === resourceId);
   const external = !!resource && isExternalResource(resource);
-  const workingHoursPerDay = FULL_DAY_HOURS;
   const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
   const spanOpts = { workingDays: resource?.workingDays, ignoreWeekends };
   const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOpts) : MAX_SPAN_DAYS;
-  const spanLimitedByDateDomain = !!startDate && daysInclusive(startDate, "9999-12-31") < MAX_SPAN_DAYS;
+  const spanLimitedByDateDomain = !!startDate && daysInclusive(startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS;
   const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
   const spanEnd = startDate
     ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOpts)
@@ -166,11 +213,11 @@ function effectiveAllocationValues({
   const effective = external
     ? { endDate, hoursPerDay: 0 }
     : mode === "blocks"
-      ? { endDate: spanEnd, hoursPerDay: blockHoursPerDay(workingHoursPerDay) }
+      ? { endDate: spanEnd, hoursPerDay: blockHoursPerDay(FULL_DAY_HOURS) }
       : mode === "days"
         ? {
             endDate: spanEnd,
-            hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, workingHoursPerDay),
+            hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, FULL_DAY_HOURS),
           }
         : { endDate, hoursPerDay };
   return {
@@ -207,19 +254,22 @@ export function AllocationModal(props: AllocationModalProps) {
   const inlineActivityCreateEnabled = useStore((s) => inlineActivityCreateEnabledFor(s.data, s.activeAccountId));
   const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
   const isDays = mode === "days";
-  const isBlocks = mode === "blocks";
+  const isBlocks = !carriesHourlyLoad(mode);
 
   const editId = "allocationId" in props ? props.allocationId : undefined;
   const create = "create" in props ? props.create : undefined;
   const editing = editId ? data.allocations.find((a) => a.id === editId) : undefined;
 
+  // The assignee is looked up on every render (the initial seed, the live effective values, and the
+  // picker's change handler all ask for one by id), so index the roster once instead.
+  const resourceById = useMemo(() => new Map(data.resources.map((r) => [r.id, r])), [data.resources]);
+
   const initialActivity = editing ? data.activities.find((act) => act.id === editing.activityId) : undefined;
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? "";
-  const initialResource = data.resources.find((r) => r.id === initialResourceId);
+  const initialResource = resourceById.get(initialResourceId);
   const initialLocked = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
-  const initialWhpd = FULL_DAY_HOURS;
   const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone);
-  const initialScheduledHours = initialResource ? scheduledHoursOnDay(initialResource, initialStart) : initialWhpd;
+  const initialScheduledHours = initialResource ? scheduledHoursOnDay(initialResource, initialStart) : FULL_DAY_HOURS;
 
   const [resourceId, setResourceId] = useState(initialResourceId);
   // Editing derives the exact activity scope so project-less Internal and Any Project work no
@@ -231,7 +281,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [activityId, setActivityId] = useState(editing?.activityId ?? "");
   const [startDate, setStartDate] = useState<ISODate>(initialStart);
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone));
-  const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? (initialScheduledHours || initialWhpd));
+  const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? (initialScheduledHours || FULL_DAY_HOURS));
   const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? "confirmed");
   const [note, setNote] = useState(editing?.note ?? "");
   const [noteEdited, setNoteEdited] = useState(false);
@@ -257,11 +307,11 @@ export function AllocationModal(props: AllocationModalProps) {
         (sum, day) => sum + scheduledHoursOnDay(initialResource, day),
         0,
       )
-    : initialDaysOver * initialWhpd;
+    : initialDaysOver * FULL_DAY_HOURS;
   const [daysOfWork, setDaysOfWork] = useState(
     editing
-      ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd))
-      : roundDays(initialCapacityHours > 0 ? initialCapacityHours / initialWhpd : initialDaysOver),
+      ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS))
+      : roundDays(initialCapacityHours > 0 ? initialCapacityHours / FULL_DAY_HOURS : initialDaysOver),
   );
   const [newActivityName, setNewActivityName] = useState("");
   const [inlineActivityOption, setInlineActivityOption] = useState<
@@ -280,8 +330,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const effectiveValues = useMemo(
     () =>
       effectiveAllocationValues({
-        resources: data.resources,
-        resourceId,
+        resource: resourceById.get(resourceId),
         mode,
         startDate,
         endDate,
@@ -290,7 +339,7 @@ export function AllocationModal(props: AllocationModalProps) {
         daysOfWork,
         ignoreWeekends,
       }),
-    [data.resources, daysOfWork, daysOver, endDate, hoursPerDay, ignoreWeekends, mode, resourceId, startDate],
+    [resourceById, daysOfWork, daysOver, endDate, hoursPerDay, ignoreWeekends, mode, resourceId, startDate],
   );
   const {
     resource: selectedResource,
@@ -302,6 +351,10 @@ export function AllocationModal(props: AllocationModalProps) {
     endDate: effEndDate,
     hoursPerDay: effHoursPerDay,
   } = effectiveValues;
+  // External and hourly allocations both collect a raw Start/End pair; blocks and days derive their
+  // end from a (start, days-over) span instead. ONE predicate drives both the fields that render and
+  // the range validation on save, so the form can never validate a pair it did not show.
+  const usesTypedDateRange = isExternal || (!isBlocks && !isDays);
   const isPlaceholder = selectedResource?.kind === "placeholder";
   // External / 3rd-party assignees carry no hours: the modal collects just a date span and
   // persists hoursPerDay 0 (like a 'blocks' booking), with no capacity advisory.
@@ -425,12 +478,11 @@ export function AllocationModal(props: AllocationModalProps) {
   // every keyboard user and every "+"-create reaches. Saving stays allowed (advisory, never a block).
   const advisory = useMemo(() => {
     // External parties have no capacity — never show an over-capacity / time-off advisory.
-    if (effectiveValues.external) return null;
+    if (isExternal) return null;
     // A malformed/reversed span and a range beyond the form's finite work bound get no advisory.
     // This check is O(1) and runs before capacityAdvisory can materialise one ISO string per day.
-    const span = startDate && effectiveValues.endDate ? daysInclusive(startDate, effectiveValues.endDate) : 0;
-    if (!effectiveValues.resource || !startDate || !effectiveValues.endDate || span < 1 || span > MAX_SPAN_DAYS)
-      return null;
+    const span = startDate && effEndDate ? daysInclusive(startDate, effEndDate) : 0;
+    if (!selectedResource || !startDate || !effEndDate || span < 1 || span > MAX_SPAN_DAYS) return null;
     // Project the existing load through the account's scheduling mode BEFORE counting it: in blocks
     // mode a bar carries placement but no hourly load, so an account that switched to blocks with
     // legacy hourly allocations must not be advised "over capacity" here while the grid's markers
@@ -443,68 +495,49 @@ export function AllocationModal(props: AllocationModalProps) {
     const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId);
     if (create && repeat !== "none") {
       if (!repeatProjection) return null;
+      // The repeat variant counts whole OCCURRENCES rather than days; the two tallies otherwise read
+      // and render identically, so they share the one advisory sentence builder.
       const { overCapacityAllocations, timeOffAllocations } = repeatingAllocationAdvisory(
-        effectiveValues.resource,
+        selectedResource,
         others,
         resourceTimeOff,
         repeatProjection.drafts,
       );
-      const bits: string[] = [];
-      if (overCapacityAllocations)
-        bits.push(
-          overCapacityAllocations === 1
-            ? m.form_allocation_repeat_advisory_over_capacity_one({ count: overCapacityAllocations })
-            : m.form_allocation_repeat_advisory_over_capacity_other({ count: overCapacityAllocations }),
-        );
-      if (timeOffAllocations)
-        bits.push(
-          timeOffAllocations === 1
-            ? m.form_allocation_repeat_advisory_timeoff_one({ count: timeOffAllocations })
-            : m.form_allocation_repeat_advisory_timeoff_other({ count: timeOffAllocations }),
-        );
-      return bits.length
-        ? m.form_allocation_repeat_advisory({
-            advisory: bits.join(m.form_allocation_repeat_advisory_join()),
-          })
-        : null;
+      return (
+        formatCapacityAdvisory({ overDays: overCapacityAllocations, timeOffDays: timeOffAllocations }, "repeat") || null
+      );
     }
-    const { overDays, timeOffDays } = capacityAdvisory(
-      effectiveValues.resource,
-      {
-        resourceId,
-        startDate,
-        endDate: effectiveValues.endDate,
-        hoursPerDay: effectiveValues.hoursPerDay,
-        ignoreWeekends,
-      },
-      others,
-      resourceTimeOff,
+    return (
+      formatCapacityAdvisory(
+        capacityAdvisory(
+          selectedResource,
+          {
+            resourceId,
+            startDate,
+            endDate: effEndDate,
+            hoursPerDay: effHoursPerDay,
+            ignoreWeekends,
+          },
+          others,
+          resourceTimeOff,
+        ),
+        "form",
+      ) || null
     );
-    const bits: string[] = [];
-    if (overDays)
-      bits.push(
-        overDays === 1
-          ? m.form_allocation_advisory_over_capacity_one({ count: overDays })
-          : m.form_allocation_advisory_over_capacity_other({ count: overDays }),
-      );
-    if (timeOffDays)
-      bits.push(
-        timeOffDays === 1
-          ? m.form_allocation_advisory_timeoff_one({ count: timeOffDays })
-          : m.form_allocation_advisory_timeoff_other({ count: timeOffDays }),
-      );
-    return bits.length ? m.form_allocation_advisory({ advisory: bits.join(m.form_allocation_advisory_join()) }) : null;
   }, [
     create,
     data.allocations,
     data.timeOff,
     editId,
-    effectiveValues,
+    effEndDate,
+    effHoursPerDay,
     ignoreWeekends,
     isBlocks,
+    isExternal,
     repeat,
     repeatProjection,
     resourceId,
+    selectedResource,
     startDate,
   ]);
 
@@ -512,10 +545,8 @@ export function AllocationModal(props: AllocationModalProps) {
   // value past the date range parses to an Invalid Date, which format() would throw on
   // mid-render (crashing the modal). endDateForSpan already caps the span, so this is
   // belt-and-suspenders — render the hint only when the date is real.
-  const endDateHint = (() => {
-    const d = parseDate(effEndDate);
-    return Number.isNaN(d.getTime()) ? null : format(d, "EEE d MMM yyyy");
-  })();
+  const parsedEndDate = parseDate(effEndDate);
+  const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : format(parsedEndDate, "EEE d MMM yyyy");
 
   // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
   // off, drop them from the assignee picker — EXCEPT the allocation's currently-selected resource
@@ -586,7 +617,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const onAssigneeChange = (v: string) => {
     clear();
     setResourceId(v);
-    const r = data.resources.find((x) => x.id === v);
+    const r = resourceById.get(v);
     if (r?.kind === "placeholder" && r.projectId) {
       // A placeholder forces its bound project; reset downstream selections.
       setProjectSelection(r.projectId);
@@ -625,143 +656,35 @@ export function AllocationModal(props: AllocationModalProps) {
 
   // Save and Duplicate operate on the same visible draft. Keeping validation and effective-value
   // derivation here prevents Duplicate from silently discarding edits or persisting a shape that
-  // Save would reject (for example, a historical zero-hour block viewed in Hours mode).
+  // Save would reject (for example, a historical zero-hour block viewed in Hours mode). The rules
+  // themselves live in allocationDraft.ts; this routes the first problem to the offending field and
+  // adds the two checks that need the modal's own machinery (the note sanitiser owns `fail`, and the
+  // assignment check needs the activity list).
   const validatedDraft = () => {
-    if (!resourceId) {
-      fail("resource", m.form_allocation_err_choose_resource());
-      return null;
-    }
-    if (!activityId) {
-      fail("activity", m.form_allocation_err_choose_activity());
-      return null;
-    }
-    const usesTypedDateRange = isExternal || (!isBlocks && !isDays);
-    if (usesTypedDateRange) {
-      // External and hourly allocations both use the raw Start/End inputs. Validate this once so
-      // neither mode can persist a range the advisory deliberately refuses to enumerate.
-      if (!startDate || !endDate) {
-        fail("dates", m.form_allocation_err_dates_required());
-        return null;
-      }
-      if (endDate < startDate) {
-        fail("dates", m.form_allocation_err_end_before_start());
-        return null;
-      }
-      if (typedDateSpanTooLong) {
-        fail(
-          "dates",
-          m.form_allocation_err_date_span_range({
-            max: MAX_SPAN_DAYS.toLocaleString("en-GB"),
-          }),
-        );
-        return null;
-      }
-    }
-    if (isBlocks) {
-      if (!startDate) {
-        fail("dates", m.form_allocation_err_start_required());
-        return null;
-      }
-      if (!validDaysOver) {
-        fail("daysOver", m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }));
-        return null;
-      }
-      if (!spanFitsDateDomain) {
-        fail(
-          "daysOver",
-          spanLimitedByDateDomain
-            ? m.form_allocation_err_days_over_date_domain()
-            : m.form_allocation_err_days_over_range({ max: maximumDaysOver }),
-        );
-        return null;
-      }
-    } else if (isDays) {
-      if (!startDate) {
-        fail("dates", m.form_allocation_err_start_required());
-        return null;
-      }
-      if (!validDaysOver) {
-        fail("daysOver", m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }));
-        return null;
-      }
-      if (!spanFitsDateDomain) {
-        fail(
-          "daysOver",
-          spanLimitedByDateDomain
-            ? m.form_allocation_err_days_over_date_domain()
-            : m.form_allocation_err_days_over_range({ max: maximumDaysOver }),
-        );
-        return null;
-      }
-      if (!(daysOfWork > 0)) {
-        fail("daysOfWork", m.form_allocation_err_days_of_work_gt_zero());
-        return null;
-      }
-    } else if (!isExternal) {
-      if (!(hoursPerDay > 0)) {
-        fail("hours", m.form_allocation_err_hours_gt_zero());
-        return null;
-      }
-    }
-    if (create && repeat !== "none") {
-      if (!repeatUntil || !isValidISODate(repeatUntil)) {
-        fail("repeatUntil", m.form_allocation_err_repeat_until_required());
-        return null;
-      }
-      if (repeatUntil < repeatToday) {
-        fail("repeatUntil", m.form_allocation_err_repeat_until_past());
-        return null;
-      }
-      if (repeatUntil < startDate) {
-        fail("repeatUntil", m.form_allocation_err_repeat_until_before_start());
-        return null;
-      }
-      if (!repeatUntilMaximum) {
-        fail("repeatUntil", m.form_allocation_err_repeat_date_domain());
-        return null;
-      }
-      if (repeatUntil > repeatUntilMaximum) {
-        fail(
-          "repeatUntil",
-          m.form_allocation_err_repeat_until_after_max({
-            max: formatShortDate(repeatUntilMaximum),
-          }),
-        );
-        return null;
-      }
-      try {
-        generateRepeatingStartDates(startDate, repeatUntil, repeatPatternForSelection(repeat));
-      } catch (error) {
-        if (error instanceof RepeatingDateError) {
-          fail(
-            "repeatUntil",
-            error.code === "no-repeat"
-              ? m.form_allocation_err_repeat_until_no_occurrence()
-              : m.form_allocation_err_repeat_date_domain(),
-          );
-        } else {
-          fail(null, error instanceof Error ? errorMessage(error) : m.form_allocation_err_save_failed());
-        }
-        return null;
-      }
-    }
-    // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
-    // 0-load span and blocks derive a safe block load, so both are excluded). The store clamps an
-    // allocation's load into [0, MAX_HOURS_PER_DAY] AND collapses a non-finite value to 0 — so a
-    // derived load that's NaN (a part-typed "Days over" → hoursPerDayFor returns NaN) or above the
-    // cap (an Enter-submit before the field's on-blur clamp) would SILENTLY save the wrong volume.
-    // Require a finite load in (0, MAX_HOURS_PER_DAY] instead, so the preview ("…h/day") is exactly
-    // what saves, failing to the field the user can act on in each mode.
-    if (
-      !isExternal &&
-      !isBlocks &&
-      !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)
-    ) {
-      if (isDays) {
-        fail("daysOfWork", m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }));
-      } else {
-        fail("hours", m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }));
-      }
+    const problem = validateAllocationDraft({
+      resourceId,
+      activityId,
+      startDate,
+      endDate,
+      usesTypedDateRange,
+      typedDateSpanTooLong,
+      isBlocks,
+      isDays,
+      isExternal,
+      validDaysOver,
+      spanFitsDateDomain,
+      spanLimitedByDateDomain,
+      maximumDaysOver,
+      daysOfWork,
+      hoursPerDay,
+      effHoursPerDay,
+      repeat:
+        create && repeat !== "none"
+          ? { selection: repeat, until: repeatUntil, today: repeatToday, maximum: repeatUntilMaximum }
+          : null,
+    });
+    if (problem) {
+      fail(problem.field, problem.message);
       return null;
     }
     const cleanNote = validateText(note, fail, {
@@ -779,23 +702,26 @@ export function AllocationModal(props: AllocationModalProps) {
         return null;
       }
     }
-    // Externals have no working week — weekends are plain calendar days for them, so a span is
-    // literal (ignoreWeekends: true) and the toggle is hidden below.
-    const preserveStoredEnd =
-      editing !== undefined &&
-      (isDays || isBlocks) &&
-      resourceId === editing.resourceId &&
-      startDate === editing.startDate &&
-      ignoreWeekends === (editing.ignoreWeekends ?? false) &&
-      daysOver === initialDaysOver;
     return {
       resourceId,
       activityId,
       startDate,
-      endDate: preserveStoredEnd ? editing.endDate : effEndDate,
+      endDate: deriveEndDate({
+        editing,
+        isBlocks,
+        isDays,
+        resourceId,
+        startDate,
+        ignoreWeekends,
+        daysOver,
+        initialDaysOver,
+        effectiveEndDate: effEndDate,
+      }),
       hoursPerDay: effHoursPerDay,
       status,
-      note: cleanNote ? cleanNote : undefined,
+      note: cleanNote || undefined,
+      // Externals have no working week — weekends are plain calendar days for them, so a span is
+      // literal (ignoreWeekends: true) and the toggle is hidden below.
       ignoreWeekends: isExternal ? true : ignoreWeekends,
     };
   };
@@ -1001,74 +927,60 @@ export function AllocationModal(props: AllocationModalProps) {
         </AllocationControlColumn>
       )}
 
-      {isExternal ? (
-        <AllocationControlColumn>
-          <div className={compoundControlsClassName}>
-            <DateField
-              label={m.form_allocation_start_date_label()}
-              value={startDate}
-              onChange={setStartDate}
-              required
+      {usesTypedDateRange ? (
+        <>
+          <AllocationControlColumn>
+            <DateRangeFields
+              startDate={startDate}
+              endDate={endDate}
+              onStartChange={setStartDate}
+              onEndChange={setEndDate}
               invalid={errorField === "dates"}
               describedById={errorId}
             />
-            <DateField
-              label={m.form_allocation_end_label()}
-              value={endDate}
-              onChange={setEndDate}
-              required
-              invalid={errorField === "dates"}
-              describedById={errorId}
-            />
-          </div>
-        </AllocationControlColumn>
-      ) : isBlocks ? (
-        <AllocationControlColumn>
-          <div className={compoundControlsClassName}>
-            <DateField
-              label={m.form_allocation_start_date_label()}
-              value={startDate}
-              onChange={setStartDate}
-              required
-              invalid={errorField === "dates"}
-              describedById={errorId}
-            />
+          </AllocationControlColumn>
+
+          {/* Externals carry no load (hoursPerDay 0), so only the hourly arm asks for one. */}
+          {!isExternal && (
             <NumberField
-              label={m.form_allocation_days_over_label()}
-              value={daysOver}
-              onChange={setDaysOver}
-              min={1}
-              max={maximumDaysOver}
-              step={1}
-              invalid={errorField === "daysOver"}
-              describedById={errorId}
-            />
-          </div>
-          {startDate && endDateHint && (
-            <p className="text-xs text-muted-foreground">{m.form_allocation_ends_hint({ date: endDateHint })}</p>
-          )}
-        </AllocationControlColumn>
-      ) : isDays ? (
-        <AllocationControlColumn>
-          <div className={compoundControlsClassName}>
-            <DateField
-              label={m.form_allocation_start_date_label()}
-              value={startDate}
-              onChange={setStartDate}
-              required
-              invalid={errorField === "dates"}
-              describedById={errorId}
-            />
-            <NumberField
-              label={m.form_allocation_days_of_work_label()}
-              value={daysOfWork}
-              onChange={setDaysOfWork}
+              label={m.form_allocation_hours_per_day_label()}
+              value={hoursPerDay}
+              onChange={setHoursPerDay}
               min={0}
-              step={0.5}
+              max={MAX_HOURS_PER_DAY}
               required
-              invalid={errorField === "daysOfWork"}
+              invalid={errorField === "hours"}
+              describedById={errorId}
+              layout="label-control"
+            />
+          )}
+        </>
+      ) : (
+        // Blocks and days are the same span control — a start plus a "days over" count — differing
+        // only by the work-volume field days adds, and by whether the derived-end hint also states
+        // the rescaled load.
+        <AllocationControlColumn>
+          <div className={compoundControlsClassName}>
+            <DateField
+              label={m.form_allocation_start_date_label()}
+              value={startDate}
+              onChange={setStartDate}
+              required
+              invalid={errorField === "dates"}
               describedById={errorId}
             />
+            {isDays && (
+              <NumberField
+                label={m.form_allocation_days_of_work_label()}
+                value={daysOfWork}
+                onChange={setDaysOfWork}
+                min={0}
+                step={0.5}
+                required
+                invalid={errorField === "daysOfWork"}
+                describedById={errorId}
+              />
+            )}
             <NumberField
               label={m.form_allocation_days_over_label()}
               value={daysOver}
@@ -1082,48 +994,12 @@ export function AllocationModal(props: AllocationModalProps) {
           </div>
           {startDate && endDateHint && (
             <p className="text-xs text-muted-foreground">
-              {m.form_allocation_ends_hint_hours({
-                date: endDateHint,
-                hours: round2(effHoursPerDay),
-              })}
+              {isDays
+                ? m.form_allocation_ends_hint_hours({ date: endDateHint, hours: round2(effHoursPerDay) })
+                : m.form_allocation_ends_hint({ date: endDateHint })}
             </p>
           )}
         </AllocationControlColumn>
-      ) : (
-        <>
-          <AllocationControlColumn>
-            <div className={compoundControlsClassName}>
-              <DateField
-                label={m.form_allocation_start_date_label()}
-                value={startDate}
-                onChange={setStartDate}
-                required
-                invalid={errorField === "dates"}
-                describedById={errorId}
-              />
-              <DateField
-                label={m.form_allocation_end_label()}
-                value={endDate}
-                onChange={setEndDate}
-                required
-                invalid={errorField === "dates"}
-                describedById={errorId}
-              />
-            </div>
-          </AllocationControlColumn>
-
-          <NumberField
-            label={m.form_allocation_hours_per_day_label()}
-            value={hoursPerDay}
-            onChange={setHoursPerDay}
-            min={0}
-            max={MAX_HOURS_PER_DAY}
-            required
-            invalid={errorField === "hours"}
-            describedById={errorId}
-            layout="label-control"
-          />
-        </>
       )}
       {create && (
         <>

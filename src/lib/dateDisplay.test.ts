@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatShortDate, formatDayCount } from "./dateDisplay";
+import { formatShortDate, formatDayCount, formatDayMonth } from "./dateDisplay";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
 const invalidDate = "not-a-date" as ISODate;
@@ -25,6 +25,21 @@ describe("formatShortDate", () => {
 
   it("surfaces an invalid upstream date instead of hiding it", () => {
     expect(() => formatShortDate(invalidDate)).toThrow(RangeError);
+  });
+});
+
+describe("formatDayMonth", () => {
+  it("renders day + abbreviated month, with no weekday, ordinal or year", () => {
+    expect(formatDayMonth("2026-07-01")).toBe("1 Jul");
+    expect(formatDayMonth("2026-06-10")).toBe("10 Jun");
+  });
+
+  it("stays terser than the list form it sits beside", () => {
+    expect(formatDayMonth("2026-06-10").length).toBeLessThan(formatShortDate("2026-06-10").length);
+  });
+
+  it("surfaces an invalid upstream date instead of hiding it", () => {
+    expect(() => formatDayMonth(invalidDate)).toThrow(RangeError);
   });
 });
 

@@ -1,18 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { cleanup, render as rtlRender, screen, act, type RenderOptions } from "@testing-library/react";
+import { cleanup, screen, act } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { TooltipProvider } from "../ui/tooltip";
-
-// AllocationBar (rendered by ResourceLane) now uses a provider-less TooltipRoot — the single
-// TooltipProvider is hoisted to SchedulerGrid — so isolated lane renders must supply a provider.
-const render = (ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) =>
-  rtlRender(ui, { wrapper: TooltipProvider, ...options });
 import { ResourceLane } from "./ResourceLane";
 import { buildColumnGeometry } from "./columnGeometry";
 import type { BarLayout, DayState, TimeOffBlock } from "./schedulerModel";
 import { useStore } from "../../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { renderWithTooltip as render } from "./__tests__/schedulerTestKit";
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
@@ -21,13 +15,28 @@ beforeEach(() => {
 
 const DAYS: [string, string, string] = ["2026-06-01", "2026-06-02", "2026-06-03"];
 const DAY_WIDTH = 48;
-const ORIGIN = "2026-06-01";
 const GEOM = buildColumnGeometry(DAYS, DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 });
+// Below DAY_COLUMN_MIN_WIDTH: `geom.perDayColumns` is false, so the lane drops its per-day
+// decorations. The gate lives on the geometry now, so a coarse-zoom case must build one.
+const COARSE_GEOM = buildColumnGeometry(DAYS, 17, { minimiseWeekends: false, weekendWidth: 22 });
 
+/** An ordinary working day; each case spreads in only the flags it is actually about. */
+const dayState = (overrides: Partial<DayState> = {}): DayState => ({
+  over: false,
+  timeOffConflict: false,
+  unavailable: false,
+  partialCapacity: false,
+  creationBlocked: false,
+  hasTimeOff: false,
+  ...overrides,
+});
+
+// Days 0 and 1 are inside TIME_OFF_BLOCKS below — the lane reads that from `hasTimeOff` (date
+// space), not by intersecting the block's pixels, so the two must be kept consistent here.
 const DAY_STATES: DayState[] = [
-  { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false },
-  { unavailable: false, over: true, timeOffConflict: false, partialCapacity: true },
-  { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
+  dayState({ unavailable: true, hasTimeOff: true }),
+  dayState({ over: true, partialCapacity: true, hasTimeOff: true }),
+  dayState(),
 ];
 
 const TIME_OFF_BLOCKS: TimeOffBlock[] = [{ id: "to1", x: 0, width: 96, label: "Holiday" }];
@@ -67,7 +76,6 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
       todayX={48}
       dayWidth={DAY_WIDTH}
       geom={GEOM}
-      origin={ORIGIN}
       rowHeight={52}
       barTop={10}
       bars={[makeBar()]}
@@ -96,22 +104,16 @@ describe("ResourceLane rendering", () => {
   });
 
   it("does not paint half-day tint on full or unavailable dates, or at coarse zoom", () => {
-    renderLane({
-      dayStates: [
-        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false },
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
-      ],
-    });
+    renderLane({ dayStates: [dayState({ unavailable: true }), dayState(), dayState()] });
     expect(screen.queryByTestId("half-day")).not.toBeInTheDocument();
 
     cleanup();
-    renderLane({ dayWidth: 17 });
+    renderLane({ dayWidth: 17, geom: COARSE_GEOM });
     expect(screen.queryByTestId("half-day")).not.toBeInTheDocument();
   });
 
   it("renders an over-marker (red background) for the over day", () => {
-    renderLane({ timeOff: [] });
+    renderLane({ timeOff: [], dayStates: DAY_STATES.map((s) => ({ ...s, hasTimeOff: false })) });
     const marker = screen.getByTestId("over-marker");
     expect(marker).toBeInTheDocument();
     // The user-facing point: a CLEAR, saturated red background, not a faint tint. Lock the
@@ -138,9 +140,9 @@ describe("ResourceLane rendering", () => {
   it("renders the same layered marker for a zero-load block/time-off conflict", () => {
     renderLane({
       dayStates: [
-        { unavailable: true, over: false, timeOffConflict: true, partialCapacity: false },
-        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false },
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
+        dayState({ unavailable: true, timeOffConflict: true, hasTimeOff: true }),
+        dayState({ unavailable: true }),
+        dayState(),
       ],
     });
 
@@ -155,14 +157,7 @@ describe("ResourceLane rendering", () => {
   // The render-layer boundary mirroring the pure-fn boundary: a day that is at-or-under
   // capacity carries `over: false`, so NO over-marker / red background renders for it.
   it("does NOT render an over-marker when no day is over (at-or-under capacity)", () => {
-    renderLane({
-      bars: [],
-      dayStates: [
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false },
-      ],
-    });
+    renderLane({ bars: [], dayStates: [dayState(), dayState(), dayState()] });
     expect(screen.queryByTestId("over-marker")).not.toBeInTheDocument();
   });
 
@@ -225,9 +220,9 @@ describe("ResourceLane draw interaction", () => {
       bars: [],
       timeOff: [],
       dayStates: [
-        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: true },
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: true, creationBlocked: false },
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: false },
+        dayState({ unavailable: true, creationBlocked: true }),
+        dayState({ partialCapacity: true }),
+        dayState(),
       ],
     });
     const lane = screen.getByTestId("resource-lane");
@@ -262,9 +257,9 @@ describe("ResourceLane draw interaction", () => {
       bars: [],
       timeOff: [],
       dayStates: [
-        { unavailable: false, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: false },
-        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: true },
-        { unavailable: true, over: false, timeOffConflict: false, partialCapacity: false, creationBlocked: true },
+        dayState(),
+        dayState({ unavailable: true, creationBlocked: true }),
+        dayState({ unavailable: true, creationBlocked: true }),
       ],
     });
     const lane = screen.getByTestId("resource-lane");

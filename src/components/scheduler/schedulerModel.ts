@@ -3,21 +3,21 @@ import { foldForSearch } from "../../lib/fuzzy";
 import {
   capacityAllocationsForMode,
   dayCapacity,
-  overAllocatedInWindow,
+  isHalfDay,
   utilizationFromCapacity,
   type DayCapacity,
 } from "../../lib/capacity";
-import { eachDayISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO, rangesOverlap, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
-import { timeOffTypeLabel, resourceDisplayName } from "../../lib/metadata";
+import { placeholderDisplayName, timeOffTypeLabel, resourceDisplayName } from "../../lib/metadata";
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from "../../store/selectors";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import { NEUTRAL_COLOR } from "../../lib/palette";
 import { laneLayout as compactLaneLayout } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
-import type { Filters } from "../../store/useStore";
+import { hasLensFilter, type Filters } from "../../store/useStore";
 import type {
   Allocation,
   AppData,
@@ -75,10 +75,6 @@ function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: 
 // array per resource-day (this runs days × resources times on every model rebuild).
 const NO_ALLOCATIONS: Allocation[] = [];
 const NO_TIME_OFF: TimeOff[] = [];
-const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(resourceDisplayName);
-const byEngagementFavouriteResourceDisplayName =
-  engagementFavouriteDisplayNameComparator<Resource>(resourceDisplayName);
-const byResourceDisplayName = displayNameComparator<Resource>(resourceDisplayName);
 
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
  *  (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
@@ -118,6 +114,19 @@ function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>
   return byDate;
 }
 
+/** Index rows (allocations, time off) by the resource they belong to, so building a row is a Map
+ *  lookup instead of a full-array scan per resource. Insertion order inside each bucket follows
+ *  `rows`, which the capacity sums below depend on (float addition is not associative). */
+function groupByResourceId<T extends { resourceId: ID }>(rows: T[]): Map<ID, T[]> {
+  const byResource = new Map<ID, T[]>();
+  for (const row of rows) {
+    const list = byResource.get(row.resourceId);
+    if (list) list.push(row);
+    else byResource.set(row.resourceId, [row]);
+  }
+  return byResource;
+}
+
 /** Per-day capacity state for a lane background cell. */
 export interface DayState {
   over: boolean;
@@ -128,7 +137,11 @@ export interface DayState {
   /** This resource has a saved half-day working pattern on this date. Suppressed when another
    * rule makes the whole date unavailable, so the view never paints contradictory backgrounds. */
   partialCapacity: boolean;
-  creationBlocked?: boolean;
+  creationBlocked: boolean;
+  /** This resource is on time off on this date. Decided HERE, in date space, so the lane cannot
+   *  reach a different answer by re-testing its time-off blocks in PIXEL space (narrowed weekend
+   *  columns make the two disagree). Always false for a capacity-starved (external) row. */
+  hasTimeOff: boolean;
 }
 
 /** A positioned time-off block. */
@@ -145,6 +158,12 @@ export interface RowModel {
   rowHeight: number;
   bars: BarLayout[];
   dayStates: DayState[];
+  /** Days reading as a capacity conflict (`over` OR `timeOffConflict`) — the count the row's
+   *  screen-reader summary announces. Tallied in the day loop that builds `dayStates`, because the
+   *  view would otherwise rescan every day of every row on every vertical scroll frame. */
+  conflictDayCount: number;
+  /** Days painted with the neutral half-day (partial capacity) treatment. Same reason as above. */
+  partialCapacityDayCount: number;
   timeOff: TimeOffBlock[];
   utilization: number; // working-day ratio over the VISIBLE window [visStart, visEnd]
   overSoon: boolean; // over-allocated on >=1 working day inside the FIXED forward window [overStart, overEnd]
@@ -240,28 +259,36 @@ export function refreshVisibleUtilization(
   blocksMode = false,
 ): GroupModel[] {
   const days = eachDayISO(start, end);
-  const byResource = <T extends { id: ID; resourceId: ID; startDate: ISODate; endDate: ISODate }>(rows: T[]) => {
-    const grouped = new Map<ID, T[]>();
-    for (const row of rows) {
-      if (!hasRenderableDateRange(row)) continue;
-      const list = grouped.get(row.resourceId);
-      if (list) list.push(row);
-      else grouped.set(row.resourceId, [row]);
-    }
-    return grouped;
-  };
-  const allocations = byResource(data.allocations);
-  const timeOff = byResource(data.timeOff);
+  const allocations = groupByResourceId(data.allocations.filter(hasRenderableDateRange));
+  const timeOff = groupByResourceId(data.timeOff.filter(hasRenderableDateRange));
   return model.map((group) => {
     let changed = false;
     const rows = group.rows.map((row) => {
+      // External / 3rd-party rows carry no capacity, so their 0 can never change (the same
+      // starvation contract the build's capacity seam states).
+      if (isExternalResource(row.resource)) {
+        if (row.utilization === 0) return row;
+        changed = true;
+        return { ...row, utilization: 0 };
+      }
       const resourceAllocations = capacityAllocationsForMode(allocations.get(row.resource.id) ?? [], blocksMode);
       const resourceTimeOff = timeOff.get(row.resource.id) ?? [];
-      const next = isExternalResource(row.resource)
-        ? 0
-        : utilizationFromCapacity(
-            days.map((date) => dayCapacity(row.resource, date, resourceAllocations, resourceTimeOff)),
-          );
+      // Bucket this resource's load and time off by the days they cover ONCE, exactly as the full
+      // build does, so a horizontal scroll costs O(days + coverage) per row instead of rescanning
+      // every allocation on every day of the window. Bucket order follows the input, so the hours
+      // are summed in the same order and the ratio is bit-identical to the rescan.
+      const allocsByDate = bucketByCoveredDate(resourceAllocations, days);
+      const timeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
+      const next = utilizationFromCapacity(
+        days.map((date) =>
+          dayCapacity(
+            row.resource,
+            date,
+            allocsByDate.get(date) ?? NO_ALLOCATIONS,
+            timeOffByDate.get(date) ?? NO_TIME_OFF,
+          ),
+        ),
+      );
       if (next === row.utilization) return row;
       changed = true;
       return { ...row, utilization: next };
@@ -293,6 +320,14 @@ export function buildSchedulerModel({
   // Same diacritic-insensitive fold the fuzzy matcher uses, so typing "Jose" finds "José" whether
   // the query lands here or in a command palette.
   const search = foldForSearch(filters.search.trim());
+  // ONE i18n read per build for the placeholder label: the sort below calls the display name
+  // O(n log n) times and every placeholder resolves the same word. Per BUILD CALL, never module
+  // scope — a Paraglide message must be called at use time so it follows the active locale.
+  const placeholderLabel = placeholderDisplayName();
+  const displayNameOf = (r: Resource): string => (r.kind === "placeholder" ? placeholderLabel : resourceDisplayName(r));
+  const byFavouriteResourceDisplayName = favouriteDisplayNameComparator<Resource>(displayNameOf);
+  const byEngagementFavouriteResourceDisplayName = engagementFavouriteDisplayNameComparator<Resource>(displayNameOf);
+  const byResourceDisplayName = displayNameComparator<Resource>(displayNameOf);
   // A stale discipline filter can survive deleting the final discipline. It must not make the
   // engagement fallback look empty; only a filter that still resolves to a real discipline applies.
   const filteredDisciplineId =
@@ -335,26 +370,17 @@ export function buildSchedulerModel({
   // Group allocations / time off by resource ONCE up front, so building each row
   // is a Map lookup instead of a full-array scan per resource (was O(resources ×
   // (allocations + timeOff)); now O(allocations + timeOff + resources)).
-  const allocsByResource = new Map<ID, Allocation[]>();
+  const allocsByResource = groupByResourceId(data.allocations);
+  const timeOffByResource = groupByResourceId(data.timeOff);
   const seriesEndByKey = new Map<string, ISODate>();
   for (const a of data.allocations) {
-    const list = allocsByResource.get(a.resourceId);
-    if (list) list.push(a);
-    else allocsByResource.set(a.resourceId, [a]);
     if (a.seriesId && isValidISODate(a.endDate)) {
       const key = `${a.accountId}\u0000${a.seriesId}`;
       const current = seriesEndByKey.get(key);
       if (!current || a.endDate > current) seriesEndByKey.set(key, a.endDate);
     }
   }
-  const timeOffByResource = new Map<ID, TimeOff[]>();
-  for (const t of data.timeOff) {
-    const list = timeOffByResource.get(t.resourceId);
-    if (list) list.push(t);
-    else timeOffByResource.set(t.resourceId, [t]);
-  }
 
-  const projectClientActive = !!(filters.projectId || filters.clientId);
   // Does this allocation match the active project/client filter (ignoring tentative)?
   const matchesProjectClient = (a: Allocation): boolean => {
     const meta = activityMeta.get(a.activityId);
@@ -364,7 +390,6 @@ export function buildSchedulerModel({
   };
   // The activity lens (standalone — mutually exclusive with project/client via setFilters): a
   // specific internal/cross-project activity, or a whole kind ('Internal — All' / 'Cross-project — All').
-  const activityFilterActive = !!(filters.activityId || filters.activityKind);
   const matchesActivity = (a: Allocation): boolean => {
     if (filters.activityId) return a.activityId === filters.activityId;
     if (filters.activityKind) return activityMeta.get(a.activityId)?.kind === filters.activityKind;
@@ -372,7 +397,7 @@ export function buildSchedulerModel({
   };
   // Any "what work" filter is active — drives the dimmed / show-unmatched staffing view, which
   // is identical whether the active lens is client/project or activity.
-  const workFilterActive = projectClientActive || activityFilterActive;
+  const workFilterActive = hasLensFilter(filters);
   const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === "tentative");
   const allocVisible = (a: Allocation): boolean =>
     matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a);
@@ -407,9 +432,12 @@ export function buildSchedulerModel({
     if (!externalEnabled && isExternalResource(r)) return false;
     if (filteredDisciplineId && r.disciplineId !== filteredDisciplineId) return false;
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
-    // user sees — matching the command palette — as well as by its underlying role/name.
-    const resourceSearchFields = [resourceDisplayName(r), r.name, r.role].map((field) => foldForSearch(field ?? ""));
-    if (search && !resourceSearchFields.some((field) => field.includes(search))) return false;
+    // user sees — matching the command palette — as well as by its underlying role/name. Folding is
+    // per-resource string work, so it runs only when there is actually a query to match.
+    if (search) {
+      const resourceSearchFields = [resourceDisplayName(r), r.name, r.role].map((field) => foldForSearch(field ?? ""));
+      if (!resourceSearchFields.some((field) => field.includes(search))) return false;
+    }
     return true;
   };
 
@@ -437,8 +465,68 @@ export function buildSchedulerModel({
   const intersectsTimeline = (row: { startDate: ISODate; endDate: ISODate }) =>
     timelineStart !== undefined &&
     timelineEnd !== undefined &&
-    row.endDate >= timelineStart &&
-    row.startDate <= timelineEnd;
+    rangesOverlap(row.startDate, row.endDate, timelineStart, timelineEnd);
+
+  /** A row's capacity view of its own data. External / 3rd-party rows have NO capacity: no
+   *  over-markers, no utilisation, no time-off blocks — an awareness band, not a bookable lane. That
+   *  STARVATION CONTRACT lives HERE, as capacity-free outputs behind the same shape the tracked path
+   *  fills, so the day loop below has one arm instead of two that have to be kept in step. `tracked`
+   *  is the flag that keeps a starved row's zero `available` from reading as "fully booked" — only a
+   *  genuinely tracked resource can be made unavailable by its own capacity. */
+  interface CapacitySource {
+    tracked: boolean;
+    /** The time off the row may show and be gated by — empty for a starved row, so a stray record
+     *  attached to an external resource can neither draw a block nor block creation. */
+    timeOff: TimeOff[];
+    capacityOnDay: (date: ISODate) => DayCapacity;
+    allocationCountOn: (date: ISODate) => number;
+    timeOffCountOn: (date: ISODate) => number;
+    utilizationOver: (dates: ISODate[]) => number;
+    overOn: (dates: ISODate[]) => boolean;
+  }
+  const NO_CAPACITY = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
+  const capacitySourceFor = (resource: Resource, allocations: Allocation[], resTimeOff: TimeOff[]): CapacitySource => {
+    if (isExternalResource(resource)) {
+      return {
+        tracked: false,
+        timeOff: NO_TIME_OFF,
+        capacityOnDay: NO_CAPACITY,
+        allocationCountOn: () => 0,
+        timeOffCountOn: () => 0,
+        utilizationOver: () => 0,
+        overOn: () => false,
+      };
+    }
+    // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
+    const capacityAllocs = capacityAllocationsForMode(allocations, blocksMode);
+    // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
+    // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
+    // of making it rescan every allocation (and every time-off row) per day.
+    const allocsByDate = bucketByCoveredDate(capacityAllocs, capacityDates);
+    const timeOffByDate = bucketByCoveredDate(resTimeOff, capacityDates);
+    const capacityByDate = new Map<ISODate, DayCapacity>();
+    const capacityOnDay = (date: ISODate): DayCapacity => {
+      const cached = capacityByDate.get(date);
+      if (cached) return cached;
+      // A date outside `capacityDates` has no bucket to read (an empty bucket and "not
+      // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
+      // such a date today; this keeps a future caller correct rather than silently empty.
+      const computed = capacityDateSet.has(date)
+        ? dayCapacity(resource, date, allocsByDate.get(date) ?? NO_ALLOCATIONS, timeOffByDate.get(date) ?? NO_TIME_OFF)
+        : dayCapacity(resource, date, capacityAllocs, resTimeOff);
+      capacityByDate.set(date, computed);
+      return computed;
+    };
+    return {
+      tracked: true,
+      timeOff: resTimeOff,
+      capacityOnDay,
+      allocationCountOn: (date) => allocsByDate.get(date)?.length ?? 0,
+      timeOffCountOn: (date) => timeOffByDate.get(date)?.length ?? 0,
+      utilizationOver: (dates) => utilizationFromCapacity(dates.map(capacityOnDay)),
+      overOn: (dates) => dates.some((date) => capacityOnDay(date).over),
+    };
+  };
 
   interface SchedulerResourceGroup extends DisciplineGroup {
     key: string;
@@ -520,9 +608,6 @@ export function buildSchedulerModel({
           // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
           const allAllocs = (allocsByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
           const resTimeOff = (timeOffByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
-          // External / 3rd-party rows have NO capacity: no over-markers, no utilisation, no time-off
-          // — an awareness band, not a bookable lane. We starve the capacity path rather than
-          // special-case the (dumb) lane; their activity bars still render.
           const isExternal = isExternalResource(resource);
           // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
           // this resource has NO MATCHING BAR in the displayed timeline — we still show their full
@@ -562,94 +647,55 @@ export function buildSchedulerModel({
               external: isExternal,
             };
           });
-          // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-          // External rows carry none and have no time-off blocks; company-closed dates still receive
-          // the shared unavailable tint because allocation creation is blocked there for every row.
-          const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode);
-          // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
-          // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
-          // of making it rescan every allocation (and every time-off row) per day. External rows
-          // never reach capacityOnDay, so they skip the bucketing entirely.
-          const allocsByDate = isExternal ? undefined : bucketByCoveredDate(capacityAllocs, capacityDates);
-          const timeOffByDate = isExternal ? undefined : bucketByCoveredDate(resTimeOff, capacityDates);
-          const capacityByDate = new Map<ISODate, DayCapacity>();
-          const capacityOnDay = (date: ISODate): DayCapacity => {
-            const cached = capacityByDate.get(date);
-            if (cached) return cached;
-            // A date outside `capacityDates` has no bucket to read (an empty bucket and "not
-            // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
-            // such a date today; this keeps a future caller correct rather than silently empty.
-            const bucketed = allocsByDate !== undefined && capacityDateSet.has(date);
-            const computed = bucketed
-              ? dayCapacity(
-                  resource,
-                  date,
-                  allocsByDate.get(date) ?? NO_ALLOCATIONS,
-                  timeOffByDate?.get(date) ?? NO_TIME_OFF,
-                )
-              : dayCapacity(resource, date, capacityAllocs, resTimeOff);
-            capacityByDate.set(date, computed);
-            return computed;
-          };
-          const dayStates: DayState[] = isExternal
-            ? days.map((date) => {
-                const creationBlocked = isCreationStartBlocked(resource, date, [], accountWorkingDays);
-                return {
-                  over: false,
-                  timeOffConflict: false,
-                  unavailable: creationBlocked,
-                  partialCapacity: false,
-                  creationBlocked,
-                };
-              })
-            : days.map((d) => {
-                const cap = capacityOnDay(d);
-                const creationBlocked = isCreationStartBlocked(resource, d, resTimeOff, accountWorkingDays);
-                const unavailable = cap.available === 0 || creationBlocked;
-                const hasTimeOff = (timeOffByDate?.get(d)?.length ?? 0) > 0;
-                // Blocks carry placement but zero hourly load. Their date-range overlap with time
-                // off is therefore an explicit conflict signal rather than fabricated capacity.
-                // Hours/Days retain their existing working-day-aware `cap.over` semantics.
-                const timeOffConflict = hasTimeOff && (blocksMode ? (allocsByDate?.get(d)?.length ?? 0) > 0 : cap.over);
-                return {
-                  over: cap.over,
-                  timeOffConflict,
-                  unavailable,
-                  partialCapacity: !unavailable && resource.halfDays.includes(weekdayOf(d)),
-                  creationBlocked,
-                };
-              });
-          const timeOff: TimeOffBlock[] = isExternal
-            ? []
-            : resTimeOff.filter(intersectsTimeline).map((t) => ({
-                id: t.id,
-                x: geom.xForDateInGeom(t.startDate),
-                width: geom.widthForDates(t.startDate, t.endDate),
-                label: timeOffTypeLabel(t.type),
-                note: t.note,
-              }));
+          const capacity = capacitySourceFor(resource, allAllocs, resTimeOff);
+          const dayStates: DayState[] = [];
+          let conflictDayCount = 0;
+          let partialCapacityDayCount = 0;
+          for (const date of days) {
+            const cap = capacity.capacityOnDay(date);
+            // Company-closed dates still receive the shared unavailable tint on EVERY row, starved
+            // or not, because allocation creation is blocked there for everyone.
+            const creationBlocked = isCreationStartBlocked(resource, date, capacity.timeOff, accountWorkingDays);
+            const unavailable = (capacity.tracked && cap.available === 0) || creationBlocked;
+            const partialCapacity = capacity.tracked && !unavailable && isHalfDay(resource, weekdayOf(date));
+            const hasTimeOff = capacity.timeOffCountOn(date) > 0;
+            // Blocks carry placement but zero hourly load. Their date-range overlap with time
+            // off is therefore an explicit conflict signal rather than fabricated capacity.
+            // Hours/Days retain their existing working-day-aware `cap.over` semantics.
+            const timeOffConflict = hasTimeOff && (blocksMode ? capacity.allocationCountOn(date) > 0 : cap.over);
+            if (cap.over || timeOffConflict) conflictDayCount++;
+            if (partialCapacity) partialCapacityDayCount++;
+            dayStates.push({
+              over: cap.over,
+              timeOffConflict,
+              unavailable,
+              partialCapacity,
+              creationBlocked,
+              hasTimeOff,
+            });
+          }
+          const timeOff: TimeOffBlock[] = capacity.timeOff.filter(intersectsTimeline).map((t) => ({
+            id: t.id,
+            x: geom.xForDateInGeom(t.startDate),
+            width: geom.widthForDates(t.startDate, t.endDate),
+            label: timeOffTypeLabel(t.type),
+            note: t.note,
+          }));
           // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
           // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
           // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
           // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
           // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
-          // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
-          const utilization = isExternal ? 0 : utilizationFromCapacity(visDays.map(capacityOnDay));
-          const overSoon =
-            !isExternal &&
-            overAllocatedInWindow(
-              resource,
-              capacityAllocs,
-              resTimeOff,
-              overStart,
-              overEnd,
-              overDays.map(capacityOnDay),
-            );
+          // (weekend-aware allocated hours are zero). Starved rows answer 0 / never over.
+          const utilization = capacity.utilizationOver(visDays);
+          const overSoon = capacity.overOn(overDays);
           return {
             resource,
             rowHeight: rowHeightForLanes(laneCount, laneLayout),
             bars,
             dayStates,
+            conflictDayCount,
+            partialCapacityDayCount,
             timeOff,
             utilization,
             overSoon,

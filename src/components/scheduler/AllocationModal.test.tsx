@@ -4,9 +4,19 @@ import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeAppData, setExternalEnabled, setPlaceholdersEnabled } from "../../test/fixtures";
+import {
+  DEFAULT_ACCOUNT_ID,
+  makeActivity,
+  makeAppData,
+  makeClient,
+  makeProject,
+  makeResourceDraft,
+  setExternalEnabled,
+  setPlaceholdersEnabled,
+} from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { chooseOption } from "./__tests__/schedulerTestKit";
 
 const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOffDays: 0 })));
 // The mock is declared without a parameter list, so reach its recorded arguments through a cast:
@@ -27,64 +37,16 @@ const ACC = DEFAULT_ACCOUNT_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
 const originalAddAllocations = useStore.getState().addAllocations;
 
-async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: string, optionName: string) {
-  const trigger = screen.getByRole("combobox", { name: label });
-  trigger.focus();
-  fireEvent.keyDown(trigger, { key: "ArrowDown" });
-  fireEvent.click(screen.getByRole("option", { name: optionName }));
-}
-
 function base(): AppData {
   return makeAppData({
-    clients: [
-      {
-        id: "c1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Acme",
-        color: "#111",
-      },
-    ],
+    clients: [makeClient({ accountId: ACC, color: "#111" })],
     projects: [
-      {
-        id: "p1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Lightning",
-        clientId: "c1",
-        color: "#ec4899",
-      },
-      {
-        id: "p2",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Other",
-        clientId: "c1",
-        color: "#06b6d4",
-      },
+      makeProject({ accountId: ACC }),
+      makeProject({ id: "p2", accountId: ACC, name: "Other", color: "#06b6d4" }),
     ],
     activities: [
-      {
-        id: "t1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Wireframes",
-        kind: "project",
-        projectId: "p1",
-      },
-      {
-        id: "t2",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Other activity",
-        kind: "project",
-        projectId: "p2",
-      },
+      makeActivity({ accountId: ACC }),
+      makeActivity({ id: "t2", accountId: ACC, name: "Other activity", projectId: "p2" }),
     ],
   });
 }
@@ -173,17 +135,7 @@ describe("AllocationModal create", () => {
 
   it("gives same-named activity options distinct accessible labels", async () => {
     useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
-    const resource = useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -204,17 +156,7 @@ describe("AllocationModal create", () => {
   });
 
   it("creates an allocation for a person after picking project + activity", async () => {
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -238,17 +180,7 @@ describe("AllocationModal create", () => {
   });
 
   it("rejects an empty date or zero hours instead of saving a broken allocation", async () => {
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const user = userEvent.setup();
     render(
@@ -285,17 +217,7 @@ describe("AllocationModal create", () => {
   it("rejects hours/day above the 24h cap submitted via Enter (no silent clamp)", async () => {
     // The field caps at MAX_HOURS_PER_DAY on blur, but an Enter-submit without a blur can still
     // carry a larger value the store would quietly clamp. The submit-path guard must reject it.
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -360,17 +282,7 @@ describe("AllocationModal create", () => {
   });
 });
 
-const person = (name: string) => ({
-  kind: "person" as const,
-  name,
-  role: "Dev",
-  employmentType: "permanent" as const,
-  engagement: "studio" as const,
-  workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5] as const,
-  halfDays: [],
-  color: "#111",
-});
+const person = (name: string) => makeResourceDraft({ name, role: "Dev", color: "#111" });
 
 function expectLabelControl(control: HTMLElement) {
   expect(control.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
@@ -1554,17 +1466,7 @@ describe("AllocationModal edit", () => {
 
 describe("AllocationModal inline activity creation pref", () => {
   const addPerson = () => {
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     return useStore.getState().data.resources[0].id;
   };
 
@@ -1614,17 +1516,7 @@ describe("AllocationModal inline activity creation pref", () => {
 
 describe("AllocationModal Enter key submission", () => {
   it("submits when Enter is pressed in the Hours/day input (hourly mode)", async () => {
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -1644,17 +1536,7 @@ describe("AllocationModal Enter key submission", () => {
   });
 
   it("submits when Enter is pressed in the single-line Note input", async () => {
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -1675,17 +1557,7 @@ describe("AllocationModal Enter key submission", () => {
   });
 
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Bruce",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111",
-    });
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = useStore.getState().data.resources[0].id;
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -1707,18 +1579,7 @@ describe("AllocationModal Enter key submission", () => {
 });
 
 describe("AllocationModal repeat creation", () => {
-  const addPerson = () =>
-    useStore.getState().addResource({
-      kind: "person",
-      name: "Tyler",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#111111",
-    });
+  const addPerson = () => useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" }));
 
   const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
     await chooseOption(user, "Project", "Acme / Lightning");

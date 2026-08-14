@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { useStore } from "../../store/useStore";
 import type { LaneLayout } from "../../lib/lanePacking";
 
 // Fixed pixel geometry for the scheduler. dayWidth is dynamic (zoom) and lives in
@@ -98,6 +100,17 @@ export function schedulerDensity(compact: boolean): SchedulerDensity {
     navSectionPadY: compact ? NAV_SECTION_PAD_Y : roomy(NAV_SECTION_PAD_Y),
     navSectionGapY: compact ? NAV_SECTION_GAP_Y : roomy(NAV_SECTION_GAP_Y),
   };
+}
+
+/**
+ * The active density, for a component that just wants the numbers. Every consumer otherwise
+ * repeated the same two lines — subscribe to `compactView`, call {@link schedulerDensity} — and
+ * the pref is the ONLY input, so there is nothing for a caller to decide. Memoised on the flag,
+ * so the object is referentially stable and safe as a `useMemo`/effect dependency.
+ */
+export function useSchedulerDensity(): SchedulerDensity {
+  const compact = useStore((state) => state.compactView);
+  return useMemo(() => schedulerDensity(compact), [compact]);
 }
 
 /** The lane-packing projection of `schedulerDensity`, handed to buildSchedulerModel. */

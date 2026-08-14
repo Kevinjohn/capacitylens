@@ -1,7 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { useStore } from "../../store/useStore";
-import { DAY_COLUMN_MIN_WIDTH } from "../../lib/schedulerConfig";
 import { Plus } from "lucide-react";
 import { AllocationBar } from "./AllocationBar";
 import { LAYOUT } from "./layout";
@@ -70,9 +68,7 @@ export const ResourceLane = memo(function ResourceLane({
   dayStates,
   timeOff,
   todayX,
-  dayWidth,
   geom,
-  origin,
   rowHeight,
   barTop,
   bars,
@@ -90,11 +86,11 @@ export const ResourceLane = memo(function ResourceLane({
   dayStates: DayState[];
   timeOff: TimeOffBlock[];
   todayX: number | null;
-  // dayWidth still gates the density thresholds (per-day columns / weekday tint); the
-  // pixel POSITIONS all come from geom, which may narrow weekend columns.
+  // Declared but not read: the density thresholds it used to gate now come from `geom`
+  // (`perDayColumns`), and the pixel positions always did. Still in the type because the grid
+  // passes it; drop both together.
   dayWidth: number;
   geom: ColumnGeometry;
-  origin: ISODate;
   rowHeight: number;
   /** Top offset of lane 0 — the current density's `rowPadding` (see layout.ts). Passed in rather
    *  than read from LAYOUT so the draw-to-create ghost lands on the same line as the real bar it
@@ -134,8 +130,8 @@ export const ResourceLane = memo(function ResourceLane({
       // geom.indexAt is the exact inverse of the column layout AND clamps to [0, days.length-1]:
       // a pointerup can land outside the lane (the gesture is tracked on the document, so the
       // pointer may release past either edge), and bounding the untrusted coord here means
-      // addDaysISO(origin, idx) always gets a valid offset inside the visible window — a drop
-      // past the edge snaps to the first/last day, never an off-window date. This is the SINGLE
+      // `days[idx]` is always a real day of the visible window — a drop past the edge snaps to
+      // the first/last day, never an off-window date. This is the SINGLE
       // pointer→day inverse, shared with the bars' drag math (passed to AllocationBar below).
       return geom.indexAt(clientX - rect.left);
     },
@@ -164,7 +160,11 @@ export const ResourceLane = memo(function ResourceLane({
     setDraw({ a: start, b: start });
     const onMove = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return;
-      setDraw({ a: start, b: indexAt(ev.clientX) });
+      const b = indexAt(ev.clientX);
+      // This fires on EVERY pointermove, but the ghost only changes when the pointer crosses a
+      // day boundary. Bail on an unchanged span (`a` is always `start` here) so a move within one
+      // column doesn't re-render the lane — the same idiom as the hover-day setState below.
+      setDraw((prev) => (prev && prev.b === b ? prev : { a: start, b }));
     };
     const detach = () => {
       document.removeEventListener("pointermove", onMove);
@@ -182,12 +182,12 @@ export const ResourceLane = memo(function ResourceLane({
       // tiny row "+"). A multi-day drag spans clicked-start → release. Grabbing a bar
       // never reaches here (the bar stops propagation), so this only fires on empty space.
       if (Math.abs(ev.clientX - startX) < DRAW_THRESHOLD_PX) {
-        const day = addDaysISO(origin, start);
+        const day = days[start];
         onDraw(resourceId, day, day);
         return;
       }
       const end = indexAt(ev.clientX);
-      onDraw(resourceId, addDaysISO(origin, Math.min(start, end)), addDaysISO(origin, Math.max(start, end)));
+      onDraw(resourceId, days[Math.min(start, end)], days[Math.max(start, end)]);
     };
     const onCancel = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return;
@@ -224,6 +224,10 @@ export const ResourceLane = memo(function ResourceLane({
       onPointerMove={(e) => {
         if (!onDraw) return; // Viewer (P1.12): no create → no hover "+" hint to track.
         if (e.pointerType !== "mouse") return; // touch/pen have no hover state
+        // A move with a button held is part of a GESTURE (this lane's draw, or a bar drag/resize),
+        // not a hover. The hint is hidden for the whole of it anyway, so tracking the day under the
+        // pointer only costs a measure + re-render per move.
+        if (e.buttons !== 0) return;
         const i = indexAt(e.clientX);
         if (dayStates[i]?.creationBlocked) {
           setHoverDay(null);
@@ -243,8 +247,8 @@ export const ResourceLane = memo(function ResourceLane({
           only, same DOM-weight rule as the weekend tint below. */}
       {days.map((d, i) => {
         if (i === 0) return null;
-        const weekStart = weekdayOf(d) === weekStartsOn;
-        if (!weekStart && dayWidth < DAY_COLUMN_MIN_WIDTH) return null;
+        const weekStart = geom.weekdays[i] === weekStartsOn;
+        if (!weekStart && !geom.perDayColumns) return null;
         return (
           <div
             key={`w-${d}`}
@@ -255,7 +259,7 @@ export const ResourceLane = memo(function ResourceLane({
       })}
 
       {/* weekend / unavailable tint — only at fine zoom (keeps the DOM light when zoomed out) */}
-      {dayWidth >= DAY_COLUMN_MIN_WIDTH &&
+      {geom.perDayColumns &&
         days.map((d, i) =>
           dayStates[i]?.unavailable ? (
             <div
@@ -271,7 +275,7 @@ export const ResourceLane = memo(function ResourceLane({
       {/* A half working day keeps the whole cell interactive while the unavailable half uses the
           same neutral family as a fully unavailable day. This decorative layer paints before time
           off, conflicts, add hints and bars so every existing schedule signal remains legible. */}
-      {dayWidth >= DAY_COLUMN_MIN_WIDTH &&
+      {geom.perDayColumns &&
         days.map((d, i) =>
           dayStates[i]?.partialCapacity ? (
             <div
@@ -325,7 +329,10 @@ export const ResourceLane = memo(function ResourceLane({
         if (!state?.over && !state?.timeOffConflict) return null;
         const left = geom.x(i);
         const width = geom.widthOf(i);
-        const overlapsTimeOff = timeOff.some((block) => block.x < left + width && block.x + block.width > left);
+        // The model decided this in DATE space (DayState.hasTimeOff); re-deriving it here by
+        // intersecting the laid-out blocks in PIXEL space asked the same question in the space
+        // where a narrowed weekend column can answer it differently.
+        const overlapsTimeOff = state.hasTimeOff;
         return (
           <div
             key={`o-${d}`}
@@ -348,7 +355,7 @@ export const ResourceLane = memo(function ResourceLane({
           light on purpose. Mouse-only, fine-zoom only (no room for it in 8px columns),
           hidden while a draw is live (the ghost is the affordance then). Painted
           before the bars so scheduled work covers it. */}
-      {onDraw && hoverDay !== null && !draw && dayWidth >= DAY_COLUMN_MIN_WIDTH && (
+      {onDraw && hoverDay !== null && !draw && geom.perDayColumns && (
         <div
           aria-hidden
           data-testid="day-add-hint"

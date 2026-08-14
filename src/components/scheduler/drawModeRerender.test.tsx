@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { memo } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import type { AppData } from "@capacitylens/shared/types/entities";
 import { useStore } from "../../store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAllocation } from "../../test/fixtures";
+import { schedulerDataset } from "./__tests__/schedulerTestKit";
 
 // The point of this whole suite: toggling the Time-off draw mode must re-render ONLY each lane's
 // thin BarsLayer (which flips `inert`), NOT the AllocationBars inside it. The bars bail purely on
@@ -31,70 +31,12 @@ vi.mock("./AllocationBar", () => ({
 
 const ACC = DEFAULT_ACCOUNT_ID;
 
-function dataset(): AppData {
-  return makeAppData({
-    disciplines: [{ id: "d1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 }],
-    resources: [
-      {
-        id: "r1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
-        name: "Bruce",
-        role: "Designer",
-        disciplineId: "d1",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: "#111",
-      },
-    ],
-    clients: [{ id: "c1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Acme", color: "#222" }],
-    projects: [
-      { id: "p1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Lightning", clientId: "c1", color: "#ec4899" },
-    ],
-    phases: [],
-    activities: [
-      {
-        id: "t1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Wireframes",
-        kind: "project",
-        projectId: "p1",
-      },
-    ],
+function dataset() {
+  return schedulerDataset({
     allocations: [
-      {
-        id: "a1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "t1",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-      {
-        id: "a2",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "t1",
-        startDate: "2026-06-04",
-        endDate: "2026-06-05",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
+      makeAllocation({ accountId: ACC }),
+      makeAllocation({ id: "a2", accountId: ACC, startDate: "2026-06-04", endDate: "2026-06-05" }),
     ],
-    timeOff: [],
   });
 }
 
