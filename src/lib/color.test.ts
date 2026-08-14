@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  resolveBarColor,
-  readableTextColor,
-  contrastRatio,
-  ensureBarColors,
-  isHexColor,
-} from "@capacitylens/shared/lib/color";
+import { resolveBarColor, readableTextColor, contrastRatio, ensureBarColors } from "@capacitylens/shared/lib/color";
 import { DEFAULT_COLORS, SWATCHES } from "./palette";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
@@ -137,16 +131,6 @@ describe("ensureBarColors", () => {
   });
   it("falls back to neutral grey for an OVERLONG hex (was mis-sliced before)", () => {
     expect(ensureBarColors("#aabbccdd").bg).toBe("#9ca3af"); // 8 digits → invalid → grey, not a wrong colour
-  });
-});
-
-describe("isHexColor", () => {
-  it("accepts 6-digit hex and rejects everything else", () => {
-    expect(isHexColor("#3b82f6")).toBe(true);
-    expect(isHexColor("#ABCDEF")).toBe(true);
-    expect(isHexColor("#abc")).toBe(false);
-    expect(isHexColor("3b82f6")).toBe(false);
-    expect(isHexColor("rgb(0,0,0)")).toBe(false);
   });
 });
 

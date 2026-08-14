@@ -48,10 +48,18 @@ function repairRevision(current: ISOTimestamp, now: ISOTimestamp): ISOTimestamp 
   return new Date(currentMs + 1).toISOString();
 }
 
+/** The deterministic id an account's Internal client is created with. Ordinary creation uses it
+ * directly; repair falls back to a suffixed variant when it is already taken (see
+ * {@link availableInternalClientId}). Identification at RUNTIME is still by the `builtin` flag —
+ * this formula never survives an import-remap (see the module doc). */
+export function internalClientIdFor(accountId: ID): ID {
+  return `internal:${accountId}`;
+}
+
 /** Choose the deterministic Internal id when available, otherwise the first free deterministic
  * suffix. Client ids are table-global in SQLite, so callers must supply ids from every account. */
 export function availableInternalClientId(accountId: ID, usedIds: ReadonlySet<ID>): ID {
-  const base = `internal:${accountId}`;
+  const base = internalClientIdFor(accountId);
   let candidate = base;
   let suffix = 0;
   while (usedIds.has(candidate)) {
@@ -64,7 +72,7 @@ export function availableInternalClientId(accountId: ID, usedIds: ReadonlySet<ID
 /** Build the Internal client for one account: a real Client with `builtin: true`, its selected id,
  * the reserved name + colour, and the given timestamps. Ordinary creation uses the account-derived
  * default; repair callers may provide a collision-free fallback from availableInternalClientId. */
-export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = `internal:${accountId}`): Client {
+export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = internalClientIdFor(accountId)): Client {
   return {
     id,
     accountId,
@@ -80,7 +88,7 @@ export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = `
  *  `builtin` flag (id-independent so it survives import-remap). First match wins — the seed /
  *  addAccount / migrate paths guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
-  return clients.find((c) => !!c && typeof c === "object" && c.builtin === true && c.accountId === accountId);
+  return clients.find((c) => !!c && typeof c === "object" && isBuiltinClient(c) && c.accountId === accountId);
 }
 
 /** True when this client is the protected built-in (cannot be renamed or deleted). */
@@ -98,6 +106,22 @@ export function isBuiltinClient(client: Pick<Client, "builtin">): boolean {
 export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID): boolean {
   const existing = internalClientFor(clients, accountId);
   return existing !== undefined && existing.id !== id;
+}
+
+/**
+ * Does the retained Internal row still differ from its canonical form? ONE copy of the predicate,
+ * because {@link ensureInternalClients} must decide two things with EXACTLY the same test: whether
+ * any repair is needed at all, and whether an individual row's `updatedAt` must be bumped. The two
+ * must stay in lockstep — see the comment at the bump site.
+ */
+function needsInternalClientRepair(client: Client): boolean {
+  return (
+    client.name !== INTERNAL_CLIENT_NAME ||
+    client.color !== INTERNAL_CLIENT_COLOR ||
+    client.builtin !== true ||
+    client.archivedAt !== undefined ||
+    client.deletedAt !== undefined
+  );
 }
 
 /**
@@ -141,7 +165,7 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
     if (!account || typeof account !== "object" || typeof account.id !== "string") continue;
     if (processedAccountIds.has(account.id)) continue;
     processedAccountIds.add(account.id);
-    const generatedId = `internal:${account.id}`;
+    const generatedId = internalClientIdFor(account.id);
     const builtins = builtinsByAccount.get(account.id);
     if (!builtins || builtins.length === 0) {
       const id = availableInternalClientId(account.id, usedIds);
@@ -169,16 +193,9 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
       }
     }
   }
-  const needsRepair = data.clients.some(
-    (client, index) =>
-      retainedIndexes.has(index) &&
-      (client.name !== INTERNAL_CLIENT_NAME ||
-        client.color !== INTERNAL_CLIENT_COLOR ||
-        client.builtin !== true ||
-        client.archivedAt !== undefined ||
-        client.deletedAt !== undefined),
-  );
-  if (added.length === 0 && duplicateIndexes.size === 0 && !needsRepair) return data;
+  // ONE pass over the rows: the repaired projection and the "was anything actually repaired?" flag
+  // come from the SAME predicate evaluation, so they cannot disagree.
+  let repairedAny = false;
   const clients = data.clients.flatMap((client, index): Client[] => {
     if (duplicateIndexes.has(index)) return [];
     if (!retainedIndexes.has(index)) return [client];
@@ -187,17 +204,16 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
     // would be re-applied in memory on every load yet never emit a PUT — the repair never reaches the
     // server. Bumping UNCONDITIONALLY would be the opposite disease: an already-canonical row would
     // diff as changed on every load and churn phantom writes, so the guard must be exact.
-    const altered =
-      client.name !== INTERNAL_CLIENT_NAME ||
-      client.color !== INTERNAL_CLIENT_COLOR ||
-      client.builtin !== true ||
-      client.archivedAt !== undefined ||
-      client.deletedAt !== undefined;
+    const altered = needsInternalClientRepair(client);
+    if (altered) repairedAny = true;
     const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const };
     delete repaired.archivedAt;
     delete repaired.deletedAt;
     return [altered ? { ...repaired, updatedAt: repairRevision(client.updatedAt, now) } : repaired];
   });
+  // Identity stability is load-bearing: with nothing to add, fold or repair, callers must get the
+  // very same AppData reference back (the projection built above is discarded).
+  if (added.length === 0 && duplicateIndexes.size === 0 && !repairedAny) return data;
   const projects =
     duplicateIds.size === 0
       ? data.projects

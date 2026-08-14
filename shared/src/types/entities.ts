@@ -23,7 +23,6 @@ export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
 export type InternalColourMode = "grey" | "palette";
 /** Runtime list used by the server/import sanitiser to reject an unknown Internal colour mode. */
 export const INTERNAL_COLOUR_MODES: InternalColourMode[] = ["grey", "palette"];
-export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1];
 /**
  * What a resource row represents:
  * - `person`      — a real team member with capacity (the default).
@@ -323,12 +322,7 @@ export const SCOPED_WRITE_ORDER = [
 ] as const satisfies readonly ScopedEntityKey[];
 
 type MissingAppDataWriteKey = Exclude<AppDataKey, (typeof APP_DATA_WRITE_ORDER)[number]>;
-type ExtraAppDataWriteKey = Exclude<(typeof APP_DATA_WRITE_ORDER)[number], AppDataKey>;
-const appDataWriteOrderIsComplete: MissingAppDataWriteKey extends never
-  ? ExtraAppDataWriteKey extends never
-    ? true
-    : never
-  : never = true;
+const appDataWriteOrderIsComplete: MissingAppDataWriteKey extends never ? true : never = true;
 void appDataWriteOrderIsComplete;
 
 type MissingScopedWriteKey = Exclude<ScopedEntityKey, (typeof SCOPED_WRITE_ORDER)[number]>;

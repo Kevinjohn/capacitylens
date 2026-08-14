@@ -1,11 +1,22 @@
 import { daysInclusive } from "./dateMath";
 import { MAX_SPAN_DAYS } from "./schedulingDays";
 import type { DomainErrorCode } from "../domain/errors";
-import type { AppData, EmploymentType, ID, ISODate, Resource } from "../types/entities";
+import type { AppData, ID, ISODate, Resource } from "../types/entities";
 
 // Referential-integrity rules and cascade-delete transforms. All pure: cascade helpers return a
 // NEW AppData rather than mutating. Callers that own a clock may pass an updatedAt revision for
 // surviving rows whose foreign key is cleared, so synchronization observes the relationship edit.
+
+/**
+ * Length of a Gregorian calendar month, leap years included. `month` is 1-based and must already
+ * be 1–12 (callers range-check first — see `isValidISODate` below and repeatingDates' typed
+ * wrapper). Exported so the calendar-validity check here and repeatingDates' month arithmetic
+ * share ONE leap rule; two copies could drift on a century year (1900 vs 2000).
+ */
+export function daysInMonth(year: number, month: number): number {
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+}
 
 /**
  * Is `s` a well-formed, real calendar date in date-only ISO form ("YYYY-MM-DD")?
@@ -21,9 +32,7 @@ export function isValidISODate(s: unknown): s is ISODate {
   const month = Number(match[2]);
   const day = Number(match[3]);
   if (year < 1 || month < 1 || month > 12 || day < 1) return false;
-  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
-  return day <= daysInMonth;
+  return day <= daysInMonth(year, month);
 }
 
 const ISO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
@@ -60,10 +69,6 @@ export function parseISOTimestamp(value: unknown): number | null {
   const expected = localAsUtc - offsetMinutes * 60_000;
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) && parsed === expected ? parsed : null;
-}
-
-export function isTemporary(resource: { employmentType: EmploymentType }): boolean {
-  return resource.employmentType !== "permanent";
 }
 
 export interface ValidationResult {
@@ -207,44 +212,27 @@ export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string
   };
 }
 
-/** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving activity's phase and any placeholder bound to it. PURE — returns a new AppData. */
-export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: string): AppData {
-  const removedActivityIds = new Set(data.activities.filter((t) => t.projectId === projectId).map((t) => t.id));
-  // Phases removed with the project. Any SURVIVING activity that pointed at one of them
-  // (e.g. legacy/incoherent data) must have its phaseId unbound, never left dangling —
-  // mirroring the server FK's ON DELETE SET NULL on activities.phaseId.
-  const removedPhaseIds = new Set(data.phases.filter((p) => p.projectId === projectId).map((p) => p.id));
-  return {
-    ...data,
-    projects: data.projects.filter((p) => p.id !== projectId),
-    phases: data.phases.filter((p) => p.projectId !== projectId),
-    activities: data.activities
-      .filter((t) => t.projectId !== projectId)
-      .map((t) =>
-        t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined, updatedAt } : t,
-      ),
-    allocations: data.allocations.filter((a) => !removedActivityIds.has(a.activityId)),
-    // A placeholder bound to this project is unbound (not deleted).
-    resources: data.resources.map((r) => (r.projectId === projectId ? { ...r, projectId: undefined, updatedAt } : r)),
-  };
-}
-
-/** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
- *  surviving phases/placeholders as needed. PURE — returns a new AppData. */
-export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
-  // Single pass: collect every id removed by this client's deletion FIRST, then filter each
-  // table ONCE — rather than re-copying the whole tree per project (deleteProjectCascade × N).
-  // Same cascade semantics as looping that helper: drop the client's projects + their phases +
-  // their activities (and those activities' allocations), unbind a surviving activity's phaseId that pointed
-  // at a removed phase, and unbind a placeholder bound to a removed project.
-  const removedProjectIds = new Set(data.projects.filter((p) => p.clientId === clientId).map((p) => p.id));
+/**
+ * The project-rooted half of both cascades below: given every project id being removed, drop those
+ * projects + their phases + their activities (and those activities' allocations) and unbind what
+ * survives. Callers add only their own root row removal.
+ *
+ * Single pass: collect every removed id FIRST, then filter each table ONCE — rather than
+ * re-copying the whole tree per project. Keeping ONE implementation is also what guarantees the
+ * client cascade can't drift from N × the project cascade.
+ *
+ * Phases go with their project. Any SURVIVING activity that pointed at one of them (e.g.
+ * legacy/incoherent data) must have its phaseId unbound, never left dangling — mirroring the
+ * server FK's ON DELETE SET NULL on activities.phaseId. A placeholder bound to a removed project
+ * is likewise unbound, not deleted.
+ */
+function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt: string): AppData {
   const removedPhaseIds = new Set(data.phases.filter((p) => removedProjectIds.has(p.projectId)).map((p) => p.id));
   const removedActivityIds = new Set(
     data.activities.filter((t) => t.projectId !== undefined && removedProjectIds.has(t.projectId)).map((t) => t.id),
   );
   return {
     ...data,
-    clients: data.clients.filter((c) => c.id !== clientId),
     projects: data.projects.filter((p) => !removedProjectIds.has(p.id)),
     phases: data.phases.filter((p) => !removedPhaseIds.has(p.id)),
     activities: data.activities
@@ -256,6 +244,21 @@ export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: stri
     resources: data.resources.map((r) =>
       r.projectId !== undefined && removedProjectIds.has(r.projectId) ? { ...r, projectId: undefined, updatedAt } : r,
     ),
+  };
+}
+
+/** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving activity's phase and any placeholder bound to it. PURE — returns a new AppData. */
+export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: string): AppData {
+  return dropProjectSubtree(data, new Set([projectId]), updatedAt);
+}
+
+/** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
+ *  surviving phases/placeholders as needed. PURE — returns a new AppData. */
+export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
+  const removedProjectIds = new Set(data.projects.filter((p) => p.clientId === clientId).map((p) => p.id));
+  return {
+    ...dropProjectSubtree(data, removedProjectIds, updatedAt),
+    clients: data.clients.filter((c) => c.id !== clientId),
   };
 }
 

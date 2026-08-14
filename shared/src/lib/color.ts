@@ -64,6 +64,13 @@ export const PRESET_COLORS = Object.freeze([
 ] as const);
 const PRESET_COLOR_SET = new Set<string>(PRESET_COLORS);
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+/** Parsed RGB of every preset, precomputed ONCE alongside `PRESET_COLOR_SET`. The nearest-preset
+ *  scan below runs on every persisted/imported colour, and re-parsing all 52 palette hex strings
+ *  per call was pure repeated work. Index-aligned with `PRESET_COLORS`, so palette order (the
+ *  deterministic tie-break) is preserved. An entry is `null` only if a palette member were not a
+ *  valid 6-digit hex — unreachable (pinned by a test), but kept nullable so such an entry is
+ *  SKIPPED rather than poisoning every distance with NaN. */
+const PRESET_RGB: readonly ([number, number, number] | null)[] = PRESET_COLORS.map((preset) => toRgb(preset));
 
 export function isPresetColor(value: unknown): value is string {
   return typeof value === "string" && PRESET_COLOR_SET.has(value.trim().toLowerCase());
@@ -98,8 +105,8 @@ export function snapToPresetColor(value: unknown): string {
   const [r, g, b] = rgb;
   let nearest: string = PRESET_COLORS[0];
   let nearestDistance = Infinity;
-  for (const preset of PRESET_COLORS) {
-    const presetRgb = toRgb(preset);
+  for (let i = 0; i < PRESET_COLORS.length; i++) {
+    const presetRgb = PRESET_RGB[i];
     if (!presetRgb) continue; // unreachable: every PRESET_COLORS entry is a valid 6-digit hex (pinned by a test)
     const [pr, pg, pb] = presetRgb;
     // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
@@ -108,13 +115,11 @@ export function snapToPresetColor(value: unknown): string {
     // is the deterministic tie-break.
     if (distance < nearestDistance) {
       nearestDistance = distance;
-      nearest = preset;
+      nearest = PRESET_COLORS[i];
     }
   }
   return nearest;
 }
-
-const FALLBACK = NEUTRAL_COLOR;
 
 /** Id→entity maps for O(1) colour resolution. The scheduler model already builds
  *  these to position bars, so colour resolution reuses them instead of re-scanning
@@ -156,7 +161,7 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   if (project?.color) return project.color;
   if (client?.color) return client.color;
 
-  return resource?.color ?? FALLBACK;
+  return resource?.color ?? NEUTRAL_COLOR;
 }
 
 const DARK_INK = "#1c2230";
@@ -191,28 +196,24 @@ export function contrastRatio(hexA: string, hexB: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const DARK_INK_LUM = relativeLuminance(DARK_INK) ?? 0;
-
 /** Pick whichever of white / dark ink has the higher WCAG contrast on `hex`. */
 export function readableTextColor(hex: string): string {
-  const bg = relativeLuminance(hex);
-  if (bg === null) return DARK_INK;
-  const contrastWhite = (1 + 0.05) / (bg + 0.05);
-  const contrastDark = (Math.max(bg, DARK_INK_LUM) + 0.05) / (Math.min(bg, DARK_INK_LUM) + 0.05);
-  return contrastWhite >= contrastDark ? LIGHT_INK : DARK_INK;
+  // Load-bearing guard, NOT redundant with contrastRatio: an unparseable `hex` makes BOTH ratios
+  // below the documented "no contrast info" value of 1, which would tie and hand the answer to
+  // white ink. An unreadable colour must fall back to dark ink.
+  if (relativeLuminance(hex) === null) return DARK_INK;
+  return contrastRatio(hex, LIGHT_INK) >= contrastRatio(hex, DARK_INK) ? LIGHT_INK : DARK_INK;
 }
 
 const AA_NORMAL = 4.5;
 
+/** The exact channel quantisation `toHex` writes (and therefore the value a later re-parse of that
+ *  hex reads back). Shared so the nudge loop below can score a candidate from its live float
+ *  channels WITHOUT round-tripping through a hex string, yet score the identical byte values. */
+const channelByte = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+
 const toHex = (r: number, g: number, b: number) =>
-  "#" +
-  [r, g, b]
-    .map((v) =>
-      Math.max(0, Math.min(255, Math.round(v)))
-        .toString(16)
-        .padStart(2, "0"),
-    )
-    .join("");
+  "#" + [r, g, b].map((v) => channelByte(v).toString(16).padStart(2, "0")).join("");
 
 /**
  * Bar label legibility: many mid-tone colours give neither white nor dark ink a
@@ -223,11 +224,22 @@ const toHex = (r: number, g: number, b: number) =>
 export function ensureBarColors(hex: string): { bg: string; ink: string } {
   const rgb = toRgb(hex);
   const ink = readableTextColor(hex);
-  if (!rgb) return { bg: FALLBACK, ink: readableTextColor(FALLBACK) };
+  if (!rgb) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
   let [r, g, b] = rgb;
   const darken = ink === LIGHT_INK;
-  let bg = hex;
-  for (let i = 0; i < 30 && contrastRatio(bg, ink) < AA_NORMAL; i++) {
+  // The ink never changes inside the loop, so linearise it ONCE. Previously each iteration
+  // re-formatted the candidate to hex and re-parsed BOTH it and the ink through contrastRatio;
+  // now only the settled colour is formatted, after the loop.
+  const inkLuminance = relativeLuminance(ink) ?? 0;
+  // Score from the quantised bytes (`channelByte`), i.e. exactly the channels a re-parse of
+  // `toHex(r, g, b)` would yield — so the loop stops on precisely the same iteration as before.
+  const contrastWithInk = () => {
+    const luminance =
+      0.2126 * channelLin(channelByte(r)) + 0.7152 * channelLin(channelByte(g)) + 0.0722 * channelLin(channelByte(b));
+    return (Math.max(luminance, inkLuminance) + 0.05) / (Math.min(luminance, inkLuminance) + 0.05);
+  };
+  let nudged = false;
+  for (let i = 0; i < 30 && contrastWithInk() < AA_NORMAL; i++) {
     if (darken) {
       r *= 0.92;
       g *= 0.92;
@@ -237,12 +249,9 @@ export function ensureBarColors(hex: string): { bg: string; ink: string } {
       g += (255 - g) * 0.12;
       b += (255 - b) * 0.12;
     }
-    bg = toHex(r, g, b);
+    nudged = true;
   }
-  return { bg, ink };
-}
-
-/** True when 6-digit hex `#rrggbb`. Used to validate user colour input. */
-export function isHexColor(value: string): boolean {
-  return HEX_COLOR_RE.test(value.trim());
+  // An already-legible colour is returned VERBATIM (the caller's casing/whitespace survives),
+  // matching the previous `let bg = hex` that only the loop ever overwrote.
+  return { bg: nudged ? toHex(r, g, b) : hex, ink };
 }

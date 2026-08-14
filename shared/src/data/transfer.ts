@@ -1,7 +1,7 @@
 // The CapacityLens shape guards (looksLikeCapacityLens / hasNonArrayKnownTable) live in migrate.ts —
 // next to the migrate they gate, so the "is this even CapacityLens" check and the transform it
 // protects can't drift (mirrors schedule/diary). Imported back here for the parse path.
-import { importCandidate, KNOWN_KEYS, migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from "./migrate";
+import { importCandidate, RECOGNISED_KEYS, migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from "./migrate";
 import { EXPORT_SCHEMA_VERSION } from "../types/entities";
 import type { AppData, PersistedState } from "../types/entities";
 
@@ -48,7 +48,7 @@ export function parseData(json: string): AppData {
     throw new Error("This file is not CapacityLens data.");
   }
   const candidate = importCandidate(raw)!;
-  const rawTotal = [...KNOWN_KEYS, "tasks"].reduce(
+  const rawTotal = RECOGNISED_KEYS.reduce(
     (n, key) => n + (Array.isArray(candidate[key]) ? candidate[key].length : 0),
     0,
   );
@@ -59,7 +59,7 @@ export function parseData(json: string): AppData {
   // record before migrations/repairs may inspect it. Field-level sanitisation remains the import
   // remapper's job; this guard prevents null/primitives from escaping as typed rows or triggering
   // native property-access errors inside migration helpers.
-  for (const key of [...KNOWN_KEYS, "tasks"] as const) {
+  for (const key of RECOGNISED_KEYS) {
     const rows = candidate[key];
     if (!Array.isArray(rows)) continue;
     if (rows.some((row) => row === null || typeof row !== "object" || Array.isArray(row))) {

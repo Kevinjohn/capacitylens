@@ -6,7 +6,6 @@ import {
   deleteProjectCascade,
   deleteResourceCascade,
   deleteActivityCascade,
-  isTemporary,
   isValidISODate,
   parseISOTimestamp,
   validateAllocationAssignment,
@@ -154,14 +153,6 @@ function sampleData(): AppData {
     ],
   };
 }
-
-describe("isTemporary", () => {
-  it("is true for freelancers and contractors, false for permanent", () => {
-    expect(isTemporary({ employmentType: "permanent" })).toBe(false);
-    expect(isTemporary({ employmentType: "freelancer" })).toBe(true);
-    expect(isTemporary({ employmentType: "contractor" })).toBe(true);
-  });
-});
 
 describe("validateProjectClient", () => {
   it("requires a client", () => {

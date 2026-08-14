@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildColumnGeometry } from "./columnGeometry";
-import { eachDayISO, xForDate, widthForRange } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { resolveColumnFit } from "../../lib/schedulerConfig";
 
 // A full week: 2026-06-01 (Mon) … 2026-06-07 (Sun). 06-06 = Sat, 06-07 = Sun.
@@ -25,14 +25,13 @@ describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
     }
   });
 
-  it("xForDateInGeom / widthForDates match the legacy xForDate / widthForRange exactly", () => {
-    const origin = WEEK[0];
-    for (const d of WEEK) {
-      expect(geom.xForDateInGeom(d)).toBe(xForDate(d, origin, 48));
+  it("xForDateInGeom / widthForDates reproduce the uniform index*dayWidth pixel values", () => {
+    for (let i = 0; i < WEEK.length; i++) {
+      expect(geom.xForDateInGeom(WEEK[i])).toBe(i * 48);
     }
     // Inclusive ranges, including ones that span the (uniform) weekend.
-    expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(widthForRange("2026-06-01", "2026-06-02", 48));
-    expect(geom.widthForDates("2026-06-05", "2026-06-07")).toBe(widthForRange("2026-06-05", "2026-06-07", 48));
+    expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(2 * 48);
+    expect(geom.widthForDates("2026-06-05", "2026-06-07")).toBe(3 * 48);
   });
 
   it("xForDateInGeom extrapolates off-window dates at full dayWidth (overflow geometry preserved)", () => {
