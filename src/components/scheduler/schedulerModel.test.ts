@@ -8,6 +8,7 @@ import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlocked } from "./creationAvailability";
+import { makeResource } from "../../test/fixtures";
 
 const start = "2026-06-01";
 const end = "2026-06-07";
@@ -91,38 +92,22 @@ function dataset(): AppData {
       },
     ],
     resources: [
-      {
+      makeResource({
         id: "r1",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
         name: "Designer Dana",
         role: "Designer",
         disciplineId: "d-design",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#4",
-      },
-      {
+      }),
+      makeResource({
         id: "r2",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
         name: "Dev Sam",
         role: "Developer",
         disciplineId: "d-dev",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#5",
-      },
+      }),
     ],
     allocations: [
       {
@@ -270,21 +255,16 @@ it("keeps discipline groups while ordering engagement partitions and externals d
 // person), plus a stray time-off row — to prove externals carry NO capacity signals at all.
 function withExternal(): AppData {
   const d = dataset();
-  d.resources.push({
-    id: "ext1",
-    accountId: "acct-test",
-    createdAt: "t",
-    updatedAt: "t",
-    kind: "external",
-    name: "Kord Industries",
-    role: "Partner studio",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#9ca3af",
-  });
+  d.resources.push(
+    makeResource({
+      id: "ext1",
+      accountId: "acct-test",
+      kind: "external",
+      name: "Kord Industries",
+      role: "Partner studio",
+      color: "#9ca3af",
+    }),
+  );
   // 6/05 Fri–6/07 Sun: spans 2 zero-capacity days that WOULD flag over for a person. hoursPerDay 0.
   d.allocations.push({
     id: "aext",
@@ -353,21 +333,14 @@ describe("buildSchedulerModel", () => {
     // A placeholder listed BEFORE a person in the same discipline — the model must
     // still surface the person first.
     d.resources = [
-      {
+      makeResource({
         id: "ph",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
         kind: "placeholder",
         role: "Designer",
         disciplineId: "d-design",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#9",
-      },
+      }),
       ...d.resources, // r1 (person, Design), r2 (person, Dev)
     ];
     const model = buildSchedulerModel({
@@ -391,22 +364,17 @@ describe("buildSchedulerModel", () => {
   // placeholdersEnabled flag hides the row AND drops its load from utilisation when off.
   function withPlaceholder(): AppData {
     const d = dataset();
-    d.resources.push({
-      id: "ph",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      kind: "placeholder",
-      role: "Designer",
-      disciplineId: "d-design",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#9",
-      projectId: "p1",
-    });
+    d.resources.push(
+      makeResource({
+        id: "ph",
+        accountId: "acct-test",
+        kind: "placeholder",
+        role: "Designer",
+        disciplineId: "d-design",
+        color: "#9",
+        projectId: "p1",
+      }),
+    );
     // A FULLY-booked placeholder (8h across the whole Mon–Fri window → 100% util) so that, were it
     // counted, it would push Design's discipline average ABOVE the person-only figure. This makes
     // "OFF excludes it from per-discipline utilisation" a directional assertion, not a coincidence.
@@ -942,23 +910,7 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", () =
           projectId: "p1",
         },
       ],
-      resources: [
-        {
-          id: "r1",
-          accountId: "acct-test",
-          createdAt: "t",
-          updatedAt: "t",
-          kind: "person",
-          name: "Dana",
-          role: "Designer",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#4",
-        },
-      ],
+      resources: [makeResource({ id: "r1", accountId: "acct-test", name: "Dana", role: "Designer", color: "#4" })],
       allocations: [
         // Week 1 (06-01..06-07): 8h/day Mon–Fri → 40/40 = 100%.
         {
@@ -1384,12 +1336,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
         showInternalActivities: showInternalActivities,
       },
     });
-  const barIdsOf = (m: GroupModel[]) =>
-    m
-      .flatMap((g) => g.rows)
-      .flatMap((r) => r.bars)
-      .map((b) => b.allocation.id)
-      .sort();
+  // barIds (module scope, above) covers the same flatten+sort — reused here rather than redefined.
   const r1Util = (m: GroupModel[]) => m.flatMap((g) => g.rows).find((r) => r.resource.id === "r1")!.utilization;
 
   it("(d) defaults (absent fields → true) show every internal bar", () => {
@@ -1407,13 +1354,13 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
         externalEnabled: true,
       },
     });
-    const ids = barIdsOf(model);
+    const ids = barIds(model);
     expect(ids).toContain("aIntProj"); // internal-client project bar
     expect(ids).toContain("aIntNoProj"); // internal-kind activity bar
   });
 
   it("(a) showInternalActivities=false hides internal-KIND bars only (cross-project + internal-client project stay)", () => {
-    const ids = barIdsOf(buildPrefs(true, false));
+    const ids = barIds(buildPrefs(true, false));
     expect(ids).not.toContain("aIntNoProj"); // kind 'internal' — hidden
     expect(ids).toContain("aRep"); // kind 'repeatable' — a distinct group, NEVER hidden by this toggle
     expect(ids).toContain("aIntProj"); // a 'project' activity — NOT an internal activity, still shown
@@ -1421,7 +1368,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
   });
 
   it("(b) showInternalProjects=false hides internal-CLIENT project bars only (project-less activities stay)", () => {
-    const ids = barIdsOf(buildPrefs(false, true));
+    const ids = barIds(buildPrefs(false, true));
     expect(ids).not.toContain("aIntProj"); // project under the built-in Internal client — hidden
     expect(ids).toContain("aIntNoProj"); // project-less internal-kind activity — still shown
     expect(ids).toContain("aRep"); // project-less repeatable activity — still shown
@@ -1429,7 +1376,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
   });
 
   it("both false hides internal projects + internal activities, but cross-project and ordinary work survive", () => {
-    const ids = barIdsOf(buildPrefs(false, false));
+    const ids = barIds(buildPrefs(false, false));
     expect(ids).not.toContain("aIntProj");
     expect(ids).not.toContain("aIntNoProj");
     expect(ids).toContain("aRep"); // cross-project is the third group — visible with BOTH toggles off
@@ -1466,7 +1413,7 @@ describe("internal-work bar-only hide prefs (showInternalProjects / showInternal
     // Sanity: r1 genuinely carries load (so the equality isn't a trivial 0 === 0), and the bar count
     // really did drop — proving the toggles took effect while utilisation held.
     expect(shown).toBeGreaterThan(0);
-    expect(barIdsOf(buildPrefs(false, false)).length).toBeLessThan(barIdsOf(buildPrefs(true, true)).length);
+    expect(barIds(buildPrefs(false, false)).length).toBeLessThan(barIds(buildPrefs(true, true)).length);
   });
 });
 
@@ -1537,42 +1484,26 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
     );
     d.resources.push(
       // archived (archivedAt set) — must NOT render.
-      {
+      makeResource({
         id: "r-arch",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
         archivedAt: "2026-05-01T00:00:00.000Z",
-        kind: "person",
         name: "Archived Ann",
         role: "Ops",
         disciplineId: "d-ops",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#6",
-      },
+      }),
       // soft-deleted (deletedAt set) — must NOT render.
-      {
+      makeResource({
         id: "r-del",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
         archivedAt: "2026-05-01T00:00:00.000Z",
         deletedAt: "2026-05-20T00:00:00.000Z",
-        kind: "person",
         name: "Deleted Del",
         role: "QA",
         disciplineId: "d-qa",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#7",
-      },
+      }),
     );
     // A booking on each non-active resource — the lane and its bars must drop together.
     d.allocations.push(
@@ -1645,10 +1576,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
     expect(resourceIds).not.toContain("r-arch");
     expect(resourceIds).not.toContain("r-del");
     // No bars for the dropped resources (their allocations have nowhere to land).
-    const barIdsAll = model
-      .flatMap((g) => g.rows)
-      .flatMap((r) => r.bars)
-      .map((b) => b.allocation.id);
+    const barIdsAll = barIds(model);
     expect(barIdsAll).not.toContain("a-arch");
     expect(barIdsAll).not.toContain("a-del");
     // Their now-empty discipline bands are dropped entirely (no empty Ops / QA headers).
@@ -1700,10 +1628,7 @@ describe("buildSchedulerModel(activeOnly(data), …) — non-active resources va
       status: "confirmed",
     });
     const model = buildActive(d);
-    const barIdsAll = model
-      .flatMap((g) => g.rows)
-      .flatMap((r) => r.bars)
-      .map((b) => b.allocation.id);
+    const barIdsAll = barIds(model);
     expect(barIdsAll).not.toContain("a-orphan");
   });
 });
@@ -1717,22 +1642,16 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     // A resource whose displayName/name/role all collapse to the SAME single word, so there's no
     // duplicate occurrence anywhere in the searched string to coincidentally rescue an un-trimmed
     // search — the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
-    d.resources.push({
-      id: "r-zed",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      kind: "person",
-      name: "Zed",
-      role: "Zed",
-      disciplineId: "d-design",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a",
-    });
+    d.resources.push(
+      makeResource({
+        id: "r-zed",
+        accountId: "acct-test",
+        name: "Zed",
+        role: "Zed",
+        disciplineId: "d-design",
+        color: "#a",
+      }),
+    );
     const model = buildSchedulerModel({
       data: d,
       geom: geom,
@@ -1772,22 +1691,17 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
 
   it("a placeholder IS searchable by its own (unusual, but allowed) `name` field", () => {
     const d = dataset();
-    d.resources.push({
-      id: "ph-named",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      kind: "placeholder",
-      name: "Zibblequork",
-      role: "Designer",
-      disciplineId: "d-design",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#b",
-    });
+    d.resources.push(
+      makeResource({
+        id: "ph-named",
+        accountId: "acct-test",
+        kind: "placeholder",
+        name: "Zibblequork",
+        role: "Designer",
+        disciplineId: "d-design",
+        color: "#b",
+      }),
+    );
     const model = buildSchedulerModel({
       data: d,
       geom: geom,
@@ -2132,6 +2046,8 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       unavailable: false,
       partialCapacity: false,
       creationBlocked: false,
+      // Starved of capacity, so a stray time-off record cannot mark an external's day either.
+      hasTimeOff: false,
     });
   });
 
@@ -2435,68 +2351,38 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
   it("placeholder ordering is stable WITHIN each kind: multiple persons keep their relative order, multiple placeholders too", () => {
     const d = dataset();
     d.resources = [
-      {
+      makeResource({
         id: "ph1",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
         kind: "placeholder",
         role: "Designer",
         disciplineId: "d-design",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#9",
-      },
-      {
+      }),
+      makeResource({
         id: "r1",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
         name: "Dana",
         role: "Designer",
         disciplineId: "d-design",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#4",
-      },
-      {
+      }),
+      makeResource({
         id: "ph2",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
         kind: "placeholder",
         role: "Designer",
         disciplineId: "d-design",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#8",
-      },
-      {
+      }),
+      makeResource({
         id: "r2",
         accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
         name: "Sam",
         role: "Designer",
         disciplineId: "d-design",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#5",
-      },
+      }),
     ];
     const model = buildSchedulerModel({
       data: d,
@@ -2660,22 +2546,17 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
   it("utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model", () => {
     const d = dataset();
     // A distinct 3rd resource + allocation shape so three resources each have different load.
-    d.resources.push({
-      id: "r3",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      kind: "person",
-      name: "QA Quinn",
-      role: "QA",
-      disciplineId: "d-dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 6,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#6",
-    });
+    d.resources.push(
+      makeResource({
+        id: "r3",
+        accountId: "acct-test",
+        name: "QA Quinn",
+        role: "QA",
+        disciplineId: "d-dev",
+        workingHoursPerDay: 6,
+        color: "#6",
+      }),
+    );
     d.allocations.push({
       id: "a5",
       accountId: "acct-test",
@@ -2807,14 +2688,14 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
       expect(row.dayStates).toEqual(
         naiveTimeline.map((c, index) => {
           const creationBlocked = isCreationStartBlocked(resource, days[index]!, off, [1, 2, 3, 4, 5]);
-          const timeOffConflict =
-            c.over && off.some((entry) => entry.startDate <= days[index]! && entry.endDate >= days[index]!);
+          const hasTimeOff = off.some((entry) => entry.startDate <= days[index]! && entry.endDate >= days[index]!);
           return {
             over: c.over,
-            timeOffConflict,
+            timeOffConflict: c.over && hasTimeOff,
             unavailable: c.available === 0 || creationBlocked,
             partialCapacity: c.available > 0 && !creationBlocked && resource.halfDays.includes(weekdayOf(days[index]!)),
             creationBlocked,
+            hasTimeOff,
           };
         }),
       );
@@ -2825,5 +2706,8 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     const r1 = rows.find((r) => r.resource.id === "r1")!;
     expect(r1.dayStates.some((s) => s.over)).toBe(true);
     expect(r1.dayStates.some((s) => s.unavailable)).toBe(true);
+    // The two tallies must agree with the day states they summarise, on the same naive fixture.
+    expect(r1.conflictDayCount).toBe(r1.dayStates.filter((s) => s.over || s.timeOffConflict).length);
+    expect(r1.partialCapacityDayCount).toBe(r1.dayStates.filter((s) => s.partialCapacity).length);
   });
 });

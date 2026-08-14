@@ -9,6 +9,7 @@ import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import type { DateRange } from "../../lib/gestureMath";
 import type { Resource, Weekday } from "@capacitylens/shared/types/entities";
+import { makeResource } from "../../test/fixtures";
 
 // These functions were extracted from AllocationBar so the gesture math could be tested
 // directly. The branches below are exactly the ones a happy-path drag interaction test
@@ -242,20 +243,8 @@ describe("snappedBarGeometry", () => {
 });
 
 describe("reconcileReassignedHours", () => {
-  const res = (kind: Resource["kind"], workingHoursPerDay = 8): Resource => ({
-    id: "r",
-    accountId: "a",
-    createdAt: "t",
-    updatedAt: "t",
-    kind,
-    role: "R",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#000000",
-  });
+  const res = (kind: Resource["kind"], workingHoursPerDay = 8): Resource =>
+    makeResource({ id: "r", accountId: "a", kind, role: "R", workingHoursPerDay, color: "#000000" });
   it("forces 0 hours when reassigning onto an external (a capacity-free row carries no load)", () => {
     expect(reconcileReassignedHours(8, res("external"), false, "2026-06-01")).toBe(0);
     expect(reconcileReassignedHours(8, res("external"), true, "2026-06-01")).toBe(0);

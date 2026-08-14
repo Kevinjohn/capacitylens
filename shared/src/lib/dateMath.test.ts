@@ -11,6 +11,7 @@ import {
   isWeekendAware,
   MAX_MATERIALISED_DAYS,
   parseDate,
+  rangesOverlap,
   startOfWeekISO,
   todayISO,
   toISODate,
@@ -107,6 +108,16 @@ describe("dateMath", () => {
     expect(isWithin("2026-06-01", "2026-05-01", "2026-05-31")).toBe(false);
   });
 
+  it("rangesOverlap is inclusive at both ends of both ranges", () => {
+    expect(rangesOverlap("2026-05-01", "2026-05-31", "2026-05-10", "2026-05-12")).toBe(true);
+    // Touching edges count as an overlap in both directions.
+    expect(rangesOverlap("2026-05-01", "2026-05-10", "2026-05-10", "2026-05-20")).toBe(true);
+    expect(rangesOverlap("2026-05-10", "2026-05-20", "2026-05-01", "2026-05-10")).toBe(true);
+    // A one-day gap on either side does not.
+    expect(rangesOverlap("2026-05-01", "2026-05-09", "2026-05-10", "2026-05-20")).toBe(false);
+    expect(rangesOverlap("2026-05-21", "2026-05-30", "2026-05-10", "2026-05-20")).toBe(false);
+  });
+
   it("toISODate/parseDate round-trip", () => {
     expect(toISODate(parseDate("2026-05-29"))).toBe("2026-05-29");
   });
@@ -157,6 +168,18 @@ describe("todayISO", () => {
       expect(todayISO("Pacific/Kiritimati")).toBe("2026-06-15");
     });
 
+    it("resolves an EXPLICIT instant rather than the clock when `now` is given", () => {
+      // The reactive-today boundary search probes future instants through this one resolver;
+      // ignoring `now` would make every probe answer with the current date and the search
+      // would never find the boundary.
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-06-14T20:00:00Z"));
+      const tomorrowUTC = Date.parse("2026-06-15T20:00:00Z");
+      expect(todayISO("UTC", Date.parse("2026-06-14T20:00:00Z"))).toBe("2026-06-14");
+      expect(todayISO("UTC", tomorrowUTC)).toBe("2026-06-15");
+      expect(todayISO(undefined, tomorrowUTC)).toBe(toISODate(new Date(tomorrowUTC)));
+    });
+
     it("always resolves the SAME zone, ignoring which timeZone happens to be passed", () => {
       // Guards the early-return short-circuit `if (!timeZone) return toISODate(new
       // Date())`: forcing it to ALWAYS fire (dropping the timeZone argument on the
@@ -172,7 +195,15 @@ describe("todayISO", () => {
       vi.restoreAllMocks();
     });
 
-    it("throws RangeError (not a silent pseudo-ISODate) when the resolved year is outside the four-digit domain", () => {
+    // `todayISO` caches one formatter per zone at module scope, so each case here takes a FRESH
+    // module instance (the same isolation the aggregate-warning case below uses) — otherwise the
+    // real formatter an earlier test cached for the same zone would answer instead of the mock.
+    async function isolatedDateMath() {
+      vi.resetModules();
+      return await import("./dateMath");
+    }
+
+    it("throws RangeError (not a silent pseudo-ISODate) when the resolved year is outside the four-digit domain", async () => {
       // Intl gives `year: "numeric"` parts — NOT zero-padded/four-digit — so a system clock
       // outside years 1000-9999 would otherwise assemble a garbage string like "99-06-15" that
       // silently poisons the module's load-bearing lexicographic YYYY-MM-DD comparisons instead
@@ -190,10 +221,11 @@ describe("todayISO", () => {
         } as unknown as Intl.DateTimeFormat;
       } as unknown as typeof Intl.DateTimeFormat);
 
-      expect(() => todayISO("Pacific/Kiritimati")).toThrow(/four-digit ISO year range/i);
+      const isolated = await isolatedDateMath();
+      expect(() => isolated.todayISO("Pacific/Kiritimati")).toThrow(/four-digit ISO year range/i);
     });
 
-    it("does NOT swallow the out-of-range-year error as an 'invalid timeZone' fallback", () => {
+    it("does NOT swallow the out-of-range-year error as an 'invalid timeZone' fallback", async () => {
       // The catch block around the Intl constructor call must not also catch (and silently
       // degrade) a RangeError raised by the post-assembly validation — that would misreport a
       // real bug as a benign invalid-zone case and return the (wrong) local date instead of
@@ -211,11 +243,12 @@ describe("todayISO", () => {
         } as unknown as Intl.DateTimeFormat;
       } as unknown as typeof Intl.DateTimeFormat);
 
-      expect(() => todayISO("America/New_York")).toThrow(RangeError);
+      const isolated = await isolatedDateMath();
+      expect(() => isolated.todayISO("America/New_York")).toThrow(RangeError);
       expect(warnSpy).not.toHaveBeenCalled();
     });
 
-    it("still returns a valid zero-padded ISODate on the normal timezone path", () => {
+    it("still returns a valid zero-padded ISODate on the normal timezone path", async () => {
       vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function FakeDateTimeFormat() {
         return {
           formatToParts: () => [
@@ -228,7 +261,34 @@ describe("todayISO", () => {
         } as unknown as Intl.DateTimeFormat;
       } as unknown as typeof Intl.DateTimeFormat);
 
-      expect(todayISO("America/New_York")).toBe("2026-06-05");
+      const isolated = await isolatedDateMath();
+      expect(isolated.todayISO("America/New_York")).toBe("2026-06-05");
+    });
+
+    it("builds one formatter per zone and reuses it across calls", async () => {
+      // Constructing a formatter is the expensive part and todayISO runs per grid render, so the
+      // per-zone cache is load-bearing, not incidental.
+      const ctorSpy = vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function FakeDateTimeFormat() {
+        return {
+          formatToParts: () => [
+            { type: "year", value: "2026" },
+            { type: "literal", value: "-" },
+            { type: "month", value: "06" },
+            { type: "literal", value: "-" },
+            { type: "day", value: "05" },
+          ],
+        } as unknown as Intl.DateTimeFormat;
+      } as unknown as typeof Intl.DateTimeFormat);
+      const isolated = await isolatedDateMath();
+
+      isolated.todayISO("America/New_York");
+      isolated.todayISO("America/New_York", Date.parse("2026-06-15T20:00:00Z"));
+      isolated.todayISO("Pacific/Kiritimati");
+
+      const zones = ctorSpy.mock.calls.map(
+        ([, options]) => (options as Intl.DateTimeFormatOptions | undefined)?.timeZone,
+      );
+      expect(zones).toEqual(["America/New_York", "Pacific/Kiritimati"]);
     });
   });
 

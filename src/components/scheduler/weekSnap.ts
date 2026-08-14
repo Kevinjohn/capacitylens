@@ -1,5 +1,6 @@
 import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
+import { leftEdgeDate } from "./columnGeometry";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
@@ -32,8 +33,9 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
  * `days[0]`, and `xForDateInGeom` returns 0 (not NaN) for an unparseable date, so a bad window
  * degrades to a harmless `0` target rather than corrupting the scroll position.
  *
- * SUB-PIXEL ROUNDING: we resolve the left-edge day from `Math.round(scrollLeft)`, not the raw
- * value. Column offsets are integers and a settled scrollLeft is *meant* to be integer, but a HiDPI
+ * SUB-PIXEL ROUNDING (the canonical note — `ColumnGeometry.indexAtScroll` points here): the
+ * left-edge day is resolved from `Math.round(scrollLeft)`, not the raw value. Column offsets are
+ * integers and a settled scrollLeft is *meant* to be integer, but a HiDPI
  * browser (Firefox in particular, devicePixelRatio > 1) can store scrollLeft as a fraction just
  * *below* an integer column boundary (e.g. `mondayOffset - 0.4`). `indexAt` floors strictly (largest
  * i with `offsets[i] <= px`), so without rounding that fraction resolves to the PREVIOUS day — under
@@ -55,8 +57,7 @@ export function weekStartSnapTarget(
   // pure helper keeps its total-function contract even outside the guarded SchedulerGrid caller.
   if (days.length === 0) return null;
 
-  // `?? days[0]` covers an out-of-range index for custom geometry implementations.
-  const leftDay = days[geom.indexAt(Math.round(scrollLeft))] ?? days[0];
+  const leftDay = leftEdgeDate(geom, days, scrollLeft);
   if (!isValidISODate(leftDay)) return 0;
   const target = Math.max(0, geom.xForDateInGeom(startOfWeekISO(leftDay, weekStartsOn)));
   // Already aligned (within the sub-pixel band) → null so the caller no-ops. Math.abs, not a signed

@@ -4,7 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import { SchedulerGrid } from "./SchedulerGrid";
 import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeAppData } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAllocation, makeResource } from "../../test/fixtures";
+import { schedulerDataset } from "./__tests__/schedulerTestKit";
 import { LAYOUT, schedulerDensity } from "./layout";
 
 const ACC = DEFAULT_ACCOUNT_ID;
@@ -16,72 +17,18 @@ function renderGrid() {
 }
 
 function dataset(): AppData {
-  return makeAppData({
-    disciplines: [{ id: "d1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 }],
+  return schedulerDataset({
     resources: [
-      {
-        id: "r1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
-        name: "Bruce",
-        role: "Designer",
-        disciplineId: "d1",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: "#111",
-      },
-      {
+      makeResource({ accountId: ACC, disciplineId: "d1", name: "Bruce", color: "#111" }),
+      makeResource({
         id: "r-ext",
         accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
         kind: "external",
         name: "Kord Industries",
         role: "Partner studio",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
         color: "#999",
-      },
+      }),
     ],
-    clients: [{ id: "c1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Acme", color: "#222" }],
-    projects: [
-      { id: "p1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Lightning", clientId: "c1", color: "#ec4899" },
-    ],
-    phases: [],
-    activities: [
-      {
-        id: "t1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Wireframes",
-        kind: "project",
-        projectId: "p1",
-      },
-    ],
-    allocations: [
-      {
-        id: "a1",
-        accountId: ACC,
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "t1",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-    ],
-    timeOff: [],
   });
 }
 
@@ -317,90 +264,31 @@ describe("SchedulerGrid visible-window utilisation", () => {
   // A single Mon–Fri resource (8h/day → 40h/week) with a different booking density each week, so the
   // displayed overall % must change EXACTLY with the 1/2/4/8-week toggle (and stay distinct across them).
   function densityDataset(): AppData {
-    return makeAppData({
-      disciplines: [{ id: "d1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 }],
-      resources: [
-        {
-          id: "r1",
-          accountId: ACC,
-          createdAt: "t",
-          updatedAt: "t",
-          kind: "person",
-          name: "Dana",
-          role: "Designer",
-          disciplineId: "d1",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#111",
-        },
-      ],
-      clients: [{ id: "c1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Acme", color: "#222" }],
-      projects: [
-        {
-          id: "p1",
-          accountId: ACC,
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Lightning",
-          clientId: "c1",
-          color: "#ec4899",
-        },
-      ],
-      phases: [],
-      activities: [
-        {
-          id: "t1",
-          accountId: ACC,
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Wireframes",
-          kind: "project",
-          projectId: "p1",
-        },
-      ],
+    return schedulerDataset({
+      resources: [makeResource({ accountId: ACC, disciplineId: "d1", name: "Dana", color: "#111" })],
       allocations: [
-        {
+        makeAllocation({
           id: "w1",
           accountId: ACC,
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          activityId: "t1",
           startDate: "2026-06-01",
           endDate: "2026-06-05",
-          hoursPerDay: 8,
-          status: "confirmed",
-        }, // wk1 100%
-        {
+        }), // wk1 100%
+        makeAllocation({
           id: "w2",
           accountId: ACC,
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          activityId: "t1",
           startDate: "2026-06-08",
           endDate: "2026-06-12",
           hoursPerDay: 4,
-          status: "confirmed",
-        }, // wk2 50%
-        {
+        }), // wk2 50%
+        makeAllocation({
           id: "w34",
           accountId: ACC,
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "r1",
-          activityId: "t1",
           startDate: "2026-06-15",
           endDate: "2026-06-26",
           hoursPerDay: 2,
-          status: "confirmed",
-        }, // wk3–4 25%
+        }), // wk3–4 25%
         // wk5–8 idle
       ],
-      timeOff: [],
     });
   }
 

@@ -9,7 +9,7 @@ import {
 } from "../../lib/schedulerConfig";
 import { visibleRange } from "../../store/selectors";
 import { useStore, type SchedulerUI } from "../../store/useStore";
-import { buildColumnGeometry } from "./columnGeometry";
+import { buildColumnGeometry, leftEdgeDate } from "./columnGeometry";
 import { LAYOUT } from "./layout";
 import { weekStartSnapTarget } from "./weekSnap";
 
@@ -184,7 +184,7 @@ export function useSchedulerViewport({
     if (!el || !didScroll.current || previousGeom === geom || previousGeom.totalWidth <= 0) return;
     if (ui.recenterToken !== previousRecenter) return;
 
-    const leftDate = days[previousGeom.indexAt(Math.round(el.scrollLeft))] ?? days[0];
+    const leftDate = leftEdgeDate(previousGeom, days, el.scrollLeft);
     const navigationChanged = ui.zoom !== previousZoom || days !== previousDays;
     const targetDate = navigationChanged ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate;
     setScrollLeft(el, Math.max(0, geom.xForDateInGeom(targetDate)));
@@ -217,10 +217,9 @@ export function useSchedulerViewport({
       // Horizontal state and idle snapping remain frozen until the drag ends: changing the date
       // geometry underneath a pointer gesture would change its meaning mid-flight.
       if (useStore.getState().draggingAllocationId !== null || !horizontalChanged) return;
-      // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (HiDPI can store scrollLeft
-      // just below an integer column boundary; indexAt's strict floor would resolve that to the
-      // previous, narrower-under-minimised-weekends column).
-      setLeftEdgeIdx(geom.indexAt(Math.round(el.scrollLeft)));
+      // indexAtScroll, not indexAt: it owns the HiDPI sub-pixel rounding every scroll-position
+      // read needs (see its doc comment / weekSnap.ts's "SUB-PIXEL ROUNDING" note).
+      setLeftEdgeIdx(geom.indexAtScroll(el.scrollLeft));
 
       if (!snapToWeekStart) return;
       clearTimeout(snapTimer.current);
@@ -245,16 +244,14 @@ export function useSchedulerViewport({
   useEffect(() => {
     if (!dragging && scrollRef.current) {
       setScrollTop(scrollRef.current.scrollTop);
-      // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (same HiDPI rationale as onScroll).
-      setLeftEdgeIdx(geom.indexAt(Math.round(scrollRef.current.scrollLeft)));
+      setLeftEdgeIdx(geom.indexAtScroll(scrollRef.current.scrollLeft));
     }
   }, [dragging, geom]);
 
   const visibleStartDate = useCallback((): ISODate => {
     const el = scrollRef.current;
-    // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (same HiDPI rationale as onScroll).
-    const index = el ? geom.indexAt(Math.round(el.scrollLeft)) : 0;
-    return days[index] ?? days[0] ?? ui.originDate;
+    // Unmeasured container (jsdom / before first paint) → the window's first day, as before.
+    return (el ? leftEdgeDate(geom, days, el.scrollLeft) : days[0]) ?? ui.originDate;
   }, [geom, days, ui.originDate]);
 
   return {
@@ -270,7 +267,6 @@ export function useSchedulerViewport({
     days,
     dayWidth,
     geom,
-    totalWidth: geom.totalWidth,
     onScroll,
     visibleStartDate,
   };

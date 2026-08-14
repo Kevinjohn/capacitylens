@@ -23,6 +23,19 @@ export function formatShortDate(date: ISODate): string {
 }
 
 /**
+ * The tersest readable date: "10 Jun".
+ *
+ * Day + abbreviated month, no weekday and no year — for surfaces where the date is a SECONDARY
+ * detail squeezed beside other content (an allocation bar's accessible name and its hover card,
+ * which both also carry the label, hours and status). {@link formatShortDate} is the scannable
+ * list form; this is the one that has to stay short, so it deliberately drops the weekday and the
+ * ordinal suffix rather than reusing that longer shape.
+ */
+export function formatDayMonth(date: ISODate): string {
+  return format(parseDate(date), "d MMM", { locale: activeDateLocale() });
+}
+
+/**
  * The inclusive day count as a label: "1 day" / "5 days".
  *
  * Clamped at 0 so a reversed/empty range degrades to "0 days" rather than a negative count — the

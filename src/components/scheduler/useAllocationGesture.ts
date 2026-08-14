@@ -2,23 +2,28 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { m } from "@/i18n";
 import { undoShortcut } from "../../lib/keyboardShortcuts";
 import { errorMessage } from "../../lib/errorMessage";
-import { applyGesture, type DragMode } from "../../lib/gestureMath";
-import { capacityAdvisory, capacityAllocationsForMode, dayCapacity } from "../../lib/capacity";
-import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { applyGesture, type DateRange, type DragMode } from "../../lib/gestureMath";
+import {
+  capacityAdvisory,
+  capacityAllocationsForMode,
+  capacityForWindow,
+  formatCapacityAdvisory,
+} from "../../lib/capacity";
+import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
-import { FULL_DAY_HOURS, isCapacityTracked, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
-import type { AppData, ID } from "@capacitylens/shared/types/entities";
+import {
+  carriesHourlyLoad,
+  FULL_DAY_HOURS,
+  isCapacityTracked,
+  MAX_HOURS_PER_DAY,
+} from "@capacitylens/shared/types/entities";
+import type { AppData, ID, Weekday } from "@capacitylens/shared/types/entities";
 import { useDragResize } from "../../hooks/useDragResize";
 import { resourceDisplayName } from "../../lib/metadata";
 import { accountWorkingDaysFor, schedulingModeFor, visibleRange } from "../../store/selectors";
 import { sharedActiveData, sharedScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
-import {
-  computeGesture,
-  reconcileReassignedHours,
-  snappedBarGeometry,
-  volumePreservingHoursClamped,
-} from "./allocationDrag";
+import { computeGesture, reconcileReassignedHours, volumePreservingHoursClamped } from "./allocationDrag";
 import type { ColumnGeometry } from "./columnGeometry";
 import { effectiveWorkingDays, isAllocationMoveStartBlocked } from "./creationAvailability";
 import type { BarLayout } from "./schedulerModel";
@@ -34,6 +39,11 @@ interface GesturePreview {
   deltaDays: number;
   deltaY: number;
   targetResourceId: ID | null;
+  // The snapped range this frame resolves to, computed ONCE where the pointer is handled. The
+  // render body only turns it into pixels; it used to re-derive the target's working week from
+  // the store and re-run the gesture math on every frame just to place the bar. `null` when the
+  // gesture moves nothing (a resize with no column change), where the bar keeps bar.x / bar.width.
+  dates: DateRange | null;
 }
 
 function snapshotLanes(): LaneSnapshot[] {
@@ -71,7 +81,7 @@ function capacityAnnouncement(resourceId: ID): string {
   if (!resource || !isCapacityTracked(resource)) return "";
 
   const name = resourceDisplayName(resource);
-  const blocksMode = schedulingModeFor(storedData, activeAccountId) === "blocks";
+  const blocksMode = !carriesHourlyLoad(schedulingModeFor(storedData, activeAccountId));
   const allocations = capacityAllocationsForMode(
     data.allocations.filter((allocation) => allocation.resourceId === resourceId),
     blocksMode,
@@ -90,10 +100,7 @@ function capacityAnnouncement(resourceId: ID): string {
   if (start > end) return m.scheduler_sr_announce_clear({ name });
 
   const timeOff = data.timeOff.filter((entry) => entry.resourceId === resourceId);
-  const overDays = eachDayISO(start, end).reduce(
-    (count, date) => count + (dayCapacity(resource, date, allocations, timeOff).over ? 1 : 0),
-    0,
-  );
+  const overDays = capacityForWindow(resource, allocations, timeOff, start, end).filter((day) => day.over).length;
   if (overDays === 0) return m.scheduler_sr_announce_clear({ name });
   return overDays === 1
     ? m.scheduler_sr_announce_over_one({ name, count: overDays })
@@ -112,25 +119,40 @@ interface AllocationGestureOptions {
  * drag pinning, weekend-aware previews, reassignment reconciliation and keyboard parity.
  */
 export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: AllocationGestureOptions) {
-  const updateAllocation = useStore((state) => state.updateAllocation);
-  const setNotice = useStore((state) => state.setNotice);
-  const announceCapacity = useStore((state) => state.announceCapacity);
-  const setDraggingAllocation = useStore((state) => state.setDraggingAllocation);
+  // Store WRITES are read at call time instead of subscribed to. Action identities never change, so
+  // a `useStore(s => s.action)` selector could only ever re-run for nothing — and it ran once per
+  // action, per bar, on every store write. Every gesture handler below is already imperative and
+  // already reaches for `useStore.getState()` for the live data it commits against.
+  const setDraggingAllocation = (id: ID | null) => useStore.getState().setDraggingAllocation(id);
   const resourceId = bar.allocation.resourceId;
   const schedulingMode = useStore((state) => schedulingModeFor(state.data, state.activeAccountId));
   const isDays = schedulingMode === "days";
-  const isBlocks = schedulingMode === "blocks";
+  const isBlocks = !carriesHourlyLoad(schedulingMode);
   const [preview, setPreview] = useState<GesturePreview | null>(null);
   const lanesRef = useRef<LaneSnapshot[]>([]);
   const lanesDirtyRef = useRef(false);
   const dropElRef = useRef<HTMLElement | null>(null);
   const geometryWatchRef = useRef<(() => void) | null>(null);
+  // Per-gesture memo of the derived working week, keyed by resource. The preview arm resolves this
+  // on EVERY pointer frame (store read + resource lookup + a Set-and-filter per call, twice over
+  // for a cross-lane drag); a working-week edit cannot land mid-gesture, so one derivation per
+  // resource per gesture is exact. Cleared when a gesture arms AND when it ends, so the commit path
+  // and the keyboard nudge always re-derive against the live store.
+  const gestureWorkingDaysRef = useRef(new Map<ID, Weekday[] | undefined>());
 
   const workingDaysFor = (targetResourceId: ID) => {
     const state = useStore.getState();
     const resource = state.data.resources.find((candidate) => candidate.id === targetResourceId);
     if (!resource) return undefined;
     return effectiveWorkingDays(resource, accountWorkingDaysFor(state.data, state.activeAccountId));
+  };
+
+  const previewWorkingDaysFor = (targetResourceId: ID) => {
+    const memo = gestureWorkingDaysRef.current;
+    if (memo.has(targetResourceId)) return memo.get(targetResourceId);
+    const resolved = workingDaysFor(targetResourceId);
+    memo.set(targetResourceId, resolved);
+    return resolved;
   };
 
   const setDropTarget = (el: HTMLElement | null) => {
@@ -144,6 +166,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     geometryWatchRef.current?.();
     geometryWatchRef.current = null;
     lanesDirtyRef.current = false;
+    gestureWorkingDaysRef.current.clear();
   };
 
   const refreshDirtyLanes = () => {
@@ -191,40 +214,35 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     onPreview: (mode, deltaDays, deltaY, pointer) => {
       if (!preview) setDraggingAllocation(bar.allocation.id);
       const target = mode === "move" ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null;
+      const destination = target && target.id !== resourceId ? target : null;
+      // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
+      // below and the bar's own preview pixels then read the same range instead of each deriving it.
+      // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
+      const dates =
+        deltaDays !== 0 || mode === "move"
+          ? applyGesture(mode, { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }, deltaDays, {
+              workingDays: previewWorkingDaysFor(destination?.id ?? resourceId),
+              ignoreWeekends: bar.allocation.ignoreWeekends,
+            })
+          : null;
       setPreview({
         mode,
         deltaDays,
         deltaY,
         targetResourceId: target?.id ?? null,
+        dates,
       });
       if (mode === "move") {
-        const destination = target && target.id !== resourceId ? target : null;
         const state = useStore.getState();
         const targetResource = destination
           ? state.data.resources.find((candidate) => candidate.id === destination.id)
           : undefined;
-        const proposed = targetResource
-          ? computeGesture(
-              mode,
-              { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
-              deltaDays,
-              {
-                workingDays: effectiveWorkingDays(
-                  targetResource,
-                  accountWorkingDaysFor(state.data, state.activeAccountId),
-                ),
-                ignoreWeekends: bar.allocation.ignoreWeekends,
-              },
-              bar.allocation.hoursPerDay,
-              isDays,
-            ).dates
-          : null;
         const blocked =
           !!targetResource &&
-          !!proposed &&
+          !!dates &&
           isAllocationMoveStartBlocked(
             targetResource,
-            proposed.startDate,
+            dates.startDate,
             accountWorkingDaysFor(state.data, state.activeAccountId),
             bar.allocation.ignoreWeekends,
           );
@@ -246,6 +264,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       // The final hit test is authoritative. Re-read move-lane geometry even if a scroll/resize
       // observer callback has not run yet, then stop its queued preview refresh.
       if (mode === "move") lanesRef.current = snapshotLanes();
+      const { setNotice, updateAllocation } = useStore.getState();
       stopGeometryWatch();
       setPreview(null);
       setDraggingAllocation(null);
@@ -342,28 +361,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
           others,
           timeOff,
         );
-        const bits: string[] = [];
-        if (result.overDays) {
-          bits.push(
-            result.overDays === 1
-              ? m.scheduler_advisory_over_one({ count: result.overDays })
-              : m.scheduler_advisory_over_other({ count: result.overDays }),
-          );
-        }
-        if (result.timeOffDays) {
-          bits.push(
-            result.timeOffDays === 1
-              ? m.scheduler_advisory_timeoff_one({ count: result.timeOffDays })
-              : m.scheduler_advisory_timeoff_other({
-                  count: result.timeOffDays,
-                }),
-          );
-        }
-        if (bits.length) {
-          advisory = m.scheduler_advisory_prefix({
-            bits: bits.join(m.scheduler_advisory_join()),
-          });
-        }
+        advisory = formatCapacityAdvisory(result, "toast");
       }
       const cap = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : "";
       setNotice(
@@ -380,6 +378,7 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
   };
 
   const nudge = (mode: DragMode, delta: number) => {
+    const { setNotice, updateAllocation, announceCapacity } = useStore.getState();
     const options = {
       workingDays: workingDaysFor(resourceId),
       ignoreWeekends: bar.allocation.ignoreWeekends,
@@ -406,8 +405,8 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       return;
     }
     const visible = visibleRange(useStore.getState().ui);
-    const currentIntersectsTimeline = current.endDate >= visible.start && current.startDate <= visible.end;
-    const nextIntersectsTimeline = next.endDate >= visible.start && next.startDate <= visible.end;
+    const currentIntersectsTimeline = rangesOverlap(current.startDate, current.endDate, visible.start, visible.end);
+    const nextIntersectsTimeline = rangesOverlap(next.startDate, next.endDate, visible.start, visible.end);
     if (currentIntersectsTimeline && !nextIntersectsTimeline) {
       setNotice(m.scheduler_keyboard_outside_timeline(), "error");
       return;
@@ -449,26 +448,12 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
   let translateY = 0;
   if (preview) {
     if (preview.mode === "move") translateY = preview.deltaY;
-    if (preview.deltaDays !== 0) {
-      const previewWorkingDays =
-        preview.targetResourceId && preview.targetResourceId !== resourceId
-          ? workingDaysFor(preview.targetResourceId)
-          : workingDaysFor(resourceId);
-      const geometry = snappedBarGeometry(
-        preview.mode,
-        {
-          startDate: bar.allocation.startDate,
-          endDate: bar.allocation.endDate,
-        },
-        preview.deltaDays,
-        {
-          workingDays: previewWorkingDays,
-          ignoreWeekends: bar.allocation.ignoreWeekends,
-        },
-        geom,
-      );
-      left = geometry.left;
-      width = geometry.width;
+    // The snapped range is already on the preview (see onPreview) — all that is left per frame is
+    // running it through the SAME ColumnGeometry the view-model placed bar.x / bar.width with, so
+    // the preview stays pixel-identical to the committed bar even across a narrowed weekend.
+    if (preview.deltaDays !== 0 && preview.dates) {
+      left = geom.xForDateInGeom(preview.dates.startDate);
+      width = geom.widthForDates(preview.dates.startDate, preview.dates.endDate);
     }
   }
 

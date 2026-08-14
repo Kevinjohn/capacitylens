@@ -7,6 +7,7 @@ import {
   weekdayOf,
 } from "@capacitylens/shared/lib/dateMath";
 import { blockHoursPerDay, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
+import { m } from "@/i18n";
 import { FULL_DAY_HOURS, HALF_DAY_HOURS } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
@@ -68,9 +69,15 @@ export function isWorkingDay(resource: Resource, date: ISODate): boolean {
   return isWorkingWeekday(date, resource.workingDays);
 }
 
+/** A saved half-day working pattern on this weekday — 4h of capacity instead of 8h. The scheduler's
+ *  partial-capacity tint asks the same question, so both read this one definition. */
+export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
+  return resource.halfDays.includes(weekday);
+}
+
 function scheduledHoursForWeekday(resource: Resource, weekday: Weekday): number {
   if (!worksWeekday(resource, weekday)) return 0;
-  return resource.halfDays.includes(weekday) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
+  return isHalfDay(resource, weekday) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
 }
 
 /** Fixed capacity before time off: 8h full day, 4h half day, or 0 when not working. */
@@ -334,23 +341,59 @@ export function capacityAdvisoryFromLoad(
   return days ? tallyAdvisory(resource, proposal, days, loadByDay, timeOff) : { overDays: 0, timeOffDays: 0 };
 }
 
-/** Over-allocated inside the window — the near-term radar. Strictly allocated > available,
- * including time-off days and non-working days explicitly opted into via `ignoreWeekends`.
- * An ordinary allocation merely spanning a weekend allocates zero there and remains non-over. */
-export function overAllocatedInWindow(
-  resource: Resource,
-  allocations: Allocation[],
-  timeOff: TimeOff[],
-  start: ISODate,
-  end: ISODate,
-  precomputedCapacity?: Iterable<DayCapacity>,
-): boolean {
-  const days = precomputedCapacity ?? capacityForWindow(resource, allocations, timeOff, start, end);
-  // Walk the iterable directly: `Array.from(...).some(...)` copied every day into a throwaway array
-  // before it could short-circuit, so the common case (an over day early in the window) paid for
-  // the whole window anyway.
-  for (const day of days) {
-    if (day.over) return true;
+/** The surface an advisory is written for. The two counts are the same on every surface; only the
+ *  wording differs (a toast appends to a committed-move sentence, the form states it standalone),
+ *  and the `repeat` variant counts whole ALLOCATIONS in a repeat batch rather than days. */
+export type CapacityAdvisoryVariant = "toast" | "form" | "repeat";
+
+/** Pick the one/other form for a count. `one` and `other` are UNCALLED message references, invoked
+ *  here at lookup time so Paraglide resolves the active locale on each render rather than freezing
+ *  it at import — never call `m.*()` while building the table below. */
+const plural =
+  (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
+  (count: number): string =>
+    count === 1 ? one({ count }) : other({ count });
+
+const ADVISORY_COPY: Record<
+  CapacityAdvisoryVariant,
+  {
+    over: (count: number) => string;
+    timeOff: (count: number) => string;
+    join: () => string;
+    wrap: (bits: string) => string;
   }
-  return false;
+> = {
+  toast: {
+    over: plural(m.scheduler_advisory_over_one, m.scheduler_advisory_over_other),
+    timeOff: plural(m.scheduler_advisory_timeoff_one, m.scheduler_advisory_timeoff_other),
+    join: m.scheduler_advisory_join,
+    wrap: (bits) => m.scheduler_advisory_prefix({ bits }),
+  },
+  form: {
+    over: plural(m.form_allocation_advisory_over_capacity_one, m.form_allocation_advisory_over_capacity_other),
+    timeOff: plural(m.form_allocation_advisory_timeoff_one, m.form_allocation_advisory_timeoff_other),
+    join: m.form_allocation_advisory_join,
+    wrap: (advisory) => m.form_allocation_advisory({ advisory }),
+  },
+  repeat: {
+    over: plural(
+      m.form_allocation_repeat_advisory_over_capacity_one,
+      m.form_allocation_repeat_advisory_over_capacity_other,
+    ),
+    timeOff: plural(m.form_allocation_repeat_advisory_timeoff_one, m.form_allocation_repeat_advisory_timeoff_other),
+    join: m.form_allocation_repeat_advisory_join,
+    wrap: (advisory) => m.form_allocation_repeat_advisory({ advisory }),
+  },
+};
+
+/** The human sentence for an advisory result, or "" when it has nothing to say. Every surface
+ *  builds it the same way — over-capacity bit, then time-off bit, joined and wrapped — so the
+ *  ORDER and the "silent when both are zero" rule live here once instead of at each call site.
+ *  For the `repeat` variant the counts are allocations, not days (see the copy table). */
+export function formatCapacityAdvisory(result: CapacityAdvisory, variant: CapacityAdvisoryVariant): string {
+  const copy = ADVISORY_COPY[variant];
+  const bits: string[] = [];
+  if (result.overDays) bits.push(copy.over(result.overDays));
+  if (result.timeOffDays) bits.push(copy.timeOff(result.timeOffDays));
+  return bits.length ? copy.wrap(bits.join(copy.join())) : "";
 }

@@ -1,7 +1,19 @@
-import type { Account, AppData, ID, Resource, Weekday } from "@capacitylens/shared/types/entities";
+import type {
+  Account,
+  Activity,
+  Allocation,
+  AppData,
+  Client,
+  ID,
+  Project,
+  Resource,
+  TimeOff,
+  Weekday,
+} from "@capacitylens/shared/types/entities";
 import type { Draft } from "../store/useStore";
 import { useStore } from "../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { BarLayout } from "../components/scheduler/schedulerModel";
 
 // Shared test fixtures. Centralises the Mon–Fri working-week and resource-draft
 // factory, plus the multi-tenancy helpers: a default account, a `makeAccount`
@@ -69,6 +81,95 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
     workingDays: WORKDAYS,
     halfDays: [],
     color: "#2d75da",
+    ...overrides,
+  };
+}
+
+/** A complete Client; override any field per test. */
+export function makeClient(overrides: Partial<Client> = {}): Client {
+  return {
+    id: "c1",
+    accountId: "a1",
+    createdAt: "t",
+    updatedAt: "t",
+    name: "Acme",
+    color: "#222",
+    ...overrides,
+  };
+}
+
+/** A complete Project; override any field per test. */
+export function makeProject(overrides: Partial<Project> = {}): Project {
+  return {
+    id: "p1",
+    accountId: "a1",
+    createdAt: "t",
+    updatedAt: "t",
+    name: "Lightning",
+    clientId: "c1",
+    color: "#ec4899",
+    ...overrides,
+  };
+}
+
+/** A complete project-kind Activity; override any field per test. */
+export function makeActivity(overrides: Partial<Activity> = {}): Activity {
+  return {
+    id: "t1",
+    accountId: "a1",
+    createdAt: "t",
+    updatedAt: "t",
+    name: "Wireframes",
+    kind: "project",
+    projectId: "p1",
+    ...overrides,
+  };
+}
+
+/** A complete confirmed Allocation; override any field per test. */
+export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
+  return {
+    id: "a1",
+    accountId: "a1",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId: "r1",
+    activityId: "t1",
+    startDate: "2026-06-01",
+    endDate: "2026-06-02",
+    hoursPerDay: 8,
+    status: "confirmed",
+    ...overrides,
+  };
+}
+
+/** A complete holiday TimeOff record; override any field per test. */
+export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
+  return {
+    id: "to1",
+    accountId: "a1",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId: "r1",
+    startDate: "2026-06-01",
+    endDate: "2026-06-02",
+    type: "holiday",
+    ...overrides,
+  };
+}
+
+/** A positioned {@link BarLayout} — the scheduler model's per-allocation render bar. Wraps
+ *  {@link makeAllocation} for its nested `allocation`; override any field (including nested
+ *  `allocation` fields via a full replacement) per test. */
+export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
+  return {
+    allocation: makeAllocation(),
+    x: 0,
+    width: 100,
+    top: 0,
+    color: "#2d75da",
+    label: "Wireframes",
+    external: false,
     ...overrides,
   };
 }

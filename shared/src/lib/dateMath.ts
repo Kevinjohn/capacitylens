@@ -114,40 +114,49 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
   return date >= start && date <= end;
 }
 
-/** Today as a date-only ISO string (impure — reads the system clock).
- *  When `timeZone` is given, the calendar date is derived in that zone via
- *  Intl.DateTimeFormat — so midnight UTC on 2026-06-11 is still 2026-06-10 in
- *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR invalid (a
- *  malformed IANA identifier). Distinct invalid-timeZone failures are warned individually up
- *  to a bounded limit, then one aggregate warning records that further values are suppressed.
- *  A resolved calendar date outside the four-digit ISO year domain (e.g. an absurd system
- *  clock) still throws RangeError, same as `toISODate` — that's a real upstream bug, not a
- *  degrade case. */
+/** Do the two INCLUSIVE ranges [aStart, aEnd] and [bStart, bEnd] share at least one day?
+ *  Both ends are closed on both sides — a range that merely touches the other's edge
+ *  overlaps — which is what every caller (timeline intersection, keyboard-nudge visibility)
+ *  means by "still on screen". Same zero-padded lexicographic compare as `isWithin`, for the
+ *  same reason: exact, and no parseISO on a hot path. */
+export function rangesOverlap(aStart: ISODate, aEnd: ISODate, bStart: ISODate, bEnd: ISODate): boolean {
+  return aEnd >= bStart && aStart <= bEnd;
+}
+
 const warnedInvalidTimeZones = new Set<string>();
 const MAX_INVALID_TIMEZONE_WARNINGS = 32;
 let warnedInvalidTimeZoneLimit = false;
 
-export function todayISO(timeZone?: string): ISODate {
-  if (!timeZone) return toISODate(new Date());
-  let parts: Intl.DateTimeFormatPart[];
+/** One Intl.DateTimeFormat per zone: constructing a formatter is the expensive part, and
+ *  `todayISO` is called on every grid render (plus once per step of the calendar-boundary binary
+ *  search in useCalendarToday). `null` marks a zone whose constructor threw, so a bad stored zone
+ *  is diagnosed once instead of re-thrown on every call. Bounded in practice — the key is an
+ *  account's stored IANA zone, drawn from the ICU zone database. */
+const calendarFormatters = new Map<string, Intl.DateTimeFormat | null>();
+
+function calendarFormatter(timeZone: string): Intl.DateTimeFormat | null {
+  const cached = calendarFormatters.get(timeZone);
+  if (cached !== undefined) return cached;
+  let formatter: Intl.DateTimeFormat | null;
   try {
     // Use formatToParts for safety (avoids any locale-specific separators). Only the
-    // Intl call itself is guarded here — a malformed IANA timeZone is the ONLY thing
-    // this try/catch is meant to degrade. The assembly+validation below happens OUTSIDE
-    // this try so an out-of-domain year throws RangeError (per module contract) instead
+    // Intl constructor is guarded here — a malformed IANA timeZone is the ONLY thing
+    // this try/catch is meant to degrade. The assembly+validation in `todayISO` happens
+    // OUTSIDE it so an out-of-domain year throws RangeError (per module contract) instead
     // of being misreported as an "invalid timeZone" and silently swapped for local date.
-    parts = new Intl.DateTimeFormat("en-CA", {
+    formatter = new Intl.DateTimeFormat("en-CA", {
       timeZone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    }).formatToParts(new Date());
+    });
   } catch (e) {
     // A malformed IANA timeZone makes the Intl.DateTimeFormat constructor throw a RangeError,
     // which would otherwise crash "today" resolution and with it the whole forward-window
     // utilisation calc. The client path can still hold an un-sanitised `account.timezone`
     // (sanitizeAccount only runs on the server write path), so degrade to the LOCAL date —
     // but WARN, never silently, so a bad zone is discoverable instead of masked.
+    formatter = null;
     if (!warnedInvalidTimeZones.has(timeZone) && warnedInvalidTimeZones.size < MAX_INVALID_TIMEZONE_WARNINGS) {
       warnedInvalidTimeZones.add(timeZone);
       console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e);
@@ -158,8 +167,30 @@ export function todayISO(timeZone?: string): ISODate {
         );
       }
     }
-    return toISODate(new Date());
   }
+  calendarFormatters.set(timeZone, formatter);
+  return formatter;
+}
+
+/** The calendar date at an instant, as a date-only ISO string (impure by default — reads the
+ *  system clock).
+ *  When `timeZone` is given, the calendar date is derived in that zone via
+ *  Intl.DateTimeFormat — so midnight UTC on 2026-06-11 is still 2026-06-10 in
+ *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR invalid (a
+ *  malformed IANA identifier). Distinct invalid-timeZone failures are warned individually up
+ *  to a bounded limit, then one aggregate warning records that further values are suppressed.
+ *  A resolved calendar date outside the four-digit ISO year domain (e.g. an absurd system
+ *  clock) still throws RangeError, same as `toISODate` — that's a real upstream bug, not a
+ *  degrade case.
+ *
+ *  `now` (epoch milliseconds, defaulting to the clock) makes the zone resolution reusable for a
+ *  NON-"now" instant — the calendar-boundary search behind the scheduler's reactive "today"
+ *  probes future instants through this same one resolver rather than a second copy of it. */
+export function todayISO(timeZone?: string, now: number = Date.now()): ISODate {
+  if (!timeZone) return toISODate(new Date(now));
+  const formatter = calendarFormatter(timeZone);
+  if (!formatter) return toISODate(new Date(now));
+  const parts = formatter.formatToParts(new Date(now));
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
   // Validate the assembled string the same way `toISODate` validates its Date-based output:
   // Intl gives `year: "numeric"` (NOT zero-padded/four-digit) parts, so a system clock outside

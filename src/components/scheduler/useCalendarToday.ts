@@ -4,34 +4,14 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
 
 const BOUNDARY_SEARCH_MS = 36 * 60 * 60 * 1000;
 
-function dateFormatter(timeZone: string): (instant: number) => ISODate {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return (instant) => {
-    const parts = formatter.formatToParts(new Date(instant));
-    const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
-    return `${get("year")}-${get("month")}-${get("day")}` as ISODate;
-  };
-}
-
 /** Milliseconds until the configured calendar zone first reports a different date. The binary
- * search naturally handles 23/25-hour daylight-saving days and non-hour timezone offsets. */
+ * search naturally handles 23/25-hour daylight-saving days and non-hour timezone offsets.
+ * Every probe goes through the SAME zone resolver the rendered date does (`todayISO`, which
+ * caches one formatter per zone), so the timer can never land on a boundary the displayed date
+ * disagrees with — and a bad stored zone degrades to todayISO's LOCAL date, making this measure
+ * the next LOCAL midnight instead of crashing or arming a runaway timer. */
 export function millisecondsUntilNextCalendarDate(timeZone: string, now = Date.now()): number {
-  let dateAt: (instant: number) => ISODate;
-  try {
-    dateAt = dateFormatter(timeZone);
-  } catch {
-    // todayISO owns the invalid-zone warning and local fallback. Mirror only its scheduling
-    // fallback here so one bad stored zone does not crash or arm a runaway timer.
-    const nextLocalMidnight = new Date(now);
-    nextLocalMidnight.setHours(24, 0, 0, 0);
-    return Math.max(1, nextLocalMidnight.getTime() - now);
-  }
-
+  const dateAt = (instant: number): ISODate => todayISO(timeZone, instant);
   const currentDate = dateAt(now);
   let lower = now;
   let upper = now + BOUNDARY_SEARCH_MS;

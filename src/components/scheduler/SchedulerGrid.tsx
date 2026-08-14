@@ -28,15 +28,21 @@ import { LAYOUT, laneLayoutFor, schedulerDensity } from "./layout";
 import { DateHeader } from "./DateHeader";
 import { ResourceLane } from "./ResourceLane";
 import { buildSchedulerModel, refreshVisibleUtilization } from "./schedulerModel";
+import { rowScreenReaderSummary } from "./rowSummary";
 import { buildLayout, windowFromLayout } from "./virtualWindow";
 import { useSchedulerViewport } from "./useSchedulerViewport";
 import type { GroupModel, RowModel } from "./schedulerModel";
-import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
+import {
+  carriesHourlyLoad,
+  emptyAppData,
+  isCapacityTracked,
+  isExternalResource,
+} from "@capacitylens/shared/types/entities";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 import { Button } from "../ui/button";
 import { TooltipProvider } from "../ui/tooltip";
 import { useCalendarToday } from "./useCalendarToday";
-import { realizedVisibleSpan } from "./visibleSpan";
+import { visibleSpanLabels, visibleWindowFor } from "./visibleSpan";
 import { isCreationStartBlocked } from "./creationAvailability";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
@@ -52,6 +58,13 @@ const TimeOffForm = lazy(() =>
   })),
 );
 
+/** The mean of the rows' visible-window utilisation, formatted for display — "0" for no rows.
+ *  Shared by the headline and per-group figures, which select their rows DIFFERENTLY (see the
+ *  call sites); only the arithmetic and formatting are common. */
+function averageUtilizationPercent(rows: RowModel[]): string {
+  return rows.length ? formatUtilizationPercent(rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) : "0";
+}
+
 type ModalState =
   | { kind: "edit"; allocationId: ID }
   | { kind: "create"; resourceId: ID; startDate: ISODate; endDate: ISODate }
@@ -64,11 +77,12 @@ type ModalState =
  * **1. Vertical virtualization.** The model (groups → rows) is flattened into one ordered
  * `items` list (group headers + the rows of expanded groups), then each item's height is
  * measured (`heights`), prefix-summed by `buildLayout`, and `windowFromLayout` picks the
- * on-screen slice for the current `scrollTop`/viewport height. Only that slice is in the DOM;
- * the rows above and below it are RESERVED by `topPad`/`bottomPad` spacer divs so the
- * scrollbar geometry stays correct (drop the spacers and the scroll height collapses, so the
- * thumb and every offset would be wrong). `heights`/`layout` are memoised on the item set, so a
- * scroll frame only runs the cheap edge-scan, not a full re-measure.
+ * on-screen slice (`{first, last}`) for the current `scrollTop`/viewport height. Only that slice
+ * is in the DOM; the vertical space of every skipped item is RESERVED by an aria-hidden spacer
+ * div sized to the gap between consecutive rendered items, so the scrollbar geometry stays
+ * correct (drop the spacers and the scroll height collapses, so the thumb and every offset would
+ * be wrong). `heights`/`layout` are memoised on the item set, so a scroll frame only runs the
+ * cheap edge-scan, not a full re-measure.
  *
  * **2. Drag pinning.** Vertical windowing continues to follow scrolling during a drag so newly
  * visible rows become drop targets. If the source row leaves that window, it is rendered as one
@@ -82,6 +96,49 @@ export function SchedulerGrid() {
   const activeAccount = useStore((state) =>
     state.data.accounts.find((account) => account.id === state.activeAccountId),
   );
+  // Every per-account view pref this grid reads, resolved from the ONE `activeAccount` row above
+  // instead of a separate store subscription each. They all look up the same account, so ten
+  // selector subscriptions meant ten `accounts.find` scans on every unrelated store write. The
+  // selectors still OWN their absent-field defaults (each differs and is load-bearing), so they
+  // are called here against a one-account view of the data rather than reimplemented.
+  const accountPrefs = useMemo(() => {
+    const view = { ...emptyAppData(), accounts: activeAccount ? [activeAccount] : [] };
+    const id = activeAccount?.id ?? null;
+    return {
+      // Default OFF: when off, placeholder ("slot") rows are hidden from the schedule (and dropped
+      // from utilisation) by buildSchedulerModel's resourceVisible filter.
+      placeholdersEnabled: placeholdersEnabledFor(view, id),
+      // Default OFF: when off, external / 3rd-party rows are hidden from the schedule (and their
+      // now-empty band header is dropped) by the same resourceVisible filter.
+      externalEnabled: externalEnabledFor(view, id),
+      // When disciplines are off, discipline bands disappear and the model uses the
+      // Studio/Supplementary (or Unassigned) fallback. The discipline filter is ignored.
+      disciplinesEnabled: disciplinesEnabledFor(view, id),
+      groupResourcesByEngagement: groupResourcesByEngagementFor(view, id),
+      // Internal work colour preference. Grey is the absent/default mode; palette restores saved
+      // project colours without changing the underlying project records.
+      internalColourMode: internalColourModeFor(view, id),
+      // BAR-ONLY hide prefs for internal work (both default ON). They remove only the bars —
+      // capacity/utilisation stay truthful (see buildSchedulerModel's barVisibleByInternalPref).
+      showInternalProjects: showInternalProjectsFor(view, id),
+      showInternalActivities: showInternalActivitiesFor(view, id),
+      blocksMode: !carriesHourlyLoad(schedulingModeFor(view, id)),
+      calendarTimeZone: timeZoneFor(view, id),
+      calendarWeekStartsOn: weekStartsOnFor(view, id),
+    };
+  }, [activeAccount]);
+  const {
+    placeholdersEnabled,
+    externalEnabled,
+    disciplinesEnabled,
+    groupResourcesByEngagement,
+    internalColourMode,
+    showInternalProjects,
+    showInternalActivities,
+    blocksMode,
+    calendarTimeZone,
+    calendarWeekStartsOn,
+  } = accountPrefs;
   const accountWorkingDays = useMemo(() => {
     const weekStartsOn = activeAccount?.weekStartsOn ?? 1;
     return activeAccount?.workingDays === undefined
@@ -104,23 +161,6 @@ export function SchedulerGrid() {
   // to the current week's first day (the scroll-idle snap in onScroll below). FREE SCROLL ONLY —
   // the navigation snap (zoom / Prev-Next / date-picker, Feature 1) is always on, independent of this.
   const snapToWeekStart = useStore((s) => s.snapToWeekStart);
-  // Per-account display pref (default OFF): when off, placeholder ("slot") rows are hidden from
-  // the schedule (and dropped from utilisation) by buildSchedulerModel's resourceVisible filter.
-  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
-  // Per-account display pref (default OFF): when off, external / 3rd-party rows are hidden from the
-  // schedule (and their now-empty band header is dropped) by buildSchedulerModel's resourceVisible filter.
-  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId));
-  // Account-level: when disciplines are off, discipline bands disappear and the model uses the
-  // Studio/Supplementary (or Unassigned) fallback. The discipline filter is ignored.
-  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId));
-  const groupResourcesByEngagement = useStore((s) => groupResourcesByEngagementFor(s.data, s.activeAccountId));
-  // Per-account Internal work colour preference. Grey is the absent/default mode; palette restores
-  // saved project colours without changing the underlying project records.
-  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));
-  // Per-account BAR-ONLY hide prefs for internal work (both default ON). They remove only the bars —
-  // capacity/utilisation stay truthful (see buildSchedulerModel's barVisibleByInternalPref).
-  const showInternalProjects = useStore((s) => showInternalProjectsFor(s.data, s.activeAccountId));
-  const showInternalActivities = useStore((s) => showInternalActivitiesFor(s.data, s.activeAccountId));
   const toggleGroup = useStore((s) => s.toggleGroup);
   const clearFilters = useStore((s) => s.clearFilters);
   const consumeResourceJump = useStore((s) => s.consumeResourceJump);
@@ -141,8 +181,6 @@ export function SchedulerGrid() {
     );
   }, [announceStatus, ui.drawMode]);
 
-  const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
-  const calendarWeekStartsOn = useStore((s) => weekStartsOnFor(s.data, s.activeAccountId));
   const {
     scrollRef,
     headerRef,
@@ -156,7 +194,6 @@ export function SchedulerGrid() {
     days,
     dayWidth,
     geom,
-    totalWidth,
     onScroll,
     visibleStartDate,
   } = useSchedulerViewport({
@@ -177,45 +214,28 @@ export function SchedulerGrid() {
   // day; the inclusive end is `+ (zoom*7 - 1)` — a 1-week view is the 7 inclusive days [L, L+6], not
   // +7 (8 days). The end is CLAMPED to the last timeline day so the window never reads past `days[]`.
   // Day-quantized via leftEdgeIdx so a scroll within a column doesn't rebuild the model.
-  const { visStart, visEnd } = useMemo(() => {
-    // Before the first scroll settles (leftEdgeIdx === -1), anchor at the focus date (today by
-    // default) — NOT days[0], which is the PAST_BUFFER_DAYS origin behind today, so the initial
-    // numbers stay sensible (anchored at/after today). Clamp the index into the day array.
-    const lastIdx = days.length - 1;
-    const focusIdx = days.indexOf(ui.focusDate);
-    const rawIdx = leftEdgeIdx >= 0 ? leftEdgeIdx : focusIdx >= 0 ? focusIdx : 0;
-    const startIdx = Math.min(Math.max(rawIdx, 0), Math.max(lastIdx, 0));
-    const start = days[startIdx] ?? ui.focusDate;
-    // Inclusive end = start + (zoom*7 - 1), clamped to the last timeline day.
-    const endIdx = Math.min(startIdx + ui.zoom * 7 - 1, lastIdx);
-    const end = days[Math.max(endIdx, startIdx)] ?? start;
-    return { visStart: start, visEnd: end };
-  }, [days, leftEdgeIdx, ui.zoom, ui.focusDate]);
+  const { start: visStart, end: visEnd } = useMemo(
+    () => visibleWindowFor(days, leftEdgeIdx, ui.zoom, ui.focusDate),
+    [days, leftEdgeIdx, ui.zoom, ui.focusDate],
+  );
 
-  // Human label for the visible span, used in the utilisation titles ("over the visible N week(s)").
-  const visibleSpan = realizedVisibleSpan(visStart, visEnd);
-  const visibleWeeksLabel =
-    visibleSpan.weeks !== undefined
-      ? visibleSpan.weeks === 1
-        ? m.scheduler_visible_weeks_label_one({ count: visibleSpan.weeks })
-        : m.scheduler_visible_weeks_label_other({ count: visibleSpan.weeks })
-      : visibleSpan.days === 1
-        ? m.scheduler_visible_days_label_one({ count: visibleSpan.days })
-        : m.scheduler_visible_days_label_other({ count: visibleSpan.days });
-  const visibleSpanCompact =
-    visibleSpan.weeks !== undefined
-      ? m.scheduler_visible_weeks_compact({ count: visibleSpan.weeks })
-      : m.scheduler_visible_days_compact({ count: visibleSpan.days });
-
-  const blocksMode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === "blocks");
+  // Human labels for the visible span: `long` for the utilisation titles ("over the visible N
+  // week(s)") and the row summaries, `compact` for the header chip. Memoised because every row's
+  // title and screen-reader summary reads them, and they change only when the window does.
+  const { long: visibleWeeksLabel, compact: visibleSpanCompact } = useMemo(
+    () => visibleSpanLabels(visStart, visEnd),
+    [visStart, visEnd],
+  );
 
   // Vertical density ("Compact view" device pref, default OFF = roomier). `density` covers the
   // geometry the VIEW draws directly; `rowLaneLayout` is the projection the MODEL packs lanes with.
   // Both must be memo dependencies of everything derived from them (the model, and the heights
   // prefix-sum below) or a density change would leave stale row heights and bar offsets behind.
   const compactView = useStore((s) => s.compactView);
-  const density = useMemo(() => schedulerDensity(compactView), [compactView]);
-  const rowLaneLayout = useMemo(() => laneLayoutFor(compactView), [compactView]);
+  const { density, rowLaneLayout } = useMemo(
+    () => ({ density: schedulerDensity(compactView), rowLaneLayout: laneLayoutFor(compactView) }),
+    [compactView],
+  );
 
   const staticModel = useMemo(
     () =>
@@ -285,12 +305,13 @@ export function SchedulerGrid() {
     const drawMode = state.ui.drawMode;
     const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
     if (!resource) return;
-    const resourceTimeOff = state.data.timeOff.filter((entry) => entry.resourceId === resourceId);
+    // The SAME gate the model paints `creationBlocked` with, so a lane can never accept a draw on a
+    // day it drew as unavailable. It scopes time off to the resource itself, so no pre-filter here.
     if (
       isCreationStartBlocked(
         resource,
         startDate,
-        resourceTimeOff,
+        state.data.timeOff,
         accountWorkingDaysFor(state.data, state.activeAccountId),
       )
     ) {
@@ -309,12 +330,14 @@ export function SchedulerGrid() {
 
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
-  const overallUtil = useMemo(() => {
+  const overallUtil = useMemo(
     // Exclude external / 3rd-party rows: they carry no capacity (utilisation 0) and would
-    // otherwise drag the headline average down.
-    const rows = model.flatMap((g) => g.rows).filter((r) => isCapacityTracked(r.resource));
-    return rows.length ? formatUtilizationPercent(rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) : "0";
-  }, [model]);
+    // otherwise drag the headline average down. NOTE the group figure below guards on the whole
+    // BAND instead, so a mixed group still averages an external row in at 0% — a known
+    // inconsistency between the two figures, deliberately left alone by this refactor.
+    () => averageUtilizationPercent(model.flatMap((g) => g.rows).filter((r) => isCapacityTracked(r.resource))),
+    [model],
+  );
 
   // Flatten the visible model into one ordered list of renderable items (group
   // headers + the rows of expanded groups) so the grid can window them vertically:
@@ -322,12 +345,13 @@ export function SchedulerGrid() {
   // slice is in the DOM (the rest is reserved by top/bottom spacers).
   type Item = { kind: "group"; group: GroupModel } | { kind: "row"; group: GroupModel; row: RowModel };
   const items = useMemo(() => {
+    const collapsedKeys = new Set(ui.collapsedGroups);
     const out: Item[] = [];
     for (const group of model) {
       // Every model group is now meaningful and labelled: a discipline, Studio/Supplementary,
       // Unassigned, or External. Keep the same collapse behaviour for synthetic fallback bands.
       out.push({ kind: "group", group });
-      if (!ui.collapsedGroups.includes(group.key)) for (const row of group.rows) out.push({ kind: "row", group, row });
+      if (!collapsedKeys.has(group.key)) for (const row of group.rows) out.push({ kind: "row", group, row });
     }
     return out;
   }, [model, ui.collapsedGroups]);
@@ -375,61 +399,58 @@ export function SchedulerGrid() {
     return indices;
   }, [first, last, draggedItemIndex]);
 
-  const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => (
-    <div
-      key={key}
-      role="row"
-      aria-rowindex={rowIndex}
-      data-testid="discipline-group"
-      className="flex border-y border-line-soft bg-surface"
-      style={{ height: density.groupHeaderHeight }}
-    >
+  const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => {
+    const collapsed = ui.collapsedGroups.includes(group.key);
+    return (
       <div
-        role="rowheader"
-        aria-colindex={1}
-        className="sticky left-0 z-10 shrink-0"
-        style={{ width: LAYOUT.leftColWidth }}
+        key={key}
+        role="row"
+        aria-rowindex={rowIndex}
+        data-testid="discipline-group"
+        className="flex border-y border-line-soft bg-surface"
+        style={{ height: density.groupHeaderHeight }}
       >
-        <Button
-          variant="ghost"
-          onClick={() => toggleGroup(group.key)}
-          aria-expanded={!ui.collapsedGroups.includes(group.key)}
-          className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
+        <div
+          role="rowheader"
+          aria-colindex={1}
+          className="sticky left-0 z-10 shrink-0"
+          style={{ width: LAYOUT.leftColWidth }}
         >
-          {ui.collapsedGroups.includes(group.key) ? (
-            <ChevronRight data-icon="inline-start" className="text-faint" />
-          ) : (
-            <ChevronDown data-icon="inline-start" className="text-faint" />
-          )}
-          <span
-            className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
-            style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
-          />
-          <span className="truncate text-ink">{group.title}</span>
-        </Button>
+          <Button
+            variant="ghost"
+            onClick={() => toggleGroup(group.key)}
+            aria-expanded={!collapsed}
+            className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
+          >
+            {collapsed ? (
+              <ChevronRight data-icon="inline-start" className="text-faint" />
+            ) : (
+              <ChevronDown data-icon="inline-start" className="text-faint" />
+            )}
+            <span
+              className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
+              style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
+            />
+            <span className="truncate text-ink">{group.title}</span>
+          </Button>
+        </div>
+        <div
+          role="gridcell"
+          aria-colindex={2}
+          className="flex shrink-0 items-center px-3 text-xs text-faint"
+          style={{ width: geom.totalWidth }}
+        >
+          {collapsed
+            ? m.scheduler_group_hidden({ count: group.rows.length })
+            : group.external
+              ? "" /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
+              : utilizationPrefs.showDiscipline
+                ? m.scheduler_group_avg_utilisation({ percent: averageUtilizationPercent(group.rows) })
+                : ""}
+        </div>
       </div>
-      <div
-        role="gridcell"
-        aria-colindex={2}
-        className="flex shrink-0 items-center px-3 text-xs text-faint"
-        style={{ width: totalWidth }}
-      >
-        {ui.collapsedGroups.includes(group.key)
-          ? m.scheduler_group_hidden({ count: group.rows.length })
-          : group.external
-            ? "" /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
-            : utilizationPrefs.showDiscipline
-              ? m.scheduler_group_avg_utilisation({
-                  percent: group.rows.length
-                    ? formatUtilizationPercent(
-                        group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length,
-                      )
-                    : "0",
-                })
-              : ""}
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderRow = (group: GroupModel, row: RowModel, rowIndex: number, key: string) => {
     const { resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon, dimmed } = row;
@@ -456,48 +477,13 @@ export function SchedulerGrid() {
           style={{ width: LAYOUT.leftColWidth }}
         >
           {/* Text equivalent of the colour-only capacity cues (over-marker red background, time-off
-              tint and half-day tint). The per-day red marker is otherwise colour/shape-only and
-              unannounced (WCAG 1.1.1/1.3.1), so count both hourly over-capacity days and explicit
-              block/time-off conflicts here — the non-colour pair to the red background. The half-day
-              count likewise names the neutral partial-capacity treatment without relying on colour. */}
+              tint and half-day tint) — assembled in rowSummary.ts so the wording is unit-testable. */}
           <span className="sr-only">
-            {overSoon ? m.scheduler_sr_overbooked_two_weeks() : ""}
-            {(() => {
-              const conflictDays = dayStates.filter((d) => d.over || d.timeOffConflict).length;
-              return conflictDays
-                ? conflictDays > 1
-                  ? m.scheduler_sr_over_capacity_other({ count: conflictDays })
-                  : m.scheduler_sr_over_capacity_one({ count: conflictDays })
-                : "";
-            })()}
-            {(() => {
-              const partialCapacityDays = dayStates.filter((d) => d.partialCapacity).length;
-              return partialCapacityDays
-                ? partialCapacityDays > 1
-                  ? m.scheduler_sr_half_day_other({ count: partialCapacityDays })
-                  : m.scheduler_sr_half_day_one({ count: partialCapacityDays })
-                : "";
-            })()}
-            {timeOff.length
-              ? timeOff.length > 1
-                ? m.scheduler_sr_timeoff_other({ count: timeOff.length })
-                : m.scheduler_sr_timeoff_one({ count: timeOff.length })
-              : ""}
-            {/* The visible utilisation % (right column) conveys its meaning only via a `title` on a
-                non-interactive span, which AT may not expose — fold it into this summary so a SR hears
-                it (WCAG 1.3.1). This is the per-PERSON, visible-window utilisation signal — kept
-                separate from the over-marker count above and the `overSoon` flag; mirrors exactly the
-                visible figure's gate (showPersonal + capacity-tracked). */}
-            {utilizationPrefs.showPersonal && isCapacityTracked(resource)
-              ? m.scheduler_sr_utilisation({
-                  percent: formatUtilizationPercent(util),
-                  span: visibleWeeksLabel,
-                })
-              : ""}
-            {ui.drawMode !== "timeoff" &&
-              (bars.length === 1
-                ? m.scheduler_sr_allocations_one({ count: bars.length })
-                : m.scheduler_sr_allocations_other({ count: bars.length }))}
+            {rowScreenReaderSummary(row, {
+              showPersonalUtilization: utilizationPrefs.showPersonal,
+              visibleSpanLabel: visibleWeeksLabel,
+              drawMode: ui.drawMode,
+            })}
           </span>
           {/* Avatar + identity, vertically centred within the FIRST lane band
               (rowPadding + barHeight + rowPadding = a single-lane row height) and pinned to
@@ -594,7 +580,6 @@ export function SchedulerGrid() {
           todayX={todayX}
           dayWidth={dayWidth}
           geom={geom}
-          origin={ui.originDate}
           rowHeight={rowHeight}
           barTop={density.rowPadding}
           bars={bars}

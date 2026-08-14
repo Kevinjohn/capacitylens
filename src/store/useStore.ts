@@ -186,16 +186,20 @@ export const clearEntityLenses = (filters: Filters): Filters => ({
   activityKind: null,
 });
 
+/** The project/client lens specifically — the pair that decides whether a bar "matches the filter"
+ *  (the activity lens is standalone and mutually exclusive with it via setFilters). */
+export function hasProjectClientLens(f: Filters): boolean {
+  return !!(f.projectId || f.clientId);
+}
+
+/** Any "what work" lens is active — project/client OR activity. This is the gate for the dimmed
+ *  show-unmatched staffing view, which behaves identically whichever of the two lenses is set. */
+export function hasLensFilter(f: Filters): boolean {
+  return hasProjectClientLens(f) || !!(f.activityId || f.activityKind);
+}
+
 export function hasActiveFilters(f: Filters): boolean {
-  return (
-    !!f.disciplineId ||
-    !!f.clientId ||
-    !!f.projectId ||
-    !!f.activityId ||
-    !!f.activityKind ||
-    f.search.trim() !== "" ||
-    f.hideTentative
-  );
+  return hasLensFilter(f) || !!f.disciplineId || f.search.trim() !== "" || f.hideTentative;
 }
 
 /** What a draw-on-a-lane gesture creates. */

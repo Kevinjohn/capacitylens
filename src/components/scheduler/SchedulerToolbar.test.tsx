@@ -6,13 +6,7 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { emptyFilters, useStore } from "../../store/useStore";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
-
-async function chooseOption(_user: ReturnType<typeof userEvent.setup>, label: string | RegExp, optionName: string) {
-  const trigger = screen.getByRole("combobox", { name: label });
-  trigger.focus();
-  fireEvent.keyDown(trigger, { key: "ArrowDown" });
-  fireEvent.click(screen.getByRole("option", { name: optionName }));
-}
+import { chooseOption } from "./__tests__/schedulerTestKit";
 
 function showFilters() {
   fireEvent.click(screen.getByRole("button", { name: "Show filters" }));

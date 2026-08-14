@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { m } from "@/i18n";
 import { parseDate, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH, type WeeksZoom } from "../../lib/schedulerConfig";
+import { type WeeksZoom } from "../../lib/schedulerConfig";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
 
@@ -42,13 +42,14 @@ function weekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
 // across data mutations, so it stops re-rendering ~120 cells on every store change.
 export const DateHeader = memo(function DateHeader({
   days,
-  dayWidth,
   geom,
   visibleWeeks,
   weekStartsOn,
   today,
 }: {
   days: string[];
+  // Declared but not read: the two zoom thresholds it used to compute now live on `geom`
+  // (`perDayColumns` / `showWeekdayLabels`). Still in the type because the grid passes it.
   dayWidth: number;
   // Per-column geometry: cell/month/week widths come from here so they track the
   // (possibly narrowed) weekend columns instead of a single scalar.
@@ -57,8 +58,8 @@ export const DateHeader = memo(function DateHeader({
   weekStartsOn: 0 | 1;
   today: string;
 }) {
-  const showDays = dayWidth >= DAY_COLUMN_MIN_WIDTH; // per-day columns vs per-week blocks
-  const showWeekday = dayWidth >= WEEKDAY_LABEL_MIN_WIDTH;
+  const showDays = geom.perDayColumns; // per-day columns vs per-week blocks
+  const showWeekday = geom.showWeekdayLabels;
   // The 1/2-week views have enough room to place labels at the visible month segment's start.
   // At compact zooms that treatment would leave too little room, so keep the bounded sticky label.
   const alignVisibleMonths = visibleWeeks <= 2 && showWeekday;

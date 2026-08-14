@@ -1,33 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { effectiveWorkingDays, isAllocationMoveStartBlocked, isCreationStartBlocked } from "./creationAvailability";
-import type { Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import {
+  creationBlockedAt,
+  effectiveWorkingDays,
+  isAllocationMoveStartBlocked,
+  isCreationStartBlocked,
+} from "./creationAvailability";
+import type { Resource } from "@capacitylens/shared/types/entities";
+import { makeResource, makeTimeOff } from "../../test/fixtures";
 
-const person: Resource = {
-  id: "r1",
-  accountId: "a1",
-  kind: "person",
-  name: "Bruce Wayne",
-  role: "Designer",
-  employmentType: "permanent",
-  engagement: "studio",
-  workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5],
-  halfDays: [],
-  color: "#2d75da",
-  createdAt: "t",
-  updatedAt: "t",
-};
+const person = makeResource({ name: "Bruce Wayne" });
 
-const holiday: TimeOff = {
-  id: "to1",
-  accountId: "a1",
-  resourceId: "r1",
-  startDate: "2026-06-03",
-  endDate: "2026-06-04",
-  type: "holiday",
-  createdAt: "t",
-  updatedAt: "t",
-};
+const holiday = makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-04" });
 
 describe("creation start availability", () => {
   it("intersects the company and personal calendars for allocation gestures", () => {
@@ -54,5 +37,17 @@ describe("creation start availability", () => {
     expect(effectiveWorkingDays(external, [2, 3, 4, 5])).toEqual([2, 3, 4, 5]);
     expect(isCreationStartBlocked(external, "2026-06-01", [], [2, 3, 4, 5])).toBe(true);
     expect(isCreationStartBlocked(external, "2026-06-01", [], [1, 2, 3, 4, 5])).toBe(false);
+    // An external carries no time off of its own: a stray record must not gate its lane.
+    expect(isCreationStartBlocked({ ...external, id: "r1" }, "2026-06-03", [holiday], [1, 2, 3, 4, 5])).toBe(false);
+  });
+
+  it("names which rule blocked the start, and scopes time off to the resource asked about", () => {
+    expect(creationBlockedAt(person, "2026-06-01", [], [2, 3, 4, 5])).toBe("non-working");
+    expect(creationBlockedAt(person, "2026-06-03", [holiday], [1, 2, 3, 4, 5])).toBe("time-off");
+    expect(creationBlockedAt(person, "2026-06-02", [holiday], [1, 2, 3, 4, 5])).toBe(null);
+    // Another person's time off is ignored, so callers need not pre-filter the list.
+    expect(creationBlockedAt(person, "2026-06-03", [{ ...holiday, resourceId: "r2" }], [1, 2, 3, 4, 5])).toBe(null);
+    // The per-allocation override bypasses the calendars ONLY — time off passed in still blocks.
+    expect(creationBlockedAt(person, "2026-06-03", [holiday], [1, 2, 3, 4, 5], true)).toBe("time-off");
   });
 });
