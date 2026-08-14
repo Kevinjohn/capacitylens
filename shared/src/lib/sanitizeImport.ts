@@ -3,12 +3,14 @@ import { INTERNAL_CLIENT_COLOR } from "../data/internalClient";
 import { cleanText } from "./strings";
 import { parseISOTimestamp } from "./integrity";
 import { normalizeCodeName, privateCodeNameFallback } from "../domain/privateNames";
-import { normalizeAccountWorkingDays } from "./accountWorkingDays";
+import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "./accountWorkingDays";
 import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
   externalCapacityDefaults,
+  FULL_DAY_HOURS,
   INTERNAL_COLOUR_MODES,
+  type Account,
   type AppData,
   type ScopedEntityKey,
   type Weekday,
@@ -92,7 +94,7 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
 // A RESOURCE's working day must be POSITIVE (a 0-hour working day has no capacity) — route
 // it through the SHARED clampWorkingHoursPerDay so import and the store resource path agree
 // (a finite value clamps to (0,24]; junk / <= 0 / a non-number falls back to a normal 8h day).
-const clampHours = (v: unknown): number => (typeof v === "number" ? clampWorkingHoursPerDay(v) : 8);
+const clampHours = (v: unknown): number => (typeof v === "number" ? clampWorkingHoursPerDay(v) : FULL_DAY_HOURS);
 
 // Allocation hours/day, unlike a resource's working day, may legitimately be 0 (a
 // "blocks"-mode booking persists hoursPerDay: 0 — the span counts but the load doesn't).
@@ -122,11 +124,14 @@ const normalizeISODate = (v: unknown): unknown => {
 // length-7 array means "works every calendar day"), so a duplicated set like
 // [1,1,1,1,1,1,1] would otherwise reach length 7 and model a Monday-only resource as a
 // 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
+// NOTE this deliberately does NOT reuse normalizeAccountWorkingDays: that one REJECTS a whole
+// selection containing any junk, while a RESOURCE's week is repaired by FILTERING the junk out and
+// keeping whatever real weekdays remain. Only the default they fall back to is shared.
 const safeWorkingDays = (v: unknown): Weekday[] => {
-  if (!Array.isArray(v)) return [1, 2, 3, 4, 5];
+  if (!Array.isArray(v)) return defaultAccountWorkingDays();
   const days = v.filter((d): d is Weekday => Number.isInteger(d) && d >= 0 && d <= 6);
   const unique = [...new Set(days)].sort((a, b) => a - b);
-  return unique.length ? unique : [1, 2, 3, 4, 5];
+  return unique.length ? unique : defaultAccountWorkingDays();
 };
 
 /** Repair half days to distinct weekdays that also occur in the resource's working week. */
@@ -193,6 +198,52 @@ const normalizeLifecycleFields = (rec: Record<string, unknown>): void => {
   else rec.deletedAt = deletedAt;
 };
 
+/**
+ * Every optional BOOLEAN preference on an account. Each is dropped rather than persisted when a
+ * hand-edited value isn't a real boolean, so its ABSENCE reads back as the documented default on
+ * the client — which differs per field and is what `Account` documents:
+ *   disciplinesEnabled            absent = true  (disciplines shown)
+ *   groupResourcesByEngagement    absent = true  (Studio / Supplementary partitioning on)
+ *   placeholdersEnabled           absent = false (placeholders hidden out of the box)
+ *   externalEnabled               absent = false (external resources hidden out of the box)
+ *   showInternalProjects          absent = true  (Internal-client bars shown)
+ *   showInternalActivities        absent = true  (internal-kind bars shown)
+ *   inlineActivityCreateEnabled   absent = true  (inline "Add activity" offered)
+ * Dropping junk — rather than coercing it — is what keeps a `false`-defaulting flag from turning on
+ * because someone typed "no" into the file.
+ */
+const ACCOUNT_BOOLEAN_FIELDS = [
+  "disciplinesEnabled",
+  "groupResourcesByEngagement",
+  "placeholdersEnabled",
+  "externalEnabled",
+  "showInternalProjects",
+  "showInternalActivities",
+  "inlineActivityCreateEnabled",
+] as const satisfies readonly AccountBooleanField[];
+
+/** Every boolean-valued optional preference declared on `Account`. */
+type AccountBooleanField = {
+  [K in keyof Account]-?: boolean extends NonNullable<Account[K]> ? K : never;
+}[keyof Account];
+
+// Same compile-completeness guard as IMPORTED_FIELDS above: adding a boolean preference to
+// `Account` without listing it here fails the build rather than silently letting junk persist.
+type MissingAccountBooleanField = Exclude<AccountBooleanField, (typeof ACCOUNT_BOOLEAN_FIELDS)[number]>;
+const accountBooleanFieldsAreComplete: MissingAccountBooleanField extends never ? true : never = true;
+void accountBooleanFieldsAreComplete;
+
+/**
+ * Optional account fields constrained to a fixed value set. Anything outside it is dropped:
+ *   language            English-only until P1.5.1 (Paraglide); a hand-edited 'fr'/123/etc. must not
+ *                       persist — its absence reads back as 'en'.
+ *   internalColourMode  an unknown mode's absence deliberately reads as the safe/default grey.
+ */
+const ACCOUNT_ENUM_FIELDS: { readonly [K in "language" | "internalColourMode"]: readonly unknown[] } = {
+  language: ["en"],
+  internalColourMode: INTERNAL_COLOUR_MODES,
+};
+
 /** Sanitize the optional calendar fields of an account record in place.
  *  Called by the server write path; the import path doesn't re-import accounts. */
 export function sanitizeAccount(rec: Record<string, unknown>): Record<string, unknown> {
@@ -211,46 +262,13 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
     delete rec.weekStartsOn;
   }
   rec.workingDays = normalizeAccountWorkingDays(rec.workingDays, rec.weekStartsOn === 0 ? 0 : 1);
-  // Drop any language that isn't the one supported value ('en'). English-only until P1.5.1
-  // (Paraglide); a hand-edited 'fr'/123/etc. must not persist — its absence reads back as 'en'.
-  if (rec.language !== undefined && rec.language !== "en") {
-    delete rec.language;
+  // Drop rather than coerce: see ACCOUNT_BOOLEAN_FIELDS / ACCOUNT_ENUM_FIELDS above for the
+  // per-field default each absence reads back as.
+  for (const field of ACCOUNT_BOOLEAN_FIELDS) {
+    if (rec[field] !== undefined && typeof rec[field] !== "boolean") delete rec[field];
   }
-  // Drop a non-boolean disciplinesEnabled rather than persist junk; its absence reads
-  // back as the default (true) on the client.
-  if (rec.disciplinesEnabled !== undefined && typeof rec.disciplinesEnabled !== "boolean") {
-    delete rec.disciplinesEnabled;
-  }
-  // Drop malformed engagement-grouping values; absence is the default-on representation.
-  if (rec.groupResourcesByEngagement !== undefined && typeof rec.groupResourcesByEngagement !== "boolean") {
-    delete rec.groupResourcesByEngagement;
-  }
-  // Drop a non-boolean placeholdersEnabled rather than persist junk; its absence reads
-  // back as the default (false — hidden) on the client.
-  if (rec.placeholdersEnabled !== undefined && typeof rec.placeholdersEnabled !== "boolean") {
-    delete rec.placeholdersEnabled;
-  }
-  // Drop a non-boolean externalEnabled rather than persist junk; its absence reads
-  // back as the default (false — hidden) on the client.
-  if (rec.externalEnabled !== undefined && typeof rec.externalEnabled !== "boolean") {
-    delete rec.externalEnabled;
-  }
-  // Drop an unknown Internal colour mode; absence deliberately reads as the safe/default grey.
-  if (rec.internalColourMode !== undefined && !INTERNAL_COLOUR_MODES.includes(rec.internalColourMode as never)) {
-    delete rec.internalColourMode;
-  }
-  // Drop a non-boolean showInternalProjects rather than persist junk; its absence reads back as the
-  // default (true — shown) on the client (`?? true`), mirroring the disciplinesEnabled precedent.
-  if (rec.showInternalProjects !== undefined && typeof rec.showInternalProjects !== "boolean") {
-    delete rec.showInternalProjects;
-  }
-  // Drop a non-boolean showInternalActivities rather than persist junk; absence reads back as true (shown).
-  if (rec.showInternalActivities !== undefined && typeof rec.showInternalActivities !== "boolean") {
-    delete rec.showInternalActivities;
-  }
-  // Drop a non-boolean inlineActivityCreateEnabled rather than persist junk; absence reads back as true (enabled).
-  if (rec.inlineActivityCreateEnabled !== undefined && typeof rec.inlineActivityCreateEnabled !== "boolean") {
-    delete rec.inlineActivityCreateEnabled;
+  for (const [field, allowed] of Object.entries(ACCOUNT_ENUM_FIELDS)) {
+    if (rec[field] !== undefined && !allowed.includes(rec[field])) delete rec[field];
   }
   return rec;
 }
@@ -293,7 +311,7 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       break;
     case "allocations":
       rec.status = oneOf(rec.status, VALID_STATUS, "confirmed");
-      rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8);
+      rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, FULL_DAY_HOURS);
       if (typeof rec.ignoreWeekends !== "boolean") delete rec.ignoreWeekends;
       if (rec.seriesId !== undefined) {
         const seriesId = typeof rec.seriesId === "string" ? cleanText(rec.seriesId) : "";

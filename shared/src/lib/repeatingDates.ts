@@ -1,5 +1,5 @@
-import { addDaysISO, daysInclusive } from "./dateMath";
-import { isValidISODate } from "./integrity";
+import { addDaysISO, daysInclusive, MAX_ISO_DATE } from "./dateMath";
+import { daysInMonth as daysInGregorianMonth, isValidISODate } from "./integrity";
 import type { ISODate } from "../types/entities";
 
 /** A supported repeat cadence for transient allocation creation. */
@@ -17,7 +17,8 @@ const MONTHS_PER_YEAR = 12;
 const MAX_REPEAT_MONTHS = 6;
 /** Defensive ceiling above the 27 weekly starts possible in a valid six-month window. */
 export const GENERATED_ALLOCATION_LIMIT = 30;
-const LAST_SUPPORTED_DATE = "9999-12-31" as ISODate;
+/** Calendar months between an allocation start and the cutoff suggested when repeat is enabled. */
+const DEFAULT_REPEAT_MONTHS = 2;
 
 export type RepeatingDateErrorCode =
   | "invalid-date"
@@ -38,10 +39,10 @@ export class RepeatingDateError extends RangeError {
   }
 }
 
-function isLeapYear(year: number): boolean {
-  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-}
-
+/** Range-guarded month length for this module's absolute-month arithmetic. The Gregorian leap rule
+ *  and month table live ONCE, in integrity.ts (shared with `isValidISODate`); the guards here are
+ *  this module's own contract — the month arithmetic below can compute an out-of-domain year, and
+ *  these typed RangeErrors are what the callers catch to clamp instead of emitting a pseudo-date. */
 function daysInMonth(year: number, month: number): number {
   if (!Number.isSafeInteger(year) || year < FIRST_SUPPORTED_YEAR || year > LAST_SUPPORTED_YEAR) {
     throw new RangeError("Date falls outside the supported four-digit ISO year range.");
@@ -49,8 +50,7 @@ function daysInMonth(year: number, month: number): number {
   if (!Number.isSafeInteger(month) || month < 1 || month > MONTHS_PER_YEAR) {
     throw new RangeError("Month must be a whole number from 1 through 12.");
   }
-  if (month === 2) return isLeapYear(year) ? 29 : 28;
-  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31;
+  return daysInGregorianMonth(year, month);
 }
 
 function isoDate(year: number, month: number, day: number): ISODate {
@@ -74,7 +74,7 @@ export function maximumRepeatUntilDate(startDate: ISODate): ISODate {
   try {
     return addCalendarMonthsClamped(startDate, MAX_REPEAT_MONTHS);
   } catch (error) {
-    if (error instanceof RangeError) return LAST_SUPPORTED_DATE;
+    if (error instanceof RangeError) return MAX_ISO_DATE;
     throw error;
   }
 }
@@ -84,13 +84,19 @@ export function maximumRepeatUntilDate(startDate: ISODate): ISODate {
  *  the same maximum accepted by the form, so revealing the field never creates invalid state. */
 export function defaultRepeatUntilDate(startDate: ISODate): ISODate {
   const maximum = maximumRepeatUntilDate(startDate);
-  const { year, month } = dateParts(startDate);
-  const absoluteMonth = (year - 1) * MONTHS_PER_YEAR + (month - 1) + 2;
-  const lastAbsoluteMonth = LAST_SUPPORTED_YEAR * MONTHS_PER_YEAR - 1;
-  const boundedMonth = Math.min(absoluteMonth, lastAbsoluteMonth);
-  const targetYear = Math.floor(boundedMonth / MONTHS_PER_YEAR) + 1;
-  const targetMonth = (boundedMonth % MONTHS_PER_YEAR) + 1;
-  const suggested = isoDate(targetYear, targetMonth, daysInMonth(targetYear, targetMonth));
+  let suggested: ISODate;
+  try {
+    // Reuse the ONE absolute-month implementation to land in the target month, then take that
+    // month's last day (the day-of-month the clamped add lands on is irrelevant here).
+    const { year, month } = dateParts(addCalendarMonthsClamped(startDate, DEFAULT_REPEAT_MONTHS));
+    suggested = isoDate(year, month, daysInMonth(year, month));
+  } catch (error) {
+    // Past the domain ceiling there is no "two months on" month left to end on, so the last
+    // supported date IS the bounded suggestion — the same value the maximum clamps to. Clamping
+    // rather than throwing is load-bearing: revealing the field must never create invalid state.
+    if (error instanceof RangeError) suggested = MAX_ISO_DATE;
+    else throw error;
+  }
   return suggested > maximum ? maximum : suggested;
 }
 

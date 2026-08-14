@@ -1,5 +1,5 @@
 import { newId } from "../lib/id";
-import { validateAllocationAssignment, validateDateRange } from "../lib/integrity";
+import { validateAllocationAssignment, validateDateRange, type ValidationResult } from "../lib/integrity";
 import { sanitizeImportedRecord } from "../lib/sanitizeImport";
 import {
   buildInternalClient,
@@ -8,8 +8,14 @@ import {
   INTERNAL_CLIENT_NAME,
 } from "../data/internalClient";
 import { belongsToAccount, notInAccount } from "./tenancy";
-import { domainError } from "./errors";
-import { inspectLifecycleAncestry, lifecycleStatus, obfuscateResource, type LifecycleAncestryRow } from "./lifecycle";
+import { domainError, type DomainErrorCode } from "./errors";
+import {
+  inspectLifecycleAncestry,
+  lifecycleStatus,
+  obfuscateResource,
+  type LifecycleAncestryRow,
+  type LifecycleFields,
+} from "./lifecycle";
 import { isExternalResource, SCOPED_KEYS, scopedTables } from "../types/entities";
 import type {
   Allocation,
@@ -48,6 +54,47 @@ const validationRow = (
   return (data[table] as unknown as (Record<string, unknown> & { id: ID })[]).find((row) => row.id === id);
 };
 
+/** Fetch a row and narrow it to THIS account in one step. An ABSENT row and a CROSS-ACCOUNT row both
+ * read as `undefined`, so every caller keeps its own domain-specific rejection message. */
+const ownedRow = <T extends ScopedEntity>(
+  data: AppData,
+  table: AppDataKey,
+  id: ID,
+  accountId: ID,
+  lookup?: ValidationDataLookup,
+): T | undefined => {
+  const row = validationRow(data, table, id, lookup) as T | undefined;
+  return row && belongsToAccount(row, accountId) ? row : undefined;
+};
+
+/** The account's allocations on ONE end of the pair, beside {@link validationRow}: the indexed
+ * server-batch lookup when a large transaction supplies one, otherwise a scan of the local array. */
+const validationAllocationsFor = (
+  data: AppData,
+  accountId: ID,
+  side: "resource" | "activity",
+  id: ID,
+  lookup?: ValidationDataLookup,
+): readonly Allocation[] => {
+  if (lookup) {
+    return side === "resource"
+      ? lookup.allocationsForResource(accountId, id)
+      : lookup.allocationsForActivity(accountId, id);
+  }
+  return data.allocations.filter(
+    (allocation) =>
+      belongsToAccount(allocation, accountId) &&
+      (side === "resource" ? allocation.resourceId : allocation.activityId) === id,
+  );
+};
+
+/** `codes[0]`/`errors[0]` are guaranteed present: every validator sets ok=false and pushes a message
+ * in the same step, so `!v.ok` always implies non-empty arrays. (Documented coupling between
+ * ValidationResult.ok and errors — don't split the two without revisiting this read.) */
+const throwIfInvalid = (v: ValidationResult): void => {
+  if (!v.ok) domainError(v.codes[0], v.errors[0]);
+};
+
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
  * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
  * their local arrays. Missing/cross-account parents return false and keep each caller's existing
@@ -55,13 +102,17 @@ const validationRow = (
 const isEffectivelyActive = (
   data: AppData,
   table: AppDataKey,
-  row: LifecycleAncestryRow,
+  row: LifecycleFields & { id: ID },
   lookup?: ValidationDataLookup,
 ): boolean =>
   lifecycleStatus(row) === "active" &&
   inspectLifecycleAncestry(
     table,
-    row,
+    // The ONE named seam for the single cast the ancestry walk needs: an interface-typed entity
+    // carries no implicit index signature, so TypeScript can't see it as the loose
+    // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
+    // (id / accountId / tombstones / FK ids) is present on these rows.
+    row as unknown as LifecycleAncestryRow,
     (parentTable, id) => validationRow(data, parentTable, id, lookup) as LifecycleAncestryRow | undefined,
   ).visible;
 
@@ -135,9 +186,7 @@ export function assertScopedRefs(
     if (typeof id !== "string") return false;
     const entity = validationRow(data, table, id, lookup) as ScopedEntity | undefined;
     return (
-      entity !== undefined &&
-      belongsToAccount(entity, accountId) &&
-      isEffectivelyActive(data, table, entity as unknown as LifecycleAncestryRow, lookup)
+      entity !== undefined && belongsToAccount(entity, accountId) && isEffectivelyActive(data, table, entity, lookup)
     );
   };
   const need = (field: string, table: ScopedEntityKey, msg: string) => {
@@ -201,26 +250,23 @@ export function assertScopedRefs(
       // absent from the active-only slice (same rationale as `unchanged` above). Touching
       // EITHER id re-runs the full coherence check.
       const phasePairUnchanged = unchanged("phaseId") && unchanged("projectId");
+      // Resolve the phase ONCE for BOTH arms below: whether it resolves in-account is the "belong to
+      // this company" failure (the same check `need` would do), and its projectId feeds the coherence
+      // check — no second scan of data.phases. An absent/null phaseId resolves to undefined without
+      // any lookup, so hoisting costs a non-phase write nothing.
+      const phase =
+        typeof rec.phaseId === "string"
+          ? (validationRow(data, "phases", rec.phaseId, lookup) as AppData["phases"][number] | undefined)
+          : undefined;
+      const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
       if (present("phaseId") && phasePairUnchanged) {
-        const phase =
-          typeof rec.phaseId === "string"
-            ? (validationRow(data, "phases", rec.phaseId, lookup) as AppData["phases"][number] | undefined)
-            : undefined;
         // An archived phase may be absent from an active-only client slice, but a phase that DOES
         // resolve must still belong to this account. Legacy cross-account state is not trusted merely
         // because both stored ids are unchanged.
-        if (phase && !belongsToAccount(phase, accountId)) {
+        if (phase && !ownedPhase) {
           domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
         }
       } else if (present("phaseId")) {
-        // Resolve the in-account phase ONCE: its absence is the "belong to this company"
-        // failure (same check `need` would do), and its projectId feeds the coherence
-        // check below — no second scan of data.phases.
-        const phase =
-          typeof rec.phaseId === "string"
-            ? (validationRow(data, "phases", rec.phaseId, lookup) as AppData["phases"][number] | undefined)
-            : undefined;
-        const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
         if (!ownedPhase) {
           domainError("activity_phase_wrong_account", "Activity phase must belong to this company.");
         }
@@ -290,26 +336,20 @@ export function assertAllocationRefs(
   existing?: Pick<Allocation, "resourceId" | "activityId">,
   lookup?: ValidationDataLookup,
 ): void {
-  const resourceRow = validationRow(data, "resources", resourceId, lookup) as Resource | undefined;
-  const activityRow = validationRow(data, "activities", activityId, lookup) as Activity | undefined;
-  const resource = resourceRow && belongsToAccount(resourceRow, accountId) ? resourceRow : undefined;
-  const activity = activityRow && belongsToAccount(activityRow, accountId) ? activityRow : undefined;
+  const resource = ownedRow<Resource>(data, "resources", resourceId, accountId, lookup);
+  const activity = ownedRow<Activity>(data, "activities", activityId, accountId, lookup);
   if (!resource || !activity) {
     domainError(
       "allocation_references_invalid",
       "Allocation must reference an existing resource and activity in this company.",
     );
   }
-  if (
-    existing?.resourceId !== resourceId &&
-    !isEffectivelyActive(data, "resources", resource as unknown as LifecycleAncestryRow, lookup)
-  ) {
+  if (existing?.resourceId !== resourceId && !isEffectivelyActive(data, "resources", resource, lookup)) {
     domainError("allocation_resource_inactive", "Allocation must reference an active resource in this company.");
   }
-  const projectRow = activity.projectId
-    ? (validationRow(data, "projects", activity.projectId, lookup) as AppData["projects"][number] | undefined)
+  const project = activity.projectId
+    ? ownedRow<AppData["projects"][number]>(data, "projects", activity.projectId, accountId, lookup)
     : undefined;
-  const project = projectRow && belongsToAccount(projectRow, accountId) ? projectRow : undefined;
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
@@ -320,17 +360,10 @@ export function assertAllocationRefs(
       "Allocation must reference an activity under an active project in this company.",
     );
   }
-  if (
-    existing?.activityId !== activityId &&
-    !isEffectivelyActive(data, "activities", activity as unknown as LifecycleAncestryRow, lookup)
-  ) {
+  if (existing?.activityId !== activityId && !isEffectivelyActive(data, "activities", activity, lookup)) {
     domainError("allocation_activity_inactive", "Allocation must reference an activity under an active project.");
   }
-  const v = validateAllocationAssignment(resource, activity.projectId);
-  // `errors[0]` is guaranteed present: every validator sets ok=false and pushes a message in the
-  // same step, so `!v.ok` always implies a non-empty `errors` array. (Documented coupling between
-  // ValidationResult.ok and errors — don't split the two without revisiting this read.)
-  if (!v.ok) domainError(v.codes[0], v.errors[0]);
+  throwIfInvalid(validateAllocationAssignment(resource, activity.projectId));
   // External / 3rd parties have NO capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only — enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
@@ -401,24 +434,53 @@ export function assertResourceProjectAllowsDependents(
   existing?: Resource,
   lookup?: ValidationDataLookup,
 ): void {
+  // The resource side short-circuits only when NEITHER kind nor projectId moved: both feed the
+  // placeholder rule, so either one changing can newly invalidate an allocation.
   if (existing !== undefined && merged.kind === existing.kind && merged.projectId === existing.projectId) return;
+  assertAllocationPairStaysValid(
+    data,
+    accountId,
+    resourceId,
+    { side: "resource", merged, existing },
+    "placeholder_project_dependents",
+    "Reassign or remove this placeholder’s work before changing its bound project.",
+    lookup,
+  );
+}
 
-  const allocations = lookup
-    ? lookup.allocationsForResource(accountId, resourceId)
-    : data.allocations.filter(
-        (allocation) => allocation.accountId === accountId && allocation.resourceId === resourceId,
-      );
-  for (const allocation of allocations) {
-    const activityRow = validationRow(data, "activities", allocation.activityId, lookup) as Activity | undefined;
-    const activity = activityRow && belongsToAccount(activityRow, accountId) ? activityRow : undefined;
-    if (!activity) continue;
-    const wasValid = existing === undefined || validateAllocationAssignment(existing, activity.projectId).ok;
-    if (wasValid && !validateAllocationAssignment(merged, activity.projectId).ok) {
-      domainError(
-        "placeholder_project_dependents",
-        "Reassign or remove this placeholder’s work before changing its bound project.",
-      );
+/** The shared body of the two mirrored "did this edit retroactively invalidate an existing
+ * allocation?" guards. `edit` says which END of the allocation is being written: that end is held
+ * fixed at its before/after values while the OTHER end is resolved per allocation, and
+ * validateAllocationAssignment is always fed (resource, activity project id). Only NEWLY introduced
+ * invalidity is rejected, so a legacy/corrupt pair never makes an unrelated edit the repair
+ * boundary. Each caller keeps its own early-return guard — the two sides deliberately differ. */
+function assertAllocationPairStaysValid(
+  data: AppData,
+  accountId: ID,
+  id: ID,
+  edit:
+    | { side: "resource"; merged: Resource; existing?: Resource }
+    | { side: "activity"; merged: Activity; existing?: Activity },
+  code: DomainErrorCode,
+  message: string,
+  lookup?: ValidationDataLookup,
+): void {
+  for (const allocation of validationAllocationsFor(data, accountId, edit.side, id, lookup)) {
+    let before: ValidationResult | undefined;
+    let after: ValidationResult;
+    if (edit.side === "resource") {
+      const activity = ownedRow<Activity>(data, "activities", allocation.activityId, accountId, lookup);
+      if (!activity) continue;
+      before = edit.existing && validateAllocationAssignment(edit.existing, activity.projectId);
+      after = validateAllocationAssignment(edit.merged, activity.projectId);
+    } else {
+      const resource = ownedRow<Resource>(data, "resources", allocation.resourceId, accountId, lookup);
+      if (!resource) continue;
+      before = edit.existing && validateAllocationAssignment(resource, edit.existing.projectId);
+      after = validateAllocationAssignment(resource, edit.merged.projectId);
     }
+    // An absent `existing` (a create) counts as "was valid", exactly as each caller's own check did.
+    if ((before === undefined || before.ok) && !after.ok) domainError(code, message);
   }
 }
 
@@ -435,29 +497,23 @@ export function assertActivityProjectAllowsDependents(
   existing?: Activity,
   lookup?: ValidationDataLookup,
 ): void {
+  // The activity side short-circuits on projectId alone: an activity's kind is not an input to the
+  // placeholder rule (deliberately narrower than the resource guard above).
   if (existing !== undefined && merged.projectId === existing.projectId) return;
-
-  const allocations = lookup
-    ? lookup.allocationsForActivity(accountId, activityId)
-    : data.allocations.filter(
-        (allocation) => allocation.accountId === accountId && allocation.activityId === activityId,
-      );
-  for (const allocation of allocations) {
-    const resourceRow = validationRow(data, "resources", allocation.resourceId, lookup) as Resource | undefined;
-    const resource = resourceRow && belongsToAccount(resourceRow, accountId) ? resourceRow : undefined;
-    if (!resource) continue;
-    const wasValid = existing === undefined || validateAllocationAssignment(resource, existing.projectId).ok;
-    if (wasValid && !validateAllocationAssignment(resource, merged.projectId).ok) {
-      domainError("activity_project_dependents", "Reassign placeholder work before changing this activity’s project.");
-    }
-  }
+  assertAllocationPairStaysValid(
+    data,
+    accountId,
+    activityId,
+    { side: "activity", merged, existing },
+    "activity_project_dependents",
+    "Reassign placeholder work before changing this activity’s project.",
+    lookup,
+  );
 }
 
 /** No allocation or time-off may persist an empty, malformed, or reversed range. */
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
-  const v = validateDateRange(startDate, endDate);
-  // errors[0] is safe — see assertAllocationRefs: !ok always implies at least one pushed message.
-  if (!v.ok) domainError(v.codes[0], v.errors[0]);
+  throwIfInvalid(validateDateRange(startDate, endDate));
 }
 
 /**
@@ -474,15 +530,11 @@ export function assertResourceExists(
   existing?: Pick<TimeOff, "resourceId">,
   lookup?: ValidationDataLookup,
 ): void {
-  const resourceRow = validationRow(data, "resources", resourceId, lookup) as Resource | undefined;
-  const resource = resourceRow && belongsToAccount(resourceRow, accountId) ? resourceRow : undefined;
+  const resource = ownedRow<Resource>(data, "resources", resourceId, accountId, lookup);
   if (!resource) {
     domainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
   }
-  if (
-    existing?.resourceId !== resourceId &&
-    !isEffectivelyActive(data, "resources", resource as unknown as LifecycleAncestryRow, lookup)
-  ) {
+  if (existing?.resourceId !== resourceId && !isEffectivelyActive(data, "resources", resource, lookup)) {
     domainError("time_off_resource_inactive", "Time off must reference an active resource in this company.");
   }
   if (isExternalResource(resource)) {

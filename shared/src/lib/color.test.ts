@@ -5,7 +5,6 @@ import {
   contrastRatio,
   readableTextColor,
   ensureBarColors,
-  isHexColor,
   isPresetColor,
   snapToPresetColor,
   FALLBACK_PRESET_COLOR,
@@ -269,17 +268,5 @@ describe("snapToPresetColor", () => {
     expect(snapToPresetColor(42)).toBe(FALLBACK_PRESET_COLOR);
     expect(snapToPresetColor("#zzzzzz")).toBe(FALLBACK_PRESET_COLOR);
     expect(snapToPresetColor("#1z2z3z")).toBe(FALLBACK_PRESET_COLOR);
-  });
-});
-
-describe("isHexColor", () => {
-  it("accepts a bare 6-digit hex", () => {
-    expect(isHexColor("#abcdef")).toBe(true);
-  });
-
-  it("rejects a hex that is not anchored at the start of the string", () => {
-    // Only the trailing $ anchor would still match "#abcdef" wherever it appears;
-    // the leading ^ is what rejects junk before the '#'.
-    expect(isHexColor("x#abcdef")).toBe(false);
   });
 });

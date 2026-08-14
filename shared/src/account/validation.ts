@@ -17,6 +17,17 @@ function hasOpaqueCredentialShape(value: unknown): value is string {
   return typeof value === "string" && OPAQUE_CREDENTIAL_RE.test(value);
 }
 
+/** The shared bound every human-readable application label must satisfy: a non-blank,
+ * control-safe string of at most MAX_NAME_LENGTH characters. */
+function hasBoundedNameShape(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    !hasDisallowedChars(value) &&
+    unicodeCharacterCount(value) <= MAX_NAME_LENGTH
+  );
+}
+
 /** Validate the reconciliation handle for one account command. */
 export function isAccountCommandId(value: unknown): value is string {
   return hasOpaqueCredentialShape(value);
@@ -61,12 +72,7 @@ function inspectBoundApplication(application: unknown): string | null {
   if (typeof candidate.applicationId !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(candidate.applicationId)) {
     return "The account application id must match ^[a-z0-9][a-z0-9_-]{0,63}$.";
   }
-  if (
-    typeof candidate.displayName !== "string" ||
-    !candidate.displayName.trim() ||
-    hasDisallowedChars(candidate.displayName) ||
-    unicodeCharacterCount(candidate.displayName) > MAX_NAME_LENGTH
-  ) {
+  if (!hasBoundedNameShape(candidate.displayName)) {
     return `The account application display name must be 1–${MAX_NAME_LENGTH} characters.`;
   }
   const branding = candidate.branding;
@@ -74,14 +80,8 @@ function inspectBoundApplication(application: unknown): string | null {
     typeof branding !== "object" ||
     branding === null ||
     Array.isArray(branding) ||
-    typeof branding.totpIssuer !== "string" ||
-    !branding.totpIssuer.trim() ||
-    hasDisallowedChars(branding.totpIssuer) ||
-    unicodeCharacterCount(branding.totpIssuer) > MAX_NAME_LENGTH ||
-    typeof branding.defaultProviderLabel !== "string" ||
-    !branding.defaultProviderLabel.trim() ||
-    hasDisallowedChars(branding.defaultProviderLabel) ||
-    unicodeCharacterCount(branding.defaultProviderLabel) > MAX_NAME_LENGTH ||
+    !hasBoundedNameShape(branding.totpIssuer) ||
+    !hasBoundedNameShape(branding.defaultProviderLabel) ||
     !Array.isArray(branding.passwordContextWords) ||
     branding.passwordContextWords.length === 0 ||
     branding.passwordContextWords.length > MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS ||

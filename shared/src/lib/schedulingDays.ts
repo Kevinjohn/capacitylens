@@ -1,4 +1,12 @@
-import { addDaysISO, countWorkingDays, daysInclusive, endDateForWorkingDays, isWeekendAware } from "./dateMath";
+import {
+  addDaysISO,
+  countWorkingDays,
+  daysInclusive,
+  endDateForWorkingDays,
+  isWeekendAware,
+  MAX_ISO_DATE,
+  MAX_MATERIALISED_DAYS,
+} from "./dateMath";
 import type { ISODate, Weekday } from "../types/entities";
 
 // Conversions for the "days" scheduling input mode. An allocation always stores
@@ -17,17 +25,32 @@ export interface DaysModeOpts {
 }
 
 /** Upper bound for a (days-over) span. ~100 working/calendar years — far beyond any real
- * allocation. endDateForSpan also clamps this against the days remaining in the four-digit ISO
- * date domain because the fixed cap alone cannot protect a start close to 9999-12-31. */
-export const MAX_SPAN_DAYS = 36500;
-const MAX_ISO_DATE: ISODate = "9999-12-31";
+ * allocation. The SAME number as dateMath's materialisation ceiling (one constant, two names) so a
+ * span that validates here can always be materialised. endDateForSpan also clamps this against the
+ * days remaining in the four-digit ISO date domain because the fixed cap alone cannot protect a
+ * start close to 9999-12-31. */
+export const MAX_SPAN_DAYS = MAX_MATERIALISED_DAYS;
+
+/** Which rule this call counts days by. Resolving the weekend-aware branch ONCE, and carrying the
+ *  working-day array in the "workingDays" arm, is what lets the entry points below drop the
+ *  `opts.workingDays!` non-null assertions they each used to repeat. */
+type SchedulingModeResolution = { kind: "calendar" } | { kind: "workingDays"; days: Weekday[] };
+
+function resolveSchedulingMode(opts: DaysModeOpts): SchedulingModeResolution {
+  // `isWeekendAware` already returns false for an absent workingDays; the second check only
+  // narrows the type (and keeps that guarantee explicit rather than asserted).
+  return isWeekendAware(opts.workingDays, opts.ignoreWeekends) && opts.workingDays
+    ? { kind: "workingDays", days: opts.workingDays }
+    : { kind: "calendar" };
+}
 
 /** Maximum days-over value that fits both the persisted calendar-span ceiling and YYYY-MM-DD. */
 export function maxSpanDaysForStart(start: ISODate, opts: DaysModeOpts): number {
   const calendarDaysAvailable = Math.min(MAX_SPAN_DAYS, daysInclusive(start, MAX_ISO_DATE));
-  if (isWeekendAware(opts.workingDays, opts.ignoreWeekends)) {
+  const mode = resolveSchedulingMode(opts);
+  if (mode.kind === "workingDays") {
     const lastAllowedDate = addDaysISO(start, calendarDaysAvailable - 1);
-    return countWorkingDays(start, lastAllowedDate, opts.workingDays!);
+    return countWorkingDays(start, lastAllowedDate, mode.days);
   }
   return calendarDaysAvailable;
 }
@@ -35,8 +58,9 @@ export function maxSpanDaysForStart(start: ISODate, opts: DaysModeOpts): number 
 /** The "days over" span of [start, end]: working days when weekend-aware, else
  *  inclusive calendar days. Always >= 1 for a non-reversed range. */
 export function spanDays(start: ISODate, end: ISODate, opts: DaysModeOpts): number {
-  if (isWeekendAware(opts.workingDays, opts.ignoreWeekends)) {
-    return countWorkingDays(start, end, opts.workingDays!);
+  const mode = resolveSchedulingMode(opts);
+  if (mode.kind === "workingDays") {
+    return countWorkingDays(start, end, mode.days);
   }
   return daysInclusive(start, end);
 }
@@ -51,8 +75,9 @@ export function endDateForSpan(start: ISODate, daysOver: number, opts: DaysModeO
   const available = maxSpanDaysForStart(start, opts);
   if (available < 1) return MAX_ISO_DATE;
   const safeCount = Math.min(n, available);
-  if (isWeekendAware(opts.workingDays, opts.ignoreWeekends)) {
-    return endDateForWorkingDays(start, safeCount, opts.workingDays!);
+  const mode = resolveSchedulingMode(opts);
+  if (mode.kind === "workingDays") {
+    return endDateForWorkingDays(start, safeCount, mode.days);
   }
   return addDaysISO(start, safeCount - 1);
 }

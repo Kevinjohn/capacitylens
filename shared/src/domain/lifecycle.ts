@@ -18,9 +18,9 @@
 // catches and classifies the typed error) before calling a transition — exactly why those
 // predicates are exported separately, so a caller can gate an affordance without try/catch.
 
-import { APP_DATA_KEYS } from "../types/entities";
 import type { AppData, AppDataKey, ISOTimestamp, Resource, ScopedEntityKey } from "../types/entities";
 import { parseISOTimestamp } from "../lib/integrity";
+import { shortIdTag } from "./privateNames";
 
 /**
  * The three DERIVED lifecycle states an entity can be read as. There is no stored `state` column —
@@ -143,6 +143,30 @@ const LIFECYCLE_ANCESTRY: readonly LifecycleAncestryRelation[] = [
   { child: "timeOff", parent: "resources", field: "resourceId" },
 ];
 
+// Derived constants — the two access patterns the walk and the projection need, computed ONCE from
+// the single relation list above so a new edge can never leave one of them stale.
+/** Edges grouped by CHILD table: a walk step reads only its own edges (most tables have one or
+ *  none) instead of re-scanning the whole relation list. */
+const CHILD_RELATIONS: ReadonlyMap<AppDataKey, readonly LifecycleAncestryRelation[]> = LIFECYCLE_ANCESTRY.reduce(
+  (byChild, relation) => {
+    const edges = byChild.get(relation.child);
+    if (edges) edges.push(relation);
+    else byChild.set(relation.child, [relation]);
+    return byChild;
+  },
+  new Map<AppDataKey, LifecycleAncestryRelation[]>(),
+);
+
+/** The only tables the walk ever LOOKS UP — every other table is a leaf child, so indexing it would
+ *  build a Map nothing reads. */
+const PARENT_TABLES: readonly AppDataKey[] = [...new Set(LIFECYCLE_ANCESTRY.map((relation) => relation.parent))];
+
+/** Per-projection cache of a walk's verdict, keyed `${table}|${id}`. Sound because the child-vs-parent
+ *  accountId equality check happens at the EDGE, before recursion: a parent's own verdict is a pure
+ *  function of (table, id, data) — it never depends on which child reached it. Rows are resolved
+ *  through the id-keyed index, so one key can only ever mean one row. */
+type LifecycleAncestryMemo = Map<string, LifecycleAncestryResult>;
+
 /**
  * Inspect only an entity's lifecycle ancestry, not the entity's own lifecycle state. `activeOnly`
  * combines this with its own-state filter; generic writes use `inactiveAncestor` so ordinary
@@ -153,8 +177,18 @@ export function inspectLifecycleAncestry(
   row: LifecycleAncestryRow,
   lookup: LifecycleAncestryLookup,
 ): LifecycleAncestryResult {
-  for (const relation of LIFECYCLE_ANCESTRY) {
-    if (relation.child !== table) continue;
+  return inspectAncestry(table, row, lookup, undefined);
+}
+
+function inspectAncestry(
+  table: AppDataKey,
+  row: LifecycleAncestryRow,
+  lookup: LifecycleAncestryLookup,
+  memo: LifecycleAncestryMemo | undefined,
+): LifecycleAncestryResult {
+  const relations = CHILD_RELATIONS.get(table);
+  if (!relations) return { visible: true };
+  for (const relation of relations) {
     const parentId = row[relation.field];
     if (relation.optional && parentId === undefined) continue;
     // This projection hides lifecycle state, not integrity damage. A missing, malformed or
@@ -173,11 +207,48 @@ export function inspectLifecycleAncestry(
         };
       }
     }
-    const upstream = inspectLifecycleAncestry(relation.parent, parent, lookup);
+    const upstream = memoisedAncestry(relation.parent, parent, lookup, memo);
     if (!upstream.visible) return upstream;
   }
   return { visible: true };
 }
+
+/** One resolved parent's verdict, reused across every child that reaches it (see
+ *  {@link LifecycleAncestryMemo}). Without a memo this is a plain recursive call. */
+function memoisedAncestry(
+  table: AppDataKey,
+  row: LifecycleAncestryRow,
+  lookup: LifecycleAncestryLookup,
+  memo: LifecycleAncestryMemo | undefined,
+): LifecycleAncestryResult {
+  if (!memo) return inspectAncestry(table, row, lookup, undefined);
+  const key = `${table}|${row.id}`;
+  const cached = memo.get(key);
+  if (cached) return cached;
+  const result = inspectAncestry(table, row, lookup, memo);
+  memo.set(key, result);
+  return result;
+}
+
+// Compile-time completeness guard for {@link activeOnly}'s projection: every scoped table except
+// `disciplines` (which carries no lifecycle edge) must be re-projected below, so adding a scoped
+// table fails the type-check here rather than silently passing through unprojected.
+type ProjectedLifecycleKey = Exclude<ScopedEntityKey, "disciplines">;
+const PROJECTED_LIFECYCLE_KEYS = [
+  "resources",
+  "clients",
+  "projects",
+  "phases",
+  "activities",
+  "allocations",
+  "timeOff",
+] as const satisfies readonly ProjectedLifecycleKey[];
+type MissingProjectedKey = Exclude<ProjectedLifecycleKey, (typeof PROJECTED_LIFECYCLE_KEYS)[number]>;
+const projectedKeysAreComplete: MissingProjectedKey extends never ? true : never = true;
+// Both are compile-time-only witnesses; `void` marks them as deliberately unused at runtime (the
+// same idiom as the completeness assertions in ../types/entities.ts).
+void PROJECTED_LIFECYCLE_KEYS;
+void projectedKeysAreComplete;
 
 /**
  * Project an {@link AppData} to its ACTIVE rows only — drop every NON-active (archived OR soft-deleted)
@@ -209,14 +280,17 @@ export function inspectLifecycleAncestry(
 export function activeOnly(data: AppData): AppData {
   const isActive = (e: LifecycleFields) => lifecycleStatus(e) === "active";
   const indexes = Object.fromEntries(
-    APP_DATA_KEYS.map((table) => [
+    PARENT_TABLES.map((table) => [
       table,
       new Map((data[table] as unknown as LifecycleAncestryRow[]).map((row) => [row.id, row])),
     ]),
-  ) as Record<AppDataKey, Map<string, LifecycleAncestryRow>>;
-  const lookup: LifecycleAncestryLookup = (table, id) => indexes[table].get(id);
+  ) as Partial<Record<AppDataKey, Map<string, LifecycleAncestryRow>>>;
+  // Only PARENT_TABLES are indexed, and the walk only ever looks a PARENT up — an unindexed table
+  // reads as an unresolvable reference, which the walk already retains rather than hides.
+  const lookup: LifecycleAncestryLookup = (table, id) => indexes[table]?.get(id);
+  const memo: LifecycleAncestryMemo = new Map();
   const hasVisibleAncestry = (table: AppDataKey, row: object): boolean =>
-    inspectLifecycleAncestry(table, row as LifecycleAncestryRow, lookup).visible;
+    inspectAncestry(table, row as LifecycleAncestryRow, lookup, memo).visible;
   const resources = data.resources.filter(isActive);
   const clients = data.clients.filter(isActive);
   // Parent lifecycle is inherited by the read projection. An active child beneath an archived or
@@ -225,20 +299,6 @@ export function activeOnly(data: AppData): AppData {
   const projects = data.projects.filter((project) => isActive(project) && hasVisibleAncestry("projects", project));
   const phases = data.phases.filter((phase) => hasVisibleAncestry("phases", phase));
   const activities = data.activities.filter((activity) => hasVisibleAncestry("activities", activity));
-  type ProjectedLifecycleKey = Exclude<ScopedEntityKey, "disciplines">;
-  const projectedKeys = [
-    "resources",
-    "clients",
-    "projects",
-    "phases",
-    "activities",
-    "allocations",
-    "timeOff",
-  ] as const satisfies readonly ProjectedLifecycleKey[];
-  type MissingProjectedKey = Exclude<ProjectedLifecycleKey, (typeof projectedKeys)[number]>;
-  const projectedKeysAreComplete: MissingProjectedKey extends never ? true : never = true;
-  void projectedKeys;
-  void projectedKeysAreComplete;
   return {
     ...data,
     resources,
@@ -509,27 +569,6 @@ export function softDelete<T extends LifecycleFields>(entity: T, nowISO: ISOTime
   return { ...entity, deletedAt: new Date(Math.max(archivedMs, deletedMs)).toISOString() };
 }
 
-// The fallback tag used when a resource id is empty or yields no alphanumerics — so an
-// {@link obfuscateResource} token is NEVER a bare `Removed person #` with an empty marker. Constant
-// (not random) to keep the helper deterministic; `0000` reads clearly as "no usable id".
-const ANON_FALLBACK_TAG = "0000";
-
-/**
- * Derive a short, STABLE tag from a resource id for the anonymised soft-delete token. PURE: a
- * function of the id string only — no Date, no Math.random.
- *
- * FORMAT CHOICE (documented): strip every non-alphanumeric character (so a UUID's hyphens go) and
- * take the FIRST 12 of what remains — enough of a UUID to keep retained tombstones distinguishable
- * without exposing user data. Opaque and deterministic.
- * If the id is empty or has no alphanumerics, fall back to {@link ANON_FALLBACK_TAG} so the token is
- * never left with an empty marker. NON-exported: an internal detail of {@link obfuscateResource}, not
- * a public contract.
- */
-function shortResourceTag(id: string): string {
-  const tag = id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
-  return tag.length > 0 ? tag : ANON_FALLBACK_TAG;
-}
-
 /**
  * Scrub a Resource's PII when it becomes a soft-delete tombstone — the resource-PII-erasure step of
  * the privacy/data-lifecycle. Returns a NEW Resource with `name` replaced by a deterministic
@@ -543,7 +582,7 @@ function shortResourceTag(id: string): string {
  * (archivedAt/deletedAt) and audit timestamps (createdAt/updatedAt) are preserved.
  *
  * The token is `Removed person #<tag>`, where `<tag>` is a short stable marker from the id (see
- * {@link shortResourceTag}) — derived from the id so the transform is PURE and testable (no clock, no
+ * {@link shortIdTag}) — derived from the id so the transform is PURE and testable (no clock, no
  * randomness). The scrub is UNCONDITIONAL across every {@link Resource} kind: a nameless placeholder
  * still gets the token (never left undefined), and for an `external` resource — where `name` holds the
  * COMPANY identifier, also PII to erase — the company name is replaced too. A soft-deleted row must
@@ -565,7 +604,7 @@ function shortResourceTag(id: string): string {
  *          is the generic non-identifying removed-resource label.
  */
 export function obfuscateResource(resource: Resource): Resource {
-  return { ...resource, name: `Removed person #${shortResourceTag(resource.id)}`, role: "Removed resource" };
+  return { ...resource, name: `Removed person #${shortIdTag(resource.id)}`, role: "Removed resource" };
 }
 
 // NOTE: there is deliberately NO `purge(entity)` function. Purge is a HARD row-delete done

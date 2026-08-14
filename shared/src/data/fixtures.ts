@@ -105,7 +105,7 @@ export const FIXTURE_RESOURCE: Resource = {
   role: "Fixture Role",
   disciplineId: "fix-d1",
   employmentType: "contractor",
-  engagement: "studio" as const,
+  engagement: "studio",
   workingHoursPerDay: 6,
   workingDays: [1, 2, 3],
   halfDays: [2],

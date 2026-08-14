@@ -21,8 +21,12 @@ export function unicodeCharacterCount(value: string): number {
   return Array.from(value).length;
 }
 
+// Stateless and reusable — build it ONCE at module scope (same idiom as GRAPHEME_SEGMENTER below)
+// instead of allocating a fresh encoder on every length check.
+const TEXT_ENCODER = new TextEncoder();
+
 export function utf8ByteLength(value: string): number {
-  return new TextEncoder().encode(value).byteLength;
+  return TEXT_ENCODER.encode(value).byteLength;
 }
 
 // Characters refused in user text: emoji & pictographs (Extended_Pictographic), "other"

@@ -15,8 +15,6 @@ import {
   todayISO,
   toISODate,
   weekdayOf,
-  widthForRange,
-  xForDate,
 } from "./dateMath";
 
 describe("dateMath", () => {
@@ -100,24 +98,6 @@ describe("dateMath", () => {
     expect(startOfWeekISO("2026-06-07", 0)).toBe("2026-06-07");
     // 2026-06-08 is a Monday; Sunday before it is 2026-06-07
     expect(startOfWeekISO("2026-06-08", 0)).toBe("2026-06-07");
-  });
-
-  it("xForDate and widthForRange map dates/ranges to pixels", () => {
-    expect(xForDate("2026-05-29", "2026-05-29", 40)).toBe(0);
-    expect(xForDate("2026-05-30", "2026-05-29", 40)).toBe(40);
-    expect(widthForRange("2026-05-29", "2026-05-29", 40)).toBe(40);
-    expect(widthForRange("2026-05-29", "2026-05-30", 40)).toBe(80);
-  });
-
-  it("xForDate/widthForRange degrade safely on empty or reversed input (no NaN / negative)", () => {
-    // An imported bad record must not poison the timeline geometry.
-    expect(xForDate("", "2026-05-29", 40)).toBe(0);
-    expect(widthForRange("", "", 40)).toBe(0);
-    expect(widthForRange("2026-06-05", "2026-06-01", 40)).toBe(0); // reversed -> 0, never negative
-    expect(widthForRange("2026-05-29", "2026-05-29", -1)).toBe(0);
-    expect(widthForRange("2026-05-29", "2026-05-29", Number.NaN)).toBe(0);
-    expect(widthForRange("2026-05-29", "2026-05-29", Number.POSITIVE_INFINITY)).toBe(0);
-    expect(widthForRange("2026-05-29", "2026-05-30", Number.MAX_VALUE)).toBe(0);
   });
 
   it("isWithin is inclusive of both ends", () => {

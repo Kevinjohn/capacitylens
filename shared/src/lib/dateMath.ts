@@ -1,8 +1,14 @@
 import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
 import type { ISODate, Weekday } from "../types/entities";
 
-/** Defensive allocation ceiling for materialised date arrays (~100 calendar years). */
+/** Defensive allocation ceiling for materialised date arrays (~100 calendar years).
+ *  Re-exported as `MAX_SPAN_DAYS` (schedulingDays) — ONE number, two names. */
 export const MAX_MATERIALISED_DAYS = 36_500;
+
+/** Last date in the four-digit ISO year domain this module owns (see `assertFourDigitISODate`).
+ *  Every span/repeat ceiling clamps against THIS constant so the scheduling and repeat paths can
+ *  never disagree on where the calendar ends. */
+export const MAX_ISO_DATE = "9999-12-31" as ISODate;
 
 // All scheduler geometry is done in INTEGER day-indices derived from date-only
 // ISO strings. We never do millisecond Date math for positioning — that is the
@@ -48,7 +54,8 @@ export function toISODate(date: Date): ISODate {
 
 /** Whole-calendar-day offset of `date` from `origin` (may be negative).
  *  Both args must be validated `ISODate`s (see the module precondition); an invalid one
- *  yields `NaN` here, which the geometry callers (`xForDate`) `Number.isFinite`-guard to 0. */
+ *  yields `NaN` here, which the geometry callers (columnGeometry's `xForDateInGeom` /
+ *  `widthForDates`) `Number.isFinite`-guard to 0. */
 export function dayIndex(date: ISODate, origin: ISODate): number {
   return differenceInCalendarDays(parseISO(date), parseISO(origin));
 }
@@ -94,24 +101,6 @@ export function weekdayOf(date: ISODate): Weekday {
  *  `weekStartsOn`: 0 = Sunday, 1 = Monday (default, ISO-style). */
 export function startOfWeekISO(date: ISODate, weekStartsOn: 0 | 1 = 1): ISODate {
   return toISODate(startOfWeek(parseISO(date), { weekStartsOn }));
-}
-
-/** Pixel x-offset of a date's left edge from the timeline origin.
- *  Returns 0 for an unparseable date so a bad record can't produce NaN geometry. */
-export function xForDate(date: ISODate, origin: ISODate, dayWidth: number): number {
-  const i = dayIndex(date, origin);
-  return Number.isFinite(i) ? i * dayWidth : 0;
-}
-
-/** Pixel width of an inclusive [start, end] range. Clamped to >= 0 so a reversed or
- *  unparseable range, or a negative/non-finite `dayWidth`, renders as a zero-width
- *  (harmless) bar, never negative or non-finite. */
-export function widthForRange(start: ISODate, end: ISODate, dayWidth: number): number {
-  if (!Number.isFinite(dayWidth) || dayWidth < 0) return 0;
-  const n = daysInclusive(start, end);
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  const width = n * dayWidth;
-  return Number.isFinite(width) ? width : 0;
 }
 
 /** Is `date` within the inclusive range [start, end]? Zero-padded YYYY-MM-DD strings
@@ -188,11 +177,20 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
  *  resource has a PARTIAL working week (1–6 working days) AND the allocation
  *  hasn't opted out via `ignoreWeekends`. This is the single condition shared by
  *  drag math (gestureMath) and the days/hours conversions (schedulingDays) so the
- *  two can never disagree on what "a working day" means. */
+ *  two can never disagree on what "a working day" means.
+ *
+ *  Distinctness is tracked in a 7-bit mask rather than a `Set`: this runs per resource × per day ×
+ *  per allocation when building day capacity (~200k calls in one capacity pass), and the throwaway
+ *  Set per call dominated the cost. Only weekdays 0–6 set a bit — the `Weekday` type plus import
+ *  sanitisation (`safeWorkingDays`) already make an out-of-range entry unreachable, and ignoring it
+ *  is the answer that matches the rest of the weekday math. */
 export function isWeekendAware(workingDays: Weekday[] | undefined, ignoreWeekends: boolean | undefined): boolean {
   if (ignoreWeekends || !workingDays) return false;
-  const distinctWorkingDays = new Set(workingDays).size;
-  return distinctWorkingDays > 0 && distinctWorkingDays < 7;
+  let mask = 0;
+  for (const day of workingDays) {
+    if (day >= 0 && day <= 6) mask |= 1 << day;
+  }
+  return mask !== 0 && mask !== 0b1111111;
 }
 
 /** Does an allocation place work on a given day? A weekend-aware allocation works ONLY the resource's

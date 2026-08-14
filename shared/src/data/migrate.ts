@@ -20,7 +20,9 @@ export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS;
 // legacy file — even one that ONLY carries the renamed table — is accepted (then migrated),
 // not mistaken for non-CapacityLens JSON and rejected. The migrate path renames them (migrateV4toV5).
 const LEGACY_KEYS: string[] = ["tasks"];
-const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS];
+/** Every table key an incoming blob may legitimately carry — current plus legacy. Exported so the
+ * transfer parser counts/validates exactly the same set the shape guards below recognise. */
+export const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS];
 
 /** Refuse data written by a newer app instead of normalizing away fields this build cannot know. */
 export class UnsupportedSchemaVersionError extends Error {
@@ -327,6 +329,36 @@ function migrateV14toV15(data: Record<string, unknown>): Record<string, unknown>
   return data;
 }
 
+/** One versioned step: run `apply` when the blob predates `version`. */
+interface MigrationStep {
+  readonly version: number;
+  readonly apply: (data: Record<string, unknown>) => Record<string, unknown>;
+}
+
+// The ordered step list, split where `repairBase` is captured (immediately before the only step that
+// SYNTHESISES a row). Every version marker is listed, no-op steps included: an explicit entry
+// documents that the version bump was structural metadata only, rather than an omitted migration.
+// There is deliberately no v2→v3 step — that version only added `accountId`, which needs no
+// transform here.
+const PRE_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
+  { version: 2, apply: migrateV1toV2 },
+  { version: 4, apply: migrateV3toV4 },
+  { version: 5, apply: migrateV4toV5 },
+];
+
+const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
+  { version: 6, apply: migrateV5toV6 },
+  { version: 7, apply: migrateV6toV7 }, // no-op: isPrivate / codeName are structural metadata only
+  { version: 8, apply: migrateV7toV8 }, // no-op: Account.internalColourMode
+  { version: 9, apply: migrateV8toV9 }, // no-op: per-account schedule view prefs
+  { version: 10, apply: migrateV9toV10 }, // no-op: Resource.isFavourite
+  { version: 11, apply: migrateV10toV11 },
+  { version: 12, apply: migrateV11toV12 },
+  { version: 13, apply: migrateV12toV13 }, // no-op: Account.groupResourcesByEngagement
+  { version: 14, apply: migrateV13toV14 },
+  { version: 15, apply: migrateV14toV15 }, // no-op: repeat-series identity is forward-only
+];
+
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
   data: AppData;
@@ -351,50 +383,23 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   // Accept either a { schemaVersion, data } wrapper or a bare AppData (legacy).
   let data = importCandidate(obj) ?? undefined;
 
-  if (data && typeof data === "object" && version < 2) {
-    data = migrateV1toV2(data);
-  }
-  if (data && typeof data === "object" && version < 4) {
-    data = migrateV3toV4(data);
-  }
-  if (data && typeof data === "object" && version < 5) {
-    data = migrateV4toV5(data);
-  }
+  // The `typeof data === "object"` re-check is deliberate at every step: a migration returns a raw
+  // blob, so the guard re-proves the shape rather than trusting the previous step's output.
+  const runSteps = (steps: readonly MigrationStep[]) => {
+    for (const step of steps) {
+      if (data && typeof data === "object" && version < step.version) {
+        data = step.apply(data);
+      }
+    }
+  };
+
+  runSteps(PRE_REPAIR_BASE_STEPS);
   // Capture the raw durable state immediately before the only migration which synthesises an
   // Internal client. This also captures current-version bare server slices (which have no schema
   // wrapper and therefore follow the legacy version path) without treating the synthetic row as
   // already acknowledged.
   const repairBase = normalize(data as Partial<AppData> | undefined);
-  if (data && typeof data === "object" && version < 6) {
-    data = migrateV5toV6(data);
-  }
-  if (data && typeof data === "object" && version < 7) {
-    data = migrateV6toV7(data);
-  }
-  if (data && typeof data === "object" && version < 8) {
-    data = migrateV7toV8(data);
-  }
-  if (data && typeof data === "object" && version < 9) {
-    data = migrateV8toV9(data);
-  }
-  if (data && typeof data === "object" && version < 10) {
-    data = migrateV9toV10(data);
-  }
-  if (data && typeof data === "object" && version < 11) {
-    data = migrateV10toV11(data);
-  }
-  if (data && typeof data === "object" && version < 12) {
-    data = migrateV11toV12(data);
-  }
-  if (data && typeof data === "object" && version < 13) {
-    data = migrateV12toV13(data);
-  }
-  if (data && typeof data === "object" && version < 14) {
-    data = migrateV13toV14(data);
-  }
-  if (data && typeof data === "object" && version < 15) {
-    data = migrateV14toV15(data);
-  }
+  runSteps(POST_REPAIR_BASE_STEPS);
 
   return {
     data: ensureInternalClients(normalize(data as Partial<AppData> | undefined), "2026-01-01T00:00:00.000Z"),

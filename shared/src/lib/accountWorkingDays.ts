@@ -3,12 +3,11 @@ import type { Weekday } from "../types/entities";
 const WEEKDAY_COUNT = 7;
 const DEFAULT_WORKING_DAY_COUNT = 5;
 
-/** The first five weekdays in a company's configured week, stored as a stable set. */
+/** The first five weekdays in a company's configured week, stored as a stable set.
+ *  Both legal week starts (Sunday and Monday) run 0–4 / 1–5, i.e. already ascending, so taking the
+ *  presentation order's first five IS the stored set — no re-sort needed. */
 export function defaultAccountWorkingDays(weekStartsOn: 0 | 1 = 1): Weekday[] {
-  return Array.from(
-    { length: DEFAULT_WORKING_DAY_COUNT },
-    (_, offset) => ((weekStartsOn + offset) % WEEKDAY_COUNT) as Weekday,
-  ).sort((a, b) => a - b);
+  return orderedWeekdays(weekStartsOn).slice(0, DEFAULT_WORKING_DAY_COUNT);
 }
 
 /** Repair an account weekday selection at an import or direct-write boundary. Empty is deliberate. */
