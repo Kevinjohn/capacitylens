@@ -1,7 +1,8 @@
 import { KNOWN_KEYS, migrateWithRepairBase, type MigrationWithRepairBase } from "@capacitylens/shared/data/migrate";
 import { SCOPED_KEYS, type AppData } from "@capacitylens/shared/types/entities";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+/** A non-null, non-array object — the shape every JSON payload check in the data layer starts from. */
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
 /** Validate a complete tenant slice before migration can repair or synthesize rows. */

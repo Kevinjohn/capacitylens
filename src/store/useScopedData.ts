@@ -8,7 +8,12 @@ const emptyScopedData = emptyAppData();
 const scopedCache = new WeakMap<AppData, Map<string, AppData>>();
 const activeCache = new WeakMap<AppData, AppData>();
 
-function sharedScopedData(data: AppData, accountId: string | null): AppData {
+/**
+ * The scoped slice for one tenant, memoised on `(data, accountId)`. Exported so IMPERATIVE readers
+ * (`useStore.getState()` inside a gesture handler) hit the SAME cache as the hooks below instead of
+ * re-scoping the whole blob per event; the hooks' stability contract is unchanged.
+ */
+export function sharedScopedData(data: AppData, accountId: string | null): AppData {
   if (!accountId) return emptyScopedData;
   let byAccount = scopedCache.get(data);
   if (!byAccount) {
@@ -23,7 +28,9 @@ function sharedScopedData(data: AppData, accountId: string | null): AppData {
   return scoped;
 }
 
-function sharedActiveData(data: AppData): AppData {
+/** The active-only projection of an already-scoped slice, memoised on it. Exported alongside
+ *  {@link sharedScopedData} for the same imperative-caller reason. */
+export function sharedActiveData(data: AppData): AppData {
   let active = activeCache.get(data);
   if (!active) {
     active = activeOnly(data);

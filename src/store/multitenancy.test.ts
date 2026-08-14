@@ -3,7 +3,7 @@ import { useStore } from "./useStore";
 import { scopeData } from "./selectors";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { makeAccount } from "../test/fixtures";
+import { makeAccount, WORKDAYS } from "../test/fixtures";
 
 const s = () => useStore.getState();
 
@@ -277,7 +277,7 @@ describe("importData (account-scoped)", () => {
           employmentType: "permanent",
           engagement: "studio" as const,
           workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
+          workingDays: WORKDAYS,
           halfDays: [],
           color: "#777777",
         },

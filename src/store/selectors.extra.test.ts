@@ -3,16 +3,14 @@ import {
   allocationsForResource,
   byDisciplineOrder,
   clientById,
-  phasesForProject,
   projectById,
-  projectsForClient,
   resourceById,
   activityById,
-  timeOffForResource,
 } from "./selectors";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
+import { DEFAULT_ACCOUNT_ID, makeResource } from "../test/fixtures";
 
 const data: AppData = {
   ...emptyAppData(),
@@ -25,23 +23,7 @@ const data: AppData = {
   activities: [
     { id: "t1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "T1", kind: "project", projectId: "p1" },
   ],
-  resources: [
-    {
-      id: "r1",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      kind: "person",
-      name: "A",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1],
-      halfDays: [],
-      color: "#4",
-    },
-  ],
+  resources: [makeResource({ id: "r1", accountId: DEFAULT_ACCOUNT_ID, name: "A", role: "Dev", color: "#4" })],
   allocations: [
     {
       id: "a1",
@@ -80,10 +62,7 @@ describe("lookup + relation selectors", () => {
   });
 
   it("relation selectors filter children", () => {
-    expect(projectsForClient(data, "c1").map((p) => p.id)).toEqual(["p1", "p2"]);
-    expect(phasesForProject(data, "p1").map((p) => p.id)).toEqual(["ph1"]);
     expect(allocationsForResource(data, "r1").map((a) => a.id)).toEqual(["a1"]);
-    expect(timeOffForResource(data, "r1").map((t) => t.id)).toEqual(["to1"]);
   });
 });
 

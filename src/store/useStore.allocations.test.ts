@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Allocation } from "@capacitylens/shared/types/entities";
-import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount, WORKDAYS } from "../test/fixtures";
 import { useStore, type Draft } from "./useStore";
 
 const state = () => useStore.getState();
@@ -100,7 +100,7 @@ describe("atomic allocation creation", () => {
       employmentType: "permanent",
       engagement: "studio" as const,
       workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
+      workingDays: WORKDAYS,
       halfDays: [],
       color: "#444444",
       projectId: boundProject.id,

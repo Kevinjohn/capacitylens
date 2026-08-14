@@ -23,7 +23,7 @@ export interface PersistenceAdapter {
 /** How a load failure can be recovered from. Tenant data is server-owned, so normal failures are
  * `unavailable` and recover by retrying. `corrupt` remains for adapters/tests that detect a damaged
  * payload rather than silently accepting it. */
-export type LoadErrorKind = "corrupt" | "unavailable";
+type LoadErrorKind = "corrupt" | "unavailable";
 
 /** Thrown by an adapter's loadAll when stored data couldn't be read. The `kind`
  *  tells bootstrap which recovery path applies; a plain Error (or any other throw)

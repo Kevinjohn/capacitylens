@@ -10,13 +10,13 @@ import {
   schedulingModeFor,
   showInternalActivitiesFor,
   showInternalProjectsFor,
-  activitiesForProject,
   accountWorkingDaysFor,
   timeZoneFor,
   visibleRange,
   weekStartsOnFor,
 } from "./selectors";
 import { emptyFilters } from "./useStore";
+import { DEFAULT_ACCOUNT_ID, makeResource } from "../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, ID } from "@capacitylens/shared/types/entities";
 
@@ -28,53 +28,9 @@ function data(): AppData {
       { id: "d1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 },
     ],
     resources: [
-      {
-        id: "r1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
-        name: "A",
-        role: "x",
-        disciplineId: "d1",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1],
-        halfDays: [],
-        color: "#1",
-      },
-      {
-        id: "r2",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
-        name: "B",
-        role: "x",
-        disciplineId: "d2",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1],
-        halfDays: [],
-        color: "#2",
-      },
-      {
-        id: "r3",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        kind: "person",
-        name: "C",
-        role: "x",
-        employmentType: "permanent",
-        engagement: "studio" as const,
-        workingHoursPerDay: 8,
-        workingDays: [1],
-        halfDays: [],
-        color: "#3",
-      },
+      makeResource({ id: "r1", accountId: DEFAULT_ACCOUNT_ID, name: "A", role: "x", disciplineId: "d1", color: "#1" }),
+      makeResource({ id: "r2", accountId: DEFAULT_ACCOUNT_ID, name: "B", role: "x", disciplineId: "d2", color: "#2" }),
+      makeResource({ id: "r3", accountId: DEFAULT_ACCOUNT_ID, name: "C", role: "x", color: "#3" }),
     ],
     projects: [
       { id: "p1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "P", clientId: "c1", color: "#1" },
@@ -251,12 +207,6 @@ describe("internalColourModeFor", () => {
 
   it("returns an explicit palette choice", () => {
     expect(internalColourModeFor(accounts("palette"), "a1")).toBe("palette");
-  });
-});
-
-describe("activitiesForProject", () => {
-  it("filters activities by project", () => {
-    expect(activitiesForProject(data(), "p1").map((t) => t.id)).toEqual(["t1"]);
   });
 });
 

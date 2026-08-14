@@ -30,8 +30,10 @@ import {
   offlineStateSnapshot,
   readCachedAccountSlice,
   setOfflineReadState,
+  type OfflineAuthSnapshot,
 } from "./offlineCache";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
+import { makeResource } from "../test/fixtures";
 
 // Unit tests for the diff engine and the sync flush, with a fake fetch. Proves:
 // the diff classifies create/update/delete correctly, orders parent-before-child for
@@ -171,95 +173,74 @@ describe("auth-awareness (P3.4)", () => {
   });
 });
 
+// ── Shared offline-cache scenario harness ─────────────────────────────────────────────────────────
+// Every offline test needs the same world: a fresh IndexedDB, the offline-read preference switched
+// on, and a verified cached identity — plus a finally block that unwinds all three. Hoisted so the
+// scenarios below carry only what actually differs (persist.test.ts's shared-helper idiom).
+
+/** The verified `/me` snapshot every offline scenario is cached against. */
+const OFFLINE_IDENTITY: OfflineAuthSnapshot = {
+  authMode: "password",
+  user: {
+    id: "offline-user",
+    email: "offline@example.test",
+    name: "Offline user",
+  },
+  canCreateAccount: false,
+  multiAccount: false,
+};
+
+async function withOfflineCache(run: () => Promise<void>): Promise<void> {
+  vi.stubGlobal("indexedDB", new IDBFactory());
+  localStorage.setItem("capacitylens/offlineRead", "on");
+  try {
+    await cacheAuthSnapshot(OFFLINE_IDENTITY);
+    await run();
+  } finally {
+    await clearAllOfflineData();
+    setOfflineReadState("cleanup", false);
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  }
+}
+
 describe("offline transport fallback", () => {
   it("uses a verified cached identity for an unscoped transport failure", async () => {
-    vi.stubGlobal("indexedDB", new IDBFactory());
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    try {
-      await cacheAuthSnapshot({
-        authMode: "password",
-        user: {
-          id: "offline-user",
-          email: "offline@example.test",
-          name: "Offline user",
-        },
-        canCreateAccount: false,
-        multiAccount: false,
-      });
+    await withOfflineCache(async () => {
       const fetchImpl = vi.fn().mockRejectedValue(new TypeError("network unavailable"));
       const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
 
       await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
       expect(offlineStateSnapshot()).toMatchObject({ readOnly: true });
-    } finally {
-      await clearAllOfflineData();
-      setOfflineReadState("cleanup", false);
-      localStorage.clear();
-      vi.unstubAllGlobals();
-    }
+    });
   });
 
   it.each([
     ["reaches its deadline", () => Promise.reject(new DOMException("signal timed out", "TimeoutError"))],
     ["returns a server failure", () => Promise.resolve(new Response(null, { status: 503 }))],
   ])("does not use a cached account slice when the state request %s", async (_condition, request) => {
-    vi.stubGlobal("indexedDB", new IDBFactory());
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    const cached = scopedData("a1", {});
-    cached.clients[0]!.color = "#2d75da"; // a real preset, so cache sanitisation is identity-preserving
-    try {
-      await cacheAuthSnapshot({
-        authMode: "password",
-        user: {
-          id: "offline-user",
-          email: "offline@example.test",
-          name: "Offline user",
-        },
-        canCreateAccount: false,
-        multiAccount: false,
-      });
+    await withOfflineCache(async () => {
+      const cached = scopedData("a1", {});
+      cached.clients[0]!.color = "#2d75da"; // a real preset, so cache sanitisation is identity-preserving
       await cacheAccountSlice("a1", cached);
       const fetchImpl = vi.fn(request);
       const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
 
       await expect(adapter.loadAll("a1")).rejects.toThrow(/Failed to load state|signal timed out/);
       expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
-    } finally {
-      await clearAllOfflineData();
-      setOfflineReadState("cleanup", false);
-      localStorage.clear();
-      vi.unstubAllGlobals();
-    }
+    });
   });
 
   it("does not use the scoped cache for a client rejection", async () => {
-    vi.stubGlobal("indexedDB", new IDBFactory());
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    const cached = scopedData("a1", {});
-    try {
-      await cacheAuthSnapshot({
-        authMode: "password",
-        user: {
-          id: "offline-user",
-          email: "offline@example.test",
-          name: "Offline user",
-        },
-        canCreateAccount: false,
-        multiAccount: false,
-      });
-      await cacheAccountSlice("a1", cached);
+    await withOfflineCache(async () => {
+      await cacheAccountSlice("a1", scopedData("a1", {}));
       const clientRejection = new ServerSyncAdapter(
         "http://api.test",
         vi.fn(async () => new Response(null, { status: 403 })) as unknown as typeof fetch,
       );
       await expect(clientRejection.loadAll("a1")).rejects.toThrow("Failed to load state (403)");
       expect(offlineStateSnapshot()).toMatchObject({ readOnly: false });
-    } finally {
-      await clearAllOfflineData();
-      setOfflineReadState("cleanup", false);
-      localStorage.clear();
-      vi.unstubAllGlobals();
-    }
+    });
   });
 });
 
@@ -523,21 +504,17 @@ describe("ServerSyncAdapter.loadAll", () => {
   it("preserves current resource engagement and half days from a versionless server slice", async () => {
     const slice = scopedData("a1", {
       resources: [
-        {
+        makeResource({
           id: "r1",
-          accountId: "a1",
-          kind: "person",
           name: "Barbara Gordon",
           role: "Engineer",
           employmentType: "contractor",
           engagement: "supplementary",
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
           halfDays: [2],
-          color: "#2d75da",
+          color: "#2d75da", // a real preset, so migration is identity-preserving (no repair save)
           createdAt: TS1,
           updatedAt: TS1,
-        },
+        }),
       ],
     });
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
@@ -631,17 +608,8 @@ describe("ServerSyncAdapter.loadAll", () => {
   });
 
   it("does not replace a complete offline snapshot with a rolling-version partial slice", async () => {
-    vi.stubGlobal("indexedDB", new IDBFactory());
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    const complete = scopedData("a1", { clients: [client("cached")] });
-    try {
-      await cacheAuthSnapshot({
-        authMode: "password",
-        user: { id: "offline-user", email: "offline@example.test", name: "Offline user" },
-        canCreateAccount: false,
-        multiAccount: false,
-      });
-      await cacheAccountSlice("a1", complete);
+    await withOfflineCache(async () => {
+      await cacheAccountSlice("a1", scopedData("a1", { clients: [client("cached")] }));
       const partial = omitKeys(scopedData("a1", { clients: [client("live")] }), "disciplines");
       const adapter = new ServerSyncAdapter(
         "http://x",
@@ -652,11 +620,7 @@ describe("ServerSyncAdapter.loadAll", () => {
 
       expect((await readCachedAccountSlice("a1"))?.value.clients.map((row) => row.id)).toContain("cached");
       expect((await readCachedAccountSlice("a1"))?.value.clients.map((row) => row.id)).not.toContain("live");
-    } finally {
-      await clearAllOfflineData();
-      localStorage.clear();
-      vi.unstubAllGlobals();
-    }
+    });
   });
 
   it("classifies a transport failure after batch dispatch as an uncertain commit", async () => {
@@ -693,21 +657,15 @@ describe("ServerSyncAdapter.loadAll", () => {
       "projects",
       {
         resources: [
-          {
+          makeResource({
             id: "r1",
-            accountId: "a1",
-            kind: "placeholder" as const,
+            kind: "placeholder",
             role: "Designer",
-            employmentType: "permanent" as const,
-            engagement: "studio" as const,
-            workingHoursPerDay: 8,
-            workingDays: [1, 2, 3, 4, 5] as const,
-            halfDays: [],
-            projectId: "p1",
+            projectId: "p1", // the reference that makes an omitted `projects` table unsafe
             color: "#3b82f6",
             createdAt: TS1,
             updatedAt: TS1,
-          },
+          }),
         ],
       },
     ],

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { defaultAccountWorkingDays, normalizeAccountWorkingDays, orderedWeekdays } from "./accountWorkingDays";
+import {
+  defaultAccountWorkingDays,
+  isWeekday,
+  isWeekdaySet,
+  normalizeAccountWorkingDays,
+  orderedWeekdays,
+} from "./accountWorkingDays";
 
 describe("account working days", () => {
   it("defaults to the first five days of the configured week", () => {
@@ -24,6 +30,21 @@ describe("account working days", () => {
 
   it("accepts both weekday boundaries and returns a deduplicated canonical set", () => {
     expect(normalizeAccountWorkingDays([6, 0, 3, 6, 0], 1)).toEqual([0, 3, 6]);
+  });
+
+  it("recognises only whole-number days inside the week", () => {
+    expect([0, 3, 6].every(isWeekday)).toBe(true);
+    for (const invalid of [-1, 7, 1.5, Number.NaN, Number.POSITIVE_INFINITY, "1", null, undefined]) {
+      expect(isWeekday(invalid)).toBe(false);
+    }
+  });
+
+  it("recognises a distinct weekday set, empty included, and rejects duplicates or non-arrays", () => {
+    expect(isWeekdaySet([])).toBe(true);
+    expect(isWeekdaySet([5, 1, 0])).toBe(true);
+    expect(isWeekdaySet([1, 1])).toBe(false);
+    expect(isWeekdaySet([1, 7])).toBe(false);
+    expect(isWeekdaySet("weekdays")).toBe(false);
   });
 
   it("orders the same saved set from the configured week start", () => {
