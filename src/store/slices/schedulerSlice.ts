@@ -2,6 +2,7 @@ import type { StateCreator } from "zustand";
 import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "../../lib/schedulerConfig";
+import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
 import type { Filters, SchedulerUI, StoreState } from "../useStore";
 import { timeZoneFor, weekStartsOnFor } from "../selectors";
 
@@ -20,9 +21,21 @@ type SchedulerSliceKeys =
   | "jumpToResource"
   | "consumeResourceJump";
 
-export type SchedulerSlice = Pick<StoreState, SchedulerSliceKeys>;
+type SchedulerSlice = Pick<StoreState, SchedulerSliceKeys>;
 
-export function defaultSchedulerUI(emptyFilters: () => Filters): SchedulerUI {
+/** The grid's origin/focus pair for a week: the buffered left edge plus the week itself. */
+export function weekAnchorOn(weekStart: ISODate): { originDate: ISODate; focusDate: ISODate } {
+  return { originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS), focusDate: weekStart };
+}
+
+/** The same pair for an account's CURRENT week, read through its own calendar settings. Used both
+ *  by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
+ *  week its own time zone / week start says it is. */
+export function weekAnchor(data: AppData, accountId: ID | null): { originDate: ISODate; focusDate: ISODate } {
+  return weekAnchorOn(startOfWeekISO(todayISO(timeZoneFor(data, accountId)), weekStartsOnFor(data, accountId)));
+}
+
+function defaultSchedulerUI(emptyFilters: () => Filters): SchedulerUI {
   const weekStart = startOfWeekISO(todayISO());
   return {
     zoom: DEFAULT_ZOOM,
@@ -38,6 +51,18 @@ export function defaultSchedulerUI(emptyFilters: () => Filters): SchedulerUI {
   };
 }
 
+/** Open the grid on `weekStart` and ask it to scroll there — the shared body of the two
+ *  "navigate to a week" actions. */
+function recenterOn(state: StoreState, weekStart: ISODate): { ui: SchedulerUI } {
+  return {
+    ui: {
+      ...state.ui,
+      ...weekAnchorOn(weekStart),
+      recenterToken: state.ui.recenterToken + 1,
+    },
+  };
+}
+
 /** Scheduler navigation and filter state, isolated from domain persistence mutations. */
 export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<StoreState, [], [], SchedulerSlice> {
   return (set) => ({
@@ -49,32 +74,17 @@ export function createSchedulerSlice(emptyFilters: () => Filters): StateCreator<
         ui: { ...state.ui, originDate: addDaysISO(state.ui.originDate, delta) },
       })),
     goToToday: () =>
-      set((state) => {
-        const weekStart = startOfWeekISO(
-          todayISO(timeZoneFor(state.data, state.activeAccountId)),
-          weekStartsOnFor(state.data, state.activeAccountId),
-        );
-        return {
-          ui: {
-            ...state.ui,
-            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-            focusDate: weekStart,
-            recenterToken: state.ui.recenterToken + 1,
-          },
-        };
-      }),
+      set((state) =>
+        recenterOn(
+          state,
+          startOfWeekISO(
+            todayISO(timeZoneFor(state.data, state.activeAccountId)),
+            weekStartsOnFor(state.data, state.activeAccountId),
+          ),
+        ),
+      ),
     goToDate: (date) =>
-      set((state) => {
-        const weekStart = startOfWeekISO(date, weekStartsOnFor(state.data, state.activeAccountId));
-        return {
-          ui: {
-            ...state.ui,
-            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-            focusDate: weekStart,
-            recenterToken: state.ui.recenterToken + 1,
-          },
-        };
-      }),
+      set((state) => recenterOn(state, startOfWeekISO(date, weekStartsOnFor(state.data, state.activeAccountId)))),
     setDrawMode: (drawMode) => set((state) => ({ ui: { ...state.ui, drawMode } })),
     selectAllocation: (selectedAllocationId) => set((state) => ({ ui: { ...state.ui, selectedAllocationId } })),
     setFilters: (patch) =>

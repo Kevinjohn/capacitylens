@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
-import { makeAccount, makeAppData } from "../test/fixtures";
+import { makeAccount, makeAppData, WORKDAYS } from "../test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 // The store is the strict per-account WRITE boundary: an update/delete must own
@@ -34,7 +34,7 @@ function twoAccountData(): AppData {
         employmentType: "permanent",
         engagement: "studio" as const,
         workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
+        workingDays: WORKDAYS,
         halfDays: [],
         color: "#333333",
         createdAt: "t",

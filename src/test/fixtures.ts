@@ -52,6 +52,27 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
   };
 }
 
+/** A complete person Resource — the stored counterpart of {@link makeResourceDraft}, for specs that
+ *  build AppData directly instead of going through `addResource`. Override any field per test. */
+export function makeResource(overrides: Partial<Resource> = {}): Resource {
+  return {
+    id: "r1",
+    accountId: "a1",
+    createdAt: "t",
+    updatedAt: "t",
+    kind: "person",
+    name: "Test Person",
+    role: "Designer",
+    employmentType: "permanent",
+    engagement: "studio",
+    workingHoursPerDay: 8,
+    workingDays: WORKDAYS,
+    halfDays: [],
+    color: "#2d75da",
+    ...overrides,
+  };
+}
+
 /** Reset the store to a clean single-account state with that account active.
  *  Use in beforeEach so `add*` (which requires an active account) works. */
 export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void {

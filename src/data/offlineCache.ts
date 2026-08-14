@@ -1,7 +1,7 @@
 import { SCOPED_KEYS, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuthMode, AuthUser } from "../auth/authContext";
 import { validateAuthUser } from "../auth/validateAuthUser";
-import { validateAccountSlice } from "./validateAccountSlice";
+import { isRecord, validateAccountSlice } from "./validateAccountSlice";
 import { isAccountRole, type Role } from "@capacitylens/shared/account/types";
 import { API_BASE } from "./apiConfig";
 import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
@@ -16,6 +16,7 @@ export const OFFLINE_WRITE_BOUNDARY_STORAGE_KEY = `${STORAGE_KEY_PREFIX}offlineW
 const SHELL_CACHE_PREFIX = "capacitylens-shell-";
 const SHELL_METADATA_CACHE = "capacitylens-offline-shell-metadata-v1";
 const ACTIVE_SHELL_POINTER = "/__capacitylens-offline/active-shell";
+const OFFLINE_WORKER_URL = "/offline-worker.js";
 const SHELL_ACTIVATION_TIMEOUT_MS = 30_000;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -40,7 +41,7 @@ export interface OfflineAuthSnapshot {
   multiAccount: boolean;
 }
 
-export interface OfflineAccountSummary {
+interface OfflineAccountSummary {
   id: string;
   name: string;
   role: Role;
@@ -52,7 +53,7 @@ interface OfflineState {
   cacheWriteFailed: boolean;
 }
 
-export type OfflineReadOwner = "identity" | "accounts" | "tenant" | "cleanup";
+type OfflineReadOwner = "identity" | "accounts" | "tenant" | "cleanup";
 
 let scope: { origin: string; userId: string } | null = null;
 let state: OfflineState = {
@@ -89,11 +90,7 @@ function publishPreference(): void {
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key === OFFLINE_PREF_KEY) {
-      if (event.newValue !== "on") {
-        scope = null;
-        setOfflineCacheWriteFailed(false);
-        setOfflineReadState("cleanup", false);
-      }
+      if (event.newValue !== "on") resetOfflineState();
       publishPreference();
       return;
     }
@@ -101,10 +98,9 @@ if (typeof window !== "undefined") {
       // Sign-out/device cleanup in another tab owns the new boundary. Drop all page-local claims
       // immediately; the durable token independently rejects writes that began before the sweep.
       cacheGeneration += 1;
+      lastSweptAt = 0;
       if (typeof indexedDB !== "undefined") recentSliceWrites.get(indexedDB)?.clear();
-      scope = null;
-      setOfflineCacheWriteFailed(false);
-      setOfflineReadState("cleanup", false);
+      resetOfflineState();
     }
   });
 }
@@ -118,6 +114,14 @@ export function offlineShellAvailable(environment: { PROD: boolean; MODE: string
   return environment.PROD || environment.MODE === "test";
 }
 
+/** Does this registration belong to our app-shell worker? Any of its three lifecycle slots proves
+ * ownership, so revalidation and teardown recognise the same registrations. */
+function isOfflineWorkerRegistration(registration: ServiceWorkerRegistration): boolean {
+  return [registration.active, registration.waiting, registration.installing].some((worker) =>
+    worker?.scriptURL.endsWith(OFFLINE_WORKER_URL),
+  );
+}
+
 /** Revalidate the durable shell promised by the device preference. A browser/site-data cleanup can
  * remove the worker or cache without removing localStorage, so the preference must fail closed. */
 export async function revalidateOfflineShell(): Promise<boolean> {
@@ -125,11 +129,7 @@ export async function revalidateOfflineShell(): Promise<boolean> {
   try {
     if (!("serviceWorker" in navigator) || typeof caches === "undefined") throw new Error("unsupported");
     const registrations = await navigator.serviceWorker.getRegistrations();
-    const workerPresent = registrations.some((registration) =>
-      [registration.active, registration.waiting, registration.installing].some((worker) =>
-        worker?.scriptURL.endsWith("/offline-worker.js"),
-      ),
-    );
+    const workerPresent = registrations.some(isOfflineWorkerRegistration);
     const metadata = await caches.open(SHELL_METADATA_CACHE);
     const pointer = await metadata.match(ACTIVE_SHELL_POINTER);
     const cacheName = pointer ? await pointer.text() : "";
@@ -161,6 +161,25 @@ function originKey(): string {
     // isolated by the exact configured value rather than falling back to another backend's data.
     return `${frontendOrigin}|api:invalid:${encodeURIComponent(API_BASE)}`;
   }
+}
+
+/** Settle when a transaction reaches a terminal state. Each caller keeps its own wording, so both
+ * failure messages are passed in rather than derived from one shared subject. */
+function awaitTx(tx: IDBTransaction, errorMessage: string, abortMessage: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error(errorMessage));
+    tx.onabort = () => reject(tx.error ?? new Error(abortMessage));
+  });
+}
+
+/** Settle on a single request. No abort handler: an aborted transaction fires the request's own
+ * error event, so these read paths reject exactly as they did with a hand-written promise. */
+function awaitRequest<T>(request: IDBRequest<T>, failureMessage: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error(failureMessage));
+  });
 }
 
 function openOfflineDb(): Promise<IDBDatabase> {
@@ -197,7 +216,7 @@ function openOfflineDb(): Promise<IDBDatabase> {
         db.close();
         return;
       }
-      void sweepExpiredRecords(db).then(
+      void maybeSweepExpiredRecords(db).then(
         () => {
           if (settled) {
             db.close();
@@ -225,21 +244,41 @@ function openOfflineDb(): Promise<IDBDatabase> {
  * earliest reliable cleanup point after seven days have elapsed. */
 function sweepExpiredRecords(db: IDBDatabase): Promise<void> {
   const now = Date.now();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const request = tx.objectStore(STORE_NAME).openCursor();
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (!cursor) return;
-      const savedAt = (cursor.value as { savedAt?: unknown } | undefined)?.savedAt;
-      const age = typeof savedAt === "number" ? now - savedAt : Number.NaN;
-      if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) cursor.delete();
-      cursor.continue();
-    };
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const request = tx.objectStore(STORE_NAME).openCursor();
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) return;
+    const savedAt = (cursor.value as { savedAt?: unknown } | undefined)?.savedAt;
+    const age = typeof savedAt === "number" ? now - savedAt : Number.NaN;
+    if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) cursor.delete();
+    cursor.continue();
+  };
+  // The cursor's own failure rejects the sweep even when the transaction itself still settles.
+  const inspected = new Promise<never>((_, reject) => {
     request.onerror = () => reject(request.error ?? new Error("Expired offline data could not be inspected."));
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("Expired offline data could not be removed."));
-    tx.onabort = () => reject(tx.error ?? new Error("Offline retention cleanup was aborted."));
+  });
+  return Promise.race([
+    awaitTx(tx, "Expired offline data could not be removed.", "Offline retention cleanup was aborted."),
+    inspected,
+  ]);
+}
+
+/** The sweep is retention HYGIENE, not the age gate: get() independently rejects and deletes any
+ * record past MAX_AGE_MS, so nothing over-age is ever served between sweeps. Deserialising every
+ * record on every connection is the expensive part, so once an hour per page is enough. A clock
+ * that moved backwards (or a cleanup reset) always sweeps. */
+const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+let lastSweptAt = 0;
+
+function maybeSweepExpiredRecords(db: IDBDatabase): Promise<void> {
+  const sweptAt = Date.now();
+  const sinceLastSweep = sweptAt - lastSweptAt;
+  if (sinceLastSweep >= 0 && sinceLastSweep < SWEEP_INTERVAL_MS) return Promise.resolve();
+  // Only a completed sweep consumes the interval; a failed one still rejects this connection and
+  // is re-attempted by the next open.
+  return sweepExpiredRecords(db).then(() => {
+    lastSweptAt = sweptAt;
   });
 }
 
@@ -251,19 +290,13 @@ function webCrypto(): Crypto {
 }
 
 async function readDeviceKey(db: IDBDatabase): Promise<CryptoKey | null> {
-  return new Promise((resolve, reject) => {
-    const request = db.transaction(KEY_STORE_NAME, "readonly").objectStore(KEY_STORE_NAME).get(DEVICE_KEY_ID);
-    request.onsuccess = () => {
-      const value = request.result as { id?: unknown; value?: unknown } | undefined;
-      const candidate = value?.value as Partial<CryptoKey> | undefined;
-      resolve(
-        value?.id === DEVICE_KEY_ID && candidate?.type === "secret" && candidate.algorithm?.name === "AES-GCM"
-          ? (candidate as CryptoKey)
-          : null,
-      );
-    };
-    request.onerror = () => reject(request.error ?? new Error("The offline encryption key could not be read."));
-  });
+  const request = db.transaction(KEY_STORE_NAME, "readonly").objectStore(KEY_STORE_NAME).get(DEVICE_KEY_ID);
+  const value = (await awaitRequest(request, "The offline encryption key could not be read.")) as
+    { id?: unknown; value?: unknown } | undefined;
+  const candidate = value?.value as Partial<CryptoKey> | undefined;
+  return value?.id === DEVICE_KEY_ID && candidate?.type === "secret" && candidate.algorithm?.name === "AES-GCM"
+    ? (candidate as CryptoKey)
+    : null;
 }
 
 async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
@@ -274,16 +307,16 @@ async function deviceKey(db: IDBDatabase): Promise<CryptoKey> {
     "decrypt",
   ]);
   try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(KEY_STORE_NAME, "readwrite");
-      tx.objectStore(KEY_STORE_NAME).add({
-        id: DEVICE_KEY_ID,
-        value: generated,
-      });
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("The offline encryption key could not be stored."));
-      tx.onabort = () => reject(tx.error ?? new Error("The offline encryption key write was aborted."));
+    const tx = db.transaction(KEY_STORE_NAME, "readwrite");
+    tx.objectStore(KEY_STORE_NAME).add({
+      id: DEVICE_KEY_ID,
+      value: generated,
     });
+    await awaitTx(
+      tx,
+      "The offline encryption key could not be stored.",
+      "The offline encryption key write was aborted.",
+    );
     return generated;
   } catch (cause) {
     // Another tab may have won the create race, or this browser may be unable to persist a
@@ -320,6 +353,9 @@ function advanceWriteBoundary(): {
   storageError: unknown | null;
 } {
   cacheGeneration += 1;
+  // A cleanup rewrites the whole store; the next connection sweeps rather than trusting the
+  // interval recorded before the wipe.
+  lastSweptAt = 0;
   const token = newWriteBoundaryToken();
   try {
     localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
@@ -331,15 +367,10 @@ function advanceWriteBoundary(): {
   }
 }
 
-function readDurableWriteBoundary(store: IDBObjectStore): Promise<string | null> {
-  return new Promise((resolve, reject) => {
-    const request = store.get(WRITE_BOUNDARY_ID);
-    request.onsuccess = () => {
-      const value = request.result as { id?: unknown; token?: unknown } | undefined;
-      resolve(value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null);
-    };
-    request.onerror = () => reject(request.error ?? new Error("The offline write boundary could not be read."));
-  });
+async function readDurableWriteBoundary(store: IDBObjectStore): Promise<string | null> {
+  const value = (await awaitRequest(store.get(WRITE_BOUNDARY_ID), "The offline write boundary could not be read.")) as
+    { id?: unknown; token?: unknown } | undefined;
+  return value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
 }
 
 async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
@@ -348,11 +379,11 @@ async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
   const durableToken = await readDurableWriteBoundary(store);
   const token = durableToken ?? storedWriteBoundaryToken() ?? newWriteBoundaryToken();
   if (durableToken === null) store.put({ id: WRITE_BOUNDARY_ID, token });
-  await new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("The offline write boundary could not be established."));
-    tx.onabort = () => reject(tx.error ?? new Error("The offline write boundary update was aborted."));
-  });
+  await awaitTx(
+    tx,
+    "The offline write boundary could not be established.",
+    "The offline write boundary update was aborted.",
+  );
   localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
 }
 
@@ -390,23 +421,25 @@ async function writeEncryptedRecord<T>(record: CachedRecord<T>): Promise<void> {
     if (writeBoundary.generation !== cacheGeneration) return;
     const age = Date.now() - encrypted.savedAt;
     if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) return;
-    await new Promise<void>((resolve, reject) => {
-      // Read the durable cross-tab boundary and write the record in one transaction. If cleanup's
-      // transaction wins, this sees its new token and refuses the stale write. If this transaction
-      // wins, cleanup necessarily runs after it and deletes the record.
-      const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
-      const boundaryRequest = tx.objectStore(KEY_STORE_NAME).get(WRITE_BOUNDARY_ID);
-      boundaryRequest.onsuccess = () => {
-        const value = boundaryRequest.result as { id?: unknown; token?: unknown } | undefined;
-        const durableToken = value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
-        if (durableToken === writeBoundary.token) tx.objectStore(STORE_NAME).put(encrypted);
-      };
+    // Read the durable cross-tab boundary and write the record in one transaction. If cleanup's
+    // transaction wins, this sees its new token and refuses the stale write. If this transaction
+    // wins, cleanup necessarily runs after it and deletes the record.
+    const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
+    const boundaryRequest = tx.objectStore(KEY_STORE_NAME).get(WRITE_BOUNDARY_ID);
+    boundaryRequest.onsuccess = () => {
+      const value = boundaryRequest.result as { id?: unknown; token?: unknown } | undefined;
+      const durableToken = value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
+      if (durableToken === writeBoundary.token) tx.objectStore(STORE_NAME).put(encrypted);
+    };
+    // The boundary read must reject the write even when the transaction itself still settles.
+    const boundaryFailure = new Promise<never>((_, reject) => {
       boundaryRequest.onerror = () =>
         reject(boundaryRequest.error ?? new Error("The offline write boundary could not be read."));
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("The offline cache could not be updated."));
-      tx.onabort = () => reject(tx.error ?? new Error("The offline cache update was aborted."));
     });
+    await Promise.race([
+      awaitTx(tx, "The offline cache could not be updated.", "The offline cache update was aborted."),
+      boundaryFailure,
+    ]);
   } finally {
     db.close();
   }
@@ -435,11 +468,10 @@ async function put<T>(record: CachedRecord<T>): Promise<void> {
 async function get<T>(key: string): Promise<CachedRecord<T> | null> {
   const db = await openOfflineDb();
   try {
-    const record = await new Promise<unknown>((resolve, reject) => {
-      const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(key);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error ?? new Error("The offline cache could not be read."));
-    });
+    const record: unknown = await awaitRequest(
+      db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(key),
+      "The offline cache could not be read.",
+    );
     if (!record) return null;
     if (!isRecord(record)) {
       await deleteKey(key);
@@ -483,10 +515,6 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
   } finally {
     db.close();
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 /** IndexedDB may deserialize an ArrayBuffer in a different JavaScript realm (notably in tests and
@@ -533,13 +561,9 @@ function validateAccountSummaries(value: unknown): OfflineAccountSummary[] | nul
 async function deleteKey(key: string): Promise<void> {
   const db = await openOfflineDb();
   try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).delete(key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("The offline cache entry could not be removed."));
-      tx.onabort = () => reject(tx.error ?? new Error("Offline cache entry deletion was aborted."));
-    });
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete(key);
+    await awaitTx(tx, "The offline cache entry could not be removed.", "Offline cache entry deletion was aborted.");
   } finally {
     db.close();
   }
@@ -549,9 +573,11 @@ function authKey(): string {
   return `auth:${originKey()}`;
 }
 
-function scopedKey(kind: "accounts" | "slice", suffix = ""): string {
-  if (!scope) throw new Error("Offline cache scope is unavailable until a user has been verified.");
-  return `${kind}:${scope.origin}:${scope.userId}${suffix}`;
+/** Build a user-scoped cache key. Cleanup passes the scope it captured before the boundary advance
+ * instead of rebuilding the same strings inline. */
+function scopedKey(kind: "accounts" | "slice", suffix = "", forScope = scope): string {
+  if (!forScope) throw new Error("Offline cache scope is unavailable until a user has been verified.");
+  return `${kind}:${forScope.origin}:${forScope.userId}${suffix}`;
 }
 
 /** Is read-only offline access enabled on this device? Preference failures fail closed. */
@@ -624,7 +650,7 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
       } finally {
         db.close();
       }
-      const registration = await navigator.serviceWorker.register("/offline-worker.js", { scope: "/" });
+      const registration = await navigator.serviceWorker.register(OFFLINE_WORKER_URL, { scope: "/" });
       await waitForOfflineShellActivation(registration);
       localStorage.setItem(OFFLINE_PREF_KEY, "on");
       publishPreference();
@@ -638,13 +664,7 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
     if (!("serviceWorker" in navigator)) return;
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(
-      registrations
-        .filter((registration) =>
-          [registration.active, registration.waiting, registration.installing].some((worker) =>
-            worker?.scriptURL.endsWith("/offline-worker.js"),
-          ),
-        )
-        .map((registration) => registration.unregister()),
+      registrations.filter(isOfflineWorkerRegistration).map((registration) => registration.unregister()),
     );
     if (typeof caches !== "undefined") {
       const names = await caches.keys();
@@ -669,53 +689,47 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
   }
 }
 
-export type OfflineCacheWriteResult =
+type OfflineCacheWriteResult =
   { status: "written" } | { status: "skipped"; reason: "disabled" | "unscoped" | "unchanged" };
 
-/** Persist the last verified identity and make it the cache scope for this page. */
-export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<OfflineCacheWriteResult> {
-  scope = { origin: originKey(), userId: snapshot.user.id };
-  if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
-  await put({ key: authKey(), savedAt: Date.now(), value: snapshot });
-  return { status: "written" };
+/** One cached record kind: the shared enable/scope guards and write envelope, plus the validated
+ * read. `keyFor` and `validate` receive the public wrapper's own arguments, so a scoped key and a
+ * per-account validation stay with the caller and every exported signature is unchanged. */
+function cachedRecord<T, A extends unknown[] = []>(
+  keyFor: (...args: A) => string,
+  validate: (value: unknown, ...args: A) => T | null,
+  options: {
+    /** Reads that require a verified scope. The identity snapshot deliberately does not: a cold
+     * offline boot reads it BEFORE any scope exists. */
+    readNeedsScope?: boolean;
+    /** Runs after the guards with the key and envelope timestamp. Returns either a skip result
+     * declining the write, or a callback to run once the write has landed. */
+    gate?: (key: string, value: T, savedAt: number) => OfflineCacheWriteResult | (() => void);
+  } = {},
+) {
+  const { readNeedsScope = true, gate } = options;
+  return {
+    async write(value: T, ...args: A): Promise<OfflineCacheWriteResult> {
+      if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
+      if (!scope) return { status: "skipped", reason: "unscoped" };
+      const key = keyFor(...args);
+      const savedAt = Date.now();
+      const written = gate?.(key, value, savedAt);
+      if (written && typeof written !== "function") return written;
+      await put({ key, savedAt, value });
+      written?.();
+      return { status: "written" };
+    },
+    async read(...args: A): Promise<CachedRecord<T> | null> {
+      if (!offlineReadEnabled() || (readNeedsScope && !scope)) return null;
+      return getValidated(keyFor(...args), (value) => validate(value, ...args));
+    },
+  };
 }
 
-/** Restore the last verified identity for an offline boot. Never fabricates a session. */
-export async function readCachedAuthSnapshot(
-  opts: { acceptEffects?: () => boolean } = {},
-): Promise<CachedRecord<OfflineAuthSnapshot> | null> {
-  if (!offlineReadEnabled()) return null;
-  const record = await getValidated(authKey(), validateAuthSnapshot);
-  if (record && (opts.acceptEffects?.() ?? true)) {
-    // A cache miss is evidence only about durable cache state. It must not revoke a scope that a
-    // concurrent successful live /me already established through cacheAuthSnapshot; explicit
-    // sign-out/device cleanup owns scope removal. A cached hit may still establish cold-boot scope.
-    scope = { origin: originKey(), userId: record.value.user.id };
-  }
-  return record;
-}
-
-export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]): Promise<OfflineCacheWriteResult> {
-  if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
-  if (!scope) return { status: "skipped", reason: "unscoped" };
-  await put({
-    key: scopedKey("accounts"),
-    savedAt: Date.now(),
-    value: summaries,
-  });
-  return { status: "written" };
-}
-
-export async function readCachedAccountSummaries(): Promise<CachedRecord<OfflineAccountSummary[]> | null> {
-  if (!offlineReadEnabled() || !scope) return null;
-  return getValidated(scopedKey("accounts"), validateAccountSummaries);
-}
-
-export async function cacheAccountSlice(accountId: string, data: AppData): Promise<OfflineCacheWriteResult> {
-  if (!offlineReadEnabled()) return { status: "skipped", reason: "disabled" };
-  if (!scope) return { status: "skipped", reason: "unscoped" };
-  const key = scopedKey("slice", `:${accountId}`);
-  const now = Date.now();
+/** Decline an unchanged tenant-slice rewrite. Encryption dominates the cost of a cache write and
+ * live refreshes re-deliver identical data, so a signature match inside the interval skips. */
+function sliceRewriteGate(key: string, data: AppData, now: number): OfflineCacheWriteResult | (() => void) {
   const signature = sliceSignature(data);
   const factory = typeof indexedDB === "undefined" ? null : indexedDB;
   let recent = factory ? recentSliceWrites.get(factory) : undefined;
@@ -727,18 +741,56 @@ export async function cacheAccountSlice(accountId: string, data: AppData): Promi
   if (prior?.signature === signature && now - prior.writtenAt < SLICE_REWRITE_INTERVAL_MS) {
     return { status: "skipped", reason: "unchanged" };
   }
-  await put({
-    key,
-    savedAt: now,
-    value: data,
-  });
-  recent?.set(key, { signature, writtenAt: now });
-  return { status: "written" };
+  return () => recent?.set(key, { signature, writtenAt: now });
+}
+
+const authSnapshotCache = cachedRecord<OfflineAuthSnapshot>(authKey, validateAuthSnapshot, {
+  readNeedsScope: false,
+});
+const accountSummariesCache = cachedRecord<OfflineAccountSummary[]>(
+  () => scopedKey("accounts"),
+  validateAccountSummaries,
+);
+const accountSliceCache = cachedRecord<AppData, [accountId: string]>(
+  (accountId) => scopedKey("slice", `:${accountId}`),
+  (value, accountId) => validateAccountSlice(value, accountId),
+  { gate: sliceRewriteGate },
+);
+
+/** Persist the last verified identity and make it the cache scope for this page. */
+export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<OfflineCacheWriteResult> {
+  scope = { origin: originKey(), userId: snapshot.user.id };
+  return authSnapshotCache.write(snapshot);
+}
+
+/** Restore the last verified identity for an offline boot. Never fabricates a session. */
+export async function readCachedAuthSnapshot(
+  opts: { acceptEffects?: () => boolean } = {},
+): Promise<CachedRecord<OfflineAuthSnapshot> | null> {
+  const record = await authSnapshotCache.read();
+  if (record && (opts.acceptEffects?.() ?? true)) {
+    // A cache miss is evidence only about durable cache state. It must not revoke a scope that a
+    // concurrent successful live /me already established through cacheAuthSnapshot; explicit
+    // sign-out/device cleanup owns scope removal. A cached hit may still establish cold-boot scope.
+    scope = { origin: originKey(), userId: record.value.user.id };
+  }
+  return record;
+}
+
+export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]): Promise<OfflineCacheWriteResult> {
+  return accountSummariesCache.write(summaries);
+}
+
+export async function readCachedAccountSummaries(): Promise<CachedRecord<OfflineAccountSummary[]> | null> {
+  return accountSummariesCache.read();
+}
+
+export async function cacheAccountSlice(accountId: string, data: AppData): Promise<OfflineCacheWriteResult> {
+  return accountSliceCache.write(data, accountId);
 }
 
 export async function readCachedAccountSlice(accountId: string): Promise<CachedRecord<AppData> | null> {
-  if (!offlineReadEnabled() || !scope) return null;
-  return getValidated(scopedKey("slice", `:${accountId}`), (value) => validateAccountSlice(value, accountId));
+  return accountSliceCache.read(accountId);
 }
 
 /**
@@ -767,6 +819,14 @@ function setOfflineCacheWriteFailed(cacheWriteFailed: boolean): void {
   for (const listener of listeners) listener();
 }
 
+/** Drop every page-local claim on the cache: the verified-user scope, the write-failure flag and
+ * any offline read state. Cleanup and cross-tab boundary changes all end here. */
+function resetOfflineState(): void {
+  scope = null;
+  setOfflineCacheWriteFailed(false);
+  setOfflineReadState("cleanup", false);
+}
+
 /** Current offline episode tag; reactive consumers read it after their offline-state subscription. */
 export function offlineStateEpisode(): number {
   return offlineEpisode;
@@ -781,27 +841,50 @@ export function subscribeOfflineState(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Remove this user's cached identity, account list and slices. Called before every sign-out. */
-export async function clearOfflineDataForCurrentUser(): Promise<void> {
+/** Shared cleanup shell. Both paths advance the write boundary BEFORE opening the database, run
+ * exactly one keys+records transaction, always drop page-local state, and report a
+ * preference-storage failure last so a deletion is never sacrificed to it. `mutate` may return a
+ * promise that rejects on a request-level failure alongside the transaction's own outcome.
+ * A user-scoped sign-out must TELL its caller when no records could be removed; the device-wide
+ * wipe has nothing left to promise, so it returns instead — hence the explicit parameter. */
+async function clearOfflineRecords(
+  onMissingIndexedDb: "throw" | "return",
+  mutate: (tx: IDBTransaction, boundaryToken: string) => Promise<never> | void,
+  afterCommit: () => void,
+): Promise<void> {
   const boundary = advanceWriteBoundary();
   if (typeof indexedDB === "undefined") {
-    scope = null;
-    setOfflineCacheWriteFailed(false);
-    setOfflineReadState("cleanup", false);
+    resetOfflineState();
     if (boundary.storageError) throw boundary.storageError;
     // The caller must know that no durable records were removed. Sign-out uses this rejection to
     // remove the offline opt-in, so records left behind while browser storage is unavailable can
     // never be accepted on a later networkless boot.
-    throw new Error("IndexedDB is unavailable on this device.");
+    if (onMissingIndexedDb === "throw") throw new Error("IndexedDB is unavailable on this device.");
+    return;
   }
-  const currentScope = scope;
   const db = await openOfflineDb();
   try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
+    const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
+    const requestFailure = mutate(tx, boundary.token);
+    const committed = awaitTx(tx, "The offline cache could not be cleared.", "The offline cache clear was aborted.");
+    await (requestFailure ? Promise.race([committed, requestFailure]) : committed);
+  } finally {
+    db.close();
+    resetOfflineState();
+  }
+  afterCommit();
+  if (boundary.storageError) throw boundary.storageError;
+}
+
+/** Remove this user's cached identity, account list and slices. Called before every sign-out. */
+export async function clearOfflineDataForCurrentUser(): Promise<void> {
+  const currentScope = scope;
+  return clearOfflineRecords(
+    "throw",
+    (tx, boundaryToken) => {
       tx.objectStore(KEY_STORE_NAME).put({
         id: WRITE_BOUNDARY_ID,
-        token: boundary.token,
+        token: boundaryToken,
       });
       const store = tx.objectStore(STORE_NAME);
       // Sign-out only inspects and deletes keys. A key cursor avoids deserialising every other
@@ -811,64 +894,41 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
         const cursor = request.result;
         if (!cursor) return;
         const key = String(cursor.key);
-        const accountsKey = currentScope ? `accounts:${currentScope.origin}:${currentScope.userId}` : null;
-        const slicePrefix = currentScope ? `slice:${currentScope.origin}:${currentScope.userId}:` : null;
+        const accountsKey = currentScope ? scopedKey("accounts", "", currentScope) : null;
+        const slicePrefix = currentScope ? scopedKey("slice", ":", currentScope) : null;
         if (key === authKey() || key === accountsKey || (slicePrefix && key.startsWith(slicePrefix)))
           store.delete(cursor.key);
         cursor.continue();
       };
-      request.onerror = () => reject(request.error ?? new Error("The offline cache could not be cleared."));
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("The offline cache could not be cleared."));
-      tx.onabort = () => reject(tx.error ?? new Error("The offline cache clear was aborted."));
-    });
-  } finally {
-    db.close();
-    scope = null;
-    setOfflineCacheWriteFailed(false);
-    setOfflineReadState("cleanup", false);
-  }
-  const recent = recentSliceWrites.get(indexedDB);
-  if (currentScope && recent) {
-    const accountsKey = `accounts:${currentScope.origin}:${currentScope.userId}`;
-    const slicePrefix = `slice:${currentScope.origin}:${currentScope.userId}:`;
-    for (const key of recent.keys()) if (key === accountsKey || key.startsWith(slicePrefix)) recent.delete(key);
-  }
-  if (boundary.storageError) throw boundary.storageError;
+      return new Promise<never>((_, reject) => {
+        request.onerror = () => reject(request.error ?? new Error("The offline cache could not be cleared."));
+      });
+    },
+    () => {
+      const recent = recentSliceWrites.get(indexedDB);
+      if (currentScope && recent) {
+        const accountsKey = scopedKey("accounts", "", currentScope);
+        const slicePrefix = scopedKey("slice", ":", currentScope);
+        for (const key of recent.keys()) if (key === accountsKey || key.startsWith(slicePrefix)) recent.delete(key);
+      }
+    },
+  );
 }
 
 /** Remove every CapacityLens offline identity and account snapshot from this browser profile.
  * Used only by the explicit “Clear device data” action; normal sign-out remains user-scoped. */
 export async function clearAllOfflineData(): Promise<void> {
-  const boundary = advanceWriteBoundary();
-  if (typeof indexedDB === "undefined") {
-    scope = null;
-    setOfflineCacheWriteFailed(false);
-    setOfflineReadState("cleanup", false);
-    if (boundary.storageError) throw boundary.storageError;
-    return;
-  }
-  const db = await openOfflineDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
+  return clearOfflineRecords(
+    "return",
+    (tx, boundaryToken) => {
       // “Clear device data” is the recovery boundary for corrupt or incompatible CryptoKey
       // structured clones too. Remove every key-store entry, then restore only the generation
       // token that prevents writes started before this wipe from repopulating the records store.
       const keyStore = tx.objectStore(KEY_STORE_NAME);
       keyStore.clear();
-      keyStore.put({ id: WRITE_BOUNDARY_ID, token: boundary.token });
+      keyStore.put({ id: WRITE_BOUNDARY_ID, token: boundaryToken });
       tx.objectStore(STORE_NAME).clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("The offline cache could not be cleared."));
-      tx.onabort = () => reject(tx.error ?? new Error("The offline cache clear was aborted."));
-    });
-  } finally {
-    db.close();
-    scope = null;
-    setOfflineCacheWriteFailed(false);
-    setOfflineReadState("cleanup", false);
-  }
-  recentSliceWrites.get(indexedDB)?.clear();
-  if (boundary.storageError) throw boundary.storageError;
+    },
+    () => recentSliceWrites.get(indexedDB)?.clear(),
+  );
 }

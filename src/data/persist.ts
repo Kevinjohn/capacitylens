@@ -227,6 +227,36 @@ export function attachPersistence(
       retryTimer = null;
     }
   };
+  // Every path that abandons an unsaved edit reports it identically — count it, leave a console
+  // breadcrumb, and raise the typed sticky error. Only the wording differs between them.
+  const discardEdit = (warning: string, message: string) => {
+    incrementPersistenceDiagnostic("editsDiscarded");
+    console.warn(warning);
+    onError?.(new ReloadDiscardedEditError(message));
+  };
+  // A reload sequence whose token was superseded — or whose owner detached — must not apply its
+  // effects. The supersession is counted only while still attached.
+  const supersededBy = (myToken: number): boolean => {
+    if (!disposed && myToken === switchToken) return false;
+    if (!disposed) incrementPersistenceDiagnostic("reloadsSuperseded");
+    return true;
+  };
+  // The shared arm of BOTH save-rejection handlers (the ordinary save and the teardown keepalive):
+  // a deterministic 400/409 rejection or a malformed 2xx commit receipt requires an authoritative
+  // reload. Returns true when it has taken ownership of the failure.
+  const beginAuthoritativeReloadFor = (error: unknown): boolean => {
+    if (!serverMode || !(error instanceof BatchReconciliationError)) return false;
+    // Never re-arm backoff with a stale or commit-uncertain diff.
+    cancelRetry();
+    const activeId = store.getState().activeAccountId;
+    // A nested reconciliation failure, or no active account to reload, is surfaced without
+    // recursion. Keep the write gate raised until a completed reload reseeds the snapshot.
+    if (activeId !== null) {
+      authoritativeReloadRequiredFor = activeId;
+      startAuthoritativeReload(activeId);
+    }
+    return true;
+  };
   const acknowledge = (data: AppData) => {
     if (disposed) return;
     const acknowledgesLatest = unacknowledged === data || unacknowledged === null;
@@ -287,18 +317,7 @@ export function attachPersistence(
         // authoritative reload. Rejections would repeat forever if retried; an uncertain receipt
         // may already have committed, so replaying against the prior snapshot is unsafe. This reload deliberately bypasses
         // abortIfSaveFailed because it is the resolution, not an ordinary focus refresh.
-        if (serverMode && e instanceof BatchReconciliationError) {
-          // Never re-arm backoff with a stale or commit-uncertain diff.
-          cancelRetry();
-          const activeId = store.getState().activeAccountId;
-          // A nested reconciliation failure, or no active account to reload, is surfaced without
-          // recursion. Keep the write gate raised until a completed reload reseeds the snapshot.
-          if (activeId !== null) {
-            authoritativeReloadRequiredFor = activeId;
-            startAuthoritativeReload(activeId);
-          }
-          return;
-        }
+        if (beginAuthoritativeReloadFor(e)) return;
         // An over-limit diff is TERMINAL, not transient: the atomic batch refuses to split it, so
         // the identical over-limit diff would throw on every backoff attempt — a permanent
         // auto-retrying banner. Surface it (onError already raised the banner + a clear sticky
@@ -380,12 +399,9 @@ export function attachPersistence(
     // would silently lose an edit made during a reload window on every tab close.
     if (externalSuspendDepth > 0) {
       if (unacknowledged) {
-        incrementPersistenceDiagnostic("editsDiscarded");
-        console.warn("capacitylens: a parked edit could not be sent during page teardown");
-        onError?.(
-          new ReloadDiscardedEditError(
-            "An edit was still parked while this company’s data was being replaced during page teardown.",
-          ),
+        discardEdit(
+          "capacitylens: a parked edit could not be sent during page teardown",
+          "An edit was still parked while this company’s data was being replaced during page teardown.",
         );
       }
       return;
@@ -406,15 +422,10 @@ export function attachPersistence(
         failedSinceSuccess = true;
         incrementPersistenceDiagnostic("savesFailed");
         onError?.(error);
-        if (serverMode && error instanceof BatchReconciliationError) {
-          cancelRetry();
-          const activeId = store.getState().activeAccountId;
-          if (activeId !== null) {
-            authoritativeReloadRequiredFor = activeId;
-            startAuthoritativeReload(activeId);
-          }
-          return;
-        }
+        if (beginAuthoritativeReloadFor(error)) return;
+        // KNOWN DIVERGENCE (tracked separately): unlike save's rejection handler this arm has no
+        // BatchTooLargeError branch, so an over-limit teardown flush still arms the backoff.
+        // Preserved as-is here deliberately.
         scheduleRetry();
       },
     );
@@ -434,6 +445,15 @@ export function attachPersistence(
   // slice would be diffed against the OLD account's snapshot and pushed back as a spurious (and, in
   // server mode, CROSS-ACCOUNT) save. The orchestrator advances lastData itself in lockstep.
   let loadingSlice = false;
+
+  // Install a slice as a tenant LOAD, never a user edit: swap the store under `loadingSlice` and
+  // advance lastData in lockstep, exactly as every install site did by hand.
+  const installSlice = (data: AppData) => {
+    loadingSlice = true;
+    store.getState().replaceAll(data);
+    lastData = store.getState().data;
+    loadingSlice = false;
+  };
 
   const unsubscribe = store.subscribe((state) => {
     if (disposed) return;
@@ -556,19 +576,11 @@ export function attachPersistence(
         pending = null;
         unacknowledged = null;
         externalBaseData = null;
-        if (externalAuthoritativeData) {
-          loadingSlice = true;
-          store.getState().replaceAll(externalAuthoritativeData);
-          lastData = store.getState().data;
-          loadingSlice = false;
-        }
+        if (externalAuthoritativeData) installSlice(externalAuthoritativeData);
         externalAuthoritativeData = null;
-        incrementPersistenceDiagnostic("editsDiscarded");
-        console.warn("capacitylens: an edit made during a company-data replacement was discarded");
-        onError?.(
-          new ReloadDiscardedEditError(
-            "An edit arrived while this company’s data was being replaced and could not be saved.",
-          ),
+        discardEdit(
+          "capacitylens: an edit made during a company-data replacement was discarded",
+          "An edit arrived while this company’s data was being replaced and could not be saved.",
         );
       } else {
         const parked = pending;
@@ -616,10 +628,7 @@ export function attachPersistence(
     try {
       // (a) Let a prior account's save settle before we re-seed the snapshot.
       if (inFlightSave) await inFlightSave;
-      if (disposed || myToken !== switchToken) {
-        if (!disposed) incrementPersistenceDiagnostic("reloadsSuperseded");
-        return "skipped";
-      } // detached/newer owner owns effects
+      if (supersededBy(myToken)) return "skipped"; // detached/newer owner owns effects
       // (a′) FLUSH (don't drop) the current account's PENDING debounced edits before we re-seed.
       // Merely dropping them would LOSE edits made within the debounce window of a switch/refresh.
       // Flush NOW — while data AND the adapter's lastSynced snapshot are both this account — so
@@ -634,10 +643,7 @@ export function attachPersistence(
       if (pending && externalSuspendDepth === 0) {
         save(pending); // sets inFlightSave synchronously; pending is consumed inside save()
         if (inFlightSave) await inFlightSave;
-        if (disposed || myToken !== switchToken) {
-          if (!disposed) incrementPersistenceDiagnostic("reloadsSuperseded");
-          return "skipped";
-        } // detached/newer owner owns effects
+        if (supersededBy(myToken)) return "skipped"; // detached/newer owner owns effects
       }
       // See the abortIfSaveFailed doc above: a refresh must not reload over a failed save's edits.
       // Checked AFTER the flush/await so a flush that just SUCCEEDED (clearing the flag) still refreshes.
@@ -679,10 +685,7 @@ export function attachPersistence(
             save(installed);
             if (inFlightSave) await inFlightSave;
           }
-          loadingSlice = true;
-          store.getState().replaceAll(installed);
-          lastData = store.getState().data;
-          loadingSlice = false;
+          installSlice(installed);
         }
         return "skipped"; // superseded mid-load — discard this stale slice
       }
@@ -718,15 +721,13 @@ export function attachPersistence(
       // outcomes. Preserve the former above, but always surface the latter before clearing the
       // transient transport-failure state below.
       if (lostFailedEdits) {
-        incrementPersistenceDiagnostic("editsDiscarded");
-        console.warn("capacitylens: an unsaved edit was discarded during an authoritative reload");
-        onError?.(new ReloadDiscardedEditError("An edit could not be saved before this company’s data reloaded."));
+        discardEdit(
+          "capacitylens: an unsaved edit was discarded during an authoritative reload",
+          "An edit could not be saved before this company’s data reloaded.",
+        );
       }
       // Swap `data` to the loaded slice WITHOUT it reading as a user edit, then advance lastData.
-      loadingSlice = true;
-      store.getState().replaceAll(installed);
-      lastData = store.getState().data;
-      loadingSlice = false;
+      installSlice(installed);
       if (!editedMidLoad) unacknowledged = null;
       authoritativeReloadRequiredFor = null;
       // The store now holds the server's authoritative slice and the snapshot is re-seeded to it —
@@ -967,7 +968,7 @@ export function attachPersistence(
   };
 }
 
-export interface BootstrapOptions {
+interface BootstrapOptions {
   debounceMs?: number;
   /** Used only on a genuine first run (nothing ever persisted). */
   seedIfEmpty?: AppData;

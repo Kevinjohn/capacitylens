@@ -1,4 +1,4 @@
-export interface PersistenceDiagnostics {
+interface PersistenceDiagnostics {
   savesFailed: number;
   retriesArmed: number;
   reconciliationsResolved: number;

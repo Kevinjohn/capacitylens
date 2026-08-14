@@ -7,7 +7,17 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.43.0-alpha.1] — 2026-08-14
+## [0.44.0-alpha.1] — 2026-08-14
+
+### Changed
+
+- Simplified the client data layer (`src/data` + `src/store`) with no behaviour changes:
+  extracted shared row-key, batch-receipt, and FK-descriptor helpers in the sync adapter (with a
+  compile-time completeness witness for account-scope edges); single-pass sync-op application and
+  revision pruning; throttled the offline-cache expiry sweep and deduplicated its IndexedDB
+  transaction plumbing; table-driven store cascades, tenant-boundary resets, and account selectors;
+  shared weekday validators in the domain core; and removal of dead exports and test-only
+  selectors (#344).
 
 ### Changed
 
@@ -3454,7 +3464,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.43.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.44.0-alpha.1...HEAD
+[0.44.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.43.0-alpha.1...v0.44.0-alpha.1
 [0.43.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.42.0-alpha.1...v0.43.0-alpha.1
 [0.42.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.9-alpha.1...v0.42.0-alpha.1
 [0.41.9-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.8-alpha.1...v0.41.9-alpha.1

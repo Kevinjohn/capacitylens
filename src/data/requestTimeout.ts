@@ -1,4 +1,4 @@
-import { announceAuditWarning } from "../lib/auditWarning";
+import { noteAuditWarning } from "../lib/auditWarning";
 
 // Two deadline tiers, because one bound can't fit every call. Interactive calls (a single
 // entity write, an auth check, a `hasData` probe) must fail FAST — a wedged socket should
@@ -77,8 +77,6 @@ export async function apiFetch(
   const response = await fetch(input, { ...init, signal: requestSignal(init.signal, timeoutMs) });
   // Defer until the direct action's own success notice has run; otherwise that notice immediately
   // overwrites the more important persistent audit warning in the single-notice store.
-  if (response.headers?.get?.("x-capacitylens-audit-warning") === "true") {
-    globalThis.setTimeout(() => announceAuditWarning(), 0);
-  }
+  noteAuditWarning(response, { defer: true });
   return response;
 }

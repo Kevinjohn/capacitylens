@@ -1,14 +1,15 @@
 import { LoadError, type PersistenceAdapter } from "./PersistenceAdapter";
 import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
-import type { AppData, Entity } from "@capacitylens/shared/types/entities";
+import type { AppData, AppDataKey, Entity, ScopedEntityKey } from "@capacitylens/shared/types/entities";
 import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/migrate";
 import { isLifecycleEntityKey, LIFECYCLE_ENTITY_KEYS } from "@capacitylens/shared/domain/lifecycle";
 import { isDomainErrorCode, type DomainErrorCode } from "@capacitylens/shared/domain/errors";
 import { diffOps, diffOpsFromPossibleBases, type Op } from "./syncOps";
-import { announceAuditWarning } from "../lib/auditWarning";
+import { announceAuditWarning, noteAuditWarning } from "../lib/auditWarning";
+import { apiErrorFromBody } from "../lib/readApiError";
 import { cacheAccountSlice, readCachedAccountSlice, readCachedAuthSnapshot, setOfflineReadState } from "./offlineCache";
 import { isTransportFailure, requestSignal, API_REQUEST_TIMEOUT_MS, API_BULK_TIMEOUT_MS } from "./requestTimeout";
-import { validateAccountSliceWithRepairBase } from "./validateAccountSlice";
+import { isRecord, validateAccountSliceWithRepairBase } from "./validateAccountSlice";
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
 // so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from
@@ -22,6 +23,12 @@ interface CommittedRevision {
   updatedAt: string;
 }
 
+/** One durable client-stamp → server-revision translation; see canonicalizeAcknowledged. */
+interface AcknowledgedRevision {
+  client: string;
+  server: CommittedRevision;
+}
+
 interface BatchCommitReceipt {
   revisions: CommittedRevision[];
   archivedLifecycleKeys: Set<string>;
@@ -30,6 +37,16 @@ interface BatchCommitReceipt {
 
 const MAX_DIAGNOSTIC_BODY_LENGTH = 1_000;
 const compatibilityWarnings = new Set<string>();
+
+// The one composite key every row-identity Map/Set in this module is keyed by. NUL is the separator
+// because neither a table name nor an entity id can contain it, so the two halves always round-trip.
+const rowKey = (table: string, id: string): string => `${table}\0${id}`;
+
+/** Split a {@link rowKey} back into its `[table, id]` halves. */
+function rowKeyParts(key: string): [table: string, id: string] {
+  const separator = key.indexOf("\0");
+  return [key.slice(0, separator), key.slice(separator + 1)];
+}
 
 function warnCompatibilityOnce(key: string, message: string): void {
   if (compatibilityWarnings.has(key)) return;
@@ -47,23 +64,56 @@ const rowsReference = (record: Record<string, unknown>, table: string, field: st
       (row as Record<string, unknown>)[field] !== "",
   );
 
+/** One foreign key a returned `child` row can use to point at a row in `parent`. */
+type FkEdge = {
+  [K in AppDataKey]: {
+    child: K;
+    parent: AppDataKey;
+    field: Extract<keyof AppData[K][number], string>;
+  };
+}[AppDataKey];
+
+// The payload's foreign-key graph, as data. A parent table may only be treated as "absent because
+// this server version predates it" when NOTHING in the returned payload still points into it, so
+// this list must stay exhaustive; `satisfies` proves each child/field pair is a real column, and the
+// account-scope witness below proves every scoped table's `accountId` edge is present.
+const FK_EDGES = [
+  { child: "disciplines", parent: "accounts", field: "accountId" },
+  { child: "resources", parent: "accounts", field: "accountId" },
+  { child: "clients", parent: "accounts", field: "accountId" },
+  { child: "projects", parent: "accounts", field: "accountId" },
+  { child: "phases", parent: "accounts", field: "accountId" },
+  { child: "activities", parent: "accounts", field: "accountId" },
+  { child: "allocations", parent: "accounts", field: "accountId" },
+  { child: "timeOff", parent: "accounts", field: "accountId" },
+  { child: "resources", parent: "disciplines", field: "disciplineId" },
+  { child: "allocations", parent: "resources", field: "resourceId" },
+  { child: "timeOff", parent: "resources", field: "resourceId" },
+  { child: "projects", parent: "clients", field: "clientId" },
+  { child: "phases", parent: "projects", field: "projectId" },
+  { child: "activities", parent: "projects", field: "projectId" },
+  { child: "resources", parent: "projects", field: "projectId" },
+  { child: "activities", parent: "phases", field: "phaseId" },
+  { child: "allocations", parent: "activities", field: "activityId" },
+] as const satisfies readonly FkEdge[];
+
+// Compile-completeness guard in the same idiom as SCOPED_KEYS/IMPORTED_FIELDS: the accounts parent
+// used to be derived by iterating SCOPED_KEYS, so a NEW scoped table would automatically have been
+// covered. Enumerating the edges gives up that automatism, and this witness buys it back — adding a
+// scoped table without its `accountId` edge above fails the build instead of silently letting a
+// version-skewed server drop `accounts` while that table's rows still reference it.
+type MissingAccountScopeEdge = Exclude<
+  ScopedEntityKey,
+  Extract<(typeof FK_EDGES)[number], { parent: "accounts" }>["child"]
+>;
+const accountScopeEdgesAreComplete: MissingAccountScopeEdge extends never ? true : never = true;
+void accountScopeEdgesAreComplete;
+
 /** Missing-table compatibility is safe only when no returned child points into that table. */
 function referencedMissingTables(record: Record<string, unknown>, missingKeys: readonly string[]): string[] {
-  const referenced: Record<string, boolean> = {
-    accounts: SCOPED_KEYS.some((table) => rowsReference(record, table, "accountId")),
-    disciplines: rowsReference(record, "resources", "disciplineId"),
-    resources: rowsReference(record, "allocations", "resourceId") || rowsReference(record, "timeOff", "resourceId"),
-    clients: rowsReference(record, "projects", "clientId"),
-    projects:
-      rowsReference(record, "phases", "projectId") ||
-      rowsReference(record, "activities", "projectId") ||
-      rowsReference(record, "resources", "projectId"),
-    phases: rowsReference(record, "activities", "phaseId"),
-    activities: rowsReference(record, "allocations", "activityId"),
-    allocations: false,
-    timeOff: false,
-  };
-  return missingKeys.filter((key) => referenced[key] === true);
+  return missingKeys.filter((key) =>
+    FK_EDGES.some((edge) => edge.parent === key && rowsReference(record, edge.child, edge.field)),
+  );
 }
 
 function safeResponseError(action: string, status: number, rawBody: string): Error {
@@ -73,29 +123,29 @@ function safeResponseError(action: string, status: number, rawBody: string): Err
   return new Error(message, { cause: new Error(diagnostic) });
 }
 
-// Re-insert lifecycle rows whose out-of-batch archive did NOT converge back into `data`, so the
-// NEXT diff re-emits their DELETE and the adapter keeps trying (rather than silently dropping the
-// deletion intent by advancing the snapshot past an archive that never landed). Append-if-absent —
-// a defensive no-dup guard; the row is the pre-delete copy read from the current snapshot.
-function restoreRows(data: AppData, rows: Array<{ table: Op["table"]; row: Entity }>): AppData {
-  if (rows.length === 0) return data;
-  const next = { ...data };
-  for (const { table, row } of rows) {
-    const list = next[table] as Entity[];
-    if (!list.some((existing) => existing.id === row.id)) next[table] = [...list, row] as never;
-  }
-  return next;
-}
-
-function upsertRows(data: AppData, rows: Array<{ table: Op["table"]; row: Entity }>): AppData {
+/**
+ * Write rows into a copy of `data`. An ABSENT id is always appended; `replaceExisting` decides what
+ * a PRESENT id means, and the difference is load-bearing:
+ *   - `true` (replace-or-append) makes an authoritative receipt win over whatever the snapshot held
+ *     — the unarchive path, where a normal archive already advanced `lastSynced` past the row but a
+ *     teardown archive deliberately did not, so both shapes must land on the receipt's copy;
+ *   - `false` (APPEND-IF-ABSENT, NEVER OVERWRITE) re-inserts a row the snapshot is missing without
+ *     ever clobbering a copy that is already there — the absence check is a defensive no-dup guard,
+ *     not an update.
+ */
+function writeRows(
+  data: AppData,
+  rows: Array<{ table: Op["table"]; row: Entity }>,
+  opts: { replaceExisting: boolean },
+): AppData {
   if (rows.length === 0) return data;
   const next = { ...data };
   for (const { table, row } of rows) {
     const list = next[table] as Entity[];
     const exists = list.some((existing) => existing.id === row.id);
-    next[table] = (
-      exists ? list.map((existing) => (existing.id === row.id ? row : existing)) : [...list, row]
-    ) as never;
+    if (!exists) next[table] = [...list, row] as never;
+    else if (opts.replaceExisting)
+      next[table] = list.map((existing) => (existing.id === row.id ? row : existing)) as never;
   }
   return next;
 }
@@ -276,7 +326,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // The seedGen at the moment `queued` was last written — pairs a parked save with the snapshot
   // generation it was diffed-to-be against.
   private queuedSeedGen = 0;
-  private acknowledgedRevisions = new Map<string, { client: string; server: CommittedRevision }>();
+  private acknowledgedRevisions = new Map<string, AcknowledgedRevision>();
   /** Lifecycle rows this adapter successfully archived after a local disappearance. If the same id
    * returns through undo/redo, it must be unarchived before ordinary descendant writes can land. */
   private archivedBySync = new Set<string>();
@@ -306,18 +356,29 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     });
   }
 
+  /** Regroup the flat key→translation map into table→(id→translation) ONCE per pass, so a whole-table
+   *  scan can look rows up by plain id instead of composing a key string per row. */
+  private acknowledgedByTable(): Map<keyof AppData, Map<string, AcknowledgedRevision>> {
+    const byTable = new Map<keyof AppData, Map<string, AcknowledgedRevision>>();
+    for (const [key, acknowledged] of this.acknowledgedRevisions) {
+      const [table, id] = rowKeyParts(key);
+      let rows = byTable.get(table as keyof AppData);
+      if (!rows) {
+        rows = new Map<string, AcknowledgedRevision>();
+        byTable.set(table as keyof AppData, rows);
+      }
+      rows.set(id, acknowledged);
+    }
+    return byTable;
+  }
+
   private canonicalizeAcknowledged(data: AppData): AppData {
     if (this.acknowledgedRevisions.size === 0) return data;
-    const affectedTables = new Set<keyof AppData>();
-    for (const key of this.acknowledgedRevisions.keys()) {
-      affectedTables.add(key.slice(0, key.indexOf("\0")) as keyof AppData);
-    }
     const next = { ...data };
     let changed = false;
-    for (const table of affectedTables) {
+    for (const [table, acknowledgedById] of this.acknowledgedByTable()) {
       next[table] = data[table].map((row) => {
-        const key = `${table}\0${row.id}`;
-        const acknowledged = this.acknowledgedRevisions.get(key);
+        const acknowledged = acknowledgedById.get(row.id);
         if (!acknowledged || row.updatedAt !== acknowledged.client) return row;
         changed = true;
         // DURABLE translation, NOT consume-once — the entry MUST survive this diff. Nothing ever
@@ -358,12 +419,13 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   private rememberRevisions(ops: Op[], revisions: CommittedRevision[]): void {
-    const byRow = new Map(revisions.map((revision) => [`${revision.table}\0${revision.id}`, revision]));
+    const byRow = new Map(revisions.map((revision) => [rowKey(revision.table, revision.id), revision]));
     for (const op of ops) {
       if (op.method !== "PUT" || !op.row) continue;
-      const server = byRow.get(`${op.table}\0${op.id}`);
+      const key = rowKey(op.table, op.id);
+      const server = byRow.get(key);
       if (server)
-        this.acknowledgedRevisions.set(`${op.table}\0${op.id}`, {
+        this.acknowledgedRevisions.set(key, {
           client: op.row.updatedAt,
           server,
         });
@@ -373,12 +435,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   /** Drop translations for rows absent from the fully committed target. Defer this until lifecycle
    * convergence has restored any failed archives, so retryable disappearances keep their mapping. */
   private pruneAcknowledgedRevisions(data: AppData): void {
-    const live = new Set<string>();
-    for (const table of Object.keys(data) as Array<keyof AppData>) {
-      for (const row of data[table]) live.add(`${table}\0${row.id}`);
-    }
-    for (const key of this.acknowledgedRevisions.keys()) {
-      if (!live.has(key)) this.acknowledgedRevisions.delete(key);
+    // Nothing to prune, and — since only the tables the surviving translations MENTION can decide a
+    // key's fate — never a reason to index every row of every table just to answer a handful of ids.
+    if (this.acknowledgedRevisions.size === 0) return;
+    for (const [table, acknowledgedById] of this.acknowledgedByTable()) {
+      const live = new Set<string>((data[table] as Entity[] | undefined)?.map((row) => row.id));
+      for (const id of acknowledgedById.keys()) {
+        if (!live.has(id)) this.acknowledgedRevisions.delete(rowKey(table, id));
+      }
     }
   }
 
@@ -442,10 +506,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // hasNonArrayKnownTable: repair within a record, reject a structurally broken one — never coerce
       // a broken table to [] and report it as success.) The cross-tenant (wrong accountId) checks
       // inside validateAccountSlice keep their FULL strictness regardless.
-      if (!json || typeof json !== "object" || Array.isArray(json)) {
+      if (!isRecord(json)) {
         throw new Error("The server returned an invalid state payload.");
       }
-      const record = json as Record<string, unknown>;
+      const record = json;
       if (KNOWN_KEYS.some((key) => key in record && !Array.isArray(record[key]))) {
         throw new Error("The server returned an invalid state payload.");
       }
@@ -524,32 +588,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // failures: route them to the retry screen instead of presenting old data as ordinary offline
       // mode. Browser fetch reports network/DNS/TLS failures as TypeError.
       const offlineEligible = e instanceof TypeError;
-      if (accountId === undefined && offlineEligible) {
-        try {
-          const cachedIdentity = await readCachedAuthSnapshot({
-            acceptEffects: () => myGen === this.loadGen,
-          });
-          if (cachedIdentity) {
-            const empty = emptyAppData();
-            if (myGen === this.loadGen) this.seedSnapshot(empty);
-            if (myGen === this.loadGen) setOfflineReadState("tenant", true, cachedIdentity.savedAt);
-            return empty;
-          }
-        } catch (cacheError) {
-          console.warn("ServerSyncAdapter: the offline identity snapshot could not be read", cacheError);
-        }
-      }
-      if (accountId !== undefined && offlineEligible) {
-        try {
-          const cached = await readCachedAccountSlice(accountId);
-          if (cached) {
-            if (myGen === this.loadGen) this.seedSnapshot(cached.value, accountId);
-            if (myGen === this.loadGen) setOfflineReadState("tenant", true, cached.savedAt);
-            return cached.value;
-          }
-        } catch (cacheError) {
-          console.warn("ServerSyncAdapter: the offline account snapshot could not be read", cacheError);
-        }
+      if (offlineEligible) {
+        const cached = await this.hydrateFromOfflineCache(accountId, myGen);
+        if (cached !== null) return cached;
       }
       // A rejected fetch (server down / network error), a non-OK status, or an
       // unreadable server payload are ALL remote conditions: the user recovers by
@@ -562,21 +603,56 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
+  /**
+   * loadAll's offline tail, reached ONLY after the request proved the service unreachable (a fetch
+   * TypeError). Returns the snapshot to hydrate from, or `null` when nothing usable is cached and
+   * the caller must surface the LoadError.
+   *
+   * Both arms are generation-guarded on `myGen`: a superseded load may still READ the cache, but
+   * must not seed the adapter snapshot or flip the app into offline-read mode behind a newer load.
+   * A cache read that throws is a degraded local store, never a reason to hide the real remote
+   * failure — it is warned about and falls through to the caller's LoadError.
+   */
+  private async hydrateFromOfflineCache(accountId: string | undefined, myGen: number): Promise<AppData | null> {
+    if (accountId === undefined) {
+      try {
+        const cachedIdentity = await readCachedAuthSnapshot({
+          acceptEffects: () => myGen === this.loadGen,
+        });
+        if (cachedIdentity) {
+          const empty = emptyAppData();
+          if (myGen === this.loadGen) this.seedSnapshot(empty);
+          if (myGen === this.loadGen) setOfflineReadState("tenant", true, cachedIdentity.savedAt);
+          return empty;
+        }
+      } catch (cacheError) {
+        console.warn("ServerSyncAdapter: the offline identity snapshot could not be read", cacheError);
+      }
+      return null;
+    }
+    try {
+      const cached = await readCachedAccountSlice(accountId);
+      if (cached) {
+        if (myGen === this.loadGen) this.seedSnapshot(cached.value, accountId);
+        if (myGen === this.loadGen) setOfflineReadState("tenant", true, cached.savedAt);
+        return cached.value;
+      }
+    } catch (cacheError) {
+      console.warn("ServerSyncAdapter: the offline account snapshot could not be read", cacheError);
+    }
+    return null;
+  }
+
   async hasExisting(): Promise<boolean> {
     const res = await this.request(`${this.baseUrl}/api/meta`, {
       credentials: "include",
     });
     if (!res.ok) throw new Error(`Failed to read meta (${res.status})`);
     const json: unknown = await res.json();
-    if (
-      !json ||
-      typeof json !== "object" ||
-      Array.isArray(json) ||
-      typeof (json as { hasData?: unknown }).hasData !== "boolean"
-    ) {
+    if (!isRecord(json) || typeof json.hasData !== "boolean") {
       throw new Error("The server returned an invalid meta payload.");
     }
-    return (json as { hasData: boolean }).hasData;
+    return json.hasData;
   }
 
   async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
@@ -756,7 +832,11 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           if (row) unconverged.push({ table: op.table, row });
         }
       }
-      committedTarget = restoreRows(committedTarget, unconverged);
+      // Re-insert lifecycle rows whose out-of-batch archive did NOT converge back into the advanced
+      // snapshot, so the NEXT diff re-emits their DELETE and the adapter keeps trying (rather than
+      // silently dropping the deletion intent by advancing past an archive that never landed). The
+      // row is the pre-delete copy read from the current snapshot, so never overwrite a live one.
+      committedTarget = writeRows(committedTarget, unconverged, { replaceExisting: false });
       // Advance the snapshot ONLY if no seed landed while this batch was in flight — a reload's
       // fresh seed must win over our pre-reload target, or snapshot and store desync. Checked via
       // seedGen, NOT loadGen: loadGen bumps at fetch START, so a load already in flight when this
@@ -793,7 +873,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   private lifecycleKey(op: Pick<Op, "table" | "id">): string {
-    return `${op.table}\0${op.id}`;
+    return rowKey(op.table, op.id);
   }
 
   private isRememberedLifecycleReappearance(op: Op): boolean {
@@ -801,6 +881,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   private rememberedLifecycleRestoreOps(target: AppData): Op[] {
+    // Nothing was ever archived by this session, so no reappearance can need reversing — skip the
+    // whole-lifecycle-table scan (the common case on every save).
+    if (this.archivedBySync.size === 0) return [];
     const ops: Op[] = [];
     for (const table of LIFECYCLE_ENTITY_KEYS) {
       for (const row of target[table]) {
@@ -839,7 +922,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       };
       // A normal archive advanced lastSynced past the row, while a teardown archive deliberately
       // did not. Replace-or-append handles both and makes the unarchive receipt authoritative.
-      this.lastSynced = upsertRows(this.lastSynced, [{ table: op.table, row }]);
+      this.lastSynced = writeRows(this.lastSynced, [{ table: op.table, row }], { replaceExisting: true });
       const key = this.lifecycleKey(op);
       this.acknowledgedRevisions.delete(key);
       if (sameEntityContent(op.row, row)) this.rememberRevisions([op], [revision]);
@@ -860,7 +943,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     });
     // Unarchive is a destructive-write reversal and goes through `this.request` (raw fetchImpl), not
     // apiFetch, so it must check the audit-degradation header itself — mirroring the batch path below.
-    if (res.headers.get("x-capacitylens-audit-warning") === "true") announceAuditWarning();
+    // Announced SYNCHRONOUSLY (no `defer`): background sync raises no competing success notice, and
+    // the caller may throw on the very next line.
+    noteAuditWarning(res);
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       throw new LifecycleRestoreError(`Lifecycle restore of ${op.table}/${op.id} failed (${res.status}).`, {
@@ -869,20 +954,20 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
     const body: unknown = await res.json().catch(() => null);
     if (
-      typeof body !== "object" ||
-      body === null ||
-      Array.isArray(body) ||
-      (body as { id?: unknown }).id !== op.id ||
-      typeof (body as { createdAt?: unknown }).createdAt !== "string" ||
-      typeof (body as { updatedAt?: unknown }).updatedAt !== "string" ||
-      (body as { archivedAt?: unknown }).archivedAt !== undefined ||
-      (body as { deletedAt?: unknown }).deletedAt !== undefined
+      !isRecord(body) ||
+      body.id !== op.id ||
+      typeof body.createdAt !== "string" ||
+      typeof body.updatedAt !== "string" ||
+      body.archivedAt !== undefined ||
+      body.deletedAt !== undefined
     ) {
       // The transition may already have committed. Force an authoritative reload rather than
       // guessing its revision and issuing a stale generic write.
       throw new LifecycleRestoreError(`Lifecycle restore of ${op.table}/${op.id} returned an invalid receipt.`);
     }
-    return body as Entity;
+    // The checks above prove the three Entity members; the rest of the row is server-shaped payload
+    // this adapter deliberately passes through untouched, so widen through `unknown`.
+    return body as unknown as Entity;
   }
 
   // Converge a sync-originated lifecycle-entity disappearance (clients/projects/resources) by ARCHIVING
@@ -920,41 +1005,42 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     );
     // Same gap as unarchiveLifecycleRow above: this dedicated route bypasses apiFetch, so the
     // audit-degradation header on this destructive write would otherwise be silently dropped.
-    if (res.headers.get("x-capacitylens-audit-warning") === "true") announceAuditWarning();
+    // Announced SYNCHRONOUSLY (no `defer`) for the same reason as unarchive.
+    noteAuditWarning(res);
+    // A response body can only be read ONCE, and every failure arm below wants the same two views of
+    // it: the raw text (safeResponseError attaches it as the diagnostic cause) and its best-effort
+    // JSON envelope. Read and parse each exactly once, here, before branching on status.
+    //
+    // The parse is deliberately allowed to fail without surfacing: an unreadable CONFLICT body cannot
+    // prove convergence and is surfaced by the throw below; and since a proxy or missing route can
+    // also return 404, only the API's exact row-absence envelope proves the lifecycle intent has
+    // converged — anything else likewise falls through to a throw.
+    const detail = res.ok ? "" : await res.text().catch(() => "");
+    let envelope: { code?: unknown; error?: unknown } | null;
+    try {
+      envelope = detail ? (JSON.parse(detail) as { code?: unknown; error?: unknown }) : null;
+    } catch {
+      // Unparseable body — left null, which every arm below treats as "unproven" and surfaces.
+      envelope = null;
+    }
     if (res.status === 409) {
-      const detail = await res.text().catch(() => "");
-      let conflict: { code?: unknown; error?: unknown } | null = null;
-      try {
-        conflict = JSON.parse(detail) as { code?: unknown; error?: unknown };
-      } catch {
-        // An unreadable conflict body cannot prove convergence and is surfaced below.
-      }
-      if (conflict?.code === "already_inactive") {
+      if (envelope?.code === "already_inactive") {
         this.archivedBySync.add(this.lifecycleKey(op));
         return;
       }
-      if (typeof conflict?.error === "string") {
-        throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}): ${conflict.error}`);
+      if (typeof envelope?.error === "string") {
+        throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}): ${envelope.error}`);
       }
       throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
     }
     if (res.status === 404) {
-      const detail = await res.text().catch(() => "");
-      let notFound: { error?: unknown } | null = null;
-      try {
-        notFound = JSON.parse(detail) as { error?: unknown };
-      } catch {
-        // A proxy or missing route can also return 404. Only the API's exact row-absence envelope
-        // proves that the lifecycle intent has converged.
-      }
-      if (notFound?.error === "Not found") {
+      if (envelope?.error === "Not found") {
         this.archivedBySync.delete(this.lifecycleKey(op));
         return;
       }
       throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
     }
     if (!res.ok) {
-      const detail = await res.text().catch(() => "");
       throw safeResponseError(`Lifecycle archive of ${op.table}/${op.id}`, res.status, detail);
     }
     this.archivedBySync.add(this.lifecycleKey(op));
@@ -1031,6 +1117,18 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     sequence: number,
     opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
   ): Promise<BatchCommitReceipt> {
+    const res = await this.sendBatch(body, sequence, opts);
+    await this.throwForBatchStatus(res);
+    return this.readBatchReceipt(res, ops, opts);
+  }
+
+  /** Dispatch stage: build and send the request, mapping a transport-level failure to the typed
+   *  uncertain-commit error (the request may have been applied before the connection died). */
+  private async sendBatch(
+    body: string,
+    sequence: number,
+    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  ): Promise<Response> {
     let res: Response;
     try {
       res = await this.request(
@@ -1061,29 +1159,32 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       }
       throw error;
     }
+    return res;
+  }
+
+  /** Classification stage: turn a non-OK batch status into the typed error persist.ts branches on.
+   *  Returns without effect for a 2xx — the receipt is validated by readBatchReceipt. */
+  private async throwForBatchStatus(res: Response): Promise<void> {
     if (!res.ok) {
       // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
       // `{ error, current }`). Throw the TYPED BatchConflictError so persist.ts can resolve it
       // by reloading (server wins) — retrying the same stale diff is deterministic futility.
       // Body parse is best-effort: an unreadable body still yields a conflict error.
       if (res.status === 409) {
-        const body = (await res.json().catch(() => null)) as {
-          error?: string;
-          current?: unknown;
-        } | null;
-        throw new BatchConflictError(body?.error ?? "Batch sync failed (409): stale write conflict", body?.current);
+        const body = (await res.json().catch(() => null)) as { current?: unknown } | null;
+        throw new BatchConflictError(
+          apiErrorFromBody(body) ?? "Batch sync failed (409): stale write conflict",
+          body?.current,
+        );
       }
       // A referential or other domain validation failure is equally deterministic. It commonly
       // means another editor archived a parent that this tab's stale slice still showed as active.
       // Give persist.ts a typed signal so it can discard the rejected diff through an authoritative
       // reload instead of re-posting it on every backoff, focus and online event forever.
       if (res.status === 400) {
-        const body = (await res.json().catch(() => null)) as {
-          error?: string;
-          code?: unknown;
-        } | null;
+        const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
         throw new BatchValidationError(
-          body?.error ?? "Batch sync failed (400): validation rejected",
+          apiErrorFromBody(body) ?? "Batch sync failed (400): validation rejected",
           isDomainErrorCode(body?.code) ? body.code : undefined,
         );
       }
@@ -1093,6 +1194,15 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       const detail = await res.text().catch(() => "");
       throw safeResponseError("Batch sync", res.status, detail);
     }
+  }
+
+  /** Reconciliation stage: validate the commit receipt, then fold its server revisions and lifecycle
+   *  archive confirmations into the {@link BatchCommitReceipt} the caller advances the snapshot with. */
+  private async readBatchReceipt(
+    res: Response,
+    ops: Op[],
+    opts?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+  ): Promise<BatchCommitReceipt> {
     const receipt = (await res.json().catch(() => null)) as {
       ok?: unknown;
       applied?: unknown;
@@ -1113,9 +1223,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     if (receipt.superseded !== undefined && typeof receipt.superseded !== "boolean") {
       throw new BatchCommitUncertainError("Batch sync returned an invalid ordering receipt.");
     }
-    if (receipt.auditWarning === true || res.headers.get("x-capacitylens-audit-warning") === "true") {
-      announceAuditWarning();
-    }
+    // The batch receipt can flag audit degradation in its BODY as well as the shared header; the
+    // header half goes through the same synchronous helper as the lifecycle routes above.
+    if (receipt.auditWarning === true) announceAuditWarning();
+    else noteAuditWarning(res);
     const rawRevisions = Array.isArray(receipt.revisions) ? receipt.revisions : [];
     if (!Array.isArray(receipt.revisions))
       warnCompatibilityOnce(
@@ -1141,12 +1252,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       );
 
     const expected = new Set(
-      receipt.superseded === true ? [] : ops.filter((op) => op.method === "PUT").map((op) => `${op.table}\0${op.id}`),
+      receipt.superseded === true ? [] : ops.filter((op) => op.method === "PUT").map((op) => rowKey(op.table, op.id)),
     );
     const received = new Set<string>();
     const compatibleRevisions: CommittedRevision[] = [];
     for (const revision of revisions) {
-      const key = `${revision.table}\0${revision.id}`;
+      const key = rowKey(revision.table, revision.id);
       if (!expected.has(key) || received.has(key)) {
         warnCompatibilityOnce(
           "batch-mismatched-revisions",
@@ -1167,7 +1278,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         ? []
         : ops
             .filter((op) => op.method === "DELETE" && isLifecycleEntityKey(op.table))
-            .map((op) => `${op.table}\0${op.id}`),
+            .map((op) => rowKey(op.table, op.id)),
     );
     const rawArchives = Array.isArray(receipt.archives) ? receipt.archives : [];
     if (expectedArchives.size > 0 && !Array.isArray(receipt.archives)) {
@@ -1180,7 +1291,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
       }
       const value = archiveReceipt as { table?: unknown; id?: unknown; archived?: unknown };
-      const key = `${String(value.table)}\0${String(value.id)}`;
+      const key = rowKey(String(value.table), String(value.id));
       if (
         typeof value.table !== "string" ||
         !isLifecycleEntityKey(value.table) ||

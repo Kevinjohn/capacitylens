@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
-import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { PAST_BUFFER_DAYS, type WeeksZoom } from "../lib/schedulerConfig";
+import { type WeeksZoom } from "../lib/schedulerConfig";
 import {
   deleteClientCascade,
   deleteDisciplineCascade,
@@ -36,9 +35,14 @@ import type { ThemePref } from "../lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { buildInternalClient, isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
-import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppDataKey } from "@capacitylens/shared/types/entities";
+import {
+  APP_DATA_KEYS,
+  clampHoursPerDay,
+  clampWorkingHoursPerDay,
+  emptyAppData,
+} from "@capacitylens/shared/types/entities";
 import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
-import { timeZoneFor, weekStartsOnFor } from "./selectors";
 import type {
   Account,
   Allocation,
@@ -58,8 +62,8 @@ import type {
   Weekday,
 } from "@capacitylens/shared/types/entities";
 import { createRuntimeSlice } from "./slices/runtimeSlice";
-import { createSchedulerSlice } from "./slices/schedulerSlice";
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { createSchedulerSlice, weekAnchor } from "./slices/schedulerSlice";
+import { isWeekdaySet, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -168,6 +172,18 @@ export const emptyFilters = (): Filters => ({
   search: "",
   hideTentative: false,
   showUnmatched: false,
+});
+
+/** Drop the ENTITY lenses (discipline / client / project / activity) while leaving the text search
+ *  and the tentative/unmatched view preferences exactly as the user set them. Used where new data
+ *  arrives under the same tenant and the old lens ids no longer resolve. */
+export const clearEntityLenses = (filters: Filters): Filters => ({
+  ...filters,
+  disciplineId: null,
+  clientId: null,
+  projectId: null,
+  activityId: null,
+  activityKind: null,
 });
 
 export function hasActiveFilters(f: Filters): boolean {
@@ -487,24 +503,33 @@ const MAX_DATE_MS = 8_640_000_000_000_000;
 // overflow the engine's argument limit (RangeError), failing an undo/redo or cascade-delete
 // outright. Iterating an array is unbounded-safe. `touchAfter` keeps the ergonomic variadic shape
 // for the many few-arg callers by delegating here.
+const advancePast = (value: string | undefined, next: number): number => {
+  if (!value) return next;
+  const parsed = Date.parse(value);
+  // The maximum representable Date is valid ISO input but has no representable successor. Refuse
+  // the write explicitly; publishing Date.now() here would silently move its revision backwards.
+  if (parsed === MAX_DATE_MS) {
+    throw new Error("Cannot update data whose revision has no representable successor.");
+  }
+  return Number.isFinite(parsed) && parsed >= next ? parsed + 1 : next;
+};
 const touchAfterAll = (timestamps: Array<string | undefined>): string => {
   let next = Date.now();
-  for (const value of timestamps) {
-    if (!value) continue;
-    const parsed = Date.parse(value);
-    // The maximum representable Date is valid ISO input but has no representable successor. Refuse
-    // the write explicitly; publishing Date.now() here would silently move its revision backwards.
-    if (parsed === MAX_DATE_MS) {
-      throw new Error("Cannot update data whose revision has no representable successor.");
-    }
-    if (Number.isFinite(parsed) && parsed >= next) next = parsed + 1;
-  }
+  for (const value of timestamps) next = advancePast(value, next);
   return new Date(next).toISOString();
 };
 const touchAfter = (...timestamps: Array<string | undefined>): string => touchAfterAll(timestamps);
-const dataTimestamps = (data: AppData): string[] =>
-  (Object.values(data) as Entity[][]).flatMap((rows) => rows.map((row) => row.updatedAt));
-const nextDataRevision = (data: AppData): string => touchAfterAll(dataTimestamps(data));
+// Fold a WHOLE tenant's revisions into the running maximum in ONE pass. Materialising the
+// timestamps first would allocate an array per table (tens of thousands of strings on a large
+// account) for a value only ever reduced to a single number.
+const advanceOverData = (data: AppData, next: number): number => {
+  let result = next;
+  for (const rows of Object.values(data) as Entity[][]) {
+    for (const row of rows) result = advancePast(row.updatedAt, result);
+  }
+  return result;
+};
+const nextDataRevision = (data: AppData): string => new Date(advanceOverData(data, Date.now())).toISOString();
 
 /**
  * Undo/redo restores historical values, but `updatedAt` is a synchronization revision rather than
@@ -513,7 +538,7 @@ const nextDataRevision = (data: AppData): string => touchAfterAll(dataTimestamps
  * stale. Rows recreated from deletion need no stamp because the server has no current row to beat.
  */
 function prepareHistoryTarget(current: AppData, target: AppData): AppData {
-  const now = touchAfterAll(dataTimestamps(current).concat(dataTimestamps(target)));
+  const now = new Date(advanceOverData(target, advanceOverData(current, Date.now()))).toISOString();
   const retime = <T extends Entity>(beforeRows: T[], targetRows: T[]): T[] => {
     // Immutable mutations structurally share every untouched table. Preserve that array wholesale;
     // even within a changed table, untouched rows retain object identity and need no serialization.
@@ -528,17 +553,14 @@ function prepareHistoryTarget(current: AppData, target: AppData): AppData {
         : row;
     });
   };
-  return {
-    accounts: retime(current.accounts, target.accounts),
-    disciplines: retime(current.disciplines, target.disciplines),
-    resources: retime(current.resources, target.resources),
-    clients: retime(current.clients, target.clients),
-    projects: retime(current.projects, target.projects),
-    phases: retime(current.phases, target.phases),
-    activities: retime(current.activities, target.activities),
-    allocations: retime(current.allocations, target.allocations),
-    timeOff: retime(current.timeOff, target.timeOff),
-  };
+  // Driven by the shared key list (same altitude as hasSameEntityRevisions below) so a new AppData
+  // table can't be silently dropped from the history transition by a missed hand-written line. The
+  // row type is erased to Entity here; each table's real type is restored by the AppData return.
+  const next = emptyAppData() as Record<AppDataKey, Entity[]>;
+  for (const key of APP_DATA_KEYS) {
+    next[key] = retime(current[key] as Entity[], target[key] as Entity[]);
+  }
+  return next as AppData;
 }
 
 /** True when a server refresh republishes the same authoritative entity revisions. */
@@ -556,6 +578,43 @@ function hasSameEntityRevisions(current: AppData, replacement: AppData): boolean
 }
 
 const HISTORY_LIMIT = 50;
+
+/** How each tombstone table is physically removed at the END of the lifecycle (purgeEntity): the
+ *  row AND its children go together, via the SAME cascades the regular delete* actions use
+ *  (single-sourced from shared/lib/integrity.ts — no drift). The resource cascade re-stamps
+ *  nothing, so it alone needs no fresh revision. */
+const PURGE_CASCADES: Record<LifecycleEntity, (data: AppData, id: ID) => AppData> = {
+  resources: (data, id) => deleteResourceCascade(data, id),
+  clients: (data, id) => deleteClientCascade(data, id, nextDataRevision(data)),
+  projects: (data, id) => deleteProjectCascade(data, id, nextDataRevision(data)),
+};
+
+// --- Tenant-boundary resets ----------------------------------------------------------------------
+// Deleting, switching, publishing a slice without the active tenant, or importing over one all cross
+// a tenant boundary, and none of them may carry the LEAVING account's transient session state or
+// scheduler view into what is shown next. The field sets live here ONCE so a boundary can't quietly
+// forget one; each site keeps only what is specific to it (which notice, whether the week is
+// re-anchored, which filters survive).
+
+/** Every transient, tenant-owned session field, cleared. `notice` is deliberately NOT included:
+ *  each boundary has its own message (or none). */
+const clearedSession = () => ({
+  srAnnouncement: null,
+  dirtyForm: false,
+  dirtyFormSources: new Set<symbol>(),
+  draggingAllocationId: null,
+});
+
+/** The scheduler view blanked for the incoming tenant. Pass an `anchor` ({@link weekAnchor}) to ALSO
+ *  open on that account's current week; omit it where the week in view must be preserved. */
+const resetSchedulerView = (ui: SchedulerUI, anchor?: { originDate: ISODate; focusDate: ISODate }): SchedulerUI => ({
+  ...ui,
+  filters: emptyFilters(),
+  collapsedGroups: [],
+  selectedAllocationId: null,
+  scrollToResource: null,
+  ...anchor,
+});
 
 export const useStore = create<StoreState>()((set, get, store) => {
   // Every data mutation goes through mutate(): it snapshots the previous data
@@ -627,34 +686,37 @@ export const useStore = create<StoreState>()((set, get, store) => {
     findOwnedIn(d, requireAccount(), key, id);
   const assertAllocation = assertAllocationRefs;
 
+  // The built-in "Internal" client is a FIXED bucket — every account must keep exactly one — so it
+  // may be neither renamed nor moved through the lifecycle. One guard for all four rejecting
+  // actions, each supplying the verb its message ends with. A non-client entity, a stale id and an
+  // ordinary client all pass. Throws a display-safe message: surface, don't swallow (the callers
+  // catch and show it; the UI also hides the affordance). See shared/src/data/internalClient.ts.
+  const assertNotBuiltinClient = (entity: ScopedEntityKey, id: ID, verb: "renamed" | "archived" | "deleted"): void => {
+    if (entity !== "clients") return;
+    const client = findOwned(get().data, "clients", id);
+    if (client && isBuiltinClient(client)) {
+      throw new Error(`The Internal client is built in and cannot be ${verb}.`);
+    }
+  };
+
   // Value-level integrity backstop: a resource with zero working days has no capacity
   // any day. The form guards this, but the store is the last line so no path can persist
   // it. (The import path instead REPAIRS an empty set to Mon–Fri — see sanitizeImport.)
+  // The three guards share ONE shape rule — a distinct set of in-week weekday numbers, from the
+  // shared isWeekdaySet — and differ ONLY in the extra policy each adds: a resource must work at
+  // least one day, a company may legitimately work none, and a half day must be a working day.
   const assertWorkingDays = (days: Weekday[]): void => {
-    if (
-      !Array.isArray(days) ||
-      days.length === 0 ||
-      new Set(days).size !== days.length ||
-      days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
-    ) {
+    if (!isWeekdaySet(days) || days.length === 0) {
       throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");
     }
   };
   const assertAccountWorkingDays = (days: Weekday[]): void => {
-    if (
-      !Array.isArray(days) ||
-      new Set(days).size !== days.length ||
-      days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
-    ) {
+    if (!isWeekdaySet(days)) {
       throw new Error("Company working days must be unique whole-number weekdays from 0 to 6.");
     }
   };
   const assertHalfDays = (halfDays: Weekday[], workingDays: Weekday[]): void => {
-    if (
-      !Array.isArray(halfDays) ||
-      new Set(halfDays).size !== halfDays.length ||
-      halfDays.some((day) => !Number.isInteger(day) || day < 0 || day > 6 || !workingDays.includes(day))
-    ) {
+    if (!isWeekdaySet(halfDays) || halfDays.some((day) => !workingDays.includes(day))) {
       throw new Error("Half days must be unique whole-number weekdays contained in the working week.");
     }
   };
@@ -738,7 +800,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       ...stamp(),
     }));
     // Preserve the existing add* contract: a Viewer receives a constructed return value plus the
-    // visible read-only notice, but no validation or state mutation runs.
+    // visible read-only notice, but no validation or state mutation runs. Hand-gated rather than
+    // wrapped in `guarded`, whose blocked value is fixed up front: here it is the batch this call
+    // just built, which only exists after the pre-check work above.
     if (blockedByViewer()) return allocations;
     const data = get().data;
     for (const allocation of allocations) {
@@ -748,6 +812,30 @@ export const useStore = create<StoreState>()((set, get, store) => {
     mutate((d) => ({ ...d, allocations: [...d.allocations, ...allocations] }));
     return allocations;
   };
+
+  // Replace the active account's slice from an import (see the importData action for the id-remap
+  // rationale). Wrapped in the shared viewer gate, whose zero-effect summary reports honestly that
+  // nothing was imported or skipped.
+  const importSlice = guarded(
+    (accountId: ID, incoming: AppData): ImportSummary => {
+      const result = remapAndValidateImport(get().data, accountId, incoming, touch());
+      // Refuse a zero-record import rather than wiping the account's existing slice.
+      // Replacing a company's data with nothing is never the intent (delete is the
+      // explicit path for that), and a truncated/empty file otherwise slips past the
+      // shape-only file guard and silently clears the account.
+      if (result.imported === 0) return { imported: 0, skipped: result.skipped };
+      set((state) => ({
+        data: result.data,
+        past: [...state.past, state.data].slice(-HISTORY_LIMIT),
+        future: [],
+        // The incoming rows carry FRESH ids, so the entity lenses can no longer resolve; the search
+        // text and the tentative/unmatched preferences are the user's own and survive.
+        ui: { ...resetSchedulerView(state.ui), filters: clearEntityLenses(state.ui.filters) },
+      }));
+      return { imported: result.imported, skipped: result.skipped };
+    },
+    { imported: 0, skipped: 0 },
+  );
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
@@ -840,7 +928,6 @@ export const useStore = create<StoreState>()((set, get, store) => {
       }
       set((s) => {
         const data = deleteAccountCascade(s.data, id);
-        const weekStart = startOfWeekISO(todayISO(timeZoneFor(data, null)), weekStartsOnFor(data, null));
         return {
           data,
           past: [],
@@ -851,19 +938,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
           accountSummariesComplete: true,
           accountSummariesRequestId: s.accountSummariesRequestId + 1,
           notice: null,
-          srAnnouncement: null,
-          dirtyForm: false,
-          dirtyFormSources: new Set<symbol>(),
-          draggingAllocationId: null,
-          ui: {
-            ...s.ui,
-            filters: emptyFilters(),
-            collapsedGroups: [],
-            selectedAllocationId: null,
-            scrollToResource: null,
-            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-            focusDate: weekStart,
-          },
+          ...clearedSession(),
+          // No tenant remains in view, so the week is re-anchored on the app-default calendar.
+          ui: resetSchedulerView(s.ui, weekAnchor(data, null)),
         };
       });
     }),
@@ -893,14 +970,6 @@ export const useStore = create<StoreState>()((set, get, store) => {
       }
       set((s) => {
         const switchingAccount = id !== s.activeAccountId;
-        // Open the switched-into company on the current week (mirrors defaultUI) rather
-        // than inheriting the previous tenant's panned origin/focus. The account's tz/weekStartsOn
-        // come from its slice when loaded; in server mode the slice loads a frame later (the switch
-        // orchestrator awaits the fetch), so fall back to the existing defaults for that one frame
-        // (an acceptable transient — the grid re-anchors when the slice arrives via replaceAll).
-        const tz = timeZoneFor(s.data, id);
-        const wso = weekStartsOnFor(s.data, id);
-        const weekStart = startOfWeekISO(todayISO(tz), wso);
         return {
           activeAccountId: id,
           // A concrete role means membership enforcement is active. Publish the new tenant with a
@@ -925,21 +994,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
                       tone: "error" as const,
                     }
                   : null,
-                srAnnouncement: null,
-                dirtyForm: false,
-                dirtyFormSources: new Set<symbol>(),
-                draggingAllocationId: null,
+                ...clearedSession(),
               }
             : {}),
-          ui: {
-            ...s.ui,
-            filters: emptyFilters(),
-            collapsedGroups: [],
-            selectedAllocationId: null,
-            scrollToResource: null,
-            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-            focusDate: weekStart,
-          },
+          // Open the switched-into company on the current week (mirrors defaultUI) rather
+          // than inheriting the previous tenant's panned origin/focus. The account's tz/weekStartsOn
+          // come from its slice when loaded; in server mode the slice loads a frame later (the switch
+          // orchestrator awaits the fetch), so fall back to the existing defaults for that one frame
+          // (an acceptable transient — the grid re-anchors when the slice arrives via replaceAll).
+          ui: resetSchedulerView(s.ui, weekAnchor(s.data, id)),
         };
       });
     },
@@ -992,19 +1055,11 @@ export const useStore = create<StoreState>()((set, get, store) => {
               message: m.notice_company_not_found(),
               tone: "error" as const,
             },
-            srAnnouncement: null,
-            dirtyForm: false,
-            dirtyFormSources: new Set<symbol>(),
-            draggingAllocationId: null,
+            ...clearedSession(),
             past: [],
             future: [],
-            ui: {
-              ...state.ui,
-              filters: emptyFilters(),
-              collapsedGroups: [],
-              selectedAllocationId: null,
-              scrollToResource: null,
-            },
+            // No anchor: a publication is not a navigation, so the week in view is left alone.
+            ui: resetSchedulerView(state.ui),
           };
         }
         // Same-account refreshes reconcile server state in the background and must preserve the
@@ -1017,16 +1072,11 @@ export const useStore = create<StoreState>()((set, get, store) => {
           // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
           return unchangedActiveSlice ? { data } : { data, past: [], future: [] };
         }
-        const weekStart = startOfWeekISO(todayISO(timeZoneFor(data, account.id)), weekStartsOnFor(data, account.id));
         return {
           data,
           past: [],
           future: [],
-          ui: {
-            ...state.ui,
-            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-            focusDate: weekStart,
-          },
+          ui: { ...state.ui, ...weekAnchor(data, account.id) },
         };
       }),
     // Replace only the active account's slice; other accounts and the account
@@ -1037,40 +1087,11 @@ export const useStore = create<StoreState>()((set, get, store) => {
     // different account would otherwise collide — the store matches entities by
     // id GLOBALLY (updateById / cascade scan all accounts), so a shared id would
     // let an edit in one account silently rewrite another's row.
-    importData: (incoming) => {
-      const accountId = requireAccount();
-      // Hand-guarded rather than wrapped in `guarded`: replacing a slice with NO active account is a
-      // programming error for every role, so requireAccount must still throw ahead of the gate.
-      // Viewer no-op (P1.12 defense-in-depth): a read-only user can't replace the account slice.
-      // Return a zero-effect summary (nothing imported/skipped) so the caller reports honestly.
-      if (blockedByViewer()) return { imported: 0, skipped: 0 };
-      const result = remapAndValidateImport(get().data, accountId, incoming, touch());
-      // Refuse a zero-record import rather than wiping the account's existing slice.
-      // Replacing a company's data with nothing is never the intent (delete is the
-      // explicit path for that), and a truncated/empty file otherwise slips past the
-      // shape-only file guard and silently clears the account.
-      if (result.imported === 0) return { imported: 0, skipped: result.skipped };
-      set((state) => ({
-        data: result.data,
-        past: [...state.past, state.data].slice(-HISTORY_LIMIT),
-        future: [],
-        ui: {
-          ...state.ui,
-          selectedAllocationId: null,
-          collapsedGroups: [],
-          scrollToResource: null,
-          filters: {
-            ...state.ui.filters,
-            disciplineId: null,
-            clientId: null,
-            projectId: null,
-            activityId: null,
-            activityKind: null,
-          },
-        },
-      }));
-      return { imported: result.imported, skipped: result.skipped };
-    },
+    // The account is resolved at the CALL, ahead of the shared viewer gate: replacing a slice with
+    // NO active account is a programming error for every role, so requireAccount must still throw
+    // where `guarded` would merely refuse. Viewer no-op (P1.12 defense-in-depth): a read-only user
+    // can't replace the account slice, and gets a zero-effect summary so the caller reports honestly.
+    importData: (incoming) => importSlice(requireAccount(), incoming),
 
     undo: guarded(() => {
       set((s) => {
@@ -1200,11 +1221,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
       const stripped: Record<string, unknown> = { ...patch };
       delete stripped.builtin;
       const safe = stripped as Patch<Client>;
-      updateOwned("clients", id, safe, (merged, existing) => {
-        // The built-in Internal client is protected: it can't be renamed (or recoloured) — it's a
-        // fixed bucket. Throw a display-safe message (the form catches + surfaces it; the UI also
-        // hides the affordance). Surface, don't swallow — see DEFENSIVE-CODING.md.
-        if (isBuiltinClient(existing)) throw new Error("The Internal client is built in and cannot be renamed.");
+      updateOwned("clients", id, safe, (merged) => {
+        // The built-in Internal client can't be renamed (or recoloured) — a fixed bucket.
+        assertNotBuiltinClient("clients", id, "renamed");
         if (!hasUsablePrivateCodeName(merged as unknown as Record<string, unknown>)) {
           throw new Error("A private client requires a code name.");
         }
@@ -1369,13 +1388,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     // can't drift from the cascade the other tables' delete* actions use.
     archiveEntity: guarded((entity: LifecycleEntity, id: ID) => {
       if (!findOwned(get().data, entity, id)) return;
-      // Reject the built-in Internal client — a fixed bucket that may not be archived (mirrors the
-      // builtin guard in updateClient/purgeEntity). Throw a display-safe message; the caller surfaces.
-      if (entity === "clients") {
-        const existing = findOwned(get().data, "clients", id);
-        if (existing && isBuiltinClient(existing))
-          throw new Error("The Internal client is built in and cannot be archived.");
-      }
+      assertNotBuiltinClient(entity, id, "archived");
       // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
       // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
       mutate((d) => ({
@@ -1400,11 +1413,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       if (!findOwned(get().data, entity, id)) return;
       // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
       // for a display-safe message and parity with the delete path.
-      if (entity === "clients") {
-        const existing = findOwned(get().data, "clients", id);
-        if (existing && isBuiltinClient(existing))
-          throw new Error("The Internal client is built in and cannot be deleted.");
-      }
+      assertNotBuiltinClient(entity, id, "deleted");
       // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
       // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
       // string is single-sourced from lifecycle.ts — never hand-written here).
@@ -1450,14 +1459,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
     purgeEntity: guarded((entity: LifecycleEntity, id: ID) => {
       const existing = findOwned(get().data, entity, id);
       if (!existing) return;
-      // The built-in Internal client cannot be purged — every account must keep exactly one. Re-fetch
-      // with the literal 'clients' key so the narrowed Client type satisfies isBuiltinClient (matches
-      // archiveEntity/softDeleteEntity).
-      if (entity === "clients") {
-        const client = findOwned(get().data, "clients", id);
-        if (client && isBuiltinClient(client))
-          throw new Error("The Internal client is built in and cannot be deleted.");
-      }
+      // The built-in Internal client cannot be purged — every account must keep exactly one.
+      assertNotBuiltinClient(entity, id, "deleted");
       // Enforce the grace window: canPurge is false unless this is a soft-deleted tombstone aged at
       // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
       // notice and no-op rather than throw (the throw idiom is reserved for tenancy/integrity bugs).
@@ -1467,13 +1470,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
         get().setNotice(m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }), "error");
         return;
       }
-      // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the
-      // regular delete* actions use (single-sourced from shared/lib/integrity.ts — no drift).
-      mutateIrreversible((d) => {
-        if (entity === "resources") return deleteResourceCascade(d, id);
-        const now = nextDataRevision(d);
-        return entity === "clients" ? deleteClientCascade(d, id, now) : deleteProjectCascade(d, id, now);
-      });
+      // Hard purge: physically remove the row AND cascade its children (see PURGE_CASCADES).
+      mutateIrreversible((d) => PURGE_CASCADES[entity](d, id));
     }),
   };
 });

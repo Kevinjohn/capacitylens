@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hasActiveFilters, useStore } from "./useStore";
-import { resetStoreWithAccount, makeAppData, makeAccount } from "../test/fixtures";
+import { resetStoreWithAccount, makeAppData, makeAccount, makeResourceDraft, WORKDAYS } from "../test/fixtures";
 import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { serializeData } from "@capacitylens/shared/data/transfer";
 import { PAST_BUFFER_DAYS } from "../lib/schedulerConfig";
@@ -9,17 +9,7 @@ import { diffOps } from "../data/syncOps";
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithAccount());
 
-const personDraft = {
-  kind: "person" as const,
-  name: "Ty",
-  role: "Dev",
-  employmentType: "permanent" as const,
-  engagement: "studio" as const,
-  workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5] as const,
-  halfDays: [],
-  color: "#1",
-};
+const personDraft = makeResourceDraft({ name: "Ty", role: "Dev", color: "#1" });
 
 describe("store CRUD", () => {
   it("publishes account deletion without an invalid active-tenant snapshot", () => {
@@ -41,7 +31,7 @@ describe("store CRUD", () => {
   });
 
   it("adds entities with a generated id and timestamps", () => {
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     expect(r.id).toBeTruthy();
     expect(r.createdAt).toBeTruthy();
     expect(r.updatedAt).toBeTruthy();
@@ -76,7 +66,7 @@ describe("store CRUD", () => {
   });
 
   it("updates fields, advances updatedAt and emits a sync PUT", () => {
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     const before = s().data;
     s().updateResource(r.id, { name: "Tyler" });
     const updated = s().data.resources[0];
@@ -102,7 +92,7 @@ describe("store CRUD", () => {
       employmentType: "permanent",
       engagement: "studio" as const,
       workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
+      workingDays: WORKDAYS,
       halfDays: [],
       color: "#1",
       projectId: p1.id,

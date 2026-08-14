@@ -3,7 +3,14 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
+import {
+  DEFAULT_ACCOUNT_ID,
+  makeAppData,
+  makeResource,
+  makeResourceDraft,
+  resetStoreWithAccount,
+  WORKDAYS,
+} from "../test/fixtures";
 
 const s = () => useStore.getState();
 
@@ -16,17 +23,11 @@ beforeEach(() => {
   s().clearFilters();
 });
 
-const personDraft = {
-  kind: "person" as const,
-  name: "Person",
-  role: "Dev",
-  employmentType: "permanent" as const,
-  engagement: "studio" as const,
-  workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5] as Resource["workingDays"],
-  halfDays: [],
-  color: "#1",
-};
+const personDraft = makeResourceDraft({ name: "Person", role: "Dev", color: "#1" });
+
+/** The shared draft seeds isFavourite: false; the two favourite specs pin the ABSENT flag, so they
+ *  add a resource carrying no flag at all. */
+const unflaggedDraft = { ...personDraft, isFavourite: undefined };
 
 describe("store CRUD covers every entity", () => {
   it("accounts: update", () => {
@@ -187,7 +188,7 @@ describe("store CRUD covers every entity", () => {
   });
 
   it("resources: add / update", () => {
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     s().updateResource(r.id, { role: "Lead" });
     expect(s().data.resources[0].role).toBe("Lead");
     expectRevisionAdvanced(r, s().data.resources[0]);
@@ -216,7 +217,7 @@ describe("store CRUD covers every entity", () => {
   });
 
   it("resources: favourite updates are account data and undoable", () => {
-    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const resource = s().addResource({ ...unflaggedDraft });
 
     s().updateResource(resource.id, { isFavourite: true });
     expect(s().data.resources[0].isFavourite).toBe(true);
@@ -226,7 +227,7 @@ describe("store CRUD covers every entity", () => {
   });
 
   it("resources: a viewer cannot change an account favourite", () => {
-    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const resource = s().addResource({ ...unflaggedDraft });
 
     s().setActiveRole("viewer");
     s().updateResource(resource.id, { isFavourite: true });
@@ -239,7 +240,7 @@ describe("store CRUD covers every entity", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     const a = s().addAllocation({
       resourceId: r.id,
       activityId: t.id,
@@ -259,7 +260,7 @@ describe("store CRUD covers every entity", () => {
   });
 
   it("time off: add / update / delete", () => {
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     const to = s().addTimeOff({
       resourceId: r.id,
       startDate: "2026-06-10",
@@ -358,7 +359,7 @@ describe("allocation integrity at the store boundary", () => {
       employmentType: "permanent",
       engagement: "studio" as const,
       workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
+      workingDays: WORKDAYS,
       halfDays: [],
       color: "#1",
       projectId: p1.id,
@@ -395,7 +396,7 @@ describe("date-range + reference guards at the store boundary", () => {
     const c = s().addClient({ name: "Acme", color: "#111111" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#222222" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     return { r, t };
   };
 
@@ -459,7 +460,7 @@ describe("date-range + reference guards at the store boundary", () => {
   });
 
   it("addTimeOff rejects a dangling resource and a reversed range", () => {
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     expect(() =>
       s().addTimeOff({
         resourceId: "nope",
@@ -481,7 +482,7 @@ describe("date-range + reference guards at the store boundary", () => {
 
   it("addResource / updateResource reject an empty working-days set", () => {
     expect(() => s().addResource({ ...personDraft, workingDays: [] })).toThrow(/at least one working day/i);
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     expect(() => s().updateResource(r.id, { workingDays: [] })).toThrow(/at least one working day/i);
     // A patch that doesn't touch workingDays is unaffected.
     expect(() => s().updateResource(r.id, { name: "Renamed" })).not.toThrow();
@@ -503,13 +504,11 @@ describe("date-range + reference guards at the store boundary", () => {
     // resource — no working day — so it falls back to 8 (distinct from an allocation, where 0 is fine).
     const over = s().addResource({
       ...personDraft,
-      workingDays: [1, 2, 3, 4, 5],
       workingHoursPerDay: 1000,
     });
     expect(over.workingHoursPerDay).toBe(24);
     const zero = s().addResource({
       ...personDraft,
-      workingDays: [1, 2, 3, 4, 5],
       workingHoursPerDay: 0,
     });
     expect(zero.workingHoursPerDay).toBe(8);
@@ -583,27 +582,23 @@ describe("date-range + reference guards at the store boundary", () => {
 describe("update* re-validates the merged row so the store + server agree", () => {
   const TS = "2026-05-01T00:00:00.000Z";
 
-  const externalResource = (id: string): Resource => ({
-    id,
-    accountId: DEFAULT_ACCOUNT_ID,
-    createdAt: TS,
-    updatedAt: TS,
-    kind: "external",
-    name: "Outsource Co",
-    role: "Overflow",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#333333",
-  });
+  const externalResource = (id: string): Resource =>
+    makeResource({
+      id,
+      accountId: DEFAULT_ACCOUNT_ID,
+      createdAt: TS,
+      updatedAt: TS,
+      kind: "external",
+      name: "Outsource Co",
+      role: "Overflow",
+      color: "#333333",
+    });
 
   it("a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     const a = s().addAllocation({
       resourceId: r.id,
       activityId: t.id,
@@ -773,7 +768,6 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
 
     const resource = s().addResource({
       ...personDraft,
-      workingDays: [1, 2, 3, 4, 5],
       color: NON_PRESET,
     });
     expect(resource.color).toBe(NEAREST_PRESET);
@@ -802,7 +796,6 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
 
     const resource = s().addResource({
       ...personDraft,
-      workingDays: [1, 2, 3, 4, 5],
     });
     s().updateResource(resource.id, { color: NON_PRESET });
     expect(s().data.resources.find((r) => r.id === resource.id)?.color).toBe(NEAREST_PRESET);
@@ -815,7 +808,6 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
     const NEUTRAL_COLOR = "#9ca3af";
     const ext = s().addResource({
       ...personDraft,
-      workingDays: [1, 2, 3, 4, 5],
       kind: "external",
       color: NEUTRAL_COLOR,
     });
@@ -875,7 +867,7 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     s().addAllocation({
       resourceId: r.id,
       activityId: t.id,
@@ -892,7 +884,7 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
   });
 
   it("flipping a person with time off to external THROWS", () => {
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] });
+    const r = s().addResource({ ...personDraft });
     s().addTimeOff({
       resourceId: r.id,
       startDate: "2026-06-10",
@@ -913,7 +905,6 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     const free = s().addResource({
       ...personDraft,
       name: "Free",
-      workingDays: [1, 2, 3, 4, 5],
     });
     expect(() => s().updateResource(free.id, { kind: "external" })).not.toThrow();
     expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe("external");
@@ -922,7 +913,6 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     const z = s().addResource({
       ...personDraft,
       name: "Zero",
-      workingDays: [1, 2, 3, 4, 5],
     });
     s().addAllocation({
       resourceId: z.id,
@@ -941,7 +931,6 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
       ...personDraft,
       name: "Outsource",
       kind: "external",
-      workingDays: [1, 2, 3, 4, 5],
     });
     expect(() => s().updateResource(ext.id, { name: "Outsource Co" })).not.toThrow();
     expect(s().data.resources.find((r) => r.id === ext.id)?.name).toBe("Outsource Co");
@@ -958,7 +947,6 @@ describe("parent edits cannot invalidate existing placeholder allocations", () =
       ...personDraft,
       kind: "placeholder",
       projectId: p1.id,
-      workingDays: [1, 2, 3, 4, 5],
     });
     s().addAllocation({
       resourceId: ph.id,
@@ -982,7 +970,6 @@ describe("parent edits cannot invalidate existing placeholder allocations", () =
       ...personDraft,
       kind: "placeholder",
       projectId: p1.id,
-      workingDays: [1, 2, 3, 4, 5],
     });
     s().addAllocation({
       resourceId: ph.id,

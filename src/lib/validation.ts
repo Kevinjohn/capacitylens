@@ -1,3 +1,4 @@
+import { isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
 import { isPresetColor } from "@capacitylens/shared/lib/color";
 import {
   hasDisallowedChars,
@@ -84,12 +85,9 @@ export function validateHex(value: string, fail: Fail, field = "color"): boolean
  *  every day (reads as permanently over-allocated), so the form must reject it — the
  *  import path repairs an empty set, but the form is the only path that could persist one. */
 export function validateWorkingDays(days: number[], fail: Fail, field = "workingDays"): boolean {
-  if (
-    !Array.isArray(days) ||
-    days.length === 0 ||
-    new Set(days).size !== days.length ||
-    days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
-  ) {
+  // Shape (distinct in-week days) comes from the shared predicate; the non-empty rule is this
+  // caller's own policy — an empty COMPANY week is legal, an empty RESOURCE week is not.
+  if (!isWeekdaySet(days) || days.length === 0) {
     fail(field, m.validation_working_days_required());
     return false;
   }

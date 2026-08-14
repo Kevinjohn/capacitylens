@@ -3,6 +3,16 @@ import type { Weekday } from "../types/entities";
 const WEEKDAY_COUNT = 7;
 const DEFAULT_WORKING_DAY_COUNT = 5;
 
+/** True for a whole-number weekday index inside the seven-day week. The ONE shape test every
+ *  weekday guard (store asserts, form validation, import repair) reads, so none can drift. */
+export const isWeekday = (value: unknown): value is Weekday =>
+  Number.isInteger(value) && (value as number) >= 0 && (value as number) < WEEKDAY_COUNT;
+
+/** True for an array of DISTINCT weekdays. Emptiness is deliberately NOT judged here: an empty
+ *  company selection is legal while an empty resource week is not, so each caller keeps that policy. */
+export const isWeekdaySet = (days: unknown): days is Weekday[] =>
+  Array.isArray(days) && new Set(days).size === days.length && days.every(isWeekday);
+
 /** The first five weekdays in a company's configured week, stored as a stable set.
  *  Both legal week starts (Sunday and Monday) run 0–4 / 1–5, i.e. already ascending, so taking the
  *  presentation order's first five IS the stored set — no re-sort needed. */
@@ -12,7 +22,7 @@ export function defaultAccountWorkingDays(weekStartsOn: 0 | 1 = 1): Weekday[] {
 
 /** Repair an account weekday selection at an import or direct-write boundary. Empty is deliberate. */
 export function normalizeAccountWorkingDays(value: unknown, weekStartsOn: 0 | 1 = 1): Weekday[] {
-  if (!Array.isArray(value) || value.some((day) => !Number.isInteger(day) || day < 0 || day >= WEEKDAY_COUNT)) {
+  if (!Array.isArray(value) || !value.every(isWeekday)) {
     return defaultAccountWorkingDays(weekStartsOn);
   }
   return [...new Set(value as Weekday[])].sort((a, b) => a - b);

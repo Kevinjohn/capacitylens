@@ -10,7 +10,7 @@ export const CAPACITYLENS_KEY_PREFIX = STORAGE_KEY_PREFIX;
 // Historical Floaty preferences are included so “Clear device data” is complete for upgraded users.
 const OWNED_KEY_PREFIXES = [CAPACITYLENS_KEY_PREFIX, "floaty/"] as const;
 
-export interface OwnedLocalStorageEntry {
+interface OwnedLocalStorageEntry {
   key: string;
   value: string;
 }

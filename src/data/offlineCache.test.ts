@@ -37,34 +37,10 @@ describe("offline shell availability", () => {
   });
 });
 
-async function putRaw(record: unknown): Promise<void> {
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) {
-        request.result.createObjectStore(STORE_NAME, { keyPath: "key" });
-      }
-      if (!request.result.objectStoreNames.contains("keys")) {
-        request.result.createObjectStore("keys", { keyPath: "id" });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).put(record);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } finally {
-    db.close();
-  }
-}
-
-async function putRawKey(record: unknown): Promise<void> {
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+/** Open the offline database the way the module under test does, creating both stores when the
+ * scenario writes before any production code has. Every raw helper below shares it. */
+function openTestDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 2);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) {
@@ -77,10 +53,14 @@ async function putRawKey(record: unknown): Promise<void> {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+async function putRawInto(storeName: string, record: unknown): Promise<void> {
+  const db = await openTestDb();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(KEY_STORE_NAME, "readwrite");
-      tx.objectStore(KEY_STORE_NAME).put(record);
+      const tx = db.transaction(storeName, "readwrite");
+      tx.objectStore(storeName).put(record);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -89,12 +69,16 @@ async function putRawKey(record: unknown): Promise<void> {
   }
 }
 
+async function putRaw(record: unknown): Promise<void> {
+  return putRawInto(STORE_NAME, record);
+}
+
+async function putRawKey(record: unknown): Promise<void> {
+  return putRawInto(KEY_STORE_NAME, record);
+}
+
 async function putEncryptedValue(key: string, value: unknown, savedAt = Date.now()): Promise<void> {
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  const db = await openTestDb();
   try {
     const deviceKey = await new Promise<CryptoKey>((resolve, reject) => {
       const request = db.transaction(KEY_STORE_NAME, "readonly").objectStore(KEY_STORE_NAME).get("device-aes-gcm-v1");
@@ -119,11 +103,7 @@ async function putEncryptedValue(key: string, value: unknown, savedAt = Date.now
 }
 
 async function getRaw(key: string): Promise<unknown> {
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  const db = await openTestDb();
   try {
     return await new Promise((resolve, reject) => {
       const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(key);

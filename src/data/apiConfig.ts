@@ -6,7 +6,7 @@
 // offline-cache namespace uses the same canonical value. Kept in its own module so the env read and
 // validation aren't scattered across the adapter wiring.
 
-export function apiBaseFromEnv(value: string | undefined): string {
+function apiBaseFromEnv(value: string | undefined): string {
   const raw = (value ?? "").trim();
   if (raw === "") return "";
 

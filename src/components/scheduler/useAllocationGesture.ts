@@ -6,17 +6,12 @@ import { applyGesture, type DragMode } from "../../lib/gestureMath";
 import { capacityAdvisory, capacityAllocationsForMode, dayCapacity } from "../../lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
-import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
-import {
-  emptyAppData,
-  FULL_DAY_HOURS,
-  isCapacityTracked,
-  MAX_HOURS_PER_DAY,
-} from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS, isCapacityTracked, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 import { useDragResize } from "../../hooks/useDragResize";
 import { resourceDisplayName } from "../../lib/metadata";
-import { accountWorkingDaysFor, schedulingModeFor, scopeData, visibleRange } from "../../store/selectors";
+import { accountWorkingDaysFor, schedulingModeFor, visibleRange } from "../../store/selectors";
+import { sharedActiveData, sharedScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
 import {
   computeGesture,
@@ -61,8 +56,11 @@ function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSn
   return null;
 }
 
+// Reuses the hooks' memoised scoping/active-only caches (useScopedData) rather than re-deriving the
+// slice: a gesture reads this on every pointer event, and the rendering hooks have already paid for
+// the identical projection of the same `data` object.
 function activeGestureData(data: AppData, activeAccountId: ID | null): AppData {
-  return activeAccountId ? activeOnly(scopeData(data, activeAccountId)) : emptyAppData();
+  return sharedActiveData(sharedScopedData(data, activeAccountId));
 }
 
 /** Builds the screen-reader status from the same visible-range capacity signal as the grid. */

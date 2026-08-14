@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { diffOps } from "../data/syncOps";
 import { useStore } from "./useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, makeResource, resetStoreWithAccount, WORKDAYS } from "../test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 const T = "2026-01-01T00:00:00.000Z";
@@ -96,22 +96,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
     useStore.getState().replaceAll(
       makeAppData({
         disciplines: [{ ...meta, id: "d1", name: "Design", sortOrder: 0 }],
-        resources: [
-          {
-            ...meta,
-            id: "r1",
-            kind: "person",
-            name: "Person",
-            role: "Designer",
-            disciplineId: "d1",
-            employmentType: "permanent",
-            engagement: "studio" as const,
-            workingHoursPerDay: 8,
-            workingDays: [1, 2, 3, 4, 5],
-            halfDays: [],
-            color: "#333333",
-          },
-        ],
+        resources: [makeResource({ ...meta, id: "r1", name: "Person", disciplineId: "d1", color: "#333333" })],
       }),
     );
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
@@ -150,7 +135,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
             employmentType: "permanent",
             engagement: "studio" as const,
             workingHoursPerDay: 8,
-            workingDays: [1, 2, 3, 4, 5],
+            workingDays: WORKDAYS,
             halfDays: [],
             color: "#333333",
           },
@@ -199,7 +184,7 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
             employmentType: "permanent",
             engagement: "studio" as const,
             workingHoursPerDay: 8,
-            workingDays: [1, 2, 3, 4, 5],
+            workingDays: WORKDAYS,
             halfDays: [],
             color: "#333333",
           },
