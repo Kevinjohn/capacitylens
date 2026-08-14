@@ -53,7 +53,7 @@ import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
 import { capacityAdvisory, capacityAllocationsForMode, scheduledHoursOnDay } from "../../lib/capacity";
-import { allocationStatusLabels, resourceDisplayName } from "../../lib/metadata";
+import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
 import { FULL_DAY_HOURS, isExternalResource, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type {
   Activity,
@@ -470,12 +470,15 @@ export function AllocationModal(props: AllocationModalProps) {
     }
     const { overDays, timeOffDays } = capacityAdvisory(
       effectiveValues.resource,
+      {
+        resourceId,
+        startDate,
+        endDate: effectiveValues.endDate,
+        hoursPerDay: effectiveValues.hoursPerDay,
+        ignoreWeekends,
+      },
       others,
       resourceTimeOff,
-      startDate,
-      effectiveValues.endDate,
-      effectiveValues.hoursPerDay,
-      ignoreWeekends,
     );
     const bits: string[] = [];
     if (overDays)
@@ -1161,10 +1164,7 @@ export function AllocationModal(props: AllocationModalProps) {
         label={m.form_allocation_status_label()}
         value={status}
         onChange={setStatus}
-        options={Object.entries(allocationStatusLabels()).map(([value, label]) => ({
-          value: value as AllocationStatus,
-          label,
-        }))}
+        options={allocationStatusOptions()}
         controlClassName="w-full [&>*]:flex-1"
         layout="label-control"
       />

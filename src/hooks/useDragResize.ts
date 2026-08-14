@@ -103,27 +103,26 @@ export function useDragResize(args: UseDragResizeArgs) {
         clientY: ev.clientY,
       });
     };
+    // THE abandon path, shared by all three ways a gesture can end without committing (pointer
+    // cancel, lost capture, Escape). Notify even on a SUB-THRESHOLD abandon: the gesture was armed
+    // at pointerdown, so the consumer may have started a side effect (e.g. a document scroll
+    // watcher) whose only teardown signal on these paths is onCancel. Skipping it orphans that
+    // listener for every twitch-then-browser-scroll, accumulating across gestures.
+    const abort = () => {
+      detach();
+      argsRef.current.onCancel?.();
+    };
     const onCancel = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return;
-      detach();
-      // Notify even on a SUB-THRESHOLD cancel: the gesture was armed at pointerdown, so
-      // the consumer may have started a side effect (e.g. a document scroll watcher) whose
-      // only teardown signal on this path is onCancel. Skipping it here orphans that
-      // listener for every twitch-then-browser-scroll, accumulating across gestures.
-      argsRef.current.onCancel?.();
+      abort();
     };
-    const onLostPointerCapture = () => {
-      detach();
-      argsRef.current.onCancel?.();
-    };
+    const onLostPointerCapture = () => abort();
     // Keyboard escape hatch: a pointer-only gesture has no way to back out once armed (a
-    // resize/move drag has no native "cancel" gesture). Escape mirrors onCancel's teardown
-    // (detach, then the consumer's cancel hook) rather than committing whatever the last
-    // preview was.
+    // resize/move drag has no native "cancel" gesture). Escape takes the same abandon path
+    // rather than committing whatever the last preview was.
     const onKeyDown = (ev: KeyboardEvent) => {
       if (ev.key !== "Escape") return;
-      detach();
-      argsRef.current.onCancel?.();
+      abort();
     };
 
     document.addEventListener("pointermove", onMove);

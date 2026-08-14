@@ -22,8 +22,8 @@ const authClientMock = vi.hoisted(() => ({
 const handoffMock = vi.hoisted(() => ({
   replaceWithJoinedAccount: vi.fn(),
   replaceWithAccountPicker: vi.fn(),
-  reloadCurrentPage: vi.fn(),
 }));
+const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
 const apiConfigMock = vi.hoisted(() => ({
   isServerConfigured: vi.fn(() => true),
 }));
@@ -47,8 +47,9 @@ vi.mock("../../lib/joinedAccountHandoff", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/joinedAccountHandoff")>()),
   replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount,
   replaceWithAccountPicker: handoffMock.replaceWithAccountPicker,
-  reloadCurrentPage: handoffMock.reloadCurrentPage,
 }));
+
+vi.mock("../../lib/reloadPage", () => reloadMock);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -599,7 +600,7 @@ describe("InviteAccept preview and acceptance", () => {
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
     await user.click(screen.getByRole("button", { name: "Create account and accept" }));
 
-    await vi.waitFor(() => expect(handoffMock.reloadCurrentPage).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(reloadMock.reloadPage).toHaveBeenCalledTimes(1));
     expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
     expect(handoffMock.replaceWithAccountPicker).not.toHaveBeenCalled();
   });
@@ -624,7 +625,7 @@ describe("InviteAccept preview and acceptance", () => {
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
     await user.click(screen.getByRole("button", { name: "Create account and accept" }));
 
-    await vi.waitFor(() => expect(handoffMock.reloadCurrentPage).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(reloadMock.reloadPage).toHaveBeenCalledTimes(1));
   });
 
   it("restores the form when both transport-unknown signup and its sign-in probe fail", async () => {
@@ -648,7 +649,7 @@ describe("InviteAccept preview and acceptance", () => {
 
     expect(await screen.findByText(m.invite_signup_unknown())).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create account and accept" })).toBeEnabled();
-    expect(handoffMock.reloadCurrentPage).not.toHaveBeenCalled();
+    expect(reloadMock.reloadPage).not.toHaveBeenCalled();
   });
 
   it("uses a new command when credential input changes after an unknown signup outcome", async () => {

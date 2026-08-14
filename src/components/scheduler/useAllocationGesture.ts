@@ -5,8 +5,14 @@ import { errorMessage } from "../../lib/errorMessage";
 import { applyGesture, type DragMode } from "../../lib/gestureMath";
 import { capacityAdvisory, capacityAllocationsForMode, dayCapacity } from "../../lib/capacity";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { blockHoursPerDay } from "@capacitylens/shared/lib/schedulingDays";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
-import { emptyAppData, isCapacityTracked, MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
+import {
+  emptyAppData,
+  FULL_DAY_HOURS,
+  isCapacityTracked,
+  MAX_HOURS_PER_DAY,
+} from "@capacitylens/shared/types/entities";
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 import { useDragResize } from "../../hooks/useDragResize";
 import { resourceDisplayName } from "../../lib/metadata";
@@ -325,12 +331,18 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
         const timeOff = data.timeOff.filter((entry) => entry.resourceId === effectiveResourceId);
         const result = capacityAdvisory(
           resource,
+          {
+            resourceId: effectiveResourceId,
+            startDate: dates.startDate,
+            endDate: dates.endDate,
+            // Blocks carry placement but no hourly load — read that load from the ONE knob
+            // (`blockHoursPerDay`) rather than hardcoding its current 0, exactly as the grid's
+            // own `capacityAllocationsForMode` projection does.
+            hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
+            ignoreWeekends: bar.allocation.ignoreWeekends,
+          },
           others,
           timeOff,
-          dates.startDate,
-          dates.endDate,
-          isBlocks ? 0 : reconciledHours,
-          bar.allocation.ignoreWeekends,
         );
         const bits: string[] = [];
         if (result.overDays) {

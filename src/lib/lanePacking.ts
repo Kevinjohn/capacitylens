@@ -1,4 +1,4 @@
-import { dayIndex } from "@capacitylens/shared/lib/dateMath";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 
@@ -36,12 +36,16 @@ export function packLanes(items: Interval[]): PackResult {
   // Origin = the first valid calendar start (a bad record sorts first but must
   // not become the origin, or it would NaN-poison every other item's day-index).
   const origin = sorted.find((it) => isValidISODate(it.startDate))?.startDate ?? sorted[0].startDate;
+  // The origin is invariant, so parse it ONCE instead of letting `dayIndex` re-parse it for both
+  // ends of every interval. An unparseable origin (every record bad) yields an Invalid Date, so
+  // every offset below is NaN and every item takes the same lane-0 fallback as before.
+  const originDate = parseISO(origin);
   const laneEnds: number[] = []; // inclusive endDay of the last item placed in each lane
   const lanes: LaneItem[] = [];
 
   for (const it of sorted) {
-    const s = dayIndex(it.startDate, origin);
-    const e = dayIndex(it.endDate, origin);
+    const s = differenceInCalendarDays(parseISO(it.startDate), originDate);
+    const e = differenceInCalendarDays(parseISO(it.endDate), originDate);
     // A record with an unparseable date can't be positioned; drop it into lane 0
     // without touching laneEnds so it can't corrupt overlap detection for the row.
     if (!Number.isFinite(s) || !Number.isFinite(e)) {

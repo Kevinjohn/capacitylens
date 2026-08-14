@@ -5,7 +5,7 @@ import { useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { ensureBarColors } from "@capacitylens/shared/lib/color";
 import { parseDate } from "@capacitylens/shared/lib/dateMath";
-import { allocationStatusLabels } from "../../lib/metadata";
+import { allocationStatusLabel } from "../../lib/metadata";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
 import type { ID } from "@capacitylens/shared/types/entities";
@@ -162,7 +162,7 @@ export const AllocationBar = memo(function AllocationBar({
                   hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
                   // Speak the HUMANISED status + 'd MMM' dates the popover already shows — a SR must hear
                   // "Tentative … 1 Jun to 5 Jun", not the raw enum + ISO ("tentative … 2026-06-01").
-                  status: allocationStatusLabels()[bar.allocation.status],
+                  status: allocationStatusLabel(bar.allocation.status),
                   start: fmt(bar.allocation.startDate),
                   end: fmt(bar.allocation.endDate),
                   // The visible "•" note dot (below) is otherwise lost to AT; surface its PRESENCE here
@@ -173,7 +173,7 @@ export const AllocationBar = memo(function AllocationBar({
               : m.scheduler_bar_aria_viewer({
                   label: viewerLabelText,
                   hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
-                  status: allocationStatusLabels()[bar.allocation.status],
+                  status: allocationStatusLabel(bar.allocation.status),
                   start: fmt(bar.allocation.startDate),
                   end: fmt(bar.allocation.endDate),
                   note: bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : "",
@@ -226,7 +226,7 @@ export const AllocationBar = memo(function AllocationBar({
           // in light (needs a dark edge) but a DEEP red in dark (needs a light edge) — opposite
           // requirements — so a near-black + near-white pair straddles the bar's outer border, and at
           // least one always clears 3:1 against any adjacency in both themes. See the CSS rule + the
-          // pinned regression in src/lib/color.test.ts. Defined in CSS (not Tailwind utilities here); on
+          // pinned regression in src/lib/designTokens.test.ts. Defined in CSS (not Tailwind utilities here); on
           // focus this box-shadow overrides the resting `ring-1 ring-black/5` (intentional — the bold focus
           // ring replaces the faint resting ring while focused).
           className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md ${dragging ? "shadow-lg ring-black/10" : ""}`}
@@ -296,7 +296,7 @@ export const AllocationBar = memo(function AllocationBar({
       </TooltipTrigger>
       {/* Render the content subtree ONLY when it can actually show (`popoverOpen && !dragging`):
           Radix never mounts it mid-drag anyway, so gating here stops the date-fns format/parse,
-          i18n and allocationStatusLabels() calls in the card body from re-evaluating on every
+          i18n and allocationStatusLabel() calls in the card body from re-evaluating on every
           pointermove frame during a drag (they used to run on every render). Radix tolerates a
           conditionally-mounted Content. */}
       {popoverOpen && !dragging && (
@@ -339,7 +339,7 @@ export const AllocationBar = memo(function AllocationBar({
           <div className="text-muted-foreground">
             {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
             {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} ·{" "}
-            {allocationStatusLabels()[bar.allocation.status]}
+            {allocationStatusLabel(bar.allocation.status)}
           </div>
           {bar.seriesEnd && (
             <div className="mt-1 text-muted-foreground">

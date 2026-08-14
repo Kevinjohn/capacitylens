@@ -25,7 +25,8 @@ import {
   externalSignInErrorUrl,
   hasExternalSignInError,
 } from "../../auth/externalSignInError";
-import { reloadCurrentPage, replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
+import { replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
+import { reloadPage } from "../../lib/reloadPage";
 import { InviteAcceptView, type InviteAcceptState, type InvitePreview } from "./InviteAcceptView";
 
 // Invite accept page for /invite/:token. On mount, in SERVER mode, it previews the invite.
@@ -304,7 +305,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const signInAndReload = async (): Promise<void> => {
     const { error } = await authClient.signIn.email({ email, password });
     if (error) throw new Error(error.message ?? m.login_failed());
-    reloadCurrentPage();
+    reloadPage();
   };
 
   /** Recheck the new cookie and authoritative companies before entering AppShell. The invite page
@@ -462,7 +463,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             // the server and these credentials may belong to an existing identity. Reload the same
             // bearer URL; an unused invite can then be accepted explicitly, while a consumed invite
             // truthfully reports that state and lets the caller inspect their authenticated picker.
-            reloadCurrentPage();
+            reloadPage();
             return;
           }
         } catch (signInError) {

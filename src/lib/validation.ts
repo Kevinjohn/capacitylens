@@ -7,23 +7,13 @@ import {
 } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
 
-// Shared form-validation copy + helpers. Centralised so the same message isn't
-// re-typed in every form (it was duplicated ~15 times across the CRUD forms).
+// Shared form-validation helpers. Centralised so the same message isn't re-typed in every form
+// (it was duplicated ~15 times across the CRUD forms).
 //
-// i18n: the copy resolves through Paraglide (`@/i18n`). This is a GETTER (not a const object) so each
-// message re-resolves the active locale at validation time — a const captured at module load would
-// freeze the import-time language (the locale can switch without reload). Mirrors metadata.ts /
-// introCopy.ts. The validators below call `m.*()` directly; this getter is the catalogue view used by
-// tests + any caller that wants the whole set.
-export function validationMessages() {
-  return {
-    nameRequired: m.validation_name_required(),
-    hexInvalid: m.validation_hex_invalid(),
-    textInvalid: m.validation_text_invalid(),
-    textTooLong: m.validation_text_too_long(),
-    workingDaysRequired: m.validation_working_days_required(),
-  };
-}
+// i18n: the copy resolves through Paraglide (`@/i18n`), and every validator below calls `m.*()`
+// INSIDE the function — never at module scope. That is load-bearing: a const captured at module
+// load would freeze the import-time language, and the locale can switch without a reload.
+// Mirrors metadata.ts / introCopy.ts.
 
 type Fail = (field: string, message: string) => void;
 
@@ -32,7 +22,7 @@ interface TextOptions {
   field?: string;
   /** Empty (after trim) fails when true. Default true. */
   required?: boolean;
-  /** Message used when a required field is empty. Default VALIDATION.nameRequired. */
+  /** Message used when a required field is empty. Default `m.validation_name_required()`. */
   requiredMessage?: string;
   /** Allow newlines (notes). Default false. */
   multiline?: boolean;

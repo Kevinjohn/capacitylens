@@ -29,10 +29,3 @@ export function replaceWithJoinedAccount(accountId: string): void {
 export function replaceWithAccountPicker(): void {
   window.location.replace("/");
 }
-
-/** Reload the current bearer URL after sign-in so an invite is reviewed by the new session. Kept
- * behind this tiny boundary so transport-unknown invite recovery can be regression-tested without
- * attempting to navigate jsdom. */
-export function reloadCurrentPage(): void {
-  window.location.reload();
-}

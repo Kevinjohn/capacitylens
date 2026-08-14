@@ -18,8 +18,11 @@ import type {
   Weekday,
 } from "@capacitylens/shared/types/entities";
 import type { SchedulerUI } from "./useStore";
+import { DEFAULT_TIME_ZONE } from "../lib/timezones";
 
-export const DEFAULT_CALENDAR_TIME_ZONE = "Etc/GMT";
+/** The calendar-facing name for the app default, single-sourced in lib/timezones.ts alongside the
+ *  option-label rule that renders it as "GMT". */
+export const DEFAULT_CALENDAR_TIME_ZONE = DEFAULT_TIME_ZONE;
 export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 
 /** The active company's scheduling input mode. Absent on the account reads as the

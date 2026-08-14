@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { fuzzyScore, fuzzyFilter } from "./fuzzy";
+import { foldForSearch, fuzzyScore, fuzzyFilter } from "./fuzzy";
+
+describe("foldForSearch", () => {
+  it("lower-cases and strips canonically decomposable diacritics", () => {
+    expect(foldForSearch("José ÁLVAREZ")).toBe("jose alvarez");
+    expect(foldForSearch("Müller")).toBe("muller");
+  });
+
+  it("is total for lone surrogates and leaves undecomposable text alone", () => {
+    expect(foldForSearch("\ud800")).toBe("\ud800");
+    expect(foldForSearch("Bruce Wayne")).toBe("bruce wayne");
+  });
+});
 
 describe("fuzzyScore", () => {
   describe("Tier 0 — exact prefix", () => {
@@ -179,5 +191,22 @@ describe("fuzzyFilter", () => {
       { id: "a", name: "qa" },
     ];
     expect(fuzzyFilter(items, "q", (i) => i.name).map((i) => i.id)).toEqual(["a", "b"]);
+  });
+
+  it("keeps the same tiers as fuzzyScore even though the query is folded once for the whole pass", () => {
+    // fuzzyFilter folds the TRIMMED query a single time and scores against that; fuzzyScore folds
+    // per call. The two must agree for every item, including when the query needs both trimming and
+    // diacritic folding, or the sort order silently diverges from the documented tiers.
+    const items = [
+      { name: "José Alvarez" }, // tier 0
+      { name: "Bruce José" }, // tier 1 (word-boundary)
+      { name: "xjosey" }, // tier 2 (mid-word substring)
+      { name: "j o s e" }, // tier 3 (scattered subsequence)
+      { name: "Clark Kent" }, // no match
+    ];
+    const query = "  JOSÉ ";
+    const expected = items.filter((i) => fuzzyScore(query.trim(), i.name) < Infinity);
+    expect(fuzzyFilter(items, query, (i) => i.name)).toEqual([expected[0], expected[1], expected[2], expected[3]]);
+    expect(expected.map((i) => fuzzyScore(query.trim(), i.name))).toEqual([0, 1, 2, 3]);
   });
 });

@@ -282,7 +282,7 @@ h3 {
    Item/Sidebar/Radix primitives can render a div or content surface with their local outline
    suppressed, and their 50%-alpha utility ring is only ~2.07:1 on the light canvas. The opaque
    brand outline clears WCAG 1.4.11 (3:1) on every normal light/dark app surface; its token pairs
-   are pinned in src/lib/color.test.ts. Include programmatic tabindex=-1 targets too: when keyboard
+   are pinned in src/lib/designTokens.test.ts. Include programmatic tabindex=-1 targets too: when keyboard
    navigation deliberately moves focus to one, the destination must remain visible. */
 :where(
   :any-link,
@@ -393,7 +393,7 @@ input[type="radio"] {
    fill). Against ANY adjacency at least one edge clears 3:1: the dark edge wins on the pale light
    over-cell / pale swatches / light canvas+weekend, the light edge wins on the dark over-cell / dark
    swatches / dark canvas+weekend. The fixed pair covers both extremes, so it needs no theme variant.
-   Pinned + asserted in src/lib/color.test.ts ("AllocationBar focus ring …"). The blue (--color-brand)
+   Pinned + asserted in src/lib/designTokens.test.ts ("AllocationBar focus ring …"). The blue (--color-brand)
    outline is an IDENTITY layer only — conformance comes from the dark+light pair, not from it.
    box-shadow is NOT clipped by the bar's own overflow-hidden. On focus this box-shadow overrides the
    resting `ring-1 ring-black/5` + `shadow-sm` (box-shadow is one property, not additive) — intentional:

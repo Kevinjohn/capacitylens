@@ -7,6 +7,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.43.0-alpha.1] — 2026-08-14
+
+### Changed
+
+- Simplified the client utility layer (`src/lib` + `src/hooks`) with no behaviour changes:
+  deduplicated capacity, gesture, fuzzy-search, and label helpers; faster weekday, capacity-window,
+  and repeating-allocation paths; table-driven i18n label and error-message lookups; and removal of
+  dead exports (#343).
+
 ## [0.42.0-alpha.1] — 2026-08-14
 
 ### Changed
@@ -3445,7 +3454,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.42.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.43.0-alpha.1...HEAD
+[0.43.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.42.0-alpha.1...v0.43.0-alpha.1
 [0.42.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.9-alpha.1...v0.42.0-alpha.1
 [0.41.9-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.8-alpha.1...v0.41.9-alpha.1
 [0.41.8-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.41.7-alpha.1...v0.41.8-alpha.1

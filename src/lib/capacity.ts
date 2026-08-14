@@ -6,9 +6,9 @@ import {
   isWorkingWeekday,
   weekdayOf,
 } from "@capacitylens/shared/lib/dateMath";
-import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
+import { blockHoursPerDay, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { FULL_DAY_HOURS, HALF_DAY_HOURS } from "@capacitylens/shared/types/entities";
-import type { Allocation, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import type { Allocation, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 // Arithmetic-only tolerance: one nanohour is 3.6 microseconds, far below any scheduling input,
 // while comfortably absorbing the few-ULP drift from summing days-mode fractional allocations.
@@ -18,9 +18,18 @@ function exceedsCapacity(allocated: number, available: number): boolean {
   return allocated - available > CAPACITY_COMPARISON_EPSILON_HOURS;
 }
 
+/** The hours/day a blocks-mode allocation contributes to capacity. Read from the ONE knob
+ *  (`blockHoursPerDay`, schedulingDays.ts) rather than hardcoding its current 0, so making blocks
+ *  carry load is a change to that fraction alone. A resource's own working day may be shorter than
+ *  the standard one, but this projection has no account context — `FULL_DAY_HOURS` is the same
+ *  reference day the fraction is documented against. */
+const BLOCK_PROJECTED_HOURS_PER_DAY = blockHoursPerDay(FULL_DAY_HOURS);
+
 /** Blocks carry placement but no hourly load. Reuse this projection across every capacity surface. */
 export function capacityAllocationsForMode(allocations: Allocation[], blocksMode: boolean): Allocation[] {
-  return blocksMode ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: 0 })) : allocations;
+  return blocksMode
+    ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: BLOCK_PROJECTED_HOURS_PER_DAY }))
+    : allocations;
 }
 
 // Capacity reflects the explicit working pattern: a resource has 0 available hours on a
@@ -38,35 +47,51 @@ export function capacityAllocationsForMode(allocations: Allocation[], blocksMode
 // would read as "never over" — a silently WRONG answer in a multi-tenant scheduler, not a visible
 // failure. We therefore do NOT throw on this per-day × per-allocation hot path (that would swallow
 // or crash in the wrong place); in DEV we WARN so corruption surfaces as a fault to investigate.
-function devAssertFinite(label: string, n: number): void {
+function devAssertFinite(n: number): void {
   if (import.meta.env.DEV && !Number.isFinite(n)) {
     console.warn(
-      `capacity: ${label} is not a finite number (${String(n)}). Upstream validation (integrity.ts) ` +
-        `should have prevented this — over/utilisation results for this resource will be wrong.`,
+      `capacity: allocated hours sum is not a finite number (${String(n)}). Upstream validation ` +
+        `(integrity.ts) should have prevented this — over/utilisation results for this resource will be wrong.`,
     );
   }
+}
+
+// Every public helper below takes an `ISODate` and derives its weekday; each `…ForWeekday` twin
+// takes one already derived. `weekdayOf` is a parseISO, and `dayCapacity` — the scheduler's hottest
+// path, ~27k resource-days per model rebuild — needs the SAME weekday four times over. It derives
+// it ONCE and threads it through the twins; the public signatures stay date-only.
+function worksWeekday(resource: Resource, weekday: Weekday): boolean {
+  return resource.workingDays.includes(weekday);
 }
 
 export function isWorkingDay(resource: Resource, date: ISODate): boolean {
   return isWorkingWeekday(date, resource.workingDays);
 }
 
+function scheduledHoursForWeekday(resource: Resource, weekday: Weekday): number {
+  if (!worksWeekday(resource, weekday)) return 0;
+  return resource.halfDays.includes(weekday) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
+}
+
 /** Fixed capacity before time off: 8h full day, 4h half day, or 0 when not working. */
 export function scheduledHoursOnDay(resource: Resource, date: ISODate): number {
-  if (!isWorkingDay(resource, date)) return 0;
-  return resource.halfDays.includes(weekdayOf(date)) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
+  return scheduledHoursForWeekday(resource, weekdayOf(date));
 }
 
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
   return timeOff.some((t) => t.resourceId === resourceId && isWithin(date, t.startDate, t.endDate));
 }
 
+function availableHoursForWeekday(resource: Resource, date: ISODate, timeOff: TimeOff[], weekday: Weekday): number {
+  if (!worksWeekday(resource, weekday)) return 0;
+  if (isOnTimeOff(resource.id, date, timeOff)) return 0;
+  return scheduledHoursForWeekday(resource, weekday);
+}
+
 /** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
  *  fixed 4h on a half day, otherwise fixed 8h. */
 export function availableHoursOnDay(resource: Resource, date: ISODate, timeOff: TimeOff[]): number {
-  if (!isWorkingDay(resource, date)) return 0;
-  if (isOnTimeOff(resource.id, date, timeOff)) return 0;
-  return scheduledHoursOnDay(resource, date);
+  return availableHoursForWeekday(resource, date, timeOff, weekdayOf(date));
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
@@ -79,10 +104,19 @@ export function availableHoursOnDay(resource: Resource, date: ISODate, timeOff: 
  *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition) — a NaN would
  *    poison the sum and make every over/utilisation comparison read as "never over". */
 export function allocatedHoursOnDay(resource: Resource, date: ISODate, allocations: Allocation[]): number {
+  return allocatedHoursForWeekday(resource, date, allocations, weekdayOf(date));
+}
+
+function allocatedHoursForWeekday(
+  resource: Resource,
+  date: ISODate,
+  allocations: Allocation[],
+  weekday: Weekday,
+): number {
   // Derive the working-weekday flag ONCE per day: it's invariant across the loop, only the
   // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
-  const dayIsWorking = isWorkingDay(resource, date);
+  const dayIsWorking = worksWeekday(resource, weekday);
   let sum = 0;
   for (const a of allocations) {
     if (a.resourceId !== resource.id || !isWithin(date, a.startDate, a.endDate)) continue;
@@ -91,7 +125,7 @@ export function allocatedHoursOnDay(resource: Resource, date: ISODate, allocatio
     if (!allocationWorksOnDay(resource.workingDays, a.ignoreWeekends, dayIsWorking)) continue;
     sum += a.hoursPerDay;
   }
-  devAssertFinite("allocated hours sum", sum);
+  devAssertFinite(sum);
   return sum;
 }
 
@@ -110,8 +144,12 @@ export function dayCapacity(
   allocations: Allocation[],
   timeOff: TimeOff[],
 ): DayCapacity {
-  const available = availableHoursOnDay(resource, date, timeOff);
-  const allocated = allocatedHoursOnDay(resource, date, allocations);
+  // ONE parseISO for the whole resource-day: the availability and load halves each need the
+  // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
+  // per visible day on every model rebuild.
+  const weekday = weekdayOf(date);
+  const available = availableHoursForWeekday(resource, date, timeOff, weekday);
+  const allocated = allocatedHoursForWeekday(resource, date, allocations, weekday);
   return {
     date,
     allocated,
@@ -120,21 +158,19 @@ export function dayCapacity(
   };
 }
 
+/** Whole-window capacity, one entry per calendar day, derived straight from the inputs.
+ *  The render path does NOT come through here: buildSchedulerModel walks the SAME window for every
+ *  resource, so it builds the day array once, buckets each resource's allocations and time off by
+ *  covered date (`bucketByCoveredDate`), and memoises `dayCapacity` per date. This stays the
+ *  straight-line definition those optimisations are checked against. */
 export function capacityForWindow(
   resource: Resource,
   allocations: Allocation[],
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,
-  // Optional precomputed `eachDayISO(start, end)` result. buildSchedulerModel calls this (via
-  // `utilization`, directly, too) once PER RESOURCE with the SAME [start, end] window — hoisting
-  // the day-array build to the caller (computed once, reused across every resource) avoids
-  // resources × (visibleDays + 14) redundant parseISO/format calls per model rebuild. Falls back
-  // to deriving it here so every existing caller keeps working unchanged.
-  precomputedDays?: ISODate[],
 ): DayCapacity[] {
-  const days = precomputedDays ?? eachDayISO(start, end);
-  return days.map((d) => dayCapacity(resource, d, allocations, timeOff));
+  return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff));
 }
 
 /** Reduce already-computed resource-day capacity into the visible-window utilisation ratio. */
@@ -152,18 +188,17 @@ export function utilizationFromCapacity(days: Iterable<DayCapacity>): number {
 /** Allocated / available over the window, counted over working days only.
  *  Returns 0 when there is no availability. Non-working days (weekends / time off)
  *  are skipped entirely — counting their allocated hours against zero availability
- *  would push a normal allocation that merely spans a weekend past 100%. */
+ *  would push a normal allocation that merely spans a weekend past 100%.
+ *  Like `capacityForWindow`, this is the straight-line definition; the render path reaches the same
+ *  number through `utilizationFromCapacity` over its memoised per-date capacity. */
 export function utilization(
   resource: Resource,
   allocations: Allocation[],
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,
-  // See capacityForWindow's `precomputedDays` doc — passed straight through so the visible-window
-  // day array is built once per model rebuild, not once per resource.
-  precomputedDays?: ISODate[],
 ): number {
-  return utilizationFromCapacity(capacityForWindow(resource, allocations, timeOff, start, end, precomputedDays));
+  return utilizationFromCapacity(capacityForWindow(resource, allocations, timeOff, start, end));
 }
 
 export interface CapacityAdvisory {
@@ -177,55 +212,72 @@ export type CapacityAllocationInput = Pick<
   "resourceId" | "startDate" | "endDate" | "hoursPerDay" | "ignoreWeekends"
 >;
 
-/** Non-blocking advisory for a PROPOSED allocation of `hoursPerDay` over [start, end] (with the
- *  proposal's own `ignoreWeekends`): how many days it would push the resource over capacity, and how
- *  many fall on time off. `otherAllocations` is the existing load to count against (caller excludes
- *  the allocation being edited); it need NOT be pre-filtered by resource — anything belonging to
- *  another resource is ignored here, exactly as the per-day mirror `allocatedHoursOnDay` does, so a
- *  caller passing a whole account's allocations cannot silently inflate this resource's load.
- *  Shared by the modal and the drag-commit path so the rule
- *  lives in one place. Mirrors the per-day over-marker (`allocatedHoursOnDay`): it counts a day only
- *  when the proposed allocation actually WORKS it (so a weekend-aware bar merely spanning Sat/Sun
- *  isn't "over"), and an `ignoreWeekends` weekend — 0 capacity — reads as over exactly like the red
- *  cell does. Time off stays its OWN category, never folded into overDays (a holiday a working
- *  allocation covers is surfaced as "on time off for N days", not "over"), which is the one place the
- *  advisory deliberately diverges from the marker. Buckets the other allocations' hours by day ONCE
- *  (each only on the days IT works), so it's O(window + load), not O(windowDays × allocations). */
-export function capacityAdvisory(
+/** Existing load in hours, keyed by the ISO day it lands on, for ONE resource. Building this ONCE
+ *  is what makes an advisory O(window + load) instead of O(windowDays × allocations) — and lets a
+ *  batch of advisories over the same resource (a repeat projection) share a single bucket instead
+ *  of rebuilding a growing one per generated allocation. */
+export type CapacityLoadByDay = Map<ISODate, number>;
+
+/** Add `allocation`'s hours to `byDay` on every day of [start, end] that it actually works.
+ *  Allocations belonging to another resource are ignored, mirroring `allocatedHoursOnDay`:
+ *  correctness must not depend on every caller remembering to pre-filter, or an unfiltered list
+ *  would count other people's hours against this resource and advise "over capacity" for days that
+ *  are perfectly fine. */
+export function addCapacityLoad(
+  byDay: CapacityLoadByDay,
   resource: Resource,
-  otherAllocations: readonly CapacityAllocationInput[],
-  timeOff: TimeOff[],
+  allocation: CapacityAllocationInput,
   start: ISODate,
   end: ISODate,
-  hoursPerDay: number,
-  ignoreWeekends: boolean | undefined,
-): CapacityAdvisory {
-  // Proposed input may not have reached the durable write boundary yet. Refuse an empty or
-  // over-limit window in O(1) before eachDayISO allocates one string per date.
-  const span = daysInclusive(start, end);
-  if (span < 1 || span > MAX_SPAN_DAYS) return { overDays: 0, timeOffDays: 0 };
-  const days = eachDayISO(start, end);
+): void {
+  if (allocation.resourceId !== resource.id) return;
   // Zero-padded ISO dates compare lexicographically, so these min/max clamps are correct.
-  const allocatedByDay = new Map<ISODate, number>();
-  for (const a of otherAllocations) {
-    // Scope to THIS resource, mirroring allocatedHoursOnDay. Correctness must not depend on every
-    // caller remembering to pre-filter: an unfiltered list would otherwise count other people's
-    // hours against this resource and advise "over capacity" for days that are perfectly fine.
-    if (a.resourceId !== resource.id) continue;
-    const from = a.startDate > start ? a.startDate : start;
-    const to = a.endDate < end ? a.endDate : end;
-    for (const d of eachDayISO(from, to)) {
-      // Count each existing allocation only on the days IT works, matching the over-marker's load.
-      if (!allocationWorksOnDay(resource.workingDays, a.ignoreWeekends, isWorkingDay(resource, d))) continue;
-      allocatedByDay.set(d, (allocatedByDay.get(d) ?? 0) + a.hoursPerDay);
-    }
+  const from = allocation.startDate > start ? allocation.startDate : start;
+  const to = allocation.endDate < end ? allocation.endDate : end;
+  for (const d of eachDayISO(from, to)) {
+    // Count each existing allocation only on the days IT works, matching the over-marker's load.
+    if (!allocationWorksOnDay(resource.workingDays, allocation.ignoreWeekends, isWorkingDay(resource, d))) continue;
+    byDay.set(d, (byDay.get(d) ?? 0) + allocation.hoursPerDay);
   }
+}
+
+/** Bucket a whole existing load onto [start, end]. Hours land in `allocations` order, so a bucket
+ *  built here sums identically to one grown allocation-by-allocation (float addition is not
+ *  associative — the order is load-bearing for bit-identical advisories). */
+export function bucketCapacityLoad(
+  resource: Resource,
+  allocations: readonly CapacityAllocationInput[],
+  start: ISODate,
+  end: ISODate,
+): CapacityLoadByDay {
+  const byDay: CapacityLoadByDay = new Map();
+  for (const a of allocations) addCapacityLoad(byDay, resource, a, start, end);
+  return byDay;
+}
+
+/** The days a proposal covers, or `null` when its window is empty or beyond the product span limit.
+ *  Proposed input may not have reached the durable write boundary yet, so this refusal is O(1) and
+ *  happens before eachDayISO allocates one string per date. */
+function advisoryDays(proposal: CapacityAllocationInput): ISODate[] | null {
+  const span = daysInclusive(proposal.startDate, proposal.endDate);
+  if (span < 1 || span > MAX_SPAN_DAYS) return null;
+  return eachDayISO(proposal.startDate, proposal.endDate);
+}
+
+function tallyAdvisory(
+  resource: Resource,
+  proposal: CapacityAllocationInput,
+  days: ISODate[],
+  loadByDay: CapacityLoadByDay,
+  timeOff: TimeOff[],
+): CapacityAdvisory {
   let overDays = 0;
   let timeOffDays = 0;
   for (const day of days) {
     // Derive the weekday + time-off ONCE per day and reuse for both tallies — availableHoursOnDay
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
-    const working = isWorkingDay(resource, day);
+    const weekday = weekdayOf(day);
+    const working = worksWeekday(resource, weekday);
     const onTimeOff = working && isOnTimeOff(resource.id, day, timeOff);
     // Time off is its own category (counted, surfaced separately) and never folded into overDays —
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
@@ -235,13 +287,51 @@ export function capacityAdvisory(
       continue;
     }
     // The proposal does no work on a day it doesn't cover (a weekend-aware bar over Sat/Sun) — skip.
-    if (!allocationWorksOnDay(resource.workingDays, ignoreWeekends, working)) continue;
+    if (!allocationWorksOnDay(resource.workingDays, proposal.ignoreWeekends, working)) continue;
     // Mirrors availableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over — exactly like the per-day over-marker.
-    const available = working ? scheduledHoursOnDay(resource, day) : 0;
-    if (exceedsCapacity((allocatedByDay.get(day) ?? 0) + hoursPerDay, available)) overDays++;
+    const available = working ? scheduledHoursForWeekday(resource, weekday) : 0;
+    if (exceedsCapacity((loadByDay.get(day) ?? 0) + proposal.hoursPerDay, available)) overDays++;
   }
   return { overDays, timeOffDays };
+}
+
+/** Non-blocking advisory for a PROPOSED allocation (its own dates, `hoursPerDay` and
+ *  `ignoreWeekends`): how many days it would push the resource over capacity, and how many fall on
+ *  time off. The proposal is taken whole so a draft or persisted row passes straight through — only
+ *  its `resourceId` is unread, because the advisory always scopes to `resource`.
+ *  `otherAllocations` is the existing load to count against (caller excludes the allocation being
+ *  edited); it need NOT be pre-filtered by resource (see `addCapacityLoad`).
+ *  Shared by the modal and the drag-commit path so the rule
+ *  lives in one place. Mirrors the per-day over-marker (`allocatedHoursOnDay`): it counts a day only
+ *  when the proposed allocation actually WORKS it (so a weekend-aware bar merely spanning Sat/Sun
+ *  isn't "over"), and an `ignoreWeekends` weekend — 0 capacity — reads as over exactly like the red
+ *  cell does. Time off stays its OWN category, never folded into overDays (a holiday a working
+ *  allocation covers is surfaced as "on time off for N days", not "over"), which is the one place the
+ *  advisory deliberately diverges from the marker. */
+export function capacityAdvisory(
+  resource: Resource,
+  proposal: CapacityAllocationInput,
+  otherAllocations: readonly CapacityAllocationInput[],
+  timeOff: TimeOff[],
+): CapacityAdvisory {
+  const days = advisoryDays(proposal);
+  if (!days) return { overDays: 0, timeOffDays: 0 };
+  const loadByDay = bucketCapacityLoad(resource, otherAllocations, proposal.startDate, proposal.endDate);
+  return tallyAdvisory(resource, proposal, days, loadByDay, timeOff);
+}
+
+/** `capacityAdvisory` against a load bucket the caller already holds — for a BATCH of proposals on
+ *  one resource, where rebuilding the bucket per proposal is the dominant cost. The bucket must
+ *  cover at least the proposal's window (see `bucketCapacityLoad`). */
+export function capacityAdvisoryFromLoad(
+  resource: Resource,
+  proposal: CapacityAllocationInput,
+  loadByDay: CapacityLoadByDay,
+  timeOff: TimeOff[],
+): CapacityAdvisory {
+  const days = advisoryDays(proposal);
+  return days ? tallyAdvisory(resource, proposal, days, loadByDay, timeOff) : { overDays: 0, timeOffDays: 0 };
 }
 
 /** Over-allocated inside the window — the near-term radar. Strictly allocated > available,
@@ -256,5 +346,11 @@ export function overAllocatedInWindow(
   precomputedCapacity?: Iterable<DayCapacity>,
 ): boolean {
   const days = precomputedCapacity ?? capacityForWindow(resource, allocations, timeOff, start, end);
-  return Array.from(days).some((day) => day.over);
+  // Walk the iterable directly: `Array.from(...).some(...)` copied every day into a throwaway array
+  // before it could short-circuit, so the common case (an over day early in the window) paid for
+  // the whole window anyway.
+  for (const day of days) {
+    if (day.over) return true;
+  }
+  return false;
 }

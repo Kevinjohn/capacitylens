@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PRESET_COLORS, isPresetColor } from "@capacitylens/shared/lib/color";
 import { DEFAULT_COLORS, SWATCH_COLUMNS, SWATCHES, colorName, swatchLabel } from "./palette";
 
 describe("DEFAULT_COLORS", () => {
@@ -7,6 +8,16 @@ describe("DEFAULT_COLORS", () => {
     expect(DEFAULT_COLORS.resource).toBe("#2d75da");
     expect(DEFAULT_COLORS.placeholder).toBe("#2d75da");
     expect(DEFAULT_COLORS.discipline).toBe("#2d75da");
+  });
+
+  it("only uses colours that are members of the swatch matrix", () => {
+    // Enforces the invariant the SWATCHES comment states in prose ("deliberately includes every
+    // DEFAULT_COLORS value"): a freshly-opened form's default must HIGHLIGHT as a selected swatch,
+    // which silently stops happening if either list is retuned without the other.
+    for (const [entity, hex] of Object.entries(DEFAULT_COLORS)) {
+      expect(isPresetColor(hex), `${entity} default ${hex} is not a preset colour`).toBe(true);
+      expect(PRESET_COLORS).toContain(hex);
+    }
   });
 });
 
