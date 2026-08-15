@@ -3,6 +3,7 @@ import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateText } from "../../lib/validation";
+import { isStaleEdit } from "../../lib/staleEdit";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -45,8 +46,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
     };
     try {
       if (resource) {
-        const current = useStore.getState().data.resources.find((candidate) => candidate.id === resource.id);
-        if (!current || current.updatedAt !== resource.updatedAt) {
+        if (isStaleEdit(useStore.getState().data.resources, resource.id, resource.updatedAt)) {
           fail(null, m.form_external_err_changed());
           return;
         }

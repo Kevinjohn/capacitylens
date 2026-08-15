@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
 import { accountClient, accountCommandOutcomeWasUnknown } from "../../account/accountClient";
 import { useStore } from "../../store/useStore";
@@ -105,6 +105,21 @@ export function AccountPicker() {
   const [confirming, setConfirming] = useState<AccountSummary | null>(null);
   const roleDescriptionPrefix = useId();
   const tzOptions = supportedTimeZones();
+  // Locale-sensitive labels (Paraglide m.*() / Intl), so a stale memo would silently keep a prior
+  // locale's text on screen. Currently safe to key on the stable inputs alone: the app ships one
+  // locale (project.inlang/settings.json: locales: ["en"]), and this create-company form only
+  // renders before an active account exists — the one place `syncLocaleFromAccount` can change the
+  // locale (useAppShellController, keyed off the ACTIVE account's language) fires after an account is
+  // picked, by which point this form has unmounted. tzOptions is the module-cached frozen array from
+  // supportedTimeZones() (stable reference across renders), so this only recomputes when it changes.
+  const tzSelectOptions = useMemo(
+    () => tzOptions.map((tz) => ({ value: tz, label: timeZoneOptionLabel(tz) })),
+    [tzOptions],
+  );
+  const weekStartSelectOptions = useMemo(
+    () => WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() })),
+    [],
+  );
 
   const resetForm = () => {
     clear();
@@ -449,17 +464,14 @@ export function AccountPicker() {
                     ariaLabel={m.picker_week_start()}
                     value={weekStartsOn}
                     onChange={setWeekStartsOn}
-                    options={WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
+                    options={weekStartSelectOptions}
                   />
                 </div>
                 <SelectField
                   label={m.picker_timezone()}
                   value={timezone}
                   onChange={setTimezone}
-                  options={tzOptions.map((tz) => ({
-                    value: tz,
-                    label: timeZoneOptionLabel(tz),
-                  }))}
+                  options={tzSelectOptions}
                 />
                 <div>
                   {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}

@@ -6,7 +6,7 @@ import { m } from "@/i18n";
 
 /** One resource heading and its ordered, currently relevant time-off entries. A null resource id
  * identifies the final fallback group for dangling references. */
-export interface TimeOffGroup {
+interface TimeOffGroup {
   resourceId: ID | null;
   name: string;
   entries: TimeOff[];

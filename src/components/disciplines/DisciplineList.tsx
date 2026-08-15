@@ -6,20 +6,20 @@ import { NEUTRAL_COLOR } from "../../lib/palette";
 import { DisciplineForm } from "./DisciplineForm";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { Plus, Tag } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { errorMessage } from "../../lib/errorMessage";
 import { byName } from "../../lib/displayOrder";
+import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines;
   const del = useStore((s) => s.deleteDiscipline);
-  const setNotice = useStore((s) => s.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Discipline>();
+  const confirmDelete = useConfirmDelete(del, () => setConfirming(null));
 
   // Management is alphabetical for scanning; the scheduler deliberately keeps discipline sortOrder.
-  const sorted = [...disciplines].sort(byName);
+  const sorted = useMemo(() => [...disciplines].sort(byName), [disciplines]);
 
   return (
     <ListPage title={m.list_disciplines_title()} addLabel={m.list_disciplines_add()} onAdd={() => setCreating(true)}>
@@ -65,14 +65,7 @@ export function DisciplineList() {
         <ConfirmDialog
           title={m.list_disciplines_delete_title()}
           message={m.list_disciplines_delete_message({ name: confirming.name })}
-          onConfirm={() => {
-            try {
-              del(confirming.id);
-              setConfirming(null);
-            } catch (error) {
-              setNotice(errorMessage(error), "error");
-            }
-          }}
+          onConfirm={() => confirmDelete(confirming.id)}
           onCancel={() => setConfirming(null)}
         />
       )}

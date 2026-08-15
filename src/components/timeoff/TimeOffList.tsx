@@ -11,7 +11,7 @@ import { m } from "@/i18n";
 import { Fragment, useMemo } from "react";
 import { Calendar, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { errorMessage } from "../../lib/errorMessage";
+import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 
 export function TimeOffList() {
   const data = useActiveScopedData();
@@ -20,8 +20,8 @@ export function TimeOffList() {
   const calendarTimeZone = useStore((s) => timeZoneFor(s.data, s.activeAccountId));
   const calendarWeekStartsOn = useStore((s) => weekStartsOnFor(s.data, s.activeAccountId));
   const del = useStore((s) => s.deleteTimeOff);
-  const setNotice = useStore((s) => s.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>();
+  const confirmDelete = useConfirmDelete(del, () => setConfirming(null));
 
   const currentWeekStart = currentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
   const groups = useMemo(
@@ -100,14 +100,7 @@ export function TimeOffList() {
         <ConfirmDialog
           title={m.list_timeoff_delete_title()}
           message={m.list_timeoff_delete_message()}
-          onConfirm={() => {
-            try {
-              del(confirming.id);
-              setConfirming(null);
-            } catch (error) {
-              setNotice(errorMessage(error), "error");
-            }
-          }}
+          onConfirm={() => confirmDelete(confirming.id)}
           onCancel={() => setConfirming(null)}
         />
       )}

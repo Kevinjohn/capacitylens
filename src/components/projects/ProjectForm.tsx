@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { domainErrorMessage, errorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
+import { isStaleEdit } from "../../lib/staleEdit";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { byName } from "../../lib/displayOrder";
@@ -36,28 +37,39 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const selectedClientIsInternal = clients.find((client) => client.id === clientId)?.builtin === true;
   const showColourPicker = internalColourMode === "palette" || !selectedClientIsInternal;
 
-  const internalClient = clients.find((client) => client.builtin === true);
-  const ordinaryClients = clients.filter((client) => client.builtin !== true).sort(byName);
-  const clientOptions: Option[] = [
-    ...(internalClient ? [{ value: internalClient.id, label: internalClient.name }] : []),
-    ...ordinaryClients.map((client, index) => ({
-      value: client.id,
-      label: client.name,
-      separatorBefore: internalClient !== undefined && index === 0,
-    })),
-  ];
+  // The internal/ordinary split + sort is the only non-trivial cost here; memoised on its actual
+  // input (clients) so it isn't redone on every keystroke elsewhere in the form. The archived-option
+  // append below stays OUTSIDE the memo: its label goes through `m.*()`, which must keep resolving
+  // fresh every render (a stale locale/account switch is otherwise possible — see validation.ts's
+  // "getter, not module-scope const" note), so it's rebuilt un-cached each render.
+  const baseClientOptions: Option[] = useMemo(() => {
+    const internalClient = clients.find((client) => client.builtin === true);
+    const ordinaryClients = clients.filter((client) => client.builtin !== true).sort(byName);
+    return [
+      ...(internalClient ? [{ value: internalClient.id, label: internalClient.name }] : []),
+      ...ordinaryClients.map((client, index) => ({
+        value: client.id,
+        label: client.name,
+        separatorBefore: internalClient !== undefined && index === 0,
+      })),
+    ];
+  }, [clients]);
   // Editing a project whose client is ARCHIVED: the active-only options above don't contain it, so
   // without this the select would silently blank and an unrelated edit (rename, colour) couldn't
   // round-trip the unchanged clientId. Append the current id as a DISABLED option — it stays
   // selected/submittable as the current value (the store's unchanged-parent relaxation accepts it),
   // but can't be picked back once the user chooses an active client.
+  let clientOptions: Option[] = baseClientOptions;
   if (project && !clients.some((c) => c.id === project.clientId)) {
     const raw = rawClients.find((c) => c.id === project.clientId);
-    clientOptions.push({
-      value: project.clientId,
-      label: raw ? m.list_label_archived({ name: raw.name }) : m.form_option_current_archived(),
-      disabled: true,
-    });
+    clientOptions = [
+      ...baseClientOptions,
+      {
+        value: project.clientId,
+        label: raw ? m.list_label_archived({ name: raw.name }) : m.form_option_current_archived(),
+        disabled: true,
+      },
+    ];
   }
 
   const submit = () => {
@@ -75,8 +87,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
     // instead of an uncaught React error — see the store CRUD contract.
     try {
       if (project) {
-        const current = useStore.getState().data.projects.find((candidate) => candidate.id === project.id);
-        if (!current || current.updatedAt !== project.updatedAt) {
+        if (isStaleEdit(useStore.getState().data.projects, project.id, project.updatedAt)) {
           fail(null, m.form_project_err_changed());
           return;
         }

@@ -7,6 +7,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.48.0-alpha.1] — 2026-08-15
+
+### Changed
+
+- Simplified the small feature-component layer (accounts, invites, resources, activities,
+  projects, clients, time off, disciplines, team, external, import-export) with no behaviour
+  changes: extracted the stale-edit check duplicated across all seven entity forms into a shared
+  `isStaleEdit` helper; deduplicated the delete-confirm error path shared by three lists behind a
+  small hook; memoised per-render option rebuilds in the entity forms and the create-company
+  timezone list (~400 locale-formatting calls per keystroke previously), keeping locale-sensitive
+  labels render-scoped; memoised the resource/project/client/discipline list partitions and sorts;
+  narrowed a whole-store subscription in the delete-company dialog to an event-time read; and made
+  four unimported view-model types module-internal (#348).
+
 ## [0.47.0-alpha.1] — 2026-08-15
 
 ### Changed
@@ -3519,7 +3533,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.47.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.48.0-alpha.1...HEAD
+[0.48.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.47.0-alpha.1...v0.48.0-alpha.1
 [0.47.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.46.0-alpha.1...v0.47.0-alpha.1
 [0.46.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.45.0-alpha.1...v0.46.0-alpha.1
 [0.45.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.44.0-alpha.1...v0.45.0-alpha.1

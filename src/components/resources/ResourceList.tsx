@@ -110,13 +110,29 @@ export function ResourceList() {
 
   // Resources, placeholders, and externals all live on THIS tab now. Externals (the External section
   // below) are gated behind the per-account `externalEnabled` pref; people/placeholders split by kind.
-  const people = resources
-    .filter((r) => r.kind === "person")
-    .sort(groupResourcesByEngagement ? byEngagementFavouriteResourceDisplayName : byFavouriteResourceDisplayName);
-  const studioPeople = people.filter((resource) => resource.engagement === "studio");
-  const supplementaryPeople = people.filter((resource) => resource.engagement === "supplementary");
-  const placeholders = resources.filter((r) => r.kind === "placeholder").sort(byResourceDisplayName);
-  const externals = resources.filter(isExternalResource).sort(byFavouriteResourceDisplayName);
+  // Single pass over `resources` (kind is a 3-way enum — person/placeholder/external — so one bucketing
+  // loop is exactly equivalent to the three independent .filter() calls it replaces), memoized so a
+  // render that doesn't touch resource data (e.g. a FavouriteButton hover) doesn't re-partition/re-sort.
+  const { people, studioPeople, supplementaryPeople, placeholders, externals } = useMemo(() => {
+    const people: Resource[] = [];
+    const placeholders: Resource[] = [];
+    const externals: Resource[] = [];
+    for (const r of resources) {
+      if (r.kind === "person") people.push(r);
+      else if (r.kind === "placeholder") placeholders.push(r);
+      else if (isExternalResource(r)) externals.push(r);
+    }
+    people.sort(groupResourcesByEngagement ? byEngagementFavouriteResourceDisplayName : byFavouriteResourceDisplayName);
+    placeholders.sort(byResourceDisplayName);
+    externals.sort(byFavouriteResourceDisplayName);
+    return {
+      people,
+      studioPeople: people.filter((resource) => resource.engagement === "studio"),
+      supplementaryPeople: people.filter((resource) => resource.engagement === "supplementary"),
+      placeholders,
+      externals,
+    };
+  }, [resources, groupResourcesByEngagement]);
   const visibleResourceCount =
     people.length + (placeholdersEnabled ? placeholders.length : 0) + (externalEnabled ? externals.length : 0);
 

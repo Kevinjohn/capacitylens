@@ -8,8 +8,8 @@ import { m } from "@/i18n";
 import { Fragment, useEffect, useMemo, useRef } from "react";
 import { ClipboardCheck, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { errorMessage } from "../../lib/errorMessage";
 import { buildActivityListModel } from "./activityListModel";
+import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 
 export function ActivityList({ selectedActivityId = null }: { selectedActivityId?: string | null }) {
   const data = useActiveScopedData();
@@ -17,8 +17,8 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
   const projects = data.projects;
   const clients = data.clients;
   const del = useStore((s) => s.deleteActivity);
-  const setNotice = useStore((s) => s.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>();
+  const confirmDelete = useConfirmDelete(del, () => setConfirming(null));
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -172,14 +172,7 @@ export function ActivityList({ selectedActivityId = null }: { selectedActivityId
         <ConfirmDialog
           title={m.list_activities_delete_title()}
           message={m.list_activities_delete_message({ name: confirming.name })}
-          onConfirm={() => {
-            try {
-              del(confirming.id);
-              setConfirming(null);
-            } catch (error) {
-              setNotice(errorMessage(error), "error");
-            }
-          }}
+          onConfirm={() => confirmDelete(confirming.id)}
           onCancel={() => setConfirming(null)}
         />
       )}

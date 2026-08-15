@@ -8,7 +8,7 @@ import { archiveImpact } from "@capacitylens/shared/domain/lifecycle";
 import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { Briefcase, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { clientArchiveImpactCopy } from "../../lib/archiveImpactCopy";
@@ -34,7 +34,7 @@ export function ClientList() {
   // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
   // not this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
   const scoped = useActiveScopedData();
-  const clients = scoped.clients.filter((c) => !isBuiltinClient(c)).sort(byName);
+  const clients = useMemo(() => scoped.clients.filter((c) => !isBuiltinClient(c)).sort(byName), [scoped.clients]);
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
