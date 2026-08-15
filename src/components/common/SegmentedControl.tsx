@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { useMarkFormDirty } from "./formDirty";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 
@@ -46,6 +47,7 @@ export function SegmentedControl<T extends string | number>({
   ariaLabel,
   ariaLabelledby,
   className,
+  itemClassName,
   disabled = false,
 }: {
   value: T;
@@ -57,6 +59,8 @@ export function SegmentedControl<T extends string | number>({
   ariaLabelledby?: string;
   /** Optional layout classes for the group container. */
   className?: string;
+  /** Optional layout classes applied to every segment. */
+  itemClassName?: string;
   /**
    * When true, the group gives every segment the native `disabled` attribute, so the selected value
    * remains visible but cannot receive sequential focus or change. Used for the frozen week-start
@@ -89,7 +93,7 @@ export function SegmentedControl<T extends string | number>({
           value={encodedValue(opt.value)}
           title={opt.title}
           data-form-dirty-managed
-          className={selectedSegmentClass}
+          className={cn(selectedSegmentClass, itemClassName)}
         >
           {opt.label}
         </ToggleGroupItem>

@@ -70,6 +70,7 @@ describe("compact input modal layouts", () => {
     expect(kind).toHaveClass("w-full");
     expect(kind).toHaveClass("[&>*]:flex-1");
     expect(kind.children).toHaveLength(3);
+    for (const segment of kind.children) expect(segment).toHaveClass("px-1.5", "tracking-tighter");
     expect(screen.getAllByRole("radio").map((segment) => segment.textContent)).toEqual([
       "Internal",
       "Cross-project",
