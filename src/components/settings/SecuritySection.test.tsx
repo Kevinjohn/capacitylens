@@ -29,6 +29,7 @@ import { SecuritySection } from "./SecuritySection";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { jsonResponse } from "../../test/fixtures";
 
 const SESSION = {
   id: "opaque-session-handle",
@@ -36,13 +37,6 @@ const SESSION = {
   expiresAt: "2026-07-15T00:00:00.000Z",
   current: false,
 };
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -280,6 +274,9 @@ describe("SecuritySection", () => {
 
   it("rejects mismatched new passwords without contacting the authentication service", async () => {
     render(<SecuritySection />);
+    // Let the mount-time session load settle first: it shares this section's error surface, so a
+    // refresh landing mid-assertion would otherwise clear the very error being inspected.
+    await screen.findByText(m.settings_security_signed_in_session());
     fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
       target: { value: "current-password" },
     });
@@ -305,6 +302,7 @@ describe("SecuritySection", () => {
 
   it("associates a password-length error with the new-password input", async () => {
     render(<SecuritySection />);
+    await screen.findByText(m.settings_security_signed_in_session()); // as above: settle the session load first
     fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
       target: { value: "current-password" },
     });

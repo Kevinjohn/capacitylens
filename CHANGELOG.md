@@ -7,6 +7,28 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.46.0-alpha.1] — 2026-08-15
+
+### Changed
+
+- Simplified the settings component layer (`src/components/settings`) with no intended behaviour
+  changes beyond the three flagged below: extracted shared hooks for deadline-driven re-renders
+  (`useDeadlineClock`) and double-click-safe exclusive actions (`useExclusiveAction`); moved the
+  member-role edit predicate into the shared account policy (with full role-matrix equivalence
+  tests); adopted the canonical per-account store selectors in the settings view; consolidated
+  duplicated member-action envelopes, rejection-message fallbacks, option tables, timestamp
+  formatting, OIDC-provider selection, and page-reload seams behind shared helpers; merged the
+  archived section's two confirmation dialogs and near-identical group renderings; and
+  consolidated the members test suite behind a shared route-table mock (net −360 test lines,
+  assertions unchanged) (#346).
+- The archived section no longer fetches the account's inactive data for roles that cannot purge:
+  the request previously always fired and was rejected server-side; it is now gated client-side
+  with the server 403 kept as backstop (#346).
+- Purge deadlines more than ~25 days out now enable the purge action at the boundary; previously
+  a timer overflow guard meant the row stayed locked until an unrelated re-render (#346).
+- Password fields in the security section now cap input length at 256 characters (previously
+  unbounded) (#346).
+
 ## [0.45.0-alpha.1] — 2026-08-14
 
 ### Changed
@@ -3485,7 +3507,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.45.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.46.0-alpha.1...HEAD
+[0.46.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.45.0-alpha.1...v0.46.0-alpha.1
 [0.45.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.44.0-alpha.1...v0.45.0-alpha.1
 [0.44.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.43.0-alpha.1...v0.44.0-alpha.1
 [0.43.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.42.0-alpha.1...v0.43.0-alpha.1

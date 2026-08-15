@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { ArchivedSection } from "./ArchivedSection";
 import { useStore } from "../../store/useStore";
-import { makeAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { makeAccount, makeClient, makeProject, makeResource, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { PermissionContext } from "../../auth/permissionContext";
@@ -27,49 +27,13 @@ vi.mock("../../data/apiConfig", () => ({
 
 const TS = "2026-05-01T00:00:00.000Z";
 
-function resource(over: Partial<Resource>): Resource {
-  return {
-    id: "r1",
-    accountId: DEFAULT_ACCOUNT_ID,
-    createdAt: TS,
-    updatedAt: TS,
-    kind: "person",
-    name: "Alice",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#6366f1",
-    ...over,
-  };
-}
-
-function client(over: Partial<Client>): Client {
-  return {
-    id: "c1",
-    accountId: DEFAULT_ACCOUNT_ID,
-    createdAt: TS,
-    updatedAt: TS,
-    name: "Acme",
-    color: "#111",
-    ...over,
-  };
-}
-
-function project(over: Partial<Project>): Project {
-  return {
-    id: "p1",
-    accountId: DEFAULT_ACCOUNT_ID,
-    createdAt: TS,
-    updatedAt: TS,
-    name: "Lightning",
-    clientId: "c1",
-    color: "#222",
-    ...over,
-  };
-}
+// The shared entity builders, re-stamped for this suite: rows must belong to the seeded account (the
+// scoped store slice filters on `accountId`) and carry ISO-shaped timestamps, because these rows are
+// also fed back through the server-mode fetch mock as a real AppData payload.
+const stamped = { accountId: DEFAULT_ACCOUNT_ID, createdAt: TS, updatedAt: TS };
+const resource = (over: Partial<Resource> = {}): Resource => makeResource({ ...stamped, ...over });
+const client = (over: Partial<Client> = {}): Client => makeClient({ ...stamped, ...over });
+const project = (over: Partial<Project> = {}): Project => makeProject({ ...stamped, ...over });
 
 /** An ISO timestamp `days` ago from now — to seed a tombstone older/younger than the 30-day window. */
 function daysAgo(days: number): string {
@@ -279,6 +243,46 @@ describe("ArchivedSection — demo build (store source)", () => {
     expect(purge).toBeEnabled();
   });
 
+  // A FRESH tombstone's boundary is the full 30 days out (~2.59e9 ms), past setTimeout's 32-bit
+  // ceiling (~24.8 days), so the alarm can only reach it in legs: the first wake is clamped and has to
+  // re-arm for the remainder instead of reporting a boundary nothing has crossed. The section's own
+  // timer used to fire once at the ceiling and never re-arm (its dep — the picked instant — was
+  // unchanged), so the row stayed locked past its grace until some unrelated render recomputed it.
+  it("enables purge across a boundary beyond setTimeout's 32-bit ceiling", async () => {
+    const MAX_TIMEOUT_DELAY = 2_147_483_647;
+    const graceMs = 30 * 24 * 60 * 60 * 1000;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-01T12:00:00.000Z"));
+    seed({
+      clients: [
+        client({
+          id: "c-fresh",
+          name: "Fresh Tombstone",
+          archivedAt: TS,
+          deletedAt: new Date().toISOString(),
+        }),
+      ],
+    });
+    render(<ArchivedSection />);
+
+    const purge = screen.getByRole("button", {
+      name: "Permanently delete Fresh Tombstone",
+    });
+    expect(purge).toBeDisabled();
+
+    // The clamped leg: the timer woke, but the grace has not elapsed, so nothing may unlock yet.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MAX_TIMEOUT_DELAY);
+    });
+    expect(purge).toBeDisabled();
+
+    // …and the re-armed remainder still lands on the real boundary.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(graceMs - MAX_TIMEOUT_DELAY + 1);
+    });
+    expect(purge).toBeEnabled();
+  });
+
   it("ENABLES the purge button for a ≥30-day tombstone and purges on confirm", async () => {
     const user = userEvent.setup();
     seed({
@@ -385,6 +389,54 @@ describe("ArchivedSection — server mode self-hide", () => {
     finishLifecycle(Response.json({ error: "Transition refused." }, { status: 409 }));
     await waitFor(() => expect(restore).toBeEnabled());
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/unarchive"))).toHaveLength(1);
+  });
+
+  // The affordance gate is also a REQUEST gate: the ?includeInactive=1 read is the heaviest read in
+  // the app and 403s for anyone who can't purge, so a concrete non-purge role must never send it. The
+  // null role is the OFF/demo full-access case and MUST still send it — that pair is the regression
+  // guard, so both halves are pinned here.
+  it("never asks for the inactive slice with a concrete role that cannot purge", async () => {
+    cfg.serverOn = true;
+    seed({
+      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
+    });
+    const fetchMock = vi.fn(() => Promise.resolve(Response.json(useStore.getState().data)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { container } = render(
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+        <ArchivedSection />
+      </PermissionContext.Provider>,
+    );
+    await act(async () => {}); // let any effect-launched request settle before asserting it never happened
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="archived-section"]')).toBeNull();
+    expect(screen.queryByText("Archived Client")).not.toBeInTheDocument();
+  });
+
+  it("still fetches and renders for a null role (OFF / demo full access)", async () => {
+    cfg.serverOn = true;
+    seed({
+      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
+    });
+    const slice = useStore.getState().data;
+    const requested: string[] = [];
+    const fetchMock = vi.fn((url: string) => {
+      requested.push(url);
+      return Promise.resolve(Response.json(slice));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PermissionContext.Provider value={{ role: null, status: "not-applicable" }}>
+        <ArchivedSection />
+      </PermissionContext.Provider>,
+    );
+
+    expect(await screen.findByText("Archived Client")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(requested[0]).toContain("includeInactive=1");
   });
 
   it("renders nothing when the inactive read returns 403", async () => {

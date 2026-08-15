@@ -1,4 +1,5 @@
 import type { Role } from "@capacitylens/shared/domain/access";
+import { isAccountRole } from "@capacitylens/shared/account/types";
 import { isSsoReadinessReason, type SsoReadinessReason } from "@capacitylens/shared/account/ssoCutover";
 
 /** Exact provider-row coordinate accepted by the administration repair endpoint. */
@@ -59,7 +60,7 @@ function isReadinessMember(value: unknown): value is ReadinessMember {
     typeof member.principalId === "string" &&
     (member.email === null || typeof member.email === "string") &&
     (member.displayName === null || typeof member.displayName === "string") &&
-    ["owner", "admin", "editor", "viewer"].includes(String(member.role)) &&
+    isAccountRole(member.role) &&
     typeof member.linked === "boolean" &&
     typeof member.blocking === "boolean" &&
     typeof member.critical === "boolean" &&
@@ -78,6 +79,13 @@ function isReadinessMember(value: unknown): value is ReadinessMember {
       );
     })
   );
+}
+
+/** How a readiness row names a member: the email an administrator would act on, falling back to the
+ *  display name and finally to the raw principal id — never a blank cell. Single-sourced here
+ *  because the panel's rows and the unlink confirmation must name the same person the same way. */
+export function readinessMemberLabel(member: ReadinessMember): string {
+  return member.email ?? member.displayName ?? member.principalId;
 }
 
 /** Parse an untrusted readiness response, returning null when any nested contract field is invalid. */

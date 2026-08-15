@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { accountClient } from "./accountClient";
-import { teamAccessClient } from "./teamAccessClient";
+import { rejectionMessage, teamAccessClient } from "./teamAccessClient";
 
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -194,5 +194,40 @@ describe("teamAccessClient identity validation", () => {
     );
 
     await expect(teamAccessClient.listInvitations("account-1")).resolves.toMatchObject({ kind: "invalid" });
+  });
+});
+
+describe("rejectionMessage", () => {
+  // Only a `rejected` outcome carries a sentence the SERVER wrote about the user's request. The
+  // other non-ok kinds describe the client's own uncertainty, so the caller's operation-specific
+  // fallback stays the better thing to show.
+  it("prefers the server's sentence on a rejection", () => {
+    expect(
+      rejectionMessage({ kind: "rejected", status: 409, message: "That member owns the account." }, "fallback"),
+    ).toBe("That member owns the account.");
+  });
+
+  it("falls back when a rejection carried no sentence", () => {
+    expect(rejectionMessage({ kind: "rejected", status: 403, message: null }, "fallback")).toBe("fallback");
+  });
+
+  it("falls back rather than showing a blank toast for an empty rejection message", () => {
+    expect(rejectionMessage({ kind: "rejected", status: 403, message: "" }, "fallback")).toBe("fallback");
+  });
+
+  it("keeps the caller's sentence for unknown and invalid outcomes", () => {
+    expect(rejectionMessage({ kind: "unknown", status: 502, message: "Gateway timeout." }, "fallback")).toBe(
+      "fallback",
+    );
+    expect(
+      rejectionMessage(
+        { kind: "invalid", status: 200, message: "The server returned an invalid response." },
+        "fallback",
+      ),
+    ).toBe("fallback");
+  });
+
+  it("keeps the caller's sentence for a success handed to it defensively", () => {
+    expect(rejectionMessage<true>({ kind: "ok", status: 204, value: true }, "fallback")).toBe("fallback");
   });
 });

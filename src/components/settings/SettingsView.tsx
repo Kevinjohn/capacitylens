@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "../../auth/authContext";
 import { buildStamp, feedbackMailto } from "../../data/buildInfo";
 import { isServerConfigured } from "../../data/apiConfig";
@@ -8,8 +8,6 @@ import {
   cacheAccountSlice,
   cacheAccountSummaries,
   cacheAuthSnapshot,
-  offlineReadEnabled,
-  subscribeOfflinePreference,
   setOfflineReadEnabled,
 } from "../../data/offlineCache";
 import { useStore } from "../../store/useStore";
@@ -27,81 +25,75 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useCanEdit } from "../../auth/permissionContext";
 import { Button } from "../ui/button";
-import { accountWorkingDaysFor, timeZoneFor, weekStartsOnFor } from "../../store/selectors";
-import { useOfflineState } from "../../data/useOfflineState";
-import { persistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "../../data/persistenceDiagnostics";
+import {
+  accountWorkingDaysFor,
+  disciplinesEnabledFor,
+  externalEnabledFor,
+  groupResourcesByEngagementFor,
+  inlineActivityCreateEnabledFor,
+  internalColourModeFor,
+  placeholdersEnabledFor,
+  schedulingModeFor,
+  showInternalActivitiesFor,
+  showInternalProjectsFor,
+  timeZoneFor,
+  weekStartsOnFor,
+} from "../../store/selectors";
+import { useOfflineReadEnabled, useOfflineState, usePersistenceDiagnostics } from "../../data/useOfflineState";
 import { SettingsSection } from "./SettingsSection";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { weekdayLabel, weekdayShortLabel } from "../../lib/weekdays";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
+import { labelsFrom, toOptions, type LabelMessages } from "../../lib/metadata";
+import type { BarLabelPrefs, UtilizationPrefs } from "../../lib/displayPrefs";
+import { useExclusiveAction } from "../../hooks/useExclusiveAction";
+import { reloadPage } from "../../lib/reloadPage";
 
-// Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
-// the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
-// load-time locale; the getter defers it to render so an account/locale switch re-resolves the text.
-const THEME_OPTIONS: { value: ThemePref; label: () => string }[] = [
-  { value: "light", label: () => m.settings_theme_light() },
-  { value: "dark", label: () => m.settings_theme_dark() },
-  { value: "system", label: () => m.settings_theme_system() },
-];
+// Module-scope option tables hold UNCALLED message references (`m.key`, never `m.key()`) and are
+// resolved at RENDER through metadata.ts's `labelsFrom`/`toOptions` — the same lazy rule the enum
+// tables there follow (the AppShell LINKS pattern, P1.5.2). Resolving `m.key()` at import would
+// freeze each label to the load-time locale; deferring it to render lets an account/locale switch
+// re-resolve the text. Keying each table by its own union also makes it exhaustive by type: add a
+// theme/mode/preference without a message here and tsc fails.
+const THEME_MESSAGES: LabelMessages<ThemePref> = {
+  light: m.settings_theme_light,
+  dark: m.settings_theme_dark,
+  system: m.settings_theme_system,
+};
 
-const SCHEDULING_OPTIONS: { value: SchedulingMode; label: () => string }[] = [
-  { value: "hourly", label: () => m.settings_scheduling_option_hours() },
-  { value: "days", label: () => m.settings_scheduling_option_days() },
-  { value: "blocks", label: () => m.settings_scheduling_option_blocks() },
-];
+const SCHEDULING_MESSAGES: LabelMessages<SchedulingMode> = {
+  hourly: m.settings_scheduling_option_hours,
+  days: m.settings_scheduling_option_days,
+  blocks: m.settings_scheduling_option_blocks,
+};
 
-const INTERNAL_COLOUR_OPTIONS: {
-  value: InternalColourMode;
-  label: () => string;
-}[] = [
-  { value: "grey", label: () => m.settings_internal_colours_grey() },
-  { value: "palette", label: () => m.settings_internal_colours_palette() },
-];
+const INTERNAL_COLOUR_MESSAGES: LabelMessages<InternalColourMode> = {
+  grey: m.settings_internal_colours_grey,
+  palette: m.settings_internal_colours_palette,
+};
 
-const UTILIZATION_OPTIONS: {
-  key: "showTotal" | "showDiscipline" | "showPersonal";
-  label: () => string;
-}[] = [
-  { key: "showTotal", label: () => m.settings_utilisation_show_total() },
-  {
-    key: "showDiscipline",
-    label: () => m.settings_utilisation_show_discipline(),
-  },
-  { key: "showPersonal", label: () => m.settings_utilisation_show_personal() },
-];
+const UTILIZATION_MESSAGES: LabelMessages<keyof UtilizationPrefs> = {
+  showTotal: m.settings_utilisation_show_total,
+  showDiscipline: m.settings_utilisation_show_discipline,
+  showPersonal: m.settings_utilisation_show_personal,
+};
 
-const BAR_LABEL_OPTIONS: {
-  key: "showClient" | "showProject";
-  label: () => string;
-}[] = [
-  { key: "showClient", label: () => m.settings_bar_labels_show_client() },
-  { key: "showProject", label: () => m.settings_bar_labels_show_project() },
-];
-
-// The on/off switch row shared by the Allocation bars and Utilisation sections.
-function ToggleRow({
-  label,
-  on,
-  onToggle,
-  disabled = false,
-}: {
-  label: string;
-  on: boolean;
-  onToggle: () => void;
-  disabled?: boolean;
-}) {
-  return <SwitchField label={label} checked={on} onChange={onToggle} disabled={disabled} />;
-}
+const BAR_LABEL_MESSAGES: LabelMessages<keyof BarLabelPrefs> = {
+  showClient: m.settings_bar_labels_show_client,
+  showProject: m.settings_bar_labels_show_project,
+};
 
 // App-level preferences, opened from the nav like the CRUD list pages.
 export function SettingsView() {
   const canEdit = useCanEdit();
-  const accounts = useStore((s) => s.data.accounts);
+  // ONE data subscription: every per-account read below goes through a `*For(data, id)` selector,
+  // and the offline opt-in caches the whole slice, so a separate `s.data.accounts` subscription
+  // would only add a second re-render source for a view this one already covers.
   const data = useStore((s) => s.data);
   const accountSummaries = useStore((s) => s.accountSummaries);
   const activeAccountId = useStore((s) => s.activeAccountId);
-  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
+  const activeAccount = data.accounts.find((a) => a.id === activeAccountId) ?? null;
   const updateAccount = useStore((s) => s.updateAccount);
   const setNotice = useStore((s) => s.setNotice);
   const theme = useStore((s) => s.theme);
@@ -112,42 +104,41 @@ export function SettingsView() {
   const setBarLabelPref = useStore((s) => s.setBarLabelPref);
   const minimiseWeekends = useStore((s) => s.minimiseWeekends);
   const setMinimiseWeekends = useStore((s) => s.setMinimiseWeekends);
-  const persistenceDiagnostics = useSyncExternalStore(
-    subscribePersistenceDiagnostics,
-    persistenceDiagnosticsSnapshot,
-    persistenceDiagnosticsSnapshot,
-  );
+  const persistenceDiagnostics = usePersistenceDiagnostics();
   const snapToWeekStart = useStore((s) => s.snapToWeekStart);
   const compactView = useStore((s) => s.compactView);
   const setSnapToWeekStart = useStore((s) => s.setSnapToWeekStart);
   const setCompactView = useStore((s) => s.setCompactView);
 
-  const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? "hourly";
+  // Every per-account setting is read through its selector, so this screen shows the SAME
+  // absent-field default (`?? true` for disciplines/internal visibility, `?? false` for
+  // placeholders/external, …) that the surfaces gating on it use — the defaults live once, in
+  // store/selectors.ts, and can't drift between where they're edited and where they're honoured.
+  const schedulingMode = schedulingModeFor(data, activeAccountId);
   const weekStartsOn = weekStartsOnFor(data, activeAccountId);
   const workingDays = accountWorkingDaysFor(data, activeAccountId);
   const workingDayOrder = orderedWeekdays(weekStartsOn);
   const timezone = timeZoneFor(data, activeAccountId);
-  const disciplinesEnabled: boolean = activeAccount?.disciplinesEnabled ?? true;
-  const groupResourcesByEngagement: boolean = activeAccount?.groupResourcesByEngagement ?? true;
-  // Per-account view prefs (default OFF — absent reads as hidden), mirroring disciplinesEnabled
-  // above. activeAccount is guaranteed non-null past the `if (!activeAccount) return null` below.
-  const placeholdersEnabled: boolean = activeAccount?.placeholdersEnabled ?? false;
-  const externalEnabled: boolean = activeAccount?.externalEnabled ?? false;
-  const internalColourMode: InternalColourMode = activeAccount?.internalColourMode ?? "grey";
-  // Per-account schedule view prefs (default ON — absent reads as shown/enabled, `?? true`, like
-  // disciplinesEnabled above and NOT the placeholders/external `?? false`).
-  const showInternalProjects: boolean = activeAccount?.showInternalProjects ?? true;
-  const showInternalActivities: boolean = activeAccount?.showInternalActivities ?? true;
-  const inlineActivityCreateEnabled: boolean = activeAccount?.inlineActivityCreateEnabled ?? true;
+  const disciplinesEnabled = disciplinesEnabledFor(data, activeAccountId);
+  const groupResourcesByEngagement = groupResourcesByEngagementFor(data, activeAccountId);
+  const placeholdersEnabled = placeholdersEnabledFor(data, activeAccountId);
+  const externalEnabled = externalEnabledFor(data, activeAccountId);
+  const internalColourMode = internalColourModeFor(data, activeAccountId);
+  const showInternalProjects = showInternalProjectsFor(data, activeAccountId);
+  const showInternalActivities = showInternalActivitiesFor(data, activeAccountId);
+  const inlineActivityCreateEnabled = inlineActivityCreateEnabledFor(data, activeAccountId);
   const { authMode, user, canCreateAccount, multiAccount, signOut } = useAuth();
-  const offlineEnabled = useSyncExternalStore(subscribeOfflinePreference, offlineReadEnabled, offlineReadEnabled);
-  const offlineActionLock = useRef(false);
-  const [offlineBusy, setOfflineBusy] = useState(false);
+  const offlineEnabled = useOfflineReadEnabled();
+  const offlineAction = useExclusiveAction();
   const offlineState = useOfflineState();
 
   // A user-triggered wipe of everything CapacityLens keeps in this browser: the opt-in read-only
   // cache plus device preferences. Server data is never touched; demo data is memory-only already.
   const [confirmingClear, setConfirmingClear] = useState(false);
+  // Hand-rolled rather than useExclusiveAction (which the offline toggle above uses): on the SUCCESS
+  // path this gate is never reopened, because the next thing that happens is a page reload and a
+  // re-enabled confirm button in that window would let a second wipe start. useExclusiveAction
+  // always releases in `finally` — correct for a retryable action, wrong for this one.
   const clearActionLock = useRef(false);
   const [clearBusy, setClearBusy] = useState(false);
   const serverMode = isServerConfigured();
@@ -169,52 +160,53 @@ export function SettingsView() {
       return;
     }
     // Reload so the app re-initialises from the server or a fresh in-memory demo.
-    window.location.reload();
+    reloadPage();
   };
 
-  const toggleOffline = async () => {
-    if (offlineActionLock.current) return;
-    offlineActionLock.current = true;
-    setOfflineBusy(true);
+  const toggleOffline = () => {
     const next = !offlineEnabled;
-    try {
-      await setOfflineReadEnabled(next);
-      if (next) {
-        if (!user) throw new Error(m.settings_offline_verified_user_required());
-        const authWrite = await cacheAuthSnapshot({
-          authMode,
-          user,
-          canCreateAccount,
-          multiAccount,
-        });
-        const summariesWrite = await cacheAccountSummaries(accountSummaries);
-        const sliceWrite = activeAccountId ? await cacheAccountSlice(activeAccountId, data) : null;
-        if (
-          authWrite.status !== "written" ||
-          summariesWrite.status !== "written" ||
-          (sliceWrite !== null && sliceWrite.status !== "written")
-        ) {
-          throw new Error(m.settings_offline_write_failed());
-        }
-      }
-      setNotice(next ? m.settings_offline_enabled_notice() : m.settings_offline_disabled_notice(), "info");
-    } catch (e) {
-      let surfaced: unknown = e;
-      if (next) {
-        // Registration succeeded before snapshot creation can fail (quota/private-mode errors).
-        // Roll the whole opt-in back so the device never claims offline readiness with a partial
-        // cache. If cleanup also fails, surface both failures instead of hiding the second one.
+    offlineAction.run(
+      async () => {
         try {
-          await setOfflineReadEnabled(false);
-        } catch (rollbackError) {
-          surfaced = new AggregateError([e, rollbackError], m.settings_offline_cleanup_incomplete());
+          await setOfflineReadEnabled(next);
+          if (next) {
+            if (!user) throw new Error(m.settings_offline_verified_user_required());
+            const authWrite = await cacheAuthSnapshot({
+              authMode,
+              user,
+              canCreateAccount,
+              multiAccount,
+            });
+            const summariesWrite = await cacheAccountSummaries(accountSummaries);
+            const sliceWrite = activeAccountId ? await cacheAccountSlice(activeAccountId, data) : null;
+            if (
+              authWrite.status !== "written" ||
+              summariesWrite.status !== "written" ||
+              (sliceWrite !== null && sliceWrite.status !== "written")
+            ) {
+              throw new Error(m.settings_offline_write_failed());
+            }
+          }
+          setNotice(next ? m.settings_offline_enabled_notice() : m.settings_offline_disabled_notice(), "info");
+        } catch (e) {
+          if (next) {
+            // Registration succeeded before snapshot creation can fail (quota/private-mode errors).
+            // Roll the whole opt-in back so the device never claims offline readiness with a partial
+            // cache. If cleanup also fails, surface both failures instead of hiding the second one.
+            // The rollback must finish INSIDE the action: the gate reopens once this settles.
+            try {
+              await setOfflineReadEnabled(false);
+            } catch (rollbackError) {
+              throw new AggregateError([e, rollbackError], m.settings_offline_cleanup_incomplete(), {
+                cause: rollbackError,
+              });
+            }
+          }
+          throw e;
         }
-      }
-      setNotice(m.settings_offline_error({ error: errorMessage(surfaced) }), "error");
-    } finally {
-      offlineActionLock.current = false;
-      setOfflineBusy(false);
-    }
+      },
+      (error) => setNotice(m.settings_offline_error({ error: errorMessage(error) }), "error"),
+    );
   };
 
   // The shell only routes here with an active account chosen; this is defensive.
@@ -262,10 +254,7 @@ export function SettingsView() {
             ariaLabel={m.settings_scheduling_aria()}
             value={schedulingMode}
             onChange={(value) => updateSetting({ schedulingMode: value })}
-            options={SCHEDULING_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label(),
-            }))}
+            options={toOptions(labelsFrom(SCHEDULING_MESSAGES))}
             disabled={!canEdit}
           />
         </SettingsSection>
@@ -324,10 +313,10 @@ export function SettingsView() {
 
         <SettingsSection title={m.settings_disciplines_heading()} help={m.settings_disciplines_intro()}>
           <div>
-            <ToggleRow
+            <SwitchField
               label={m.settings_disciplines_toggle()}
-              on={disciplinesEnabled}
-              onToggle={() => updateSetting({ disciplinesEnabled: !disciplinesEnabled })}
+              checked={disciplinesEnabled}
+              onChange={(next) => updateSetting({ disciplinesEnabled: next })}
               disabled={!canEdit}
             />
           </div>
@@ -335,10 +324,10 @@ export function SettingsView() {
 
         <SettingsSection title={m.settings_engagement_grouping_heading()} help={m.settings_engagement_grouping_intro()}>
           <div>
-            <ToggleRow
+            <SwitchField
               label={m.settings_engagement_grouping_toggle()}
-              on={groupResourcesByEngagement}
-              onToggle={() => updateSetting({ groupResourcesByEngagement: !groupResourcesByEngagement })}
+              checked={groupResourcesByEngagement}
+              onChange={(next) => updateSetting({ groupResourcesByEngagement: next })}
               disabled={!canEdit}
             />
           </div>
@@ -346,21 +335,17 @@ export function SettingsView() {
 
         <SettingsSection title={m.settings_schedule_heading()} help={m.settings_schedule_intro()}>
           <div className="flex flex-col gap-3">
-            <ToggleRow
+            <SwitchField
               label={m.settings_schedule_minimise_weekends()}
-              on={minimiseWeekends}
-              onToggle={() => setMinimiseWeekends(!minimiseWeekends)}
+              checked={minimiseWeekends}
+              onChange={setMinimiseWeekends}
             />
-            <ToggleRow
+            <SwitchField
               label={m.settings_schedule_snap_week_start()}
-              on={snapToWeekStart}
-              onToggle={() => setSnapToWeekStart(!snapToWeekStart)}
+              checked={snapToWeekStart}
+              onChange={setSnapToWeekStart}
             />
-            <ToggleRow
-              label={m.settings_schedule_compact_view()}
-              on={compactView}
-              onToggle={() => setCompactView(!compactView)}
-            />
+            <SwitchField label={m.settings_schedule_compact_view()} checked={compactView} onChange={setCompactView} />
           </div>
         </SettingsSection>
 
@@ -369,20 +354,17 @@ export function SettingsView() {
             ariaLabel={m.settings_internal_colours_aria()}
             value={internalColourMode}
             onChange={(value) => updateSetting({ internalColourMode: value })}
-            options={INTERNAL_COLOUR_OPTIONS.map((option) => ({
-              value: option.value,
-              label: option.label(),
-            }))}
+            options={toOptions(labelsFrom(INTERNAL_COLOUR_MESSAGES))}
             disabled={!canEdit}
           />
         </SettingsSection>
 
         <SettingsSection title={m.settings_placeholders_heading()} help={m.settings_placeholders_intro()}>
           <div>
-            <ToggleRow
+            <SwitchField
               label={m.settings_placeholders_toggle()}
-              on={placeholdersEnabled}
-              onToggle={() => updateSetting({ placeholdersEnabled: !placeholdersEnabled })}
+              checked={placeholdersEnabled}
+              onChange={(next) => updateSetting({ placeholdersEnabled: next })}
               disabled={!canEdit}
             />
           </div>
@@ -400,10 +382,10 @@ export function SettingsView() {
           }
         >
           <div>
-            <ToggleRow
+            <SwitchField
               label={m.settings_external_toggle()}
-              on={externalEnabled}
-              onToggle={() => updateSetting({ externalEnabled: !externalEnabled })}
+              checked={externalEnabled}
+              onChange={(next) => updateSetting({ externalEnabled: next })}
               disabled={!canEdit}
             />
           </div>
@@ -411,20 +393,16 @@ export function SettingsView() {
 
         <SettingsSection title={m.settings_internal_visibility_heading()} help={m.settings_internal_visibility_intro()}>
           <div className="flex flex-col gap-3">
-            <ToggleRow
+            <SwitchField
               label={m.settings_show_internal_projects_toggle()}
-              on={showInternalProjects}
-              onToggle={() => updateSetting({ showInternalProjects: !showInternalProjects })}
+              checked={showInternalProjects}
+              onChange={(next) => updateSetting({ showInternalProjects: next })}
               disabled={!canEdit}
             />
-            <ToggleRow
+            <SwitchField
               label={m.settings_show_internal_activities_toggle()}
-              on={showInternalActivities}
-              onToggle={() =>
-                updateSetting({
-                  showInternalActivities: !showInternalActivities,
-                })
-              }
+              checked={showInternalActivities}
+              onChange={(next) => updateSetting({ showInternalActivities: next })}
               disabled={!canEdit}
             />
           </div>
@@ -432,14 +410,10 @@ export function SettingsView() {
 
         <SettingsSection title={m.settings_activity_create_heading()} help={m.settings_activity_create_intro()}>
           <div>
-            <ToggleRow
+            <SwitchField
               label={m.settings_inline_activity_create_toggle()}
-              on={inlineActivityCreateEnabled}
-              onToggle={() =>
-                updateSetting({
-                  inlineActivityCreateEnabled: !inlineActivityCreateEnabled,
-                })
-              }
+              checked={inlineActivityCreateEnabled}
+              onChange={(next) => updateSetting({ inlineActivityCreateEnabled: next })}
               disabled={!canEdit}
             />
           </div>
@@ -447,12 +421,12 @@ export function SettingsView() {
 
         <SettingsSection title={m.settings_bar_labels_heading()} help={m.settings_bar_labels_intro()}>
           <div className="flex flex-col gap-3">
-            {BAR_LABEL_OPTIONS.map((opt) => (
-              <ToggleRow
-                key={opt.key}
-                label={opt.label()}
-                on={barLabelPrefs[opt.key]}
-                onToggle={() => setBarLabelPref(opt.key, !barLabelPrefs[opt.key])}
+            {toOptions(labelsFrom(BAR_LABEL_MESSAGES)).map((opt) => (
+              <SwitchField
+                key={opt.value}
+                label={opt.label}
+                checked={barLabelPrefs[opt.value]}
+                onChange={(next) => setBarLabelPref(opt.value, next)}
               />
             ))}
           </div>
@@ -461,14 +435,16 @@ export function SettingsView() {
         <SettingsSection title={m.settings_utilisation_heading()} help={m.settings_utilisation_intro()}>
           <div className="flex flex-col gap-3">
             {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
-            {UTILIZATION_OPTIONS.filter((opt) => disciplinesEnabled || opt.key !== "showDiscipline").map((opt) => (
-              <ToggleRow
-                key={opt.key}
-                label={opt.label()}
-                on={utilizationPrefs[opt.key]}
-                onToggle={() => setUtilizationPref(opt.key, !utilizationPrefs[opt.key])}
-              />
-            ))}
+            {toOptions(labelsFrom(UTILIZATION_MESSAGES))
+              .filter((opt) => disciplinesEnabled || opt.value !== "showDiscipline")
+              .map((opt) => (
+                <SwitchField
+                  key={opt.value}
+                  label={opt.label}
+                  checked={utilizationPrefs[opt.value]}
+                  onChange={(next) => setUtilizationPref(opt.value, next)}
+                />
+              ))}
           </div>
         </SettingsSection>
 
@@ -477,20 +453,18 @@ export function SettingsView() {
             ariaLabel={m.settings_appearance_aria()}
             value={theme}
             onChange={setTheme}
-            options={THEME_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label(),
-            }))}
+            options={toOptions(labelsFrom(THEME_MESSAGES))}
           />
         </SettingsSection>
 
         {serverMode && authMode !== "off" && user && (
           <SettingsSection title={m.settings_offline_heading()} help={m.settings_offline_description()}>
-            <ToggleRow
+            <SwitchField
               label={m.settings_offline_toggle()}
-              on={offlineEnabled}
-              onToggle={() => void toggleOffline()}
-              disabled={offlineBusy}
+              checked={offlineEnabled}
+              // The handler derives the next value itself (it also has to cache/roll back for it).
+              onChange={() => toggleOffline()}
+              disabled={offlineAction.busy}
             />
             {offlineEnabled && offlineState.cacheWriteFailed && (
               <p role="status" className="text-sm text-danger">

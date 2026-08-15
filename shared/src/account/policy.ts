@@ -35,10 +35,33 @@ export function canAdministerAccount(role: Role, action: AccountAdminAction): bo
   return minimum !== undefined && isAtLeast(role, minimum);
 }
 
+/**
+ * May `actor` edit `target`'s role AT ALL — i.e. is this member's role even a thing this actor can
+ * touch, setting aside which role they would set it to?
+ *
+ * The question a member ROW asks: whether to render a role control for that member. It is separate
+ * from {@link canManageMemberRole}, which additionally judges one specific destination role and is
+ * therefore the wrong question for a row that has not chosen one yet.
+ *
+ * Rules (deny by default): the actor must hold `manage-members` (admin tier), and the target must
+ * not be the Owner — an Owner's role only ever moves through the atomic ownership transfer, so no
+ * ordinary role edit reaches one. Fail-closed on an unrecognised target role.
+ *
+ * The rule is stated here in full rather than delegated to {@link canRemoveMember}: the two are
+ * equal TODAY (its test pins that equivalence as current truth), but "may I retitle you" and "may I
+ * revoke you" are different questions, and one gaining a condition must not silently change the
+ * other.
+ */
+export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean {
+  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
+  return targetRole !== "owner";
+}
+
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
-  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole) || !isAccountRole(nextRole))
-    return false;
-  return targetRole !== "owner" && nextRole !== "owner";
+  // Standing over this target first, then the destination-specific rule: promoting anyone TO Owner
+  // is likewise reserved to the ownership transfer.
+  if (!canEditAnyMemberRole(actorRole, targetRole) || !isAccountRole(nextRole)) return false;
+  return nextRole !== "owner";
 }
 
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {

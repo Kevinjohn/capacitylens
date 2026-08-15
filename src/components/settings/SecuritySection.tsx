@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   MIN_PASSWORD_LENGTH,
@@ -10,10 +10,13 @@ import { authClient } from "../../auth/authClient";
 import { accountClient, accountCommandOutcomeUnknown } from "../../account/accountClient";
 import { m } from "@/i18n";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
+import { TextField } from "../common/fields";
+import { FieldError, FieldGroup } from "../ui/field";
 import { Separator } from "../ui/separator";
-import { useAuth } from "../../auth/authContext";
+import { strictOidcProvider, useAuth } from "../../auth/authContext";
+import { useFieldError } from "../../hooks/useFieldError";
+import { formatInstant } from "../../lib/dateDisplay";
+import { reloadPage } from "../../lib/reloadPage";
 import { Badge } from "../ui/badge";
 import { SettingsSection } from "./SettingsSection";
 import { isAccountSessionId } from "@capacitylens/shared/account/validation";
@@ -25,21 +28,20 @@ interface SessionView {
   current: boolean;
 }
 
-type PasswordErrorField = "current" | "new" | "confirm";
-
 export function SecuritySection() {
   const { providers } = useAuth();
-  const strictProvider = providers?.find((provider) => provider.kind === "oidc" && !provider.experimental) ?? null;
+  const strictProvider = strictOidcProvider(providers);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [sessions, setSessions] = useState<SessionView[]>([]);
   const [busy, setBusy] = useState(false);
+  // Success copy is separate from the error surface: a revocation can succeed while an earlier
+  // password error is still on screen, and only `useFieldError` owns the error half.
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [passwordErrorField, setPasswordErrorField] = useState<PasswordErrorField | null>(null);
+  // `errorField` carries which password input the error belongs to — "current" | "new" | "confirm".
+  const { error, errorField, errorId, fail, clear } = useFieldError();
   const sessionLoadGeneration = useRef(0);
-  const errorId = useId();
   const [providerConnected, setProviderConnected] = useState<boolean | null>(null);
   const [providerError, setProviderError] = useState<string | null>(null);
 
@@ -124,7 +126,7 @@ export function SecuritySection() {
           : null;
       if (!response.ok || rows === null) {
         if (!isCurrent()) return "superseded";
-        setError(m.settings_security_err_sessions_load());
+        fail(null, m.settings_security_err_sessions_load());
         return response.status === 401 ? "unauthorized" : "failed";
       }
       const valid = rows.filter((value): value is SessionView => {
@@ -141,20 +143,20 @@ export function SecuritySection() {
       });
       if (valid.length !== rows.length) {
         if (!isCurrent()) return "superseded";
-        setError(m.settings_security_err_sessions_invalid());
+        fail(null, m.settings_security_err_sessions_invalid());
         return "failed";
       }
       if (!isCurrent()) return "superseded";
       setSessions(valid);
-      setError(null);
+      clear();
       return "loaded";
     } catch (cause) {
       console.error("SecuritySection: session list failed", cause);
       if (!isCurrent()) return "superseded";
-      setError(m.settings_security_err_sessions_load());
+      fail(null, m.settings_security_err_sessions_load());
       return "failed";
     }
-  }, []);
+  }, [fail, clear]);
 
   useEffect(() => {
     // The state changes happen only after the external session request settles.
@@ -167,12 +169,11 @@ export function SecuritySection() {
 
   const changePassword = async (event: FormEvent) => {
     event.preventDefault();
-    setError(null);
-    setPasswordErrorField(null);
+    clear();
     setMessage(null);
     if (passwordLengthFailure(newPassword)) {
-      setPasswordErrorField("new");
-      setError(
+      fail(
+        "new",
         m.settings_security_err_password_length({
           min: MIN_PASSWORD_LENGTH,
           max: MAX_PASSWORD_LENGTH,
@@ -181,8 +182,7 @@ export function SecuritySection() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordErrorField("confirm");
-      setError(m.settings_security_err_password_mismatch());
+      fail("confirm", m.settings_security_err_password_mismatch());
       return;
     }
     setBusy(true);
@@ -193,8 +193,7 @@ export function SecuritySection() {
         revokeOtherSessions: true,
       });
       if (result.error) {
-        setPasswordErrorField("current");
-        setError(result.error.message ?? m.settings_security_err_password_change());
+        fail("current", result.error.message ?? m.settings_security_err_password_change());
       } else {
         setCurrentPassword("");
         setNewPassword("");
@@ -204,42 +203,53 @@ export function SecuritySection() {
       }
     } catch (cause) {
       console.error("SecuritySection: password change failed", cause);
-      setPasswordErrorField("current");
-      setError(m.settings_security_err_auth_unavailable());
+      fail("current", m.settings_security_err_auth_unavailable());
     } finally {
       setBusy(false);
     }
   };
 
+  /**
+   * Recover from a revocation whose OUTCOME IS UNKNOWN — the server may have committed before a
+   * proxy/worker failure (an obscured response) or a transport error (a rejected request) hid the
+   * answer. Both of those paths recover identically:
+   *
+   * `mustReenter` — this browser's own session may be gone, so no follow-up response can prove the
+   * cookie survived: tenant data must leave the screen immediately through the auth wall. Otherwise
+   * an authoritative list refresh reconciles it, and only an unauthorized refresh (which proves the
+   * cookie is gone after all) falls back to the same reload.
+   */
+  const reconcileUnknownRevocation = async (mustReenter: boolean) => {
+    if (mustReenter) {
+      reloadPage();
+      return;
+    }
+    const refreshOutcome = await loadSessions();
+    if (refreshOutcome === "unauthorized") {
+      reloadPage();
+      return;
+    }
+    setMessage(
+      refreshOutcome === "loaded"
+        ? m.settings_security_revoke_unknown_refreshed()
+        : m.settings_security_revoke_unknown_unavailable(),
+    );
+  };
+
   const revoke = async (sessionId: string) => {
     const revokingCurrentSession = sessions.some((session) => session.id === sessionId && session.current);
     setBusy(true);
-    setError(null);
+    clear();
     setMessage(null);
     try {
       const response = await accountClient.revokeOwnSession(sessionId);
       if (!response.ok) {
         if (await accountCommandOutcomeUnknown(response)) {
-          // The server may have committed before a proxy/worker failure obscured the response.
-          // If this is the current session, tenant data must leave the screen immediately because
-          // no follow-up response can prove that the browser cookie survived. Other sessions can
-          // be reconciled through an authoritative list refresh.
-          if (revokingCurrentSession || response.status === 401) {
-            window.location.reload();
-            return;
-          }
-          const refreshOutcome = await loadSessions();
-          if (refreshOutcome === "unauthorized") {
-            window.location.reload();
-            return;
-          }
-          setMessage(
-            refreshOutcome === "loaded"
-              ? m.settings_security_revoke_unknown_refreshed()
-              : m.settings_security_revoke_unknown_unavailable(),
-          );
+          // A 401 is the second way this browser's own session can be the one that went: treat it
+          // exactly like revoking the current session.
+          await reconcileUnknownRevocation(revokingCurrentSession || response.status === 401);
         } else {
-          setError(m.settings_security_err_revoke());
+          fail(null, m.settings_security_err_revoke());
         }
       } else {
         setSessions((current) => current.filter((session) => session.id !== sessionId));
@@ -247,24 +257,11 @@ export function SecuritySection() {
         // A current-session revocation invalidates the cookie server-side. Re-enter through the
         // normal auth-status wall immediately rather than leaving a visually authenticated shell
         // that will fail on its next API request.
-        if (revokingCurrentSession) window.location.reload();
+        if (revokingCurrentSession) reloadPage();
       }
     } catch (cause) {
       console.error("SecuritySection: session revoke failed", cause);
-      if (revokingCurrentSession) {
-        window.location.reload();
-        return;
-      }
-      const refreshOutcome = await loadSessions();
-      if (refreshOutcome === "unauthorized") {
-        window.location.reload();
-        return;
-      }
-      setMessage(
-        refreshOutcome === "loaded"
-          ? m.settings_security_revoke_unknown_refreshed()
-          : m.settings_security_revoke_unknown_unavailable(),
-      );
+      await reconcileUnknownRevocation(revokingCurrentSession);
     } finally {
       setBusy(false);
     }
@@ -300,45 +297,40 @@ export function SecuritySection() {
       <form onSubmit={(event) => void changePassword(event)}>
         <FieldGroup className="gap-3">
           <h3 className="text-sm font-medium text-ink">{m.settings_security_change_password()}</h3>
+          {/* All three carry the password input ceiling rather than the name-shaped default: a
+              confirmation that truncated shorter than the new password could never match it. */}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field>
-              <FieldLabel htmlFor="security-current-password">{m.settings_security_current_password()}</FieldLabel>
-              <Input
-                id="security-current-password"
-                type="password"
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                aria-invalid={passwordErrorField === "current" || undefined}
-                aria-describedby={passwordErrorField === "current" ? errorId : undefined}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="security-new-password">{m.settings_security_new_password()}</FieldLabel>
-              <Input
-                id="security-new-password"
-                type="password"
-                autoComplete="new-password"
-                minLength={MIN_PASSWORD_LENGTH}
-                maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                aria-invalid={passwordErrorField === "new" || undefined}
-                aria-describedby={passwordErrorField === "new" ? errorId : undefined}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="security-confirm-password">{m.settings_security_confirm_password()}</FieldLabel>
-              <Input
-                id="security-confirm-password"
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                aria-invalid={passwordErrorField === "confirm" || undefined}
-                aria-describedby={passwordErrorField === "confirm" ? errorId : undefined}
-              />
-            </Field>
+            <TextField
+              label={m.settings_security_current_password()}
+              type="password"
+              autoComplete="current-password"
+              maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              invalid={errorField === "current"}
+              describedById={errorId}
+            />
+            <TextField
+              label={m.settings_security_new_password()}
+              type="password"
+              autoComplete="new-password"
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+              value={newPassword}
+              onChange={setNewPassword}
+              invalid={errorField === "new"}
+              describedById={errorId}
+            />
+            <TextField
+              label={m.settings_security_confirm_password()}
+              type="password"
+              autoComplete="new-password"
+              maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              invalid={errorField === "confirm"}
+              describedById={errorId}
+            />
           </div>
           <Button size="sm" type="submit" disabled={busy || !currentPassword || !newPassword || !confirmPassword}>
             {m.settings_security_change_password()}
@@ -358,11 +350,11 @@ export function SecuritySection() {
                 </span>
                 {session.expiresAt
                   ? m.settings_security_session_expires({
-                      created: new Date(session.createdAt).toLocaleString(),
-                      expires: new Date(session.expiresAt).toLocaleString(),
+                      created: formatInstant(session.createdAt),
+                      expires: formatInstant(session.expiresAt),
                     })
                   : m.settings_security_session_no_expiry({
-                      created: new Date(session.createdAt).toLocaleString(),
+                      created: formatInstant(session.createdAt),
                     })}
               </span>
               <Button size="sm" type="button" variant="outline" disabled={busy} onClick={() => void revoke(session.id)}>

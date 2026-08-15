@@ -7,6 +7,9 @@ import { useStore } from "../../store/useStore";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 
+const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
+vi.mock("../../lib/reloadPage", () => reloadMock);
+
 const offlineMocks = vi.hoisted(() => ({
   enabled: false,
   setEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
@@ -370,15 +373,18 @@ describe("SettingsView — Schedule (minimise weekends)", () => {
 });
 
 describe("SettingsView — account toggle wiring", () => {
+  // Third tuple entry = the documented absent-field default (store/selectors.ts). Pinned as a
+  // LITERAL per row: re-deriving it from the key would only restate the component's own rule and
+  // would keep agreeing with it if that rule ever changed.
   it.each([
-    ["Use disciplines", "disciplinesEnabled"],
-    ["Group resources by engagement", "groupResourcesByEngagement"],
-    ["Show placeholders", "placeholdersEnabled"],
-    ["Show external resources", "externalEnabled"],
-    ["Show internal projects", "showInternalProjects"],
-    ["Show internal activities", "showInternalActivities"],
-    ["Inline activity creation", "inlineActivityCreateEnabled"],
-  ] as const)("wires %s to account.%s", async (label, key) => {
+    ["Use disciplines", "disciplinesEnabled", true],
+    ["Group resources by engagement", "groupResourcesByEngagement", true],
+    ["Show placeholders", "placeholdersEnabled", false],
+    ["Show external resources", "externalEnabled", false],
+    ["Show internal projects", "showInternalProjects", true],
+    ["Show internal activities", "showInternalActivities", true],
+    ["Inline activity creation", "inlineActivityCreateEnabled", true],
+  ] as const)("wires %s to account.%s (absent reads as %s)", async (label, key, whenAbsent) => {
     const user = userEvent.setup();
     render(<SettingsView />);
     const before = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
@@ -386,15 +392,7 @@ describe("SettingsView — account toggle wiring", () => {
     await user.click(screen.getByRole("switch", { name: label }));
 
     const after = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
-    expect(after).toBe(
-      !(
-        before ??
-        (key === "disciplinesEnabled" ||
-          key === "groupResourcesByEngagement" ||
-          key.startsWith("showInternal") ||
-          key === "inlineActivityCreateEnabled")
-      ),
-    );
+    expect(after).toBe(!(before ?? whenAbsent));
   });
 });
 
@@ -443,25 +441,17 @@ describe("SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)", () => {
 });
 
 describe("SettingsView — Clear local storage", () => {
-  // The action calls window.location.reload(); jsdom's reload is non-configurable, so we replace
-  // the whole location with a stub carrying a spy (restored after each test).
-  const realLocation = window.location;
-  let reload: ReturnType<typeof vi.fn>;
+  // The action reboots through lib/reloadPage — the one boundary over `location.reload()` — so the
+  // spy is a module mock rather than a replacement window.location (jsdom's reload is
+  // non-configurable). reloadPage.test.ts covers that the boundary really does reload.
+  const reload = reloadMock.reloadPage;
 
   beforeEach(() => {
-    reload = vi.fn();
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...realLocation, reload },
-    });
+    reload.mockClear();
     localStorage.clear();
   });
 
   afterEach(() => {
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: realLocation,
-    });
     localStorage.clear();
   });
 

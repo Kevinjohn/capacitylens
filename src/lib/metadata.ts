@@ -20,16 +20,24 @@ export interface LabelOption<V extends string = string> {
   label: string;
 }
 
-/** One uncalled message reference per union member — the per-enum source list. */
-type LabelMessages<K extends string> = Record<K, () => string>;
+/** One uncalled message reference per union member — the per-enum source list. Exported alongside
+ *  {@link labelsFrom} so a caller outside this file can name the shape it must build. */
+export type LabelMessages<K extends string> = Record<K, () => string>;
 
-function labelsFrom<K extends string>(messages: LabelMessages<K>): Record<K, string> {
+/** Resolve a whole message table to strings, in its declaration order. Exported so a surface with an
+ *  enum table of its OWN (a settings section's per-option copy, say) derives its labels through the
+ *  same lazy-resolution rule rather than hand-rolling a second `Object.keys` loop that a locale
+ *  switch would then have to be re-audited against. */
+export function labelsFrom<K extends string>(messages: LabelMessages<K>): Record<K, string> {
   const labels = {} as Record<K, string>;
   for (const key of Object.keys(messages) as K[]) labels[key] = messages[key]();
   return labels;
 }
 
-function toOptions<K extends string>(labels: Record<K, string>): LabelOption<K>[] {
+/** Turn a resolved label map into `<select>` options, preserving key order. Exported for the same
+ *  reason as {@link labelsFrom}: option lists built elsewhere keep this file's `LabelOption` shape
+ *  and its value-typing, instead of a parallel `.map` that widens `value` back to `string`. */
+export function toOptions<K extends string>(labels: Record<K, string>): LabelOption<K>[] {
   return (Object.entries(labels) as [K, string][]).map(([value, label]) => ({ value, label }));
 }
 

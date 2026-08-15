@@ -6,6 +6,7 @@ import {
   canAdministerAccount,
   canAdministerIdentityAcrossWorkspaces,
   canChangeMemberStatus as canChangeCanonicalMemberStatus,
+  canEditAnyMemberRole as canEditAnyCanonicalMemberRole,
   canManageMemberRole as canManageCanonicalMemberRole,
   canRemoveMember as canRemoveCanonicalMember,
   isAtLeast as isAtLeastCanonicalRole,
@@ -143,6 +144,28 @@ export function isAtLeast(role: Role, min: Role): boolean {
  */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
   return canManageCanonicalMemberRole(actorRole, targetRole, nextRole);
+}
+
+/**
+ * May `actorRole` edit the role of a member holding `targetRole` AT ALL, independent of which role
+ * they would set?
+ *
+ * The question a member ROW asks before rendering a role control: {@link canManageMemberRole} also
+ * judges a specific destination role, which a row that has not chosen one cannot supply without
+ * inventing a representative value. Same PURE, no-drift reason for living here as its neighbours —
+ * the client hides the control, the server enforces the eventual change.
+ *
+ * Rules (deny by default): admin tier at minimum, and never the Owner (whose role moves only through
+ * the atomic ownership transfer).
+ *
+ * PURE: no I/O, no session — just the two roles.
+ *
+ * @param actorRole  - the acting member's role.
+ * @param targetRole - the role the target member currently holds.
+ * @returns `true` iff some role change to that target is permitted; `false` otherwise.
+ */
+export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean {
+  return canEditAnyCanonicalMemberRole(actorRole, targetRole);
 }
 
 /**

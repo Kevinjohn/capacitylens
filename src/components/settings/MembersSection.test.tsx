@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { MembersSection } from "./MembersSection";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "../../test/fixtures";
 import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
@@ -38,65 +38,55 @@ interface RawMember {
   mayRevokeSessions?: boolean;
 }
 
-/** Build a fetch mock that answers the members read (and a benign empty invites read). 403 on the
- *  members read self-gates the section. */
-function mockFetch(members: RawMember[] | { status: number }) {
+/** Build a full server-shaped member record from just what a test cares about pinning. Common
+ *  defaults (active, a fixed createdAt, an email derived from userId, no name/self/perms) fill the
+ *  rest. `signInConfirmed` is deliberately left OFF the result unless the caller passes it: its mere
+ *  PRESENCE (not its value) is what the members-read route uses to decide signInTrackingEnabled. */
+function rawMember(overrides: Partial<RawMember> & { userId: string; role: RawMember["role"] }): RawMember {
+  return {
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    name: null,
+    email: `${overrides.userId}@x.io`,
+    isSelf: false,
+    mayResetPassword: false,
+    mayRevokeSessions: false,
+    ...overrides,
+  };
+}
+
+type RouteHandler = (url: string, init: RequestInit | undefined) => Response | Promise<Response>;
+
+/** Build a fetch mock from a small default route table (members GET, invites GET, accounts GET, and
+ *  a 204 fallback for every write) plus per-test overrides keyed `"METHOD /path-suffix"` — an
+ *  override with the same key as a default replaces it; a new key adds a route. An empty suffix
+ *  (e.g. `"PATCH "`) matches every URL for that method. A 403 on the members read self-gates the
+ *  section. */
+function mockApi(members: RawMember[] | { status: number } = [], overrides: Record<string, RouteHandler> = {}) {
+  const defaults: Record<string, RouteHandler> = {
+    "GET /members": () =>
+      "status" in members
+        ? jsonResponse({}, members.status)
+        : jsonResponse({
+            signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
+            members: members.map((member) => rawMember(member)),
+          }),
+    "GET /invites": () => jsonResponse({ invites: [] }),
+    "GET /api/accounts": () => {
+      const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined;
+      return jsonResponse([{ id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: self?.role ?? "owner" }]);
+    },
+  };
+  const routes = { ...defaults, ...overrides };
   return vi.fn(async (url: string, init?: RequestInit) => {
     const u = String(url);
-    if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
-      if ("status" in members) {
-        return {
-          ok: false,
-          status: members.status,
-          json: async () => ({}),
-        } as Response;
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
-          members: members.map((m) => ({
-            status: "active",
-            createdAt: "2026-01-01T00:00:00.000Z",
-            signInConfirmed: null,
-            name: null,
-            email: `${m.userId}@x.io`,
-            isSelf: false,
-            mayResetPassword: false,
-            mayRevokeSessions: false,
-            ...m,
-          })),
-        }),
-      } as unknown as Response;
-    }
-    if (u.endsWith("/invites") && (!init || init.method === undefined || init.method === "GET")) {
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ invites: [] }),
-      } as unknown as Response;
-    }
-    if (u.endsWith("/api/accounts") && (!init || init.method === undefined || init.method === "GET")) {
-      const self = Array.isArray(members) ? members.find((member) => member.isSelf) : null;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => [
-          {
-            id: DEFAULT_ACCOUNT_ID,
-            name: "Wayne Enterprises",
-            role: self?.role ?? "owner",
-          },
-        ],
-      } as unknown as Response;
+    const method = init?.method ?? "GET";
+    for (const [key, handler] of Object.entries(routes)) {
+      const space = key.indexOf(" ");
+      if (method === key.slice(0, space) && u.endsWith(key.slice(space + 1))) return handler(u, init);
     }
     // Default: a successful no-content mutate.
-    return {
-      ok: true,
-      status: 204,
-      json: async () => ({}),
-    } as unknown as Response;
+    return new Response(null, { status: 204 });
   });
 }
 
@@ -169,25 +159,9 @@ describe("MembersSection — self-gate", () => {
       const target = String(url);
       const isRead = !init || init.method === undefined || init.method === "GET";
       if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: "first-owner",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "first@example.test",
-                isSelf: true,
-                mayResetPassword: false,
-                mayRevokeSessions: false,
-              },
-            ],
-          }),
-        } as Response;
+        return jsonResponse({
+          members: [rawMember({ userId: "first-owner", role: "owner", email: "first@example.test", isSelf: true })],
+        });
       }
       if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
         return await new Promise<Response>((resolve) => {
@@ -195,11 +169,7 @@ describe("MembersSection — self-gate", () => {
         });
       }
       if (target.endsWith("/invites") && isRead) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ invites: [] }),
-        } as Response;
+        return jsonResponse({ invites: [] });
       }
       throw new Error(`Unexpected request: ${target}`);
     });
@@ -211,31 +181,17 @@ describe("MembersSection — self-gate", () => {
     expect(screen.queryByText("first@example.test")).not.toBeInTheDocument();
 
     await act(async () => {
-      resolveNextMembers?.({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          members: [
-            {
-              userId: "second-owner",
-              role: "owner",
-              status: "active",
-              createdAt: "2026-01-01T00:00:00.000Z",
-              name: null,
-              email: "second@example.test",
-              isSelf: true,
-              mayResetPassword: false,
-              mayRevokeSessions: false,
-            },
-          ],
+      resolveNextMembers?.(
+        jsonResponse({
+          members: [rawMember({ userId: "second-owner", role: "owner", email: "second@example.test", isSelf: true })],
         }),
-      } as Response);
+      );
     });
     expect(await screen.findByText("second@example.test")).toBeInTheDocument();
   });
 
   it("defers privileged directory reads while offline and refreshes them on recovery", async () => {
-    const fetchMock = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
     vi.stubGlobal("fetch", fetchMock);
     setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
     renderSection();
@@ -253,7 +209,7 @@ describe("MembersSection — self-gate", () => {
   });
 
   it("renders NOTHING when the members read returns 403 (viewer/editor)", async () => {
-    vi.stubGlobal("fetch", mockFetch({ status: 403 }));
+    vi.stubGlobal("fetch", mockApi({ status: 403 }));
     const { container } = renderSection();
     // Give the effect a tick to resolve the 403, then assert nothing rendered.
     await waitFor(() => expect(container.querySelector('[data-testid="members-section"]')).toBeNull());
@@ -262,28 +218,24 @@ describe("MembersSection — self-gate", () => {
 
   it("surfaces and retries a 403 after the directory was already authorized", async () => {
     const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
-    const ordinary = mockFetch([...members]);
     let memberReads = 0;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const target = String(url);
-      const isRead = !init || init.method === undefined || init.method === "GET";
-      if (target.endsWith("/members") && isRead) {
+    const fetchMock = mockApi([...members], {
+      "GET /members": () => {
         memberReads += 1;
-        if (memberReads === 2) {
-          return Response.json({ error: "Forbidden" }, { status: 403 });
-        }
-      }
-      if (target.endsWith("/api/invites") && init?.method === "POST") {
-        return Response.json({ token: "TOK123", role: "editor" }, { status: 201 });
-      }
-      return ordinary(url, init);
+        return memberReads === 2
+          ? jsonResponse({ error: "Forbidden" }, 403)
+          : jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) });
+      },
+      "PUT /member-sign-in-tracking": () => jsonResponse({ enabled: true }),
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
     renderSection();
     expect(await screen.findByTestId("member-row")).toHaveTextContent("me@x.io");
-    await user.click(screen.getByTestId("invite-submit"));
+    // Any write that re-reads the DIRECTORY re-asks "may I still see this section?"; the toggle is
+    // the simplest one here (creating an invite re-reads only the invitations it can have changed).
+    await user.click(screen.getByTestId("member-sign-in-tracking"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_access_changed());
     expect(screen.queryByTestId("member-row")).not.toBeInTheDocument();
@@ -294,7 +246,7 @@ describe("MembersSection — self-gate", () => {
   });
 
   it("renders nothing when authMode is off", () => {
-    vi.stubGlobal("fetch", mockFetch([]));
+    vi.stubGlobal("fetch", mockApi([]));
     const { container } = render(
       <AuthContext.Provider value={authValue({ authMode: "off" })}>
         <MembersSection />
@@ -304,7 +256,7 @@ describe("MembersSection — self-gate", () => {
   });
 
   it("renders an empty directory message without exposing an empty ARIA list", async () => {
-    vi.stubGlobal("fetch", mockFetch([]));
+    vi.stubGlobal("fetch", mockApi([]));
     renderSection();
 
     const section = await screen.findByTestId("members-section");
@@ -313,16 +265,11 @@ describe("MembersSection — self-gate", () => {
   });
 
   it("surfaces a malformed member response instead of trusting it", async () => {
+    // Deliberately malformed (missing required member fields) — must NOT go through rawMember,
+    // which would paper over the very thing this test is pinning.
     vi.stubGlobal(
       "fetch",
-      vi.fn(
-        async () =>
-          ({
-            ok: true,
-            status: 200,
-            json: async () => ({ members: [{ userId: "me", role: "owner" }] }),
-          }) as unknown as Response,
-      ),
+      vi.fn(async () => jsonResponse({ members: [{ userId: "me", role: "owner" }] })),
     );
     renderSection();
 
@@ -331,16 +278,10 @@ describe("MembersSection — self-gate", () => {
   });
 
   it("keeps loaded members visible and names a failed invitations read", async () => {
-    const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        const target = String(url);
-        const isRead = !init || init.method === undefined || init.method === "GET";
-        if (target.endsWith("/invites") && isRead) {
-          return { ok: false, status: 503, json: async () => ({}) } as Response;
-        }
-        return reads(url, init);
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => jsonResponse({}, 503),
       }),
     );
     renderSection();
@@ -359,7 +300,7 @@ describe("MembersSection — admin affordances", () => {
   ];
 
   it("does NOT offer the owner option in the invite role picker", async () => {
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -372,7 +313,7 @@ describe("MembersSection — admin affordances", () => {
 
   it("marks and describes an invalid invitation pre-authorisation email", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     const email = await screen.findByTestId("invite-preauth");
 
@@ -390,7 +331,7 @@ describe("MembersSection — admin affordances", () => {
     // and never screened for disallowed characters, so an emoji/zero-width address that stayed
     // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     const email = await screen.findByTestId("invite-preauth");
 
@@ -404,40 +345,27 @@ describe("MembersSection — admin affordances", () => {
 
   it("keeps an existing write-once invite link when a later submit fails validation", async () => {
     const user = userEvent.setup();
-    const reads = mockFetch(members);
     let created = false;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (String(url).endsWith("/api/invites") && init?.method === "POST") {
+    const fetchMock = mockApi(members, {
+      "POST /api/invites": () => {
         created = true;
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({ id: "invite-1", token: "WRITE_ONCE_TOKEN", role: "editor" }),
-        } as Response;
-      }
-      if (
-        created &&
-        String(url).endsWith("/invites") &&
-        (!init || init.method === undefined || init.method === "GET")
-      ) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            invites: [
-              {
-                id: "invite-1",
-                role: "editor",
-                preauthEmail: null,
-                expiresAt: "2026-12-01T00:00:00.000Z",
-                usedAt: null,
-                createdAt: "2026-07-29T00:00:00.000Z",
-              },
-            ],
-          }),
-        } as Response;
-      }
-      return reads(url, init);
+        return jsonResponse({ id: "invite-1", token: "WRITE_ONCE_TOKEN", role: "editor" }, 201);
+      },
+      "GET /invites": () =>
+        jsonResponse({
+          invites: created
+            ? [
+                {
+                  id: "invite-1",
+                  role: "editor",
+                  preauthEmail: null,
+                  expiresAt: "2026-12-01T00:00:00.000Z",
+                  usedAt: null,
+                  createdAt: "2026-07-29T00:00:00.000Z",
+                },
+              ]
+            : [],
+        }),
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
@@ -459,7 +387,7 @@ describe("MembersSection — admin affordances", () => {
   });
 
   it("shows no role control + no Remove on an OWNER row (admin can't touch an owner)", async () => {
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -480,7 +408,7 @@ describe("MembersSection — admin affordances", () => {
 
   it("names the member and waits for confirmation before sending removal", async () => {
     const user = userEvent.setup();
-    const fetchMock = mockFetch(members);
+    const fetchMock = mockApi(members);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
@@ -512,7 +440,7 @@ describe("MembersSection — admin affordances", () => {
     const actionableMembers = members.map((member) =>
       member.userId === "theeditor" ? { ...member, mayResetPassword: true, mayRevokeSessions: true } : member,
     );
-    const fetchMock = mockFetch(actionableMembers);
+    const fetchMock = mockApi(actionableMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
@@ -532,7 +460,7 @@ describe("MembersSection — admin affordances", () => {
     const actionableMembers = members.map((member) =>
       member.userId === "theeditor" ? { ...member, mayRevokeSessions: true } : member,
     );
-    vi.stubGlobal("fetch", mockFetch(actionableMembers));
+    vi.stubGlobal("fetch", mockApi(actionableMembers));
     renderSection();
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
       within(row).queryByText(/theeditor@x\.io/),
@@ -556,14 +484,10 @@ describe("MembersSection — admin affordances", () => {
     const actionableMembers = members.map((member) =>
       member.userId === "theeditor" ? { ...member, mayRevokeSessions: true } : member,
     );
-    const reads = mockFetch(actionableMembers);
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (String(url).endsWith("/members/theeditor/revoke-sessions") && init?.method === "POST") {
-          return { ok: false, status: 400, json: async () => ({}) } as Response;
-        }
-        return reads(url, init);
+      mockApi(actionableMembers, {
+        "POST /members/theeditor/revoke-sessions": () => jsonResponse({}, 400),
       }),
     );
     renderSection();
@@ -587,7 +511,7 @@ describe("MembersSection — admin affordances", () => {
       { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
       { userId: "owner", role: "owner" },
     ];
-    vi.stubGlobal("fetch", mockFetch(selfMembers));
+    vi.stubGlobal("fetch", mockApi(selfMembers));
     renderSection();
     const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
 
@@ -605,7 +529,7 @@ describe("MembersSection — admin affordances", () => {
 
   it("explains and confirms a role change before sending it", async () => {
     const user = userEvent.setup();
-    const fetchMock = mockFetch(members);
+    const fetchMock = mockApi(members);
     vi.stubGlobal("fetch", fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection();
@@ -634,20 +558,11 @@ describe("MembersSection — admin affordances", () => {
 
   it("announces and marks the section busy while a member action is in flight", async () => {
     const user = userEvent.setup();
-    const fallback = mockFetch(members);
     let releasePatch!: () => void;
     const patchResponse = new Promise<Response>((resolve) => {
       releasePatch = () => resolve(new Response(null, { status: 204 }));
     });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((url: string, init?: RequestInit) => {
-        if (String(url).endsWith("/members/theeditor") && init?.method === "PATCH") {
-          return patchResponse;
-        }
-        return fallback(url, init);
-      }),
-    );
+    vi.stubGlobal("fetch", mockApi(members, { "PATCH /members/theeditor": () => patchResponse }));
     renderSection();
     const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
       within(row).queryByText(/theeditor@x\.io/),
@@ -668,7 +583,7 @@ describe("MembersSection — admin affordances", () => {
   it("invalidates membership projections when an Admin changes their own role", async () => {
     const user = userEvent.setup();
     const refreshAuth = vi.fn(async () => {});
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection({ refreshAuth });
 
@@ -682,7 +597,7 @@ describe("MembersSection — admin affordances", () => {
 
   it("closes the company when a self-role refresh restores only a cached offline slice", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
       setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
       return "reloaded";
@@ -718,7 +633,7 @@ describe("MembersSection — owner affordances", () => {
         mayRevokeSessions: true,
       },
     ];
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -751,7 +666,7 @@ describe("MembersSection — owner affordances", () => {
       { userId: "me", role: "owner", isSelf: true },
       { userId: "ed", role: "editor" },
     ];
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -772,7 +687,7 @@ describe("MembersSection — owner affordances", () => {
       { userId: "me", role: "owner", isSelf: true }, // the only owner
       { userId: "ed", role: "editor" },
     ];
-    vi.stubGlobal("fetch", mockFetch(members));
+    vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -795,7 +710,7 @@ describe("MembersSection — member lifecycle", () => {
   ];
 
   it("never offers a transfer-ownership control on any row", async () => {
-    vi.stubGlobal("fetch", mockFetch(lifecycleMembers));
+    vi.stubGlobal("fetch", mockApi(lifecycleMembers));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -810,7 +725,7 @@ describe("MembersSection — member lifecycle", () => {
     ["member-archive", "archived", /filed away and cannot open this company/i],
   ])("confirms %s before PATCHing the new status", async (testId, status, consequence) => {
     const user = userEvent.setup();
-    const fetchMock = mockFetch(lifecycleMembers);
+    const fetchMock = mockApi(lifecycleMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
@@ -835,7 +750,7 @@ describe("MembersSection — member lifecycle", () => {
 
   it("badges a non-active member and offers restore INSTEAD of disable/archive", async () => {
     const user = userEvent.setup();
-    const fetchMock = mockFetch([
+    const fetchMock = mockApi([
       { userId: "me", role: "owner", isSelf: true },
       { userId: "ed", role: "editor", status: "disabled" },
     ]);
@@ -864,7 +779,7 @@ describe("MembersSection — member lifecycle", () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
-      mockFetch([
+      mockApi([
         { userId: "me", role: "owner", isSelf: true },
         { userId: "ed", role: "editor", status: "disabled", mayResetPassword: true, mayRevokeSessions: true },
       ]),
@@ -889,7 +804,7 @@ describe("MembersSection — member lifecycle", () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
-      mockFetch([
+      mockApi([
         { userId: "me", role: "owner", isSelf: true },
         { userId: "ed", role: "editor", status: "disabled" },
         { userId: "vic", role: "viewer", status: "archived" },
@@ -924,7 +839,7 @@ describe("MembersSection — member lifecycle", () => {
   it("omits the disclosure entirely when every membership is active", async () => {
     vi.stubGlobal(
       "fetch",
-      mockFetch([
+      mockApi([
         { userId: "me", role: "owner", isSelf: true },
         { userId: "ed", role: "editor" },
       ]),
@@ -939,7 +854,7 @@ describe("MembersSection — member lifecycle", () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
-      mockFetch([
+      mockApi([
         { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
         { userId: "owner", role: "owner" },
       ]),
@@ -960,14 +875,10 @@ describe("MembersSection — member lifecycle", () => {
 
   it("surfaces a refused status change instead of reporting success", async () => {
     const user = userEvent.setup();
-    const reads = mockFetch(lifecycleMembers);
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (String(url).endsWith("/members/ed/status") && init?.method === "PATCH") {
-          return { ok: false, status: 403, json: async () => ({ error: "Forbidden." }) } as Response;
-        }
-        return reads(url, init);
+      mockApi(lifecycleMembers, {
+        "PATCH /members/ed/status": () => jsonResponse({ error: "Forbidden." }, 403),
       }),
     );
     renderSection();
@@ -983,7 +894,7 @@ describe("MembersSection — member lifecycle", () => {
   it("renders only coarse sign-in confirmation when the owner has enabled it", async () => {
     vi.stubGlobal(
       "fetch",
-      mockFetch([
+      mockApi([
         { userId: "me", role: "owner", isSelf: true, signInConfirmed: true },
         { userId: "ed", role: "editor", signInConfirmed: false },
       ]),
@@ -1015,36 +926,31 @@ describe("MembersSection — member lifecycle", () => {
         const endpoint = String(url);
         if (endpoint.endsWith("/member-sign-in-tracking") && init?.method === "PUT") {
           trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ enabled: trackingEnabled }),
-          } as Response;
+          return jsonResponse({ enabled: trackingEnabled });
         }
         if (endpoint.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              signInTrackingEnabled: trackingEnabled,
-              members: members.map((member) => ({
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: `${member.userId}@x.io`,
-                isSelf: false,
-                mayResetPassword: false,
-                mayRevokeSessions: true,
-                ...member,
-                signInConfirmed: trackingEnabled ? member.isSelf === true : null,
-              })),
-            }),
-          } as Response;
+          // Not routed through rawMember: mayRevokeSessions defaults to true here (not rawMember's
+          // false), and signInConfirmed is computed from the live trackingEnabled toggle rather than
+          // being a static per-member default.
+          return jsonResponse({
+            signInTrackingEnabled: trackingEnabled,
+            members: members.map((member) => ({
+              status: "active",
+              createdAt: "2026-01-01T00:00:00.000Z",
+              name: null,
+              email: `${member.userId}@x.io`,
+              isSelf: false,
+              mayResetPassword: false,
+              mayRevokeSessions: true,
+              ...member,
+              signInConfirmed: trackingEnabled ? member.isSelf === true : null,
+            })),
+          });
         }
         if (endpoint.endsWith("/invites")) {
-          return { ok: true, status: 200, json: async () => ({ invites: [] }) } as Response;
+          return jsonResponse({ invites: [] });
         }
-        return { ok: true, status: 204, json: async () => ({}) } as Response;
+        return new Response(null, { status: 204 });
       }),
     );
     renderSection();
@@ -1090,74 +996,22 @@ describe("MembersSection — member lifecycle", () => {
         throw new TypeError("connection closed after dispatch");
       }
       if (u.endsWith("/api/accounts")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => [{ id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "editor" }],
-        } as unknown as Response;
+        return jsonResponse([{ id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "editor" }]);
       }
       if (u.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
         if (mutationDispatched) {
-          return {
-            ok: false,
-            status: 403,
-            json: async () => ({ error: "Forbidden." }),
-          } as unknown as Response;
+          return jsonResponse({ error: "Forbidden." }, 403);
         }
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: "owner",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "owner@x.io",
-                isSelf: false,
-                mayResetPassword: false,
-                mayRevokeSessions: false,
-              },
-              {
-                userId: "me",
-                role: "admin",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "me@x.io",
-                isSelf: true,
-                mayResetPassword: true,
-                mayRevokeSessions: true,
-              },
-              {
-                userId: "ed",
-                role: "editor",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "ed@x.io",
-                isSelf: false,
-                mayResetPassword: true,
-                mayRevokeSessions: true,
-              },
-            ],
-          }),
-        } as unknown as Response;
+        return jsonResponse({
+          members: [
+            rawMember({ userId: "owner", role: "owner" }),
+            rawMember({ userId: "me", role: "admin", isSelf: true, mayResetPassword: true, mayRevokeSessions: true }),
+            rawMember({ userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true }),
+          ],
+        });
       }
       if (u.endsWith("/invites")) {
-        return mutationDispatched
-          ? ({
-              ok: false,
-              status: 403,
-              json: async () => ({ error: "Forbidden." }),
-            } as unknown as Response)
-          : ({
-              ok: true,
-              status: 200,
-              json: async () => ({ invites: [] }),
-            } as unknown as Response);
+        return mutationDispatched ? jsonResponse({ error: "Forbidden." }, 403) : jsonResponse({ invites: [] });
       }
       throw new Error(`Unexpected request: ${u}`);
     });
@@ -1179,19 +1033,14 @@ describe("MembersSection — member lifecycle", () => {
 
   it("permits only one member mutation while an action is in flight", async () => {
     let release: (() => void) | null = null;
-    const reads = mockFetch([
+    const reads = mockApi([
       { userId: "me", role: "owner", isSelf: true },
       { userId: "ed", role: "editor" },
     ]);
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (init?.method === "POST" || init?.method === "DELETE" || init?.method === "PATCH") {
         return new Promise<Response>((resolve) => {
-          release = () =>
-            resolve({
-              ok: true,
-              status: 204,
-              json: async () => ({}),
-            } as unknown as Response);
+          release = () => resolve(new Response(null, { status: 204 }));
         });
       }
       return reads(url, init);
@@ -1226,27 +1075,10 @@ describe("MembersSection — invite mint", () => {
       { userId: "me", role: "owner", isSelf: true },
       { userId: "editor", role: "editor", mayResetPassword: true },
     ];
-    const reads = mockFetch(members);
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const target = String(url);
-      if (target.endsWith("/members/editor/reset-password") && init?.method === "POST") {
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({
-            token: "reset/part?x#y",
-            expiresAt: "2026-12-01T12:00:00.000Z",
-          }),
-        } as Response;
-      }
-      if (target.endsWith("/api/invites") && init?.method === "POST") {
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({ token: "invite/part?x#y" }),
-        } as Response;
-      }
-      return reads(url, init);
+    const fetchMock = mockApi(members, {
+      "POST /members/editor/reset-password": () =>
+        jsonResponse({ token: "reset/part?x#y", expiresAt: "2026-12-01T12:00:00.000Z" }, 201),
+      "POST /api/invites": () => jsonResponse({ token: "invite/part?x#y" }, 201),
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
@@ -1280,7 +1112,7 @@ describe("MembersSection — invite mint", () => {
   });
 
   it("shows the selected invite role consequences before creating the link", async () => {
-    vi.stubGlobal("fetch", mockFetch([{ userId: "me", role: "owner", isSelf: true }]));
+    vi.stubGlobal("fetch", mockApi([{ userId: "me", role: "owner", isSelf: true }]));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -1292,48 +1124,31 @@ describe("MembersSection — invite mint", () => {
 
   it("shows the invite link ONCE on a 201, built from the returned token", async () => {
     const user = userEvent.setup();
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const u = String(url);
-      if (u.endsWith("/members")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: "me",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "me@x.io",
-                isSelf: true,
-                mayResetPassword: false,
-                mayRevokeSessions: false,
-              },
-            ],
-          }),
-        } as unknown as Response;
-      }
-      if (u.endsWith("/invites") && (!init || init.method === "GET" || init.method === undefined)) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ invites: [] }),
-        } as unknown as Response;
-      }
-      if (u.endsWith("/api/invites") && init?.method === "POST") {
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({ token: "TOK123", role: "editor" }),
-        } as unknown as Response;
-      }
-      return {
-        ok: true,
-        status: 204,
-        json: async () => ({}),
-      } as unknown as Response;
+    // Creating an invite fires a fire-and-forget reloadInvites() right after, whose result feeds
+    // reconcileMintedInvite. The POST must return an `id` (as a real server does) so that reconcile
+    // ties the write-once link to it and the reload below is what proves the link survives — a
+    // response missing `id` would leave mintedLink.inviteId null, and the null-guard in
+    // reconcileMintedInvite would keep the link regardless of whether reconciliation itself works.
+    let invites: Record<string, unknown>[] = [];
+    let invitesReads = 0;
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+      "GET /invites": () => {
+        invitesReads += 1;
+        return jsonResponse({ invites });
+      },
+      "POST /api/invites": () => {
+        invites = [
+          {
+            id: "inv-new",
+            role: "editor",
+            preauthEmail: null,
+            expiresAt: "2026-12-01T00:00:00.000Z",
+            usedAt: null,
+            createdAt: "2026-07-17T00:00:00.000Z",
+          },
+        ];
+        return jsonResponse({ id: "inv-new", token: "TOK123", role: "editor" }, 201);
+      },
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
@@ -1342,50 +1157,42 @@ describe("MembersSection — invite mint", () => {
     await user.click(screen.getByTestId("invite-submit"));
     const link = await screen.findByTestId("invite-link");
     expect(link).toHaveTextContent("/invite/TOK123");
+
+    // The post-create reload confirms the invite is still pending, so the write-once link must
+    // survive it — this is the reconciliation path the test's name actually promises.
+    await waitFor(() => expect(invitesReads).toBeGreaterThanOrEqual(2));
+    expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
   });
 
   it("discards account-local bearer links and controls immediately when the account changes", async () => {
     const nextAccountId = "acc_second";
+    let minted: Record<string, unknown>[] = [];
     const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
       const target = String(url);
       const isRead = !init || init.method === undefined || init.method === "GET";
       if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: "me",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "me@x.io",
-                isSelf: true,
-                mayResetPassword: false,
-                mayRevokeSessions: false,
-              },
-            ],
-          }),
-        } as Response;
+        return jsonResponse({ members: [rawMember({ userId: "me", role: "owner", isSelf: true })] });
       }
       if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
         return await new Promise<Response>(() => {});
       }
       if (target.endsWith("/invites") && isRead) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ invites: [] }),
-        } as Response;
+        // The authoritative list AFTER the create below returns the invite it minted, as a server
+        // does: an empty list would mean "that invite is already gone", which is a different test.
+        return jsonResponse({ invites: minted });
       }
       if (target.endsWith("/api/invites") && init?.method === "POST") {
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({ id: "inv-new", token: "ACCOUNT_A_TOKEN" }),
-        } as Response;
+        minted = [
+          {
+            id: "inv-new",
+            role: "editor",
+            preauthEmail: null,
+            expiresAt: "2026-12-01T00:00:00.000Z",
+            usedAt: null,
+            createdAt: "2026-07-17T00:00:00.000Z",
+          },
+        ];
+        return jsonResponse({ id: "inv-new", token: "ACCOUNT_A_TOKEN" }, 201);
       }
       throw new Error(`Unexpected request: ${target}`);
     });
@@ -1418,41 +1225,21 @@ describe("MembersSection — invite mint", () => {
       const isRead = !init || init.method === undefined || init.method === "GET";
       if (target.endsWith("/members") && isRead) {
         const second = target.includes(`/${nextAccountId}/`);
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: second ? "second-owner" : "me",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: second ? "second@example.test" : "me@x.io",
-                isSelf: true,
-                mayResetPassword: false,
-                mayRevokeSessions: false,
-              },
-            ],
-          }),
-        } as Response;
+        return jsonResponse({
+          members: [
+            second
+              ? rawMember({ userId: "second-owner", role: "owner", email: "second@example.test", isSelf: true })
+              : rawMember({ userId: "me", role: "owner", isSelf: true }),
+          ],
+        });
       }
       if (target.endsWith("/invites") && isRead) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ invites: [] }),
-        } as Response;
+        return jsonResponse({ invites: [] });
       }
       if (target.endsWith("/api/invites") && init?.method === "POST") {
-        return {
-          ok: true,
-          status: 201,
-          // Omit the optional id so the write-once link remains visible while this test isolates
-          // the clipboard completion race rather than authoritative invite-list reconciliation.
-          json: async () => ({ token: "ACCOUNT_A_TOKEN" }),
-        } as Response;
+        // Omit the optional id so the write-once link remains visible while this test isolates
+        // the clipboard completion race rather than authoritative invite-list reconciliation.
+        return jsonResponse({ token: "ACCOUNT_A_TOKEN" }, 201);
       }
       throw new Error(`Unexpected request: ${target}`);
     });
@@ -1476,29 +1263,20 @@ describe("MembersSection — invite mint", () => {
   it("renders outstanding invite expiry on the viewer local calendar date", async () => {
     const expiresAt = "2026-12-01T00:00:00.000Z";
     const localDate = vi.spyOn(Date.prototype, "toLocaleDateString").mockReturnValue("LOCAL INVITE DATE");
-    const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const target = String(url);
-      const isRead = !init || init.method === undefined || init.method === "GET";
-      if (target.endsWith("/invites") && isRead) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            invites: [
-              {
-                id: "inv-existing",
-                role: "viewer",
-                preauthEmail: "existing@example.test",
-                expiresAt,
-                usedAt: null,
-                createdAt: "2026-07-17T00:00:00.000Z",
-              },
-            ],
-          }),
-        } as Response;
-      }
-      return reads(url, init);
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+      "GET /invites": () =>
+        jsonResponse({
+          invites: [
+            {
+              id: "inv-existing",
+              role: "viewer",
+              preauthEmail: "existing@example.test",
+              expiresAt,
+              usedAt: null,
+              createdAt: "2026-07-17T00:00:00.000Z",
+            },
+          ],
+        }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1511,33 +1289,22 @@ describe("MembersSection — invite mint", () => {
 
   it("marks an invitation expired and removes its action without remounting Settings", async () => {
     const expiresAt = new Date(Date.now() + 50).toISOString();
-    const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        const target = String(url);
-        const isRead = !init || init.method === undefined || init.method === "GET";
-        if (target.endsWith("/invites") && isRead) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              invites: [
-                {
-                  id: "inv-expiring",
-                  role: "viewer",
-                  preauthEmail: "expiring@example.test",
-                  expiresAt,
-                  usedAt: null,
-                  createdAt: "2026-07-17T00:00:00.000Z",
-                },
-              ],
-            }),
-          } as Response;
-        }
-        return reads(url, init);
-      }),
-    );
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+      "GET /invites": () =>
+        jsonResponse({
+          invites: [
+            {
+              id: "inv-expiring",
+              role: "viewer",
+              preauthEmail: "expiring@example.test",
+              expiresAt,
+              usedAt: null,
+              createdAt: "2026-07-17T00:00:00.000Z",
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     renderSection();
     expect(await screen.findByTestId("invite-revoke")).toBeInTheDocument();
@@ -1555,32 +1322,14 @@ describe("MembersSection — invite mint", () => {
       createdAt: "2026-07-17T00:00:00.000Z",
     };
     let invitationReads = 0;
-    const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const target = String(url);
-      const isRead = !init || init.method === undefined || init.method === "GET";
-      if (target.endsWith("/invites") && isRead) {
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+      "GET /invites": () => {
         invitationReads += 1;
         return invitationReads === 1
-          ? ({
-              ok: true,
-              status: 200,
-              json: async () => ({ invites: [existingInvite] }),
-            } as Response)
-          : ({
-              ok: false,
-              status: 503,
-              json: async () => ({ error: "Invite reload failed." }),
-            } as Response);
-      }
-      if (target.endsWith("/api/invites") && init?.method === "POST") {
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({ id: "inv-new", token: "TOK123" }),
-        } as Response;
-      }
-      return reads(url, init);
+          ? jsonResponse({ invites: [existingInvite] })
+          : jsonResponse({ error: "Invite reload failed." }, 503);
+      },
+      "POST /api/invites": () => jsonResponse({ id: "inv-new", token: "TOK123" }, 201),
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
@@ -1600,32 +1349,16 @@ describe("MembersSection — invite mint", () => {
       const isRead = !init || init.method === undefined || init.method === "GET";
       if (target.endsWith("/members") && isRead) {
         const second = target.includes(`/${nextAccountId}/`);
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: second ? "second-owner" : "me",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: second ? "second@example.test" : "me@x.io",
-                isSelf: true,
-                mayResetPassword: false,
-                mayRevokeSessions: false,
-              },
-            ],
-          }),
-        } as Response;
+        return jsonResponse({
+          members: [
+            second
+              ? rawMember({ userId: "second-owner", role: "owner", email: "second@example.test", isSelf: true })
+              : rawMember({ userId: "me", role: "owner", isSelf: true }),
+          ],
+        });
       }
       if (target.endsWith("/invites") && isRead) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ invites: [] }),
-        } as Response;
+        return jsonResponse({ invites: [] });
       }
       if (target.endsWith("/api/invites") && init?.method === "POST") {
         return await new Promise<Response>((resolve) => {
@@ -1644,11 +1377,7 @@ describe("MembersSection — invite mint", () => {
     expect(await screen.findByText("second@example.test")).toBeInTheDocument();
 
     await act(async () => {
-      resolveCreate?.({
-        ok: false,
-        status: 503,
-        json: async () => ({ error: "The first account outcome is unknown." }),
-      } as Response);
+      resolveCreate?.(jsonResponse({ error: "The first account outcome is unknown." }, 503));
     });
 
     expect(screen.getByText("second@example.test")).toBeInTheDocument();
@@ -1667,61 +1396,16 @@ describe("MembersSection — invite mint", () => {
       createdAt: "2026-07-17T00:00:00.000Z",
     };
     let invites: (typeof invite)[] = [];
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      const u = String(url);
-      if (u.endsWith("/members")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            members: [
-              {
-                userId: "me",
-                role: "owner",
-                status: "active",
-                createdAt: "2026-01-01T00:00:00.000Z",
-                name: null,
-                email: "me@x.io",
-                isSelf: true,
-                mayResetPassword: false,
-                mayRevokeSessions: false,
-              },
-            ],
-          }),
-        } as unknown as Response;
-      }
-      if (u.endsWith("/api/invites") && init?.method === "POST") {
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+      "POST /api/invites": () => {
         invites = [invite];
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({
-            id: invite.id,
-            token: "TOK123",
-            role: invite.role,
-          }),
-        } as unknown as Response;
-      }
-      if (u.endsWith(`/invites/${invite.id}`) && init?.method === "DELETE") {
+        return jsonResponse({ id: invite.id, token: "TOK123", role: invite.role }, 201);
+      },
+      [`DELETE /invites/${invite.id}`]: () => {
         invites = [];
-        return {
-          ok: true,
-          status: 204,
-          json: async () => ({}),
-        } as unknown as Response;
-      }
-      if (u.endsWith("/invites") && (!init || init.method === "GET" || init.method === undefined)) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ invites }),
-        } as unknown as Response;
-      }
-      return {
-        ok: true,
-        status: 204,
-        json: async () => ({}),
-      } as unknown as Response;
+        return new Response(null, { status: 204 });
+      },
+      "GET /invites": () => jsonResponse({ invites }),
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
@@ -1735,16 +1419,8 @@ describe("MembersSection — invite mint", () => {
   });
 
   it("refuses a malformed token response instead of constructing an undefined link", async () => {
-    const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (String(url).endsWith("/api/invites") && init?.method === "POST") {
-        return {
-          ok: true,
-          status: 201,
-          json: async () => ({ role: "editor" }),
-        } as unknown as Response;
-      }
-      return reads(url, init);
+    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+      "POST /api/invites": () => jsonResponse({ role: "editor" }, 201),
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
@@ -1789,27 +1465,20 @@ describe("MembersSection — SSO cutover repair", () => {
   }
 
   function ssoFetch(linked: boolean, reason: string) {
-    const ordinary = mockFetch(directory);
-    return vi.fn(async (url: string, init?: RequestInit) => {
-      const target = String(url);
-      if (target.endsWith("/sso-readiness") && (!init || init.method === undefined || init.method === "GET")) {
-        return Response.json(ssoReadiness(linked, reason));
-      }
-      if (init?.method === "PATCH" || init?.method === "DELETE") return new Response(null, { status: 204 });
-      return ordinary(url, init);
-    });
+    // A bare "GET " suffix would also swallow the /members read that mockApi's own default already
+    // serves, so key this explicitly on the readiness path; PATCH/DELETE fall through to mockApi's
+    // built-in 204 fallback for every other write.
+    return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
   }
 
   it("refreshes readiness after a successful membership mutation", async () => {
     const user = userEvent.setup();
-    const ordinary = mockFetch(directory);
     let readinessReads = 0;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (String(url).endsWith("/sso-readiness") && (!init || init.method === undefined || init.method === "GET")) {
+    const fetchMock = mockApi(directory, {
+      "GET /sso-readiness": () => {
         readinessReads += 1;
-        return Response.json(ssoReadiness(false, "member_not_linked"));
-      }
-      return ordinary(url, init);
+        return jsonResponse(ssoReadiness(false, "member_not_linked"));
+      },
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection({ providers });
@@ -1871,14 +1540,7 @@ describe("MembersSection — SSO cutover repair", () => {
   });
 
   it("surfaces a readiness fetch failure instead of hiding the cutover state", async () => {
-    const ordinary = mockFetch(directory);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (String(url).endsWith("/sso-readiness")) return Response.json({}, { status: 503 });
-        return ordinary(url, init);
-      }),
-    );
+    vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse({}, 503) }));
     renderSection({ providers });
 
     expect(await screen.findByTestId("sso-readiness-error")).toHaveTextContent(m.settings_sso_readiness_error());
@@ -1886,16 +1548,9 @@ describe("MembersSection — SSO cutover repair", () => {
   });
 
   it("rejects malformed nested readiness coordinates", async () => {
-    const ordinary = mockFetch(directory);
     const malformed = ssoReadiness(true, "unverified_provider_link");
     malformed.members[0]!.repairLinks[0]!.subject = "";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (String(url).endsWith("/sso-readiness")) return Response.json(malformed);
-        return ordinary(url, init);
-      }),
-    );
+    vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse(malformed) }));
     renderSection({ providers });
 
     expect(await screen.findByTestId("sso-readiness-error")).toHaveTextContent(m.settings_sso_readiness_error());
@@ -1913,7 +1568,7 @@ describe("MembersSection — SSO cutover repair", () => {
 
 // Reference DEFAULT_ACCOUNT_ID so the fixture import is used (the URL the component builds).
 it("uses the active account id from the store in fetch URLs", async () => {
-  const fetchMock = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
+  const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
   vi.stubGlobal("fetch", fetchMock);
   renderSection();
   await screen.findByTestId("members-section");
