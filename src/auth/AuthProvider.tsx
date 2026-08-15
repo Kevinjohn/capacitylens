@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { isServerConfigured } from "../data/apiConfig";
 import {
@@ -7,6 +7,7 @@ import {
   clearStoredAccountCommands,
 } from "../account/accountClient";
 import { publicAuthEntryForPath } from "./authEntryRoute";
+import { hasDuplicateIdentity } from "../lib/arrayIdentity";
 import { useStore } from "../store/useStore";
 import {
   AuthContext,
@@ -17,7 +18,12 @@ import {
 } from "./authContext";
 import { validateAuthUser } from "./validateAuthUser";
 import { reauthPending, resolveReauth, subscribeReauth } from "./reauthCoordinator";
-import { clearExternalSignInError, externalSignInErrorCode, hasExternalSignInError } from "./externalSignInError";
+import {
+  clearExternalSignInError,
+  externalSignInErrorCode,
+  externalSignInErrorMessage,
+  hasExternalSignInError,
+} from "./externalSignInError";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +56,11 @@ const MfaEnrollmentScreen = lazy(() =>
 // discipline as LoginScreen. The step-up dialog only exists in an auth-on session that hits a
 // SESSION_NOT_FRESH 403 (DEFECT B).
 const ReauthDialog = lazy(() => import("./ReauthDialog").then((m) => ({ default: m.ReauthDialog })));
+
+// A stable (never-reallocated) empty providers array — used as the authContextValue memo's fallback
+// for statuses that never actually read it (checking/error), so those renders can't be mistaken by
+// the memo's dependency check for a "providers changed" render (a fresh `[]` literal would).
+const EMPTY_PROVIDERS: AuthProviderInfo[] = [];
 
 type Status =
   | { kind: "checking" }
@@ -135,14 +146,9 @@ function providersFrom(v: unknown): AuthProviderInfo[] {
       : { id: "[invalid]", kind: typeof candidate };
     console.warn("AuthProvider: dropped an unsupported or malformed /api/auth/me provider", summary);
   }
-  const identities = new Set<string>();
-  for (const provider of providers) {
-    const identity = `${provider.kind}:${provider.id}`;
-    if (identities.has(identity)) {
-      console.warn("AuthProvider: /api/auth/me returned duplicate provider identities; ignoring the provider list");
-      return [];
-    }
-    identities.add(identity);
+  if (hasDuplicateIdentity(providers, (provider) => `${provider.kind}:${provider.id}`)) {
+    console.warn("AuthProvider: /api/auth/me returned duplicate provider identities; ignoring the provider list");
+    return [];
   }
   return providers;
 }
@@ -376,14 +382,7 @@ function AuthenticatedExternalSignInFailure() {
   useEffect(() => {
     if (!failed) return;
     window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
-    setNotice(
-      failureCode === "oidc_verification_failed"
-        ? m.login_sso_verification_failed()
-        : failureCode === "account_link_conflict"
-          ? m.login_sso_account_link_conflict()
-          : m.login_sso_failed(),
-      "error",
-    );
+    setNotice(externalSignInErrorMessage(failureCode), "error");
   }, [failed, failureCode, setNotice]);
 
   return null;
@@ -549,7 +548,39 @@ export function AuthProvider({
   const signOut = useCallback(async () => {
     await signOutAndReload();
   }, []);
-  const publicEntry = publicAuthEntryForPath(window.location.pathname);
+
+  // Memoise the context value the same way PermissionProvider.tsx does: AuthContext.Provider would
+  // otherwise get a fresh object literal every render, re-rendering every consumer (AppSidebar,
+  // SettingsView, the picker, ...) on any unrelated AuthProvider re-render (e.g. persistError
+  // toggling). The two AuthContext.Provider sites below (the pre-session invitation carve-out and
+  // the authenticated tree) share this ONE computation — each branch's fields are picked from
+  // `status` (or hardcoded, matching exactly what that branch always rendered) here, ABOVE the
+  // early returns, so the hook itself is called unconditionally on every render (Rules of Hooks).
+  const contextAuthMode = status.kind === "pass" ? status.authMode : status.kind === "login" ? status.authMode : "off";
+  const contextUser = status.kind === "pass" ? status.user : null;
+  const contextProviders = status.kind === "pass" || status.kind === "login" ? status.providers : EMPTY_PROVIDERS;
+  const contextCanCreateAccount = status.kind === "pass" ? status.canCreateAccount : false;
+  const contextMultiAccount = status.kind === "pass" ? status.multiAccount : false;
+  const authContextValue = useMemo(
+    () => ({
+      authMode: contextAuthMode,
+      user: contextUser,
+      providers: contextProviders,
+      canCreateAccount: contextCanCreateAccount,
+      multiAccount: contextMultiAccount,
+      refreshAuth,
+      signOut,
+    }),
+    [
+      contextAuthMode,
+      contextUser,
+      contextProviders,
+      contextCanCreateAccount,
+      contextMultiAccount,
+      refreshAuth,
+      signOut,
+    ],
+  );
 
   if (status.kind === "checking") return <AuthLoading message={m.auth_checking_session()} />;
   if (status.kind === "error") {
@@ -575,6 +606,9 @@ export function AuthProvider({
     );
   }
   if (status.kind === "login") {
+    // Computed only where it's actually read (this branch and the mfaRequired branch below) —
+    // a pure, cheap read of window.location.pathname, so recomputing it per branch is fine.
+    const publicEntry = publicAuthEntryForPath(window.location.pathname);
     // Pre-session carve-out (P1.18): /reset-password/:token must render WITHOUT a session — the
     // visitor redeeming an admin-issued reset link is exactly the person who cannot sign in (the
     // login wall would be a dead end). The page is as safe as LoginScreen itself: it renders no
@@ -599,21 +633,7 @@ export function AuthProvider({
       // a real refreshAuth so it can verify the freshly-created session and destination before a
       // fresh authenticated boot re-attaches tenant persistence. No tenant data is exposed: user
       // remains null until /me succeeds.
-      return (
-        <AuthContext.Provider
-          value={{
-            authMode: status.authMode,
-            user: null,
-            providers: status.providers,
-            canCreateAccount: false,
-            multiAccount: false,
-            refreshAuth,
-            signOut,
-          }}
-        >
-          {children}
-        </AuthContext.Provider>
-      );
+      return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
     }
     return (
       <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
@@ -637,7 +657,7 @@ export function AuthProvider({
     return (
       <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
         <MfaEnrollmentScreen
-          blockedEntry={publicEntry}
+          blockedEntry={publicAuthEntryForPath(window.location.pathname)}
           onEnrolled={confirmMfaEnrollment}
           onSignOut={() => void signOut()}
         />
@@ -645,17 +665,7 @@ export function AuthProvider({
     );
   }
   return (
-    <AuthContext.Provider
-      value={{
-        authMode: status.authMode,
-        user: status.user,
-        providers: status.providers,
-        canCreateAccount: status.canCreateAccount,
-        multiAccount: status.multiAccount,
-        refreshAuth,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={authContextValue}>
       {children}
       {status.authMode !== "off" && <AuthenticatedExternalSignInFailure />}
       {/* Step-up re-auth host (DEFECT B): renders the "Confirm it's you" dialog when a

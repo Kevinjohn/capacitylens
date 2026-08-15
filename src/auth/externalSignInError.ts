@@ -1,3 +1,5 @@
+import { m } from "@/i18n";
+
 const MARKER = "externalSignInError";
 const PROVIDER_ERROR = "error";
 const PROVIDER_DESCRIPTION = "error_description";
@@ -32,6 +34,16 @@ export function externalSignInErrorCode(url: string): ExternalSignInErrorCode | 
     return "account_link_conflict";
   }
   return null;
+}
+
+/** Map an application-owned failure code (or its absence) to the stable, non-sensitive message shown
+ *  to the user — the one mapping shared by AuthProvider's post-session failure host and LoginScreen's
+ *  pre-session initial error state. Calls m.login_sso_*() at call time, same as both former inline
+ *  copies — never cache the result across renders. */
+export function externalSignInErrorMessage(code: ExternalSignInErrorCode | null): string {
+  if (code === "oidc_verification_failed") return m.login_sso_verification_failed();
+  if (code === "account_link_conflict") return m.login_sso_account_link_conflict();
+  return m.login_sso_failed();
 }
 
 /** Remove provider-controlled error fields after rendering a stable, non-sensitive message. */

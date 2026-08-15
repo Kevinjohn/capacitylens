@@ -174,6 +174,20 @@ function parseToken(value: unknown): OneTimeToken | null {
   };
 }
 
+/** Shared by {@link commandResult} and {@link readResult}: both treat a decode failure on an ok
+ * response the same way, so the success-path decoding lives once. */
+async function decodeOkBody<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
+  const body: unknown = await response.json().catch(() => null);
+  const value = decode(body);
+  return value === null
+    ? {
+        kind: "invalid",
+        status: response.status,
+        message: "The server returned an invalid response.",
+      }
+    : { kind: "ok", status: response.status, value };
+}
+
 async function commandResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
@@ -192,15 +206,7 @@ async function commandResult<T>(
       `teamAccessClient: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
     );
   }
-  const body: unknown = await response.json().catch(() => null);
-  const value = decode(body);
-  return value === null
-    ? {
-        kind: "invalid",
-        status: response.status,
-        message: "The server returned an invalid response.",
-      }
-    : { kind: "ok", status: response.status, value };
+  return decodeOkBody(response, decode);
 }
 
 async function readResult<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
@@ -211,15 +217,7 @@ async function readResult<T>(response: Response, decode: (body: unknown) => T | 
       message: (await readApiError(response)) ?? null,
     };
   }
-  const body: unknown = await response.json().catch(() => null);
-  const value = decode(body);
-  return value === null
-    ? {
-        kind: "invalid",
-        status: response.status,
-        message: "The server returned an invalid response.",
-      }
-    : { kind: "ok", status: response.status, value };
+  return decodeOkBody(response, decode);
 }
 
 const noContent = (): true => true;
