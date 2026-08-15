@@ -7,6 +7,23 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.49.0-alpha.1] — 2026-08-15
+
+### Changed
+
+- Simplified the authentication and account-client layer (`src/auth`, `src/account`) with no
+  behaviour change (#349):
+  - The auth context value is now memoised (matching the sibling permission context), so the
+    authenticated shell no longer re-renders on tab focus/visibility revalidation when the
+    session status is unchanged.
+  - The OIDC/social provider sign-in dispatch shared by the login screen and the step-up
+    re-auth dialog now lives in one helper (`dispatchExternalProviderSignIn`) with focused
+    tests pinning the exact Better Auth arguments; both callers keep their own error and
+    busy-state handling.
+  - The external sign-in error → message mapping, provider duplicate-identity check, and the
+    team-access client's success-body decoding each collapsed onto one shared home instead of
+    two copies.
+
 ## [0.48.0-alpha.1] — 2026-08-15
 
 ### Changed
@@ -3533,7 +3550,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.48.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.49.0-alpha.1...HEAD
+[0.49.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.48.0-alpha.1...v0.49.0-alpha.1
 [0.48.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.47.0-alpha.1...v0.48.0-alpha.1
 [0.47.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.46.0-alpha.1...v0.47.0-alpha.1
 [0.46.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.45.0-alpha.1...v0.46.0-alpha.1

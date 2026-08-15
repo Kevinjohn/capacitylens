@@ -7,6 +7,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/fiel
 import { Card, CardContent } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import { authClient } from "./authClient";
+import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import type { AuthProviderInfo } from "./authContext";
@@ -22,7 +23,7 @@ import {
 import {
   clearExternalSignInError,
   externalSignInErrorCode,
-  externalSignInErrorUrl,
+  externalSignInErrorMessage,
   hasExternalSignInError,
 } from "./externalSignInError";
 
@@ -69,13 +70,9 @@ export function LoginScreen({
   const [password, setPassword] = useState("");
   const [setupToken, setSetupToken] = useState("");
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
-  const [error, setError] = useState<string | null>(() => {
-    if (!returnedWithExternalError) return null;
-    const code = externalSignInErrorCode(window.location.href);
-    if (code === "oidc_verification_failed") return m.login_sso_verification_failed();
-    if (code === "account_link_conflict") return m.login_sso_account_link_conflict();
-    return m.login_sso_failed();
-  });
+  const [error, setError] = useState<string | null>(() =>
+    returnedWithExternalError ? externalSignInErrorMessage(externalSignInErrorCode(window.location.href)) : null,
+  );
   const [busy, setBusy] = useState(false);
   const [twoFactorPending, setTwoFactorPending] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState("");
@@ -230,18 +227,7 @@ export function LoginScreen({
     setError(null);
     try {
       // On success the client follows the provider redirect; only a failure returns here.
-      const result =
-        provider.kind === "oidc"
-          ? await authClient.signIn.oauth2({
-              providerId: provider.id,
-              callbackURL: window.location.href,
-              errorCallbackURL: externalSignInErrorUrl(window.location.href),
-            })
-          : await authClient.signIn.social({
-              provider: provider.id,
-              callbackURL: window.location.href,
-              errorCallbackURL: externalSignInErrorUrl(window.location.href),
-            });
+      const result = await dispatchExternalProviderSignIn(provider);
       const failure = result.error;
       if (failure) {
         setError(failure.message ?? m.login_failed());
