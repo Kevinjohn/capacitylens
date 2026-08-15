@@ -1,13 +1,14 @@
 import type { Db } from "./db";
 
-interface TenantRelationship {
+export interface TenantRelationship {
   childTable: string;
   parentColumn: string;
   parentTable: string;
 }
 
-/** Every product relationship whose child and parent must carry the same accountId. */
-const TENANT_RELATIONSHIPS: readonly TenantRelationship[] = [
+/** Every product relationship whose child and parent must carry the same accountId. Shared with
+ *  erasure.ts, which builds its account-scoped edge check from this same canonical list. */
+export const TENANT_RELATIONSHIPS: readonly TenantRelationship[] = [
   { childTable: "resources", parentColumn: "disciplineId", parentTable: "disciplines" },
   { childTable: "projects", parentColumn: "clientId", parentTable: "clients" },
   { childTable: "phases", parentColumn: "projectId", parentTable: "projects" },

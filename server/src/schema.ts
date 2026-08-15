@@ -26,7 +26,10 @@ const columns = (db: Db, table: string): ColumnInfo[] =>
 const schemaColumns = (db: Db, table: string): SchemaColumnInfo[] =>
   db.prepare(`PRAGMA table_xinfo(${table})`).all() as unknown as SchemaColumnInfo[];
 
-const hasColumn = (db: Db, table: string, column: string): boolean => columns(db, table).some((c) => c.name === column);
+// Exported so controlTables.ts's own PRAGMA table_info(X)-shaped column-presence checks can reuse
+// this single definition instead of a second hand-rolled copy.
+export const hasColumn = (db: Db, table: string, column: string): boolean =>
+  columns(db, table).some((c) => c.name === column);
 
 const isNotNull = (db: Db, table: string, column: string): boolean =>
   columns(db, table).some((c) => c.name === column && c.notnull === 1);

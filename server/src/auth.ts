@@ -24,7 +24,12 @@ import {
 import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { accountConfigKey, resolveAccountEnvironment } from "./accountConfig";
-import { createStrictOidcClient, StrictOidcVerificationError, type StrictOidcClient } from "./strictOidc";
+import {
+  createStrictOidcClient,
+  isLoopbackHostname,
+  StrictOidcVerificationError,
+  type StrictOidcClient,
+} from "./strictOidc";
 import {
   PASSWORD_CONTEXT_WORDS,
   PasswordPolicyDependencyError,
@@ -47,13 +52,11 @@ import {
 } from "./federatedLinkLifecycle";
 
 /** Translate password-work backpressure before Better Auth can mistake it for a credential verdict
- * or an undifferentiated internal error. Malformed hashes still resolve false inside the hasher. */
-export async function verifyPasswordWithBackpressure(
-  hasher: PasswordHasher,
-  input: Parameters<PasswordHasher["verify"]>[0],
-): Promise<boolean> {
+ * or an undifferentiated internal error — shared by verify and hash, since queue pressure is
+ * availability, not an unclassified authentication failure, in either direction. */
+async function withPasswordQueueBackpressure<T>(op: () => Promise<T>): Promise<T> {
   try {
-    return await hasher.verify(input);
+    return await op();
   } catch (error) {
     if (error instanceof WorkQueueFullError) {
       throw APIError.from("SERVICE_UNAVAILABLE", {
@@ -65,20 +68,16 @@ export async function verifyPasswordWithBackpressure(
   }
 }
 
-/** Apply the same retryable boundary to new hashes; queue pressure is availability, not an
- * unclassified authentication failure. */
+/** Malformed hashes still resolve false inside the hasher. */
+export async function verifyPasswordWithBackpressure(
+  hasher: PasswordHasher,
+  input: Parameters<PasswordHasher["verify"]>[0],
+): Promise<boolean> {
+  return withPasswordQueueBackpressure(() => hasher.verify(input));
+}
+
 export async function hashPasswordWithBackpressure(hasher: PasswordHasher, password: string): Promise<string> {
-  try {
-    return await hasher.hash(password);
-  } catch (error) {
-    if (error instanceof WorkQueueFullError) {
-      throw APIError.from("SERVICE_UNAVAILABLE", {
-        message: error.message,
-        code: "PASSWORD_PROCESSING_UNAVAILABLE",
-      });
-    }
-    throw error;
-  }
+  return withPasswordQueueBackpressure(() => hasher.hash(password));
 }
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
@@ -271,17 +270,43 @@ function parseSessionTimestamp(value: string | number | null | undefined): numbe
  * overlapping requests settle out of order. Fails closed (row deleted, `null` returned) on an
  * unparseable timestamp.
  */
+type SessionActivityStatements = {
+  read: ReturnType<Db["prepare"]>;
+  destroy: ReturnType<Db["prepare"]>;
+  casDelete: ReturnType<Db["prepare"]>;
+  casTouch: ReturnType<Db["prepare"]>;
+};
+
+// This runs on every authenticated request (via enforceSessionActivity below) — cache the four
+// prepared statements per Db handle instead of re-preparing them on each call. WeakMap keyed by
+// the Db handle: an entry is collected with its handle, so tests that spin up many short-lived
+// in-memory handles don't leak.
+const sessionActivityStatementCache = new WeakMap<Db, SessionActivityStatements>();
+
+function sessionActivityStatements(db: Db): SessionActivityStatements {
+  const cached = sessionActivityStatementCache.get(db);
+  if (cached) return cached;
+  const statements: SessionActivityStatements = {
+    read: db.prepare(`SELECT updatedAt FROM session WHERE token = ?`),
+    destroy: db.prepare(`DELETE FROM session WHERE token = ?`),
+    casDelete: db.prepare(`DELETE FROM session WHERE token = ? AND updatedAt = ?`),
+    casTouch: db.prepare(`UPDATE session SET updatedAt = ? WHERE token = ? AND updatedAt = ?`),
+  };
+  sessionActivityStatementCache.set(db, statements);
+  return statements;
+}
+
 export async function enforceSessionActivity<
   Session extends {
     session: { token: string; updatedAt: Date | string };
   },
 >(session: Session, db: Db): Promise<Session | null> {
   const token = session.session.token;
+  const stmts = sessionActivityStatements(db);
   const readRaw = (): { updatedAt: string | number | null } | undefined =>
-    db.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token) as
-      { updatedAt: string | number | null } | undefined;
+    stmts.read.get(token) as { updatedAt: string | number | null } | undefined;
   const destroy = (): null => {
-    db.prepare(`DELETE FROM session WHERE token = ?`).run(token);
+    stmts.destroy.run(token);
     return null;
   };
   const lastActivity = new Date(session.session.updatedAt).getTime();
@@ -294,9 +319,7 @@ export async function enforceSessionActivity<
     const rowMs = parseSessionTimestamp(row.updatedAt);
     if (!Number.isFinite(rowMs)) return destroy();
     if (rowMs === lastActivity) {
-      const removed = db
-        .prepare(`DELETE FROM session WHERE token = ? AND updatedAt = ?`)
-        .run(token, row.updatedAt as string | number);
+      const removed = stmts.casDelete.run(token, row.updatedAt as string | number);
       if (removed.changes >= 1) return null;
       // Lost a race to a concurrent touch between the read and the delete — re-read it.
       const current = readRaw();
@@ -319,9 +342,7 @@ export async function enforceSessionActivity<
     let adopted = rowMs;
     if (rowMs < now) {
       const next: string | number = typeof row.updatedAt === "number" ? now : new Date(now).toISOString();
-      const touched = db
-        .prepare(`UPDATE session SET updatedAt = ? WHERE token = ? AND updatedAt = ?`)
-        .run(next, token, row.updatedAt as string | number);
+      const touched = stmts.casTouch.run(next, token, row.updatedAt as string | number);
       if (touched.changes >= 1) adopted = now;
       else {
         // A concurrent touch won the CAS; adopt whatever it wrote.
@@ -371,12 +392,21 @@ function normalizeImageUrl(value: unknown): string | null {
  *  the entrypoint catches this, prints the message, and exits 1. */
 export class AuthConfigError extends Error {}
 
-/** Constant-time comparison for the first-run setup secret. Empty/unset secrets never match. */
-function setupTokenMatches(configured: string | undefined, presented: string | null): boolean {
-  if (!configured || !presented) return false;
-  const expected = Buffer.from(configured, "utf8");
-  const actual = Buffer.from(presented, "utf8");
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+// Constant-time secret compare shared by the first-run setup token and the P1.8 bootstrap
+// token. Returns false UNLESS the configured token is a non-empty string AND the presented
+// value is a non-empty string of the SAME byte length whose bytes match — so an unset/empty
+// token (the default) never allows the token path, and the length-equality short-circuit
+// doesn't reveal the secret's length by timing (timingSafeEqual itself requires equal-length
+// buffers). Headers arrive as string | string[] | undefined from Fastify, or string | null
+// from a Better Auth ctx; `unknown` covers both — only a single string can match.
+export function secretTokenMatches(configured: string | undefined, presented: unknown): boolean {
+  if (!configured || typeof presented !== "string" || presented.length === 0) return false;
+  const a = Buffer.from(configured, "utf8");
+  const b = Buffer.from(presented, "utf8");
+  // timingSafeEqual throws on a length mismatch — guard first; an attacker learns only "wrong
+  // length" (already observable from the response), not the secret's bytes.
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 // ── Admin-issued password-reset links (P1.18) ──────────────────────────────────────────────────
@@ -399,7 +429,7 @@ export const SESSION_FRESH_AGE_SECONDS = ACCOUNT_SESSION_FRESH_AGE_SECONDS;
 /** Re-authentication is required after this much server-observed inactivity. */
 export const SESSION_INACTIVITY_TTL_SECONDS = 30 * 60;
 /** Bound session activity writes while keeping idle expiry accurate to within one minute. */
-export const SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS = 60;
+const SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS = 60;
 
 /** Reserved v25 index enforcing one principal for each external provider subject. */
 export const FEDERATED_SUBJECT_UNIQUE_INDEX = "idx_account_provider_subject_unique";
@@ -754,50 +784,39 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
 }
 
 /**
- * Per-handle cache of whether Better Auth's `verification` table exists, so the sqlite_master probe
- * runs at most ONCE per Db handle instead of on every membership write (the sole caller,
- * upsertMember, hits this on each role change / invite accept / org create).
+ * Factory for a per-handle "cache TRUE only" table-existence probe, so the sqlite_master lookup
+ * runs at most ONCE per Db handle once the table is seen to exist. WeakMap keyed by the Db
+ * handle: an entry is collected with its handle, so tests that spin up many short-lived
+ * in-memory handles don't leak.
  *
- * Cache the TRUE outcome only. Application migration v12 may probe this table before
- * runAuthMigrations creates it on the same handle when an existing auth-off database first enables
- * password auth. Caching that pre-auth `false` would permanently suppress reset-token revocation for
- * the rest of the process. Absence is therefore re-probed until the table appears; presence is fixed.
- *
- * WeakMap keyed by the Db handle: an entry is collected with its handle, so tests that spin up many
- * short-lived in-memory handles don't leak.
+ * Absence is deliberately re-probed on every call (never cached): a table this factory guards may
+ * not exist yet on a handle this function is consulted on BEFORE the migration that creates it
+ * runs on that same handle. Caching a pre-migration `false` would make every later call on that
+ * handle read "table absent" forever, which is the specific hazard each call site below documents.
  */
-const verificationTablePresence = new WeakMap<Db, true>();
-
-function verificationTableExists(db: Db): boolean {
-  if (verificationTablePresence.get(db)) return true;
-  const row = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'verification'`).get() as
-    { name?: string } | undefined;
-  const exists = row?.name === "verification";
-  if (exists) verificationTablePresence.set(db, true);
-  return exists;
+function cachedTableExists(table: string): (db: Db) => boolean {
+  const presence = new WeakMap<Db, true>();
+  return (db: Db): boolean => {
+    if (presence.get(db)) return true;
+    const row = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as
+      { name?: string } | undefined;
+    const exists = row?.name === table;
+    if (exists) presence.set(db, true);
+    return exists;
+  };
 }
 
-/**
- * Per-handle cache of whether Better Auth's `user` table exists — caches the TRUE outcome ONLY,
- * like {@link verificationTablePresence}. The reason is the same:
- * {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
- * its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
- * exist yet. Caching that pre-migration `false` would make every later per-request call read
- * "zero users" forever, holding first-run sign-up open on a populated instance — the exact stale-
- * `false` hazard described above. So absence is re-probed every
- * call (cheap: one sqlite_master lookup, and only until the table appears); presence, once true,
- * is fixed for the life of the handle (nothing ever drops Better Auth's tables).
- */
-const userTablePresence = new WeakMap<Db, true>();
+// The sole caller, upsertMember, hits this on each role change / invite accept / org create.
+// Application migration v12 may probe this table before runAuthMigrations creates it on the same
+// handle when an existing auth-off database first enables password auth; caching that pre-auth
+// `false` would permanently suppress reset-token revocation for the rest of the process.
+const verificationTableExists = cachedTableExists("verification");
 
-function userTableExists(db: Db): boolean {
-  if (userTablePresence.get(db)) return true;
-  const row = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user'`).get() as
-    { name?: string } | undefined;
-  const exists = row?.name === "user";
-  if (exists) userTablePresence.set(db, true);
-  return exists;
-}
+// {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
+// its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
+// exist yet. Caching that pre-migration `false` would make every later per-request call read
+// "zero users" forever, holding first-run sign-up open on a populated instance.
+const userTableExists = cachedTableExists("user");
 
 /**
  * Count Better Auth `user` rows — the first-run signal. Zero means "no one can sign in yet", which
@@ -866,11 +885,7 @@ function secureProviderUrl(env: Env, key: string): string | undefined {
   } catch (cause) {
     throw new AuthConfigError(`${accountConfigKey(key)} must be an absolute URL.`, { cause });
   }
-  const loopback =
-    url.hostname === "localhost" ||
-    url.hostname.endsWith(".localhost") ||
-    url.hostname === "127.0.0.1" ||
-    url.hostname === "[::1]";
+  const loopback = isLoopbackHostname(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
     throw new AuthConfigError(
       `${accountConfigKey(key)} must use https:// (loopback http:// is allowed for development).`,
@@ -1058,6 +1073,27 @@ export function ensureAuthControlTables(db: Db, env: Env): void {
   }
 }
 
+// session.create.after (in authFromEnv below) runs on every newly created session — cache the
+// prepared MFA-enrolment lookup per Db handle instead of re-preparing it on each call. WeakMap
+// keyed by the Db handle: an entry is collected with its handle, so tests that spin up many
+// short-lived in-memory handles don't leak.
+const twoFactorEnabledLookupCache = new WeakMap<Db, ReturnType<Db["prepare"]>>();
+
+function twoFactorEnabledLookupStatement(db: Db): ReturnType<Db["prepare"]> {
+  const cached = twoFactorEnabledLookupCache.get(db);
+  if (cached) return cached;
+  const stmt = db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?");
+  twoFactorEnabledLookupCache.set(db, stmt);
+  return stmt;
+}
+
+/** Structural half of a SQLite UNIQUE-constraint collision on the bootstrap-claim insert,
+ *  shared by both acquisition sites. Each caller ORs its own message-regex clause on top (the
+ *  two patterns differ deliberately for now), so this only covers the code/errcode probe. */
+function isSqliteConstraintCollision(sqlite: { code?: unknown; errcode?: unknown }): boolean {
+  return sqlite.errcode === 19 || (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
+}
+
 /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
  *  env beyond CAPACITYLENS_AUTH itself is read. `trustedOrigins` should be the same browser
  *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
@@ -1116,11 +1152,7 @@ export function authFromEnv(
   if (publicUrl.pathname !== "/" && publicUrl.pathname !== "") {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without a path.");
   }
-  const loopbackHost =
-    publicUrl.hostname === "localhost" ||
-    publicUrl.hostname.endsWith(".localhost") ||
-    publicUrl.hostname === "127.0.0.1" ||
-    publicUrl.hostname === "[::1]";
+  const loopbackHost = isLoopbackHostname(publicUrl.hostname);
   if (runtimeEnvironment === "production" && publicUrl.protocol !== "https:" && !loopbackHost) {
     throw new AuthConfigError(
       "SMALLSASS_ACCOUNT_PUBLIC_URL must use https:// for a non-loopback production origin; credentials and session cookies must not cross plaintext HTTP.",
@@ -1316,8 +1348,7 @@ export function authFromEnv(
         message?: unknown;
       };
       const collision =
-        sqlite.errcode === 19 ||
-        (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT")) ||
+        isSqliteConstraintCollision(sqlite) ||
         (typeof sqlite.message === "string" && /constraint failed.*capacitylens_bootstrap_claim/i.test(sqlite.message));
       if (!collision) throw error;
       throw APIError.from("CONFLICT", {
@@ -1499,7 +1530,7 @@ export function authFromEnv(
             const enrolledMfa =
               mode === "password"
                 ? (
-                    db.prepare("SELECT twoFactorEnabled FROM user WHERE id = ?").get(String(session.userId)) as
+                    twoFactorEnabledLookupStatement(db).get(String(session.userId)) as
                       { twoFactorEnabled?: unknown } | undefined
                   )?.twoFactorEnabled
                 : false;
@@ -1617,7 +1648,7 @@ export function authFromEnv(
         // this header. index.ts also refuses a fresh password boot when the secret is absent.
         if (
           countUsers(db) === 0 &&
-          setupTokenMatches(setupToken, ctx.headers?.get("x-capacitylens-setup-token") ?? null)
+          secretTokenMatches(setupToken, ctx.headers?.get("x-capacitylens-setup-token") ?? null)
         ) {
           // Validate before acquiring the one-at-a-time bootstrap claim: a malformed password must
           // not strand setup waiting for an after-hook that this before-hook failure never reaches.
@@ -2040,7 +2071,7 @@ export async function runAuthMigrations(auth: Auth): Promise<void> {
   }
 }
 
-export interface AuthSchemaMigrationPlan {
+interface AuthSchemaMigrationPlan {
   pending: boolean;
   tables: string[];
 }
@@ -2061,7 +2092,7 @@ export async function planAuthSchemaMigrations(auth: Auth): Promise<AuthSchemaMi
 // credential outside this process avoids an irrecoverable secret if startup output fails.
 
 /** Stable identity for the optional bootstrap owner. Its password is supplied by the operator. */
-export const BOOTSTRAP_ADMIN_NAME = "admin";
+const BOOTSTRAP_ADMIN_NAME = "admin";
 export const BOOTSTRAP_ADMIN_EMAIL = "admin@admin.admin";
 
 /**
@@ -2131,8 +2162,7 @@ export async function createBootstrapAdmin(
   } catch (error) {
     const sqlite = error as { code?: unknown; errcode?: unknown; message?: unknown };
     const collision =
-      sqlite.errcode === 19 ||
-      (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT")) ||
+      isSqliteConstraintCollision(sqlite) ||
       (typeof sqlite.message === "string" &&
         /unique constraint failed.*capacitylens_bootstrap_claim/i.test(sqlite.message));
     if (!collision) throw error;

@@ -1346,6 +1346,22 @@ describe("tenant-scoped mutation projections", () => {
     expect(result.json().revisions).toHaveLength(1);
   });
 
+  it("excludes a same-batch re-archive of an already-archived row from changed", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+    await put(app, "clients", "c1", client("c1", "a1"));
+
+    const result = await batch(app, [
+      { method: "ARCHIVE", table: "clients", id: "c1", accountId: "a1" },
+      { method: "ARCHIVE", table: "clients", id: "c1", accountId: "a1" },
+    ]);
+
+    expect(result.statusCode).toBe(200);
+    // The first op archives the row; the second sees it already archived (mid-transaction) and its
+    // audit record is nulled out — `changed` must reflect only the first.
+    expect(result.json()).toMatchObject({ ok: true, applied: 2, changed: 1 });
+  });
+
   it("does not materialize unrelated tables for empty/single-account batches or import", async () => {
     const { db, raw, fullTableSelects } = dbTrackingFullTableSelects();
     const app = buildApp(db, {

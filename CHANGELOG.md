@@ -7,6 +7,39 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.50.0-alpha.1] — 2026-08-15
+
+### Changed
+
+- Simplified the flat `server/src` root directory (~42k lines) with no behaviour change (#350),
+  applied findings-first with four independent review angles and Codex arbitration:
+  - Hot read/write helpers (`upsertRow`, `getRow`, `loadState`, `readSlice`, membership-role
+    lookups, audit-outbox drain, sync-ordering checks) now reuse per-handle cached prepared
+    statements instead of re-preparing identical SQL on every call, following the existing
+    `WeakMap<Db, …>` idiom; `initializeOpenDb` drops a handle's cache before returning, since
+    node:sqlite statements freeze their column set at prepare time and migrations are the only
+    schema-change boundary.
+  - Migrations 9, 16 and 27–32 share one `tableHasColumns` guard; `hasColumn` is exported from
+    the schema module and reused by the control-table checks.
+  - The per-account read now derives both gated-field redactions (time-off note, private names)
+    from the same `GATED_FIELD_POLICIES` catalogue the write-pin and export paths already use.
+  - Route-layer dedup in `app.ts`: shared audit-record builder, SQLite constraint-collision
+    predicate, cached table-existence checks, password-queue backpressure wrapper, and the
+    `/api/batch` changed-count now derived from the audit records (one new test pins the
+    same-batch re-archive case).
+  - `secretTokenMatches` and `isLoopbackHostname` are exported once and reused (mechanical
+    dedup only; strict-OIDC flow untouched).
+  - Leaf-module cleanups across 16 files: dead code removed; erasure's cross-tenant edge SQL
+    generated from tenantIntegrity's canonical relationship list (inline snapshot pins the
+    text); shared audit-event builder for the cutover-repair literals; `tenantStore`'s
+    related-allocations N+1 collapsed to one query and the admin row-count probe to one
+    UNION ALL; backup's duplicated snapshot-verify sequence extracted with each call site
+    keeping its own failure semantics; work-queue waiting-list removal narrowed into one
+    helper with two new dequeue-boundary regression tests.
+
+  Wire formats, audit action strings, SQL schema, transaction ordering and error text are
+  byte-identical; JSON export and SQLite database schema versions are unchanged.
+
 ## [0.49.0-alpha.1] — 2026-08-15
 
 ### Changed
@@ -3550,7 +3583,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.49.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.50.0-alpha.1...HEAD
+[0.50.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.49.0-alpha.1...v0.50.0-alpha.1
 [0.49.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.48.0-alpha.1...v0.49.0-alpha.1
 [0.48.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.47.0-alpha.1...v0.48.0-alpha.1
 [0.47.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.46.0-alpha.1...v0.47.0-alpha.1

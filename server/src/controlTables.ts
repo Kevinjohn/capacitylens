@@ -11,6 +11,7 @@ import { revokeResetTokensForUser } from "./auth";
 import { bumpSecurityRevision } from "./accounts/state";
 import { migrateMemberSignInTrackingV26, removeMemberSignInTrackingForAccount } from "./accounts/memberSignInTracking";
 import type { Db } from "./db";
+import { hasColumn } from "./schema";
 import { tx } from "./txn";
 
 // Server-CONTROL tables — the user↔account binding (membership + its roles) AND the single-use
@@ -77,6 +78,37 @@ function membershipStatus(stored: string, accountId: string, userId: string): Me
     `controlTables: membership (${accountId}, ${userId}) carries unrecognised status ${JSON.stringify(stored)} — reading it as 'disabled'.`,
   );
   return "disabled";
+}
+
+/** Shared row shape for the three `account_members` readers below. */
+interface AccountMemberRow {
+  accountId: string;
+  userId: string;
+  role: string;
+  status: string;
+  createdAt: string;
+}
+
+/**
+ * Map one raw `account_members` row to an {@link AccountMember}, failing LOUD on a stored role that
+ * is not a known {@link Role} — control-table corruption, never a recoverable request condition.
+ * Extracted from {@link getMembershipRow}, {@link listMembershipsForUser} and
+ * {@link listMembersForAccount}, which shared this mapping and integrity throw verbatim; `caller`
+ * keeps each call site's error message byte-identical to its pre-extraction text.
+ */
+function toAccountMember(row: AccountMemberRow, caller: string): AccountMember {
+  if (!isKnownRole(row.role)) {
+    throw new Error(
+      `${caller}: stored role ${JSON.stringify(row.role)} for (${row.accountId}, ${row.userId}) is not a known role — control table corrupted.`,
+    );
+  }
+  return {
+    accountId: row.accountId,
+    userId: row.userId,
+    role: row.role,
+    status: membershipStatus(row.status, row.accountId, row.userId),
+    createdAt: row.createdAt,
+  };
 }
 
 export const USED_INVITATION_RETENTION_LIMIT = 200;
@@ -152,8 +184,13 @@ export function ensureControlTables(db: Db): void {
   // here — guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
   // can't ALTER-ADD a NOT NULL column to existing rows, so it lands NULLABLE; createInvite always
   // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
-  const legacyPlaintextInvites = inviteHasColumn(db, "token");
-  if (!legacyPlaintextInvites && !inviteHasColumn(db, "id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
+  // Fetch the invites column set ONCE (rather than one PRAGMA per column checked below) — both
+  // `legacyPlaintextInvites` and the `id`-presence check below read the same live shape.
+  const inviteColumnNames = new Set(
+    (db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>).map((c) => c.name),
+  );
+  const legacyPlaintextInvites = inviteColumnNames.has("token");
+  if (!legacyPlaintextInvites && !inviteColumnNames.has("id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
 
   // Migrate the original schema, which stored bearer tokens verbatim as its primary key. Rebuild
   // rather than retaining the old column: leaving plaintext beside a new digest would not improve
@@ -161,7 +198,7 @@ export function ensureControlTables(db: Db): void {
   // installed, so every legacy invite remains independently revocable.
   if (legacyPlaintextInvites) {
     tx(db, () => {
-      if (!inviteHasColumn(db, "id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
+      if (!hasColumn(db, "invites", "id")) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`);
       // A previous interrupted pre-fix migration may have left this scratch table behind.
       db.exec(`DROP TABLE IF EXISTS invites_new`);
       const rows = db.prepare(`SELECT token, id FROM invites`).all() as Array<{ token: string; id: string | null }>;
@@ -254,7 +291,12 @@ export function ensureControlTables(db: Db): void {
  * AppData/TABLES, so schema.ts cannot cover them; without this companion assertion a missed future
  * control-table migration would otherwise surface only when an account or invite route is used. */
 export function assertControlTablesCurrent(db: Db): void {
-  const accountMemberColumns = db.prepare("PRAGMA table_info(account_members)").all() as Array<{ name: string }>;
+  const accountMemberColumns = db.prepare("PRAGMA table_info(account_members)").all() as Array<{
+    name: string;
+    notnull: number;
+    pk: number;
+    type: string;
+  }>;
   const expectedColumns: Record<string, Record<string, { notNull: boolean; primaryKey: number }>> = {
     account_members: {
       accountId: { notNull: true, primaryKey: 1 },
@@ -279,12 +321,17 @@ export function assertControlTablesCurrent(db: Db): void {
   };
   const problems: string[] = [];
   for (const [table, expected] of Object.entries(expectedColumns)) {
-    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
-      name: string;
-      notnull: number;
-      pk: number;
-      type: string;
-    }>;
+    // account_members was already fetched above (to decide whether signInConfirmed is expected) —
+    // reuse it rather than re-running the identical PRAGMA a second time.
+    const columns =
+      table === "account_members"
+        ? accountMemberColumns
+        : (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+            name: string;
+            notnull: number;
+            pk: number;
+            type: string;
+          }>);
     const live = new Map(columns.map((column) => [column.name, column]));
     for (const column of columns) {
       if (!Object.hasOwn(expected, column.name)) problems.push(`unexpected ${table}.${column.name}`);
@@ -391,13 +438,6 @@ export function assertControlTablesCurrent(db: Db): void {
 /** One-way lookup key for an invite bearer. Domain separation prevents cross-protocol reuse. */
 export function inviteTokenHash(token: string): string {
   return createHash("sha256").update("capacitylens-invite\0").update(token).digest("base64url");
-}
-
-/** Does the `invites` table already carry `column`? Used to gate the additive ALTER above for a dev
- *  DB created under P1.9 (before the `id` column existed). Mirrors schema.ts's PRAGMA-based check. */
-function inviteHasColumn(db: Db, column: string): boolean {
-  const cols = db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>;
-  return cols.some((c) => c.name === column);
 }
 
 /**
@@ -508,27 +548,41 @@ export function setMemberStatus(
  * @throws Error  If the stored role is not a known {@link Role} — control-table corruption, which
  *   fails loud here exactly as it does in {@link listMembersForAccount}.
  */
-export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
-  const row = db
-    .prepare(
-      `SELECT accountId, userId, role, status, createdAt FROM account_members
-        WHERE accountId = ? AND userId = ?`,
-    )
-    .get(accountId, userId) as
-    { accountId: string; userId: string; role: string; status: string; createdAt: string } | undefined;
-  if (!row) return null;
-  if (!isKnownRole(row.role)) {
-    throw new Error(
-      `getMembershipRow: stored role ${JSON.stringify(row.role)} for (${row.accountId}, ${row.userId}) is not a known role — control table corrupted.`,
-    );
-  }
-  return {
-    accountId: row.accountId,
-    userId: row.userId,
-    role: row.role,
-    status: membershipStatus(row.status, row.accountId, row.userId),
-    createdAt: row.createdAt,
+type PreparedStatement = ReturnType<Db["prepare"]>;
+
+/**
+ * Factory for a per-handle prepared-statement cache, so a hot `account_members` read (reached via
+ * {@link authorize} on most requests) is prepared at most ONCE per Db handle rather than on every
+ * call. WeakMap keyed by the Db handle — mirrors {@link auth.ts}'s `cachedTableExists` idiom — so an
+ * entry is collected with its handle and the many short-lived `:memory:` handles tests open never
+ * leak. SQL text is unchanged; only the repeated `prepare()` call is elided.
+ */
+function cachedStatement(sql: string): (db: Db) => PreparedStatement {
+  const cache = new WeakMap<Db, PreparedStatement>();
+  return (db: Db): PreparedStatement => {
+    let stmt = cache.get(db);
+    if (!stmt) {
+      stmt = db.prepare(sql);
+      cache.set(db, stmt);
+    }
+    return stmt;
   };
+}
+
+const membershipRowStatement = cachedStatement(
+  `SELECT accountId, userId, role, status, createdAt FROM account_members
+        WHERE accountId = ? AND userId = ?`,
+);
+const memberRoleStatement = cachedStatement(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`);
+const activeMemberRoleStatement = cachedStatement(`
+    SELECT role FROM account_members
+     WHERE accountId = ? AND userId = ? AND status = 'active'
+  `);
+
+export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
+  const row = membershipRowStatement(db).get(accountId, userId) as AccountMemberRow | undefined;
+  if (!row) return null;
+  return toAccountMember(row, "getMembershipRow");
 }
 
 /**
@@ -541,23 +595,14 @@ export function getMembershipRow(db: Db, accountId: string, userId: string): Acc
  * @returns The {@link Role}, or `null` when no `(accountId, userId)` membership exists.
  */
 export function getMemberRole(db: Db, accountId: string, userId: string): Role | null {
-  const row = db
-    .prepare(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`)
-    .get(accountId, userId) as { role?: string } | undefined;
+  const row = memberRoleStatement(db).get(accountId, userId) as { role?: string } | undefined;
   return isKnownRole(row?.role) ? row.role : null;
 }
 
 /** Security-sensitive role lookup. Legacy control rows may carry a non-active status; those rows
  * never confer application or administrative authority and must be indistinguishable from absence. */
 export function getActiveMemberRole(db: Db, accountId: string, userId: string): Role | null {
-  const row = db
-    .prepare(
-      `
-    SELECT role FROM account_members
-     WHERE accountId = ? AND userId = ? AND status = 'active'
-  `,
-    )
-    .get(accountId, userId) as { role?: string } | undefined;
+  const row = activeMemberRoleStatement(db).get(accountId, userId) as { role?: string } | undefined;
   return isKnownRole(row?.role) ? row.role : null;
 }
 
@@ -572,31 +617,12 @@ export function getActiveMemberRole(db: Db, accountId: string, userId: string): 
 export function listMembershipsForUser(db: Db, userId: string): AccountMember[] {
   const rows = db
     .prepare(`SELECT accountId, userId, role, status, createdAt FROM account_members WHERE userId = ?`)
-    .all(userId) as Array<{
-    accountId: string;
-    userId: string;
-    role: string;
-    status: string;
-    createdAt: string;
-  }>;
+    .all(userId) as unknown as Array<AccountMemberRow>;
   // Map rows explicitly (mirrors rowCodec's row→object discipline) so the returned objects carry
   // the precise Role/MembershipStatus unions, not the raw TEXT columns. A row whose role is somehow
   // not a known Role is a control-table integrity fault (every write goes through upsertMember's
   // guard) — fail LOUD rather than hand back a mistyped role.
-  return rows.map((r) => {
-    if (!isKnownRole(r.role)) {
-      throw new Error(
-        `listMembershipsForUser: stored role ${JSON.stringify(r.role)} for (${r.accountId}, ${r.userId}) is not a known role — control table corrupted.`,
-      );
-    }
-    return {
-      accountId: r.accountId,
-      userId: r.userId,
-      role: r.role,
-      status: membershipStatus(r.status, r.accountId, r.userId),
-      createdAt: r.createdAt,
-    };
-  });
+  return rows.map((r) => toAccountMember(r, "listMembershipsForUser"));
 }
 
 /**
@@ -618,27 +644,8 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
       `SELECT accountId, userId, role, status, createdAt FROM account_members
        WHERE accountId = ? ORDER BY createdAt, userId`,
     )
-    .all(accountId) as Array<{
-    accountId: string;
-    userId: string;
-    role: string;
-    status: string;
-    createdAt: string;
-  }>;
-  return rows.map((r) => {
-    if (!isKnownRole(r.role)) {
-      throw new Error(
-        `listMembersForAccount: stored role ${JSON.stringify(r.role)} for (${r.accountId}, ${r.userId}) is not a known role — control table corrupted.`,
-      );
-    }
-    return {
-      accountId: r.accountId,
-      userId: r.userId,
-      role: r.role,
-      status: membershipStatus(r.status, r.accountId, r.userId),
-      createdAt: r.createdAt,
-    };
-  });
+    .all(accountId) as unknown as Array<AccountMemberRow>;
+  return rows.map((r) => toAccountMember(r, "listMembersForAccount"));
 }
 
 /** Physical uniqueness backstop for the exactly-one-active-Owner product rule. The partial index
@@ -1357,7 +1364,7 @@ export function pruneInvites(db: Db, now = Date.now(), accountId?: string): numb
 
 /** Apply only the bounded used-history policy. Kept separate so the one-time migration cannot
  * unexpectedly delete an expired unused bearer row outside its declared data-repair scope. */
-export function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string): number {
+function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string): number {
   const accountClause = accountId === undefined ? "" : " AND accountId = ?";
   const parameters = accountId === undefined ? [] : [accountId];
   const used = db

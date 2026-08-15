@@ -1,11 +1,19 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { ServerOptions as HttpsServerOptions } from "node:https";
 import Fastify from "fastify";
 import rateLimitPlugin from "@fastify/rate-limit";
 import helmetPlugin from "@fastify/helmet";
 import { MAX_RATE_LIMIT, normalizeRateLimit, parseRateLimit } from "./rateLimit";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { DEMO_USER, DEFAULT_ACCOUNT_APPLICATION, countUsers, type Auth, type AuthMode, type SessionUser } from "./auth";
+import {
+  DEMO_USER,
+  DEFAULT_ACCOUNT_APPLICATION,
+  countUsers,
+  secretTokenMatches,
+  type Auth,
+  type AuthMode,
+  type SessionUser,
+} from "./auth";
 import {
   type ActorContext,
   type ApplicationSession,
@@ -102,6 +110,7 @@ import {
   insertAll,
   insertRow,
   isInitialized,
+  listAccountSummaries,
   loadState,
   replaceAccountSlice,
   validatedCompleteAccountSlice,
@@ -714,22 +723,6 @@ function authenticationRequestUrl(req: FastifyRequest): URL | null {
   }
 }
 
-// Constant-time secret compare for the P1.8 bootstrap token. Returns false UNLESS the
-// configured token is a non-empty string AND the presented header is a non-empty string of
-// the SAME byte length whose bytes match — so an unset/empty token (the default) never allows
-// the token path, and the length-equality short-circuit doesn't reveal the secret's length by
-// timing (timingSafeEqual itself requires equal-length buffers). The header arrives as
-// string | string[] | undefined from Fastify; only a single string can match.
-function bootstrapTokenMatches(configured: string | undefined, presented: unknown): boolean {
-  if (!configured || typeof presented !== "string" || presented.length === 0) return false;
-  const a = Buffer.from(configured, "utf8");
-  const b = Buffer.from(presented, "utf8");
-  // timingSafeEqual throws on a length mismatch — guard first; an attacker learns only "wrong
-  // length" (already observable from the response), not the secret's bytes.
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
 /** Batch-internal stale-write signal (optimistic concurrency, fix parity with the direct PUT
  *  route). Carries the STORED row so the batch handler can send the direct route's exact 409
  *  shape (`{ error, current }`). It is thrown from INSIDE tx(), so by construction the whole
@@ -899,6 +892,19 @@ function fail(reply: FastifyReply, err: unknown, logError: (e: unknown) => void 
     error: message,
     ...(err instanceof ValidationError && err.code ? { code: err.code } : {}),
   });
+}
+
+/** Stamp `ts` and assemble the 7-field {@link AuditRecord} shared by the generic
+ *  POST/PUT/PATCH/DELETE handlers. */
+function buildAuditRecord(
+  userId: string,
+  accountId: string,
+  action: AuditRecord["action"],
+  entity: string,
+  id: string,
+  changedFields: string[],
+): AuditRecord {
+  return { ts: new Date().toISOString(), userId, accountId, action, entity, id, changedFields };
 }
 
 export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
@@ -1737,10 +1743,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // the wire. The role is 'owner' — the trusted-local full-access sentinel: OFF is byte-identical
         // to today's no-login deploy, so the client's pure `can('owner', …)` keeps OFF fully editable
         // (and a Viewer read-only mode is reachable ONLY auth-on, where a real membership role exists).
-        const accounts = db.prepare(`SELECT id, name FROM accounts ORDER BY id`).all() as Array<{
-          id: string;
-          name: string;
-        }>;
+        const accounts = listAccountSummaries(db);
         return accounts.map((account) => ({
           id: account.id,
           name: account.name,
@@ -1885,7 +1888,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           );
         }
         const command = accountCommand(req);
-        const bootstrapAuthorized = bootstrapTokenMatches(
+        const bootstrapAuthorized = secretTokenMatches(
           opts.bootstrapToken,
           req.headers["x-capacitylens-bootstrap-token"],
         );
@@ -2024,15 +2027,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           vis,
           verb: "create",
         });
-        const auditRecord: AuditRecord = {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: (row.accountId as string | undefined) ?? (row.id as string),
-          action: "create",
+        const auditRecord = buildAuditRecord(
+          req.user!.id,
+          (row.accountId as string | undefined) ?? (row.id as string),
+          "create",
           entity,
-          id: row.id as string,
-          changedFields: appliedRequestedFieldNames(entity, requestRow, undefined, row),
-        };
+          row.id as string,
+          appliedRequestedFieldNames(entity, requestRow, undefined, row),
+        );
         commitProductAudit(reply, auditRecord, () => insertRow(db, entity, row));
         return reply.code(201).send(row);
       } catch (err) {
@@ -2101,15 +2103,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           vis,
           verb: "replace",
         });
-        const auditRecord: AuditRecord = {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: (body.accountId as string | undefined) ?? id,
-          action: existing ? "update" : "create",
+        const auditRecord = buildAuditRecord(
+          req.user!.id,
+          (body.accountId as string | undefined) ?? id,
+          existing ? "update" : "create",
           entity,
           id,
-          changedFields: appliedRequestedFieldNames(entity, body, existing, row),
-        };
+          appliedRequestedFieldNames(entity, body, existing, row),
+        );
         commitProductAudit(reply, auditRecord, () => {
           if (generatedReplacement) {
             replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row);
@@ -2193,15 +2194,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // Record only requested keys whose sanitized, pinned result actually differs from storage.
         commitProductAudit(
           reply,
-          {
-            ts: new Date().toISOString(),
-            userId: req.user!.id,
-            accountId: (merged.accountId as string | undefined) ?? id,
-            action: "patch",
+          buildAuditRecord(
+            req.user!.id,
+            (merged.accountId as string | undefined) ?? id,
+            "patch",
             entity,
             id,
-            changedFields: appliedRequestedFieldNames(entity, req.body, existing, stamped),
-          },
+            appliedRequestedFieldNames(entity, req.body, existing, stamped),
+          ),
           () => upsertRow(db, entity, stamped),
         );
         // The merge carries stored protected fields into `merged`; apply the normal read projection.
@@ -2245,18 +2245,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           return reply.code(404).send({ error: "Not found" });
         }
         if (existing) {
-          commitProductAudit(
-            reply,
-            {
-              ts: new Date().toISOString(),
-              userId: req.user!.id,
-              accountId,
-              action: "delete",
-              entity,
-              id,
-              changedFields: [],
-            },
-            () => deleteRow(db, entity, id),
+          commitProductAudit(reply, buildAuditRecord(req.user!.id, accountId, "delete", entity, id, []), () =>
+            deleteRow(db, entity, id),
           );
         }
         return reply.code(204).send();
@@ -2293,6 +2283,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         }
         syncOrder = { sessionId: rawSyncSession, sequence };
       }
+      // Ordered-op updatedAt guard shared by the PUT/DELETE/ARCHIVE branches of the pre-scan below —
+      // a no-op unless this request carries sync ordering headers (closes over syncOrder above).
+      const requireOrderedUpdatedAt = (value: unknown, verbLabel: string): { status: number; error: string } | null =>
+        syncOrder && typeof value !== "string"
+          ? { status: 400, error: `An ordered ${verbLabel} op needs a string updatedAt revision.` }
+          : null;
       // MAX_BATCH_OPS (see its doc comment) bounds the per-operation multiplier; the initial
       // projection read still scales once with each affected account's slice.
       // Rejected before the pre-scan and transaction, so an over-cap batch does no per-op work.
@@ -2316,11 +2312,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           const rejection = checkEntityWriteBody("replace", op.table, op.row, op.id, isScopedTable(op.table));
           if (rejection) return reply.code(rejection.status).send({ error: rejection.error });
           const row = op.row as Record<string, unknown>;
-          if (syncOrder && typeof row.updatedAt !== "string") {
-            return reply.code(400).send({
-              error: "An ordered PUT op needs a string updatedAt revision.",
-            });
-          }
+          const orderedRejection = requireOrderedUpdatedAt(row.updatedAt, "PUT");
+          if (orderedRejection) return reply.code(orderedRejection.status).send({ error: orderedRejection.error });
         } else if (op.method === "DELETE") {
           if (isLifecycleEntity(op.table)) {
             return reply.code(400).send({
@@ -2333,11 +2326,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (isScopedTable(op.table) && typeof op.accountId !== "string") {
             return reply.code(400).send({ error: "A scoped DELETE op needs a string accountId." });
           }
-          if (syncOrder && typeof op.updatedAt !== "string") {
-            return reply.code(400).send({
-              error: "An ordered DELETE op needs a string updatedAt revision.",
-            });
-          }
+          const orderedRejection = requireOrderedUpdatedAt(op.updatedAt, "DELETE");
+          if (orderedRejection) return reply.code(orderedRejection.status).send({ error: orderedRejection.error });
         } else {
           if (!isLifecycleEntity(op.table)) {
             return reply.code(400).send({ error: "ARCHIVE is supported only for lifecycle entities." });
@@ -2345,11 +2335,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (typeof op.accountId !== "string") {
             return reply.code(400).send({ error: "An ARCHIVE op needs a string accountId." });
           }
-          if (syncOrder && typeof op.updatedAt !== "string") {
-            return reply.code(400).send({
-              error: "An ordered ARCHIVE op needs a string updatedAt revision.",
-            });
-          }
+          const orderedRejection = requireOrderedUpdatedAt(op.updatedAt, "ARCHIVE");
+          if (orderedRejection) return reply.code(orderedRejection.status).send({ error: orderedRejection.error });
         }
       }
       if (ops.length === 0 && syncOrder === null) {
@@ -2479,7 +2466,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }> = [];
       const lifecycleArchives: Array<{ table: string; id: string; archived: boolean }> = [];
       let supersededSyncBatch = false;
-      let changedOperations = 0;
+      // Assigned inside the lock/tx closure below, but read at response shaping outside it — declared
+      // here (like revisions/lifecycleArchives above) so it stays in scope at both points. `changed`
+      // is derived from this at response time rather than hand-counted, so a null-out site can never
+      // drift from what's actually reported.
+      let auditRecords: Array<AuditRecord | null> = [];
       try {
         await accountFlows.withWorkspaceErasureLocks(
           [],
@@ -2506,9 +2497,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               projectedRows.set(key, false);
               return existed ? "delete" : null;
             });
-            changedOperations = auditActions.filter((action) => action !== null).length;
             const auditTs = new Date().toISOString();
-            const auditRecords = ops.map((op, opIndex): AuditRecord | null => {
+            auditRecords = ops.map((op, opIndex): AuditRecord | null => {
               const action = auditActions[opIndex];
               if (action === null) return null;
               return op.method === "PUT"
@@ -2592,7 +2582,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                       // report or audit a second state change that never happened.
                       if (auditRecords[opIndex]) {
                         auditRecords[opIndex] = null;
-                        changedOperations -= 1;
                       }
                       continue;
                     }
@@ -2722,7 +2711,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                     if (existing.archivedAt != null || existing.deletedAt != null) {
                       if (auditRecords[opIndex]) {
                         auditRecords[opIndex] = null;
-                        changedOperations -= 1;
                       }
                       lifecycleArchives.push({ table, id, archived: existing.archivedAt != null });
                       continue;
@@ -2818,7 +2806,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply.code(200).send({
           ok: true,
           applied: ops.length,
-          changed: changedOperations,
+          changed: auditRecords.filter((record) => record !== null).length,
           revisions,
           archives: lifecycleArchives,
           auditWarning: auditFailed,

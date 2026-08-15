@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openDb, type Db } from "./db";
-import { eraseWorkspaceProductDataInTx, TenantErasureIntegrityError } from "./erasure";
+import { CROSS_TENANT_ERASURE_EDGE_SQL, eraseWorkspaceProductDataInTx, TenantErasureIntegrityError } from "./erasure";
 import { tx } from "./txn";
 import { recordAppliedSyncBatch } from "./syncOrdering";
 
@@ -178,6 +178,71 @@ const crossTenantEdges: Array<{
     },
   },
 ];
+
+describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
+  // Pinned so a future edit to tenantIntegrity's TENANT_RELATIONSHIPS (the shared source this SQL is
+  // now generated from) can't silently change the erasure guard's query shape. Content is provably
+  // equivalent to the hand-written SQL this replaced: same relationships, same order, same per-branch
+  // WHERE clause — only the repeated column aliases differ, which UNION ALL ignores past the first
+  // SELECT. The it.each coverage below is the behavioural proof; this is the textual regression pin.
+  it("generates one account-scoped edge check per TENANT_RELATIONSHIPS entry, in order", () => {
+    expect(CROSS_TENANT_ERASURE_EDGE_SQL).toBe(`
+  SELECT 'resources.disciplineId -> disciplines.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM disciplines AS parent
+    JOIN resources AS child ON child.disciplineId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'projects.clientId -> clients.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM clients AS parent
+    JOIN projects AS child ON child.clientId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'phases.projectId -> projects.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM projects AS parent
+    JOIN phases AS child ON child.projectId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'resources.projectId -> projects.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM projects AS parent
+    JOIN resources AS child ON child.projectId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'activities.projectId -> projects.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM projects AS parent
+    JOIN activities AS child ON child.projectId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'activities.phaseId -> phases.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM phases AS parent
+    JOIN activities AS child ON child.phaseId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'allocations.resourceId -> resources.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM resources AS parent
+    JOIN allocations AS child ON child.resourceId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'allocations.activityId -> activities.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM activities AS parent
+    JOIN allocations AS child ON child.activityId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  UNION ALL
+  SELECT 'timeOff.resourceId -> resources.id' AS relationship,
+         parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
+    FROM resources AS parent
+    JOIN timeOff AS child ON child.resourceId = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1
+  LIMIT 1`);
+  });
+});
 
 describe("workspace erasure tenant-boundary guard", () => {
   it("refuses to erase product data outside an existing transaction", () => {

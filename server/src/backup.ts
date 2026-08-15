@@ -246,6 +246,40 @@ function publishDurableSnapshot(tmp: string, file: string, dir: string, publishe
   publisher.syncDirectory(dir);
 }
 
+/** Write (backup(), or VACUUM INTO as its pre-approved fallback), verify, checkpoint WAL/SHM, and
+ * durably publish one snapshot at `tmp` under its final `file` name. Shared by
+ * writePreMigrationBackup and startBackups's writeSnapshot — same online-copy-then-verify-then-
+ * publish sequence for the same reason: the online copy is transactionally consistent, but can
+ * faithfully copy a source that is already structurally or relationally invalid, so verification
+ * must happen BEFORE the valid-name rename (and, for a retention-pruning caller, before any prune)
+ * — an unusable new artifact must never advertise success or let a known-good restore point be
+ * pruned in its place. Each caller keeps its own try/catch: cleanup-on-failure and degraded-health
+ * signaling differ per caller and are not this function's concern. */
+async function writeVerifiedSnapshot(
+  db: Db,
+  tmp: string,
+  file: string,
+  dir: string,
+  label: string,
+  expectedVersion: number,
+  publisher: DurableSnapshotPublisher,
+): Promise<void> {
+  // node:sqlite's online backup (verified on Node 24); VACUUM INTO is the pre-approved fallback
+  // should the API regress — same consistent-snapshot guarantee. backup() happily overwrites the
+  // zero-byte placeholder; VACUUM INTO refuses an existing target, so the fallback drops the
+  // placeholder first (re-opening a tiny cross-instance window we accept on this never-taken-today
+  // path rather than complicating it).
+  if (typeof backup === "function") await backup(db, tmp);
+  else {
+    rmSync(tmp);
+    db.exec(`VACUUM INTO '${tmp.replaceAll("'", "''")}'`);
+  }
+  verifyStandaloneSnapshot(tmp, label, expectedVersion);
+  rmSync(`${tmp}-wal`, { force: true });
+  rmSync(`${tmp}-shm`, { force: true });
+  publishDurableSnapshot(tmp, file, dir, publisher);
+}
+
 function removeLegacyPreMigrationBackups(
   dir: string,
   fromVersion: number,
@@ -306,16 +340,7 @@ export async function writePreMigrationBackup(
   writeFileSync(tmp, "", { flag: "wx", mode: 0o600 });
 
   try {
-    if (typeof backup === "function") await backup(db, tmp);
-    else {
-      rmSync(tmp);
-      db.exec(`VACUUM INTO '${tmp.replaceAll("'", "''")}'`);
-    }
-
-    verifyStandaloneSnapshot(tmp, "pre-migration snapshot", options.fromVersion);
-    rmSync(`${tmp}-wal`, { force: true });
-    rmSync(`${tmp}-shm`, { force: true });
-    publishDurableSnapshot(tmp, file, dir, publisher);
+    await writeVerifiedSnapshot(db, tmp, file, dir, "pre-migration snapshot", options.fromVersion, publisher);
   } catch (error) {
     cleanupSnapshotTemp(tmp, "pre-migration backup", log);
     throw error;
@@ -540,27 +565,9 @@ export function startBackups(
     const { file, tmp } = claimBackupTemp(() => join(config.dir, uniqueStamp()));
     try {
       // Write to the temp name and rename on success: rename is atomic on the same filesystem,
-      // so a torn write (crash, full disk) never sits behind a valid snapshot name.
-      // node:sqlite's online backup (verified on Node 24); VACUUM INTO is the pre-approved
-      // fallback should the API regress — same consistent-snapshot guarantee. backup() happily
-      // overwrites the zero-byte placeholder; VACUUM INTO refuses an existing target, so the
-      // fallback drops the placeholder first (re-opening a tiny cross-instance window we accept
-      // on this never-taken-today path rather than complicating it).
-      if (typeof backup === "function") await backup(db, tmp);
-      else {
-        rmSync(tmp);
-        db.exec(`VACUUM INTO '${tmp.replaceAll("'", "''")}'`);
-      }
-      // The online copy is transactionally consistent, but can faithfully copy a source that is
-      // already structurally or relationally invalid. Verify BEFORE the valid-name rename and
-      // BEFORE retention, so an unusable new artifact cannot advertise success or prune a known-
-      // good restore point. Read the source version for this attempt rather than caching it.
-      verifyStandaloneSnapshot(tmp, "scheduled snapshot", databaseVersion(db));
-      rmSync(`${tmp}-wal`, { force: true });
-      rmSync(`${tmp}-shm`, { force: true });
-      // Make the complete inode and its published name durable before retention can remove an
-      // older recovery point. A publication-barrier failure rejects this attempt and skips prune.
-      publishDurableSnapshot(tmp, file, config.dir, publisher);
+      // so a torn write (crash, full disk) never sits behind a valid snapshot name. Read the
+      // source version for this attempt rather than caching it.
+      await writeVerifiedSnapshot(db, tmp, file, config.dir, "scheduled snapshot", databaseVersion(db), publisher);
     } catch (err) {
       health.degraded = true;
       // A failed write must not orphan its temp file: prune() and the start-up sweep both

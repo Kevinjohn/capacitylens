@@ -34,38 +34,53 @@ export const FOREIGN_KEY_CHILD_INDEXES_V23_SQL = FOREIGN_KEY_CHILD_INDEXES_V23.m
   ({ table, column, index }) => `CREATE INDEX IF NOT EXISTS ${index} ON ${table}(${column});`,
 ).join("\n");
 
-const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
+export const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
-/** Verify the immutable v21 subset while replaying that migration. */
-export function assertTenantAccountIndexesV21(db: Db): void {
-  for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) {
-    const listed = (
-      db.prepare(`PRAGMA index_list(${quoteIdentifier(table)})`).all() as Array<{
-        name: string;
-        unique: number;
-        origin: string;
-        partial: number;
-      }>
-    ).find((candidate) => candidate.name === index);
-    const columns = db.prepare(`PRAGMA index_xinfo(${quoteIdentifier(index)})`).all() as Array<{
+/** Shared shape check behind assertTenantAccountIndexesV21 and assertTenantEntityIndexesCurrent's
+ *  foreign-key loop: both verify a single non-unique, non-partial, ASC/BINARY, table-created index
+ *  on exactly one named column. The two call sites keep their own byte-identical error message text
+ *  (`message` is caller-supplied) — only the PRAGMA-reading/shape-check logic is shared. */
+function assertSingleColumnIndex(db: Db, table: string, index: string, column: string, message: string): void {
+  const listed = (
+    db.prepare(`PRAGMA index_list(${quoteIdentifier(table)})`).all() as Array<{
+      name: string;
+      unique: number;
+      origin: string;
+      partial: number;
+    }>
+  ).find((candidate) => candidate.name === index);
+  const keys = (
+    db.prepare(`PRAGMA index_xinfo(${quoteIdentifier(index)})`).all() as Array<{
       name: string | null;
       desc: number;
       coll: string;
       key: number;
-    }>;
-    const keys = columns.filter((column) => column.key === 1);
-    if (
-      !listed ||
-      listed.unique !== 0 ||
-      listed.origin !== "c" ||
-      listed.partial !== 0 ||
-      keys.length !== 1 ||
-      keys[0]?.name !== "accountId" ||
-      keys[0]?.desc !== 0 ||
-      keys[0]?.coll !== "BINARY"
-    ) {
-      throw new Error(`Tenant entity index ${index} does not match ${table}(accountId).`);
-    }
+    }>
+  ).filter((candidate) => candidate.key === 1);
+  if (
+    !listed ||
+    listed.unique !== 0 ||
+    listed.origin !== "c" ||
+    listed.partial !== 0 ||
+    keys.length !== 1 ||
+    keys[0]?.name !== column ||
+    keys[0]?.desc !== 0 ||
+    keys[0]?.coll !== "BINARY"
+  ) {
+    throw new Error(message);
+  }
+}
+
+/** Verify the immutable v21 subset while replaying that migration. */
+export function assertTenantAccountIndexesV21(db: Db): void {
+  for (const { table, index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) {
+    assertSingleColumnIndex(
+      db,
+      table,
+      index,
+      "accountId",
+      `Tenant entity index ${index} does not match ${table}(accountId).`,
+    );
   }
 }
 
@@ -73,33 +88,12 @@ export function assertTenantAccountIndexesV21(db: Db): void {
 export function assertTenantEntityIndexesCurrent(db: Db): void {
   assertTenantAccountIndexesV21(db);
   for (const { table, column, index } of FOREIGN_KEY_CHILD_INDEXES_V23) {
-    const listed = (
-      db.prepare(`PRAGMA index_list(${quoteIdentifier(table)})`).all() as Array<{
-        name: string;
-        unique: number;
-        origin: string;
-        partial: number;
-      }>
-    ).find((candidate) => candidate.name === index);
-    const keys = (
-      db.prepare(`PRAGMA index_xinfo(${quoteIdentifier(index)})`).all() as Array<{
-        name: string | null;
-        desc: number;
-        coll: string;
-        key: number;
-      }>
-    ).filter((candidate) => candidate.key === 1);
-    if (
-      !listed ||
-      listed.unique !== 0 ||
-      listed.origin !== "c" ||
-      listed.partial !== 0 ||
-      keys.length !== 1 ||
-      keys[0]?.name !== column ||
-      keys[0]?.desc !== 0 ||
-      keys[0]?.coll !== "BINARY"
-    ) {
-      throw new Error(`Foreign-key child index ${index} does not match ${table}(${column}).`);
-    }
+    assertSingleColumnIndex(
+      db,
+      table,
+      index,
+      column,
+      `Foreign-key child index ${index} does not match ${table}(${column}).`,
+    );
   }
 }

@@ -24,7 +24,7 @@ export interface WorkQueueOptions {
   onSaturated?: (reason: WorkQueueFullError["reason"]) => void;
 }
 
-function abortReason(signal: AbortSignal): unknown {
+export function abortReason(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException("The queued work was cancelled.", "AbortError");
 }
 
@@ -56,6 +56,19 @@ export class BoundedWorkQueue {
     return new WorkQueueFullError(this.fullMessage, reason);
   }
 
+  /** The indexOf+splice withdrawal shared by the abort and wait-timeout paths only — the
+   *  dequeue-on-settle path (execute()'s finally) always takes the front item via shift() and never
+   *  calls this. Returns whether `item` was still queued (and so was removed): both callers must
+   *  treat `false` as "another path already withdrew it" and do nothing further — no reject, no
+   *  cleanup of the other conditional resource, no starting work. That decision, and the caller's own
+   *  operation order, stays with the caller. */
+  private removeFromWaiting(item: WaitingWork): boolean {
+    const index = this.waiting.indexOf(item);
+    if (index < 0) return false;
+    this.waiting.splice(index, 1);
+    return true;
+  }
+
   run<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     if (signal?.aborted) return Promise.reject(abortReason(signal));
     if (this.active < this.maxActive) {
@@ -74,9 +87,7 @@ export class BoundedWorkQueue {
       };
       if (signal) {
         waiting.abort = () => {
-          const index = this.waiting.indexOf(waiting);
-          if (index < 0) return;
-          this.waiting.splice(index, 1);
+          if (!this.removeFromWaiting(waiting)) return;
           if (waiting.waitTimer) clearTimeout(waiting.waitTimer);
           reject(abortReason(signal));
         };
@@ -84,9 +95,7 @@ export class BoundedWorkQueue {
       }
       if (this.options.maxWaitMs !== undefined) {
         waiting.waitTimer = setTimeout(() => {
-          const index = this.waiting.indexOf(waiting);
-          if (index < 0) return;
-          this.waiting.splice(index, 1);
+          if (!this.removeFromWaiting(waiting)) return;
           if (waiting.signal && waiting.abort) waiting.signal.removeEventListener("abort", waiting.abort);
           reject(this.saturated("wait_timeout"));
         }, this.options.maxWaitMs);

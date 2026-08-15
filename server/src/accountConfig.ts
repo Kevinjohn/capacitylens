@@ -91,10 +91,6 @@ function configured(key: string, value: string | undefined): string | undefined 
   return value;
 }
 
-function resolvedValue(key: string, value: string): string {
-  return normalizedForComparison(key, value);
-}
-
 export interface ResolvedAccountEnvironment {
   env: Record<string, string | undefined>;
   profile: AccountDeploymentProfile | null;
@@ -131,14 +127,14 @@ export function resolveAccountEnvironment(
         );
       }
       warnLegacyAlias(source, legacy, canonical, warn);
-      env[canonical] = resolvedValue(canonical, canonicalValue);
+      env[canonical] = normalizedForComparison(canonical, canonicalValue);
       env[legacy] = env[canonical];
     } else if (canonicalValue !== undefined) {
-      env[canonical] = resolvedValue(canonical, canonicalValue);
+      env[canonical] = normalizedForComparison(canonical, canonicalValue);
       env[legacy] = env[canonical];
     } else if (legacyValue !== undefined) {
       warnLegacyAlias(source, legacy, canonical, warn);
-      env[canonical] = resolvedValue(canonical, legacyValue);
+      env[canonical] = normalizedForComparison(canonical, legacyValue);
       env[legacy] = env[canonical];
     } else {
       delete env[canonical];

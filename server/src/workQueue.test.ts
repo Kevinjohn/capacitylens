@@ -134,6 +134,56 @@ describe("BoundedWorkQueue", () => {
     }
   });
 
+  it("ignores an abort that fires after its work already left the queue via dequeue", async () => {
+    // Regression for the shared removeFromWaiting withdrawal: the dequeue-on-settle path (execute()'s
+    // finally) already shifted this item out of `waiting` and removed its abort listener before we
+    // call abort() below, so the abort handler must not fire at all — no reject, no double-settle,
+    // and the now-running work must complete normally.
+    const queue = new BoundedWorkQueue(1, 1, "busy");
+    let releaseActive!: () => void;
+    const active = queue.run(() => new Promise<string>((resolve) => (releaseActive = () => resolve("active"))));
+    const controller = new AbortController();
+    let releaseQueued!: () => void;
+    const queuedWork = vi.fn(() => new Promise<string>((resolve) => (releaseQueued = () => resolve("queued"))));
+    const queued = queue.run(queuedWork, controller.signal);
+
+    releaseActive();
+    await active;
+    expect(queuedWork).toHaveBeenCalledOnce();
+
+    controller.abort(new Error("too late — already dequeued"));
+    releaseQueued();
+    await expect(queued).resolves.toBe("queued");
+  });
+
+  it("ignores a wait timer that fires after its work already left the queue via dequeue", async () => {
+    // Regression for the shared removeFromWaiting withdrawal: dequeue-on-settle clears the queued
+    // item's wait timer as part of removing it (before this item ever gets a chance to time out), so
+    // advancing fake timers past maxWaitMs afterward must not reject the now-running work.
+    vi.useFakeTimers();
+    try {
+      const onSaturated = vi.fn();
+      const queue = new BoundedWorkQueue(1, 1, "busy", { maxWaitMs: 100, onSaturated });
+      let releaseActive!: () => void;
+      const active = queue.run(() => new Promise<string>((resolve) => (releaseActive = () => resolve("active"))));
+      let releaseQueued!: () => void;
+      const queuedWork = vi.fn(() => new Promise<string>((resolve) => (releaseQueued = () => resolve("queued"))));
+      const queued = queue.run(queuedWork);
+
+      releaseActive();
+      await active;
+      expect(queuedWork).toHaveBeenCalledOnce();
+
+      await vi.advanceTimersByTimeAsync(200);
+      expect(onSaturated).not.toHaveBeenCalled();
+
+      releaseQueued();
+      await expect(queued).resolves.toBe("queued");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports immediate overflow without double-reporting cancellation", async () => {
     const onSaturated = vi.fn();
     const queue = new BoundedWorkQueue(1, 1, "busy", { onSaturated });

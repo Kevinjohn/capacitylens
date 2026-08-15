@@ -1,6 +1,7 @@
 import type { Db } from "./db";
 import { deleteRow } from "./db";
 import { forgetWorkspaceSyncProvenance } from "./syncOrdering";
+import { TENANT_RELATIONSHIPS } from "./tenantIntegrity";
 
 interface CrossTenantErasureEdge {
   relationship: string;
@@ -15,57 +16,19 @@ interface CrossTenantErasureEdge {
  * The schema's id-only foreign keys cannot express the account boundary. Normal writes validate
  * it, but an operator repair, old migration or restored corrupt database can still contain a child
  * labelled for another account. Deleting the parent account would then silently delete or unbind
- * that other account's row. Keep this list beside the erasure boundary and in the same order as the
- * relationships documented in tables.ts.
+ * that other account's row. Built from tenantIntegrity's canonical TENANT_RELATIONSHIPS list (same
+ * order as the relationships documented in tables.ts) — mirrors its crossTenantEdgeSql generator,
+ * scoped here to the one workspace being erased instead of the whole database.
  */
-const CROSS_TENANT_ERASURE_EDGE_SQL = `
-  SELECT 'resources.disciplineId -> disciplines.id' AS relationship,
+export const CROSS_TENANT_ERASURE_EDGE_SQL =
+  TENANT_RELATIONSHIPS.map(
+    (relationship) => `
+  SELECT '${relationship.childTable}.${relationship.parentColumn} -> ${relationship.parentTable}.id' AS relationship,
          parent.id AS parentId, child.id AS childId, child.accountId AS childAccountId
-    FROM disciplines AS parent
-    JOIN resources AS child ON child.disciplineId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'projects.clientId -> clients.id', parent.id, child.id, child.accountId
-    FROM clients AS parent
-    JOIN projects AS child ON child.clientId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'phases.projectId -> projects.id', parent.id, child.id, child.accountId
-    FROM projects AS parent
-    JOIN phases AS child ON child.projectId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'resources.projectId -> projects.id', parent.id, child.id, child.accountId
-    FROM projects AS parent
-    JOIN resources AS child ON child.projectId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'activities.projectId -> projects.id', parent.id, child.id, child.accountId
-    FROM projects AS parent
-    JOIN activities AS child ON child.projectId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'activities.phaseId -> phases.id', parent.id, child.id, child.accountId
-    FROM phases AS parent
-    JOIN activities AS child ON child.phaseId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'allocations.resourceId -> resources.id', parent.id, child.id, child.accountId
-    FROM resources AS parent
-    JOIN allocations AS child ON child.resourceId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'allocations.activityId -> activities.id', parent.id, child.id, child.accountId
-    FROM activities AS parent
-    JOIN allocations AS child ON child.activityId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  UNION ALL
-  SELECT 'timeOff.resourceId -> resources.id', parent.id, child.id, child.accountId
-    FROM resources AS parent
-    JOIN timeOff AS child ON child.resourceId = parent.id
-   WHERE parent.accountId = ?1 AND child.accountId <> ?1
-  LIMIT 1
-`;
+    FROM ${relationship.parentTable} AS parent
+    JOIN ${relationship.childTable} AS child ON child.${relationship.parentColumn} = parent.id
+   WHERE parent.accountId = ?1 AND child.accountId <> ?1`,
+  ).join("\n  UNION ALL") + "\n  LIMIT 1";
 
 export class TenantErasureIntegrityError extends Error {
   constructor(

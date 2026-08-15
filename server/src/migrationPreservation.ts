@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { DATABASE_MIGRATION_TABLE } from "./db";
+import { quoteIdentifier } from "./tenantIndexes";
 
 type Cell = string | number | bigint | null | Uint8Array;
 type SnapshotRow = Record<string, Cell>;
@@ -10,7 +11,6 @@ interface SnapshotTable {
 export type MigrationValueSnapshot = Record<string, SnapshotTable>;
 
 const EXCLUDED_TABLES = new Set(["_meta", DATABASE_MIGRATION_TABLE]);
-const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
 /** Capture every value in every non-ledger table, including auth and application control rows. */
 export function captureMigrationValues(db: DatabaseSync): MigrationValueSnapshot {
