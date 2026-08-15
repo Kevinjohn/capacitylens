@@ -492,6 +492,22 @@ describe("offline tenant cache", () => {
     await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
   });
 
+  it("sweeps records that expire less than an hour after the previous connection", async () => {
+    const savedAt = new Date("2026-07-01T00:00:00.000Z").getTime();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(savedAt);
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    await cacheAccountSlice("a-studio", accountSlice("a-studio"));
+    const origin = currentCacheNamespace();
+
+    clock.mockReturnValue(savedAt + 7 * DAY_MS - 30 * 60 * 1000);
+    await cacheAuthSnapshot(authSnapshot("user-b"));
+
+    clock.mockReturnValue(savedAt + 7 * DAY_MS + 1);
+    await cacheAuthSnapshot(authSnapshot("user-c"));
+
+    await expect(getRaw(`slice:${origin}:user-a:a-studio`)).resolves.toBeUndefined();
+  });
+
   it("opting out physically removes encrypted records for every prior user", async () => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     await cacheAccountSummaries([{ id: "a-studio", name: "Studio", role: "owner" }]);

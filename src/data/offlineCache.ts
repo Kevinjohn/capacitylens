@@ -98,7 +98,6 @@ if (typeof window !== "undefined") {
       // Sign-out/device cleanup in another tab owns the new boundary. Drop all page-local claims
       // immediately; the durable token independently rejects writes that began before the sweep.
       cacheGeneration += 1;
-      lastSweptAt = 0;
       if (typeof indexedDB !== "undefined") recentSliceWrites.get(indexedDB)?.clear();
       resetOfflineState();
     }
@@ -216,7 +215,7 @@ function openOfflineDb(): Promise<IDBDatabase> {
         db.close();
         return;
       }
-      void maybeSweepExpiredRecords(db).then(
+      void sweepExpiredRecords(db).then(
         () => {
           if (settled) {
             db.close();
@@ -262,24 +261,6 @@ function sweepExpiredRecords(db: IDBDatabase): Promise<void> {
     awaitTx(tx, "Expired offline data could not be removed.", "Offline retention cleanup was aborted."),
     inspected,
   ]);
-}
-
-/** The sweep is retention HYGIENE, not the age gate: get() independently rejects and deletes any
- * record past MAX_AGE_MS, so nothing over-age is ever served between sweeps. Deserialising every
- * record on every connection is the expensive part, so once an hour per page is enough. A clock
- * that moved backwards (or a cleanup reset) always sweeps. */
-const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
-let lastSweptAt = 0;
-
-function maybeSweepExpiredRecords(db: IDBDatabase): Promise<void> {
-  const sweptAt = Date.now();
-  const sinceLastSweep = sweptAt - lastSweptAt;
-  if (sinceLastSweep >= 0 && sinceLastSweep < SWEEP_INTERVAL_MS) return Promise.resolve();
-  // Only a completed sweep consumes the interval; a failed one still rejects this connection and
-  // is re-attempted by the next open.
-  return sweepExpiredRecords(db).then(() => {
-    lastSweptAt = sweptAt;
-  });
 }
 
 function webCrypto(): Crypto {
@@ -353,9 +334,6 @@ function advanceWriteBoundary(): {
   storageError: unknown | null;
 } {
   cacheGeneration += 1;
-  // A cleanup rewrites the whole store; the next connection sweeps rather than trusting the
-  // interval recorded before the wipe.
-  lastSweptAt = 0;
   const token = newWriteBoundaryToken();
   try {
     localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
