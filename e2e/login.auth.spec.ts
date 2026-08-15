@@ -1,13 +1,7 @@
 import { test, expect } from "./fixtures";
 import type { APIRequestContext } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import {
-  AUTH_API as API,
-  AUTH_PASSWORD as PASSWORD,
-  BOOTSTRAP_ADMIN,
-  BOOTSTRAP_TOKEN,
-  signUpUser,
-} from "./auth-helpers";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_ADMIN, bootstrapOrg, signUpUser } from "./auth-helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -73,11 +67,7 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // via GET /api/accounts) has something to list. A FRESH per-run user guarantees the sign-up cookie
     // (no 422 on a reused DB); /api/orgs makes the caller the org's Owner.
     const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
-    const orgRes = await request.post(`${API}/api/orgs`, {
-      headers: { cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-      data: { name: ORG_NAME },
-    });
-    expect(orgRes.status()).toBe(201);
+    await bootstrapOrg(request, cookie, ORG_NAME);
 
     await page.goto("/");
     await page.getByLabel("Email").fill(email);
@@ -136,11 +126,7 @@ test.describe("login screen (SMALLSASS_ACCOUNT_MODE=password)", () => {
     const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Isolation Control ${isolationSuffix}`;
     const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);
-    const controlOrg = await request.post(`${API}/api/orgs`, {
-      headers: { cookie: controlOwner.cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-      data: { name: controlOrgName },
-    });
-    expect(controlOrg.status()).toBe(201);
+    await bootstrapOrg(request, controlOwner.cookie, controlOrgName);
 
     const lonely = `lonely-${isolationSuffix}@capacitylens.dev`;
     await seedUser(request, lonely);

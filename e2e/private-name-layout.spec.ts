@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
+import { dismissLandscapeHint, openApp, selectShadOption } from "./helpers";
 
 const OWNER_DESCRIPTION = "Only account owners can see the real name. Everyone else sees the code name.";
 const CODE_NAME_HINT = "Quotation marks are added automatically.";
@@ -92,8 +92,7 @@ test("private-name explanations align with their controls in Client and Project 
     expect.arrayContaining([await clientHint.getAttribute("id"), await clientAlert.getAttribute("id")]),
   );
 
-  await page.setViewportSize({ width: 360, height: 800 });
-  await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+  await dismissLandscapeHint(page);
   await expectPrivacyLayout(clientDialog, true);
   await expectCodeNameLayout(clientDialog, true);
   await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);

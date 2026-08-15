@@ -1,11 +1,5 @@
-import { test, expect, type Locator } from "./fixtures";
-import { openApp, setZoom, showScheduleFilters } from "./helpers";
-
-async function box(locator: Locator) {
-  const b = await locator.boundingBox();
-  if (!b) throw new Error("no bounding box");
-  return b;
-}
+import { test, expect } from "./fixtures";
+import { boundingBoxOrThrow as box, openApp, resetSchedulerScroll, setZoom, showScheduleFilters } from "./helpers";
 
 // Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts
 // covers the remaining US-TBR-08 navigation paths.
@@ -43,9 +37,7 @@ test.describe("Toolbar", () => {
   test("pans the window a week with Prev and Next", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
     const b0 = await box(bar);
 
@@ -120,9 +112,7 @@ test.describe("Toolbar", () => {
     // ancestor makes it non-interactive, off the tab order, and removed from the a11y tree.
     // Prove the semantics hold THROUGH the ancestor: every bar is matched by `[inert] <bar>`,
     // and an attempt to focus one is refused (inert subtrees can't take focus).
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     const bar = page.getByTestId("allocation-bar").first();
     await expect(bar).toBeVisible();
     // The bar lives under an [inert] ancestor (the BarsLayer); no bar is outside one.
@@ -160,9 +150,7 @@ test.describe("Toolbar", () => {
 
     // Make a mutation (delete an allocation) → Undo becomes available.
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();
@@ -185,9 +173,7 @@ test.describe("Toolbar", () => {
     await openApp(page);
     await showScheduleFilters(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).click();

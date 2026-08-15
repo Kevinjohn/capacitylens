@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from "./auth-helpers";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
 import { dismissIntroIfPresent } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -26,15 +26,12 @@ test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
   test("a signed-in user opens a valid invite link and joins; reusing the token is 409", async ({ page, request }) => {
     test.setTimeout(60_000);
     // Owner A: sign up (auto-signed-in → session cookie), bootstrap an org, mint an invite. The
-    // explicit `cookie` header (not the shared jar) carries A's session on each call.
+    // explicit `cookie` header (not the shared jar) carries A's session on each call. B's sign-up
+    // below is independent of this chain (it only needs its own email), so start it in parallel.
+    const joinerPromise = signUpUser(JOINER);
     const ownerCookie = (await signUpUser(OWNER)).cookie;
 
-    const orgRes = await request.post(`${API}/api/orgs`, {
-      headers: { cookie: ownerCookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-      data: { name: `Invite Studio ${STAMP}` },
-    });
-    expect(orgRes.status()).toBe(201);
-    const accountId = (await orgRes.json()).id as string;
+    const accountId = await bootstrapOrg(request, ownerCookie, `Invite Studio ${STAMP}`);
 
     const inviteRes = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
@@ -48,7 +45,7 @@ test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // Opening /invite/<token> in the browser has NO session. Preview is read-only and the invite page
     // shows its OWN inline onboarding form (the route is carved out of the login wall so an invitee
     // signs in — or creates an account — in place; see InviteAccept.tsx).
-    const joinerCookie = (await signUpUser(JOINER)).cookie;
+    const joinerCookie = (await joinerPromise).cookie;
     await page.goto(`/invite/${token}`);
 
     // The invite page previews the safe acceptance context BEFORE asking B to authenticate: company,
@@ -102,12 +99,7 @@ test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
     test.setTimeout(60_000);
 
     const ownerCookie = (await signUpUser(`${OWNER}.signup`)).cookie;
-    const orgRes = await request.post(`${API}/api/orgs`, {
-      headers: { cookie: ownerCookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-      data: { name: `Signup Invite Studio ${STAMP}` },
-    });
-    expect(orgRes.status()).toBe(201);
-    const accountId = (await orgRes.json()).id as string;
+    const accountId = await bootstrapOrg(request, ownerCookie, `Signup Invite Studio ${STAMP}`);
 
     // A brand-new identity takes the atomic signup path. The consumed token cannot be re-opened, so
     // the live route refreshes /me + /api/accounts, activates the exact joined company, and replaces

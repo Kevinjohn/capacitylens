@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
+import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
 
 // Covers US-CLI-04 — the built-in "Internal" pseudo-client.
 test.describe("Internal client", () => {
@@ -50,9 +50,7 @@ test.describe("Internal client", () => {
     // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Barry,
     // 8–10 June) is on-screen.
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     // A clearly project-owned bar (LexCorp / Metropolis Rebrand) is visible before filtering…
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
     // …and the project-less cross-project "Design" booking is too (assigned to Barry Allen's row).

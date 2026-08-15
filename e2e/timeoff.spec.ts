@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { goToSeedWeek, openApp, selectShadOption, setZoom } from "./helpers";
+import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-TOF-01..05.
 test.describe("Time off", () => {
@@ -28,9 +28,7 @@ test.describe("Time off", () => {
     // It renders as a labelled block on Clark's lane.
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     await expect(page.locator('[data-resource-id="r-nike"]').getByTestId("timeoff-block")).toBeVisible();
   });
 

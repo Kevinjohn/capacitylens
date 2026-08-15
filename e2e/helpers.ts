@@ -57,6 +57,22 @@ export async function disableCssMotion(page: Page): Promise<void> {
   );
 }
 
+/** A locator's bounding box, or throw if it isn't rendered (Playwright returns null instead of
+ *  failing, so geometry assertions need an explicit guard). */
+export async function boundingBoxOrThrow(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+  const b = await locator.boundingBox();
+  if (!b) throw new Error("no bounding box");
+  return b;
+}
+
+/** Shrink to a phone-portrait viewport and dismiss the resulting "Best in landscape" hint dialog,
+ *  for specs that need the narrow layout without testing the hint itself (see mobile.spec.ts for
+ *  that coverage). */
+export async function dismissLandscapeHint(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+}
+
 /** Choose an option through a ShadCN Select's visible listbox, by stored value or visible label. */
 export async function selectShadOption(trigger: Locator, option: string | { label: string }): Promise<void> {
   await trigger.click();
@@ -86,10 +102,26 @@ export async function showScheduleFilters(page: Page): Promise<void> {
   await expect(hide).toHaveAttribute("aria-expanded", "true");
 }
 
+/** Turn on the "Show placeholders" per-account pref (default off) from Settings, for specs that
+ *  just need placeholders visible rather than testing the toggle itself. */
+export async function showPlaceholders(page: Page): Promise<void> {
+  const toggle = page.getByRole("switch", { name: "Show placeholders" });
+  if ((await toggle.getAttribute("aria-checked")) !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+}
+
 /** Re-anchor the schedule on the seeded week. `freezeBrowserDate` pins the clock to 2026-06-03,
  *  whose week start is 2026-06-01, so **Today** puts the seed week's Monday at the left edge. */
 export async function goToSeedWeek(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Today", exact: true }).click();
+}
+
+/** Snap the scheduler grid's horizontal scroll back to 0. A literal DOM write resetting to the
+ *  timeline origin — deliberately NOT `goToSeedWeek`, which drives app navigation instead. */
+export async function resetSchedulerScroll(page: Page): Promise<void> {
+  await page.getByTestId("scheduler-grid").evaluate((el) => {
+    (el as HTMLElement).scrollLeft = 0;
+  });
 }
 
 /** Click through the once-per-device "What CapacityLens is" intro page if this load shows it

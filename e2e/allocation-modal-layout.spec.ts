@@ -1,6 +1,13 @@
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import {
+  dismissLandscapeHint,
+  openApp,
+  resetSchedulerScroll,
+  selectShadOption,
+  setZoom,
+  showPlaceholders,
+} from "./helpers";
 
 async function expectLabelControl(control: Locator) {
   const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
@@ -36,18 +43,14 @@ async function chooseSchedulingMode(page: Page, mode: "Days" | "Blocks") {
   await page.getByRole("radio", { name: mode, exact: true }).click();
   await page.getByRole("link", { name: "Schedule", exact: true }).click();
   await setZoom(page, 4);
-  await page.getByTestId("scheduler-grid").evaluate((element) => {
-    (element as HTMLElement).scrollLeft = 0;
-  });
+  await resetSchedulerScroll(page);
 }
 
 test.describe("Allocation modal label/control layout", () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((element) => {
-      (element as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
   });
 
   test("aligns create, repeat, status and error controls, then stacks without narrow overflow", async ({
@@ -95,8 +98,7 @@ test.describe("Allocation modal label/control layout", () => {
     await expect(dialog.getByLabel("Start Date")).toHaveAttribute("aria-describedby", errorId!);
     await expect(dialog.getByLabel("Start Date")).toBeFocused();
 
-    await page.setViewportSize({ width: 360, height: 800 });
-    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await dismissLandscapeHint(page);
     const projectField = dialog
       .getByRole("combobox", { name: "Project" })
       .locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
@@ -149,7 +151,7 @@ test.describe("Allocation modal label/control layout", () => {
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("switch", { name: "Show external resources" }).click();
-    await page.getByRole("switch", { name: "Show placeholders" }).click();
+    await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule", exact: true }).click();
     await setZoom(page, 4);
 

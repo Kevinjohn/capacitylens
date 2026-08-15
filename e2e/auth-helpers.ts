@@ -31,7 +31,7 @@ export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e
 export const BOOTSTRAP_TOKEN = "auth-e2e-bootstrap-token-0123456789abcdef";
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-export function cookiesOf(setCookie: string): string {
+function cookiesOf(setCookie: string): string {
   return setCookie
     .split("\n")
     .map((c) => c.split(";")[0])
@@ -70,6 +70,21 @@ export async function signUpUser(email: string): Promise<{ email: string; cookie
   } finally {
     await ctx.dispose();
   }
+}
+
+/**
+ * Provision a fresh org via the operator bootstrap path (`POST /api/orgs` with BOOTSTRAP_TOKEN),
+ * making `cookie`'s owner the org's Owner, and return the created account id. Factored out because
+ * every auth spec that needs its own org duplicated this same request shape + 201 assertion + id
+ * extraction.
+ */
+export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
+  const res = await request.post(`${AUTH_API}/api/orgs`, {
+    headers: { cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
+    data: { name },
+  });
+  expect(res.status()).toBe(201);
+  return (await res.json()).id as string;
 }
 
 /**

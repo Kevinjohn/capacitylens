@@ -1,14 +1,12 @@
 import { test, expect } from "./fixtures";
-import { openApp, setZoom } from "./helpers";
+import { openApp, resetSchedulerScroll, setZoom } from "./helpers";
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
 test.describe("Keyboard & accessibility", () => {
   test("an allocation bar is focusable and Enter opens the editor", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
     await bar.focus();
     await page.keyboard.press("Enter");
@@ -18,9 +16,7 @@ test.describe("Keyboard & accessibility", () => {
   test("arrow keys move a focused bar by a day", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
     await bar.focus();
     await page.keyboard.press("ArrowRight");

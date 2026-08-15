@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import { dismissLandscapeHint, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
 
 // Covers the runnable US-ACT-01, US-ACT-03 and US-ACT-04 flows. US-ACT-02 remains manual while
 // phase management is hidden.
@@ -70,8 +70,7 @@ test.describe("Activities", () => {
     await expect(projectSpecific).toHaveAttribute("aria-checked", "true");
     await expect(dialog.getByLabel("Project")).toContainText("Select project");
 
-    await page.setViewportSize({ width: 360, height: 800 });
-    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await dismissLandscapeHint(page);
     await expectEqualFullWidthSegments(true);
     await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
 
@@ -154,9 +153,7 @@ test.describe("Activities", () => {
   test("deletes an activity and removes its allocation bars, restorable with undo", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toBeVisible();
 
     await page.getByRole("link", { name: "Activities" }).click();
@@ -170,9 +167,7 @@ test.describe("Activities", () => {
 
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");

@@ -1,5 +1,6 @@
-import { test, expect, type Locator } from "./fixtures";
+import { test, expect } from "./fixtures";
 import {
+  boundingBoxOrThrow as box,
   nudgeScheduler as nudge,
   openApp,
   probeSchedulerGeometry as probe,
@@ -9,12 +10,6 @@ import {
 } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
-
-async function box(locator: Locator) {
-  const b = await locator.boundingBox();
-  if (!b) throw new Error("no bounding box");
-  return b;
-}
 
 // Turn the device-global "Snap to week start" pref OFF and land on the Schedule at 1w. With the
 // free-scroll snap off, a mid-week nudge STICKS — so any later left-edge move is attributable to the

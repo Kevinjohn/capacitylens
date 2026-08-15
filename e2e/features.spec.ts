@@ -1,11 +1,13 @@
-import { test, expect, type Locator } from "./fixtures";
-import { openApp, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
-
-async function box(locator: Locator) {
-  const b = await locator.boundingBox();
-  if (!b) throw new Error("no bounding box");
-  return b;
-}
+import { test, expect } from "./fixtures";
+import {
+  boundingBoxOrThrow as box,
+  openApp,
+  resetSchedulerScroll,
+  selectShadOption,
+  setZoom,
+  showPlaceholders,
+  showScheduleFilters,
+} from "./helpers";
 
 test.describe("Feature flows", () => {
   test("filtering by project narrows the schedule to that project", async ({ page }) => {
@@ -180,12 +182,10 @@ test.describe("Feature flows", () => {
   test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
-    await page.getByRole("switch", { name: "Show placeholders" }).click();
+    await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
 
     // The seeded placeholder is bound to p-acme — select it by id, not position.
     const lane = page.locator('[data-resource-id="r-ph-designer"]');
