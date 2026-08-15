@@ -3,6 +3,12 @@ import { dismissLandscapeHint, openApp, resetSchedulerScroll, selectShadOption, 
 
 // Covers the runnable US-ACT-01, US-ACT-03 and US-ACT-04 flows. US-ACT-02 remains manual while
 // phase management is hidden.
+
+// Firefox lays this dialog out at subpixel precision, so geometry that is "equal" or "aligned" by
+// design comes back a hair over a whole pixel apart (observed: a 1.0000152587890625px spread across
+// three equal grid segments). Every alignment assertion below therefore allows 1.5px, which still
+// catches a real layout regression — those are whole pixels wide — without failing on rounding.
+const SUBPIXEL_TOLERANCE_PX = 1.5;
 test.describe("Activities", () => {
   test("fills the Activity kind control with equal segments without changing its interactions", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/activities");
@@ -31,22 +37,19 @@ test.describe("Activities", () => {
       expect(fieldBox).not.toBeNull();
       expect(groupBox).not.toBeNull();
       expect(segmentBoxes).toHaveLength(3);
-      // Firefox lays these out at subpixel precision, so three "equal" grid segments can differ by a
-      // hair over a pixel (observed: 1.0000152587890625). 1.5 keeps the assertion meaningful — a real
-      // unequal-segment regression is whole pixels wide — without failing on rounding.
       expect(
         Math.max(...segmentBoxes.map(({ width }) => width)) - Math.min(...segmentBoxes.map(({ width }) => width)),
-      ).toBeLessThanOrEqual(1.5);
+      ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE_PX);
       for (const segment of segmentBoxes) expect(segment.scrollWidth).toBeLessThanOrEqual(segment.clientWidth);
 
       if (stacked) {
-        expect(Math.abs(groupBox!.x - fieldBox!.x)).toBeLessThanOrEqual(1);
-        expect(Math.abs(groupBox!.width - fieldBox!.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(groupBox!.x - fieldBox!.x)).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE_PX);
+        expect(Math.abs(groupBox!.width - fieldBox!.width)).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE_PX);
       } else {
         const projectBox = await dialog.getByLabel("Project").boundingBox();
         expect(projectBox).not.toBeNull();
-        expect(Math.abs(groupBox!.x - projectBox!.x)).toBeLessThanOrEqual(1);
-        expect(Math.abs(groupBox!.width - projectBox!.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(groupBox!.x - projectBox!.x)).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE_PX);
+        expect(Math.abs(groupBox!.width - projectBox!.width)).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE_PX);
         const controlStart = (groupBox!.x - fieldBox!.x) / fieldBox!.width;
         const controlShare = groupBox!.width / fieldBox!.width;
         expect(controlStart).toBeGreaterThan(0.24);
