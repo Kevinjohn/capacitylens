@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { CommandIdentity } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
+import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
@@ -39,11 +40,12 @@ import { checkEntityWriteBody, prepareScopedWrite, stampServerRevision } from ".
 export const ACCOUNT_CREATE_CLOSED_MESSAGE =
   "Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.";
 
-/** Single-company-per-instance cap (owner policy — see AppOptions.multiAccount / CLAUDE.md). The
- * deployment defaults to hosting exactly ONE company; every route that could add a SECOND `accounts`
- * row shares this one message so the rule can't drift between PUT/batch/orgs. */
-export const SINGLE_COMPANY_CAP_MESSAGE =
-  "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
+// SINGLE_COMPANY_CAP_MESSAGE (owner policy — see AppOptions.multiAccount / CLAUDE.md) now lives in
+// @capacitylens/shared/account/policy: every route that could add a SECOND `accounts` row — this
+// PUT, the batch loop, POST /api/orgs — shares that one shared-package constant so the rule can't
+// drift between vectors. Re-exported here so app.ts's existing `from "./routes/accountEntityRoutes"`
+// import keeps working unchanged.
+export { SINGLE_COMPANY_CAP_MESSAGE };
 
 /** The P1.14 frozen-field refusal, shared by PUT, PATCH and the batch loop (it was three identical
  * string literals, which is exactly how a message drifts between vectors). */
@@ -144,6 +146,60 @@ function accountRouteFailure(
   return error instanceof AccountContractError
     ? dependencies.accountFail(reply, error)
     : dependencies.fail(reply, error);
+}
+
+/**
+ * The three account-write guards PUT and PATCH both run, byte-identical status codes/bodies, in
+ * this fixed order: ownsRow's accountId-immutability 404, the P1.14 frozen-fields 409, then the
+ * optimistic-concurrency stale-write 409. Returns true once a response has been sent (the caller
+ * must return immediately); false when the write may proceed.
+ *
+ * PUT interleaves unrelated code (computing `vis`, its trusted-local replay attempt) BETWEEN the
+ * frozen guard and the stale guard, so it calls this helper twice — once for `ownsRow`+`frozen`,
+ * once afterward for `stale` alone — to keep that interleaving, and therefore behavior, unchanged.
+ * PATCH has nothing between the three checks and calls this once with all three.
+ *
+ * `existing` stays optional (unlike PATCH's already-narrowed row) because PUT also runs the
+ * ownsRow/frozen pair on its CREATE path, before any row exists. The stale branch only reaches
+ * `existing!` once isStaleWrite's own type guard has confirmed a stored row exists — same
+ * non-null assertion the inline PUT check used.
+ */
+function accountWriteGuards(params: {
+  reply: FastifyReply;
+  existing: Record<string, unknown> | undefined;
+  ownsRow: AccountEntityRouteDependencies["ownsRow"];
+  isStaleWrite: AccountEntityRouteDependencies["isStaleWrite"];
+  redact: AccountEntityRouteDependencies["redact"];
+  checkOwnsRow?: { accountId: unknown };
+  checkFrozen?: { candidate: Record<string, unknown> };
+  checkStale?: {
+    optimisticConcurrency: boolean;
+    candidateRow: Record<string, unknown>;
+    requirePrecondition?: boolean;
+    vis: SanitizeWriteOptions;
+  };
+}): boolean {
+  const { reply, existing, ownsRow, isStaleWrite, redact, checkOwnsRow, checkFrozen, checkStale } = params;
+  if (checkOwnsRow && !ownsRow(existing, checkOwnsRow.accountId)) {
+    reply.code(404).send({ error: "Not found" });
+    return true;
+  }
+  if (checkFrozen && accountFieldsFrozen(existing, checkFrozen.candidate)) {
+    reply.code(409).send({ error: ACCOUNT_FROZEN_FIELDS_MESSAGE });
+    return true;
+  }
+  if (
+    checkStale &&
+    checkStale.optimisticConcurrency &&
+    isStaleWrite(existing, checkStale.candidateRow, checkStale.requirePrecondition)
+  ) {
+    reply.code(409).send({
+      error: "The record was modified more recently on the server.",
+      current: redact("accounts", existing!, checkStale.vis),
+    });
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -264,14 +320,22 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
       if (existing && !authorize(req, reply, id, "write")) return;
       // accountId is immutable (ownsRow). An `accounts` row stores no accountId, so this refuses a
       // body that asserts ownership by another company rather than silently ignoring the claim.
-      if (!ownsRow(existing, body.accountId)) {
-        return reply.code(404).send({ error: "Not found" });
-      }
       // Compare the sanitised candidate so malformed frozen values are ignored and an absent legacy
-      // value may be set once. A different valid value remains a 409.
-      if (accountFieldsFrozen(existing, sanitizeWrite("accounts", body, existing))) {
-        return reply.code(409).send({ error: ACCOUNT_FROZEN_FIELDS_MESSAGE });
-      }
+      // value may be set once. A different valid value remains a 409. (Guard sequence shared with
+      // PATCH — see accountWriteGuards; the stale-write guard runs separately below, after the
+      // trusted-local replay attempt it must not preempt.)
+      if (
+        accountWriteGuards({
+          reply,
+          existing,
+          ownsRow,
+          isStaleWrite,
+          redact,
+          checkOwnsRow: { accountId: body.accountId },
+          checkFrozen: { candidate: sanitizeWrite("accounts", body, existing) },
+        })
+      )
+        return;
       const vis = fieldVisibility(req, "accounts", body.accountId);
       // Only trusted-local compatibility creates can arrive here as a completed provisioning replay.
       // Authenticated account creation is closed on this route, so awaiting the coordinator during an
@@ -287,13 +351,19 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
         if (replay) return reply.code(200).send(redact("accounts", replay.product, vis));
       }
       // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the predicate is
-      // isStaleWrite, SHARED with the batch loop so the two paths can't drift.
-      if (optimisticConcurrency && isStaleWrite(existing, body)) {
-        return reply.code(409).send({
-          error: "The record was modified more recently on the server.",
-          current: redact("accounts", existing!, vis),
-        });
-      }
+      // isStaleWrite, SHARED with the batch loop so the two paths can't drift. (Guard sequence
+      // shared with PATCH — see accountWriteGuards.)
+      if (
+        accountWriteGuards({
+          reply,
+          existing,
+          ownsRow,
+          isStaleWrite,
+          redact,
+          checkStale: { optimisticConcurrency, candidateRow: body, vis },
+        })
+      )
+        return;
       // Finding 7/9 funnel: sanitize + stamp + account-scoped read + validate in one place. An
       // accounts CREATE defers its validation into the provisioning closure (see prepareScopedWrite);
       // an accounts UPDATE is validated here.
@@ -377,21 +447,28 @@ export function registerAccountEntityRoutes(app: FastifyInstance, dependencies: 
         vis,
       );
       // accountId is immutable (ownsRow). `merged` is sanitised, so an unscoped table drops any
-      // asserted accountId; the guard stays as the one shared expression of the rule.
-      if (!ownsRow(existing, merged.accountId)) {
-        return reply.code(404).send({ error: "Not found" });
-      }
-      // `merged` already pins stored frozen values when malformed input is dropped. Missing legacy
-      // values may be set once; different valid stored values stay frozen.
-      if (accountFieldsFrozen(existing, merged)) {
-        return reply.code(409).send({ error: ACCOUNT_FROZEN_FIELDS_MESSAGE });
-      }
-      if (optimisticConcurrency && isStaleWrite(existing, req.body as Record<string, unknown>, false)) {
-        return reply.code(409).send({
-          error: "The record was modified more recently on the server.",
-          current: redact("accounts", existing, vis),
-        });
-      }
+      // asserted accountId; the guard stays as the one shared expression of the rule. `merged`
+      // already pins stored frozen values when malformed input is dropped: missing legacy values
+      // may be set once, different valid stored values stay frozen. Guard sequence shared with
+      // PUT — see accountWriteGuards.
+      if (
+        accountWriteGuards({
+          reply,
+          existing,
+          ownsRow,
+          isStaleWrite,
+          redact,
+          checkOwnsRow: { accountId: merged.accountId },
+          checkFrozen: { candidate: merged },
+          checkStale: {
+            optimisticConcurrency,
+            candidateRow: req.body as Record<string, unknown>,
+            requirePrecondition: false,
+            vis,
+          },
+        })
+      )
+        return;
       const stamped = stampServerRevision(merged, existing);
       // SQLite's validation lookup resolves only the row/FK/dependent coordinates this write needs;
       // custom stores retain the complete-slice fallback. An account keys its own slice by id.

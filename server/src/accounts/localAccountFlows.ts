@@ -1,4 +1,6 @@
 import { AccountContractError, retryAfterSeconds } from "@capacitylens/shared/account/errors";
+import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
+import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type {
   AccountAuditPort,
   AccountFlows,
@@ -229,6 +231,39 @@ function replayCapacityExceeded(commandId: string, retryAfterMs: number): Accoun
   });
 }
 
+/** Shared single-company-cap gate for provisionWorkspace's tx callback and
+ * provisionWorkspaceInExistingTransaction: evaluate provisioning authority in the current
+ * transaction and throw the same FORBIDDEN shape on refusal. Split from the Owner-membership
+ * provisioning call (unlike this check, that write's position relative to product-data creation is
+ * externally observable — audit/outbox row ordering — so provisionWorkspace's tx callback keeps its
+ * original decision -> provisionProductData() -> provisionOwnerMembershipInTx interleaving instead
+ * of both steps being fused into one helper call). */
+function assertWorkspaceProvisioningAllowedInTx(
+  administration: LocalAccountAdminPort,
+  params: {
+    actor: ActorContext;
+    multiWorkspace: boolean;
+    bootstrapAuthorized: boolean;
+    projectedWorkspaceCount?: number;
+    commandId?: string;
+  },
+): void {
+  const decision = administration.evaluateWorkspaceProvisioningAuthorityInTx({
+    actor: params.actor,
+    multiWorkspace: params.multiWorkspace,
+    bootstrapAuthorized: params.bootstrapAuthorized,
+    projectedWorkspaceCount: params.projectedWorkspaceCount,
+  });
+  if (!decision.allowed) {
+    throw new AccountContractError({
+      code: "FORBIDDEN",
+      message: decision.reason === "single-workspace-cap" ? SINGLE_COMPANY_CAP_MESSAGE : "Forbidden.",
+      retryable: false,
+      commandId: params.commandId,
+    });
+  }
+}
+
 /** The name a directory entry sorts under: display name, else email, else the principal id — the
  *  same fallback chain the UI labels the row with, so the rendered list is visibly in order even
  *  for a member who signed up without a name. */
@@ -253,6 +288,42 @@ export function actorContextFromSession(
     fresh: input.freshUntil !== null && Date.parse(input.freshUntil) > now,
     mfaSatisfied: input.assurance === "mfa" || input.assurance === "federated" || input.assurance === "trusted-local",
   };
+}
+
+/** Shared scaffold for the membership-snapshot lock-retry algorithm duplicated by eraseWorkspace's
+ * `eraseWithMembershipSnapshot` and withWorkspaceErasureLocks' `runWithSnapshot`: snapshot principal
+ * ids, acquire locks over them, re-snapshot under lock in case a mutation slipped in while waiting,
+ * and retry with the enlarged set — bounded by WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS. Callers keep
+ * their own exhausted-retries error (one throws with commandId, one without — see call sites), so
+ * that error is supplied as a factory rather than unified here. */
+async function withMembershipSnapshotRetry<T>(
+  lock: KeyedOperationLock,
+  currentPrincipalIds: () => readonly string[],
+  lockKeysFor: (principalIds: readonly string[]) => readonly string[],
+  run: () => Promise<T>,
+  onAttemptsExhausted: () => never,
+): Promise<T> {
+  const attempt = async (principalIds: readonly string[], attemptNumber: number): Promise<T> => {
+    const locked = new Set(principalIds);
+    const result = await lock.withKeys(
+      lockKeysFor(principalIds),
+      async (): Promise<{ kind: "retry"; principalIds: readonly string[] } | { kind: "done"; value: T }> => {
+        // The membership snapshot was taken synchronously before lock acquisition. A mutation
+        // that already held the workspace lock may have added a principal while we waited.
+        // Re-snapshot under the workspace lock and retry with the full key set before running;
+        // this keeps identity-admin operations serialized with every principal in scope.
+        const current = currentPrincipalIds();
+        if (current.some((principalId) => !locked.has(principalId))) {
+          return { kind: "retry", principalIds: current };
+        }
+        return { kind: "done", value: await run() };
+      },
+    );
+    if (result.kind === "done") return result.value;
+    if (attemptNumber >= WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS) onAttemptsExhausted();
+    return attempt(result.principalIds, attemptNumber + 1);
+  };
+  return attempt(currentPrincipalIds(), 1);
 }
 
 /** Cross-port orchestration with explicit transaction and command-ledger ownership. Policy
@@ -281,6 +352,32 @@ export function localAccountFlows(input: {
       },
       "immediate",
     );
+  // issuePasswordReset and revokeMemberSessions both deny on the same evaluateIdentityAdminAuthority
+  // shape: persist the compensated terminal outcome, then throw denied(). Only the audit action and
+  // denied()'s second argument differ between the two callers; their outer catch blocks have real
+  // divergence (requiresReconciliation exclusions, non-reconciliation audit action) and stay separate.
+  const denyIdentityAdminCommand = (
+    scope: Pick<Parameters<typeof terminateCommand>[1], "applicationId" | "operation">,
+    command: CommandIdentity,
+    reason: string,
+    actorPrincipalId: string,
+    targetPrincipalId: string,
+    auditAction: AccountAuditInput["action"],
+    deniedAction: "issue-password-reset" | "revoke-sessions",
+  ): never => {
+    persistTerminalOutcome(
+      () =>
+        terminateCommand(db, scope, command, "compensated", reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN"),
+      {
+        action: auditAction,
+        outcome: "denied",
+        actorPrincipalId,
+        targetPrincipalId,
+        command,
+      },
+    );
+    throw denied(reason, deniedAction, command.commandId);
+  };
   const resetReplay = new WriteOnceSecretReplay<PasswordResetCeremony>(input.writeOnceReplayCapacity ?? 128);
   // Every live coordinator execution and its reconciliation read share this key. The NUL prefix
   // sorts before all external principal/workspace keys, so invitation signup may safely discover
@@ -408,22 +505,12 @@ export function localAccountFlows(input: {
             const result = tx(
               db,
               () => {
-                const decision = administration.evaluateWorkspaceProvisioningAuthorityInTx({
+                assertWorkspaceProvisioningAllowedInTx(administration, {
                   actor,
                   multiWorkspace,
                   bootstrapAuthorized,
+                  commandId: command.commandId,
                 });
-                if (!decision.allowed) {
-                  throw new AccountContractError({
-                    code: "FORBIDDEN",
-                    message:
-                      decision.reason === "single-workspace-cap"
-                        ? "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more."
-                        : "Forbidden.",
-                    retryable: false,
-                    commandId: command.commandId,
-                  });
-                }
                 const product = provisionProductData();
                 const membership = administration.provisionOwnerMembershipInTx({
                   workspaceId,
@@ -447,27 +534,24 @@ export function localAccountFlows(input: {
             );
             return { ...result, replayed: false };
           } catch (error) {
+            const deniedOutcome = isAuthorityDenial(error);
             recordTerminalOutcome(error, () =>
-              tx(
-                db,
-                () => {
+              persistTerminalOutcome(
+                () =>
                   terminateCommand(
                     db,
                     scope,
                     command,
                     "compensated",
                     error instanceof AccountContractError ? error.failure.code : "CONFLICT",
-                  );
-                  const deniedOutcome = isAuthorityDenial(error);
-                  audit({
-                    action: deniedOutcome ? "workspace.provisioned" : "flow.compensated",
-                    outcome: deniedOutcome ? "denied" : "compensated",
-                    workspaceId,
-                    actorPrincipalId: actor.principalId,
-                    command,
-                  });
+                  ),
+                {
+                  action: deniedOutcome ? "workspace.provisioned" : "flow.compensated",
+                  outcome: deniedOutcome ? "denied" : "compensated",
+                  workspaceId,
+                  actorPrincipalId: actor.principalId,
+                  command,
                 },
-                "immediate",
               ),
             );
             throw error;
@@ -477,126 +561,104 @@ export function localAccountFlows(input: {
     },
 
     async eraseWorkspace({ actor, workspaceId, command, auditProductMutationInTx }) {
-      const eraseWithMembershipSnapshot = async (
-        principalIds: readonly string[],
-        attempt: number,
-      ): Promise<{ commandId: string; completedAt: string }> => {
-        const locked = new Set(principalIds);
-        const result = await lock.withKeys(
-          [commandExecutionKey(command), actor.principalId, `workspace:${workspaceId}`, ...principalIds],
-          async (): Promise<
-            | { kind: "retry"; principalIds: readonly string[] }
-            | {
-                kind: "done";
-                value: { commandId: string; completedAt: string };
-              }
-          > => {
-            // The membership snapshot was taken synchronously before lock acquisition. A mutation
-            // that already held the workspace lock may have added a principal while we waited.
-            // Re-snapshot under the workspace lock and retry with the full key set before deleting;
-            // this keeps identity-admin operations serialized with every principal being erased.
-            const currentPrincipalIds = administration.workspacePrincipalIds(workspaceId);
-            if (currentPrincipalIds.some((principalId) => !locked.has(principalId))) {
-              return { kind: "retry", principalIds: currentPrincipalIds };
-            }
-            // Do not embed the soon-to-be-erased actor id in the durable operation key. The row is
-            // retained briefly for safe client replay after erasure, with principal/workspace
-            // columns anonymized in the same transaction.
-            const operation = "workspace-erasure";
-            const scope = {
-              applicationId,
-              operation,
-              actorPrincipalId: actor.principalId,
-              workspaceId,
-            };
-            const begun = beginCommand<{
-              commandId: string;
-              completedAt: string;
-            }>(db, scope, command, { workspaceId });
-            if (begun.kind === "replay") {
-              return {
-                kind: "done",
-                value: markAccountCommandReplay(begun.result),
-              };
-            }
-            try {
-              const erased = tx(
-                db,
-                () => {
-                  administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
-                  eraseProductWorkspaceInTx(workspaceId);
-                  const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId);
-                  identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
-                  auditProductMutationInTx?.();
-                  const receipt = {
-                    commandId: command.commandId,
-                    completedAt: new Date().toISOString(),
-                  };
-                  eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
-                  completeCommand(db, scope, command, receipt);
-                  for (const principalId of orphaned) {
-                    audit({
-                      action: "identity.local_deprovisioned",
-                      outcome: "success",
-                      workspaceId,
-                      actorPrincipalId: actor.principalId,
-                      targetPrincipalId: principalId,
-                      command,
-                      changedFields: ["localPrincipal"],
-                    });
-                  }
+      return withMembershipSnapshotRetry(
+        lock,
+        () => administration.workspacePrincipalIds(workspaceId),
+        (principalIds) => [
+          commandExecutionKey(command),
+          actor.principalId,
+          `workspace:${workspaceId}`,
+          ...principalIds,
+        ],
+        async () => {
+          // Do not embed the soon-to-be-erased actor id in the durable operation key. The row is
+          // retained briefly for safe client replay after erasure, with principal/workspace
+          // columns anonymized in the same transaction.
+          const operation = "workspace-erasure";
+          const scope = {
+            applicationId,
+            operation,
+            actorPrincipalId: actor.principalId,
+            workspaceId,
+          };
+          const begun = beginCommand<{
+            commandId: string;
+            completedAt: string;
+          }>(db, scope, command, { workspaceId });
+          if (begun.kind === "replay") {
+            return markAccountCommandReplay(begun.result);
+          }
+          try {
+            const erased = tx(
+              db,
+              () => {
+                administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId);
+                eraseProductWorkspaceInTx(workspaceId);
+                const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId);
+                identity.deprovisionLocalPrincipalsInTx(orphaned, command.commandId);
+                auditProductMutationInTx?.();
+                const receipt = {
+                  commandId: command.commandId,
+                  completedAt: new Date().toISOString(),
+                };
+                eraseWorkspaceCommandHistoryInTx(db, workspaceId, command.commandId);
+                completeCommand(db, scope, command, receipt);
+                for (const principalId of orphaned) {
                   audit({
-                    action: "workspace.erased",
+                    action: "identity.local_deprovisioned",
                     outcome: "success",
                     workspaceId,
                     actorPrincipalId: actor.principalId,
+                    targetPrincipalId: principalId,
                     command,
-                    changedFields: ["workspace", "memberships", "localPrincipals"],
+                    changedFields: ["localPrincipal"],
                   });
-                  return { receipt, orphaned };
+                }
+                audit({
+                  action: "workspace.erased",
+                  outcome: "success",
+                  workspaceId,
+                  actorPrincipalId: actor.principalId,
+                  command,
+                  changedFields: ["workspace", "memberships", "localPrincipals"],
+                });
+                return { receipt, orphaned };
+              },
+              "immediate",
+            );
+            return erased.receipt;
+          } catch (error) {
+            recordTerminalOutcome(error, () =>
+              persistTerminalOutcome(
+                () =>
+                  terminateCommand(
+                    db,
+                    scope,
+                    command,
+                    "compensated",
+                    error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+                  ),
+                {
+                  action: "flow.compensated",
+                  outcome: "compensated",
+                  workspaceId,
+                  actorPrincipalId: actor.principalId,
+                  command,
                 },
-                "immediate",
-              );
-              return { kind: "done", value: erased.receipt };
-            } catch (error) {
-              recordTerminalOutcome(error, () =>
-                tx(
-                  db,
-                  () => {
-                    terminateCommand(
-                      db,
-                      scope,
-                      command,
-                      "compensated",
-                      error instanceof AccountContractError ? error.failure.code : "CONFLICT",
-                    );
-                    audit({
-                      action: "flow.compensated",
-                      outcome: "compensated",
-                      workspaceId,
-                      actorPrincipalId: actor.principalId,
-                      command,
-                    });
-                  },
-                  "immediate",
-                ),
-              );
-              throw error;
-            }
-          },
-        );
-        if (result.kind === "done") return result.value;
-        if (attempt >= WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS) {
+              ),
+            );
+            throw error;
+          }
+        },
+        () => {
           throw new AccountContractError({
             code: "CONFLICT",
             message: "Company membership changed repeatedly during erasure. Retry the request.",
             retryable: true,
             commandId: command.commandId,
           });
-        }
-        return eraseWithMembershipSnapshot(result.principalIds, attempt + 1);
-      };
-      return eraseWithMembershipSnapshot(administration.workspacePrincipalIds(workspaceId), 1);
+        },
+      );
     },
 
     provisionWorkspaceInExistingTransaction({
@@ -606,7 +668,7 @@ export function localAccountFlows(input: {
       multiWorkspace,
       projectedWorkspaceCount,
     }): void {
-      const decision = administration.evaluateWorkspaceProvisioningAuthorityInTx({
+      assertWorkspaceProvisioningAllowedInTx(administration, {
         actor: {
           principalId,
           sessionId: "trusted-local",
@@ -618,16 +680,6 @@ export function localAccountFlows(input: {
         bootstrapAuthorized: false,
         projectedWorkspaceCount,
       });
-      if (!decision.allowed) {
-        throw new AccountContractError({
-          code: "FORBIDDEN",
-          message:
-            decision.reason === "single-workspace-cap"
-              ? "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more."
-              : "Forbidden.",
-          retryable: false,
-        });
-      }
       administration.provisionOwnerMembershipInTx({
         workspaceId,
         principalId,
@@ -641,36 +693,23 @@ export function localAccountFlows(input: {
       options: { serializeWorkspaceProvisioning?: boolean } = {},
     ): Promise<T> {
       const uniqueWorkspaceIds = [...new Set(workspaceIds)];
-      const runWithSnapshot = async (principalIds: readonly string[], attempt: number): Promise<T> => {
-        const locked = new Set(principalIds);
-        const result = await lock.withKeys(
-          [
-            ...(options.serializeWorkspaceProvisioning ? [`application:${applicationId}:workspace-provisioning`] : []),
-            ...uniqueWorkspaceIds.map((workspaceId) => `workspace:${workspaceId}`),
-            ...principalIds,
-          ],
-          async () => {
-            const current = uniqueWorkspaceIds.flatMap((workspaceId) =>
-              administration.workspacePrincipalIds(workspaceId),
-            );
-            if (current.some((principalId) => !locked.has(principalId))) {
-              return { kind: "retry" as const, principalIds: current };
-            }
-            return { kind: "done" as const, value: await operation() };
-          },
-        );
-        if (result.kind === "done") return result.value;
-        if (attempt >= WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS) {
+      return withMembershipSnapshotRetry(
+        lock,
+        () => uniqueWorkspaceIds.flatMap((workspaceId) => administration.workspacePrincipalIds(workspaceId)),
+        (principalIds) => [
+          ...(options.serializeWorkspaceProvisioning ? [`application:${applicationId}:workspace-provisioning`] : []),
+          ...uniqueWorkspaceIds.map((workspaceId) => `workspace:${workspaceId}`),
+          ...principalIds,
+        ],
+        async () => operation(),
+        () => {
           throw new AccountContractError({
             code: "CONFLICT",
             message: "Company membership changed repeatedly during erasure. Retry the request.",
             retryable: true,
           });
-        }
-        return runWithSnapshot(result.principalIds, attempt + 1);
-      };
-      const initial = uniqueWorkspaceIds.flatMap((workspaceId) => administration.workspacePrincipalIds(workspaceId));
-      return runWithSnapshot(initial, 1);
+        },
+      );
     },
 
     async resolveRequestAccess({ headers, workspaceId }) {
@@ -732,7 +771,7 @@ export function localAccountFlows(input: {
           // standalone password verifier that a ledger reader could attack independently. Testing a
           // password candidate requires possession of the high-entropy invitation token as well.
           credentialBindingDigest: secretDigest("invite-signup-credentials", `${token}\0${password}`),
-          normalizedEmail: email.trim().toLowerCase(),
+          normalizedEmail: normalizeAccountEmail(email),
           displayName,
         };
         const replay = resumeExistingCommand<InviteSignupResult>(db, scope, command, canonicalPayload);
@@ -970,25 +1009,16 @@ export function localAccountFlows(input: {
             action: "issue-password-reset",
           });
           if (!decision.allowed) {
-            persistTerminalOutcome(
-              () =>
-                terminateCommand(
-                  db,
-                  scope,
-                  command,
-                  "compensated",
-                  decision.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
-                ),
-              {
-                action: "identity.password_reset_issued",
-                outcome: "denied",
-                actorPrincipalId: actor.principalId,
-                targetPrincipalId,
-                command,
-              },
-            );
             terminalOutcomeRecorded = true;
-            throw denied(decision.reason, "issue-password-reset", command.commandId);
+            throw denyIdentityAdminCommand(
+              scope,
+              command,
+              decision.reason,
+              actor.principalId,
+              targetPrincipalId,
+              "identity.password_reset_issued",
+              "issue-password-reset",
+            );
           }
           const reservation = resetReplay.reserve(command.commandId);
           if (!reservation.accepted) {
@@ -1161,25 +1191,16 @@ export function localAccountFlows(input: {
             action: "revoke-sessions",
           });
           if (!decision.allowed) {
-            persistTerminalOutcome(
-              () =>
-                terminateCommand(
-                  db,
-                  scope,
-                  command,
-                  "compensated",
-                  decision.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
-                ),
-              {
-                action: "identity.sessions_revoked",
-                outcome: "denied",
-                actorPrincipalId: actor.principalId,
-                targetPrincipalId,
-                command,
-              },
-            );
             terminalOutcomeRecorded = true;
-            throw denied(decision.reason, "revoke-sessions", command.commandId);
+            throw denyIdentityAdminCommand(
+              scope,
+              command,
+              decision.reason,
+              actor.principalId,
+              targetPrincipalId,
+              "identity.sessions_revoked",
+              "revoke-sessions",
+            );
           }
           revocationStarted = true;
           const result = await identity.revokePrincipalSessions({

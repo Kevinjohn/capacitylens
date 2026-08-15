@@ -794,7 +794,7 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
  * runs on that same handle. Caching a pre-migration `false` would make every later call on that
  * handle read "table absent" forever, which is the specific hazard each call site below documents.
  */
-function cachedTableExists(table: string): (db: Db) => boolean {
+export function cachedTableExists(table: string): (db: Db) => boolean {
   const presence = new WeakMap<Db, true>();
   return (db: Db): boolean => {
     if (presence.get(db)) return true;

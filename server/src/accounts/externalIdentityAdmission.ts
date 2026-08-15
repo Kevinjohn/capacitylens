@@ -19,10 +19,7 @@ export function localExternalIdentityAdmission(input: {
   if (input.candidate.emailVerified !== true || !input.candidate.email) return false;
   const normalizedEmail = normalizeAccountEmail(input.candidate.email);
   if (!isAccountEmail(normalizedEmail)) return false;
-  const allowList = (input.bootstrapEmails ?? "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
+  const allowList = (input.bootstrapEmails ?? "").split(",").map(normalizeAccountEmail).filter(Boolean);
   // First-owner admission is a distinct operator ceremony. A pre-existing/dangling invitation
   // must never replace the explicit bootstrap allow-list merely because the local user table is
   // empty (for example after erasure or while restoring control-plane data).

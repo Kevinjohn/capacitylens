@@ -100,7 +100,6 @@ function registerTransition(
         id,
         changedFields: [],
       };
-      let result: TransitionResult | null = null;
       let response: Record<string, unknown> | undefined;
       dependencies.commit(reply, auditRecord, () => {
         const row = dependencies.store.readLifecycleRow(accountId, rawEntity, id);
@@ -113,7 +112,8 @@ function registerTransition(
           );
         }
 
-        result = spec.apply(row, rawEntity, accountId, id);
+        // Scoped to this closure: nothing after dependencies.commit returns reads it.
+        const result = spec.apply(row, rawEntity, accountId, id);
         if (result === null) return;
         if (result.next) dependencies.store.writeLifecycleRow(accountId, rawEntity, result.next);
         const scrubbed = result.scrubResourceNotes ? dependencies.store.scrubResourceNotes(accountId, id) : null;

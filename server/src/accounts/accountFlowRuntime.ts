@@ -1,6 +1,6 @@
 import type { AccountAuditAction, AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
-import type { CommandIdentity } from "@capacitylens/shared/account/types";
+import type { CommandIdentity, OperationReceipt } from "@capacitylens/shared/account/types";
 
 export interface AccountAuditInput {
   action: AccountAuditAction;
@@ -33,6 +33,13 @@ export function accountAuditWriter(
       changedFields: event.changedFields ?? [],
     });
   };
+}
+
+/** Shared identity-port operation receipt: an embedded port (Better Auth, trusted-local) stamps
+ *  this on completion rather than reading back a stored record (contrast {@link
+ *  "./commands".operationReceipt}, which reflects a persisted command's own `updatedAt`). */
+export function receipt(commandId: string, changed?: boolean): OperationReceipt {
+  return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) };
 }
 
 /** Preserve the primary failure if recording its terminal command state fails too. */

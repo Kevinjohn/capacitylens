@@ -7,6 +7,48 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.51.0-alpha.1] — 2026-08-15
+
+### Changed
+
+- Simplified the account boundary (`server/src/accounts` + `server/src/routes`, ~15k lines) with
+  no behaviour change (#351), applied findings-first with four independent review angles and
+  Codex arbitration on contested items:
+  - `accountRoutes.ts`: an `auditUnlessReplayed` helper replaces ten copy-pasted
+    audit-after-flow sites, and shared `authorizeMemberMutation` / `requireMembership` guards
+    replace six duplicated role-check blocks; the account-flow operation list moved to the
+    shared contract (`ACCOUNT_FLOW_OPERATIONS` beside the existing `ACCOUNT_ROLES` idiom) and
+    the single-company-cap message is single-sourced in the shared account policy.
+  - `localAccountFlows.ts`: the workspace-erasure snapshot→lock→re-snapshot bounded-retry
+    algorithm, duplicated in two places, is extracted once with each call site's
+    `commandId` reporting preserved; both hand-rolled transaction catch blocks route through
+    `persistTerminalOutcome`; the single-company-cap decision is shared between the two
+    provisioning entry points with the original in-transaction write order kept byte-identical.
+  - Identity ports: all 21 table-existence probes reuse auth.ts's cached
+    `cachedTableExists` idiom; the compensation-handle check reuses the existing constant-time
+    `secretTokenMatches`; the operation-receipt builder is single-sourced in
+    `accountFlowRuntime.ts` and adopted by all three ports.
+  - `state.ts`: the session-authentication SELECT (every authenticated request) uses a
+    per-handle cached prepared statement via a module-local cache that keeps the
+    coordinator/control-table architecture boundary intact; a provably dead reconciliation
+    branch is deleted; `normalizedTableCreateSql` is extracted and reused by the
+    sign-in-tracking schema assertion.
+  - Entity/lifecycle/SSO routes: the triplicated ownsRow/frozen-fields/stale-write guard
+    sequence in entity PUT/PATCH is collapsed into `accountWriteGuards` (PUT's interleaved
+    replay attempt kept in place); two byte-identical strict-provider guards in the frozen SSO
+    cutover flow extracted mechanically; email normalization goes through the shared
+    `normalizeAccountEmail` everywhere.
+  - `sqliteAccountAdminPort.ts`: `listMemberships` no longer issues one security-revision
+    query per member — revisions are batched with the repository's existing 500-item `IN`
+    chunking pattern (five new tests pin ordering, defaults, empty lists and the chunk
+    boundary); a redundant workspace-existence double-check in invitation creation is removed.
+  - Conformance suites deduplicated (shared db setup, port/command factories, a `deferred()`
+    latch, an `it.each` merge) with the test count unchanged at 110.
+
+  Wire formats, API bodies and status codes, audit action strings, SQL results, transaction
+  and lock ordering, and error text are all unchanged; the intentionally-divergent invitation
+  claim flows and the persisted-hash helper trio were left separate on purpose.
+
 ## [0.50.0-alpha.1] — 2026-08-15
 
 ### Changed
@@ -3583,7 +3625,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.50.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.51.0-alpha.1...HEAD
+[0.51.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.50.0-alpha.1...v0.51.0-alpha.1
 [0.50.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.49.0-alpha.1...v0.50.0-alpha.1
 [0.49.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.48.0-alpha.1...v0.49.0-alpha.1
 [0.48.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.47.0-alpha.1...v0.48.0-alpha.1

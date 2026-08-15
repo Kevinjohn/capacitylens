@@ -58,6 +58,9 @@ function displayPath(path: readonly string[]): string {
   return path.map((file) => relative(serverRoot, file)).join(" -> ");
 }
 
+const read = (rel: string): string => readFileSync(resolve(serverRoot, rel), "utf8");
+const localAccountFlowsPath = "accounts/localAccountFlows.ts";
+
 describe("account-boundary architecture", () => {
   it("keeps the shared contract free of UI, transport, persistence, and auth-vendor imports", () => {
     for (const file of sourceFiles(sharedAccountRoot)) {
@@ -70,8 +73,8 @@ describe("account-boundary architecture", () => {
   });
 
   it("keeps coordinator persistence behind transaction and command-ledger seams", () => {
-    const coordinator = resolve(serverRoot, "accounts/localAccountFlows.ts");
-    const source = readFileSync(coordinator, "utf8");
+    const coordinator = resolve(serverRoot, localAccountFlowsPath);
+    const source = read(localAccountFlowsPath);
     expect(source).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/);
     expect(source).not.toMatch(/from ['"].*(?:controlTables|better-auth)/);
     expect(source).not.toMatch(/from ['"].*\/state['"]/);
@@ -89,28 +92,26 @@ describe("account-boundary architecture", () => {
     expect(path ? displayPath(path) : null).toBeNull();
   });
 
-  it("calibrates the transitive dependency scanner against a known adapter edge", () => {
-    const adapter = resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts");
-    const controlTables = resolve(serverRoot, "controlTables.ts");
-    const path = dependencyPath(adapter, new Set([controlTables]));
-    expect(path?.map((file) => relative(serverRoot, file))).toEqual([
-      "accounts/sqliteAccountAdminPort.ts",
-      "controlTables.ts",
-    ]);
-  });
-
-  it("follows workspace aliases as well as relative imports", () => {
-    const coordinator = resolve(serverRoot, "accounts/localAccountFlows.ts");
-    const sharedErrors = resolve(sharedAccountRoot, "errors.ts");
-    const path = dependencyPath(coordinator, new Set([sharedErrors]));
-    expect(path?.map((file) => relative(serverRoot, file))).toEqual([
-      "accounts/localAccountFlows.ts",
-      "../../shared/src/account/errors.ts",
-    ]);
+  it.each([
+    [
+      "calibrates the transitive dependency scanner against a known adapter edge",
+      resolve(serverRoot, "accounts/sqliteAccountAdminPort.ts"),
+      resolve(serverRoot, "controlTables.ts"),
+      ["accounts/sqliteAccountAdminPort.ts", "controlTables.ts"],
+    ],
+    [
+      "follows workspace aliases as well as relative imports",
+      resolve(serverRoot, localAccountFlowsPath),
+      resolve(sharedAccountRoot, "errors.ts"),
+      ["accounts/localAccountFlows.ts", "../../shared/src/account/errors.ts"],
+    ],
+  ] as const)("%s", (_name, start, target, expected) => {
+    const path = dependencyPath(start, new Set([target]));
+    expect(path?.map((file) => relative(serverRoot, file))).toEqual(expected);
   });
 
   it("single-sources account-administration thresholds behind the account policy seam", () => {
-    const productPolicy = readFileSync(resolve(serverRoot, "../../shared/src/domain/access.ts"), "utf8");
+    const productPolicy = read("../../shared/src/domain/access.ts");
     const accountPolicy = readFileSync(resolve(sharedAccountRoot, "policy.ts"), "utf8");
     const productThresholds = productPolicy.match(/const MIN_TIER = \{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(productThresholds).not.toMatch(
@@ -160,15 +161,15 @@ describe("account-boundary architecture", () => {
   });
 
   it("prevents product routes from reaching identity or membership storage directly", () => {
-    const source = readFileSync(resolve(serverRoot, "app.ts"), "utf8");
+    const source = read("app.ts");
     expect(source).not.toMatch(/from ['"].*controlTables/);
     expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
     expect(source).not.toContain("better-auth");
   });
 
   it("keeps invitation and member administration in the account HTTP adapter", () => {
-    const productRoutes = readFileSync(resolve(serverRoot, "app.ts"), "utf8");
-    const accountRoutes = readFileSync(resolve(serverRoot, "accounts/accountRoutes.ts"), "utf8");
+    const productRoutes = read("app.ts");
+    const accountRoutes = read("accounts/accountRoutes.ts");
     const extractedPaths = [
       "/api/invites",
       "/api/invites/:token/preview",
@@ -193,7 +194,7 @@ describe("account-boundary architecture", () => {
   });
 
   it("keeps invitation SQL out of the auth-vendor adapter", () => {
-    const source = readFileSync(resolve(serverRoot, "auth.ts"), "utf8");
+    const source = read("auth.ts");
     expect(source).not.toMatch(/\b(?:FROM|INTO|UPDATE|DELETE FROM)\s+invites\b/i);
     expect(source).not.toMatch(/from ['"].*controlTables/);
   });

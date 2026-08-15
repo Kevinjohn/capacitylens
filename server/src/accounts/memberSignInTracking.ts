@@ -1,5 +1,7 @@
 import type { Db } from "../db";
+import { hasColumn } from "../schema";
 import { tx } from "../txn";
+import { normalizedTableCreateSql } from "./state";
 
 const TRACKING_TABLE = "account_member_sign_in_tracking";
 const OBSERVATION_COLUMN = "signInConfirmed";
@@ -14,15 +16,9 @@ export const MEMBER_SIGN_IN_TRACKING_V26_DEFINITION = [
   "privacy:no-timestamps-no-session-history-no-backfill:v1",
 ].join("\n-- migration component --\n");
 
-function accountMembersHasObservation(db: Db): boolean {
-  return (db.prepare("PRAGMA table_info(account_members)").all() as Array<{ name: string }>).some(
-    ({ name }) => name === OBSERVATION_COLUMN,
-  );
-}
-
 /** Add the default-off tracking shape without changing any existing member's state. */
 export function migrateMemberSignInTrackingV26(db: Db): void {
-  if (!accountMembersHasObservation(db)) {
+  if (!hasColumn(db, "account_members", OBSERVATION_COLUMN)) {
     db.exec(
       `ALTER TABLE account_members ADD COLUMN ${OBSERVATION_COLUMN} TEXT ` +
         `CHECK(${OBSERVATION_COLUMN} IS NULL OR ${OBSERVATION_COLUMN} IN ('false', 'true'));`,
@@ -45,14 +41,7 @@ export function assertMemberSignInTrackingSchemaCurrent(db: Db): void {
     notnull: number;
     pk: number;
   }>;
-  const trackingSql = String(
-    (
-      db.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?").get(TRACKING_TABLE) as
-        { sql?: string } | undefined
-    )?.sql ?? "",
-  )
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+  const trackingSql = normalizedTableCreateSql(db, TRACKING_TABLE);
   const problems: string[] = [];
   if (!observation) problems.push(`missing account_members.${OBSERVATION_COLUMN}`);
   else {

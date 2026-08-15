@@ -1,5 +1,11 @@
 import { isAccountRole, type IdentityAdminAction, type Role } from "./types";
 
+/** Single-company-per-instance cap (owner policy — see AppOptions.multiAccount / CLAUDE.md). The
+ * deployment defaults to hosting exactly ONE company; every route that could add a SECOND `accounts`
+ * row shares this one message so the rule can't drift between PUT/batch/orgs. */
+export const SINGLE_COMPANY_CAP_MESSAGE =
+  "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
+
 export type AccountAdminAction =
   | "list-members"
   | "manage-members"

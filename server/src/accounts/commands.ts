@@ -195,6 +195,25 @@ export function completeCommand(
   });
 }
 
+/** Shared 6-key finish-input shape for {@link terminateCommand} and {@link terminatePendingCommand},
+ * which differ only in which state.ts primitive they call and their return type. */
+function buildFinishInput(
+  scope: Pick<CommandScope, "applicationId" | "operation">,
+  command: CommandIdentity,
+  status: "compensated" | "reconciliation_required",
+  failureCode: AccountErrorCode,
+  result: unknown,
+) {
+  return {
+    applicationId: scope.applicationId,
+    operation: scope.operation,
+    idempotencyKey: command.idempotencyKey,
+    status,
+    failureCode,
+    resultJson: result === undefined ? null : canonicalJson(result),
+  };
+}
+
 export function terminateCommand(
   db: Db,
   scope: Pick<CommandScope, "applicationId" | "operation">,
@@ -203,14 +222,7 @@ export function terminateCommand(
   failureCode: AccountErrorCode,
   result?: unknown,
 ): void {
-  finishAccountCommand(db, {
-    applicationId: scope.applicationId,
-    operation: scope.operation,
-    idempotencyKey: command.idempotencyKey,
-    status,
-    failureCode,
-    resultJson: result === undefined ? null : canonicalJson(result),
-  });
+  finishAccountCommand(db, buildFinishInput(scope, command, status, failureCode, result));
 }
 
 export function terminatePendingCommand(
@@ -221,14 +233,7 @@ export function terminatePendingCommand(
   failureCode: AccountErrorCode,
   result?: unknown,
 ): boolean {
-  return finishAccountCommandIfPending(db, {
-    applicationId: scope.applicationId,
-    operation: scope.operation,
-    idempotencyKey: command.idempotencyKey,
-    status,
-    failureCode,
-    resultJson: result === undefined ? null : canonicalJson(result),
-  });
+  return finishAccountCommandIfPending(db, buildFinishInput(scope, command, status, failureCode, result));
 }
 
 export function operationReceipt(record: AccountCommandRecord): OperationReceipt {

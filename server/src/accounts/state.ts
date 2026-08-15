@@ -3,6 +3,27 @@ import { ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS } from "@capacitylens/shared/accou
 import type { CommandId, IdempotencyKey, PrincipalId, WorkspaceId } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 
+type PreparedStatement = ReturnType<Db["prepare"]>;
+
+/**
+ * Per-handle prepared-statement cache, module-local copy of the auditOutbox.ts/controlTables.ts
+ * idiom. Deliberately NOT imported from controlTables: coordinator state must stay free of
+ * control-table dependency edges (enforced by conformance/architecture.test.ts's deny-by-default
+ * importer allow-list and the coordinator-persistence transitive scan). WeakMap keyed by the Db
+ * handle so test `:memory:` handles never leak.
+ */
+function cachedStatement(sql: string): (db: Db) => PreparedStatement {
+  const cache = new WeakMap<Db, PreparedStatement>();
+  return (db: Db): PreparedStatement => {
+    let stmt = cache.get(db);
+    if (!stmt) {
+      stmt = db.prepare(sql);
+      cache.set(db, stmt);
+    }
+    return stmt;
+  };
+}
+
 /** Frozen migration body for DB schema v15. Never amend after v15 ships. */
 export const ACCOUNT_BOUNDARY_STATE_V15_SQL = `
 CREATE TABLE IF NOT EXISTS account_security_revisions (
@@ -81,6 +102,22 @@ const stableNowIso = (): string => new Date(stableNowMs()).toISOString();
 
 export function ensureAccountBoundaryState(db: Db): void {
   db.exec(CURRENT_ACCOUNT_BOUNDARY_STATE_SQL);
+}
+
+/** Normalized (whitespace-collapsed, lowercased) `CREATE TABLE` SQL for `table`, or `""` if the
+ * table doesn't exist. Shared by {@link assertAccountBoundaryStateCurrent} and
+ * memberSignInTracking.ts's schema assertion, which derived this identically before extraction. Do
+ * NOT converge with schema.ts's normalizeSchemaObjectSql — that helper has different semantics
+ * (case-preserving, strips IF NOT EXISTS/`;`). */
+export function normalizedTableCreateSql(db: Db, table: string): string {
+  return String(
+    (
+      db.prepare(`SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?`).get(table) as
+        { sql?: string } | undefined
+    )?.sql ?? "",
+  )
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 export function assertAccountBoundaryStateCurrent(db: Db): void {
@@ -176,14 +213,7 @@ export function assertAccountBoundaryStateCurrent(db: Db): void {
     ],
   };
   for (const [table, fragments] of Object.entries(requiredSql)) {
-    const sql = String(
-      (
-        db.prepare(`SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?`).get(table) as
-          { sql?: string } | undefined
-      )?.sql ?? "",
-    )
-      .replace(/\s+/g, " ")
-      .toLowerCase();
+    const sql = normalizedTableCreateSql(db, table);
     for (const required of fragments) {
       if (!sql.includes(required)) problems.push(`${table} is missing constraint: ${required}`);
     }
@@ -257,10 +287,17 @@ export function recordSessionAssurance(
   ).run(sessionId, principalId, assurance, providerId, now);
 }
 
+// Explicit columns only (assurance, providerId): node:sqlite freezes a prepared statement's column
+// set at prepare time, so caching is safe here precisely because this SELECT never uses `*`. Cached
+// per-Db via the module-local cachedStatement (this read runs on every authenticated request via
+// verifyApplicationSession); the RESULT is never cached, only the prepared statement.
+const sessionAuthenticationStatement = cachedStatement(
+  `SELECT assurance, providerId FROM account_session_assurance WHERE sessionId = ?`,
+);
+
 export function getSessionAuthentication(db: Db, sessionId: string): RecordedSessionAuthentication | null {
-  const row = db
-    .prepare(`SELECT assurance, providerId FROM account_session_assurance WHERE sessionId = ?`)
-    .get(sessionId) as { assurance?: RecordedSessionAssurance; providerId?: string | null } | undefined;
+  const row = sessionAuthenticationStatement(db).get(sessionId) as
+    { assurance?: RecordedSessionAssurance; providerId?: string | null } | undefined;
   return row?.assurance ? { assurance: row.assurance, providerId: row.providerId ?? null } : null;
 }
 
@@ -359,6 +396,13 @@ export interface AccountCommandRecord {
   updatedAt: string;
 }
 
+// Shared 13-column projection for account_commands, hoisted out of the three readers below (they
+// differed only in WHERE). Interpolated verbatim, so the resulting SQL text is byte-identical to
+// each reader's former standalone literal.
+const ACCOUNT_COMMAND_COLUMNS = `applicationId, operation, idempotencyKey, commandId, actorPrincipalId, targetPrincipalId,
+           workspaceId, payloadHash,
+           status, resultJson, failureCode, createdAt, updatedAt`;
+
 function commandRow(row: Record<string, unknown>): AccountCommandRecord {
   return {
     applicationId: String(row.applicationId),
@@ -386,9 +430,7 @@ export function getAccountCommand(
   const row = db
     .prepare(
       `
-    SELECT applicationId, operation, idempotencyKey, commandId, actorPrincipalId, targetPrincipalId,
-           workspaceId, payloadHash,
-           status, resultJson, failureCode, createdAt, updatedAt
+    SELECT ${ACCOUNT_COMMAND_COLUMNS}
       FROM account_commands
      WHERE applicationId = ? AND operation = ? AND idempotencyKey = ?
   `,
@@ -405,9 +447,7 @@ export function getAccountCommandById(
   const row = db
     .prepare(
       `
-    SELECT applicationId, operation, idempotencyKey, commandId, actorPrincipalId, targetPrincipalId,
-           workspaceId, payloadHash,
-           status, resultJson, failureCode, createdAt, updatedAt
+    SELECT ${ACCOUNT_COMMAND_COLUMNS}
       FROM account_commands
      WHERE applicationId = ? AND commandId = ?
   `,
@@ -449,9 +489,7 @@ function getAccountCommandByGlobalId(db: Db, commandId: CommandId): AccountComma
   const row = db
     .prepare(
       `
-    SELECT applicationId, operation, idempotencyKey, commandId, actorPrincipalId, targetPrincipalId,
-           workspaceId, payloadHash,
-           status, resultJson, failureCode, createdAt, updatedAt
+    SELECT ${ACCOUNT_COMMAND_COLUMNS}
       FROM account_commands
      WHERE commandId = ?
   `,
@@ -501,11 +539,6 @@ export function reserveAccountCommand(
       return { kind: "conflict", record: existing };
     }
     const reconciled = transitionStalePending(db, existing, nowMs);
-    if (reconciled !== existing) {
-      return reconciled.payloadHash === input.payloadHash && reconciled.commandId === input.commandId
-        ? { kind: "existing", record: reconciled }
-        : { kind: "conflict", record: reconciled };
-    }
     return reconciled.payloadHash === input.payloadHash && reconciled.commandId === input.commandId
       ? { kind: "existing", record: reconciled }
       : { kind: "conflict", record: reconciled };
