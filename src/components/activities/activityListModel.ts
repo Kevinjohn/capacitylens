@@ -4,21 +4,21 @@ import { ACTIVITY_KIND_ORDER } from "./activityKinds";
 
 type NamedEntity = { name: string } & ({ id: string } | { key: string });
 
-export interface ProjectActivityGroup {
+interface ProjectActivityGroup {
   key: string;
   name: string;
   unavailable: boolean;
   activities: Activity[];
 }
 
-export interface ClientActivityGroup {
+interface ClientActivityGroup {
   key: string;
   name: string;
   unavailable: boolean;
   projects: ProjectActivityGroup[];
 }
 
-export interface ActivityListModel {
+interface ActivityListModel {
   kindOrder: typeof ACTIVITY_KIND_ORDER;
   internal: Activity[];
   crossProject: Activity[];

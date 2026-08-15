@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { disciplinesEnabledFor } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
+import { isStaleEdit } from "../../lib/staleEdit";
 import { m } from "@/i18n";
 import {
   FormActions,
@@ -78,26 +79,39 @@ export function ResourceForm({
   const { error, errorField, errorId, fail } = useFieldError();
 
   const disciplineOptions: Option[] = disciplines.map((d) => ({ value: d.id, label: d.name }));
-  const projectOptions: Option[] = projects.map((p) => {
-    const client = clients.find((c) => c.id === p.clientId);
-    return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name };
-  });
+  // The projects×clients join is the only non-trivial cost here (O(n·m) — a `.find` per project);
+  // memoised on its actual inputs so it isn't redone on every keystroke elsewhere in the form. The
+  // archived-option append below stays OUTSIDE the memo: its label goes through `m.*()`, which must
+  // keep resolving fresh every render (a stale locale/account switch is otherwise possible — see
+  // validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached each render.
+  const baseProjectOptions: Option[] = useMemo(
+    () =>
+      projects.map((p) => {
+        const client = clients.find((c) => c.id === p.clientId);
+        return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name };
+      }),
+    [projects, clients],
+  );
   // Editing a placeholder whose bound project is ARCHIVED: the active-only options above don't
   // contain it, so without this the select would silently blank and an unrelated edit (role, hours)
   // couldn't round-trip the unchanged projectId. Append the current id as a DISABLED option — it
   // stays selected/submittable as the current value (the store's unchanged-parent relaxation
   // accepts it), but can't be picked back once the user chooses an active project. (Mirrors
   // ProjectForm's archived-client option.)
+  let projectOptions: Option[] = baseProjectOptions;
   if (resource?.projectId && !projects.some((p) => p.id === resource.projectId)) {
     const rawProject = raw.projects.find((p) => p.id === resource.projectId);
     const rawClient = rawProject && raw.clients.find((c) => c.id === rawProject.clientId);
-    projectOptions.push({
-      value: resource.projectId,
-      label: rawProject
-        ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
-        : m.form_option_current_archived(),
-      disabled: true,
-    });
+    projectOptions = [
+      ...baseProjectOptions,
+      {
+        value: resource.projectId,
+        label: rawProject
+          ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
+          : m.form_option_current_archived(),
+        disabled: true,
+      },
+    ];
   }
 
   const submit = () => {
@@ -143,8 +157,7 @@ export function ResourceForm({
     // store CRUD contract.
     try {
       if (resource) {
-        const current = useStore.getState().data.resources.find((candidate) => candidate.id === resource.id);
-        if (!current || current.updatedAt !== resource.updatedAt) {
+        if (isStaleEdit(useStore.getState().data.resources, resource.id, resource.updatedAt)) {
           fail(null, m.form_resource_err_changed());
           return;
         }

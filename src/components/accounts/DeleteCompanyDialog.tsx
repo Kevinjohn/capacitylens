@@ -49,7 +49,6 @@ export function DeleteCompanyDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const data = useStore((s) => s.data);
   const [typed, setTyped] = useState("");
   // Surface a failed "export first" inline: this is the LAST backup before a no-undo cascade delete,
   // so a silently-failed export (the user thinks they're covered, then deletes) is the worst case.
@@ -107,7 +106,13 @@ export function DeleteCompanyDialog({
       // scopeData narrows both sources identically: the fetched server slice is already
       // single-account (it just re-filters and blanks `accounts`, matching the demo export shape);
       // the demo blob genuinely needs the account filter.
-      const scoped = scopeData(isServerConfigured() ? await fetchCompleteSlice() : data, account.id);
+      // Read fresh from the store rather than subscribing: `data` is only needed inside this handler
+      // (the demo-mode branch), never at render time, so a subscription here would re-render the
+      // whole dialog on every store write while it's open for no visible benefit.
+      const scoped = scopeData(
+        isServerConfigured() ? await fetchCompleteSlice() : useStore.getState().data,
+        account.id,
+      );
       // Zero-record guard: every real slice carries at least the built-in Internal client, so an
       // all-empty scoped export means the company's data never reached us (or the company is
       // genuinely empty). Refuse to save a file the user would mistake for a real backup.

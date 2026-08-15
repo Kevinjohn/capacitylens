@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { placeholdersEnabledFor, timeZoneFor } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
@@ -6,6 +6,7 @@ import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { validateText } from "../../lib/validation";
+import { isStaleEdit } from "../../lib/staleEdit";
 import { errorMessage } from "../../lib/errorMessage";
 import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
@@ -49,10 +50,20 @@ export function TimeOffForm({
   // EXCEPT the entry's currently-selected resource (risk A): keep a hidden placeholder in the
   // options when it's the one already assigned, so editing shows the correct value in the selector
   // instead of silently reassigning the time off to someone else on save.
-  const resourceOptions: Option[] = resources
-    .filter((r) => !isExternalResource(r))
-    .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId)
-    .map((r) => ({ value: r.id, label: resourceDisplayName(r) }));
+  // The two filter passes are the only non-trivial cost here; memoised on their actual inputs so
+  // they aren't redone on every keystroke elsewhere in the form (e.g. the note field). The label map
+  // stays OUTSIDE the memo: `resourceDisplayName` resolves a placeholder's name through `m.*()`,
+  // which must keep resolving fresh every render (a stale locale/account switch is otherwise
+  // possible — see validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached
+  // each render.
+  const filteredResources = useMemo(
+    () =>
+      resources
+        .filter((r) => !isExternalResource(r))
+        .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId),
+    [resources, placeholdersEnabled, resourceId],
+  );
+  const resourceOptions: Option[] = filteredResources.map((r) => ({ value: r.id, label: resourceDisplayName(r) }));
 
   const submit = () => {
     // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
@@ -85,8 +96,7 @@ export function TimeOffForm({
     const patch = canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
     try {
       if (timeOff) {
-        const current = useStore.getState().data.timeOff.find((candidate) => candidate.id === timeOff.id);
-        if (!current || current.updatedAt !== timeOff.updatedAt) {
+        if (isStaleEdit(useStore.getState().data.timeOff, timeOff.id, timeOff.updatedAt)) {
           fail(null, m.form_timeoff_err_changed());
           return;
         }

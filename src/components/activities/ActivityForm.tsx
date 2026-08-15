@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateName } from "../../lib/validation";
+import { isStaleEdit } from "../../lib/staleEdit";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -43,25 +44,38 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   const [phaseId, setPhaseId] = useState(activity?.phaseId ?? "");
   const { error, errorField, errorId, fail } = useFieldError();
 
-  const projectOptions: Option[] = projects.map((p) => {
-    const client = clients.find((c) => c.id === p.clientId);
-    return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name };
-  });
+  // The projects×clients join is the only non-trivial cost here (O(n·m) — a `.find` per project);
+  // memoised on its actual inputs so it isn't redone on every keystroke elsewhere in the form. The
+  // archived-option append below stays OUTSIDE the memo: its label goes through `m.*()`, which must
+  // keep resolving fresh every render (a stale locale/account switch is otherwise possible — see
+  // validation.ts's "getter, not module-scope const" note), so it's rebuilt un-cached each render.
+  const baseProjectOptions: Option[] = useMemo(
+    () =>
+      projects.map((p) => {
+        const client = clients.find((c) => c.id === p.clientId);
+        return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name };
+      }),
+    [projects, clients],
+  );
   // Editing a project-kind activity whose project is ARCHIVED: the active-only options above don't
   // contain it, so without this the select would silently blank and an unrelated edit (rename)
   // couldn't round-trip the unchanged projectId. Append the current id as a DISABLED option — it
   // stays selected/submittable as the current value (the store's unchanged-parent relaxation
   // accepts it), but can't be picked back once the user chooses an active project.
+  let projectOptions: Option[] = baseProjectOptions;
   if (activity?.projectId && !projects.some((p) => p.id === activity.projectId)) {
     const rawProject = raw.projects.find((p) => p.id === activity.projectId);
     const rawClient = rawProject && raw.clients.find((c) => c.id === rawProject.clientId);
-    projectOptions.push({
-      value: activity.projectId,
-      label: rawProject
-        ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
-        : m.form_option_current_archived(),
-      disabled: true,
-    });
+    projectOptions = [
+      ...baseProjectOptions,
+      {
+        value: activity.projectId,
+        label: rawProject
+          ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
+          : m.form_option_current_archived(),
+        disabled: true,
+      },
+    ];
   }
 
   const onKindChange = (next: ActivityKind) => {
@@ -99,8 +113,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     // store CRUD contract.
     try {
       if (activity) {
-        const current = useStore.getState().data.activities.find((candidate) => candidate.id === activity.id);
-        if (!current || current.updatedAt !== activity.updatedAt) {
+        if (isStaleEdit(useStore.getState().data.activities, activity.id, activity.updatedAt)) {
           fail(null, m.form_activity_err_changed());
           return;
         }

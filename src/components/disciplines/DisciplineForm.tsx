@@ -4,6 +4,7 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
+import { isStaleEdit } from "../../lib/staleEdit";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -34,8 +35,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
     // store CRUD contract.
     try {
       if (discipline) {
-        const current = useStore.getState().data.disciplines.find((candidate) => candidate.id === discipline.id);
-        if (!current || current.updatedAt !== discipline.updatedAt) {
+        if (isStaleEdit(useStore.getState().data.disciplines, discipline.id, discipline.updatedAt)) {
           fail(null, m.form_discipline_err_changed());
           return;
         }

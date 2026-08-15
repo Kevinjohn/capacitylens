@@ -27,7 +27,7 @@ function projectArchiveMessage(data: AppData, project: Project): string {
 
 export function ProjectList() {
   const data = useActiveScopedData();
-  const projects = [...data.projects].sort(byName);
+  const projects = useMemo(() => [...data.projects].sort(byName), [data.projects]);
   const clients = data.clients;
   const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
   const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId));

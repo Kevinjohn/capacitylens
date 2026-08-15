@@ -3,6 +3,7 @@ import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
 import { validateHex, validateName } from "../../lib/validation";
+import { isStaleEdit } from "../../lib/staleEdit";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { PrivateNameFields } from "../common/PrivateNameFields";
@@ -32,8 +33,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
     // failure modes, and a caught-and-shown message is the standard.
     try {
       if (client) {
-        const current = useStore.getState().data.clients.find((candidate) => candidate.id === client.id);
-        if (!current || current.updatedAt !== client.updatedAt) {
+        if (isStaleEdit(useStore.getState().data.clients, client.id, client.updatedAt)) {
           fail(null, m.form_client_err_changed());
           return;
         }
