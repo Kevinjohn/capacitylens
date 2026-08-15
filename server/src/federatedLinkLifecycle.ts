@@ -1,7 +1,42 @@
 import { randomBytes } from "node:crypto";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { Db } from "./db";
 import { enqueueAudit } from "./auditOutbox";
 import { tx } from "./txn";
+
+/**
+ * Shared AccountAuditEvent builder for the cutover-adjacent audit writes: federated-link
+ * reconciliation here, plus the four SSO-cutover repair writes in cutoverRepair.ts. Every field but
+ * `id`, `occurredAt`, and the six named overrides is identical across all five call sites —
+ * `commandId` is always null and `outcome` is always "success". Field ORDER matches every existing
+ * literal exactly: enqueueAudit persists `JSON.stringify(record)`, so key order is part of the
+ * durable payload, not just cosmetic.
+ */
+export function cutoverAuditEvent(
+  id: string,
+  occurredAt: AccountAuditEvent["occurredAt"],
+  overrides: {
+    applicationId: string;
+    workspaceId: string | null;
+    actorPrincipalId: string | null;
+    targetPrincipalId: string | null;
+    action: AccountAuditEvent["action"];
+    changedFields: AccountAuditEvent["changedFields"];
+  },
+): AccountAuditEvent {
+  return {
+    id,
+    occurredAt,
+    applicationId: overrides.applicationId,
+    workspaceId: overrides.workspaceId,
+    actorPrincipalId: overrides.actorPrincipalId,
+    targetPrincipalId: overrides.targetPrincipalId,
+    commandId: null,
+    action: overrides.action,
+    outcome: "success",
+    changedFields: overrides.changedFields,
+  };
+}
 
 /** Persist one bounded link ceremony, superseding an abandoned attempt for the same identity. */
 export function createFederatedLinkCeremony(
@@ -87,18 +122,14 @@ export function reconcileObservedFederatedLinks(
         const auditId = `identity-link:${observation.accountRowId}`;
         enqueueAudit(
           db,
-          {
-            id: auditId,
-            occurredAt: observation.verifiedAt,
+          cutoverAuditEvent(auditId, observation.verifiedAt, {
             applicationId,
             workspaceId: null,
             actorPrincipalId: observation.principalId,
             targetPrincipalId: observation.principalId,
-            commandId: null,
             action: "identity.federated_linked",
-            outcome: "success",
             changedFields: ["federatedIdentity"],
-          },
+          }),
           auditId,
         );
         db.prepare(

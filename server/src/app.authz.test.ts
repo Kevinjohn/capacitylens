@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { constants as sqliteConstants } from "node:sqlite";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { buildApp } from "./app";
 import { openDb, insertAll, getRow, type Db } from "./db";
@@ -353,13 +352,26 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     const { cookie, userId } = await signUp(app, "batch-role-cache@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
+    // controlTables.ts now caches the prepared active-membership-role Statement per Db handle (see
+    // `cachedStatement`), so `db.prepare()` for its SQL runs at most once per handle regardless of
+    // how many times the role is actually looked up. SQLite's authorizer callback fires at PREPARE
+    // time, not at execution time, so counting it (as this test used to) would now undercount —
+    // it'd see one prepare no matter how many logical reads happen. Wrap `db.prepare` instead: when
+    // the active-membership-role SQL is (once) prepared, instrument the returned Statement's `.get`
+    // so every actual execution against it — cached statement or not — still increments the count.
     let membershipRoleReads = 0;
-    db.setAuthorizer((actionCode, tableName, columnName) => {
-      if (actionCode === sqliteConstants.SQLITE_READ && tableName === "account_members" && columnName === "role") {
-        membershipRoleReads += 1;
+    const originalPrepare = db.prepare.bind(db);
+    db.prepare = ((sql: string) => {
+      const stmt = originalPrepare(sql);
+      if (/FROM account_members/i.test(sql) && /status = 'active'/i.test(sql)) {
+        const originalGet = stmt.get.bind(stmt);
+        stmt.get = ((...args: Parameters<typeof stmt.get>) => {
+          membershipRoleReads += 1;
+          return originalGet(...args);
+        }) as typeof stmt.get;
       }
-      return sqliteConstants.SQLITE_OK;
-    });
+      return stmt;
+    }) as typeof db.prepare;
 
     try {
       const res = await call(app, {
@@ -384,7 +396,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
       expect(res.statusCode).toBe(200);
     } finally {
-      db.setAuthorizer(null);
+      db.prepare = originalPrepare;
     }
 
     // The two reads are deliberately independent: one before lock acquisition and one after it.

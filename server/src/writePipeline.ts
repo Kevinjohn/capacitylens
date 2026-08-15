@@ -1,4 +1,4 @@
-import { emptyAppData, type AppData, type Client } from "@capacitylens/shared/types/entities";
+import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { type Db, deleteRow, getRow, upsertRow } from "./db";
 import { acceptedWriteFields, sanitizeWrite, validateWrite } from "./validate";
 import type { SanitizeWriteOptions } from "./fieldPolicy";
@@ -168,17 +168,12 @@ export function prepareScopedWrite(params: {
 // ── Pure write-path helpers (moved verbatim from app.ts so the funnel and its call sites share one
 //    definition; app.ts re-imports them). ──────────────────────────────────────────────────────
 
-/** Produce a server-side revision strictly newer than the stored row when possible. */
-export function nextRevision(updatedAt: unknown): string {
-  return nextServerRevision(updatedAt);
-}
-
 /** The server owns persistence timestamps; request timestamps are only precondition versions. */
 export function stampServerRevision(
   row: Record<string, unknown>,
   existing?: Record<string, unknown>,
 ): Record<string, unknown> {
-  const now = nextRevision(existing?.updatedAt);
+  const now = nextServerRevision(existing?.updatedAt);
   return {
     ...row,
     createdAt: typeof existing?.createdAt === "string" ? existing.createdAt : now,
@@ -239,26 +234,8 @@ export function replaceGeneratedBuiltin(
     upsertRow(db, "projects", {
       ...project,
       createdAt: existing.createdAt,
-      updatedAt: nextRevision(existing.updatedAt),
+      updatedAt: nextServerRevision(existing.updatedAt),
     } as unknown as Record<string, unknown>);
   }
   deleteRow(db, "clients", generatedId);
-}
-
-/** Mirror of replaceGeneratedBuiltin's DB effect onto an in-memory AppData projection (batch loop):
- *  swap the old auto-generated builtin client for `row`, re-pointing every project that referenced
- *  it. Field-exact parity (e.g. bumped `updatedAt`) isn't needed here — this state only feeds
- *  validateWrite's existence/FK checks for later ops in the same batch. */
-export function applyGeneratedBuiltinReplacement(
-  state: AppData,
-  generatedId: string,
-  row: Record<string, unknown>,
-): AppData {
-  return {
-    ...state,
-    clients: state.clients.filter((client) => client.id !== generatedId).concat(row as unknown as Client),
-    projects: state.projects.map((project) =>
-      project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
-    ),
-  };
 }

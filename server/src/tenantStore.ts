@@ -20,6 +20,8 @@ import {
   upsertRow,
 } from "./db";
 import { nextServerRevision } from "./revision";
+import { fromRow, type Row } from "./rowCodec";
+import { TABLES } from "./tables";
 
 export type LifecycleRow = Resource | Client | Project;
 
@@ -52,16 +54,22 @@ export interface PurgeLifecycleResult {
   removedCounts: Partial<Record<ScopedEntityKey, number>>;
 }
 
+// One UNION ALL query in place of one SELECT COUNT(*) per SCOPED_KEYS table: same predicate per
+// branch, same admin-only before/after-purge counts, same Record<ScopedEntityKey, number> shape.
+const SCOPED_ROW_COUNTS_SQL = SCOPED_KEYS.map(
+  (table) => `SELECT '${table}' AS tableName, COUNT(*) AS count FROM ${table} WHERE accountId = ?`,
+).join("\n  UNION ALL\n  ");
+
 function scopedRowCounts(db: Db, accountId: string): Record<ScopedEntityKey, number> {
-  return Object.fromEntries(
-    SCOPED_KEYS.map((table) => [
-      table,
-      Number(
-        (db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE accountId = ?`).get(accountId) as { count: number })
-          .count,
-      ),
-    ]),
-  ) as Record<ScopedEntityKey, number>;
+  const rows = db.prepare(SCOPED_ROW_COUNTS_SQL).all(...SCOPED_KEYS.map(() => accountId)) as Array<{
+    tableName: ScopedEntityKey;
+    count: number;
+  }>;
+  const counts = Object.fromEntries(rows.map(({ tableName, count }) => [tableName, Number(count)])) as Record<
+    ScopedEntityKey,
+    number
+  >;
+  return counts;
 }
 
 function purgeLifecycleRow(
@@ -191,15 +199,14 @@ export interface TenantStore {
  * @returns A {@link TenantStore} bound to `db`.
  */
 export function sqliteTenantStore(db: Db): TenantStore {
+  // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
+  // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
+  // returns rows in the same order the old id-loop preserved — verified empirically, since neither
+  // form carries an ORDER BY of its own.
   const relatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
-    (
-      db.prepare(`SELECT id FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Array<{
-        id: string;
-      }>
-    ).flatMap(({ id: allocationId }) => {
-      const row = getRow(db, "allocations", allocationId);
-      return row ? [row as unknown as Allocation] : [];
-    });
+    (db.prepare(`SELECT * FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Row[]).map(
+      (row) => fromRow(TABLES.allocations, row) as unknown as Allocation,
+    );
   const validationLookup: ValidationDataLookup = {
     row: (table: AppDataKey, id: string) =>
       getRow(db, table, id) as (Record<string, unknown> & { id: string }) | undefined,

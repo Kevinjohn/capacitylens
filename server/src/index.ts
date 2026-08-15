@@ -142,6 +142,30 @@ function refuseToStart(reason: string): never {
   process.exit(1);
 }
 
+// The small "resolve this boot option or refuse" guard repeated across several independent
+// options below (each just parses/validates one env-derived value with no extra cleanup on
+// failure). Larger boot phases that must also close the database or dispose signal handlers on
+// failure keep their own explicit try/catch instead of this helper.
+function tryOrRefuse<T>(fn: () => T): T {
+  try {
+    return fn();
+  } catch (error) {
+    refuseToStart(error instanceof Error ? error.message : String(error));
+  }
+}
+
+// Best-effort close on a startup-refusal path: the original failure is what's reported to the
+// operator (via refuseToStart), so a close failure here is a SECOND, surfaced-not-swallowed
+// problem, never the one that wins the message. `candidate` may be unassigned (a failure before
+// openDbConnection ran), hence the optional call.
+function closeDbSafely(candidate: Db | undefined): void {
+  try {
+    candidate?.close();
+  } catch (closeError) {
+    console.error("capacitylens-server: database close also failed during startup refusal", closeError);
+  }
+}
+
 // Fail-closed PORT parse (mirrors parseRateLimit): a typo like PORT=abc or an out-of-range value
 // must not silently fall through to a confusing app.listen error — reject it up front with a clear
 // message. Unset → the 8787 default.
@@ -172,15 +196,9 @@ if (resetForbidden(process.env)) {
   process.exit(1);
 }
 
-let accountEnv: Record<string, string | undefined>;
-let accountProfile: ReturnType<typeof resolveAccountEnvironment>["profile"] = null;
-try {
-  const resolved = resolveAccountEnvironment(process.env);
-  accountEnv = resolved.env;
-  accountProfile = resolved.profile;
-} catch (error) {
-  refuseToStart(error instanceof Error ? error.message : String(error));
-}
+const accountResolution = tryOrRefuse(() => resolveAccountEnvironment(process.env));
+const accountEnv: Record<string, string | undefined> = accountResolution.env;
+const accountProfile: ReturnType<typeof resolveAccountEnvironment>["profile"] = accountResolution.profile;
 
 const dbPath = process.env.CAPACITYLENS_DB ?? "capacitylens.db";
 const port = parsePort(process.env.PORT);
@@ -200,12 +218,7 @@ const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
 const requireMfa = accountEnv.CAPACITYLENS_REQUIRE_MFA === "1";
-let internalTls: ReturnType<typeof loadInternalTls>;
-try {
-  internalTls = loadInternalTls(process.env);
-} catch (error) {
-  refuseToStart(error instanceof Error ? error.message : String(error));
-}
+const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() => loadInternalTls(process.env));
 // P1.8 constrained org-creation. An empty/unset value leaves the token path DISABLED (the app
 // treats undefined and '' identically — bootstrapTokenMatches never allows an empty secret), so
 // the secure default holds: POST /api/orgs is first-run-only or an existing Owner/Admin.
@@ -222,23 +235,15 @@ const bootstrapAdmin =
 const trustProxyHeaders = trustProxyHeadersFrom(process.env, host);
 const proxyTrustWarning = legacyProxyTrustWarning(process.env);
 if (proxyTrustWarning) console.warn(`capacitylens-server: configuration warning — ${proxyTrustWarning}`);
-let backupConfig: ReturnType<typeof parseBackupConfig>;
-try {
-  backupConfig = parseBackupConfig(process.env, (message) => console.warn(message));
-} catch (error) {
-  refuseToStart(error instanceof Error ? error.message : String(error));
-}
+const backupConfig: ReturnType<typeof parseBackupConfig> = tryOrRefuse(() =>
+  parseBackupConfig(process.env, (message) => console.warn(message)),
+);
 
 // Validate every pure production posture rule before opening the database. A deployment typo must
 // not advance the schema and then fail for a reason that was knowable without touching storage.
-let posture: ReturnType<typeof evaluateProductionPosture>;
-try {
-  posture = evaluateProductionPosture(
-    bootstrapAdmin ? { ...accountEnv, CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" } : accountEnv,
-  );
-} catch (error) {
-  refuseToStart(error instanceof Error ? error.message : String(error));
-}
+const posture: ReturnType<typeof evaluateProductionPosture> = tryOrRefuse(() =>
+  evaluateProductionPosture(bootstrapAdmin ? { ...accountEnv, CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" } : accountEnv),
+);
 for (const w of posture.warnings) {
   console.warn(`capacitylens-server: production posture warning — ${w}`);
 }
@@ -315,11 +320,7 @@ try {
   }
   stopStartupIfRequested(db);
 } catch (e) {
-  try {
-    db?.close();
-  } catch (closeError) {
-    console.error("capacitylens-server: database close also failed during startup refusal", closeError);
-  }
+  closeDbSafely(db);
   refuseToStart(e instanceof Error ? e.message : String(e));
 }
 
@@ -340,6 +341,10 @@ try {
 // deletes all their data leaves an empty-but-initialised DB and must NOT get the demo dataset
 // re-seeded on the next restart (matches /api/meta's isInitialized() check) — that rule is
 // unchanged; this only adds a flag gate in FRONT of it.
+// Captured once below and reused by the SETUP LOCKED check further down: nothing between the two
+// reads mutates the `user` table (bootstrapAdmin/seed both run BEFORE this first read), so a second
+// query would only re-observe the same count.
+let userCount!: number;
 try {
   if (auth) {
     await runAuthMigrations(auth);
@@ -384,9 +389,10 @@ try {
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth);
   if (process.env.CAPACITYLENS_SEED_DEMO === "1") seedIfUninitialized(db, seedForCurrentWeek());
   stopStartupIfRequested(db);
+  userCount = countUsers(db);
   if (
     authMode === "password" &&
-    countUsers(db) === 0 &&
+    userCount === 0 &&
     accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP !== "1" &&
     !accountEnv.CAPACITYLENS_SETUP_TOKEN
   ) {
@@ -413,9 +419,10 @@ const securityLog = (event: Record<string, unknown>) => {
 const { app, backups } = (() => {
   let startingBackups = false;
   try {
-    // SETUP LOCKED notice: countUsers is read after the bootstrap block, so a boot that created the
-    // explicit admin credential skips this. The boot interlock above guarantees the token exists here.
-    if (authMode === "password" && countUsers(db) === 0) {
+    // SETUP LOCKED notice: userCount was captured after the bootstrap block, so a boot that created
+    // the explicit admin credential skips this. The boot interlock above guarantees the token exists
+    // here.
+    if (authMode === "password" && userCount === 0) {
       console.warn(
         "capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the " +
           "configured SMALLSASS_ACCOUNT_SETUP_TOKEN.",
@@ -480,11 +487,7 @@ const { app, backups } = (() => {
     }
     return { app, backups: backupController };
   } catch (error) {
-    try {
-      db.close();
-    } catch (closeError) {
-      console.error("capacitylens-server: database close also failed during startup refusal", closeError);
-    }
+    closeDbSafely(db);
     startupSignals.dispose();
     refuseToStart(
       startingBackups && backupConfig

@@ -78,6 +78,9 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   upsert(table: AppDataKey, row: Record<string, unknown>): void {
+    // Defensive re-check: every caller already passed through sanitizeWrite's assertIdPresent
+    // (validate.ts), the universal write-path guard, so row.id should already be a string here.
+    // Kept as a second gate rather than trusted, per the caller-can't-bypass-safety rule.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
     const next = row as ProjectionRow;
     const rows = rowsFor(this.data, table);
@@ -113,11 +116,10 @@ export class BatchStateProjection implements ValidationDataLookup {
 
   /** Mirror replaceGeneratedBuiltin's reparent-before-delete database sequence. */
   replaceGeneratedBuiltin(generatedId: string, row: Record<string, unknown>): void {
+    // Defensive re-check: see the matching comment in upsert() — sanitizeWrite's assertIdPresent
+    // already guarantees this upstream of every caller.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
-    const projectRelationship = this.relationshipIndexes.find(
-      ({ relationship }) =>
-        relationship.parent === "clients" && relationship.child === "projects" && relationship.field === "clientId",
-    );
+    const projectRelationship = this.findRelationshipIndex("clients", "projects", "clientId");
     const projectIds = [...(projectRelationship?.childrenByParent.get(generatedId) ?? [])];
     for (const projectId of projectIds) {
       const project = this.row("projects", projectId);
@@ -155,15 +157,20 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   private relatedRows(parent: AppDataKey, child: AppDataKey, field: string, parentId: string): ProjectionRow[] {
-    const relationship = this.relationshipIndexes.find(
-      ({ relationship }) =>
-        relationship.parent === parent && relationship.child === child && relationship.field === field,
-    );
+    const relationship = this.findRelationshipIndex(parent, child, field);
     if (!relationship) return [];
     return [...(relationship.childrenByParent.get(parentId) ?? [])].flatMap((id) => {
       const row = this.row(child, id);
       return row ? [row] : [];
     });
+  }
+
+  /** Shared by relatedRows and replaceGeneratedBuiltin's reparent lookup. */
+  private findRelationshipIndex(parent: AppDataKey, child: AppDataKey, field: string): RelationshipIndex | undefined {
+    return this.relationshipIndexes.find(
+      ({ relationship }) =>
+        relationship.parent === parent && relationship.child === child && relationship.field === field,
+    );
   }
 
   private clearReference(table: AppDataKey, id: string, field: string): void {

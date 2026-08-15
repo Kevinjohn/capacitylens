@@ -75,6 +75,16 @@ function object(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/** True for hostnames that identify the local loopback interface without a DNS lookup —
+ *  localhost, its subdomains, and the IPv4/IPv6 loopback literals as `URL#hostname` renders them
+ *  (bracketed for IPv6). Used to permit unencrypted HTTP only for same-machine development
+ *  traffic. */
+export function isLoopbackHostname(hostname: string): boolean {
+  return (
+    hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1" || hostname === "[::1]"
+  );
+}
+
 function requiredUrl(value: unknown, field: string): URL {
   if (typeof value !== "string") throw new StrictOidcConfigError(`OIDC discovery is missing ${field}.`);
   let url: URL;
@@ -83,11 +93,7 @@ function requiredUrl(value: unknown, field: string): URL {
   } catch (cause) {
     throw new StrictOidcConfigError(`OIDC discovery returned an invalid ${field}.`, { cause });
   }
-  const loopback =
-    url.hostname === "localhost" ||
-    url.hostname.endsWith(".localhost") ||
-    url.hostname === "127.0.0.1" ||
-    url.hostname === "[::1]";
+  const loopback = isLoopbackHostname(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
     throw new StrictOidcConfigError(`OIDC discovery ${field} must use HTTPS outside loopback development.`);
   }

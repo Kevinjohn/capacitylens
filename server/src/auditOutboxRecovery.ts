@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { closeSync, fsyncSync, openSync, writeSync } from "node:fs";
+import { closeSync, fsyncSync, openSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Db } from "./db";
 import { isAuditEntry } from "./auditOutbox";
@@ -80,15 +80,6 @@ export function quarantineMalformedAuditOutboxHead(
   );
 }
 
-function writeAll(fd: number, bytes: Buffer): void {
-  let offset = 0;
-  while (offset < bytes.length) {
-    const written = writeSync(fd, bytes, offset, bytes.length - offset);
-    if (written <= 0) throw new Error("Could not write the complete audit outbox evidence file.");
-    offset += written;
-  }
-}
-
 /** Create a mode-0600, fsynced evidence envelope without replacing an existing file. */
 export function writeAuditOutboxEvidence(evidencePath: string, inspection: Readonly<AuditOutboxHeadInspection>): void {
   const envelope = `${JSON.stringify(
@@ -109,7 +100,7 @@ export function writeAuditOutboxEvidence(evidencePath: string, inspection: Reado
   )}\n`;
   const fd = openSync(evidencePath, "wx", 0o600);
   try {
-    writeAll(fd, Buffer.from(envelope, "utf8"));
+    writeFileSync(fd, envelope, { encoding: "utf8" });
     fsyncSync(fd);
   } finally {
     closeSync(fd);

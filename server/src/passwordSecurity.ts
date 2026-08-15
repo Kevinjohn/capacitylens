@@ -15,7 +15,7 @@ export const MAX_CONCURRENT_HIBP = 8;
 export const MAX_QUEUED_HIBP = 32;
 export const MAX_CONCURRENT_SCRYPT = 2;
 export const MAX_QUEUED_SCRYPT = 16;
-export const MAX_PASSWORD_QUEUE_WAIT_MS = 5_000;
+const MAX_PASSWORD_QUEUE_WAIT_MS = 5_000;
 const hibpQueue = new BoundedWorkQueue(
   MAX_CONCURRENT_HIBP,
   MAX_QUEUED_HIBP,

@@ -9,15 +9,22 @@ import {
   INTERNAL_CLIENT_NAME,
 } from "@capacitylens/shared/data/internalClient";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
-import { redactPrivateNames } from "@capacitylens/shared/domain/privateNames";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
 // keep resolving it from this module; the single definition lives in shared/types.
 export { isEmpty };
-import { TABLES, SCHEMA_V8_SQL, CREATE_ORDER, SCOPED_ORDER, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from "./tables";
+import {
+  TABLES,
+  SCHEMA_V8_SQL,
+  CREATE_ORDER,
+  SCOPED_ORDER,
+  INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
+  type TableSpec,
+} from "./tables";
 import { tx } from "./txn";
 import { toRow, fromRow, type Row } from "./rowCodec";
+import { redactGatedEcho, tableHasGatedFields, type SanitizeWriteOptions } from "./fieldPolicy";
 import {
   assertSchemaCurrent,
   assertSchemaV16,
@@ -254,6 +261,10 @@ export const V13_DEFINITION = [
   `fallback:${V13_FALLBACK_PRESET_COLOR}`,
 ].join("\n");
 
+/** V22 predicate for "a built-in Internal client that is currently archived or soft-deleted" —
+ * verbatim, so the repair's row scan and the post-repair assertion can never drift apart. */
+const V22_INACTIVE_BUILTIN_CLIENT_WHERE_SQL = `builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)`;
+
 const V22_DEFINITION = [
   "repair:reactivate-built-in-internal-clients:v1",
   "scope:clients WHERE builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)",
@@ -271,6 +282,14 @@ function assertKnownTable(table: string): void {
   if (!Object.hasOwn(TABLES, table)) {
     throw new Error(`Unknown table "${table}" — not a known entity table (SQL-identifier safety guard).`);
   }
+}
+
+/** assertKnownTable + TABLES-lookup prelude shared by every primitive that needs the table's spec
+ *  (insertRowRaw / upsertRow / getRow). deleteRow doesn't need the spec, so it keeps calling
+ *  assertKnownTable directly instead of discarding this return value. */
+function resolveTable(table: string): TableSpec {
+  assertKnownTable(table);
+  return TABLES[table];
 }
 
 /** Open/configure the SQLite handle without creating or migrating application tables. Production
@@ -454,12 +473,9 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       // Some pre-ledger development databases were manually version-stamped after receiving the
       // current optional-column repair. Keep the explicit migration idempotent for that shape while
       // real released v8 databases take the ALTER path.
-      const exists = (
-        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
-          name: string;
-        }>
-      ).some((column) => column.name === "internalColourMode");
-      if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;");
+      if (!tableHasColumns(db, "accounts", ["internalColourMode"])) {
+        db.exec("ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;");
+      }
       assertSchemaV9(db);
     },
   ),
@@ -529,15 +545,8 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       // pre-ledger dev database may already carry a subset from the generic optional-column repair,
       // so add only the columns that are actually missing. Absent columns read back as undefined and
       // default to true (shown/enabled) on the client.
-      const existing = new Set(
-        (
-          db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
-            name: string;
-          }>
-        ).map((column) => column.name),
-      );
       for (const column of ["showInternalProjects", "showInternalActivities", "inlineActivityCreateEnabled"]) {
-        if (!existing.has(column)) db.exec(`ALTER TABLE accounts ADD COLUMN ${column} TEXT;`);
+        if (!tableHasColumns(db, "accounts", [column])) db.exec(`ALTER TABLE accounts ADD COLUMN ${column} TEXT;`);
       }
       assertSchemaV16(db);
     },
@@ -599,12 +608,9 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "ALTER TABLE resources ADD COLUMN isFavourite TEXT;",
     ].join("\n"),
     (db) => {
-      const exists = (
-        db.prepare(`PRAGMA table_info(resources)`).all() as Array<{
-          name: string;
-        }>
-      ).some((column) => column.name === "isFavourite");
-      if (!exists) db.exec("ALTER TABLE resources ADD COLUMN isFavourite TEXT;");
+      if (!tableHasColumns(db, "resources", ["isFavourite"])) {
+        db.exec("ALTER TABLE resources ADD COLUMN isFavourite TEXT;");
+      }
       assertSchemaV27(db);
     },
   ),
@@ -616,12 +622,9 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "ALTER TABLE resources ADD COLUMN halfDays TEXT NOT NULL DEFAULT '[]';",
     ].join("\n"),
     (db) => {
-      const exists = (
-        db.prepare(`PRAGMA table_info(resources)`).all() as Array<{
-          name: string;
-        }>
-      ).some((column) => column.name === "halfDays");
-      if (!exists) db.exec("ALTER TABLE resources ADD COLUMN halfDays TEXT NOT NULL DEFAULT '[]';");
+      if (!tableHasColumns(db, "resources", ["halfDays"])) {
+        db.exec("ALTER TABLE resources ADD COLUMN halfDays TEXT NOT NULL DEFAULT '[]';");
+      }
       assertSchemaV28(db);
     },
   ),
@@ -633,12 +636,9 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "ALTER TABLE resources ADD COLUMN engagement TEXT NOT NULL DEFAULT 'studio';",
     ].join("\n"),
     (db) => {
-      const exists = (
-        db.prepare(`PRAGMA table_info(resources)`).all() as Array<{
-          name: string;
-        }>
-      ).some((column) => column.name === "engagement");
-      if (!exists) db.exec("ALTER TABLE resources ADD COLUMN engagement TEXT NOT NULL DEFAULT 'studio';");
+      if (!tableHasColumns(db, "resources", ["engagement"])) {
+        db.exec("ALTER TABLE resources ADD COLUMN engagement TEXT NOT NULL DEFAULT 'studio';");
+      }
       assertSchemaV29(db);
     },
   ),
@@ -650,12 +650,9 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;",
     ].join("\n"),
     (db) => {
-      const exists = (
-        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
-          name: string;
-        }>
-      ).some((column) => column.name === "groupResourcesByEngagement");
-      if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;");
+      if (!tableHasColumns(db, "accounts", ["groupResourcesByEngagement"])) {
+        db.exec("ALTER TABLE accounts ADD COLUMN groupResourcesByEngagement TEXT;");
+      }
       assertSchemaV30(db);
     },
   ),
@@ -668,12 +665,9 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "backfill:weekStartsOn='0' => [0,1,2,3,4]; otherwise [1,2,3,4,5]",
     ].join("\n"),
     (db) => {
-      const exists = (
-        db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{
-          name: string;
-        }>
-      ).some((column) => column.name === "workingDays");
-      if (!exists) db.exec("ALTER TABLE accounts ADD COLUMN workingDays TEXT;");
+      if (!tableHasColumns(db, "accounts", ["workingDays"])) {
+        db.exec("ALTER TABLE accounts ADD COLUMN workingDays TEXT;");
+      }
       db.exec(`
         UPDATE accounts
            SET workingDays = CASE
@@ -692,12 +686,9 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "\n",
     ),
     (db) => {
-      const exists = (
-        db.prepare(`PRAGMA table_info(allocations)`).all() as Array<{
-          name: string;
-        }>
-      ).some((column) => column.name === "seriesId");
-      if (!exists) db.exec("ALTER TABLE allocations ADD COLUMN seriesId TEXT;");
+      if (!tableHasColumns(db, "allocations", ["seriesId"])) {
+        db.exec("ALTER TABLE allocations ADD COLUMN seriesId TEXT;");
+      }
       assertSchemaCurrent(db);
     },
   ),
@@ -916,6 +907,13 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
       throw new Error(`Could not restrict SQLite file permissions at "${path}".`, { cause });
     }
   }
+  // initializeOpenDb is the only schema-change boundary (migrations + ALTERs happen only here).
+  // node:sqlite Statement objects freeze their column set at prepare time, so any statement cached
+  // while migrations were still running (e.g. migration 8's loadState call, prepared while the
+  // schema was still at v8) must be discarded here — otherwise it keeps returning its stale,
+  // pre-ALTER column list forever. Dropping the handle's cache before returning guarantees every
+  // statement callers see cached afterward is prepared against the final, fully-migrated schema.
+  statementCaches.delete(db);
   return plan;
 }
 
@@ -987,7 +985,7 @@ function reactivateBuiltinInternalClientsV22(db: Db): void {
   const rows = db
     .prepare(
       `SELECT id, updatedAt FROM clients
-     WHERE builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)
+     WHERE ${V22_INACTIVE_BUILTIN_CLIENT_WHERE_SQL}
      ORDER BY id`,
     )
     .all() as Array<{ id: string; updatedAt: string }>;
@@ -1010,7 +1008,7 @@ function assertBuiltinInternalClientsActiveV22(db: Db): void {
   const inactive = db
     .prepare(
       `SELECT id FROM clients
-     WHERE builtin = 'true' AND (archivedAt IS NOT NULL OR deletedAt IS NOT NULL)
+     WHERE ${V22_INACTIVE_BUILTIN_CLIENT_WHERE_SQL}
      LIMIT 1`,
     )
     .get() as { id: string } | undefined;
@@ -1083,18 +1081,80 @@ function snapLegacyAccountColors(db: Db): void {
   }
 }
 
+/**
+ * Per-Db statement caches for the CRUD/read primitives below. Mirrors the WeakMap<Db,...> idiom
+ * already used for per-handle state (auth.ts's verificationTablePresence/userTablePresence,
+ * txn.ts's activeTransactionModes): a node:sqlite Statement is tied to the Db handle that prepared
+ * it, so the cache key is the handle itself and an entry is collected with its handle — tests that
+ * open many short-lived in-memory Dbs don't leak. Every cached SQL string is derived ONLY from a
+ * table's immutable TABLES spec (never live PRAGMA state), so compiling it once per (Db, table) and
+ * reusing the prepared Statement across calls is behavior-preserving. Schema shape only ever
+ * changes inside initializeOpenDb (migrations + their ALTERs), and that function drops the
+ * handle's entire cache before it returns — a node:sqlite Statement freezes its column set at
+ * prepare time, so nothing here is ever cached against a not-yet-final schema.
+ */
+type PreparedStatement = ReturnType<Db["prepare"]>;
+
+interface StatementCache {
+  readonly insertRow: Map<string, PreparedStatement>;
+  readonly upsertRow: Map<string, PreparedStatement>;
+  readonly getRow: Map<string, PreparedStatement>;
+  readonly deleteRow: Map<string, PreparedStatement>;
+  readonly loadStateSelectAll: Map<string, PreparedStatement>;
+  readonly scopedSelect: Map<string, PreparedStatement>;
+  accountByIdSelect?: PreparedStatement;
+  markInitialized?: PreparedStatement;
+  accountSummariesSelect?: PreparedStatement;
+}
+
+const statementCaches = new WeakMap<Db, StatementCache>();
+
+function statementCache(db: Db): StatementCache {
+  let cache = statementCaches.get(db);
+  if (!cache) {
+    cache = {
+      insertRow: new Map(),
+      upsertRow: new Map(),
+      getRow: new Map(),
+      deleteRow: new Map(),
+      loadStateSelectAll: new Map(),
+      scopedSelect: new Map(),
+    };
+    statementCaches.set(db, cache);
+  }
+  return cache;
+}
+
+/** Lazily prepare and cache one per-table Statement, keyed by table name within `cache`. */
+function cachedTableStatement(
+  cache: Map<string, PreparedStatement>,
+  table: string,
+  db: Db,
+  sql: string,
+): PreparedStatement {
+  let stmt = cache.get(table);
+  if (!stmt) {
+    stmt = db.prepare(sql);
+    cache.set(table, stmt);
+  }
+  return stmt;
+}
+
 const placeholders = (n: number) => Array.from({ length: n }, () => "?").join(", ");
 
 // Insert one row WITHOUT touching the init marker — the primitive the bulk paths
 // (insertAll / replaceAccountSlice) loop over so they can mark ONCE at the end instead of
 // re-running an `INSERT OR IGNORE INTO _meta` per row.
 function insertRowRaw(db: Db, table: string, obj: Row): void {
-  assertKnownTable(table);
-  const spec = TABLES[table];
+  const spec = resolveTable(table);
   const cols = spec.columns.map((c) => c.name);
-  db.prepare(`INSERT INTO ${table} (${cols.join(", ")}) VALUES (${placeholders(cols.length)})`).run(
-    ...toRow(spec, obj),
+  const stmt = cachedTableStatement(
+    statementCache(db).insertRow,
+    table,
+    db,
+    `INSERT INTO ${table} (${cols.join(", ")}) VALUES (${placeholders(cols.length)})`,
   );
+  stmt.run(...toRow(spec, obj));
 }
 
 export function insertRow(db: Db, table: string, obj: Row): void {
@@ -1111,8 +1171,7 @@ export function insertRow(db: Db, table: string, obj: Row): void {
  *  create/update, so replaying a batch after a partial failure can't double-insert
  *  (a re-PUT of an already-written row just overwrites it). */
 export function upsertRow(db: Db, table: string, obj: Row): void {
-  assertKnownTable(table);
-  const spec = TABLES[table];
+  const spec = resolveTable(table);
   const cols = spec.columns.map((c) => c.name);
   // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
   // (entities.ts calls it "impossible to backfill"), so a re-PUT must never rewrite the
@@ -1120,10 +1179,14 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
   const setCols = cols.filter((c) => c !== "id" && c !== "createdAt");
   const set = setCols.map((c) => `${c} = excluded.${c}`).join(", ");
   tx(db, () => {
-    db.prepare(
+    const stmt = cachedTableStatement(
+      statementCache(db).upsertRow,
+      table,
+      db,
       `INSERT INTO ${table} (${cols.join(", ")}) VALUES (${placeholders(cols.length)}) ` +
         `ON CONFLICT(id) DO UPDATE SET ${set}`,
-    ).run(...toRow(spec, obj));
+    );
+    stmt.run(...toRow(spec, obj));
     markInitialized(db);
   });
 }
@@ -1132,27 +1195,39 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
  *  ON DELETE can both target the same row; whichever loses the race must not error). */
 export function deleteRow(db: Db, table: string, id: string): void {
   assertKnownTable(table);
-  db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
+  const stmt = cachedTableStatement(statementCache(db).deleteRow, table, db, `DELETE FROM ${table} WHERE id = ?`);
+  stmt.run(id);
 }
 
 export function getRow(db: Db, table: string, id: string): Row | undefined {
-  assertKnownTable(table);
-  const spec = TABLES[table];
-  const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+  const spec = resolveTable(table);
+  const stmt = cachedTableStatement(statementCache(db).getRow, table, db, `SELECT * FROM ${table} WHERE id = ?`);
+  const row = stmt.get(id);
   return row ? fromRow(spec, row) : undefined;
 }
 
 /** Assemble the whole AppData tree from the tables. */
 export function loadState(db: Db): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>;
+  const cache = statementCache(db).loadStateSelectAll;
   for (const table of CREATE_ORDER) {
     const spec = TABLES[table];
-    data[table] = db
-      .prepare(`SELECT * FROM ${table}`)
-      .all()
-      .map((r) => fromRow(spec, r));
+    const stmt = cachedTableStatement(cache, table, db, `SELECT * FROM ${table}`);
+    data[table] = stmt.all().map((r) => fromRow(spec, r));
   }
   return data as unknown as AppData;
+}
+
+/** GET /api/accounts' authMode="off" branch: every account, id+name only (OFF mode is trusted-local
+ *  and has no membership rows, so every account is visible there). SQL copied byte-identically from
+ *  the app.ts route this encapsulates — the caller still maps each row onto the wire AccountSummary
+ *  shape (adding the OFF sentinel `role: "owner"`); this only owns the query and its cached statement. */
+export function listAccountSummaries(db: Db): Array<{ id: string; name: string }> {
+  const cache = statementCache(db);
+  if (!cache.accountSummariesSelect) {
+    cache.accountSummariesSelect = db.prepare(`SELECT id, name FROM accounts ORDER BY id`);
+  }
+  return cache.accountSummariesSelect.all() as Array<{ id: string; name: string }>;
 }
 
 /**
@@ -1255,36 +1330,42 @@ function readSliceFromSnapshot(
   },
 ): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>;
+  const cache = statementCache(db);
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
   const accountsSpec = TABLES["accounts"];
-  data["accounts"] = db
-    .prepare(`SELECT * FROM accounts WHERE id = ?`)
-    .all(accountId)
-    .map((r) => fromRow(accountsSpec, r));
+  if (!cache.accountByIdSelect) cache.accountByIdSelect = db.prepare(`SELECT * FROM accounts WHERE id = ?`);
+  data["accounts"] = cache.accountByIdSelect.all(accountId).map((r) => fromRow(accountsSpec, r));
   // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {
     const spec = TABLES[table];
-    data[table] = db
-      .prepare(`SELECT * FROM ${table} WHERE accountId = ?`)
-      .all(accountId)
-      .map((r) => fromRow(spec, r));
+    const stmt = cachedTableStatement(cache.scopedSelect, table, db, `SELECT * FROM ${table} WHERE accountId = ?`);
+    data[table] = stmt.all(accountId).map((r) => fromRow(spec, r));
   }
-  // P1.6 field-level redaction: drop the owner/admin-only `note` from every time-off row when the
-  // caller may not see it. Delete the KEY (so the optional field is absent, matching its TimeOff
-  // shape — not a null), and do it on the built objects BEFORE returning so the note is never
-  // serialized for an Editor/Viewer read.
-  if (!opts.includeTimeOffNote) {
-    for (const row of data["timeOff"]) delete (row as Record<string, unknown>).note;
+  // P1.6 / private-name field-level redaction: derive BOTH gated-field redactions from the SAME
+  // fieldPolicy.ts GATED_FIELD_POLICIES catalogue the write-pin (pinGatedFields) and export-include
+  // (readSliceVisibility) sites already use, so a read/write/export can never disagree about who may
+  // see a gated field. redactGatedEcho DELETES the gated key (never nulls it) — matching TimeOff's
+  // optional `note` shape — and is applied per-table via tableHasGatedFields, so redacting
+  // clients/projects here is byte-identical to the former direct whole-slice `redactPrivateNames`
+  // call, which was itself exactly `clients.map(redactPrivateName)` / `projects.map(redactPrivateName)`
+  // — the SAME function the catalogue's privateNames policy's redactEcho calls. Applied BEFORE the
+  // activeOnly projection below, over every gated table at once (table iteration order doesn't matter:
+  // each policy only ever touches its own table(s), so the net result of this loop is unchanged
+  // regardless of order — the one ordering that DOES matter, gated redaction before activeOnly, is
+  // preserved).
+  const vis: SanitizeWriteOptions = {
+    canSeeTimeOffNote: opts.includeTimeOffNote,
+    canSeePrivateNames: opts.includePrivateNames,
+  };
+  for (const table of Object.keys(data)) {
+    if (!tableHasGatedFields(table)) continue;
+    data[table] = data[table].map((row) => redactGatedEcho(table, row as Record<string, unknown>, vis) as Row);
   }
-  // Private real names are owner-only. Replace them with the consistently quoted code name and
-  // remove the raw codeName field before this slice can be serialized or cached by a non-owner.
-  const visibleData = opts.includePrivateNames
-    ? (data as unknown as AppData)
-    : redactPrivateNames(data as unknown as AppData);
+  const visibleData = data as unknown as AppData;
   // P2.4 lifecycle projection: for the NORMAL app read (includeInactive:false), drop every NON-active
   // (archived/soft-deleted) resource/client/project via the SHARED activeOnly helper — the SAME rule
-  // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the note
-  // redaction so the projection runs over the already-redacted slice. includeInactive:true (P2.5's
+  // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the gated
+  // redaction above so the projection runs over the already-redacted slice. includeInactive:true (P2.5's
   // admin read) returns the full slice untouched. The dropped rows stay in the DB + export.
   if (!opts.includeInactive) return activeOnly(visibleData);
   return visibleData;
@@ -1295,7 +1376,11 @@ function readSliceFromSnapshot(
  *  genuinely-fresh DB (seed it) from one the user deliberately cleared (don't re-seed) —
  *  mirroring the web app's "storage key present" semantics, where the two diverged. */
 export function markInitialized(db: Db): void {
-  db.prepare(`INSERT OR IGNORE INTO _meta (key, value) VALUES ('initialized', '1')`).run();
+  const cache = statementCache(db);
+  if (!cache.markInitialized) {
+    cache.markInitialized = db.prepare(`INSERT OR IGNORE INTO _meta (key, value) VALUES ('initialized', '1')`);
+  }
+  cache.markInitialized.run();
 }
 
 export function isInitialized(db: Db): boolean {

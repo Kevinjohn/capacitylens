@@ -46,6 +46,38 @@ interface AuditOutboxRow {
 /** Bound every synchronous delivery turn; later pages are scheduled by the application drainer. */
 export const AUDIT_DRAIN_PAGE_SIZE = 500;
 
+type PreparedStatement = ReturnType<Db["prepare"]>;
+
+/**
+ * Factory for a per-handle prepared-statement cache: the SQL is prepared at most ONCE per Db handle
+ * rather than on every call — this outbox is touched inside the write transaction of nearly every
+ * mutating request. WeakMap keyed by the Db handle (mirrors auth.ts's `cachedTableExists` idiom), so
+ * an entry is collected with its handle and the many short-lived `:memory:` handles tests open never
+ * leak. SQL text is unchanged; only the repeated `prepare()` call is elided.
+ */
+function cachedStatement(sql: string): (db: Db) => PreparedStatement {
+  const cache = new WeakMap<Db, PreparedStatement>();
+  return (db: Db): PreparedStatement => {
+    let stmt = cache.get(db);
+    if (!stmt) {
+      stmt = db.prepare(sql);
+      cache.set(db, stmt);
+    }
+    return stmt;
+  };
+}
+
+const insertAuditOutboxStatement = cachedStatement(
+  `INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`,
+);
+const selectAuditOutboxPageStatement = cachedStatement(
+  `SELECT sequence, id, payload FROM capacitylens_audit_outbox ORDER BY sequence LIMIT ${AUDIT_DRAIN_PAGE_SIZE}`,
+);
+const removeAuditOutboxRowStatement = cachedStatement(
+  `DELETE FROM capacitylens_audit_outbox WHERE sequence = ? AND id = ?`,
+);
+const pendingAuditCountStatement = cachedStatement(`SELECT COUNT(*) AS count FROM capacitylens_audit_outbox`);
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isNonEmptyString);
 }
@@ -170,21 +202,15 @@ export function isAuditEntry(value: unknown): value is AuditEntry {
 
 /** Enqueue inside the same SQLite transaction as the represented mutation. */
 export function enqueueAudit(db: Db, record: AuditEntry, id: string = randomUUID()): string {
-  db.prepare(`INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`).run(
-    id,
-    JSON.stringify(record),
-    new Date().toISOString(),
-  );
+  insertAuditOutboxStatement(db).run(id, JSON.stringify(record), new Date().toISOString());
   return id;
 }
 
 /** Deliver pending rows in commit order. A failed sink leaves this row and every later row intact.
  * Deletion happens only after append reports that its fsync/idempotency boundary succeeded. */
 export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
-  const select = db.prepare(
-    `SELECT sequence, id, payload FROM capacitylens_audit_outbox ORDER BY sequence LIMIT ${AUDIT_DRAIN_PAGE_SIZE}`,
-  );
-  const remove = db.prepare(`DELETE FROM capacitylens_audit_outbox WHERE sequence = ? AND id = ?`);
+  const select = selectAuditOutboxPageStatement(db);
+  const remove = removeAuditOutboxRowStatement(db);
   const rows = select.all() as unknown as AuditOutboxRow[];
   if (rows.length === 0) return true;
   const validRows: AuditOutboxRow[] = [];
@@ -220,7 +246,5 @@ export function drainAuditOutbox(db: Db, sink: AuditSink): boolean {
 }
 
 export function pendingAuditCount(db: Db): number {
-  return Number(
-    (db.prepare(`SELECT COUNT(*) AS count FROM capacitylens_audit_outbox`).get() as { count: number }).count,
-  );
+  return Number((pendingAuditCountStatement(db).get() as { count: number }).count);
 }

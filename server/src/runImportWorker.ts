@@ -1,7 +1,7 @@
 import { Worker } from "node:worker_threads";
 import type { ImportWorkerRequest, ImportWorkerResult } from "./importWorker";
 import { currentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
-import { BoundedWorkQueue } from "./workQueue";
+import { abortReason, BoundedWorkQueue } from "./workQueue";
 
 export const MAX_CONCURRENT_IMPORT_WORKERS = 2;
 export const MAX_QUEUED_IMPORT_WORKERS = 8;
@@ -34,10 +34,6 @@ function defaultWorker(): Worker {
   return new Worker(new URL(sourceRuntime ? "./importWorker.ts" : "./importWorker.mjs", import.meta.url), {
     execArgv: sourceRuntime ? ["--import", "tsx"] : [],
   });
-}
-
-function abortReason(signal: AbortSignal): unknown {
-  return signal.reason ?? new DOMException("Import preparation was cancelled.", "AbortError");
 }
 
 function executeImportWorker(
