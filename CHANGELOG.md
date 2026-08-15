@@ -7,6 +7,18 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.47.0-alpha.1] — 2026-08-15
+
+### Changed
+
+- Simplified the shared component layer (`src/components/common` + unpinned `src/components/ui`
+  files) with no behaviour changes: extracted the field-layout prop derivation duplicated across
+  all nine form-field components into one helper; removed the unused `TextAreaField` component and
+  its tests; routed the crash-recovery reload button through the existing `reloadPage` seam;
+  memoised the avatar badge (recomputed per scheduler row on every grid re-render) and hoisted a
+  static segmented-control class string; and replaced the colour field's linear palette scan with
+  a precomputed index lookup (#347).
+
 ## [0.46.0-alpha.1] — 2026-08-15
 
 ### Changed
@@ -3507,7 +3519,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.46.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.47.0-alpha.1...HEAD
+[0.47.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.46.0-alpha.1...v0.47.0-alpha.1
 [0.46.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.45.0-alpha.1...v0.46.0-alpha.1
 [0.45.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.44.0-alpha.1...v0.45.0-alpha.1
 [0.44.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.43.0-alpha.1...v0.44.0-alpha.1

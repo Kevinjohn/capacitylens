@@ -8,7 +8,6 @@ import {
   ListPage,
   EmptyState,
   TextField,
-  TextAreaField,
   NumberField,
   DateField,
   SelectField,
@@ -764,31 +763,6 @@ describe("TextField", () => {
 
     rerender(<TextField label="Name" value="" onChange={vi.fn()} layout="label-control" />);
     expect(screen.getByLabelText("Name").closest('[data-slot="field"]')).toHaveAttribute(
-      "data-product-layout",
-      "label-control",
-    );
-  });
-});
-
-// ─── TextAreaField ─────────────────────────────────────────────────────────
-
-describe("TextAreaField", () => {
-  it("renders with label and value", () => {
-    render(<TextAreaField label="Notes" value="Some notes" onChange={vi.fn()} />);
-    expect(screen.getByLabelText("Notes")).toHaveValue("Some notes");
-  });
-
-  it("calls onChange on each keystroke", async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
-    render(<TextAreaField label="Notes" value="" onChange={onChange} />);
-    await user.type(screen.getByLabelText("Notes"), "H");
-    expect(onChange).toHaveBeenCalledWith("H");
-  });
-
-  it("opts into the shared responsive label-control row", () => {
-    render(<TextAreaField label="Notes" value="" onChange={vi.fn()} layout="label-control" />);
-    expect(screen.getByLabelText("Notes").closest('[data-slot="field"]')).toHaveAttribute(
       "data-product-layout",
       "label-control",
     );

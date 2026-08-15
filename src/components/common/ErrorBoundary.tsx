@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useRouteError } from "react-router-dom";
 import { errorMessage } from "../../lib/errorMessage";
+import { reloadPage } from "../../lib/reloadPage";
 import { m } from "@/i18n";
 import { Button } from "../ui/button";
 
@@ -11,7 +12,7 @@ export function ErrorFallback({ message }: { message?: string }) {
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
       <h1 className="text-xl font-semibold">{m.boundary_title()}</h1>
       <p className="max-w-md text-sm text-muted-foreground">{message || m.boundary_message()}</p>
-      <Button onClick={() => window.location.reload()}>{m.boundary_reload()}</Button>
+      <Button onClick={reloadPage}>{m.boundary_reload()}</Button>
     </div>
   );
 }

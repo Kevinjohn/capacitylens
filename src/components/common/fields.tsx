@@ -1,10 +1,9 @@
 import { Fragment, useId, useState } from "react";
-import { MAX_NAME_INPUT_CODE_UNITS, MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from "../../lib/palette";
+import { MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
+import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName, swatchIndexOf } from "../../lib/palette";
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
 // be exported without tripping react-refresh/only-export-components on this file.
 import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import { Checkbox } from "../ui/checkbox";
@@ -31,6 +30,17 @@ import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 export type ProductFieldLayout = "stacked" | "label-control";
 
 const labelControlLayout = "sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:items-center";
+
+// Shared data-attribute + class pair every product field spreads onto its <Field> so the
+// opt-in compact "label-control" row layout (see ProductFieldLayout) is applied identically
+// everywhere instead of being copy-pasted per field.
+function productFieldLayoutProps(layout: ProductFieldLayout) {
+  const compact = layout === "label-control";
+  return {
+    "data-product-layout": compact ? layout : undefined,
+    className: cn(compact && labelControlLayout),
+  } as const;
+}
 
 function RequiredFieldLabel({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
   return (
@@ -95,8 +105,7 @@ export function SwitchField({
     <Field
       orientation={layout === "label-control" ? "vertical" : "horizontal"}
       data-disabled={disabled || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
+      {...productFieldLayoutProps(layout)}
     >
       <FieldContent>
         <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
@@ -149,8 +158,7 @@ export function CheckboxField({
     <Field
       orientation={layout === "label-control" ? "vertical" : "horizontal"}
       data-disabled={disabled || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
+      {...productFieldLayoutProps(layout)}
     >
       {layout === "label-control" ? (
         <>
@@ -236,8 +244,7 @@ export function TextField({
     <Field
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
+      {...productFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       {description ? (
@@ -248,45 +255,6 @@ export function TextField({
       ) : (
         input
       )}
-    </Field>
-  );
-}
-
-export function TextAreaField({
-  label,
-  value,
-  onChange,
-  invalid,
-  describedById,
-  maxLength = MAX_NOTE_INPUT_CODE_UNITS,
-  layout = "stacked",
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  invalid?: boolean;
-  describedById?: string;
-  maxLength?: number;
-  /** Opt-in compact row that stacks below the small viewport breakpoint. */
-  layout?: ProductFieldLayout;
-}) {
-  const id = useId();
-  return (
-    <Field
-      data-invalid={invalid || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
-    >
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Textarea
-        id={id}
-        rows={2}
-        value={value}
-        maxLength={maxLength}
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? describedById : undefined}
-        onChange={(e) => onChange(e.target.value)}
-      />
     </Field>
   );
 }
@@ -317,11 +285,7 @@ export function NumberField({
 }) {
   const id = useId();
   return (
-    <Field
-      data-invalid={invalid || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
-    >
+    <Field data-invalid={invalid || undefined} {...productFieldLayoutProps(layout)}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}
@@ -380,11 +344,7 @@ export function DateField({
 }) {
   const id = useId();
   return (
-    <Field
-      data-invalid={invalid || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
-    >
+    <Field data-invalid={invalid || undefined} {...productFieldLayoutProps(layout)}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}
@@ -454,8 +414,7 @@ export function SelectField({
     <Field
       data-invalid={invalid || undefined}
       data-disabled={disabled || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
+      {...productFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Select
@@ -517,17 +476,10 @@ export function ColorField({
 }) {
   const markDirty = useMarkFormDirty();
   const [open, setOpen] = useState(false);
-  const selectedIndex = Math.max(
-    0,
-    SWATCHES.findIndex((hex) => hex.toLowerCase() === value.toLowerCase()),
-  );
+  const selectedIndex = Math.max(0, swatchIndexOf(value));
 
   return (
-    <Field
-      data-invalid={invalid || undefined}
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
-    >
+    <Field data-invalid={invalid || undefined} {...productFieldLayoutProps(layout)}>
       <FieldLabel>{label}</FieldLabel>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -633,10 +585,7 @@ export function SegmentedField<T extends string | number>({
 }) {
   const labelId = useId();
   return (
-    <Field
-      data-product-layout={layout === "label-control" ? layout : undefined}
-      className={cn(layout === "label-control" && labelControlLayout)}
-    >
+    <Field {...productFieldLayoutProps(layout)}>
       <FieldLabel id={labelId}>{label}</FieldLabel>
       <SegmentedControl
         value={value}

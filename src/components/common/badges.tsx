@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ensureBarColors } from "@capacitylens/shared/lib/color";
 import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
@@ -16,7 +17,9 @@ export function ColorSwatch({ color }: { color: string }) {
 // src/lib/metadata.ts because this module is a React component boundary.
 export const PLACEHOLDER_AVATAR_SYMBOL = "?";
 
-export function Avatar({
+// All props are primitives, so the default shallow prop compare is exact — memoized to skip
+// re-rendering every row's avatar when an unrelated sibling in a list (e.g. SchedulerGrid) updates.
+export const Avatar = memo(function Avatar({
   name,
   color,
   size = 28,
@@ -52,4 +55,4 @@ export function Avatar({
       <AvatarFallback className="bg-transparent text-2xs font-semibold text-inherit">{initials}</AvatarFallback>
     </ShadAvatar>
   );
-}
+});
