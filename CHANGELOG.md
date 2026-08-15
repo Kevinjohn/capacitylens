@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Kept the full “Project-specific” activity-kind label visible in Firefox at desktop and narrow
+  dialog widths.
+
 ## [0.51.1-alpha.1] — 2026-08-15
 
 ### Changed
