@@ -1,8 +1,6 @@
 import { test, expect } from "./fixtures";
-import { resetServer } from "./db-helpers";
+import { API, resetServer } from "./db-helpers";
 import { dismissIntroIfPresent } from "./helpers";
-
-const API = process.env.VITE_CAPACITYLENS_API ?? "http://localhost:8787";
 
 test.describe("single-company reload entry", () => {
   test.beforeEach(async ({ request }) => {

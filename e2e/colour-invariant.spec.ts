@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "./fixtures";
-import { openApp, setZoom } from "./helpers";
+import { openApp, resetSchedulerScroll, setZoom } from "./helpers";
 
 // The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be
 // set ONLY by picking a preset swatch (no hex/RGB entry — see ColorField + the "preset
@@ -91,9 +91,7 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
     // sit in early June and are visible at 4w with the grid scrolled fully left.
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     const wireframesBar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
     await expect(wireframesBar.first()).toBeVisible();
     await expect(wireframesBar.first()).toHaveCSS("background-color", PICK_RGB);

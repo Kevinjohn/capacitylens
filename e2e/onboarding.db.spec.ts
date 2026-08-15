@@ -1,10 +1,9 @@
 import { test, expect } from "./fixtures";
-import { resetServer, serverState } from "./db-helpers";
+import { API, resetServer, serverState } from "./db-helpers";
 
 // Server-backed half of the P1.14 onboarding-lock: a DIRECT API PATCH of a frozen account field
 // (language / weekStartsOn / timezone) is rejected with 409. This is the SECURITY backstop — the
 // read-only Settings summary is only UX; the freeze is enforced on the server regardless of the client.
-const API = process.env.VITE_CAPACITYLENS_API ?? "http://localhost:8787";
 
 test.describe("database-backed onboarding lock (P1.14)", () => {
   test.beforeEach(async ({ request }) => {

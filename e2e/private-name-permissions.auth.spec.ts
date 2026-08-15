@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from "./auth-helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
+import { dismissIntroIfPresent } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -19,9 +20,7 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: ACCOUNT, exact: true }).click();
-  const intro = page.getByTestId("intro-continue");
-  await expect(intro.or(page.getByRole("heading", { name: "Schedule" })).first()).toBeVisible();
-  if (await intro.isVisible().catch(() => false)) await intro.click();
+  await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
 
@@ -30,19 +29,19 @@ test("non-owners see protected code names without owner controls or real-name le
   request,
   context,
 }) => {
-  const owner = await signUpUser(OWNER);
+  const [owner, adminUser, editorUser, viewerUser] = await Promise.all([
+    signUpUser(OWNER),
+    signUpUser(ADMIN),
+    signUpUser(EDITOR),
+    signUpUser(VIEWER),
+  ]);
   const members = [
-    { role: "admin", user: await signUpUser(ADMIN) },
-    { role: "editor", user: await signUpUser(EDITOR) },
-    { role: "viewer", user: await signUpUser(VIEWER) },
+    { role: "admin", user: adminUser },
+    { role: "editor", user: editorUser },
+    { role: "viewer", user: viewerUser },
   ] as const;
 
-  const accountResponse = await request.post(`${AUTH_API}/api/orgs`, {
-    headers: { cookie: owner.cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-    data: { name: ACCOUNT },
-  });
-  expect(accountResponse.status()).toBe(201);
-  const accountId = (await accountResponse.json()).id as string;
+  const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
 
   for (const { role, user } of members) {
     const invitation = await request.post(`${AUTH_API}/api/invites`, {

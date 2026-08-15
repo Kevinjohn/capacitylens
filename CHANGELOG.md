@@ -7,6 +7,27 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.51.1-alpha.1] — 2026-08-15
+
+### Changed
+
+- Simplified the Playwright e2e suite (#352) with coverage and assertion strength unchanged or
+  strictly stronger — no test deleted or merged, selector text and asserted strings identical:
+  - Promoted verbatim copy-paste blocks into the existing helper files: `resetSchedulerScroll`
+    (the scheduler-grid `scrollLeft = 0` reset, 26 sites across 13 files), `bootstrapOrg` (the
+    org-bootstrap POST + 201 assertion, 8 sites), `dismissLandscapeHint` (6 sites;
+    `mobile.spec.ts` untouched since it tests the gate itself), `boundingBoxOrThrow` (4 local
+    `box()` copies), and `showPlaceholders` (5 sites; `placeholders.spec.ts` keeps its inline
+    toggling because it asserts the toggle's own behaviour).
+  - Adopted existing helpers at hand-rolled sites: `dismissIntroIfPresent` in
+    `navigation.spec.ts` and the two auth specs' local `signInAndOpen`s, `showScheduleFilters`
+    in `getting-started.spec.ts`, and `db-helpers.ts`'s now-exported `API` constant in two db
+    specs.
+  - `a11y.spec.ts`: folded the ten identical violation-filter + assert blocks into `settledAxe`
+    and deleted five fixed sleeps it makes redundant (`disableCssMotion` already snaps
+    animations to their end state); the two virtualization-settling waits are untouched.
+  - Parallelized independent test-user sign-ups (`Promise.all`) in four auth specs.
+
 ### Fixed
 
 - CI gate: added unit coverage for the account-flow operation vocabulary
@@ -3631,7 +3652,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.51.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.51.1-alpha.1...HEAD
+[0.51.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.51.0-alpha.1...v0.51.1-alpha.1
 [0.51.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.50.0-alpha.1...v0.51.0-alpha.1
 [0.50.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.49.0-alpha.1...v0.50.0-alpha.1
 [0.49.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.48.0-alpha.1...v0.49.0-alpha.1

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { goToSeedWeek, openApp, selectShadOption, setZoom } from "./helpers";
+import { dismissLandscapeHint, goToSeedWeek, openApp, selectShadOption, setZoom, showPlaceholders } from "./helpers";
 
 // Covers US-RES-01..10 (Resources area). Each test starts from the seeded app
 // (Playwright gives every test a fresh page → fresh in-memory seed).
@@ -57,8 +57,7 @@ test.describe("Resources", () => {
       expect(controlShare).toBeLessThan(0.76);
     }
 
-    await page.setViewportSize({ width: 360, height: 800 });
-    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await dismissLandscapeHint(page);
     await expect(dialog).toBeVisible();
     for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
       const control = dialog.getByLabel(label, { exact: true });
@@ -101,7 +100,7 @@ test.describe("Resources", () => {
     await openApp(page, "Wayne Enterprises", "/settings");
     // Placeholders are hidden by default (per-account pref) — turn them on so the management
     // section + "Add placeholder" button appear on the Resources page.
-    await page.getByRole("switch", { name: "Show placeholders" }).click();
+    await showPlaceholders(page);
     await page.getByRole("link", { name: "Resources" }).click();
     await page.getByRole("button", { name: "Add placeholder" }).click();
 
@@ -118,7 +117,7 @@ test.describe("Resources", () => {
 
   test("rejects a placeholder with no bound project", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    await page.getByRole("switch", { name: "Show placeholders" }).click();
+    await showPlaceholders(page);
     await page.getByRole("link", { name: "Resources" }).click();
     await page.getByRole("button", { name: "Add placeholder" }).click();
     await page.getByLabel("Role").fill("Unbound slot");

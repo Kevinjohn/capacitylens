@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
-  BOOTSTRAP_TOKEN,
+  bootstrapOrg,
   signUpUser as signUp,
   signUpUserWithId,
 } from "./auth-helpers";
@@ -37,16 +37,13 @@ test.describe("member management (SMALLSASS_ACCOUNT_MODE=password)", () => {
     // ── API setup: owner A bootstraps an org, invites B (admin) + C (editor); both accept. ─────────
     // Owner and editor are targeted by userId below (PATCH/DELETE members/<id>, transfer-ownership
     // toUserId) — the id-resolving variant. Admin is only ever used by its cookie.
-    const owner = await signUpUserWithId(OWNER);
-    const admin = await signUp(ADMIN);
-    const editor = await signUpUserWithId(EDITOR);
+    const [owner, admin, editor] = await Promise.all([
+      signUpUserWithId(OWNER),
+      signUp(ADMIN),
+      signUpUserWithId(EDITOR),
+    ]);
 
-    const orgRes = await request.post(`${API}/api/orgs`, {
-      headers: { cookie: owner.cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-      data: { name: `Members Studio ${STAMP}` },
-    });
-    expect(orgRes.status()).toBe(201);
-    const accountId = (await orgRes.json()).id as string;
+    const accountId = await bootstrapOrg(request, owner.cookie, `Members Studio ${STAMP}`);
 
     // Mint + accept an admin invite for B and an editor invite for C.
     for (const [who, role] of [

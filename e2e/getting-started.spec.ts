@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, openNewCompany } from "./helpers";
+import { openApp, openNewCompany, showScheduleFilters } from "./helpers";
 import { TOUR_ANCHORS } from "../src/lib/tourAnchors";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -35,8 +35,7 @@ test.describe("getting started checklist", () => {
     const cardBox = await card.boundingBox();
     expect(cardBox).not.toBeNull();
     expect(cardBox!.y).toBeGreaterThanOrEqual(gridAfter!.y);
-    await page.getByRole("button", { name: "Show filters" }).click();
-    await expect(page.getByRole("button", { name: "Hide filters" })).toBeVisible();
+    await showScheduleFilters(page);
 
     // All four steps are pending — the first three are links to where the step happens.
     // (The account's built-in Internal client must NOT tick the client step.)

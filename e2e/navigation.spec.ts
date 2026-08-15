@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { freezeBrowserDate, openApp } from "./helpers";
+import { dismissIntroIfPresent, freezeBrowserDate, openApp } from "./helpers";
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
 // boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)
@@ -31,9 +31,7 @@ test.describe("Navigation & shell", () => {
       await company.click();
 
       const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
-      const intro = page.getByTestId("intro-continue");
-      await intro.or(destinationHeading).first().waitFor();
-      if (await intro.isVisible()) await intro.click();
+      await dismissIntroIfPresent(page, destinationHeading);
       await expect(destinationHeading).toBeVisible();
 
       const reloadResponse = await page.reload();

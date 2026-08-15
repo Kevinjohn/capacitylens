@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser as signUp } from "./auth-helpers";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser as signUp } from "./auth-helpers";
+import { dismissIntroIfPresent } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -29,9 +30,7 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await page.getByRole("button", { name: org, exact: true }).click();
   // The intro is once-per-device; on the second sign-in it won't reappear. Wait for EITHER the intro
   // OR the app (Schedule heading) to settle the race, then dismiss the intro if present.
-  const intro = page.getByTestId("intro-continue");
-  await expect(intro.or(page.getByRole("heading", { name: "Schedule" })).first()).toBeVisible();
-  if (await intro.isVisible().catch(() => false)) await intro.click();
+  await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
 
@@ -46,12 +45,7 @@ test.describe("viewer read-only mode (SMALLSASS_ACCOUNT_MODE=password)", () => {
     const viewer = await signUp(VIEWER);
     const editor = await signUp(EDITOR);
 
-    const orgRes = await request.post(`${API}/api/orgs`, {
-      headers: { cookie: owner.cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-      data: { name: `Viewer Studio ${STAMP}` },
-    });
-    expect(orgRes.status()).toBe(201);
-    const accountId = (await orgRes.json()).id as string;
+    const accountId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
 
     // Seed real rows before exercising Viewer affordances. Empty-state assertions can pass even if
     // row actions or ResourceLane.onDraw accidentally become editable.

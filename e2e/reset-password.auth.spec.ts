@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from "./auth-helpers";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -23,13 +23,11 @@ test.describe("password reset link (SMALLSASS_ACCOUNT_MODE=password)", () => {
     request,
   }) => {
     // ---- API setup: owner + org + member B joined as editor (invite consumed via the API). ----
+    // B's sign-up is independent of the owner/org/invite chain below (it only needs its own email),
+    // so start it in parallel rather than after the chain that doesn't feed it.
+    const memberPromise = signUpUser(MEMBER);
     const ownerCookie = (await signUpUser(OWNER)).cookie;
-    const orgRes = await request.post(`${API}/api/orgs`, {
-      headers: { cookie: ownerCookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
-      data: { name: `Reset Studio ${STAMP}` },
-    });
-    expect(orgRes.status()).toBe(201);
-    const accountId = (await orgRes.json()).id as string;
+    const accountId = await bootstrapOrg(request, ownerCookie, `Reset Studio ${STAMP}`);
 
     const inviteRes = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
@@ -38,7 +36,7 @@ test.describe("password reset link (SMALLSASS_ACCOUNT_MODE=password)", () => {
     expect(inviteRes.status()).toBe(201);
     const inviteToken = (await inviteRes.json()).token as string;
 
-    const memberCookie = (await signUpUser(MEMBER)).cookie;
+    const memberCookie = (await memberPromise).cookie;
     const joined = await request.post(`${API}/api/invites/${inviteToken}/accept`, {
       headers: { cookie: memberCookie },
     });

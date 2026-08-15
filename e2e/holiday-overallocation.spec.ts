@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import { openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
 
 async function addTimeOff(page: Page, resource: string, start: string, end = start) {
   await page.getByRole("button", { name: "Add time off" }).click();
@@ -48,9 +48,7 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
 
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
-  await page.getByTestId("scheduler-grid").evaluate((element) => {
-    (element as HTMLElement).scrollLeft = 0;
-  });
+  await resetSchedulerScroll(page);
 
   const bruceLane = page.locator('[data-resource-id="r-tyler"]');
   const clarkLane = page.locator('[data-resource-id="r-nike"]');
@@ -121,9 +119,7 @@ test("editing a zero-load block onto time off shows the visible and non-colour c
 
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
-  await page.getByTestId("scheduler-grid").evaluate((element) => {
-    (element as HTMLElement).scrollLeft = 0;
-  });
+  await resetSchedulerScroll(page);
 
   const bruceLane = page.locator('[data-resource-id="r-tyler"]');
   const clarkLane = page.locator('[data-resource-id="r-nike"]');

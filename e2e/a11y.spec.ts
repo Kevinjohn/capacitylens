@@ -1,12 +1,24 @@
 import { test, expect, type Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { disableCssMotion, openApp, setZoom, showScheduleFilters } from "./helpers";
+import { disableCssMotion, openApp, resetSchedulerScroll, setZoom, showScheduleFilters } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
-async function settledAxe(page: Page) {
+/** Run axe against the settled page and assert no serious/critical violations, in one call — every
+ *  scan in this file uses the identical impact filter and diagnostic message, so folding the
+ *  filter+assert in here keeps them byte-identical by construction instead of by copy-paste. */
+async function settledAxe(page: Page): Promise<void> {
   await disableCssMotion(page);
-  return new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+  expect(
+    blocking,
+    JSON.stringify(
+      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
+      null,
+      2,
+    ),
+  ).toEqual([]);
 }
 
 // Disable entrance animations so axe samples settled colours (mid-fade reads as
@@ -18,16 +30,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 test("scheduler has no serious or critical accessibility violations", async ({ page }) => {
   await openApp(page);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 test("scheduler in dark mode has no serious or critical violations", async ({ page }) => {
@@ -37,16 +40,7 @@ test("scheduler in dark mode has no serious or critical violations", async ({ pa
   await openApp(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 // Time-off draw mode recedes the work bars (dimmed neutral fill) and marks booked time off with
@@ -59,14 +53,12 @@ async function openDrawMode(page: import("@playwright/test").Page): Promise<void
   await showScheduleFilters(page);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
   await setZoom(page, 4);
-  await page.getByTestId("scheduler-grid").evaluate((el) => {
-    (el as HTMLElement).scrollLeft = 0;
-  });
+  await resetSchedulerScroll(page);
   await page.getByRole("radio", { name: "Time off", exact: true }).click();
   await expect(page.getByTestId("scheduler-grid")).toHaveAttribute("data-draw-mode", "timeoff");
-  // The selected segment's fill cross-fades (0.15s); let it settle so axe samples the final
-  // brand-strong + white pairing, not a mid-fade blend that reads as false low-contrast.
-  await page.waitForTimeout(350);
+  // The selected segment's fill cross-fades (0.15s); disableCssMotion (inside settledAxe) forces
+  // it to its settled end state, so axe samples the final brand-strong + white pairing rather than
+  // a mid-fade blend that reads as false low-contrast.
   await expect(page.getByTestId("allocation-bar").first()).toBeVisible();
   const timeOffBlock = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
   await expect(timeOffBlock).toBeVisible();
@@ -87,32 +79,14 @@ async function openDrawMode(page: import("@playwright/test").Page): Promise<void
 
 test("scheduler in time-off draw mode has no serious or critical violations", async ({ page }) => {
   await openDrawMode(page);
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 test("scheduler in time-off draw mode (dark) has no serious or critical violations", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
   await openDrawMode(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 // The allocation editor opens from INSIDE the scheduler's role="grid" (SchedulerGrid's
@@ -126,9 +100,7 @@ async function openAllocationEditor(page: import("@playwright/test").Page): Prom
   await openApp(page);
   await disableCssMotion(page);
   await setZoom(page, 4);
-  await page.getByTestId("scheduler-grid").evaluate((el) => {
-    (el as HTMLElement).scrollLeft = 0;
-  });
+  await resetSchedulerScroll(page);
   // Wait for the bar to be present and visible, then use a normal actionable click. This setup is
   // also the pointer-interaction assertion: an overlay or disabled bar must fail the test rather
   // than being bypassed before axe scans the resulting dialog.
@@ -141,49 +113,21 @@ async function openAllocationEditor(page: import("@playwright/test").Page): Prom
 
 test("the allocation editor modal has no serious or critical violations", async ({ page }) => {
   await openAllocationEditor(page);
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 test("the allocation editor modal (dark) has no serious or critical violations", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
   await openAllocationEditor(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 test("a resource form modal has no serious or critical violations", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/resources");
   await page.getByRole("button", { name: "Add resource" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page.waitForTimeout(350); // let the entrance animation settle (mid-fade colours read as false low-contrast)
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 // A ConfirmDialog in DARK mode specifically: its `danger` confirm button is the only place the
@@ -205,17 +149,7 @@ test("a confirm dialog (dark) danger button has no serious or critical violation
   const dialog = page.getByRole("alertdialog", { name: "Archive client?" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Archive", exact: true })).toBeVisible(); // the danger-variant confirm button
-  await page.waitForTimeout(350); // let the entrance animation settle (mid-fade colours read as false low-contrast)
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 // The EMPTY schedule renders the shared EmptyState inside a sticky role="row" > role="gridcell" — a
@@ -227,17 +161,7 @@ test("the empty schedule has no serious or critical violations", async ({ page }
   await showScheduleFilters(page);
   await page.getByLabel("Search people").fill("zzznobody");
   await expect(page.getByTestId("scheduler-empty")).toBeVisible();
-  await page.waitForTimeout(200);
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 test("the empty schedule (dark) has no serious or critical violations", async ({ page }) => {
@@ -247,17 +171,7 @@ test("the empty schedule (dark) has no serious or critical violations", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByLabel("Search people").fill("zzznobody");
   await expect(page.getByTestId("scheduler-empty")).toBeVisible();
-  await page.waitForTimeout(200);
-  const results = await settledAxe(page);
-  const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(
-    blocking,
-    JSON.stringify(
-      blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })),
-      null,
-      2,
-    ),
-  ).toEqual([]);
+  await settledAxe(page);
 });
 
 // WCAG 1.4.10 Reflow (AA): at 320 CSS px the scheduler CHROME (toolbar title/nav/zoom/draw row +

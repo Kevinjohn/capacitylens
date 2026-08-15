@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showPlaceholders } from "./helpers";
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026 and are visible at 4w with scroll reset.
@@ -7,9 +7,7 @@ test.describe("Allocation editor", () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
   });
 
   test("creates an allocation from the row + button (assignee preselected)", async ({ page }) => {
@@ -252,12 +250,10 @@ test.describe("Allocation editor", () => {
     // Placeholders are hidden by default (per-account pref) — turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
     await page.getByRole("link", { name: "Settings" }).click();
-    await page.getByRole("switch", { name: "Show placeholders" }).click();
+    await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     // Open create mode from the placeholder's OWN row (in create mode the assignee is fixed to the
     // clicked row). The seeded "Senior Designer" slot shows as "Placeholder" and is bound to p-acme.
     await page.getByRole("button", { name: "Add allocation for Placeholder" }).click();

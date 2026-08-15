@@ -1,20 +1,16 @@
-import { test, expect, type Locator, type Page } from "./fixtures";
+import { test, expect, type Page } from "./fixtures";
 import {
+  boundingBoxOrThrow as box,
   goToSeedWeek,
   openApp,
   probeSchedulerGeometry as probe,
+  resetSchedulerScroll,
   schedulerLeftMonthLabel,
   selectShadOption,
   setZoom,
   settledSchedulerLeftDate,
   waitForWeekSnap,
 } from "./helpers";
-
-async function box(locator: Locator) {
-  const b = await locator.boundingBox();
-  if (!b) throw new Error("no bounding box");
-  return b;
-}
 
 async function expectMonthLabelsVerticallyCentred(page: Page) {
   const dateHeader = page.getByRole("columnheader", { name: "Dates" });
@@ -147,9 +143,7 @@ test.describe("Scheduler", () => {
     const before = await page.getByTestId("allocation-bar").count();
 
     // reset horizontal scroll (scroll-to-today shifts the grid on mount)
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     const lane = page.getByTestId("resource-lane").first();
     const b = await box(lane);
     const y = b.y + b.height / 2;
@@ -351,9 +345,7 @@ test.describe("Scheduler", () => {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).hover();
     const pop = page.getByTestId("allocation-popover");
     await expect(pop).toBeVisible();
@@ -435,9 +427,7 @@ test.describe("Scheduler", () => {
   test("stacks overlapping allocations onto a taller row (US-SCH-08)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
     // Bruce has two overlapping seed bars (3-4 June) -> 2 lanes; Clark has one -> 1 lane.
     const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId("allocation-bar");
     await expect(bruceBars).toHaveCount(2);
@@ -454,9 +444,7 @@ test.describe("Scheduler", () => {
   test("allocation status and note are visually distinct on the bar (US-SCH-19)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await page.getByTestId("scheduler-grid").evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 0;
-    });
+    await resetSchedulerScroll(page);
 
     // Seed: Bruce's Visual Design bar is tentative (the placeholder also has a confirmed one).
     await expect(

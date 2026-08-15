@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { openApp } from "./helpers";
+import { dismissLandscapeHint, openApp } from "./helpers";
 
 async function expectCompactRows(dialog: Locator, expectedCount: number) {
   const rows = dialog.locator('[data-product-layout="label-control"]');
@@ -66,8 +66,7 @@ test.describe("compact input modal layouts", () => {
   test("stacks and contains every scoped form at 360px", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click();
-    await page.setViewportSize({ width: 360, height: 800 });
-    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await dismissLandscapeHint(page);
 
     await openStackedDialog(page, "Resources", "Add external party", "Add external party", 2);
     await openStackedDialog(page, "Disciplines", "Add discipline", "Add discipline", 2);
@@ -98,8 +97,7 @@ test.describe("compact input modal layouts", () => {
     expect((normalControlBox!.x - normalFieldBox!.x) / normalFieldBox!.width).toBeGreaterThan(0.24);
     expect(normalLabelBox!.height).toBeGreaterThan(normalControlBox!.height);
 
-    await page.setViewportSize({ width: 360, height: 800 });
-    await page.getByRole("dialog", { name: "Best in landscape" }).getByRole("button", { name: "Got it" }).click();
+    await dismissLandscapeHint(page);
     const narrowFieldBox = await field.boundingBox();
     const narrowControlBox = await name.boundingBox();
     const narrowLabelBox = await label.boundingBox();
