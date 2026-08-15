@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- CI gate: added unit coverage for the account-flow operation vocabulary
+  (`shared/src/account/ports.ts`), which 0.51.0-alpha.1 turned from a types-only file into one
+  with executable code, tripping the wholly-untested-module coverage check.
+
 ## [0.51.0-alpha.1] — 2026-08-15
 
 ### Changed
