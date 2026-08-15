@@ -30,19 +30,17 @@ export function PrivateNameFields({
         layout={layout}
       />
       {fields.isPrivate && (
-        <>
-          <TextField
-            label={m.form_private_code_name_label()}
-            value={fields.codeName}
-            onChange={fields.setCodeName}
-            placeholder={m.form_private_code_name_placeholder()}
-            description={m.form_private_code_name_hint()}
-            required
-            invalid={errorField === "codeName"}
-            describedById={errorId}
-            layout={layout}
-          />
-        </>
+        <TextField
+          label={m.form_private_code_name_label()}
+          value={fields.codeName}
+          onChange={fields.setCodeName}
+          placeholder={m.form_private_code_name_placeholder()}
+          description={m.form_private_code_name_hint()}
+          required
+          invalid={errorField === "codeName"}
+          describedById={errorId}
+          layout={layout}
+        />
       )}
     </>
   );

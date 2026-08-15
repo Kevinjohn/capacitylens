@@ -3,6 +3,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { ErrorBoundary, ErrorFallback, RouteError } from "./ErrorBoundary";
 
+const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
+vi.mock("../../lib/reloadPage", () => reloadMock);
+
 function Boom(): never {
   throw new Error("boom");
 }
@@ -72,21 +75,12 @@ describe("ErrorFallback", () => {
   });
 
   it("reloads the application from its sole recovery control", () => {
-    const realLocation = window.location;
-    const reload = vi.fn();
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...realLocation, reload },
-    });
-    try {
-      render(<ErrorFallback message="boom" />);
-      fireEvent.click(screen.getByRole("button", { name: "Reload" }));
-      expect(reload).toHaveBeenCalledOnce();
-    } finally {
-      Object.defineProperty(window, "location", {
-        configurable: true,
-        value: realLocation,
-      });
-    }
+    // The button reboots through lib/reloadPage — the one boundary over `location.reload()` — so
+    // the spy is a module mock rather than a replacement window.location (jsdom's reload is
+    // non-configurable). reloadPage.test.ts covers that the boundary really does reload.
+    reloadMock.reloadPage.mockClear();
+    render(<ErrorFallback message="boom" />);
+    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+    expect(reloadMock.reloadPage).toHaveBeenCalledOnce();
   });
 });

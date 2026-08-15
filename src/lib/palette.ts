@@ -27,6 +27,15 @@ export const SWATCH_COLUMNS = 13;
 // Alias the frozen canonical tuple rather than maintaining a second list or mutable copy.
 export const SWATCHES: readonly string[] = PRESET_COLORS;
 
+// Lowercase hex -> index into SWATCHES, built once from the static swatch list so callers
+// (e.g. ColorField's selected-swatch lookup) get O(1) instead of a per-render linear scan.
+const SWATCH_INDEX_BY_HEX = new Map(SWATCHES.map((hex, i) => [hex.toLowerCase(), i]));
+
+/** Index of `hex` (case-insensitive) within SWATCHES, or -1 when it isn't a known swatch. */
+export function swatchIndexOf(hex: string): number {
+  return SWATCH_INDEX_BY_HEX.get(hex.toLowerCase()) ?? -1;
+}
+
 // Human-readable names for the 13×4 swatch grid, derived from the column (hue) + row (shade) — so
 // the swatch buttons get an accessible NAME instead of an unreadable hex like "#e02727" (WCAG
 // 1.1.1 / 4.1.2). Columns sweep the spectrum (see SWATCHES); rows go lightest → darkest.
