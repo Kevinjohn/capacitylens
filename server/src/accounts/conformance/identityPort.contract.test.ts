@@ -57,6 +57,12 @@ const command = (suffix: string): CommandIdentity => ({
   idempotencyKey: `idempotency-${suffix}`,
 });
 
+const summaryOf = (id: string): PrincipalSummary => ({
+  id,
+  displayName: PRINCIPAL.displayName,
+  email: PRINCIPAL.email,
+});
+
 function expectUnsupported(operation: Promise<unknown>, commandId?: string): Promise<void> {
   return expect(operation).rejects.toMatchObject({
     failure: {
@@ -259,76 +265,70 @@ function identityPortContract(name: string, createHarness: HarnessFactory): void
   });
 }
 
-function betterAuthHarness(): Promise<Harness> {
-  return (async () => {
-    const db = openDb(":memory:");
-    const configured = authFromEnv(db, PASSWORD_ENV);
-    const realAuth = configured.auth!;
-    await runAuthMigrations(realAuth);
-    const created = await realAuth.createCredentialUser(
-      PRINCIPAL.email,
-      PRINCIPAL.displayName,
-      "conformance-password-123",
-      true,
-    );
-    const token = "conformance-session-bearer";
-    const sessionId = applicationSessionHandle(APPLICATION_ID, token);
-    db.prepare(
-      `
+async function betterAuthHarness(): Promise<Harness> {
+  const db = openDb(":memory:");
+  const configured = authFromEnv(db, PASSWORD_ENV);
+  const realAuth = configured.auth!;
+  await runAuthMigrations(realAuth);
+  const created = await realAuth.createCredentialUser(
+    PRINCIPAL.email,
+    PRINCIPAL.displayName,
+    "conformance-password-123",
+    true,
+  );
+  const token = "conformance-session-bearer";
+  const sessionId = applicationSessionHandle(APPLICATION_ID, token);
+  db.prepare(
+    `
       INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
     `,
-    ).run("session-row-1", LATER, token, NOW, NOW, created.id);
-    recordSessionAssurance(db, sessionId, created.id, "password");
-    const session: ApplicationSession = {
-      id: sessionId,
-      principal: { ...PRINCIPAL, id: created.id },
-      createdAt: NOW,
-      expiresAt: LATER,
-      freshUntil: "2026-07-18T10:15:00.000Z",
-      assurance: "password",
-      providerId: null,
-    };
-    const auth: Auth = {
-      ...realAuth,
-      api: {
-        ...realAuth.api,
-        getSession: async () => ({
-          user: {
-            id: created.id,
-            name: PRINCIPAL.displayName,
-            email: PRINCIPAL.email,
-            emailVerified: true,
-            image: null,
-          },
-          session: { id: sessionId, createdAt: NOW, expiresAt: LATER },
-        }),
-      },
-    };
-    const actor = { ...ACTOR, principalId: created.id, sessionId };
-    return {
-      port: betterAuthIdentityPort({
-        applicationId: APPLICATION_ID,
-        auth,
-        authMode: "password",
-        db,
+  ).run("session-row-1", LATER, token, NOW, NOW, created.id);
+  recordSessionAssurance(db, sessionId, created.id, "password");
+  const session: ApplicationSession = {
+    id: sessionId,
+    principal: { ...PRINCIPAL, id: created.id },
+    createdAt: NOW,
+    expiresAt: LATER,
+    freshUntil: "2026-07-18T10:15:00.000Z",
+    assurance: "password",
+    providerId: null,
+  };
+  const auth: Auth = {
+    ...realAuth,
+    api: {
+      ...realAuth.api,
+      getSession: async () => ({
+        user: {
+          id: created.id,
+          name: PRINCIPAL.displayName,
+          email: PRINCIPAL.email,
+          emailVerified: true,
+          image: null,
+        },
+        session: { id: sessionId, createdAt: NOW, expiresAt: LATER },
       }),
-      session,
-      actor,
-      knownPrincipal: {
-        id: created.id,
-        displayName: PRINCIPAL.displayName,
-        email: PRINCIPAL.email,
-      },
-      capabilities: {
-        durablePrincipalStorage: true,
-        credentials: true,
-        passwordReset: true,
-        administrativeSessionRevocation: true,
-      },
-      cleanup: () => db.close(),
-    };
-  })();
+    },
+  };
+  const actor = { ...ACTOR, principalId: created.id, sessionId };
+  return {
+    port: betterAuthIdentityPort({
+      applicationId: APPLICATION_ID,
+      auth,
+      authMode: "password",
+      db,
+    }),
+    session,
+    actor,
+    knownPrincipal: summaryOf(created.id),
+    capabilities: {
+      durablePrincipalStorage: true,
+      credentials: true,
+      passwordReset: true,
+      administrativeSessionRevocation: true,
+    },
+    cleanup: () => db.close(),
+  };
 }
 
 function trustedLocalHarness(): Harness {
@@ -344,11 +344,7 @@ function trustedLocalHarness(): Harness {
     port: trustedLocalIdentityPort(PRINCIPAL),
     session,
     actor: { ...ACTOR, sessionId: session.id, assurance: "trusted-local" },
-    knownPrincipal: {
-      id: PRINCIPAL.id,
-      displayName: PRINCIPAL.displayName,
-      email: PRINCIPAL.email,
-    },
+    knownPrincipal: summaryOf(PRINCIPAL.id),
     capabilities: {
       durablePrincipalStorage: false,
       credentials: false,
@@ -360,16 +356,7 @@ function trustedLocalHarness(): Harness {
 }
 
 function fakeIdentityHarness(): Harness {
-  const principals = new Map<string, PrincipalSummary>([
-    [
-      PRINCIPAL.id,
-      {
-        id: PRINCIPAL.id,
-        displayName: PRINCIPAL.displayName,
-        email: PRINCIPAL.email,
-      },
-    ],
-  ]);
+  const principals = new Map<string, PrincipalSummary>([[PRINCIPAL.id, summaryOf(PRINCIPAL.id)]]);
   const sessions = new Map<string, SessionSummary>([
     [
       ACTOR.sessionId,
@@ -386,16 +373,17 @@ function fakeIdentityHarness(): Harness {
     commandId: operation.commandId,
     completedAt: NOW,
   });
+  const session: ApplicationSession = {
+    id: ACTOR.sessionId,
+    principal: PRINCIPAL,
+    createdAt: NOW,
+    expiresAt: LATER,
+    freshUntil: "2026-07-18T10:10:00.000Z",
+    assurance: "password",
+  };
   const port: IdentityPort = {
     async verifyApplicationSession() {
-      return {
-        id: ACTOR.sessionId,
-        principal: PRINCIPAL,
-        createdAt: NOW,
-        expiresAt: LATER,
-        freshUntil: "2026-07-18T10:10:00.000Z",
-        assurance: "password",
-      };
+      return session;
     },
     async getPrincipalSummaries({ principalIds }) {
       return [...new Set(principalIds)].flatMap((id) => {
@@ -447,14 +435,7 @@ function fakeIdentityHarness(): Harness {
   };
   return {
     port,
-    session: {
-      id: ACTOR.sessionId,
-      principal: PRINCIPAL,
-      createdAt: NOW,
-      expiresAt: LATER,
-      freshUntil: "2026-07-18T10:10:00.000Z",
-      assurance: "password",
-    },
+    session,
     actor: ACTOR,
     knownPrincipal: principals.get(PRINCIPAL.id)!,
     capabilities: {

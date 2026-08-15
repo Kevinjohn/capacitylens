@@ -53,6 +53,28 @@ function contractError(code: ConstructorParameters<typeof AccountContractError>[
   return new AccountContractError({ code, message: code, retryable: false });
 }
 
+/** A promise paired with the callback that resolves it, for coordinating a side effect with its release. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+function reserveTestCommand(db: Db, overrides: Partial<Parameters<typeof reserveAccountCommand>[1]> = {}): void {
+  reserveAccountCommand(db, {
+    applicationId: "conformance-application",
+    operation: "password-reset:actor:actor-1",
+    idempotencyKey: command.idempotencyKey,
+    commandId: command.commandId,
+    actorPrincipalId: actor.principalId,
+    targetPrincipalId: "principal-1",
+    payloadHash: "a".repeat(64),
+    ...overrides,
+  });
+}
+
 function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentityPort {
   const base: LocalIdentityPort = {
     deprovisionLocalPrincipalInTx: vi.fn(),
@@ -493,14 +515,8 @@ describe("AccountFlows conformance", () => {
     ["compensates after the claim fails", false],
     ["retains exact repair state when compensation also fails", true],
   ] as const)("keeps an in-flight signup command durable across erasure and %s", async (_case, failCompensation) => {
-    let identityEntered!: () => void;
-    let releaseIdentity!: () => void;
-    const entered = new Promise<void>((resolve) => {
-      identityEntered = resolve;
-    });
-    const release = new Promise<void>((resolve) => {
-      releaseIdentity = resolve;
-    });
+    const { promise: entered, resolve: identityEntered } = deferred();
+    const { promise: release, resolve: releaseIdentity } = deferred();
     const claimFailure = contractError("NOT_FOUND");
     const compensationFailure = contractError("DEPENDENCY_UNAVAILABLE");
     const compensate = vi.fn(async () => {
@@ -818,14 +834,8 @@ describe("AccountFlows conformance", () => {
   });
 
   it("does not age a stale-looking reset command while its executor can still mint the ceremony", async () => {
-    let entered!: () => void;
-    let release!: () => void;
-    const sideEffectEntered = new Promise<void>((resolve) => {
-      entered = resolve;
-    });
-    const sideEffectRelease = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: sideEffectEntered, resolve: entered } = deferred();
+    const { promise: sideEffectRelease, resolve: release } = deferred();
     let ceremonyVisible = false;
     const { flows, lock } = harness({
       identity: identityPort({
@@ -871,14 +881,8 @@ describe("AccountFlows conformance", () => {
   });
 
   it("does not age a stale-looking session command while its executor can still revoke sessions", async () => {
-    let entered!: () => void;
-    let release!: () => void;
-    const sideEffectEntered = new Promise<void>((resolve) => {
-      entered = resolve;
-    });
-    const sideEffectRelease = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: sideEffectEntered, resolve: entered } = deferred();
+    const { promise: sideEffectRelease, resolve: release } = deferred();
     let revocationVisible = false;
     const { flows, lock } = harness({
       identity: identityPort({
@@ -924,16 +928,7 @@ describe("AccountFlows conformance", () => {
 
   it("still ages a stale pending command when no executor owns its command lock", async () => {
     const { flows } = harness();
-    reserveAccountCommand(db!, {
-      applicationId: "conformance-application",
-      operation: "password-reset:actor:actor-1",
-      idempotencyKey: command.idempotencyKey,
-      commandId: command.commandId,
-      actorPrincipalId: actor.principalId,
-      targetPrincipalId: "principal-1",
-      payloadHash: "a".repeat(64),
-      now: "2000-01-01T00:00:00.000Z",
-    });
+    reserveTestCommand(db!, { now: "2000-01-01T00:00:00.000Z" });
 
     await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
       status: "reconciliation-required",
@@ -946,16 +941,7 @@ describe("AccountFlows conformance", () => {
   it("reports a live pending command observation without claiming it completed", async () => {
     const { flows } = harness();
     const observedAt = new Date().toISOString();
-    reserveAccountCommand(db!, {
-      applicationId: "conformance-application",
-      operation: "password-reset:actor:actor-1",
-      idempotencyKey: command.idempotencyKey,
-      commandId: command.commandId,
-      actorPrincipalId: actor.principalId,
-      targetPrincipalId: "principal-1",
-      payloadHash: "a".repeat(64),
-      now: observedAt,
-    });
+    reserveTestCommand(db!, { now: observedAt });
 
     await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toEqual({
       status: "pending",
@@ -1019,15 +1005,7 @@ describe("AccountFlows conformance", () => {
       const { flows } = harness();
       const ledgerOperation =
         operation === "invite-password-signup" ? operation : `${operation}:actor:${actor.principalId}`;
-      reserveAccountCommand(db!, {
-        applicationId: "conformance-application",
-        operation: ledgerOperation,
-        idempotencyKey: command.idempotencyKey,
-        commandId: command.commandId,
-        actorPrincipalId: actor.principalId,
-        targetPrincipalId: "principal-1",
-        payloadHash: "a".repeat(64),
-      });
+      reserveTestCommand(db!, { operation: ledgerOperation });
       finishAccountCommand(db!, {
         applicationId: "conformance-application",
         operation: ledgerOperation,
@@ -1058,15 +1036,7 @@ describe("AccountFlows conformance", () => {
 
   it("retains the explicit legacy fallback only for null reconciliation metadata", async () => {
     const { flows } = harness();
-    reserveAccountCommand(db!, {
-      applicationId: "conformance-application",
-      operation: "password-reset:actor:actor-1",
-      idempotencyKey: command.idempotencyKey,
-      commandId: command.commandId,
-      actorPrincipalId: actor.principalId,
-      targetPrincipalId: "principal-1",
-      payloadHash: "a".repeat(64),
-    });
+    reserveTestCommand(db!);
     finishAccountCommand(db!, {
       applicationId: "conformance-application",
       operation: "password-reset:actor:actor-1",
@@ -1089,16 +1059,7 @@ describe("AccountFlows conformance", () => {
 
   it("does not age stale pending state until command id, idempotency key and operation all match", async () => {
     const { flows } = harness();
-    reserveAccountCommand(db!, {
-      applicationId: "conformance-application",
-      operation: "password-reset:actor:actor-1",
-      idempotencyKey: command.idempotencyKey,
-      commandId: command.commandId,
-      actorPrincipalId: actor.principalId,
-      targetPrincipalId: "principal-1",
-      payloadHash: "a".repeat(64),
-      now: "2000-01-01T00:00:00.000Z",
-    });
+    reserveTestCommand(db!, { now: "2000-01-01T00:00:00.000Z" });
     const original = db!
       .prepare(
         `
@@ -1273,14 +1234,8 @@ describe("AccountFlows conformance", () => {
   it("serializes membership mutation ahead of irreversible session revocation", async () => {
     const lock = new KeyedOperationLock();
     let allowed = true;
-    let releaseMutation!: () => void;
-    let mutationEntered!: () => void;
-    const entered = new Promise<void>((resolve) => {
-      mutationEntered = resolve;
-    });
-    const release = new Promise<void>((resolve) => {
-      releaseMutation = resolve;
-    });
+    const { promise: entered, resolve: mutationEntered } = deferred();
+    const { promise: release, resolve: releaseMutation } = deferred();
     const mutation = lock.withKeys(["principal-1"], async () => {
       mutationEntered();
       await release;
@@ -1366,14 +1321,8 @@ describe("AccountFlows conformance", () => {
 
   it("locks every workspace principal before erasure can race identity administration", async () => {
     const lock = new KeyedOperationLock();
-    let releasePrincipal!: () => void;
-    let principalLocked!: () => void;
-    const entered = new Promise<void>((resolve) => {
-      principalLocked = resolve;
-    });
-    const release = new Promise<void>((resolve) => {
-      releasePrincipal = resolve;
-    });
+    const { promise: entered, resolve: principalLocked } = deferred();
+    const { promise: release, resolve: releasePrincipal } = deferred();
     const mutation = lock.withKeys(["principal-1"], async () => {
       principalLocked();
       await release;
@@ -1409,14 +1358,8 @@ describe("AccountFlows conformance", () => {
 
   it("locks every workspace principal around legacy transactional batch erasure", async () => {
     const lock = new KeyedOperationLock();
-    let releasePrincipal!: () => void;
-    let principalLocked!: () => void;
-    const entered = new Promise<void>((resolve) => {
-      principalLocked = resolve;
-    });
-    const release = new Promise<void>((resolve) => {
-      releasePrincipal = resolve;
-    });
+    const { promise: entered, resolve: principalLocked } = deferred();
+    const { promise: release, resolve: releasePrincipal } = deferred();
     const mutation = lock.withKeys(["principal-1"], async () => {
       principalLocked();
       await release;

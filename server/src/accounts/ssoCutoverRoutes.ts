@@ -1,11 +1,24 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import { isAccountEmail } from "@capacitylens/shared/account/validation";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { SsoReadinessReason } from "@capacitylens/shared/account/ssoCutover";
 import type { Auth, AuthMode } from "../auth";
 import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
 import { ssoCutoverReadiness } from "./ssoCutover";
+
+/** The 400 "no strict provider" guard shared byte-for-byte by the two write endpoints below (email
+ *  correction, federated-link removal). Distinct from the 404 variant on GET /api/identity/provider
+ *  and the pre-derived check inside sso-readiness — those are left untouched. Sends the response and
+ *  returns undefined on failure so a call site that needs the provider can use it directly; neither
+ *  current call site does, so both just test the return value. */
+function requireStrictProvider(auth: Auth, reply: FastifyReply): Auth["strictProvider"] | undefined {
+  if (!auth.strictProvider) {
+    reply.code(400).send({ error: "No strict OIDC provider is configured." });
+    return undefined;
+  }
+  return auth.strictProvider;
+}
 
 interface SsoCutoverRouteDependencies {
   auth: Auth;
@@ -154,11 +167,9 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
         code: "CONFLICT",
       });
     }
-    if (!auth.strictProvider) {
-      return reply.code(400).send({ error: "No strict OIDC provider is configured." });
-    }
+    if (!requireStrictProvider(auth, reply)) return;
     const body = (req.body ?? {}) as { email?: unknown };
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const email = typeof body.email === "string" ? normalizeAccountEmail(body.email) : "";
     if (!isAccountEmail(email)) return reply.code(400).send({ error: "A valid email address is required." });
     try {
       const authority = await administration.evaluateIdentityAdminAuthority({
@@ -213,9 +224,7 @@ export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: Sso
         code: "CONFLICT",
       });
     }
-    if (!auth.strictProvider) {
-      return reply.code(400).send({ error: "No strict OIDC provider is configured." });
-    }
+    if (!requireStrictProvider(auth, reply)) return;
     const body = (req.body ?? {}) as { rowId?: unknown; providerId?: unknown; subject?: unknown };
     if (
       typeof body.rowId !== "string" ||

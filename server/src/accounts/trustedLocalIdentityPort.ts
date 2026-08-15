@@ -1,5 +1,6 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import type { LocalPrincipal, OperationReceipt } from "@capacitylens/shared/account/types";
+import type { LocalPrincipal } from "@capacitylens/shared/account/types";
+import { receipt } from "./accountFlowRuntime";
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
 
 function unsupported(commandId?: string): never {
@@ -9,10 +10,6 @@ function unsupported(commandId?: string): never {
     retryable: false,
     commandId,
   });
-}
-
-function receipt(commandId: string, changed?: boolean): OperationReceipt {
-  return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) };
 }
 
 /** Zero-provider identity implementation for the open-source trusted-local profile. */

@@ -18,7 +18,6 @@ import type {
   IdentityAdminAuthorityDecision,
   InvitationRole,
   Membership,
-  OperationReceipt,
   OwnershipTransfer,
   Role,
 } from "@capacitylens/shared/account/types";
@@ -62,7 +61,7 @@ import {
 import { KeyedOperationLock } from "./operationLock";
 import { getSecurityRevision } from "./state";
 import { WriteOnceSecretReplay } from "./writeOnceSecretReplay";
-import { accountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
+import { accountAuditWriter, receipt, recordTerminalOutcome } from "./accountFlowRuntime";
 import { confirmTrackedMemberSignIn } from "./memberSignInTracking";
 
 export const ACCOUNT_POLICY_VERSION = "account-policy-v1";
@@ -186,12 +185,24 @@ function membership(db: Db, row: AccountMember): Membership {
   };
 }
 
-function receipt(commandId: string, changed?: boolean): OperationReceipt {
-  return {
-    commandId,
-    completedAt: new Date().toISOString(),
-    ...(changed === undefined ? {} : { changed }),
-  };
+/**
+ * Bulk variant of `getSecurityRevision`, for listMemberships (only multi-row read here — every
+ * other call site above stays on the single-row `membership()`/`getSecurityRevision` path). Chunks
+ * the IN-list at 500 (mirrors betterAuthIdentityPort.ts's getPrincipalSummaries) so a large
+ * workspace never builds one unbounded query. A principal with no stored revision row is absent
+ * from the returned Map — callers must apply the same `?? 0` default `getSecurityRevision` uses.
+ */
+function securityRevisionsByPrincipal(db: Db, principalIds: readonly string[]): Map<string, number> {
+  const revisions = new Map<string, number>();
+  for (let offset = 0; offset < principalIds.length; offset += 500) {
+    const chunk = principalIds.slice(offset, offset + 500);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const rows = db
+      .prepare(`SELECT principalId, revision FROM account_security_revisions WHERE principalId IN (${placeholders})`)
+      .all(...chunk) as { principalId: string; revision?: number }[];
+    for (const row of rows) revisions.set(row.principalId, Number(row.revision ?? 0));
+  }
+  return revisions;
 }
 
 function assertInvitationRole(role: Role, commandId?: string): asserts role is InvitationRole {
@@ -253,6 +264,21 @@ function assertAdministrativeAssurance(
   if (requireMfa && !actor.mfaSatisfied) {
     throw failure("MFA_REQUIRED", "Multi-factor authentication is required for this account operation.", commandId);
   }
+}
+
+/** createInvitation's replay guard and its execute path both open with this same authority check.
+ *  assertAccountAuthority already asserts the workspace exists as its own first statement, so
+ *  neither closure needs a trailing assertWorkspaceExists of its own. */
+function assertInvitationAuthority(
+  db: Db,
+  actor: ActorContext,
+  requireMfa: boolean,
+  trustedLocal: boolean,
+  workspaceId: string,
+  commandId: string,
+): void {
+  assertAdministrativeAssurance(actor, requireMfa, trustedLocal, commandId);
+  assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
 }
 
 function existingWorkspaceIds(db: Db): ReadonlySet<string> {
@@ -704,9 +730,20 @@ export function sqliteAccountAdminPort(input: {
       // directory, never an authorization one — this read is already gated on 'list-members', and
       // the returned rows carry their real status so a caller cannot mistake a disabled membership
       // for an active one.
-      return listMembersForAccount(db, workspaceId)
-        .filter((row) => includeInactive || row.status === "active")
-        .map((row) => membership(db, row));
+      const rows = listMembersForAccount(db, workspaceId).filter((row) => includeInactive || row.status === "active");
+      // N+1 fix: one bulk revision query (chunked) instead of one `getSecurityRevision` per member.
+      // The output shape/coercion must match `membership()` exactly, so this builds the same object
+      // by hand rather than introduce a second membership-mapping function.
+      const revisions = securityRevisionsByPrincipal(db, [...new Set(rows.map((row) => row.userId))]);
+      return rows.map((row) => ({
+        workspaceId: row.accountId,
+        principalId: row.userId,
+        role: row.role,
+        status: row.status,
+        joinedAt: row.createdAt,
+        membershipRevision: String(revisions.get(row.userId) ?? 0),
+        policyVersion: ACCOUNT_POLICY_VERSION,
+      }));
     },
 
     async listInvitations({ actor, workspaceId }) {
@@ -811,9 +848,7 @@ export function sqliteAccountAdminPort(input: {
         replayGuard: () => {
           // A command replay can re-disclose the write-once bearer token. Re-evaluate current
           // authority first so a removed/demoted actor cannot recover it from the process cache.
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
-          assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
-          assertWorkspaceExists(db, workspaceId);
+          assertInvitationAuthority(db, actor, requireMfa, trustedLocal, workspaceId, command.commandId);
         },
         afterCommit: (invitation) => {
           invitationSecretReplay.storeReserved(command.commandId, invitation);
@@ -822,9 +857,7 @@ export function sqliteAccountAdminPort(input: {
           invitationSecretReplay.releaseReservation(command.commandId);
         },
         execute: () => {
-          assertAdministrativeAssurance(actor, requireMfa, trustedLocal, command.commandId);
-          assertAccountAuthority(db, actor, workspaceId, "manage-invitations", trustedLocal);
-          assertWorkspaceExists(db, workspaceId);
+          assertInvitationAuthority(db, actor, requireMfa, trustedLocal, workspaceId, command.commandId);
           const nowMs = Date.now();
           const effectiveExpiresAt = expiresAt ?? new Date(nowMs + 7 * 24 * 60 * 60 * 1000).toISOString();
           const expiry = parseISOTimestamp(effectiveExpiresAt);

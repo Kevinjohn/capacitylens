@@ -1,10 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type {
-  AccountAdminPort,
-  AccountFlows,
-  AccountFlowOperation,
-  IdentityPort,
-} from "@capacitylens/shared/account/ports";
+import type { AccountAdminPort, AccountFlows, IdentityPort } from "@capacitylens/shared/account/ports";
+import { isAccountFlowOperation } from "@capacitylens/shared/account/ports";
 import type { AccountMode, CommandIdentity } from "@capacitylens/shared/account/types";
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import {
@@ -23,6 +19,9 @@ import { wasAccountCommandReplayed } from "./commands";
 import type { MemberSignInTrackingSnapshot } from "./memberSignInTracking";
 
 const ISO_INSTANT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z$/;
+// Shared by the two role-validation response paths below (AccountContractError and a direct 400) —
+// same wording, deliberately different response shapes, so only the string is deduplicated.
+const INVALID_ROLE_MESSAGE = "role must be one of owner, admin, editor, viewer.";
 const MEMBER_SIGN_IN_TRACKING_RATE_LIMIT = {
   max: 5,
   timeWindow: "1 minute",
@@ -101,13 +100,12 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       retryable: false,
       commandId: command.commandId,
     });
-  const isFlowOperation = (value: unknown): value is AccountFlowOperation =>
-    value === "invite-password-signup" ||
-    value === "password-reset" ||
-    value === "session-revocation" ||
-    value === "workspace-provisioning" ||
-    value === "workspace-erasure";
-
+  // Every mutation route audits its own record UNLESS the command was a replay (audit already
+  // happened on first execution) — `extra` lets a route fold in one more precondition (e.g.
+  // "only if something actually changed") without re-deriving the replay check at each call site.
+  const auditUnlessReplayed = (reply: FastifyReply, result: unknown, record: AuditRecord, extra = true): void => {
+    if (extra && !wasAccountCommandReplayed(result)) audit(reply, record);
+  };
   // A command id plus its independent idempotency key is a high-entropy reconciliation bearer.
   // The response contains status and redacted repair coordinates only; never tenant or identity data.
   app.post("/api/account-commands/reconcile", async (req, reply) => {
@@ -119,7 +117,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     if (
       !isAccountCommandId(body.commandId) ||
       !isAccountIdempotencyKey(body.idempotencyKey) ||
-      !isFlowOperation(body.operation)
+      !isAccountFlowOperation(body.operation)
     )
       return reply.code(400).send({
         error: "A valid command, idempotency key, and operation are required.",
@@ -224,7 +222,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       return accountFail(reply, validationFailed("accountId must be a non-empty string."));
     }
     if (!isKnownRole(body.role)) {
-      return accountFail(reply, validationFailed("role must be one of owner, admin, editor, viewer."));
+      return accountFail(reply, validationFailed(INVALID_ROLE_MESSAGE));
     }
     // Shape-check preauthEmail here before authorize(): an absent value or a string that is empty
     // after trim means a link invite (null), while any present non-string is invalid. Email syntax
@@ -267,17 +265,15 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         expiresAt,
         command: accountCommand(req),
       });
-      if (!wasAccountCommandReplayed(invite)) {
-        audit(reply, {
-          ts: invite.createdAt,
-          userId: req.user!.id,
-          accountId: invite.workspaceId,
-          action: "inviteCreate",
-          entity: "invite",
-          id: invite.id,
-          changedFields: ["role", "preauthEmail", "expiresAt"],
-        });
-      }
+      auditUnlessReplayed(reply, invite, {
+        ts: invite.createdAt,
+        userId: req.user!.id,
+        accountId: invite.workspaceId,
+        action: "inviteCreate",
+        entity: "invite",
+        id: invite.id,
+        changedFields: ["role", "preauthEmail", "expiresAt"],
+      });
       // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
       // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
       // already-authorised admin. Later privileged invitation-list reads also expose it, but no
@@ -356,17 +352,15 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
               command: accountCommand(req),
             });
       const now = new Date().toISOString();
-      if (!wasAccountCommandReplayed(accepted)) {
-        audit(reply, {
-          ts: now,
-          userId: req.user!.id,
-          accountId: accepted.workspaceId,
-          action: "inviteAccept",
-          entity: "membership",
-          id: req.user!.id,
-          changedFields: ["role"],
-        });
-      }
+      auditUnlessReplayed(reply, accepted, {
+        ts: now,
+        userId: req.user!.id,
+        accountId: accepted.workspaceId,
+        action: "inviteAccept",
+        entity: "membership",
+        id: req.user!.id,
+        changedFields: ["role"],
+      });
       return reply.code(200).send({ accountId: accepted.workspaceId, role: accepted.role });
     } catch (err) {
       return accountFail(reply, err);
@@ -407,17 +401,15 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         password: body.password,
         command: accountCommand(req),
       });
-      if (!wasAccountCommandReplayed(result)) {
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: result.principalId,
-          accountId: result.membership.workspaceId,
-          action: "inviteAccept",
-          entity: "member",
-          id: result.principalId,
-          changedFields: ["role", "status"],
-        });
-      }
+      auditUnlessReplayed(reply, result, {
+        ts: new Date().toISOString(),
+        userId: result.principalId,
+        accountId: result.membership.workspaceId,
+        action: "inviteAccept",
+        entity: "member",
+        id: result.principalId,
+        changedFields: ["role", "status"],
+      });
       return reply.code(201).send({
         ok: true,
         accountId: result.membership.workspaceId,
@@ -442,6 +434,23 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     reply.code(400).send({
       error: "Member management is unavailable in trusted-local mode.",
     });
+
+  // Gate shared by every member-mutation route below: admin-tier authorize() first (it sends its own
+  // 403/404 on failure), then OFF mode's "no real member model" refusal. Same order/short-circuit as
+  // each call site had inline.
+  const authorizeMemberMutation = (
+    req: FastifyRequest,
+    reply: FastifyReply,
+    accountId: string,
+    action: Action,
+  ): boolean => {
+    if (!authorize(req, reply, accountId, action)) return false;
+    if (authMode === "off") {
+      rejectTrustedLocalMemberMutation(reply);
+      return false;
+    }
+    return true;
+  };
 
   // LIST members. Joins the membership rows with Better Auth user identity (name/email, read ONLY
   // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
@@ -528,11 +537,10 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     };
     const body = (req.body ?? {}) as { role?: unknown };
     if (!isKnownRole(body.role)) {
-      return reply.code(400).send({ error: "role must be one of owner, admin, editor, viewer." });
+      return reply.code(400).send({ error: INVALID_ROLE_MESSAGE });
     }
     const nextRole = body.role;
-    if (!authorize(req, reply, accountId, "manageMembers")) return;
-    if (authMode === "off") return rejectTrustedLocalMemberMutation(reply);
+    if (!authorizeMemberMutation(req, reply, accountId, "manageMembers")) return;
     try {
       const changed = await accountAdminPort.changeMemberRole({
         actor: req.accountActor!,
@@ -541,17 +549,15 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         nextRole,
         command: accountCommand(req),
       });
-      if (!wasAccountCommandReplayed(changed)) {
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: "memberRole",
-          entity: "membership",
-          id: userId,
-          changedFields: ["role"],
-        });
-      }
+      auditUnlessReplayed(reply, changed, {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "memberRole",
+        entity: "membership",
+        id: userId,
+        changedFields: ["role"],
+      });
       return reply.code(200).send({ userId: changed.principalId, role: changed.role });
     } catch (err) {
       return accountFail(reply, err);
@@ -575,8 +581,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       });
     }
     const nextStatus = body.status;
-    if (!authorize(req, reply, accountId, "manageMembers")) return;
-    if (authMode === "off") return rejectTrustedLocalMemberMutation(reply);
+    if (!authorizeMemberMutation(req, reply, accountId, "manageMembers")) return;
     try {
       const changed = await accountAdminPort.changeMemberStatus({
         actor: req.accountActor!,
@@ -585,17 +590,15 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         nextStatus,
         command: accountCommand(req),
       });
-      if (!wasAccountCommandReplayed(changed)) {
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: "memberStatus",
-          entity: "membership",
-          id: userId,
-          changedFields: ["status"],
-        });
-      }
+      auditUnlessReplayed(reply, changed, {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "memberStatus",
+        entity: "membership",
+        id: userId,
+        changedFields: ["status"],
+      });
       return reply.code(200).send({ userId: changed.principalId, status: changed.status });
     } catch (err) {
       return accountFail(reply, err);
@@ -609,8 +612,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       accountId: string;
       userId: string;
     };
-    if (!authorize(req, reply, accountId, "manageMembers")) return;
-    if (authMode === "off") return rejectTrustedLocalMemberMutation(reply);
+    if (!authorizeMemberMutation(req, reply, accountId, "manageMembers")) return;
     try {
       const removed = await accountAdminPort.removeMember({
         actor: req.accountActor!,
@@ -618,17 +620,15 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         targetPrincipalId: userId,
         command: accountCommand(req),
       });
-      if (!wasAccountCommandReplayed(removed)) {
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: "memberRemove",
-          entity: "membership",
-          id: userId,
-          changedFields: [],
-        });
-      }
+      auditUnlessReplayed(reply, removed, {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "memberRemove",
+        entity: "membership",
+        id: userId,
+        changedFields: [],
+      });
       return reply.code(204).send();
     } catch (err) {
       return accountFail(reply, err);
@@ -649,8 +649,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
       return reply.code(400).send({ error: "toUserId must be a non-empty string." });
     }
     const toUserId = body.toUserId;
-    if (!authorize(req, reply, accountId, "transferOwnership")) return;
-    if (authMode === "off") return rejectTrustedLocalMemberMutation(reply);
+    if (!authorizeMemberMutation(req, reply, accountId, "transferOwnership")) return;
     try {
       const now = new Date().toISOString();
       const transferred = await accountAdminPort.transferOwnership({
@@ -659,22 +658,40 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         targetPrincipalId: toUserId,
         command: accountCommand(req),
       });
-      if (!wasAccountCommandReplayed(transferred)) {
-        audit(reply, {
-          ts: now,
-          userId: req.user!.id,
-          accountId,
-          action: "ownershipTransfer",
-          entity: "membership",
-          id: toUserId,
-          changedFields: ["role"],
-        });
-      }
+      auditUnlessReplayed(reply, transferred, {
+        ts: now,
+        userId: req.user!.id,
+        accountId,
+        action: "ownershipTransfer",
+        entity: "membership",
+        id: toUserId,
+        changedFields: ["role"],
+      });
       return reply.code(200).send({ toUserId, role: "owner" });
     } catch (err) {
       return accountFail(reply, err);
     }
   });
+
+  // Shared by reset-password and revoke-sessions below: both need the target's membership row,
+  // INCLUDING inactive ones, before doing security-sensitive work. includeInactive: an existence
+  // probe, not an authorization one (that is the port's job just below). An admin disables a
+  // compromised account first and rotates its password / kills its sessions second, so an
+  // active-only probe here would 404 exactly the case these routes exist for.
+  const requireMembership = async (
+    reply: FastifyReply,
+    accountId: string,
+    userId: string,
+    command: CommandIdentity,
+  ) => {
+    const membership = await accountAdminPort.getMembership({
+      principalId: userId,
+      workspaceId: accountId,
+      includeInactive: true,
+    });
+    if (!membership) accountFail(reply, memberNotFound(command));
+    return membership;
+  };
 
   // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
   // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,
@@ -699,33 +716,22 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     }
     try {
       const command = accountCommand(req);
-      // includeInactive: an existence probe, not an authorization one (that is the port's job just
-      // below). An admin disables a compromised account first and rotates its password second, so an
-      // active-only probe here would 404 exactly the case this route exists for.
-      const targetMembership = await accountAdminPort.getMembership({
-        principalId: userId,
-        workspaceId: accountId,
-        includeInactive: true,
-      });
-      if (!targetMembership) {
-        return accountFail(reply, memberNotFound(command));
-      }
+      const targetMembership = await requireMembership(reply, accountId, userId, command);
+      if (!targetMembership) return;
       const ceremony = await accountFlows!.issuePasswordReset({
         actor: req.accountActor!,
         targetPrincipalId: userId,
         command,
       });
-      if (!wasAccountCommandReplayed(ceremony)) {
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: "passwordResetIssue",
-          entity: "identity",
-          id: userId,
-          changedFields: ["credential"],
-        });
-      }
+      auditUnlessReplayed(reply, ceremony, {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "passwordResetIssue",
+        entity: "identity",
+        id: userId,
+        changedFields: ["credential"],
+      });
       return reply.code(201).send({ token: ceremony.token, expiresAt: ceremony.expiresAt });
     } catch (err) {
       return accountFail(reply, err);
@@ -746,30 +752,22 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     }
     try {
       const command = accountCommand(req);
-      // includeInactive, for the same reason as the reset-password route above: killing the sessions
-      // of an account you have just disabled is the point, not an edge case.
-      const targetMembership = await accountAdminPort.getMembership({
-        principalId: userId,
-        workspaceId: accountId,
-        includeInactive: true,
-      });
-      if (!targetMembership) return accountFail(reply, memberNotFound(command));
+      const targetMembership = await requireMembership(reply, accountId, userId, command);
+      if (!targetMembership) return;
       const revoked = await accountFlows!.revokeMemberSessions({
         actor: req.accountActor!,
         targetPrincipalId: userId,
         command,
       });
-      if (!wasAccountCommandReplayed(revoked)) {
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: "sessionsRevoke",
-          entity: "identity",
-          id: userId,
-          changedFields: ["sessions"],
-        });
-      }
+      auditUnlessReplayed(reply, revoked, {
+        ts: new Date().toISOString(),
+        userId: req.user!.id,
+        accountId,
+        action: "sessionsRevoke",
+        entity: "identity",
+        id: userId,
+        changedFields: ["sessions"],
+      });
       return reply.code(204).send();
     } catch (err) {
       return accountFail(reply, err);
@@ -815,8 +813,10 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
         invitationId: id,
         command: accountCommand(req),
       });
-      if (revoked.changed && !wasAccountCommandReplayed(revoked)) {
-        audit(reply, {
+      auditUnlessReplayed(
+        reply,
+        revoked,
+        {
           ts: new Date().toISOString(),
           userId: req.user!.id,
           accountId,
@@ -824,8 +824,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
           entity: "invite",
           id,
           changedFields: [],
-        });
-      }
+        },
+        revoked.changed,
+      );
       return reply.code(204).send();
     } catch (err) {
       return accountFail(reply, err);

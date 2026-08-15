@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
@@ -15,9 +15,11 @@ import {
   SESSION_ABSOLUTE_TTL_SECONDS,
   SESSION_FRESH_AGE_SECONDS,
   SESSION_INACTIVITY_TTL_SECONDS,
+  cachedTableExists,
   mintPasswordResetToken,
   revokeFederatedLinkStateInTx,
   revokeResetTokensForUser,
+  secretTokenMatches,
   type Auth,
   type AuthMode,
 } from "../auth";
@@ -33,6 +35,7 @@ import {
   removeSessionAssurance,
 } from "./state";
 import { applicationSessionHandle } from "./sessionHandle";
+import { receipt } from "./accountFlowRuntime";
 
 export interface LocalIdentityPort extends IdentityPort {
   /** Embedded shared-SQLite capability: commit the credential identity and its coordinator-owned
@@ -170,19 +173,23 @@ function providerInstant(value: string | number, field: "createdAt" | "expiresAt
   return new Date(milliseconds).toISOString();
 }
 
-function receipt(commandId: string, changed?: boolean): OperationReceipt {
-  return { commandId, completedAt: new Date().toISOString(), ...(changed === undefined ? {} : { changed }) };
-}
-
-function tableExists(db: Db, table: string): boolean {
-  return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined;
-}
+// Per-handle-cached table probes (see auth.ts's cachedTableExists): each of these tables is only
+// ever created, never dropped, so caching a positive probe permanently is safe; a negative probe
+// keeps re-checking so a same-handle migration that creates the table later is still observed.
+const accountTableExists = cachedTableExists("account");
+const sessionTableExists = cachedTableExists("session");
+const userTableExists = cachedTableExists("user");
+const verificationTableExists = cachedTableExists("verification");
+const twoFactorTableExists = cachedTableExists("twoFactor");
+const federatedLinkObservationsTableExists = cachedTableExists("capacitylens_federated_link_observations");
+const federatedLinkCeremoniesTableExists = cachedTableExists("capacitylens_federated_link_ceremonies");
+const accountSessionAssuranceTableExists = cachedTableExists("account_session_assurance");
 
 /** Delete a principal's provider sessions and app-owned assurance inside the caller's SQLite
  * transaction. This is used by identity corrections/repairs so no sign-in can land between a
  * pre-mutation revocation and the mutation itself. */
 function revokePrincipalSessionsInTx(db: Db, applicationId: string, principalId: string): number {
-  if (!tableExists(db, "session")) {
+  if (!sessionTableExists(db)) {
     removePrincipalSessionAssurance(db, principalId);
     return 0;
   }
@@ -246,9 +253,9 @@ function accountLinkUserId(value: string): string | null {
 /** Delete only these installation-local Better Auth identities inside the caller's transaction. */
 function eraseLocalPrincipalsInTx(db: Db, principalIds: readonly string[]): void {
   const principals = new Set(principalIds);
-  if (principals.size === 0 || !tableExists(db, "user")) return;
+  if (principals.size === 0 || !userTableExists(db)) return;
 
-  if (tableExists(db, "verification")) {
+  if (verificationTableExists(db)) {
     // Scalar reset/email ceremonies can be removed entirely inside SQLite. Structured account-link
     // state still needs the fail-closed decoder below, but only values containing an object opener
     // can possibly carry that JSON shape; do not copy every opaque ceremony into JavaScript.
@@ -279,15 +286,15 @@ function eraseLocalPrincipalsInTx(db: Db, principalIds: readonly string[]): void
     }
   }
 
-  const removeSession = tableExists(db, "session") ? db.prepare(`DELETE FROM session WHERE userId = ?`) : null;
-  const removeAccount = tableExists(db, "account") ? db.prepare(`DELETE FROM account WHERE userId = ?`) : null;
-  const removeTwoFactor = tableExists(db, "twoFactor") ? db.prepare(`DELETE FROM twoFactor WHERE userId = ?`) : null;
+  const removeSession = sessionTableExists(db) ? db.prepare(`DELETE FROM session WHERE userId = ?`) : null;
+  const removeAccount = accountTableExists(db) ? db.prepare(`DELETE FROM account WHERE userId = ?`) : null;
+  const removeTwoFactor = twoFactorTableExists(db) ? db.prepare(`DELETE FROM twoFactor WHERE userId = ?`) : null;
   const removeUser = db.prepare(`DELETE FROM user WHERE id = ?`);
   for (const principalId of principals) {
-    if (tableExists(db, "capacitylens_federated_link_observations")) {
+    if (federatedLinkObservationsTableExists(db)) {
       db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE principalId = ?`).run(principalId);
     }
-    if (tableExists(db, "capacitylens_federated_link_ceremonies")) {
+    if (federatedLinkCeremoniesTableExists(db)) {
       db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ?`).run(principalId);
     }
     removePrincipalSessionAssurance(db, principalId);
@@ -320,9 +327,9 @@ export function betterAuthIdentityPort(input: {
       .digest("base64url");
 
   const assertCompensationHandle = (provisional: ProvisionalPrincipal, commandId: string): void => {
-    const expected = Buffer.from(makeCompensationHandle(provisional.principalId, commandId));
-    const actual = Buffer.from(provisional.compensationHandle);
-    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    if (
+      !secretTokenMatches(makeCompensationHandle(provisional.principalId, commandId), provisional.compensationHandle)
+    ) {
       throw new AccountContractError({
         code: "FORBIDDEN",
         message: "The provisional-principal compensation handle is invalid.",
@@ -453,7 +460,7 @@ export function betterAuthIdentityPort(input: {
             }
           }
           revokePrincipalSessionsInTx(db, applicationId, principalId);
-          if (tableExists(db, "capacitylens_federated_link_observations")) {
+          if (federatedLinkObservationsTableExists(db)) {
             db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE accountRowId = ?`).run(rowId);
           }
           const removed = db
@@ -466,7 +473,7 @@ export function betterAuthIdentityPort(input: {
               retryable: false,
             });
           }
-          if (tableExists(db, "capacitylens_federated_link_ceremonies")) {
+          if (federatedLinkCeremoniesTableExists(db)) {
             db.prepare(
               `DELETE FROM capacitylens_federated_link_ceremonies WHERE principalId = ? AND providerId = ?`,
             ).run(principalId, providerId);
@@ -498,8 +505,8 @@ export function betterAuthIdentityPort(input: {
       return tx(db, read as SynchronousCallback<typeof read>);
     },
     inspectProviderLinks(principalId, providerId) {
-      if (!tableExists(db, "account")) return [];
-      const hasObservations = tableExists(db, "capacitylens_federated_link_observations");
+      if (!accountTableExists(db)) return [];
+      const hasObservations = federatedLinkObservationsTableExists(db);
       const rows = hasObservations
         ? (db
             .prepare(
@@ -541,7 +548,7 @@ export function betterAuthIdentityPort(input: {
         .prepare(`SELECT id, userId, providerId, accountId FROM account ORDER BY userId, providerId, accountId`)
         .all() as Array<{ id: string; userId: string; providerId: string; accountId: string }>;
       const observations = new Map(
-        tableExists(db, "capacitylens_federated_link_observations")
+        federatedLinkObservationsTableExists(db)
           ? (
               db
                 .prepare(
@@ -564,7 +571,7 @@ export function betterAuthIdentityPort(input: {
         providersByPrincipal.set(row.userId, values);
       }
       const principalIds = new Set(users.map(({ id }) => id));
-      const outstandingResetPrincipalIds = tableExists(db, "verification")
+      const outstandingResetPrincipalIds = verificationTableExists(db)
         ? [
             ...new Set(
               (
@@ -618,10 +625,10 @@ export function betterAuthIdentityPort(input: {
           // Take the writer reservation before the final readiness read. Otherwise another process
           // could admit a blocker or create a password session between preflight and revocation.
           assertReady();
-          const sessionRows = tableExists(db, "session")
+          const sessionRows = sessionTableExists(db)
             ? (db.prepare(`SELECT token, userId FROM session`).all() as Array<{ token: string; userId: string }>)
             : [];
-          const verificationRows = tableExists(db, "verification")
+          const verificationRows = verificationTableExists(db)
             ? (db.prepare(`SELECT value, expiresAt FROM verification`).all() as Array<{
                 value: string;
                 expiresAt: string | number;
@@ -629,7 +636,7 @@ export function betterAuthIdentityPort(input: {
             : [];
           const ceremonies = verificationRows.length;
           const now = Date.now();
-          const principals = tableExists(db, "user")
+          const principals = userTableExists(db)
             ? (db.prepare(`SELECT id FROM user`).all() as Array<{ id: string }>).map(({ id }) => id)
             : [];
           const principalIds = new Set(principals);
@@ -641,7 +648,7 @@ export function betterAuthIdentityPort(input: {
             db.prepare(`SELECT 1 FROM capacitylens_sso_cutover_state WHERE applicationId = ?`).get(applicationId) !==
             undefined;
           const assuranceBySession = new Map(
-            tableExists(db, "account_session_assurance")
+            accountSessionAssuranceTableExists(db)
               ? (
                   db.prepare(`SELECT sessionId, assurance FROM account_session_assurance`).all() as Array<{
                     sessionId: string;
@@ -661,7 +668,7 @@ export function betterAuthIdentityPort(input: {
             );
           if (!requiresCutover) return { sessions: 0, ceremonies: 0 };
           for (const principalId of principals) revokePrincipalSessionsInTx(db, applicationId, principalId);
-          if (tableExists(db, "verification")) db.prepare(`DELETE FROM verification`).run();
+          if (verificationTableExists(db)) db.prepare(`DELETE FROM verification`).run();
           db.prepare(`DELETE FROM account_session_assurance`).run();
           db.prepare(`DELETE FROM capacitylens_federated_link_ceremonies`).run();
           const occurredAt = new Date().toISOString();
@@ -789,7 +796,7 @@ export function betterAuthIdentityPort(input: {
           : new Date(Date.parse(createdAt) + SESSION_ABSOLUTE_TTL_SECONDS * 1000).toISOString();
         const authentication = getSessionAuthentication(db, resolved.session?.id ?? "");
         if (!authentication) {
-          const providerRows = tableExists(db, "account")
+          const providerRows = accountTableExists(db)
             ? (db.prepare(`SELECT providerId FROM account WHERE userId = ?`).all(resolved.user.id) as Array<{
                 providerId: string;
               }>)
@@ -803,7 +810,7 @@ export function betterAuthIdentityPort(input: {
           }
         }
         const linkedRows =
-          authentication?.assurance === "federated" && authentication.providerId && tableExists(db, "account")
+          authentication?.assurance === "federated" && authentication.providerId && accountTableExists(db)
             ? (db
                 .prepare(
                   `

@@ -223,8 +223,19 @@ export interface InviteSignupResult {
   compensated: false;
 }
 
-export type AccountFlowOperation =
-  "invite-password-signup" | "password-reset" | "session-revocation" | "workspace-provisioning" | "workspace-erasure";
+export const ACCOUNT_FLOW_OPERATIONS = Object.freeze([
+  "invite-password-signup",
+  "password-reset",
+  "session-revocation",
+  "workspace-provisioning",
+  "workspace-erasure",
+] as const);
+
+export type AccountFlowOperation = (typeof ACCOUNT_FLOW_OPERATIONS)[number];
+
+export function isAccountFlowOperation(value: unknown): value is AccountFlowOperation {
+  return typeof value === "string" && (ACCOUNT_FLOW_OPERATIONS as readonly string[]).includes(value);
+}
 
 export type ReconciliationRepairKind =
   | "invitation-claim-committed"
