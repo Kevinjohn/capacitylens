@@ -59,7 +59,9 @@ export async function disableCssMotion(page: Page): Promise<void> {
 
 /** A locator's bounding box, or throw if it isn't rendered (Playwright returns null instead of
  *  failing, so geometry assertions need an explicit guard). */
-export async function boundingBoxOrThrow(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+export async function boundingBoxOrThrow(
+  locator: Locator,
+): Promise<{ x: number; y: number; width: number; height: number }> {
   const b = await locator.boundingBox();
   if (!b) throw new Error("no bounding box");
   return b;
