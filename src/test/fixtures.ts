@@ -204,3 +204,21 @@ export function setPlaceholdersEnabled(on: boolean, accountId: ID = DEFAULT_ACCO
 export function setExternalEnabled(on: boolean, accountId: ID = DEFAULT_ACCOUNT_ID): void {
   useStore.getState().updateAccount(accountId, { externalEnabled: on });
 }
+
+/** A JSON `Response` for a stubbed `fetch`/client call — the shape the API clients' body decoders
+ *  expect (a real `Response`, `Content-Type: application/json`, a JSON-encoded body).
+ *
+ *  Call it PER INVOCATION, not once into a shared const: a `Response` body is a single-use stream, so
+ *  a mock that resolves the same instance twice hands the second reader an already-consumed body. The
+ *  idiom is `mock.mockImplementation(() => Promise.resolve(jsonResponse(...)))`.
+ *
+ *  @param body   - anything `JSON.stringify` accepts; becomes the response body verbatim.
+ *  @param status - defaults to 200. Pass a 4xx/5xx to exercise a client's non-ok branch (note the
+ *                  `Response` constructor rejects 204 with a body — use a bare `new Response(null,
+ *                  { status: 204 })` for those). */
+export function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}

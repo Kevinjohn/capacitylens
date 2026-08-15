@@ -10,6 +10,9 @@ import {
   timeOffTypeOptions,
   resourceDisplayName,
   placeholderDisplayName,
+  labelsFrom,
+  toOptions,
+  type LabelMessages,
 } from "./metadata";
 import type { Resource } from "@capacitylens/shared/types/entities";
 
@@ -114,5 +117,42 @@ describe("resourceDisplayName / placeholderDisplayName", () => {
   it.each(["", "   "])("falls back to role when a non-placeholder name is blank: %j", (name) => {
     const r = makeResource({ kind: "external", name, role: "Consultant" });
     expect(resourceDisplayName(r)).toBe("Consultant");
+  });
+});
+
+// The two derivation primitives, now exported so a surface with an enum table of its own reuses them
+// instead of re-implementing the loop. Tested directly (rather than only through the enum accessors
+// above) because the LAZY-RESOLUTION rule is the one a caller can break by accident.
+describe("labelsFrom / toOptions", () => {
+  it("resolves every message at CALL time, so a locale switch is live", () => {
+    let locale = "en";
+    const table: LabelMessages<"alpha" | "beta"> = {
+      alpha: () => `alpha:${locale}`,
+      beta: () => `beta:${locale}`,
+    };
+
+    expect(labelsFrom(table)).toEqual({ alpha: "alpha:en", beta: "beta:en" });
+    locale = "fr";
+    expect(labelsFrom(table)).toEqual({ alpha: "alpha:fr", beta: "beta:fr" });
+  });
+
+  it("preserves the table's declaration order through to the option list", () => {
+    const table: LabelMessages<"third" | "first" | "second"> = {
+      third: () => "Third",
+      first: () => "First",
+      second: () => "Second",
+    };
+
+    expect(toOptions(labelsFrom(table))).toEqual([
+      { value: "third", label: "Third" },
+      { value: "first", label: "First" },
+      { value: "second", label: "Second" },
+    ]);
+  });
+
+  it("degrades to an empty map/list for an empty table rather than throwing", () => {
+    const empty: LabelMessages<never> = {};
+    expect(labelsFrom(empty)).toEqual({});
+    expect(toOptions(labelsFrom(empty))).toEqual([]);
   });
 });

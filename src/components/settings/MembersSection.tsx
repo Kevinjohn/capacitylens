@@ -1,20 +1,28 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
-import { useAuth } from "../../auth/authContext";
+import { strictOidcProvider, useAuth } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
 import { useFieldError } from "../../hooks/useFieldError";
+import { useDeadlineClock } from "../../hooks/useDeadlineClock";
 import { errorMessage } from "../../lib/errorMessage";
+import { readApiError } from "../../lib/readApiError";
+import { formatInstant, formatInstantDate } from "../../lib/dateDisplay";
 import { ConfirmDialog, Modal, SelectField, TextField } from "../common/ui";
 import { m } from "@/i18n";
 import {
   can,
   canChangeMemberStatus,
-  canManageMemberRole,
+  canEditAnyMemberRole,
   canRemoveMember,
   type Role,
 } from "@capacitylens/shared/domain/access";
-import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
-import { teamAccessClient, type TeamInvitation, type TeamMember } from "../../account/teamAccessClient";
+import { ACCOUNT_ROLES, type InvitationRole, type MembershipStatus } from "@capacitylens/shared/account/types";
+import {
+  rejectionMessage,
+  teamAccessClient,
+  type TeamInvitation,
+  type TeamMember,
+} from "../../account/teamAccessClient";
 import { accountClient } from "../../account/accountClient";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
@@ -36,6 +44,7 @@ import { Switch } from "../ui/switch";
 import { SsoReadinessPanel } from "./SsoReadinessPanel";
 import {
   parseWorkspaceReadiness,
+  readinessMemberLabel,
   type ReadinessMember,
   type ReadinessRepairLink,
   type WorkspaceReadiness,
@@ -46,7 +55,7 @@ import {
 // row's pencil, reach the rarer lifecycle actions through the row's gear, and invite people from a
 // SEPARATE card below (#175). Ownership transfer is deliberately absent: it is not a per-row action
 // and returns as its own owner-only section under a follow-up ticket. The CLIENT
-// gate is courtesy only — the SAME pure guards (canManageMemberRole / canRemoveMember) hide controls
+// gate is courtesy only — the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
 // the user can't use, but the SERVER is the backstop (every route is gated server-side; a 403 on the
 // initial members fetch is what hides the whole section for a viewer/editor). The invite TOKEN is
 // shown exactly ONCE, straight from the create response — it is write-once and never read back.
@@ -55,20 +64,11 @@ type Member = TeamMember;
 type MemberConfirmationAction = "remove" | "resetPassword" | "revokeSessions" | "disable" | "archive" | "restore";
 type MemberConfirmation = { action: MemberConfirmationAction; member: Member };
 
-// Each role's label is a GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS
-// pattern, P1.5.2): this list is module-scope, so resolving `m.key()` here would freeze the label to
-// the load-time locale. The getter defers it to render — roleOptions() calls each at its call site.
-const ALL_ROLE_OPTIONS: { value: Role; label: () => string }[] = [
-  { value: "admin", label: () => m.settings_role_admin() },
-  { value: "editor", label: () => m.settings_role_editor() },
-  { value: "viewer", label: () => m.settings_role_viewer() },
-];
-
-// Owner is deliberately absent: ownership can change only through the explicit atomic transfer.
-// Labels are resolved at render time so a locale change is reflected without reloading the module.
-function roleOptions(): { value: Role; label: string }[] {
-  return ALL_ROLE_OPTIONS.map((o) => ({ value: o.value, label: o.label() }));
-}
+// The roles a member can be given here, in the shared vocabulary's own order. Owner is deliberately
+// absent: ownership can change only through the explicit atomic transfer. Values only — no labels at
+// module scope, because resolving `m.key()` here would freeze the wording to the load-time locale
+// (P1.5.2); the labels come from `roleLabel` at render time instead.
+const ASSIGNABLE_ROLES: readonly Role[] = ACCOUNT_ROLES.filter((role) => role !== "owner");
 
 function labelFor(m: Member): string {
   const name = m.name?.trim();
@@ -134,6 +134,40 @@ const STATUS_FOR_ACTION: Readonly<Record<"disable" | "archive" | "restore", Memb
   archive: "archived",
   restore: "active",
 });
+
+/**
+ * Which of a row's controls the viewer may see. Pure and shared by both member tables, so the
+ * collapsed inactive group can never end up offering a different set of actions from the main one.
+ * The CLIENT gate is courtesy only — the server refuses each of these regardless.
+ */
+function memberAffordances(
+  myRole: Role | undefined,
+  mem: Member,
+): { mayTouch: boolean; mayRemove: boolean; mayChangeStatus: boolean; mayReset: boolean; hasMenu: boolean } {
+  // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves its target
+  // through getActiveMemberRole, so offering the pencil on a non-active row could only ever
+  // produce a 404. Restore the member first, then change the role — a role change must not be a
+  // back door that quietly reinstates access.
+  const mayTouch = mem.status === "active" && !!myRole && canEditAnyMemberRole(myRole, mem.role);
+  // Remove, by contrast, is status-agnostic on both sides: deleting a non-active membership is a
+  // normal administrative act and must not require reinstating it first.
+  const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
+  const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, mem.role, mem.isSelf);
+  // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP;
+  // the server 400s there regardless) and never for a target an admin can't touch
+  // (e.g. an owner, or a member who owns another account — a reset link is an
+  // account-takeover capability). We trust the SERVER-computed `mayResetPassword`:
+  // it already folds in the cross-account + self-exemption checks the per-account
+  // pure guard cannot see AND returns `false` in SSO mode.
+  const mayReset = mem.mayResetPassword;
+  return {
+    mayTouch,
+    mayRemove,
+    mayChangeStatus,
+    mayReset,
+    hasMenu: mayReset || mem.mayRevokeSessions || mayChangeStatus || mayRemove,
+  };
+}
 
 /**
  * A write-once "here is a freshly-minted link, copy it now" block (shared by the invite link and the
@@ -231,9 +265,11 @@ export function MembersSection() {
 /** Account-keyed implementation. Changing companies remounts this boundary, which discards
  * account-local drafts, confirmations, action locks and write-once bearer links together. */
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
-  const [renderedAt, setRenderedAt] = useState(() => Date.now());
   const { authMode, providers, refreshAuth } = useAuth();
-  const strictProvider = providers?.find((provider) => provider.kind === "oidc" && !provider.experimental) ?? null;
+  // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
+  // is keyed on it, and keying on the provider OBJECT would re-fetch whenever an equal-but-new
+  // provider list is resolved.
+  const strictProviderId = strictOidcProvider(providers)?.id ?? null;
   const offline = useOfflineState();
   const setActiveAccount = useStore((s) => s.setActiveAccount);
   const setNotice = useStore((s) => s.setNotice);
@@ -295,6 +331,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     replaceDirectory,
     gate,
     reload,
+    reloadInvites,
     busyAction,
     beginAction,
     endAction,
@@ -305,25 +342,36 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     fail,
     onInvitesLoaded: reconcileMintedInvite,
   });
+  /** Ask the readiness effect below for a fresh read. Every write that can move a membership, an
+   *  email or a federated link can move the cutover projection derived from them. */
+  const bumpReadiness = () => setReadinessRevision((value) => value + 1);
+  /** The pair nearly every membership write needs: re-read the directory, then the readiness that is
+   *  derived from it. */
+  const refreshDirectory = () => {
+    reload();
+    bumpReadiness();
+  };
+  // Does the SSO readiness panel apply at all? The section must be authorized (`shown`), the deploy
+  // must actually have a strict OIDC provider to be ready FOR, and a cached offline session must not
+  // be asking the server questions it cannot answer.
+  const readinessApplies = gate === "shown" && !offline.readOnly && strictProviderId !== null;
   const actionStatusRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     if (busyAction !== null) actionStatusRef.current?.focus();
   }, [busyAction]);
-  useEffect(() => {
+  // An outstanding invite row flips to "expired" on a wall-clock boundary nothing else re-renders,
+  // so the section keeps an alarm on the nearest expiry STILL AHEAD of the clock it renders with —
+  // which is why the clock is the picker's argument rather than a `Date.now()` read of its own.
+  const renderedAt = useDeadlineClock((clock) => {
     const nextExpiry = invites
       .filter((invite) => invite.usedAt === null)
       .map((invite) => Date.parse(invite.expiresAt))
-      .filter((expiry) => Number.isFinite(expiry) && expiry > renderedAt)
+      .filter((expiry) => Number.isFinite(expiry) && expiry > clock)
       .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
-    if (!Number.isFinite(nextExpiry)) return;
-    const timer = window.setTimeout(
-      () => setRenderedAt(Date.now()),
-      Math.min(nextExpiry - Date.now() + 1, 2_147_483_647),
-    );
-    return () => window.clearTimeout(timer);
-  }, [invites, renderedAt]);
+    return Number.isFinite(nextExpiry) ? nextExpiry : null;
+  });
   useEffect(() => {
-    if (gate !== "shown" || !activeAccountId || !strictProvider || offline.readOnly) {
+    if (!readinessApplies || !activeAccountId) {
       return;
     }
     let cancelled = false;
@@ -332,7 +380,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
         const response = await accountClient.getSsoReadiness(activeAccountId);
         const body: unknown = await response.json().catch(() => null);
         const parsed = parseWorkspaceReadiness(body);
-        if (!response.ok || !parsed || parsed.provider.id !== strictProvider.id) {
+        if (!response.ok || !parsed || parsed.provider.id !== strictProviderId) {
           throw new Error("Invalid SSO readiness response.");
         }
         if (!cancelled) {
@@ -350,7 +398,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     return () => {
       cancelled = true;
     };
-  }, [activeAccountId, gate, offline.readOnly, readinessRevision, strictProvider]);
+  }, [activeAccountId, readinessApplies, readinessRevision, strictProviderId]);
   const requestAccountId = (): string => {
     if (!activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return activeAccountId;
@@ -362,6 +410,34 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     // Membership loss is not an ordinary trip to the picker: do not offer a Back shortcut to a
     // company the caller can no longer open.
     useStore.setState({ previousAccountId: null });
+  };
+
+  /**
+   * The envelope every member/invite mutation shares, and NOTHING else: resolve the account being
+   * written to (no open company throws before anything is attempted), take the single action lock —
+   * standing down when another action already holds it — and release the lock however `body` ends.
+   *
+   * Deliberately thin. Result classification, the reconcile-on-`unknown` calls, which field an error
+   * is routed to and what a success does afterwards differ materially per action (a self-mutation
+   * reloads the page or re-resolves the caller's access; a write-once token is cleared; some invalid
+   * responses are reconciled rather than reported), so each handler keeps its own try/catch around
+   * its own sequence rather than passing that sequence in as options.
+   */
+  const withMemberAction = async (key: string, body: (accountId: string) => Promise<void>): Promise<void> => {
+    const accountId = requestAccountId();
+    if (!beginAction(key)) return;
+    try {
+      await body(accountId);
+    } finally {
+      endAction();
+    }
+  };
+
+  /** Drop the write-once reset block when the server has already burned that member's token. Every
+   *  membership write (upsertMember, setMemberStatus) revokes the target's outstanding reset tokens
+   *  — the P1.18 TOCTOU close — so a link still on screen for them is already dead. */
+  const clearResetLinkFor = (userId: string): void => {
+    if (resetLink?.userId === userId) setResetLink(null);
   };
 
   /** Re-resolve every caller-owned projection after a possible self-role mutation. The role badge
@@ -426,12 +502,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       }
       const nextInvites = inviteResult.value;
       replaceDirectory(memberResult.value, nextInvites);
-      setReadinessRevision((value) => value + 1);
-      setMintedLink((current) =>
-        current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
-          ? null
-          : current,
-      );
+      bumpReadiness();
+      reconcileMintedInvite(nextInvites);
       setNotice(m.settings_members_reconcile_directory({ message }), "warning");
     } catch (reloadError) {
       if (!isActiveAccount(accountId)) return;
@@ -472,261 +544,220 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     );
   }
 
-  const myRole = members?.find((m) => m.isSelf)?.role;
+  // NB: the callback param is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2);
+  // a `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
+  const myRole = members?.find((mem) => mem.isSelf)?.role;
   const mayManageInvites = myRole !== undefined && can(myRole, "manageInvites");
   const mayManageSignInTracking = myRole !== undefined && can(myRole, "manageMemberSignInTracking");
-  const changeSignInTracking = async (next: boolean) => {
-    const accountId = requestAccountId();
-    if (!beginAction("member-sign-in-tracking")) return;
-    try {
-      const result = await teamAccessClient.setMemberSignInTracking(accountId, next);
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        fail(
-          null,
-          result.kind === "rejected" && result.message
-            ? result.message
-            : m.settings_members_err_sign_in_tracking({ status: result.status }),
-        );
-        reload();
-        return;
-      }
-      setNotice(
-        result.value ? m.settings_members_sign_in_tracking_enabled() : m.settings_members_sign_in_tracking_disabled(),
-      );
-      reload();
-    } catch (cause) {
-      fail(null, m.settings_err_server({ error: errorMessage(cause) }));
-      reload();
-    } finally {
-      endAction();
-    }
-  };
-  // NB: the param is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2); a
-  // `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
-  const changeRole = async (mem: Member, nextRole: Role) => {
-    if (nextRole === mem.role) return;
-    const accountId = requestAccountId();
-    if (!beginAction(`role:${mem.userId}`)) return;
-    try {
-      const result = await teamAccessClient.changeMemberRole(accountId, mem.userId, nextRole);
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        if (result.kind === "unknown") {
-          await reconcileUnknownMutation(m.settings_members_unknown_role_change(), {
-            callerAccessMayHaveChanged: mem.isSelf,
-          });
+  const changeSignInTracking = (next: boolean) =>
+    withMemberAction("member-sign-in-tracking", async (accountId) => {
+      try {
+        const result = await teamAccessClient.setMemberSignInTracking(accountId, next);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          fail(null, rejectionMessage(result, m.settings_members_err_sign_in_tracking({ status: result.status })));
+          reload();
           return;
         }
-        fail(
-          null,
-          result.kind === "rejected" && result.message
-            ? result.message
-            : m.settings_members_err_change_role({ status: result.status }),
+        setNotice(
+          result.value ? m.settings_members_sign_in_tracking_enabled() : m.settings_members_sign_in_tracking_disabled(),
         );
-        return;
+        reload();
+      } catch (cause) {
+        fail(null, m.settings_err_server({ error: errorMessage(cause) }));
+        reload();
       }
-      setNotice(m.settings_members_role_updated());
-      // The write-once block must never keep displaying a link the server has already revoked:
-      // upsertMember burns THIS member's outstanding reset tokens on every membership write (the
-      // P1.18 TOCTOU close), so a role change to the shown member kills that link server-side.
-      if (resetLink?.userId === mem.userId) setResetLink(null);
-      if (mem.isSelf) await refreshCallerAccess();
-      reload();
-      setReadinessRevision((value) => value + 1);
-    } catch (e) {
-      await reconcileUnknownMutation(
-        m.settings_members_error_detail({
-          message: m.settings_members_unknown_role_change(),
-          error: errorMessage(e),
-        }),
-        { callerAccessMayHaveChanged: mem.isSelf },
-      );
-    } finally {
-      endAction();
-    }
+    });
+  // NB: the param is `mem`, NOT `m` — see myRole above (`m` is the i18n catalogue, not a Member).
+  const changeRole = async (mem: Member, nextRole: Role) => {
+    if (nextRole === mem.role) return;
+    await withMemberAction(`role:${mem.userId}`, async (accountId) => {
+      try {
+        const result = await teamAccessClient.changeMemberRole(accountId, mem.userId, nextRole);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_role_change(), {
+              callerAccessMayHaveChanged: mem.isSelf,
+            });
+            return;
+          }
+          fail(null, rejectionMessage(result, m.settings_members_err_change_role({ status: result.status })));
+          return;
+        }
+        setNotice(m.settings_members_role_updated());
+        clearResetLinkFor(mem.userId);
+        if (mem.isSelf) await refreshCallerAccess();
+        refreshDirectory();
+      } catch (e) {
+        await reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_role_change(),
+            error: errorMessage(e),
+          }),
+          { callerAccessMayHaveChanged: mem.isSelf },
+        );
+      }
+    });
   };
 
   // NB: the param is `mem`, NOT `m` — see changeRole above (`m` is the i18n catalogue, not a Member).
-  const removeMember = async (mem: Member) => {
-    const accountId = requestAccountId();
-    if (!beginAction(`remove:${mem.userId}`)) return;
-    try {
-      const result = await teamAccessClient.removeMember(accountId, mem.userId);
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        if (result.kind === "unknown") {
-          await reconcileUnknownMutation(m.settings_members_unknown_member_removal(), {
-            callerAccessMayHaveChanged: mem.isSelf,
-          });
+  const removeMember = (mem: Member) =>
+    withMemberAction(`remove:${mem.userId}`, async (accountId) => {
+      try {
+        const result = await teamAccessClient.removeMember(accountId, mem.userId);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_member_removal(), {
+              callerAccessMayHaveChanged: mem.isSelf,
+            });
+            return;
+          }
+          fail(null, rejectionMessage(result, m.settings_members_err_remove({ status: result.status })));
           return;
         }
-        fail(
-          null,
-          result.kind === "rejected" && result.message
-            ? result.message
-            : m.settings_members_err_remove({ status: result.status }),
+        setNotice(m.settings_members_removed());
+        clearResetLinkFor(mem.userId);
+        if (mem.isSelf) {
+          await refreshCallerAccess(true);
+        }
+        refreshDirectory();
+      } catch (e) {
+        await reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_member_removal(),
+            error: errorMessage(e),
+          }),
+          { callerAccessMayHaveChanged: mem.isSelf },
         );
-        return;
       }
-      setNotice(m.settings_members_removed());
-      if (resetLink?.userId === mem.userId) setResetLink(null);
-      if (mem.isSelf) {
-        await refreshCallerAccess(true);
-      }
-      reload();
-      setReadinessRevision((value) => value + 1);
-    } catch (e) {
-      await reconcileUnknownMutation(
-        m.settings_members_error_detail({
-          message: m.settings_members_unknown_member_removal(),
-          error: errorMessage(e),
-        }),
-        { callerAccessMayHaveChanged: mem.isSelf },
-      );
-    } finally {
-      endAction();
-    }
-  };
+    });
 
   // Disable / archive / restore a membership. The row survives with its role intact; every
   // authorization read narrows on status='active', so a non-active membership simply confers
   // nothing. `mem` is NOT `m` (the i18n catalogue) — see changeRole above.
   const changeStatus = async (mem: Member, nextStatus: MembershipStatus) => {
     if (nextStatus === mem.status) return;
-    const accountId = requestAccountId();
-    if (!beginAction(`status:${mem.userId}`)) return;
-    try {
-      const result = await teamAccessClient.changeMemberStatus(accountId, mem.userId, nextStatus);
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        if (result.kind === "unknown") {
-          await reconcileUnknownMutation(m.settings_members_unknown_status_change());
+    await withMemberAction(`status:${mem.userId}`, async (accountId) => {
+      try {
+        const result = await teamAccessClient.changeMemberStatus(accountId, mem.userId, nextStatus);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_status_change());
+            return;
+          }
+          fail(null, rejectionMessage(result, m.settings_members_err_change_status({ status: result.status })));
           return;
         }
-        fail(
-          null,
-          result.kind === "rejected" && result.message
-            ? result.message
-            : m.settings_members_err_change_status({ status: result.status }),
+        setNotice(m.settings_members_status_changed());
+        clearResetLinkFor(mem.userId);
+        refreshDirectory();
+      } catch (e) {
+        await reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_status_change(),
+            error: errorMessage(e),
+          }),
         );
-        return;
       }
-      setNotice(m.settings_members_status_changed());
-      // setMemberStatus burns this member's outstanding reset tokens server-side, exactly as an
-      // ordinary membership write does, so a shown link for them is already dead.
-      if (resetLink?.userId === mem.userId) setResetLink(null);
-      reload();
-      setReadinessRevision((value) => value + 1);
-    } catch (e) {
-      await reconcileUnknownMutation(
-        m.settings_members_error_detail({
-          message: m.settings_members_unknown_status_change(),
-          error: errorMessage(e),
-        }),
-      );
-    } finally {
-      endAction();
-    }
+    });
   };
 
   // Mint a single-use password-reset link for `mem` (P1.18). Password mode only (the button is
   // hidden otherwise; the server 400s regardless). No email is ever sent — the admin copies the
   // link out of the write-once block below and hands it over directly. `mem` is NOT `m` (i18n).
-  const resetPassword = async (mem: Member) => {
-    const accountId = requestAccountId();
-    if (!beginAction(`reset:${mem.userId}`)) return;
-    setResetLink(null);
-    try {
-      const result = await teamAccessClient.issuePasswordReset(accountId, mem.userId);
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        if (result.kind === "unknown") {
-          await reconcileUnknownMutation(m.settings_members_unknown_reset_request());
+  const resetPassword = (mem: Member) =>
+    withMemberAction(`reset:${mem.userId}`, async (accountId) => {
+      setResetLink(null);
+      try {
+        const result = await teamAccessClient.issuePasswordReset(accountId, mem.userId);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_reset_request());
+            return;
+          }
+          if (result.kind === "invalid") {
+            await reconcileUnknownMutation(m.settings_members_unknown_reset_value_lost());
+            return;
+          }
+          fail(null, result.message ?? m.settings_members_err_reset({ status: result.status }));
           return;
         }
-        if (result.kind === "invalid") {
+        const body = result.value;
+        if (!body?.expiresAt) {
           await reconcileUnknownMutation(m.settings_members_unknown_reset_value_lost());
           return;
         }
-        fail(null, result.message ?? m.settings_members_err_reset({ status: result.status }));
-        return;
+        // Write-once: build + show the link straight from this response and never again. `userId` is
+        // carried so a later membership write on this member can clear the stale block (see the
+        // clearResetLinkFor calls above).
+        setResetLink({
+          userId: mem.userId,
+          link: `${window.location.origin}/reset-password/${encodeURIComponent(body.token)}`,
+          member: labelFor(mem),
+          expiresAt: body.expiresAt,
+        });
+        setNotice(m.settings_members_reset_created());
+        // The readiness read DOES move here, despite this touching no membership: preflight reports
+        // every principal with an outstanding reset ceremony as an `outstanding_password_reset`
+        // global issue (server/src/accounts/ssoCutover.ts), which the panel lists, and the link just
+        // minted creates exactly one.
+        bumpReadiness();
+      } catch (e) {
+        await reconcileUnknownMutation(
+          m.settings_members_unknown_reset_request_failed({
+            error: errorMessage(e),
+          }),
+        );
       }
-      const body = result.value;
-      if (!body?.expiresAt) {
-        await reconcileUnknownMutation(m.settings_members_unknown_reset_value_lost());
-        return;
-      }
-      // Write-once: build + show the link straight from this response and never again. `userId` is
-      // carried so a later membership write on this member can clear the stale block (see the
-      // changeRole / changeStatus clears above).
-      setResetLink({
-        userId: mem.userId,
-        link: `${window.location.origin}/reset-password/${encodeURIComponent(body.token)}`,
-        member: labelFor(mem),
-        expiresAt: body.expiresAt,
-      });
-      setNotice(m.settings_members_reset_created());
-      setReadinessRevision((value) => value + 1);
-    } catch (e) {
-      await reconcileUnknownMutation(
-        m.settings_members_unknown_reset_request_failed({
-          error: errorMessage(e),
-        }),
-      );
-    } finally {
-      endAction();
-    }
-  };
+    });
 
-  const revokeSessions = async (mem: Member) => {
-    const accountId = requestAccountId();
-    if (!beginAction(`sessions:${mem.userId}`)) return;
-    try {
-      const result = await teamAccessClient.revokeMemberSessions(accountId, mem.userId);
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        if (result.kind === "unknown") {
-          if (mem.isSelf) {
-            // The command may have invalidated this browser's own session. Re-enter through the
-            // auth wall; sessionStorage retains the command identity if an operator retries.
-            window.location.reload();
+  const revokeSessions = (mem: Member) =>
+    withMemberAction(`sessions:${mem.userId}`, async (accountId) => {
+      try {
+        const result = await teamAccessClient.revokeMemberSessions(accountId, mem.userId);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            if (mem.isSelf) {
+              // The command may have invalidated this browser's own session. Re-enter through the
+              // auth wall; sessionStorage retains the command identity if an operator retries.
+              window.location.reload();
+              return;
+            }
+            await reconcileUnknownMutation(m.settings_members_unknown_session_revocation());
             return;
           }
-          await reconcileUnknownMutation(m.settings_members_unknown_session_revocation());
+          fail(null, rejectionMessage(result, m.settings_members_err_revoke_sessions({ status: result.status })));
           return;
         }
-        fail(
-          null,
-          result.kind === "rejected" && result.message
-            ? result.message
-            : m.settings_members_err_revoke_sessions({ status: result.status }),
+        setNotice(m.settings_members_sessions_revoked());
+        if (mem.isSelf) window.location.reload();
+      } catch (e) {
+        if (mem.isSelf) {
+          // A rejected transport promise can still follow a committed server-side revocation. Do not
+          // leave tenant data rendered under a session whose validity is now unknown.
+          window.location.reload();
+          return;
+        }
+        await reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_session_revocation(),
+            error: errorMessage(e),
+          }),
         );
-        return;
       }
-      setNotice(m.settings_members_sessions_revoked());
-      if (mem.isSelf) window.location.reload();
-    } catch (e) {
-      if (mem.isSelf) {
-        // A rejected transport promise can still follow a committed server-side revocation. Do not
-        // leave tenant data rendered under a session whose validity is now unknown.
-        window.location.reload();
-        return;
-      }
-      await reconcileUnknownMutation(
-        m.settings_members_error_detail({
-          message: m.settings_members_unknown_session_revocation(),
-          error: errorMessage(e),
-        }),
-      );
-    } finally {
-      endAction();
-    }
-  };
+    });
 
   const submitInvite = async () => {
     clear();
-    const accountId = requestAccountId();
+    // Ordering, preserved from the inline sequence this envelope replaced: an absent active account
+    // is raised BEFORE the draft is validated — with no company open there is nothing to invite
+    // anyone to, whatever the form says.
+    requestAccountId();
     const trimmed = invitePreauth.trim();
     if (authMode === "sso" && trimmed.length === 0) {
       fail("invite", m.settings_sso_invite_email_required());
@@ -736,84 +767,77 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       fail("invite", m.identity_err_email());
       return;
     }
-    if (!beginAction("invite:create")) return;
-    setMintedLink(null);
-    try {
-      const result = await teamAccessClient.createInvitation({
-        accountId,
-        role: inviteRole,
-        ...(trimmed ? { preauthEmail: trimmed } : {}),
-      });
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        if (result.kind === "unknown") {
-          await reconcileUnknownMutation(m.settings_members_unknown_invite_creation());
+    await withMemberAction("invite:create", async (accountId) => {
+      setMintedLink(null);
+      try {
+        const result = await teamAccessClient.createInvitation({
+          accountId,
+          role: inviteRole,
+          ...(trimmed ? { preauthEmail: trimmed } : {}),
+        });
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_invite_creation());
+            return;
+          }
+          if (result.kind === "invalid") {
+            const message = m.settings_members_unknown_invite_value_lost();
+            await reconcileUnknownMutation(message);
+            fail(null, message);
+            return;
+          }
+          fail("invite", result.message ?? m.settings_members_err_create_invite({ status: result.status }));
           return;
         }
-        if (result.kind === "invalid") {
-          const message = m.settings_members_unknown_invite_value_lost();
-          await reconcileUnknownMutation(message);
-          fail(null, message);
-          return;
-        }
-        fail("invite", result.message ?? m.settings_members_err_create_invite({ status: result.status }));
-        return;
+        const body = result.value;
+        // The token is write-once: build + show the link straight from this response and never again.
+        setMintedLink({
+          inviteId: body.id ?? null,
+          link: `${window.location.origin}/invite/${encodeURIComponent(body.token)}`,
+        });
+        setInvitePreauth("");
+        clear();
+        setNotice(m.settings_members_invite_created());
+        // Invites only: creating one cannot have changed the member list, and re-reading it would
+        // re-ask an authorization question this write did not answer.
+        void reloadInvites();
+      } catch (e) {
+        await reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_invite_creation(),
+            error: errorMessage(e),
+          }),
+        );
       }
-      const body = result.value;
-      // The token is write-once: build + show the link straight from this response and never again.
-      setMintedLink({
-        inviteId: body.id ?? null,
-        link: `${window.location.origin}/invite/${encodeURIComponent(body.token)}`,
-      });
-      setInvitePreauth("");
-      clear();
-      setNotice(m.settings_members_invite_created());
-      reload();
-    } catch (e) {
-      await reconcileUnknownMutation(
-        m.settings_members_error_detail({
-          message: m.settings_members_unknown_invite_creation(),
-          error: errorMessage(e),
-        }),
-      );
-    } finally {
-      endAction();
-    }
+    });
   };
 
-  const revokeInvite = async (id: string) => {
-    const accountId = requestAccountId();
-    if (!beginAction(`invite:revoke:${id}`)) return;
-    try {
-      const result = await teamAccessClient.revokeInvitation(accountId, id);
-      if (!isActiveAccount(accountId)) return;
-      if (result.kind !== "ok") {
-        if (result.kind === "unknown") {
-          await reconcileUnknownMutation(m.settings_members_unknown_invite_revocation());
+  const revokeInvite = (id: string) =>
+    withMemberAction(`invite:revoke:${id}`, async (accountId) => {
+      try {
+        const result = await teamAccessClient.revokeInvitation(accountId, id);
+        if (!isActiveAccount(accountId)) return;
+        if (result.kind !== "ok") {
+          if (result.kind === "unknown") {
+            await reconcileUnknownMutation(m.settings_members_unknown_invite_revocation());
+            return;
+          }
+          fail(null, rejectionMessage(result, m.settings_members_err_revoke_invite({ status: result.status })));
           return;
         }
-        fail(
-          null,
-          result.kind === "rejected" && result.message
-            ? result.message
-            : m.settings_members_err_revoke_invite({ status: result.status }),
+        setNotice(m.settings_members_invite_revoked());
+        setMintedLink((current) => (current?.inviteId === id ? null : current));
+        void reloadInvites(); // Invites only — see submitInvite.
+      } catch (e) {
+        await reconcileUnknownMutation(
+          m.settings_members_error_detail({
+            message: m.settings_members_unknown_invite_revocation(),
+            error: errorMessage(e),
+          }),
         );
-        return;
       }
-      setNotice(m.settings_members_invite_revoked());
-      setMintedLink((current) => (current?.inviteId === id ? null : current));
-      reload();
-    } catch (e) {
-      await reconcileUnknownMutation(
-        m.settings_members_error_detail({
-          message: m.settings_members_unknown_invite_revocation(),
-          error: errorMessage(e),
-        }),
-      );
-    } finally {
-      endAction();
-    }
-  };
+    });
 
   const copyLink = (link: string, copiedNotice: string) => {
     const accountId = requestAccountId();
@@ -861,69 +885,56 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 
   const correctSsoEmail = async () => {
     if (!emailRepair) return;
-    const accountId = requestAccountId();
+    // Same ordering as the inline sequence: an absent active account is raised before the draft
+    // address is validated.
+    requestAccountId();
     const email = emailRepair.email.trim().toLowerCase();
     if (!isAccountEmail(email)) {
       fail("sso-email", m.identity_err_email());
       return;
     }
-    if (!beginAction(`sso-email:${emailRepair.member.principalId}`)) return;
-    try {
-      const response = await accountClient.correctMemberEmail(accountId, emailRepair.member.principalId, email);
-      if (!response.ok) {
-        const body: unknown = await response.json().catch(() => null);
-        const message =
-          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : m.settings_sso_correct_email_error();
-        fail("sso-email", message);
-        return;
+    await withMemberAction(`sso-email:${emailRepair.member.principalId}`, async (accountId) => {
+      try {
+        const response = await accountClient.correctMemberEmail(accountId, emailRepair.member.principalId, email);
+        if (!response.ok) {
+          fail("sso-email", (await readApiError(response)) ?? m.settings_sso_correct_email_error());
+          return;
+        }
+        const changedSelf = members?.some((mem) => mem.userId === emailRepair.member.principalId && mem.isSelf);
+        setEmailRepair(null);
+        setNotice(m.settings_sso_correct_email_done());
+        if (changedSelf) {
+          window.location.reload();
+          return;
+        }
+        refreshDirectory();
+      } catch (cause) {
+        console.error("MembersSection: SSO email correction failed", cause);
+        fail("sso-email", m.settings_sso_correct_email_error());
       }
-      const changedSelf = members?.some((member) => member.userId === emailRepair.member.principalId && member.isSelf);
-      setEmailRepair(null);
-      setNotice(m.settings_sso_correct_email_done());
-      if (changedSelf) {
-        window.location.reload();
-        return;
-      }
-      reload();
-      setReadinessRevision((value) => value + 1);
-    } catch (cause) {
-      console.error("MembersSection: SSO email correction failed", cause);
-      fail("sso-email", m.settings_sso_correct_email_error());
-    } finally {
-      endAction();
-    }
+    });
   };
 
-  const removeIncorrectSsoLink = async (member: ReadinessMember, link: ReadinessRepairLink) => {
-    const accountId = requestAccountId();
-    if (!beginAction(`sso-unlink:${member.principalId}`)) return;
-    try {
-      const response = await accountClient.removeFederatedLink(accountId, member.principalId, link);
-      if (!response.ok) {
-        const body: unknown = await response.json().catch(() => null);
-        const message =
-          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : m.settings_sso_remove_link_error();
-        fail(null, message);
-        return;
+  const removeIncorrectSsoLink = (member: ReadinessMember, link: ReadinessRepairLink) =>
+    withMemberAction(`sso-unlink:${member.principalId}`, async (accountId) => {
+      try {
+        const response = await accountClient.removeFederatedLink(accountId, member.principalId, link);
+        if (!response.ok) {
+          fail(null, (await readApiError(response)) ?? m.settings_sso_remove_link_error());
+          return;
+        }
+        const changedSelf = members?.some((candidate) => candidate.userId === member.principalId && candidate.isSelf);
+        setNotice(m.settings_sso_remove_link_done());
+        if (changedSelf) {
+          window.location.reload();
+          return;
+        }
+        bumpReadiness();
+      } catch (cause) {
+        console.error("MembersSection: SSO link removal failed", cause);
+        fail(null, m.settings_sso_remove_link_error());
       }
-      const changedSelf = members?.some((candidate) => candidate.userId === member.principalId && candidate.isSelf);
-      setNotice(m.settings_sso_remove_link_done());
-      if (changedSelf) {
-        window.location.reload();
-        return;
-      }
-      setReadinessRevision((value) => value + 1);
-    } catch (cause) {
-      console.error("MembersSection: SSO link removal failed", cause);
-      fail(null, m.settings_sso_remove_link_error());
-    } finally {
-      endAction();
-    }
-  };
+    });
 
   const memberConfirmationCopy = memberConfirmation ? confirmationCopy(memberConfirmation) : null;
 
@@ -932,34 +943,23 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   // rows move into the collapsed group below; they keep their badge there, so the two states stay
   // distinguishable without a table each. The server's order (join date, then name) is preserved by
   // filtering rather than re-sorting.
-  const activeMembers = members?.filter((mem) => mem.status === "active") ?? null;
-  const inactiveMembers = members?.filter((mem) => mem.status !== "active") ?? [];
+  const grouped = { active: [] as Member[], inactive: [] as Member[] };
+  for (const mem of members ?? []) grouped[mem.status === "active" ? "active" : "inactive"].push(mem);
+  const activeMembers = members ? grouped.active : null;
+  const inactiveMembers = grouped.inactive;
+
+  // Labels are resolved HERE, at render, not at module scope: a locale change must be reflected
+  // without reloading the module (P1.5.2). Both the invite form and the pencil's editor offer the
+  // same list, so it is built once.
+  const roleOptions = ASSIGNABLE_ROLES.map((value) => ({ value, label: roleLabel(value) }));
 
   // One row renderer for both tables: the gear's actions, the pencil's gate and the status badge are
   // identical wherever the row is drawn — only the grouping differs.
   const memberRow = (mem: Member) => {
     // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue
     // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
-    // Ordinary role changes never touch the Owner.
-    const representativeRole: Role = mem.role === "viewer" ? "editor" : "viewer";
-    // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves its target
-    // through getActiveMemberRole, so offering the pencil on a non-active row could only ever
-    // produce a 404. Restore the member first, then change the role — a role change must not be a
-    // back door that quietly reinstates access.
-    const mayTouch = mem.status === "active" && !!myRole && canManageMemberRole(myRole, mem.role, representativeRole);
-    // Remove, by contrast, is status-agnostic on both sides: deleting a non-active membership is a
-    // normal administrative act and must not require reinstating it first.
-    const mayRemove = !!myRole && canRemoveMember(myRole, mem.role);
-    const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, mem.role, mem.isSelf);
+    const { mayTouch, mayRemove, mayChangeStatus, mayReset, hasMenu } = memberAffordances(myRole, mem);
     const memberLabel = labelFor(mem);
-    // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP;
-    // the server 400s there regardless) and never for a target an admin can't touch
-    // (e.g. an owner, or a member who owns another account — a reset link is an
-    // account-takeover capability). We trust the SERVER-computed `mayResetPassword`:
-    // it already folds in the cross-account + self-exemption checks the per-account
-    // pure guard cannot see AND returns `false` in SSO mode.
-    const mayReset = mem.mayResetPassword;
-    const hasMenu = mayReset || mem.mayRevokeSessions || mayChangeStatus || mayRemove;
     const name = mem.name?.trim() || mem.userId;
     return (
       <tr key={mem.userId} className="border-b last:border-b-0" data-testid="member-row">
@@ -1130,7 +1130,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           </p>
           <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>
 
-          {gate === "shown" && !offline.readOnly && strictProvider && readinessError && (
+          {readinessApplies && readinessError && (
             <section
               className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 p-3"
               data-testid="sso-readiness-error"
@@ -1141,7 +1141,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             </section>
           )}
 
-          {gate === "shown" && !offline.readOnly && strictProvider && readiness && (
+          {readinessApplies && readiness && (
             <SsoReadinessPanel
               authMode={authMode}
               readiness={readiness}
@@ -1220,10 +1220,10 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                 <p className="text-xs text-muted-foreground">
                   {m.settings_members_reset_intro({
                     member: resetLink.member,
-                    // Local date + TIME, not a bare UTC .slice(0,10): the link lives only 24h, so a
-                    // date-only string (and a UTC one at that) misleads by up to a day in non-UTC zones
-                    // and hides the hour it dies. toLocaleString renders the viewer's wall clock.
-                    when: new Date(resetLink.expiresAt).toLocaleString(),
+                    // Date + TIME on the viewer's wall clock: the link lives only 24h, so a
+                    // date-only string (and a UTC one at that) misleads by up to a day in non-UTC
+                    // zones and hides the hour it dies.
+                    when: formatInstant(resetLink.expiresAt),
                   })}
                 </p>
               }
@@ -1252,7 +1252,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                     value={inviteRole}
                     onChange={(value) => setInviteRole(value as InvitationRole)}
                     disabled={busyAction !== null}
-                    options={roleOptions()}
+                    options={roleOptions}
                     testId="invite-role"
                   />
                 </div>
@@ -1328,7 +1328,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                                 : // Invite validity spans several days, so keep this compact row date-only while
                                   // rendering the date on the viewer's local calendar rather than slicing UTC.
                                   m.settings_invite_suffix_expires({
-                                    date: new Date(inv.expiresAt).toLocaleDateString(),
+                                    date: formatInstantDate(inv.expiresAt),
                                   })}
                           </ItemContent>
                           {actionable && (
@@ -1394,7 +1394,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               onChange={(value) =>
                 setRoleEdit((current) => (current ? { ...current, nextRole: value as Role } : current))
               }
-              options={roleOptions()}
+              options={roleOptions}
               disabled={busyAction !== null}
             />
           </span>
@@ -1408,7 +1408,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           title={m.settings_sso_remove_link_title()}
           confirmLabel={m.settings_sso_remove_link()}
           message={m.settings_sso_remove_link_message({
-            member: unlinkRepair.member.email ?? unlinkRepair.member.displayName ?? unlinkRepair.member.principalId,
+            member: readinessMemberLabel(unlinkRepair.member),
           })}
           onConfirm={() => {
             const pending = unlinkRepair;

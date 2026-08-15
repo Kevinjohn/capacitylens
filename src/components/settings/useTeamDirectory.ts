@@ -9,6 +9,11 @@ import {
 } from "../../account/teamAccessClient";
 import type { FieldError } from "../../hooks/useFieldError";
 
+// Frozen module-scope empties for the "this account has not loaded yet" projections below. A fresh
+// `[]` per render is a NEW identity every time, which re-runs any consumer effect that lists the
+// list in its dependencies — the invite-expiry alarm in MembersSection is exactly that shape.
+const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
+
 interface TeamDirectoryOptions {
   enabled: boolean;
   activeAccountId: string | null;
@@ -32,9 +37,14 @@ export function useTeamDirectory({
     signInTrackingEnabled: boolean;
     gate: "loading" | "shown" | "hidden" | "error";
   }>({ accountId: null, members: null, invites: [], signInTrackingEnabled: false, gate: "loading" });
-  const directoryRef = useRef(directory);
+  // The ONE fact the load effect needs about the directory it is replacing: which account (if any)
+  // already has an AUTHORIZED members list on screen, so a later 403 for that same account reads as
+  // "your access changed" rather than silently hiding a section the caller was just using. Held in a
+  // ref — a dependency on the directory itself would re-run the load on every list update.
+  const authorizedAccountRef = useRef<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const requestGeneration = useRef(0);
+  const inviteGeneration = useRef(0);
   const actionLock = useRef<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -51,16 +61,13 @@ export function useTeamDirectory({
   }, []);
 
   useEffect(() => {
-    directoryRef.current = directory;
+    authorizedAccountRef.current =
+      directory.members !== null && directory.gate !== "hidden" ? directory.accountId : null;
   }, [directory]);
 
   useEffect(() => {
     if (!enabled || !activeAccountId || offlineReadOnly) return;
-    const currentDirectory = directoryRef.current;
-    const hadAuthorizedDirectory =
-      currentDirectory.accountId === activeAccountId &&
-      currentDirectory.members !== null &&
-      currentDirectory.gate !== "hidden";
+    const hadAuthorizedDirectory = authorizedAccountRef.current === activeAccountId;
     const generation = ++requestGeneration.current;
     let cancelled = false;
     const current = () => !cancelled && requestGeneration.current === generation;
@@ -159,6 +166,49 @@ export function useTeamDirectory({
     };
   }, [enabled, activeAccountId, reloadKey, fail, offlineReadOnly, onInvitesLoaded]);
 
+  /**
+   * Re-read the invitations alone, authoritatively.
+   *
+   * For the writes that can only have changed the INVITE list (creating one, revoking one): the
+   * members read is a separate authorization, and re-running it would re-ask "may I still see this
+   * section?" for a write that cannot have answered that question differently. Guarded exactly as
+   * the main effect's invitations leg is — a response is applied only while both this read and the
+   * members load that authorized it are still the current ones, and only onto the account it was
+   * asked for, so a switch or a full reload that overtakes it discards it instead of resurrecting a
+   * previous company's invites.
+   */
+  const reloadInvites = useCallback(async (): Promise<void> => {
+    if (!enabled || !activeAccountId || offlineReadOnly) return;
+    const accountId = activeAccountId;
+    const generation = ++inviteGeneration.current;
+    const loadGeneration = requestGeneration.current;
+    const current = () => inviteGeneration.current === generation && requestGeneration.current === loadGeneration;
+    try {
+      const invitationsResult = await teamAccessClient.listInvitations(accountId);
+      if (invitationsResult.kind === "invalid") {
+        throw new Error("The server returned an invalid invites response.");
+      }
+      if (invitationsResult.kind !== "ok") {
+        if (!current()) return;
+        fail(
+          null,
+          invitationsResult.kind === "rejected" && invitationsResult.message
+            ? invitationsResult.message
+            : m.settings_invites_err_load({ status: invitationsResult.status }),
+        );
+        return;
+      }
+      if (!current()) return;
+      setDirectory((previous) =>
+        previous.accountId === accountId ? { ...previous, invites: invitationsResult.value } : previous,
+      );
+      onInvitesLoaded?.(invitationsResult.value);
+    } catch (error) {
+      if (!current()) return;
+      fail(null, m.settings_err_server({ error: errorMessage(error) }));
+    }
+  }, [enabled, activeAccountId, offlineReadOnly, fail, onInvitesLoaded]);
+
   const currentAccountLoaded = directory.accountId === activeAccountId;
 
   const replaceDirectory = useCallback((next: TeamDirectory, invites: TeamInvitation[]) => {
@@ -172,11 +222,12 @@ export function useTeamDirectory({
 
   return {
     members: currentAccountLoaded ? directory.members : null,
-    invites: currentAccountLoaded ? directory.invites : [],
+    invites: currentAccountLoaded ? directory.invites : NO_INVITES,
     signInTrackingEnabled: currentAccountLoaded ? directory.signInTrackingEnabled : false,
     gate: currentAccountLoaded ? directory.gate : "loading",
     replaceDirectory,
     reload,
+    reloadInvites,
     busyAction,
     beginAction,
     endAction,

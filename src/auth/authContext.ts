@@ -36,6 +36,27 @@ export type AuthProviderInfo =
   | (AuthProviderBase & { id: SupportedSocialProviderId; kind: "social" })
   | (AuthProviderBase & { id: string; kind: "oidc" });
 
+/**
+ * The one NON-experimental OIDC provider, or `null`.
+ *
+ * "Strict" = a real, generally-available enterprise IdP: `kind === 'oidc'` AND `experimental` false.
+ * Several surfaces (Settings → Members' SSO-readiness panel, Settings → Security's identity-provider
+ * link) gate themselves on that fact, and each of them held its own copy of the same
+ * `providers?.find(...) ?? null`. Single-sourced here, beside {@link isSupportedSocialProviderId},
+ * so "which provider counts as the strict one" cannot drift between the surfaces that ask.
+ *
+ * FIRST match wins, deliberately: the server publishes at most one strict OIDC provider today, and
+ * taking the first keeps this byte-identical to the inline finds it replaces rather than inventing a
+ * multi-provider rule the callers have no UI for.
+ *
+ * @param providers - the context's `providers` list exactly as components hold it; `undefined`/`null`
+ *                    (no provider metadata yet, or no provider at all) yields `null`, not a throw.
+ * @returns the first strict OIDC provider, or `null` when there is none.
+ */
+export function strictOidcProvider(providers: readonly AuthProviderInfo[] | null | undefined): AuthProviderInfo | null {
+  return providers?.find((provider) => provider.kind === "oidc" && !provider.experimental) ?? null;
+}
+
 export interface AuthContextValue {
   authMode: AuthMode;
   user: AuthUser | null;

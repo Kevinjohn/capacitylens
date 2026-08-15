@@ -4,6 +4,7 @@ import {
   canSeeTimeOffNote,
   canSeePrivateNames,
   isAtLeast,
+  canEditAnyMemberRole,
   canManageMemberRole,
   canRemoveMember,
   canResetMemberAcrossAccounts,
@@ -247,6 +248,36 @@ describe("canRemoveMember(actor, target) — removal matrix", () => {
     expect(canRemoveMember("admin", "editor")).toBe(true);
     expect(canRemoveMember("editor", "viewer")).toBe(false);
     expect(canRemoveMember("viewer", "viewer")).toBe(false);
+  });
+});
+
+describe("canEditAnyMemberRole(actor, target) — role-editability matrix", () => {
+  // The destination-free question a member ROW asks before rendering a role control. Same
+  // hand-derived oracle shape as the guards above: admin tier, and never the Owner.
+  const oracle = (actor: Role, target: Role): boolean => {
+    if (!(actor === "owner" || actor === "admin")) return false;
+    if (target === "owner") return false;
+    return true;
+  };
+  for (const actor of ROLES) {
+    for (const target of ROLES) {
+      const expected = oracle(actor, target);
+      it(`canEditAnyMemberRole('${actor}','${target}') === ${expected}`, () => {
+        expect(canEditAnyMemberRole(actor, target)).toBe(expected);
+      });
+    }
+  }
+
+  it("is a precondition of the role change itself, never weaker than it", () => {
+    for (const actor of ROLES) {
+      for (const target of ROLES) {
+        for (const next of ROLES) {
+          if (canManageMemberRole(actor, target, next)) {
+            expect(canEditAnyMemberRole(actor, target), `${actor}->${target}=>${next}`).toBe(true);
+          }
+        }
+      }
+    }
   });
 });
 
