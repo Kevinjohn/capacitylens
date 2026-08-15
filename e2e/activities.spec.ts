@@ -31,9 +31,12 @@ test.describe("Activities", () => {
       expect(fieldBox).not.toBeNull();
       expect(groupBox).not.toBeNull();
       expect(segmentBoxes).toHaveLength(3);
+      // Firefox lays these out at subpixel precision, so three "equal" grid segments can differ by a
+      // hair over a pixel (observed: 1.0000152587890625). 1.5 keeps the assertion meaningful — a real
+      // unequal-segment regression is whole pixels wide — without failing on rounding.
       expect(
         Math.max(...segmentBoxes.map(({ width }) => width)) - Math.min(...segmentBoxes.map(({ width }) => width)),
-      ).toBeLessThanOrEqual(1);
+      ).toBeLessThanOrEqual(1.5);
       for (const segment of segmentBoxes) expect(segment.scrollWidth).toBeLessThanOrEqual(segment.clientWidth);
 
       if (stacked) {
