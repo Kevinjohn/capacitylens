@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Prevented legacy or damaged allocation-status and time-off-type values from crashing the schedule.
 - Kept the full “Project-specific” activity-kind label visible in Firefox at desktop and narrow
   dialog widths.
 

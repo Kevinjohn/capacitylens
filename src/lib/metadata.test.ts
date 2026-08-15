@@ -14,7 +14,7 @@ import {
   toOptions,
   type LabelMessages,
 } from "./metadata";
-import type { Resource } from "@capacitylens/shared/types/entities";
+import type { AllocationStatus, Resource, TimeOffType } from "@capacitylens/shared/types/entities";
 
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
   id: "r1",
@@ -64,6 +64,11 @@ describe("single-value label getters", () => {
     for (const [type, label] of Object.entries(timeOffTypeLabels())) {
       expect(timeOffTypeLabel(type as "holiday" | "sick" | "unpaid" | "other")).toBe(label);
     }
+  });
+
+  it("returns a blank label for values outside the runtime unions", () => {
+    expect(allocationStatusLabel("legacy-status" as AllocationStatus)).toBe("");
+    expect(timeOffTypeLabel("legacy-type" as TimeOffType)).toBe("");
   });
 });
 

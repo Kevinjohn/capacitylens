@@ -60,14 +60,17 @@ const timeOffTypeMessages: LabelMessages<TimeOffType> = {
 };
 
 /** Label for ONE allocation status — for the render sites that hold a single status and would
- *  otherwise build (and discard) the whole map to read one key out of it. */
+ *  otherwise build (and discard) the whole map to read one key out of it. An unrecognised runtime
+ *  value from legacy or hand-edited data renders blank instead of taking down the scheduler. */
 export function allocationStatusLabel(status: AllocationStatus): string {
-  return allocationStatusMessages[status]();
+  const message = allocationStatusMessages[status];
+  return message ? message() : "";
 }
 
-/** Label for ONE time-off type. See {@link allocationStatusLabel}. */
+/** Label for ONE time-off type, with the same blank fallback as {@link allocationStatusLabel}. */
 export function timeOffTypeLabel(type: TimeOffType): string {
-  return timeOffTypeMessages[type]();
+  const message = timeOffTypeMessages[type];
+  return message ? message() : "";
 }
 
 export function allocationStatusLabels(): Record<AllocationStatus, string> {
