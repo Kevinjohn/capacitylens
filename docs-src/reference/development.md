@@ -245,6 +245,28 @@ account-adapter tests, profile validation and whole-tree architecture rules.
 malformed and unavailable discovery paths. It needs a working Docker installation and
 starts Dex in a local container for the duration of the suite.
 
+### Resilience browser tests
+
+`e2e/resilience.db.spec.ts` covers failures that cross the browser, API and SQLite
+boundaries. Run it independently with:
+
+```bash
+pnpm exec playwright test e2e/resilience.db.spec.ts --project=db-backed
+```
+
+Keep the application and database real. Intercept only the request whose failure the test
+needs to control, then prove all four parts of the recovery contract:
+
+1. The failure is visible and understandable.
+2. The interface does not claim that an uncommitted change was saved.
+3. Server state is neither partially changed nor duplicated.
+4. Releasing the failure restores a usable interface and the expected durable state.
+
+Use two independent browser contexts for concurrent-edit coverage so the server produces
+the stale-write conflict naturally. Use `e2e/fault-helpers.ts` for transport and HTTP
+failures that cannot be scheduled reliably against the real server. Do not mock unrelated
+requests or replace the persistence adapter in these tests.
+
 `rehearse:migrations` upgrades a released database fixture and verifies preservation,
 rollback and recovery behavior. See [Database migrations](#database-migrations) below for
 how to run it against a real installation copy.
