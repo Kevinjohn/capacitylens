@@ -250,6 +250,29 @@ describe("#257 characterization: company-off tint/capacity agreement", () => {
     expect(fridayCapacity.available).toBe(0);
   });
 
+  it("marks every visible day creation-blocked for a resource with no effective working week", () => {
+    const data = dataset();
+    const row = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        accountWorkingDays: [0],
+      },
+    })
+      .flatMap((group) => group.rows)
+      .find((candidate) => candidate.resource.id === "r1")!;
+
+    expect(row.dayStates).toHaveLength(days.length);
+    expect(row.dayStates.every(({ creationBlocked }) => creationBlocked)).toBe(true);
+  });
+
   it("suppresses a saved Friday half-day tint when Friday is company-closed", () => {
     const data = dataset();
     data.resources = data.resources.map((resource) =>

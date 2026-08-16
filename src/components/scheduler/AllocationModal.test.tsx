@@ -583,7 +583,7 @@ describe("AllocationModal days mode", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
 
-  it("keeps the typed range unchanged when the effective week has no days", async () => {
+  it("keeps zero-overlap date math finite but rejects creating a normal allocation", async () => {
     enableDays([2]);
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
     const user = userEvent.setup();
@@ -601,9 +601,32 @@ describe("AllocationModal days mode", () => {
     await chooseOption(user, "Activity", "Wireframes");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This person has no working days within the company's current working week.",
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(0);
+  });
+
+  it("allows an ignored hourly allocation for a zero-overlap person", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("checkbox", { name: "Ignore working days" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: "2026-06-01",
       endDate: "2026-06-03",
+      ignoreWeekends: true,
     });
   });
 
@@ -1314,6 +1337,60 @@ describe("AllocationModal edit", () => {
     expect(useStore.getState().data.allocations.find((x) => x.id === alloc.id)!.resourceId).toBe(b.id);
   });
 
+  it("rejects reassigning a normal allocation to a zero-overlap person", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const source = useStore.getState().addResource({ ...person("Alice"), workingDays: [2] });
+    const destination = useStore.getState().addResource({ ...person("Bob"), workingDays: [1] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: source.id,
+      activityId: "t1",
+      startDate: "2026-06-02",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+
+    await chooseOption(user, "Assignee", "Bob");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This person has no working days within the company's current working week.",
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      resourceId: source.id,
+    });
+    expect(destination.id).not.toBe(source.id);
+  });
+
+  it("allows reassigning an ignored allocation to a zero-overlap person", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const source = useStore.getState().addResource({ ...person("Alice"), workingDays: [2] });
+    const destination = useStore.getState().addResource({ ...person("Bob"), workingDays: [1] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: source.id,
+      activityId: "t1",
+      startDate: "2026-06-02",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+      ignoreWeekends: true,
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await chooseOption(user, "Assignee", "Bob");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      resourceId: destination.id,
+      ignoreWeekends: true,
+    });
+  });
+
   it("snaps the project to the placeholder bound project when reassigned, restricting options", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     useStore.getState().addResource({
@@ -1586,9 +1663,60 @@ describe("#257: modal and gesture effective-week agreement", () => {
   });
 });
 
-describe("#257 characterization: duplicate start gate baseline", () => {
-  // FLIPS in Phase 5 when duplicate becomes a gated record-creating action.
-  it("duplicates an allocation whose start is company-non-working", async () => {
+describe("#257: stale-start edit and duplicate creation gates", () => {
+  it("still saves an existing allocation after its assignee loses every effective working day", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+
+    await user.type(screen.getByLabelText("Note"), "Still editable");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      resourceId: resource.id,
+      startDate: "2026-06-01",
+      note: "Still editable",
+    });
+  });
+
+  // The typed-date create path must enforce the same start rule as the gesture gate: new normal
+  // allocations begin on an effective working day, whatever field the date arrived through.
+  it("rejects creating an allocation whose typed start is company-non-working", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-05", endDate: "2026-06-05" }}
+        onClose={onClose}
+      />,
+    );
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "New allocations must start on a working day for this person. Move the start date or enable Ignore working days.",
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(0);
+  });
+
+  // Phase 1 pinned the ungated duplicate; Phase 5 flips it to a rejected record-creation action.
+  it("rejects duplicating an allocation whose start is company-non-working", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1605,9 +1733,53 @@ describe("#257 characterization: duplicate start gate baseline", () => {
 
     await user.click(screen.getByRole("button", { name: "Duplicate" }));
 
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "New allocations must start on a working day for this person. Move the start date or enable Ignore working days.",
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(1);
+  });
+
+  it("allows duplicating an ignored allocation whose start is non-effective", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-05",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+      ignoreWeekends: true,
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Duplicate" }));
+
     expect(useStore.getState().data.allocations).toHaveLength(2);
-    expect(useStore.getState().data.allocations.every(({ startDate }) => startDate === "2026-06-05")).toBe(true);
+  });
+
+  it("rejects duplicating a normal allocation for a zero-overlap person", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Duplicate" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This person has no working days within the company's current working week.",
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(1);
   });
 });
 
@@ -1863,6 +2035,9 @@ describe("AllocationModal repeat creation", () => {
       />,
     );
     await completeAssignment(user);
+    // The Saturday anchor needs the calendar override now that new placement must start on an
+    // effective working day; ignored occurrences also stay out of the non-effective-start advisory.
+    await user.click(screen.getByRole("checkbox", { name: "Ignore working days" }));
     await chooseOption(user, "Repeat", "Monthly");
     await user.clear(screen.getByLabelText("Repeat until"));
     await user.type(screen.getByLabelText("Repeat until"), "2099-04-30");
@@ -1914,6 +2089,31 @@ describe("AllocationModal repeat creation", () => {
       bulkSpy.mockRestore();
     },
   );
+
+  it("routes a zero-overlap repeat to the assignee/form error instead of Repeat until", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1] });
+    const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+        onClose={onClose}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Weekly");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("This person has no working days within the company's current working week.");
+    expect(alert).not.toHaveTextContent(/repeat until|supported date range/i);
+    expect(screen.getByLabelText("Repeat until")).not.toHaveAttribute("aria-invalid", "true");
+    expect(bulkSpy).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    bulkSpy.mockRestore();
+  });
 
   it("keeps one-off on addAllocation and leaves a rejected bulk dialog open", async () => {
     const resource = addPerson();
@@ -2054,6 +2254,25 @@ describe("AllocationModal repeat creation", () => {
     );
     expect(capacityAdvisoryMock).toHaveBeenCalledTimes(14);
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("surfaces monthly occurrences whose starts fall outside the effective week", async () => {
+    const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-01" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Monthly");
+    await user.clear(screen.getByLabelText("Repeat until"));
+    await user.type(screen.getByLabelText("Repeat until"), "2099-09-01");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "For this repeat, 3 allocations start on a non-working day. Saving is still allowed.",
+    );
   });
 
   it("duplicates exactly one allocation through the single-row path and never exposes Repeat", async () => {

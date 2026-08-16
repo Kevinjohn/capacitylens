@@ -3,9 +3,20 @@ import { flushSync } from "react-dom";
 import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { daysInclusive, eachDayISO, MAX_ISO_DATE, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
+import {
+  daysInclusive,
+  eachDayISO,
+  MAX_ISO_DATE,
+  parseDate,
+  todayISO,
+  weekdayOf,
+} from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
-import { effectiveWorkingWeek, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import {
+  effectiveWorkingWeek,
+  startsOnNonEffectiveWeekday,
+  type EffectiveWorkingWeek,
+} from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   generateRepeatingStartDates,
@@ -199,10 +210,8 @@ function usesWorkingSpanFor(resource: Resource | undefined, mode: SchedulingMode
   return !!resource && !isExternalResource(resource) && (mode === "blocks" || mode === "days");
 }
 
-/** TODO(#257 Phase 5): validation will reject zero-overlap create/duplicate/repeat with dedicated
- *  copy (the submit() RangeError catch currently mis-labels this as a Repeat-until problem too).
- *  Until then this ONE predicate decides when span math must fall back to the stored/typed range,
- *  because feeding `none` in means calendar-day semantics or a 9999-12-31 end date. */
+/** The ONE predicate for a normal allocation that cannot use working-span math or create new work,
+ *  because feeding `none` into date math means calendar-day semantics or a 9999-12-31 end date. */
 function hasNoEffectiveWorkingDays(effectiveWeek: EffectiveWorkingWeek | null, ignoreWeekends: boolean): boolean {
   return effectiveWeek?.kind !== "days" && !ignoreWeekends;
 }
@@ -357,7 +366,7 @@ export function AllocationModal(props: AllocationModalProps) {
     ? 1
     : initialHasNoEffectiveDays
       ? // Neutral seed: keeps `none` out of spanDays without pretending the typed range is a
-        // working-day span. The rejection itself is the Phase 5 TODO on hasNoEffectiveWorkingDays.
+        // working-day span. New placement is rejected by rejectNewPlacementCalendarConflicts.
         1
       : initialUsesWorkingSpan
         ? Math.max(
@@ -587,7 +596,7 @@ export function AllocationModal(props: AllocationModalProps) {
       if (!repeatProjection) return null;
       // The repeat variant counts whole OCCURRENCES rather than days; the two tallies otherwise read
       // and render identically, so they share the one advisory sentence builder.
-      const { overCapacityAllocations, timeOffAllocations } = repeatingAllocationAdvisory(
+      const { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations } = repeatingAllocationAdvisory(
         selectedResource,
         others,
         resourceTimeOff,
@@ -595,7 +604,14 @@ export function AllocationModal(props: AllocationModalProps) {
         selectedEffectiveWeek,
       );
       return (
-        formatCapacityAdvisory({ overDays: overCapacityAllocations, timeOffDays: timeOffAllocations }, "repeat") || null
+        formatCapacityAdvisory(
+          {
+            overDays: overCapacityAllocations,
+            timeOffDays: timeOffAllocations,
+            nonEffectiveStartAllocations,
+          },
+          "repeat",
+        ) || null
       );
     }
     return (
@@ -819,10 +835,33 @@ export function AllocationModal(props: AllocationModalProps) {
     };
   };
 
+  /** The calendar gates for NEW placement only: create, duplicate, or an assignee-changing edit.
+   *  A normal edit on the original assignee remains valid after calendar settings change (its
+   *  stale start stays editable). Two distinct rejections share this seam: an empty effective
+   *  week, and a start weekday outside a non-empty one — the contract is "new allocations must
+   *  begin on a company and personal working day"; repeat OCCURRENCES are the deliberate
+   *  exception (advisory-counted instead, decision 9). */
+  const rejectNewPlacementCalendarConflicts = (draft: ReturnType<typeof validatedDraft>, newPlacement: boolean) => {
+    if (!draft || !newPlacement) return false;
+    if (hasNoEffectiveWorkingDays(selectedEffectiveWeek, draft.ignoreWeekends)) {
+      fail("resource", m.form_allocation_err_no_effective_working_days());
+      return true;
+    }
+    if (
+      selectedEffectiveWeek &&
+      startsOnNonEffectiveWeekday(selectedEffectiveWeek, draft.ignoreWeekends, weekdayOf(draft.startDate))
+    ) {
+      fail("resource", m.form_allocation_err_start_non_working());
+      return true;
+    }
+    return false;
+  };
+
   const submit = () => {
     if (!canEdit) return;
     const draft = validatedDraft();
     if (!draft) return;
+    if (rejectNewPlacementCalendarConflicts(draft, !editing || editing.resourceId !== draft.resourceId)) return;
     try {
       if (editing) {
         // Blocks-mode edits deliberately omit hoursPerDay so the store preserves the allocation's
@@ -867,6 +906,7 @@ export function AllocationModal(props: AllocationModalProps) {
     if (!editing) return;
     const draft = validatedDraft();
     if (!draft) return;
+    if (rejectNewPlacementCalendarConflicts(draft, true)) return;
     try {
       addAllocation(draft);
       onClose();

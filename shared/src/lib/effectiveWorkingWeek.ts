@@ -11,6 +11,17 @@ export function effectiveWeekIncludes(effectiveWeek: EffectiveWorkingWeek, weekd
   return effectiveWeek.kind === "days" && effectiveWeek.days.includes(weekday);
 }
 
+/** Whether a normal (calendar-respecting) record placed at `weekday` starts outside the effective
+ *  week. Ignore-working-days placements are exempt by definition. Shared by the create/duplicate
+ *  gates and the repeat advisory so "non-effective start" has exactly one meaning. */
+export function startsOnNonEffectiveWeekday(
+  effectiveWeek: EffectiveWorkingWeek,
+  ignoreWorkingDays: boolean | undefined,
+  weekday: Weekday,
+): boolean {
+  return !ignoreWorkingDays && !effectiveWeekIncludes(effectiveWeek, weekday);
+}
+
 /** Derives the company/personal calendar intersection for capacity-tracked resources. Externals
  *  have no personal capacity pattern, so their effective calendar is the complete company set. */
 export function effectiveWorkingWeek(

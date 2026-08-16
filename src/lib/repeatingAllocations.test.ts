@@ -202,6 +202,18 @@ describe("projectAllocationDates", () => {
         repeatContext("days", 1, resource, [2]),
       ),
     ).toThrow(/effective working day/i);
+
+    expect(
+      projectAllocationDates(
+        baseDraft({
+          startDate: "2026-06-01",
+          endDate: "2026-06-02",
+          ignoreWeekends: true,
+        }),
+        ["2026-06-01", "2026-06-08"],
+        repeatContext("days", 2, resource, [2]),
+      )[1],
+    ).toMatchObject({ startDate: "2026-06-08", endDate: "2026-06-09", ignoreWeekends: true });
   });
 });
 
@@ -248,6 +260,7 @@ describe("repeatingAllocationAdvisory", () => {
     expect(repeatingAllocationAdvisory(fullResource(), existing, [], drafts)).toEqual({
       overCapacityAllocations: 2,
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 0,
     });
   });
 
@@ -265,11 +278,13 @@ describe("repeatingAllocationAdvisory", () => {
     expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], drafts)).toEqual({
       overCapacityAllocations: 1,
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 0,
     });
     // Same load, no draft covering its day: nothing is over.
     expect(repeatingAllocationAdvisory(fullResource(), lateOnly, [], [drafts[0]!])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 0,
     });
   });
 
@@ -287,6 +302,7 @@ describe("repeatingAllocationAdvisory", () => {
     expect(repeatingAllocationAdvisory(fullResource(), existing, [], drafts)).toEqual({
       overCapacityAllocations: 0, // 4 + 4 fits exactly in an 8h day, on every occurrence
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 0,
     });
   });
 
@@ -310,6 +326,7 @@ describe("repeatingAllocationAdvisory", () => {
     expect(repeatingAllocationAdvisory(fullResource(), [], timeOff, drafts)).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 2,
+      nonEffectiveStartAllocations: 0,
     });
   });
 
@@ -321,10 +338,12 @@ describe("repeatingAllocationAdvisory", () => {
     expect(repeatingAllocationAdvisory(resource, [], [], [exactCapacity])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 0,
     });
     expect(repeatingAllocationAdvisory(resource, [], [], [overCapacity])).toEqual({
       overCapacityAllocations: 1,
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 0,
     });
   });
 
@@ -333,10 +352,40 @@ describe("repeatingAllocationAdvisory", () => {
     expect(repeatingAllocationAdvisory(fullResource({ halfDays: [1] }), [], [], [zeroDraft])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 1,
     });
     expect(repeatingAllocationAdvisory(fullResource({ kind: "external" }), [], [], [zeroDraft])).toEqual({
       overCapacityAllocations: 0,
       timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 0,
+    });
+  });
+
+  it("counts monthly starts outside the effective week, including draft 0, but excludes ignored occurrences", () => {
+    const resource = fullResource({ workingDays: [1] });
+    const drafts = [
+      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }), // Monday
+      baseDraft({ startDate: "2026-07-01", endDate: "2026-07-06" }), // Wednesday
+      baseDraft({ startDate: "2026-08-01", endDate: "2026-08-03" }), // Saturday
+      baseDraft({ startDate: "2026-09-01", endDate: "2026-09-01", ignoreWeekends: true }),
+    ];
+
+    expect(repeatingAllocationAdvisory(resource, [], [], drafts)).toMatchObject({
+      nonEffectiveStartAllocations: 2,
+    });
+  });
+
+  it("reports zero non-effective starts for a weekly cadence anchored on an effective weekday", () => {
+    const resource = fullResource({ workingDays: [1] });
+    const starts = generateRepeatingStartDates(
+      "2026-06-01",
+      "2026-06-29",
+      repeatPatternForSelection("weekly"),
+    ).startDates;
+    const drafts = starts.map((startDate) => baseDraft({ startDate, endDate: startDate }));
+
+    expect(repeatingAllocationAdvisory(resource, [], [], drafts)).toMatchObject({
+      nonEffectiveStartAllocations: 0,
     });
   });
 });

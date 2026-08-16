@@ -1,7 +1,7 @@
-import { addDaysISO, daysInclusive } from "@capacitylens/shared/lib/dateMath";
+import { addDaysISO, daysInclusive, weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { startsOnNonEffectiveWeekday, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
-import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, ISODate, Resource, SchedulingMode, TimeOff } from "@capacitylens/shared/types/entities";
 import type { Draft } from "../store/useStore";
@@ -34,6 +34,7 @@ export interface RepeatProjectionContext {
 export interface RepeatingAllocationAdvisory {
   overCapacityAllocations: number;
   timeOffAllocations: number;
+  nonEffectiveStartAllocations: number;
 }
 
 const REPEAT_PATTERNS: Record<Exclude<RepeatSelection, "none">, RepeatPattern> = {
@@ -55,7 +56,8 @@ export function repeatPatternForSelection(selection: Exclude<RepeatSelection, "n
  *
  * @throws Error when the resolved resource does not match the draft.
  * @throws RangeError when a working-span mode receives an invalid `daysOver` value, has no effective
- *   working day, or a projected range leaves the supported ISO-date domain.
+ *   working days, or a projected range leaves the supported ISO-date domain. Record-creation callers
+ *   reject an empty effective week before projection so copy is routed to the assignee/form surface.
  */
 export function projectAllocationDates(
   baseDraft: Draft<Allocation>,
@@ -80,7 +82,7 @@ export function projectAllocationDates(
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (calendarSpan < 1) throw new RangeError("Repeat projection requires a valid inclusive date range.");
   const usesCalendarSpan = external || context.schedulingMode === "hourly";
-  if (!usesCalendarSpan && context.effectiveWeek.kind === "none") {
+  if (!usesCalendarSpan && !baseDraft.ignoreWeekends && context.effectiveWeek.kind === "none") {
     throw new RangeError("Repeat projection requires at least one effective working day.");
   }
   const spanOptions = {
@@ -116,7 +118,9 @@ export function repeatingAllocationAdvisory(
   proposedDrafts: readonly Draft<Allocation>[],
   effectiveWeek: EffectiveWorkingWeek,
 ): RepeatingAllocationAdvisory {
-  if (!isCapacityTracked(resource)) return { overCapacityAllocations: 0, timeOffAllocations: 0 };
+  if (!isCapacityTracked(resource)) {
+    return { overCapacityAllocations: 0, timeOffAllocations: 0, nonEffectiveStartAllocations: 0 };
+  }
   // Bucket the existing load by day ONCE for the whole batch and add each checked draft to that
   // SAME map, instead of handing capacityAdvisory a comparison list that grows by one allocation
   // per draft — which re-bucketed everything already seen, making a k-occurrence repeat O(k²) in
@@ -135,16 +139,20 @@ export function repeatingAllocationAdvisory(
   const rebuiltLoad: CapacityAllocationInput[] = shared ? [] : [...existingLoad];
   let overCapacityAllocations = 0;
   let timeOffAllocations = 0;
+  let nonEffectiveStartAllocations = 0;
   for (const draft of proposedDrafts) {
     const result = shared
       ? capacityAdvisoryFromLoad(resource, draft, shared.load, timeOff, effectiveWeek)
       : capacityAdvisory(resource, draft, rebuiltLoad, timeOff, effectiveWeek);
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
+    if (startsOnNonEffectiveWeekday(effectiveWeek, draft.ignoreWeekends, weekdayOf(draft.startDate))) {
+      nonEffectiveStartAllocations += 1;
+    }
     if (shared) addCapacityLoad(shared.load, resource, draft, shared.window.start, shared.window.end, effectiveWeek);
     else rebuiltLoad.push(draft);
   }
-  return { overCapacityAllocations, timeOffAllocations };
+  return { overCapacityAllocations, timeOffAllocations, nonEffectiveStartAllocations };
 }
 
 /** The one window every draft in the batch falls inside, or `null` when it is too wide to

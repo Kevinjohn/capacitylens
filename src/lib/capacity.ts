@@ -245,6 +245,8 @@ export function utilization(
 export interface CapacityAdvisory {
   overDays: number; // days the proposed allocation works where existing + proposed hours exceed availability
   timeOffDays: number; // days in the window the resource is on time off
+  /** Repeat-only: generated occurrences whose start weekday is outside the effective week. */
+  nonEffectiveStartAllocations?: number;
 }
 
 /** Allocation fields read by the capacity advisory, accepting persisted rows or transient drafts. */
@@ -382,9 +384,9 @@ export function capacityAdvisoryFromLoad(
     : { overDays: 0, timeOffDays: 0 };
 }
 
-/** The surface an advisory is written for. The two counts are the same on every surface; only the
- *  wording differs (a toast appends to a committed-move sentence, the form states it standalone),
- *  and the `repeat` variant counts whole ALLOCATIONS in a repeat batch rather than days. */
+/** The surface an advisory is written for. Over/time-off counts exist on every surface; only the
+ *  wording differs (a toast appends to a committed-move sentence, the form states it standalone).
+ *  The `repeat` variant counts whole ALLOCATIONS and can add the non-effective-start count. */
 export type CapacityAdvisoryVariant = "toast" | "form" | "repeat";
 
 /** Pick the one/other form for a count. `one` and `other` are UNCALLED message references, invoked
@@ -400,6 +402,7 @@ const ADVISORY_COPY: Record<
   {
     over: (count: number) => string;
     timeOff: (count: number) => string;
+    nonEffectiveStart?: (count: number) => string;
     join: () => string;
     wrap: (bits: string) => string;
   }
@@ -422,19 +425,26 @@ const ADVISORY_COPY: Record<
       m.form_allocation_repeat_advisory_over_capacity_other,
     ),
     timeOff: plural(m.form_allocation_repeat_advisory_timeoff_one, m.form_allocation_repeat_advisory_timeoff_other),
+    nonEffectiveStart: plural(
+      m.form_allocation_repeat_advisory_non_effective_start_one,
+      m.form_allocation_repeat_advisory_non_effective_start_other,
+    ),
     join: m.form_allocation_repeat_advisory_join,
     wrap: (advisory) => m.form_allocation_repeat_advisory({ advisory }),
   },
 };
 
 /** The human sentence for an advisory result, or "" when it has nothing to say. Every surface
- *  builds it the same way — over-capacity bit, then time-off bit, joined and wrapped — so the
- *  ORDER and the "silent when both are zero" rule live here once instead of at each call site.
+ *  builds it the same way — over-capacity bit, then time-off bit, then the repeat-only non-effective
+ *  start bit, joined and wrapped — so ORDER and the "silent when all counts are zero" rule live here.
  *  For the `repeat` variant the counts are allocations, not days (see the copy table). */
 export function formatCapacityAdvisory(result: CapacityAdvisory, variant: CapacityAdvisoryVariant): string {
   const copy = ADVISORY_COPY[variant];
   const bits: string[] = [];
   if (result.overDays) bits.push(copy.over(result.overDays));
   if (result.timeOffDays) bits.push(copy.timeOff(result.timeOffDays));
+  if (result.nonEffectiveStartAllocations && copy.nonEffectiveStart) {
+    bits.push(copy.nonEffectiveStart(result.nonEffectiveStartAllocations));
+  }
   return bits.length ? copy.wrap(bits.join(copy.join())) : "";
 }

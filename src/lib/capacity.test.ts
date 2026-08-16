@@ -790,4 +790,10 @@ describe("formatCapacityAdvisory", () => {
       "For this repeat, 3 allocations overlap time off. Saving is still allowed.",
     );
   });
+
+  it("appends the repeat-only non-effective-start count as the third sentence fragment", () => {
+    expect(formatCapacityAdvisory({ overDays: 1, timeOffDays: 2, nonEffectiveStartAllocations: 3 }, "repeat")).toBe(
+      "For this repeat, 1 allocation may exceed capacity and 2 allocations overlap time off and 3 allocations start on a non-working day. Saving is still allowed.",
+    );
+  });
 });
