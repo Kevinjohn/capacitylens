@@ -5,8 +5,9 @@ import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { toggleVariants } from "@/components/ui/toggle";
 
-// Local shadcn deviation: product segmented controls own their geometry, so this source-owned
-// primitive keeps only shared variant/size context and neutral item width/padding defaults.
+// Local shadcn deviation: omit the registry's connected-item geometry because SegmentedControl
+// owns those borders, radii, and focus seams; keep only shared variant/size context and neutral
+// item width/padding defaults in this source-owned primitive.
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants>
 >({

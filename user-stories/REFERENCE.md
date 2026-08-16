@@ -1124,6 +1124,8 @@ Mouse hover sets the active option; mouse click selects.
 `scheduler-grid`, `scheduler-toolbar` (the scheduler chrome wrapper — title/filter-toggle/nav/zoom/history
 row plus the expandable draw-mode/filter row; the WCAG 1.4.10 reflow check asserts the expanded
 state doesn't overflow at 320 CSS px),
+the toolbar rows expose `data-chrome-band="toolbar"|"filterbar"` for depth-tier styling, and shared
+segmented controls expose `data-segmented-control` for their source-owned connected geometry,
 `scheduler-row`, `discipline-group`, `resource-lane`,
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`, `half-day`,
 `scheduler-live-region` (a grid-level visually-hidden `role="status"` `aria-live="polite"` region —
