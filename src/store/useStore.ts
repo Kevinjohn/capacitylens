@@ -85,7 +85,10 @@ type ResourceDraftBase = Omit<DraftFields<Resource>, "kind" | "halfDays" | "enga
   engagement?: ResourceEngagement;
 };
 type ResourceDraft = ResourceDraftBase &
-  ({ kind: ResourceKind; workingDays: Weekday[] } | { kind: "placeholder"; workingDays?: Weekday[] });
+  (
+    | { kind: Exclude<ResourceKind, "placeholder">; workingDays: Weekday[] }
+    | { kind: "placeholder"; workingDays?: Weekday[] }
+  );
 export type Draft<T extends Entity> = T extends Resource ? ResourceDraft : DraftFields<T>;
 export type Patch<T extends Entity> = Partial<Draft<T>>;
 
@@ -1143,23 +1146,27 @@ export const useStore = create<StoreState>()((set, get, store) => {
     }),
 
     addResource: guardedAdd(
-      (input: Draft<Resource>): Resource => ({
-        ...input,
-        // Engagement did not exist in older programmatic callers. Default them to Studio, and
-        // keep placeholders/external rows outside the people classification by forcing Studio.
-        engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
-        // Programmatic callers written before half-day patterns existed retain the exact legacy
-        // meaning: every selected working day is full, represented by an empty half-day subset.
-        halfDays: input.halfDays ?? [],
-        ...(isPlaceholderResource(input) ? placeholderCapacityDefaults() : {}),
-        // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
-        // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
-        // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
-        workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
-        id: newId(),
-        accountId: requireAccount(),
-        ...stamp(),
-      }),
+      (input: Draft<Resource>): Resource => {
+        // Placeholder drafts may omit their inert pattern. Other programmatic callers written
+        // before half-day patterns existed retain full days via the empty half-day default.
+        const workingPattern = isPlaceholderResource(input)
+          ? placeholderCapacityDefaults()
+          : { workingDays: input.workingDays, halfDays: input.halfDays ?? [] };
+        return {
+          ...input,
+          ...workingPattern,
+          // Engagement did not exist in older programmatic callers. Default them to Studio, and
+          // keep placeholders/external rows outside the people classification by forcing Studio.
+          engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
+          // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
+          // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
+          // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
+          workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
+          id: newId(),
+          accountId: requireAccount(),
+          ...stamp(),
+        };
+      },
       (e, input) => {
         assertScopedRefs(get().data, e.accountId, "resources", input);
         assertWorkingDays(e.workingDays);
