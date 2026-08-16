@@ -28,6 +28,7 @@ import type {
   Resource,
   Activity,
   TimeOff,
+  Weekday,
 } from "../types/entities";
 
 // These specs target the PURE domain mutations directly (no store, no React). The
@@ -1489,7 +1490,7 @@ describe("remapAndValidateImport", () => {
       projects: [project("p", "src", "c")],
       resources: [{ ...placeholder("ph", "src", "p"), workingDays: [0, 6], halfDays: [6] }],
     };
-    const target = { ...base(), accounts: [{ ...account(A1), workingDays: [2, 4] }] };
+    const target = { ...base(), accounts: [{ ...account(A1), workingDays: [2, 4] as Weekday[] }] };
     const { data } = remapAndValidateImport(target, A1, incoming, TS);
 
     expect(data.resources.find((resource) => resource.accountId === A1)).toMatchObject({
