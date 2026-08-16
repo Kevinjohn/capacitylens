@@ -1,14 +1,17 @@
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { isOnTimeOff } from "../../lib/capacity";
 import type { ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 /** Recurring weekdays on which an allocation may start for this resource. Company closure wins;
- *  externals have no personal capacity pattern, so only the company calendar applies to them. */
+ *  externals have no personal capacity pattern, so only the company calendar applies to them.
+ *  TRANSITIONAL SEAM: the ONLY place an EffectiveWorkingWeek collapses to a plain array. An empty
+ *  result for "none" happens to be correct for start gating (every day blocked); #257 Phases 3-5
+ *  replace this with explicit "none" branches where downstream behavior must differ. */
 export function effectiveWorkingDays(resource: Resource, accountWorkingDays: Weekday[]): Weekday[] {
-  if (isExternalResource(resource)) return accountWorkingDays;
-  const personalWorkingDays = new Set(resource.workingDays);
-  return accountWorkingDays.filter((weekday) => personalWorkingDays.has(weekday));
+  const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
+  return effectiveWeek.kind === "days" ? effectiveWeek.days : [];
 }
 
 /** Why a schedule gesture may not begin on a date: the recurring company/personal calendars reject

@@ -20,12 +20,17 @@ export function defaultAccountWorkingDays(weekStartsOn: 0 | 1 = 1): Weekday[] {
   return orderedWeekdays(weekStartsOn).slice(0, DEFAULT_WORKING_DAY_COUNT);
 }
 
+/** The stored canonical form for every weekday set: distinct values, ascending. */
+export function canonicalWeekdaySet(days: readonly Weekday[]): Weekday[] {
+  return [...new Set(days)].sort((a, b) => a - b);
+}
+
 /** Repair an account weekday selection at an import or direct-write boundary. Empty is deliberate. */
 export function normalizeAccountWorkingDays(value: unknown, weekStartsOn: 0 | 1 = 1): Weekday[] {
   if (!Array.isArray(value) || !value.every(isWeekday)) {
     return defaultAccountWorkingDays(weekStartsOn);
   }
-  return [...new Set(value as Weekday[])].sort((a, b) => a - b);
+  return canonicalWeekdaySet(value as Weekday[]);
 }
 
 /** Weekdays ordered for presentation, beginning with the company's configured week start. */

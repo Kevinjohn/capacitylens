@@ -33,6 +33,7 @@
     "./lib/color": "./src/lib/color.ts",
     "./lib/accountWorkingDays": "./src/lib/accountWorkingDays.ts",
     "./lib/dateMath": "./src/lib/dateMath.ts",
+    "./lib/effectiveWorkingWeek": "./src/lib/effectiveWorkingWeek.ts",
     "./lib/id": "./src/lib/id.ts",
     "./lib/integrity": "./src/lib/integrity.ts",
     "./lib/repeatingDates": "./src/lib/repeatingDates.ts",
