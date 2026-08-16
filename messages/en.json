@@ -479,6 +479,7 @@
   "form_resource_bound_project_label": "Bound project",
   "form_resource_select_project_placeholder": "— Select project —",
   "form_resource_working_days_label": "Working days",
+  "form_resource_placeholder_working_days": "{days}. Placeholders use the company working days. Change them in Settings.",
   "form_resource_working_day_weekday": "Weekday",
   "form_resource_working_day_full": "Full day",
   "form_resource_working_day_half": "Half day",

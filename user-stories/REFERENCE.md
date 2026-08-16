@@ -563,9 +563,9 @@ required.` — is referenced from the checkbox via `aria-describedby`. The store
 company week outright, and every repair boundary (import, server write, startup) heals an empty or
 malformed stored selection to the week-start-aware default.
 
-The account selection governs **capacity**, not just interaction. Each capacity-tracked person's
-**effective working week** is the intersection of the company's global working days and their
-personal working pattern; External parties use the company set verbatim. A normal allocation
+The account selection governs **capacity**, not just interaction. Each person's **effective working
+week** is the intersection of the company's global working days and their personal working pattern;
+placeholders and External parties use the company set verbatim. A normal allocation
 schedules and loads hours only on effective days — a day it merely spans that is company- or
 personally-non-working stays grey and unavailable, contributes zero scheduled and zero available
 hours, and is excluded from utilisation on both sides of the ratio. Days- and Blocks-mode spans

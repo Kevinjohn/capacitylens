@@ -11,6 +11,9 @@ new features and **patch** versions carry fixes.
 
 - Gave the schedule distinct sidebar, toolbar, filter-bar and data-canvas depth tiers in both
   themes, with controls seated on a consistent raised or inset surface (#379).
+- Placeholders now follow the company's working days and always use full-day capacity (#382), rather than
+  carrying a separate personal working pattern. Their resource form shows the company days as
+  read-only guidance and directs changes to Settings.
 
 ### Fixed
 

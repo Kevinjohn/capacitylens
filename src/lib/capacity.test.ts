@@ -216,6 +216,15 @@ describe("capacityAllocationsForMode", () => {
 describe("availability", () => {
   const r = makeResource();
 
+  it("ignores stored placeholder half days while retaining personal half days", () => {
+    const person = makeResource({ halfDays: [2] });
+    const placeholder = makeResource({ kind: "placeholder", halfDays: [2] });
+
+    expect(isHalfDay(person, 2)).toBe(true);
+    expect(isHalfDay(placeholder, 2)).toBe(false);
+    expect(scheduledHoursOnDay(placeholder, "2026-06-02")).toBe(8);
+  });
+
   it("knows working vs non-working weekdays", () => {
     expect(isWorkingDay(r, "2026-06-01")).toBe(true); // Monday
     expect(isWorkingDay(r, "2026-06-06")).toBe(false); // Saturday

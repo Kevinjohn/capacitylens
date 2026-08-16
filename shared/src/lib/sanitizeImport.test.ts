@@ -40,6 +40,16 @@ describe("sanitizeImportedRecord", () => {
     );
   });
 
+  it("replaces placeholder working patterns with account-independent inert defaults", () => {
+    expect(
+      sanitizeImportedRecord("resources", {
+        kind: "placeholder",
+        workingDays: [0, 2, 6],
+        halfDays: [2],
+      }),
+    ).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
+  });
+
   it("preserves boolean resource favourites and drops malformed values", () => {
     expect(sanitizeImportedRecord("resources", { isFavourite: true }).isFavourite).toBe(true);
     expect(sanitizeImportedRecord("resources", { isFavourite: false }).isFavourite).toBe(false);
