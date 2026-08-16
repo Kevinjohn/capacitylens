@@ -117,7 +117,20 @@ function AllocationControlColumn({ children }: { children: ReactNode }) {
   );
 }
 
-const compoundControlsClassName = "flex min-w-0 gap-2 [&>*]:min-w-0 [&>*]:flex-1";
+/** The scheduling controls are the one deliberate exception to the modal's 25/75 rows. */
+function AllocationSpanRow({ children, hint, columns }: { children: ReactNode; hint?: ReactNode; columns: 2 | 3 }) {
+  return (
+    <div data-allocation-span-row className="flex min-w-0 flex-col gap-1.5">
+      <div
+        data-allocation-span-controls
+        className={`grid min-w-0 grid-cols-1 gap-2 ${columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+      >
+        {children}
+      </div>
+      {hint}
+    </div>
+  );
+}
 
 /** The raw Start/End pair, for the modes that take a literal date range rather than deriving the
  *  end from a span (see `usesTypedDateRange`). Both fields report the SAME `dates` error field, so
@@ -139,7 +152,7 @@ function DateRangeFields({
   describedById?: string;
 }) {
   return (
-    <div className={compoundControlsClassName}>
+    <>
       <DateField
         label={m.form_allocation_start_date_label()}
         value={startDate}
@@ -156,7 +169,7 @@ function DateRangeFields({
         invalid={invalid}
         describedById={describedById}
       />
-    </div>
+    </>
   );
 }
 
@@ -1064,18 +1077,15 @@ export function AllocationModal(props: AllocationModalProps) {
       )}
 
       {usesTypedDateRange ? (
-        <>
-          <AllocationControlColumn>
-            <DateRangeFields
-              startDate={startDate}
-              endDate={endDate}
-              onStartChange={setStartDate}
-              onEndChange={setEndDate}
-              invalid={errorField === "dates"}
-              describedById={errorId}
-            />
-          </AllocationControlColumn>
-
+        <AllocationSpanRow columns={isExternal ? 2 : 3}>
+          <DateRangeFields
+            startDate={startDate}
+            endDate={endDate}
+            onStartChange={setStartDate}
+            onEndChange={setEndDate}
+            invalid={errorField === "dates"}
+            describedById={errorId}
+          />
           {/* Externals carry no load (hoursPerDay 0), so only the hourly arm asks for one. */}
           {!isExternal && (
             <NumberField
@@ -1087,61 +1097,62 @@ export function AllocationModal(props: AllocationModalProps) {
               required
               invalid={errorField === "hours"}
               describedById={errorId}
-              layout="label-control"
             />
           )}
-        </>
+        </AllocationSpanRow>
       ) : (
         // Blocks and days are the same span control — a start plus a "days over" count — differing
         // only by the work-volume field days adds, and by whether the derived-end hint also states
         // the rescaled load.
-        <AllocationControlColumn>
-          <div className={compoundControlsClassName}>
-            <DateField
-              label={m.form_allocation_start_date_label()}
-              value={startDate}
-              onChange={setStartDate}
-              required
-              invalid={errorField === "dates"}
-              describedById={errorId}
-            />
-            {isDays && (
-              <NumberField
-                label={m.form_allocation_days_of_work_label()}
-                value={daysOfWork}
-                onChange={setDaysOfWork}
-                min={0}
-                step={0.5}
-                required
-                invalid={errorField === "daysOfWork"}
-                describedById={errorId}
-              />
-            )}
+        <AllocationSpanRow
+          columns={isDays ? 3 : 2}
+          hint={
+            startDate && endDateHint ? (
+              <p className="text-xs text-muted-foreground">
+                {isDays
+                  ? m.form_allocation_ends_hint_hours({ date: endDateHint, hours: round2(effHoursPerDay) })
+                  : m.form_allocation_ends_hint({ date: endDateHint })}
+              </p>
+            ) : undefined
+          }
+        >
+          <DateField
+            label={m.form_allocation_start_date_label()}
+            value={startDate}
+            onChange={setStartDate}
+            required
+            invalid={errorField === "dates"}
+            describedById={errorId}
+          />
+          {isDays && (
             <NumberField
-              label={m.form_allocation_days_over_label()}
-              value={daysOver}
-              onChange={setDaysOver}
-              min={1}
-              max={maximumDaysOver}
-              step={1}
-              // No effective working days ⇒ a working span is undefined; the count stays at its
-              // neutral seed so a permitted edit cannot silently rescale the stored volume.
-              disabled={
-                usesWorkingSpanFor(selectedResource, mode) &&
-                lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends)
-              }
-              invalid={errorField === "daysOver"}
+              label={m.form_allocation_days_of_work_label()}
+              value={daysOfWork}
+              onChange={setDaysOfWork}
+              min={0}
+              step={0.5}
+              required
+              invalid={errorField === "daysOfWork"}
               describedById={errorId}
             />
-          </div>
-          {startDate && endDateHint && (
-            <p className="text-xs text-muted-foreground">
-              {isDays
-                ? m.form_allocation_ends_hint_hours({ date: endDateHint, hours: round2(effHoursPerDay) })
-                : m.form_allocation_ends_hint({ date: endDateHint })}
-            </p>
           )}
-        </AllocationControlColumn>
+          <NumberField
+            label={m.form_allocation_days_over_label()}
+            value={daysOver}
+            onChange={setDaysOver}
+            min={1}
+            max={maximumDaysOver}
+            step={1}
+            // No effective working days ⇒ a working span is undefined; the count stays at its
+            // neutral seed so a permitted edit cannot silently rescale the stored volume.
+            disabled={
+              usesWorkingSpanFor(selectedResource, mode) &&
+              lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends)
+            }
+            invalid={errorField === "daysOver"}
+            describedById={errorId}
+          />
+        </AllocationSpanRow>
       )}
       {create && (
         <>

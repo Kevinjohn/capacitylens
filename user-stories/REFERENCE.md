@@ -359,9 +359,13 @@ The Resource, External party, Discipline, Client, Project, Activity, Time off an
 add/edit modals use an approximately 25/75 label-to-control row at normal modal widths and stack
 vertically on narrow screens. This includes conditional Activity Kind/Project controls,
 Client/Project privacy controls and every applicable Allocation field in Hours, Days and Blocks
-modes. Long labels wrap inside the label column without shifting the control column. Compound
-Allocation controls remain side by side inside the control column; inline activity creation and
-date/end/repeat hints align with that column; Status fills it with three equal segments. The
+modes except the scheduling row. That row spans the full modal width: Hours mode shows Start / End /
+Hours per day, Days mode shows Start / Days of work / Days over, Blocks mode shows Start / Days over,
+and an External allocation shows Start / End without hours. Its controls stack at narrow widths and
+otherwise divide the row equally. Long labels wrap inside the label column without shifting the
+control column. Compound Allocation controls outside the scheduling row remain side by side inside
+the control column; inline activity creation and repeat hints align with that column; Status fills it
+with three equal segments. The
 Resource form's `Working days` grid fills that same field width without widening the modal at narrow
 sizes. Administrative modal layouts are unchanged.
 The allocation modal's `Project` picker begins with `Internal` and `Any Project`, followed by a
