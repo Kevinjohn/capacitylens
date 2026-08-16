@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { dismissIntroIfPresent, freezeBrowserDate, openApp } from "./helpers";
+import { dismissIntroIfPresent, freezeBrowserDate, openApp, setTheme } from "./helpers";
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
 // boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)
@@ -185,7 +185,7 @@ test.describe("Navigation & shell", () => {
   test("renders in dark mode", async ({ page }) => {
     // Dark is now an explicit preference, not OS-driven: seed the stored theme so
     // the pre-paint script in index.html resolves the app to dark.
-    await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
+    await setTheme(page, "dark");
     await openApp(page);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();

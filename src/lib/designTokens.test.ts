@@ -15,9 +15,7 @@ function parseDeclarations(selector: string): Map<string, string> {
   const block = indexCss.match(new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1];
   if (!block) throw new Error(`Missing ${selector} declaration block`);
 
-  return new Map(
-    [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]),
-  );
+  return new Map([...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]));
 }
 
 const lightDeclarations = parseDeclarations(":root");

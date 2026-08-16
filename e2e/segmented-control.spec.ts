@@ -1,16 +1,27 @@
 import { test, expect, type Locator } from "./fixtures";
-import { disableCssMotion, openApp } from "./helpers";
+import { computedStyles, disableCssMotion, expectConnectedSelectionEdges, openApp } from "./helpers";
 
 async function selectedTreatment(segment: Locator) {
-  return segment.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      borderWidths: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth],
-      boxShadow: style.boxShadow,
-      backgroundColor: style.backgroundColor,
-      zIndex: style.zIndex,
-    };
-  });
+  const style = await computedStyles(segment, [
+    "border-top-width",
+    "border-right-width",
+    "border-bottom-width",
+    "border-left-width",
+    "box-shadow",
+    "background-color",
+    "z-index",
+  ]);
+  return {
+    borderWidths: [
+      style["border-top-width"],
+      style["border-right-width"],
+      style["border-bottom-width"],
+      style["border-left-width"],
+    ],
+    boxShadow: style["box-shadow"],
+    backgroundColor: style["background-color"],
+    zIndex: style["z-index"],
+  };
 }
 
 async function expectSelectedTreatment(segment: Locator) {
@@ -35,13 +46,10 @@ test("segmented controls keep an even selected outline at every position", async
   for (const theme of ["Light", "Dark"] as const) {
     await page.getByRole("radio", { name: theme, exact: true }).click();
 
-    for (const segment of segments) {
-      await segment.click();
-      await expect(segment).toHaveAttribute("aria-checked", "true");
-      await segment.evaluate((element) => (element as HTMLElement).blur());
+    await expectConnectedSelectionEdges(group, async (segment) => {
       await expectSelectedTreatment(segment);
       await expect.poll(() => group.evaluate((element) => element.getBoundingClientRect().width)).toBe(initialWidth);
-    }
+    });
   }
 
   const selected = segments[1];

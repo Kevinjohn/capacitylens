@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string };
 export type SegmentedGeometry = "gapped" | "connected";
 export type SegmentedSize = "sm" | "md" | "lg";
+export type SegmentedDensity = "default" | "compact";
 
 function encodedValue(value: string | number): string {
   return `${typeof value === "number" ? "n" : "s"}:${String(value)}`;
@@ -33,10 +34,10 @@ const selectedSegmentClass = [
 // Nested-radius contract: padding is ALWAYS 2px; the item radius is therefore exactly the track
 // radius minus 2px at every size. Inactive items reserve the selected border with transparent ink,
 // so moving selection cannot change either the track width or an item's box by 2px.
-const sizeClasses: Record<SegmentedSize, { track: string; item: string }> = {
-  sm: { track: "rounded-[6px]", item: "h-6 rounded-[4px] px-3 text-[12.5px]" },
-  md: { track: "rounded-[7px]", item: "h-7 rounded-[5px] px-[15px] text-[13.5px]" },
-  lg: { track: "rounded-[8px]", item: "h-8 rounded-[6px] px-4 text-[14.5px]" },
+const sizeClasses: Record<SegmentedSize, { radius: string; item: string }> = {
+  sm: { radius: "[--segment-radius:4px]", item: "h-6 px-3 text-[12.5px]" },
+  md: { radius: "[--segment-radius:5px]", item: "h-7 px-[15px] text-[13.5px]" },
+  lg: { radius: "[--segment-radius:6px]", item: "h-8 px-4 text-[14.5px]" },
 };
 
 // Connected groups use inset separators so the active item's real 1px border never competes for
@@ -55,10 +56,10 @@ export function SegmentedControl<T extends string | number>({
   ariaLabel,
   ariaLabelledby,
   className,
-  itemClassName,
   geometry = "gapped",
   fullWidth = false,
   size = "md",
+  density = "default",
   disabled = false,
 }: {
   value: T;
@@ -70,14 +71,14 @@ export function SegmentedControl<T extends string | number>({
   ariaLabelledby?: string;
   /** Optional layout classes for the group container. */
   className?: string;
-  /** Optional layout classes applied to every segment. */
-  itemClassName?: string;
   /** Visual relationship between items. `gapped` leaves 2px channels; `connected` uses inset rules. */
   geometry?: SegmentedGeometry;
   /** Give every option an equal-width cell across the available track width. */
   fullWidth?: boolean;
   /** Track/item scale. Track padding remains 2px at every size. */
   size?: SegmentedSize;
+  /** Named spacing treatment for labels that need less horizontal room. */
+  density?: SegmentedDensity;
   /**
    * When true, the group gives every segment the native `disabled` attribute, so the selected value
    * remains visible but cannot receive sequential focus or change. Used for the frozen week-start
@@ -90,17 +91,15 @@ export function SegmentedControl<T extends string | number>({
     <ToggleGroup
       type="single"
       variant="outline"
-      size={size === "md" ? "default" : size}
-      // 0.5 Tailwind spacing units = the geometry contract's fixed 2px. Connected overrides the
-      // visual gap to zero without selecting ToggleGroup's spacing=0 border-stripping behaviour.
-      spacing={0.5}
       data-segmented-control
-      data-segmented-size={size}
+      data-geometry={geometry}
+      data-density={density}
+      data-size={size}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
       className={cn(
-        "h-auto border border-input bg-background p-[2px] shadow-xs",
-        sizeClasses[size].track,
+        "h-auto rounded-[calc(var(--segment-radius)+2px)] border border-input bg-background p-[2px] shadow-xs",
+        sizeClasses[size].radius,
         geometry === "gapped" ? "gap-0.5" : "gap-0",
         fullWidth && "flex w-full",
         className,
@@ -122,12 +121,12 @@ export function SegmentedControl<T extends string | number>({
           title={opt.title}
           data-form-dirty-managed
           className={cn(
-            "min-w-0 shrink-0 border border-transparent leading-none shadow-none focus:relative focus:z-20 focus-visible:relative focus-visible:z-20",
+            "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none",
             sizeClasses[size].item,
+            density === "compact" && "px-1.5 tracking-tighter",
             selectedSegmentClass,
             geometry === "connected" && connectedItemClass,
             fullWidth && "flex-1 basis-0 min-w-0 justify-center truncate",
-            itemClassName,
           )}
         >
           {opt.label}

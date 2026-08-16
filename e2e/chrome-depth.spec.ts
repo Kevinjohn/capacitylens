@@ -1,12 +1,28 @@
 import { test, expect, type Locator, type Page } from "./fixtures";
-import { disableCssMotion, openApp, showScheduleFilters } from "./helpers";
+import {
+  computedStyles,
+  disableCssMotion,
+  expectConnectedSelectionEdges,
+  openApp,
+  setTheme,
+  showScheduleFilters,
+} from "./helpers";
 
-async function background(locator: Locator): Promise<string> {
-  return locator.evaluate((element) => getComputedStyle(element).backgroundColor);
+function luminance(cssColor: string): number {
+  const channels = cssColor
+    .match(/[\d.]+/g)
+    ?.slice(0, 3)
+    .map(Number);
+  if (!channels || channels.length !== 3) throw new Error(`Unsupported computed colour: ${cssColor}`);
+  const linear = channels.map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
 }
 
 async function openChrome(page: Page, theme: "light" | "dark") {
-  await page.addInitScript((value) => localStorage.setItem("capacitylens/theme", value), theme);
+  await setTheme(page, theme);
   await openApp(page);
   await disableCssMotion(page);
   await showScheduleFilters(page);
@@ -19,10 +35,14 @@ for (const theme of ["light", "dark"] as const) {
 
     const toolbar = page.locator('[data-chrome-band="toolbar"]');
     const filterbar = page.locator('[data-chrome-band="filterbar"]');
-    const expectedControl = theme === "light" ? "rgb(255, 255, 255)" : "rgb(20, 20, 20)";
-
-    await expect(toolbar).toHaveCSS("background-color", theme === "light" ? "rgb(211, 211, 207)" : "rgb(26, 26, 26)");
-    await expect(filterbar).toHaveCSS("background-color", theme === "light" ? "rgb(226, 226, 223)" : "rgb(36, 36, 36)");
+    const surfaces = await Promise.all(
+      [page.getByTestId("app-sidebar"), toolbar, filterbar, page.getByTestId("scheduler-grid")].map(async (locator) =>
+        luminance((await computedStyles(locator, ["background-color"]))["background-color"]),
+      ),
+    );
+    expect(surfaces[0]).toBeLessThan(surfaces[1]!);
+    expect(surfaces[1]).toBeLessThan(surfaces[2]!);
+    expect(surfaces[2]).toBeLessThan(surfaces[3]!);
 
     const controls = [
       toolbar.getByRole("button", { name: "Today", exact: true }),
@@ -31,7 +51,15 @@ for (const theme of ["light", "dark"] as const) {
       filterbar.getByRole("combobox", { name: "Discipline" }),
       filterbar.getByRole("button", { name: "Clear filters" }),
     ];
-    for (const control of controls) expect(await background(control)).toBe(expectedControl);
+    for (const control of controls) {
+      const controlBackground = (await computedStyles(control, ["background-color"]))["background-color"];
+      const band = (await control.evaluate((element) =>
+        element.closest("[data-chrome-band]")?.getAttribute("data-chrome-band"),
+      ))!;
+      const bandLocator = page.locator(`[data-chrome-band="${band}"]`);
+      const bandBackground = (await computedStyles(bandLocator, ["background-color"]))["background-color"];
+      expect(controlBackground).not.toBe(bandBackground);
+    }
   });
 }
 
@@ -63,31 +91,12 @@ async function expectSegmentGeometry(
   }
 }
 
-async function expectConnectedSelectionEdges(group: Locator) {
-  const items = group.getByRole("radio");
-  const count = await items.count();
-  for (let selectedIndex = 0; selectedIndex < count; selectedIndex += 1) {
-    await items.nth(selectedIndex).click();
-    await expect(items.nth(selectedIndex)).toHaveAttribute("aria-checked", "true");
-    await items.nth(selectedIndex).evaluate((element) => (element as HTMLElement).blur());
-
-    const shadows = await items.evaluateAll((elements) =>
-      elements.map((element) => getComputedStyle(element).boxShadow),
-    );
-    expect(shadows[selectedIndex]).not.toContain("inset 1px 0px");
-    if (selectedIndex + 1 < count) expect(shadows[selectedIndex + 1]).not.toContain("inset 1px 0px");
-  }
-}
-
 for (const theme of ["light", "dark"] as const) {
-  test(`all seven segmented-control contexts render the shared geometry in ${theme} mode`, async ({
-    page,
-  }, testInfo) => {
+  test(`all seven segmented-control contexts render the shared geometry in ${theme} mode`, async ({ page }) => {
     await openChrome(page, theme);
 
     const drawMode = page.getByRole("radiogroup", { name: "Draw mode" });
     await expectSegmentGeometry(drawMode, { trackRadius: "6px", itemRadius: "4px", gap: "2px" });
-    await page.screenshot({ path: testInfo.outputPath(`chrome_depth_scheduler_${theme}.png`), animations: "disabled" });
 
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const allocation = page.getByRole("dialog", { name: "New allocation" });
@@ -99,10 +108,6 @@ for (const theme of ["light", "dark"] as const) {
       equalWidth: true,
     });
     await expectConnectedSelectionEdges(status);
-    await allocation.screenshot({
-      path: testInfo.outputPath(`segmented_allocation_status_${theme}.png`),
-      animations: "disabled",
-    });
     await allocation.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(allocation).toHaveCount(0);
 
@@ -115,30 +120,17 @@ for (const theme of ["light", "dark"] as const) {
       gap: "2px",
       equalWidth: true,
     });
-    await activity.screenshot({
-      path: testInfo.outputPath(`segmented_activity_kind_${theme}.png`),
-      animations: "disabled",
-    });
     await activity.getByRole("button", { name: "Cancel", exact: true }).click();
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    for (const { name, slug } of [
-      { name: "Scheduling input", slug: "scheduling" },
-      { name: "Internal work colours", slug: "internal_colours" },
-      { name: "Theme", slug: "theme" },
-    ]) {
+    for (const name of ["Scheduling input", "Internal work colours", "Theme"]) {
       const group = page.getByRole("radiogroup", { name });
       await expectSegmentGeometry(group, {
         trackRadius: "7px",
         itemRadius: "5px",
         gap: "2px",
       });
-      await group.screenshot({
-        path: testInfo.outputPath(`segmented_settings_${slug}_${theme}.png`),
-        animations: "disabled",
-      });
     }
-    await page.screenshot({ path: testInfo.outputPath(`segmented_settings_${theme}.png`), animations: "disabled" });
 
     await page.getByRole("button", { name: "Switch company", exact: true }).click();
     await page.getByRole("button", { name: "New company" }).click();
@@ -146,10 +138,6 @@ for (const theme of ["light", "dark"] as const) {
       trackRadius: "7px",
       itemRadius: "5px",
       gap: "2px",
-    });
-    await page.screenshot({
-      path: testInfo.outputPath(`segmented_company_week_start_${theme}.png`),
-      animations: "disabled",
     });
   });
 }

@@ -14,6 +14,47 @@ import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 // replay. Noon gives a wide margin against host/browser timezone offsets.
 const FIXED_NOW = "2026-06-03T12:00:00";
 
+/** Seed the persisted explicit theme before the app's pre-paint script runs. */
+export async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
+  await page.addInitScript((value) => localStorage.setItem("capacitylens/theme", value), theme);
+}
+
+/** Read a small named set of computed CSS properties from one rendered element. */
+export async function computedStyles<const Properties extends readonly string[]>(
+  locator: Locator,
+  properties: Properties,
+): Promise<Record<Properties[number], string>> {
+  return locator.evaluate((element, names) => {
+    const style = getComputedStyle(element);
+    return Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name)])) as Record<
+      Properties[number],
+      string
+    >;
+  }, properties);
+}
+
+/** Select every connected segment and prove the active separator edges are cleared. */
+export async function expectConnectedSelectionEdges(
+  group: Locator,
+  afterSelect?: (selected: Locator, index: number) => Promise<void>,
+): Promise<void> {
+  const items = group.getByRole("radio");
+  const count = await items.count();
+  for (let selectedIndex = 0; selectedIndex < count; selectedIndex += 1) {
+    const selected = items.nth(selectedIndex);
+    await selected.click();
+    await expect(selected).toHaveAttribute("aria-checked", "true");
+    await selected.evaluate((element) => (element as HTMLElement).blur());
+
+    const shadows = await items.evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).boxShadow),
+    );
+    expect(shadows[selectedIndex]).not.toContain("inset 1px 0px");
+    if (selectedIndex + 1 < count) expect(shadows[selectedIndex + 1]).not.toContain("inset 1px 0px");
+    await afterSelect?.(selected, selectedIndex);
+  }
+}
+
 /** Freeze only the browser's Date constructor and Date.now, leaving every timer API native. */
 export async function freezeBrowserDate(page: Page): Promise<void> {
   await page.addInitScript((fixedNow) => {

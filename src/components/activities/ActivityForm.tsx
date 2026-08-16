@@ -152,7 +152,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         ariaLabel={m.form_activity_kind_aria()}
         geometry="gapped"
         fullWidth
-        itemClassName="px-1.5 tracking-tighter"
+        density="compact"
         layout="label-control"
       />
       {kind === "project" && (

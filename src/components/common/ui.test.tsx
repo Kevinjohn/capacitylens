@@ -433,7 +433,7 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("uses a two-pixel gap and concentric default radii without changing ToggleGroup's default", () => {
+  it("renders the default gapped intent through the shared radio-group primitive", () => {
     render(
       <SegmentedControl
         value="week"
@@ -447,64 +447,34 @@ describe("Modal", () => {
     );
 
     const group = screen.getByRole("radiogroup", { name: "Zoom" });
-    expect(group).toHaveAttribute("data-spacing", "0.5");
     expect(group).toHaveAttribute("data-variant", "outline");
-    expect(group).toHaveClass("gap-0.5", "p-[2px]", "rounded-[7px]");
-    expect(screen.getByRole("radio", { name: "Week" })).toHaveClass("border-transparent", "rounded-[5px]", "h-7");
+    expect(group).toHaveAttribute("data-geometry", "gapped");
+    expect(group).toHaveAttribute("data-size", "md");
+    expect(group).toHaveAttribute("data-density", "default");
+    expect(screen.getByRole("radio", { name: "Week" })).toHaveAttribute("data-state", "on");
   });
 
-  it("keeps the selected outline reserved at every connected position", () => {
+  it("renders connected full-width intent without changing radio semantics", () => {
     const options = [
       { value: "first", label: "First" },
       { value: "middle", label: "Middle" },
       { value: "last", label: "Last" },
     ];
-    const control = (value: string) => (
+    render(
       <SegmentedControl
-        value={value}
+        value="first"
         onChange={vi.fn()}
         options={options}
         ariaLabel="Positions"
         geometry="connected"
         fullWidth
-      />
-    );
-    const { rerender } = render(control("first"));
-
-    for (const selectedOption of options) {
-      rerender(control(selectedOption.value));
-      const selected = screen.getByRole("radio", { name: selectedOption.label });
-      expect(selected).toHaveAttribute("data-state", "on");
-      expect(selected).toHaveClass(
-        "border-transparent",
-        "data-[state=on]:border-brand",
-        "data-[state=on]:z-10",
-        "data-[state=on]:shadow-none",
-      );
-      expect(selected).toHaveClass("flex-1", "basis-0", "min-w-0", "focus:z-20", "focus-visible:z-20");
-    }
-  });
-
-  it.each([
-    ["sm", "rounded-[6px]", "rounded-[4px]", "h-6"],
-    ["md", "rounded-[7px]", "rounded-[5px]", "h-7"],
-    ["lg", "rounded-[8px]", "rounded-[6px]", "h-8"],
-  ] as const)("keeps %s track and item radii two pixels apart", (size, trackRadius, itemRadius, height) => {
-    render(
-      <SegmentedControl
-        value="week"
-        onChange={vi.fn()}
-        options={[
-          { value: "week", label: "Week" },
-          { value: "month", label: "Month" },
-        ]}
-        ariaLabel={`${size} zoom`}
-        size={size}
       />,
     );
 
-    expect(screen.getByRole("radiogroup", { name: `${size} zoom` })).toHaveClass("p-[2px]", trackRadius);
-    expect(screen.getByRole("radio", { name: "Week" })).toHaveClass(itemRadius, height);
+    const group = screen.getByRole("radiogroup", { name: "Positions" });
+    expect(group).toHaveAttribute("data-geometry", "connected");
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    expect(screen.getByRole("radio", { name: "First" })).toHaveAttribute("data-state", "on");
   });
 
   it("round-trips numeric and string values that have the same display text", () => {

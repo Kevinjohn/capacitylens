@@ -422,11 +422,7 @@ export function SchedulerGrid() {
             aria-expanded={!collapsed}
             className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
           >
-            {collapsed ? (
-              <ChevronRight data-icon="inline-start" />
-            ) : (
-              <ChevronDown data-icon="inline-start" />
-            )}
+            {collapsed ? <ChevronRight data-icon="inline-start" /> : <ChevronDown data-icon="inline-start" />}
             <span
               className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
               style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
