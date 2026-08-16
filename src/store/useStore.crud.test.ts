@@ -572,6 +572,25 @@ describe("date-range + reference guards at the store boundary", () => {
     expect(() => s().updateResource(resource.id, { halfDays: [2, 2] })).toThrow(/half days must be unique/i);
   });
 
+  it("normalizes placeholder working patterns on add and update", () => {
+    const client = s().addClient({ name: "Wayne Enterprises", color: "#737373" });
+    const project = s().addProject({ name: "Watchtower", clientId: client.id, color: "#737373" });
+    const resource = s().addResource({
+      ...personDraft,
+      kind: "placeholder",
+      projectId: project.id,
+      workingDays: [],
+      halfDays: [6],
+    });
+
+    expect(resource).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
+    s().updateResource(resource.id, { workingDays: [0, 6], halfDays: [6] });
+    expect(s().data.resources.find((candidate) => candidate.id === resource.id)).toMatchObject({
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+    });
+  });
+
   it("clamps resource workingHoursPerDay to (0, 24] on add and update (0/junk → 8, >24 → 24)", () => {
     // The store is the last line for the resource path too (the form caps it, but a non-form
     // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is NOT legal for a

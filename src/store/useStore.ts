@@ -42,6 +42,8 @@ import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
   emptyAppData,
+  isPlaceholderResource,
+  placeholderCapacityDefaults,
 } from "@capacitylens/shared/types/entities";
 import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
 import type {
@@ -77,12 +79,10 @@ import { isWeekdaySet, normalizeAccountWorkingDays } from "@capacitylens/shared/
 // rely on. Excluding the field at the type level is the guard; the store also strips it defensively at
 // runtime (see addClient/updateClient).
 type DraftFields<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
-export type Draft<T extends Entity> = T extends Resource
-  ? Omit<DraftFields<T>, "halfDays" | "engagement"> & {
-      halfDays?: Weekday[];
-      engagement?: ResourceEngagement;
-    }
-  : DraftFields<T>;
+type ResourceDraft = Omit<DraftFields<Resource>, "engagement"> & {
+  engagement?: ResourceEngagement;
+};
+export type Draft<T extends Entity> = T extends Resource ? ResourceDraft : DraftFields<T>;
 export type Patch<T extends Entity> = Partial<Draft<T>>;
 
 /** One row of a scoped table, and the patch shape accepted for it (server-owned fields excluded). */
@@ -1139,25 +1139,30 @@ export const useStore = create<StoreState>()((set, get, store) => {
     }),
 
     addResource: guardedAdd(
-      (input: Draft<Resource>): Resource => ({
-        ...input,
-        // Engagement did not exist in older programmatic callers. Default them to Studio, and
-        // keep placeholders/external rows outside the people classification by forcing Studio.
-        engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
-        // Programmatic callers written before half-day patterns existed retain the exact legacy
-        // meaning: every selected working day is full, represented by an empty half-day subset.
-        halfDays: input.halfDays ?? [],
-        // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
-        // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
-        // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
-        workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
-        id: newId(),
-        accountId: requireAccount(),
-        ...stamp(),
-      }),
+      (input: Draft<Resource>): Resource => {
+        // Placeholder drafts carry inert defaults for a complete entity contract; normalise them
+        // again here so the store remains the authoritative last line for persisted values.
+        const workingPattern = isPlaceholderResource(input)
+          ? placeholderCapacityDefaults()
+          : { workingDays: input.workingDays, halfDays: input.halfDays };
+        return {
+          ...input,
+          ...workingPattern,
+          // Engagement did not exist in older programmatic callers. Default them to Studio, and
+          // keep placeholders/external rows outside the people classification by forcing Studio.
+          engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
+          // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
+          // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
+          // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
+          workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
+          id: newId(),
+          accountId: requireAccount(),
+          ...stamp(),
+        };
+      },
       (e, input) => {
         assertScopedRefs(get().data, e.accountId, "resources", input);
-        assertWorkingDays(input.workingDays);
+        assertWorkingDays(e.workingDays);
         assertHalfDays(e.halfDays, e.workingDays);
         // Colour snap runs LAST, right before persisting — never before the asserts above, so a
         // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
@@ -1168,6 +1173,8 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ),
     updateResource: guarded((id: ID, patch: Patch<Resource>) => {
       updateOwned("resources", id, patch, (merged, existing) => {
+        patch = isPlaceholderResource(merged) ? { ...patch, ...placeholderCapacityDefaults() } : patch;
+        merged = { ...existing, ...patch };
         // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
         // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
         // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.

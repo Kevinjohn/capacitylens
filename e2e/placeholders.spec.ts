@@ -35,6 +35,15 @@ test.describe("Placeholders (per-account pref, default off)", () => {
     await expect(page.getByRole("button", { name: "Add placeholder" })).toBeVisible();
     const phRow = page.getByTestId("resource-row").filter({ hasText: "Senior Designer" });
     await expect(phRow.getByText("Placeholder", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Add placeholder" }).click();
+    const workingDays = page.getByRole("group", { name: "Working days" });
+    await expect(workingDays.getByRole("radio")).toHaveCount(0);
+    await expect(
+      page.getByText(
+        "Monday, Tuesday, Wednesday, Thursday, Friday. Placeholders use the company working days. Change them in Settings.",
+      ),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
 
     // Schedule now shows the placeholder lane. The name + "?" avatar live in the row HEADER (the
     // left sticky column), a sibling of the [data-resource-id] gridcell — so scope to the whole

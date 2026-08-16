@@ -12,6 +12,8 @@ import {
   INTERNAL_COLOUR_MODES,
   COMPANY_WIDE_TIME_OFF_FALLBACK,
   isCompanyWideTimeOffType,
+  isPlaceholderResource,
+  placeholderCapacityDefaults,
   type TimeOffType,
   type Account,
   type AppData,
@@ -285,8 +287,9 @@ export function sanitizeAccount(rec: Record<string, unknown>, storedWeekStartsOn
 export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string, unknown>): Record<string, unknown> {
   stripUnknownFields(key, rec);
   switch (key) {
-    case "resources":
-      rec.kind = oneOf(rec.kind, VALID_KIND, "person");
+    case "resources": {
+      const kind = oneOf(rec.kind, VALID_KIND, "person");
+      rec.kind = kind;
       if (rec.kind === "external") {
         Object.assign(rec, externalCapacityDefaults());
         rec.color = NEUTRAL_COLOR;
@@ -294,14 +297,18 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
         delete rec.projectId;
       } else {
         rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, "permanent");
-        rec.engagement = rec.kind === "placeholder" ? "studio" : oneOf(rec.engagement, VALID_ENGAGEMENT, "studio");
+        rec.engagement = isPlaceholderResource({ kind }) ? "studio" : oneOf(rec.engagement, VALID_ENGAGEMENT, "studio");
         rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay);
-        rec.workingDays = safeWorkingDays(rec.workingDays);
-        rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);
+        if (isPlaceholderResource({ kind })) {
+          Object.assign(rec, placeholderCapacityDefaults());
+        } else {
+          rec.workingDays = safeWorkingDays(rec.workingDays);
+          rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);
+        }
         rec.color = snapToPresetColor(rec.color);
-        if (rec.kind !== "placeholder") delete rec.projectId;
+        if (!isPlaceholderResource({ kind })) delete rec.projectId;
       }
-      if (rec.kind === "placeholder") {
+      if (isPlaceholderResource({ kind })) {
         cleanField(rec, "name");
       } else {
         cleanRequiredField(rec, "name", rec.kind === "external" ? "Unnamed company" : "Unnamed person");
@@ -316,6 +323,7 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       if (rec.isFavourite !== undefined && typeof rec.isFavourite !== "boolean") delete rec.isFavourite;
       normalizeLifecycleFields(rec);
       break;
+    }
     case "allocations":
       rec.status = oneOf(rec.status, VALID_STATUS, "confirmed");
       rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, FULL_DAY_HOURS);

@@ -37,10 +37,10 @@ describe("effective working week", () => {
     });
   });
 
-  it("treats placeholders like people", () => {
+  it("uses the complete company calendar for placeholders regardless of their stored working days", () => {
     expect(effectiveWorkingWeek({ kind: "placeholder", workingDays: [1, 3, 5] }, [2, 3, 4, 5])).toEqual({
       kind: "days",
-      days: [3, 5],
+      days: [2, 3, 4, 5],
     });
   });
 

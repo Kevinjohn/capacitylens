@@ -8,7 +8,7 @@ import {
 import { blockHoursPerDay, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { effectiveWeekIncludes, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { m } from "@/i18n";
-import { FULL_DAY_HOURS, HALF_DAY_HOURS } from "@capacitylens/shared/types/entities";
+import { FULL_DAY_HOURS, HALF_DAY_HOURS, hasPersonalWorkingPattern } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 // Arithmetic-only tolerance: one nanohour is 3.6 microseconds, far below any scheduling input,
@@ -80,7 +80,7 @@ export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate)
 /** A saved half-day working pattern on this weekday — 4h of capacity instead of 8h. The scheduler's
  *  partial-capacity tint asks the same question, so both read this one definition. */
 export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
-  return resource.halfDays.includes(weekday);
+  return hasPersonalWorkingPattern(resource) && resource.halfDays.includes(weekday);
 }
 
 function scheduledHoursForWeekday(resource: Resource, weekday: Weekday, effectiveWeek: EffectiveWorkingWeek): number {

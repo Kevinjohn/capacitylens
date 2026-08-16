@@ -32,6 +32,7 @@ test.describe("Resources", () => {
 
     const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
     const workingDays = dialog.getByRole("group", { name: "Working days" });
+    await expect(workingDays.getByRole("radio")).toHaveCount(21);
     const workingDaysBox = await workingDays.boundingBox();
     const workingDaysTable = workingDays.getByRole("table");
     const tableBox = await workingDaysTable.boundingBox();
