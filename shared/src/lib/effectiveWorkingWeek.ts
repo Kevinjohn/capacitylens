@@ -1,5 +1,5 @@
 import { canonicalWeekdaySet } from "./accountWorkingDays";
-import type { Resource, Weekday } from "../types/entities";
+import { hasPersonalWorkingPattern, type Resource, type Weekday } from "../types/entities";
 
 /** The recurring weekdays effective for a resource. The `days` variant is guaranteed to contain
  *  at least one weekday, with duplicates removed and values stored in ascending order. */
@@ -41,7 +41,7 @@ export function effectiveWorkingWeek(
 ): EffectiveWorkingWeek {
   const companyWorkingDays = canonicalWeekdaySet(accountWorkingDays);
   let days = companyWorkingDays;
-  if (resource.kind === "person") {
+  if (hasPersonalWorkingPattern(resource)) {
     const personalWorkingDays = new Set(resource.workingDays);
     days = companyWorkingDays.filter((weekday) => personalWorkingDays.has(weekday));
   }

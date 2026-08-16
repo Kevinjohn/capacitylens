@@ -1,7 +1,7 @@
 // Fully-populated test fixtures — EVERY optional field set to a non-default value.
 // Used by the server round-trip tests (server/src/app.test.ts) and available for
 // future app-level tests. Pure data, no behaviour.
-import { externalCapacityDefaults } from "../types/entities";
+import { externalCapacityDefaults, placeholderCapacityDefaults } from "../types/entities";
 import { NEUTRAL_COLOR } from "../lib/color";
 import type {
   Account,
@@ -107,8 +107,7 @@ export const FIXTURE_RESOURCE: Resource = {
   employmentType: "contractor",
   engagement: "studio",
   workingHoursPerDay: 6,
-  workingDays: [1, 2, 3, 4, 5],
-  halfDays: [],
+  ...placeholderCapacityDefaults(),
   projectId: "fix-p1",
   color: "#3ace6b",
   isFavourite: true,

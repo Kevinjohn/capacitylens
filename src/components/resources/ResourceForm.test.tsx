@@ -188,11 +188,23 @@ describe("ResourceForm working days", () => {
     useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, { workingDays: [1, 3, 5] });
     render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
 
-    expect(screen.queryByRole("group", { name: "Working days" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Working days" })).toBeVisible();
     expect(
       screen.getByText(
         "Monday, Wednesday, Friday. Placeholders use the company working days. Change them in Settings.",
       ),
+    ).toBeVisible();
+  });
+
+  it("orders a Sunday-inclusive company week from the configured week start", () => {
+    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, {
+      weekStartsOn: 1,
+      workingDays: [0, 1, 2],
+    });
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+
+    expect(
+      screen.getByText("Monday, Tuesday, Sunday. Placeholders use the company working days. Change them in Settings."),
     ).toBeVisible();
   });
 

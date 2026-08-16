@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../../store/useStore";
-import { disciplinesEnabledFor } from "../../store/selectors";
+import { accountWorkingDaysFor, disciplinesEnabledFor, weekStartsOnFor } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { errorMessage } from "../../lib/errorMessage";
@@ -16,14 +16,13 @@ import {
   WorkingDayPicker,
   type Option,
 } from "../common/ui";
-import { FieldError, FieldGroup } from "../ui/field";
+import { FieldDescription, FieldError, FieldGroup, FieldLegend, FieldSet } from "../ui/field";
 import { resourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { weekdayLabel } from "../../lib/weekdays";
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   FULL_DAY_HOURS,
-  placeholderCapacityDefaults,
   type Resource,
   type ResourceEngagement,
   type ResourceKind,
@@ -57,7 +56,6 @@ export function ResourceForm({
 }) {
   const add = useStore((s) => s.addResource);
   const update = useStore((s) => s.updateResource);
-  const account = useStore((s) => s.data.accounts.find((candidate) => candidate.id === s.activeAccountId));
   const data = useActiveScopedData();
   // When the account doesn't use disciplines, hide the picker. Any existing disciplineId
   // on an edited resource is left untouched (the field just isn't shown).
@@ -73,11 +71,13 @@ export function ResourceForm({
 
   const kind = resource?.kind ?? kindProp ?? "person";
   const isPlaceholder = kind === "placeholder";
-  const companyWorkingDays = useMemo(
-    () => normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1),
-    [account?.workingDays, account?.weekStartsOn],
-  );
-  const companyWorkingDayNames = companyWorkingDays.map(weekdayLabel).join(", ");
+  const companyWorkingDayNames = useStore((s) => {
+    const workingDays = new Set(accountWorkingDaysFor(s.data, s.activeAccountId));
+    return orderedWeekdays(weekStartsOnFor(s.data, s.activeAccountId))
+      .filter((day) => workingDays.has(day))
+      .map(weekdayLabel)
+      .join(", ");
+  });
   const [name, setName] = useState(resource?.name ?? "");
   const [role, setRole] = useState(resource?.role ?? "");
   const [disciplineId, setDisciplineId] = useState(resource?.disciplineId ?? "");
@@ -140,8 +140,7 @@ export function ResourceForm({
     // Placeholders inherit the company calendar and persist only inert defaults. A person with zero
     // working days has zero capacity every day, so their personal selection remains validated.
     if (!isPlaceholder && !validateWorkingDays(workingDays, fail)) return;
-    const patch = {
-      kind,
+    const basePatch = {
       name: cleanName ? cleanName : undefined,
       role: cleanRole,
       disciplineId: disciplineId || undefined,
@@ -154,14 +153,14 @@ export function ResourceForm({
       // to 8 / 4 / 0 hours. Keep writing the compatibility field so legacy custom values normalise
       // when that specific resource is edited, without migrating untouched records in bulk.
       workingHoursPerDay: FULL_DAY_HOURS,
-      workingDays,
-      halfDays,
-      ...(isPlaceholder ? placeholderCapacityDefaults() : {}),
       projectId: isPlaceholder ? projectId : undefined,
       // Resources no longer carry their own colour — the scheduler/list derive it
       // from the discipline. Keep a stable fallback so the entity stays valid.
       color: resource?.color ?? DEFAULT_COLORS.resource,
     };
+    const patch = isPlaceholder
+      ? { ...basePatch, kind: "placeholder" as const }
+      : { ...basePatch, kind, workingDays, halfDays };
     // Surface a store-side rejection (e.g. a dangling disciplineId/placeholder projectId, or the
     // empty-working-days backstop) as a form error rather than an uncaught React error — see the
     // store CRUD contract.
@@ -247,12 +246,12 @@ export function ResourceForm({
         )}
       </FieldGroup>
       {isPlaceholder ? (
-        <div className="space-y-1.5">
-          <div className="text-sm font-medium">{m.form_resource_working_days_label()}</div>
-          <p className="text-sm text-muted-foreground">
+        <FieldSet>
+          <FieldLegend variant="label">{m.form_resource_working_days_label()}</FieldLegend>
+          <FieldDescription>
             {m.form_resource_placeholder_working_days({ days: companyWorkingDayNames })}
-          </p>
-        </div>
+          </FieldDescription>
+        </FieldSet>
       ) : (
         <WorkingDayPicker
           label={m.form_resource_working_days_label()}

@@ -401,6 +401,25 @@ export function isCapacityTracked(r: { kind: ResourceKind }): boolean {
   return !isExternalResource(r);
 }
 
+/** True when a resource persists its own working-week pattern. Placeholders derive their live week
+ *  from the company calendar, while externals have no capacity at all. */
+export function hasPersonalWorkingPattern(r: { kind: ResourceKind }): boolean {
+  return r.kind === "person";
+}
+
+/** The single kind check for placeholder-specific persistence and import rules. */
+export function isPlaceholderResource(r: { kind: ResourceKind }): boolean {
+  return r.kind === "placeholder";
+}
+
+/** Fresh inert weekday arrays shared by resource kinds that do not persist a personal pattern. */
+function defaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "halfDays"> {
+  return {
+    workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
+  };
+}
+
 /** The unused silent-default capacity fields every `external` resource is created with: externals
  *  have no capacity, but the Resource type + store still require a positive working day and a
  *  non-empty week. A FACTORY (not a shared object) so each call gets its own weekday arrays — no
@@ -413,8 +432,7 @@ export function externalCapacityDefaults(): Pick<
     employmentType: "permanent",
     engagement: "studio" as const,
     workingHoursPerDay: FULL_DAY_HOURS,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
+    ...defaultCapacityWorkingPattern(),
   };
 }
 
@@ -423,10 +441,7 @@ export function externalCapacityDefaults(): Pick<
  *  inert and must never copy an account's current selection. A factory gives every caller fresh
  *  arrays, avoiding aliases if a consumer mutates one. */
 export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "halfDays"> {
-  return {
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-  };
+  return defaultCapacityWorkingPattern();
 }
 
 /** JSON/export format version. Bump when the portable AppData shape changes; drives
