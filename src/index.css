@@ -41,13 +41,10 @@
   --color-chrome-toolbar-border: var(--chrome-toolbar-border);
   --color-chrome-filterbar: var(--chrome-filterbar);
   --color-chrome-filterbar-border: var(--chrome-filterbar-border);
-  --color-chrome-filterbar-ink: var(--chrome-filterbar-ink);
   /* Scheduler-only surfaces let the dark data canvas come forward without lightening the whole app. */
   --color-scheduler-canvas: var(--scheduler-canvas);
-  --color-scheduler-row: var(--scheduler-row);
   --color-scheduler-header: var(--scheduler-header);
   --color-scheduler-group: var(--scheduler-group);
-  --color-scheduler-group-ink: var(--scheduler-group-ink);
   --color-ink: var(--c-ink);
   --color-faint: var(--c-faint);
   --color-brand: var(--c-brand);
@@ -112,7 +109,7 @@
   ); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
   --c-ink: #1c2230;
   --c-muted: #5b6472;
-  --c-faint: #677080; /* darkened one step from #6b7280 (which was 4.43:1 on --c-base, sub-AA): now 4.58:1 on the canvas, 4.99:1 on --c-surface — clears WCAG AA (4.5:1) for small text on BOTH grounds */
+  --c-faint: #636c7c; /* darkened from #6b7280 so small text clears WCAG AA (4.5:1) on every ordinary and scheduler light ground */
   /* CapacityLens blue: identity and state. Keep the light theme dark enough for
      small labels and focus indicators; the dark theme can use a brighter blue
      without losing contrast against the charcoal surfaces. */
@@ -147,19 +144,19 @@
      These neutral tokens stay separate from --c-base/--c-surface and shadcn's semantic family. */
   --chrome-sidebar: #222222;
   --chrome-sidebar-border: #171717;
+  --chrome-sidebar-ink: #f5f5f5;
+  --chrome-sidebar-muted-ink: #c0c0c0;
   --chrome-toolbar: #d3d3cf;
   --chrome-toolbar-border: #bcbcb7;
   --chrome-filterbar: #e2e2df;
   --chrome-filterbar-border: #cbcbc7;
-  --chrome-filterbar-ink: #5b6472;
+  --chrome-filterbar-ink: var(--c-muted);
   --chrome-control: #ffffff;
   --chrome-control-border: #c4c4c1;
   --chrome-control-hover: #f7f7f6;
   --scheduler-canvas: #ffffff;
-  --scheduler-row: #ffffff;
   --scheduler-header: #f7f7f6;
   --scheduler-group: #f2f2f1;
-  --scheduler-group-ink: #636c7c;
   color-scheme: light;
 
   /* ShadCN semantic tokens share the established CapacityLens palette. Components
@@ -183,17 +180,21 @@
   --destructive-foreground: #ffffff;
   --border: var(--c-line);
   --input: var(--c-line);
+  --input-background: transparent;
+  --input-hover-background: transparent;
+  --outline-background: var(--background);
+  --outline-hover-background: var(--accent);
   --ring: var(--c-brand);
   --radius: 0.625rem;
   /* ShadCN Sidebar keeps its standard semantic API, but its values now derive from the dedicated
      chrome tier. That lets every source-owned sidebar primitive move together without component
      hexes or coupling navigation depth to ordinary app surfaces. */
   --sidebar: var(--chrome-sidebar);
-  --sidebar-foreground: #f5f5f5;
+  --sidebar-foreground: var(--chrome-sidebar-ink);
   --sidebar-primary: var(--c-brand-soft);
   --sidebar-primary-foreground: var(--c-brand-soft-ink);
   --sidebar-accent: color-mix(in oklab, var(--chrome-sidebar) 88%, white);
-  --sidebar-accent-foreground: #ffffff;
+  --sidebar-accent-foreground: var(--c-focus-halo);
   --sidebar-border: var(--chrome-sidebar-border);
   --sidebar-ring: var(--c-brand);
 }
@@ -235,20 +236,24 @@
   --c-ok-strong-ink: #ffffff;
   --chrome-sidebar: #0d0d0d;
   --chrome-sidebar-border: #000000;
+  --chrome-sidebar-ink: #f5f5f5;
+  --chrome-sidebar-muted-ink: #bbbbbb;
   --chrome-toolbar: #1a1a1a;
   --chrome-toolbar-border: #303030;
   --chrome-filterbar: #242424;
   --chrome-filterbar-border: #3a3a3a;
-  --chrome-filterbar-ink: #a3acbd;
+  --chrome-filterbar-ink: var(--c-muted);
   --chrome-control: #141414;
   --chrome-control-border: #3f3f3f;
   --chrome-control-hover: #1f1f1f;
   /* #2c2c2c is lighter than every chrome band while retaining 4.52:1 with --c-faint. */
   --scheduler-canvas: #2c2c2c;
-  --scheduler-row: #2c2c2c;
   --scheduler-header: #292929;
   --scheduler-group: #292929;
-  --scheduler-group-ink: #8b93a3;
+  --input-background: color-mix(in oklab, var(--input) 30%, transparent);
+  --input-hover-background: color-mix(in oklab, var(--input) 50%, transparent);
+  --outline-background: color-mix(in oklab, var(--input) 30%, transparent);
+  --outline-hover-background: color-mix(in oklab, var(--input) 50%, transparent);
   color-scheme: dark;
 
   /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */
@@ -296,28 +301,17 @@
   }
 }
 
-/* Outline buttons, inputs and select triggers otherwise resolve through three different shadcn
-   fills (`background`, transparent and dark input/30). An unlayered region rule deliberately
-   outranks those utility-layer defaults so every control seated on either chrome band gets the
-   same raised (light) / inset (dark) surface. The explicit dark selector prevents a future dark
-   utility specificity change from leaking the band colour back through transparent controls. */
-[data-chrome-band] :is([data-slot="button"][data-variant="outline"], [data-slot="input"], [data-slot="select-trigger"]),
-[data-chrome-band] [data-segmented-control] {
-  background-color: var(--chrome-control);
-  border-color: var(--chrome-control-border);
-}
-
-:root[data-theme="dark"]
-  [data-chrome-band]
-  :is([data-slot="button"][data-variant="outline"], [data-slot="input"], [data-slot="select-trigger"]),
-:root[data-theme="dark"] [data-chrome-band] [data-segmented-control] {
-  background-color: var(--chrome-control);
-  border-color: var(--chrome-control-border);
-}
-
-[data-chrome-band]
-  :is([data-slot="button"][data-variant="outline"], [data-slot="select-trigger"]):not(:disabled):hover {
-  background-color: var(--chrome-control-hover);
+/* Controls on a chrome band consume the same semantic API as they do elsewhere. Redefining the
+   inputs instead of their final properties preserves the tier while explicit colour utilities
+   remain free to override it. */
+[data-chrome-band] {
+  --background: var(--chrome-control);
+  --border: var(--chrome-control-border);
+  --input: var(--chrome-control-border);
+  --input-background: var(--chrome-control);
+  --input-hover-background: var(--chrome-control-hover);
+  --outline-background: var(--chrome-control);
+  --outline-hover-background: var(--chrome-control-hover);
 }
 
 /* The global focus treatment defaults unknown controls to 4px. Segmented items have explicit

@@ -8,55 +8,67 @@ import { contrastRatio, ensureBarColors } from "@capacitylens/shared/lib/color";
 import { DEFAULT_COLORS, SWATCHES } from "./palette";
 import indexCss from "../index.css?raw";
 
-const chromeTokens = {
-  light: {
-    sidebar: "#222222",
-    sidebarInk: "#f5f5f5",
-    toolbar: "#d3d3cf",
-    toolbarInk: "#1c2230",
-    filterbar: "#e2e2df",
-    filterbarInk: "#5b6472",
-    canvas: "#ffffff",
-    canvasInk: "#677080",
-    row: "#ffffff",
-    rowInk: "#677080",
-    header: "#f7f7f6",
-    headerInk: "#677080",
-    group: "#f2f2f1",
-    groupInk: "#636c7c",
-  },
-  dark: {
-    sidebar: "#0d0d0d",
-    sidebarInk: "#e7eaf0",
-    toolbar: "#1a1a1a",
-    toolbarInk: "#e7eaf0",
-    filterbar: "#242424",
-    filterbarInk: "#a3acbd",
-    canvas: "#2c2c2c",
-    canvasInk: "#8b93a3",
-    row: "#2c2c2c",
-    rowInk: "#8b93a3",
-    header: "#292929",
-    headerInk: "#8b93a3",
-    group: "#292929",
-    groupInk: "#8b93a3",
-  },
-} as const;
+type Theme = "light" | "dark";
+
+function parseDeclarations(selector: string): Map<string, string> {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const block = indexCss.match(new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1];
+  if (!block) throw new Error(`Missing ${selector} declaration block`);
+
+  return new Map(
+    [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]),
+  );
+}
+
+const lightDeclarations = parseDeclarations(":root");
+const darkDeclarations = parseDeclarations(':root[data-theme="dark"]');
+const themeDeclarations = {
+  light: lightDeclarations,
+  dark: new Map([...lightDeclarations, ...darkDeclarations]),
+} satisfies Record<Theme, Map<string, string>>;
+
+function token(theme: Theme, name: string, resolving = new Set<string>()): string {
+  const value = themeDeclarations[theme].get(name);
+  if (!value) throw new Error(`Missing --${name} in ${theme} theme`);
+  const alias = value.match(/^var\(--([\w-]+)\)$/)?.[1];
+  if (!alias) return value;
+  if (resolving.has(name)) throw new Error(`Circular token alias at --${name}`);
+  return token(theme, alias, new Set(resolving).add(name));
+}
+
+function chromeTokens(theme: Theme) {
+  return {
+    sidebar: token(theme, "chrome-sidebar"),
+    sidebarInk: token(theme, "chrome-sidebar-ink"),
+    sidebarMutedInk: token(theme, "chrome-sidebar-muted-ink"),
+    toolbar: token(theme, "chrome-toolbar"),
+    toolbarInk: token(theme, "c-ink"),
+    filterbar: token(theme, "chrome-filterbar"),
+    filterbarInk: token(theme, "chrome-filterbar-ink"),
+    canvas: token(theme, "scheduler-canvas"),
+    canvasInk: token(theme, "c-faint"),
+    header: token(theme, "scheduler-header"),
+    headerInk: token(theme, "c-faint"),
+    group: token(theme, "scheduler-group"),
+    groupInk: token(theme, "c-faint"),
+  };
+}
 
 describe("chrome depth tokens", () => {
   it("defines every chrome and scheduler ground in both themes and leaves shadcn surfaces mapped to --c-*", () => {
     for (const name of [
       "chrome-sidebar",
+      "chrome-sidebar-ink",
+      "chrome-sidebar-muted-ink",
       "chrome-toolbar",
       "chrome-filterbar",
       "chrome-filterbar-ink",
       "scheduler-canvas",
-      "scheduler-row",
       "scheduler-header",
       "scheduler-group",
-      "scheduler-group-ink",
     ]) {
-      expect(indexCss.match(new RegExp(`--${name}:`, "g"))).toHaveLength(2);
+      expect(lightDeclarations.has(name)).toBe(true);
+      expect(darkDeclarations.has(name)).toBe(true);
     }
     expect(indexCss).toMatch(/--background:\s*var\(--c-base\)/);
     expect(indexCss).toMatch(/--card:\s*var\(--c-surface\)/);
@@ -64,33 +76,29 @@ describe("chrome depth tokens", () => {
   });
 
   it("orders every light chrome tier from the most distinct sidebar to the clean canvas", () => {
-    const { sidebar, toolbar, filterbar, canvas } = chromeTokens.light;
+    const { sidebar, toolbar, filterbar, canvas } = chromeTokens("light");
     expect(contrastRatio(sidebar, canvas)).toBeGreaterThan(contrastRatio(toolbar, canvas));
     expect(contrastRatio(toolbar, canvas)).toBeGreaterThan(contrastRatio(filterbar, canvas));
     expect(contrastRatio(filterbar, canvas)).toBeGreaterThan(1);
   });
 
   it("orders every dark chrome tier below the scheduler canvas and preserves faint-text AA", () => {
-    const { sidebar, toolbar, filterbar, canvas } = chromeTokens.dark;
+    const { sidebar, toolbar, filterbar, canvas, canvasInk } = chromeTokens("dark");
     const black = "#000000";
     expect(contrastRatio(sidebar, black)).toBeLessThan(contrastRatio(toolbar, black));
     expect(contrastRatio(toolbar, black)).toBeLessThan(contrastRatio(filterbar, black));
     expect(contrastRatio(filterbar, black)).toBeLessThan(contrastRatio(canvas, black));
-    expect(contrastRatio("#8b93a3", canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(canvasInk, canvas)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each([
-    ["light", chromeTokens.light],
-    ["dark", chromeTokens.dark],
-  ])("keeps every %s chrome and scheduler ground paired with AA ink", (_theme, tokens) => {
+  it.each(["light", "dark"] as const)("keeps every %s chrome and scheduler ground paired with AA ink", (theme) => {
+    const tokens = chromeTokens(theme);
     const pairs = [
       ["sidebar", tokens.sidebarInk, tokens.sidebar],
+      ["sidebar muted", tokens.sidebarMutedInk, tokens.sidebar],
       ["toolbar", tokens.toolbarInk, tokens.toolbar],
-      // Filter-bar secondary copy must use its paired ink: --c-faint is not AA on the light ground.
       ["filterbar", tokens.filterbarInk, tokens.filterbar],
-      // The canvas has no direct copy today; pin faint as the intended safe secondary ink.
       ["scheduler canvas", tokens.canvasInk, tokens.canvas],
-      ["scheduler row", tokens.rowInk, tokens.row],
       ["scheduler header", tokens.headerInk, tokens.header],
       ["scheduler group", tokens.groupInk, tokens.group],
     ] as const;
@@ -100,13 +108,16 @@ describe("chrome depth tokens", () => {
     }
   });
 
-  it("gives every band control a shared surface with an explicit dark-theme override", () => {
-    expect(indexCss).toMatch(
-      /\[data-chrome-band\][\s\S]*?\[data-slot="button"\]\[data-variant="outline"\][\s\S]*?\[data-slot="input"\][\s\S]*?\[data-slot="select-trigger"\]/,
-    );
-    expect(indexCss).toMatch(
-      /:root\[data-theme="dark"\][\s\S]*?\[data-chrome-band\][\s\S]*?background-color:\s*var\(--chrome-control\)/,
-    );
+  it("gives band controls shared semantic surface inputs without overriding final properties", () => {
+    const bandRule = indexCss.match(/\[data-chrome-band\]\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    expect(bandRule).toMatch(/--background:\s*var\(--chrome-control\)/);
+    expect(bandRule).toMatch(/--border:\s*var\(--chrome-control-border\)/);
+    expect(bandRule).toMatch(/--input:\s*var\(--chrome-control-border\)/);
+    expect(bandRule).toMatch(/--input-background:\s*var\(--chrome-control\)/);
+    expect(bandRule).toMatch(/--input-hover-background:\s*var\(--chrome-control-hover\)/);
+    expect(bandRule).toMatch(/--outline-background:\s*var\(--chrome-control\)/);
+    expect(bandRule).toMatch(/--outline-hover-background:\s*var\(--chrome-control-hover\)/);
+    expect(bandRule).not.toMatch(/(?:background|border)-color:/);
   });
 });
 
@@ -121,29 +132,19 @@ describe("DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)", () => {
   });
 });
 
-// Design-token contrast guard. The hex values mirror the `--c-*` tokens in src/index.css; CSS
-// custom properties aren't resolvable in jsdom, so we pin the values here and FAIL the gate if the
-// token is edited below AA without updating its inline ratio comment. --c-faint was 4.43:1 on the
-// canvas (sub-AA) and is darkened to #677080 to clear 4.5:1 on BOTH the canvas and the white surface
-// (WCAG 1.4.3 / SC 1.4.3, normal small text). See the token comment in src/index.css.
+// These checks read the declarations above directly, so editing a token in index.css changes the
+// measured value. Alias resolution also keeps semantic indirection such as --chrome-filterbar-ink
+// attached to its source token.
 describe("design-token contrast (--c-faint, WCAG 1.4.3 AA)", () => {
-  const FAINT_LIGHT = "#677080";
-  const CANVAS_LIGHT = "#f4f5f8"; // --c-base
-  const SURFACE_LIGHT = "#ffffff"; // --c-surface (= --c-elevated)
-  const FAINT_DARK = "#8b93a3";
-  const CANVAS_DARK = "#0e1016";
-  const SURFACE_DARK = "#161922";
-  const ELEVATED_DARK = "#1d212c";
-
   it("clears 4.5:1 on the light canvas AND surface", () => {
-    expect(contrastRatio(FAINT_LIGHT, CANVAS_LIGHT)).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio(FAINT_LIGHT, SURFACE_LIGHT)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(token("light", "c-faint"), token("light", "c-base"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(token("light", "c-faint"), token("light", "c-surface"))).toBeGreaterThanOrEqual(4.5);
   });
 
   it("the dark-theme faint stays AA on every dark ground", () => {
-    expect(contrastRatio(FAINT_DARK, CANVAS_DARK)).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio(FAINT_DARK, SURFACE_DARK)).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio(FAINT_DARK, ELEVATED_DARK)).toBeGreaterThanOrEqual(4.5);
+    for (const ground of ["c-base", "c-surface", "c-elevated"]) {
+      expect(contrastRatio(token("dark", "c-faint"), token("dark", ground))).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 

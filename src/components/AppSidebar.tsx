@@ -225,7 +225,7 @@ function ActiveRoleBadge() {
     <Badge
       data-testid="active-role"
       variant="outline"
-      className="mt-1 text-2xs text-sidebar-foreground/75"
+      className="mt-1 text-2xs text-(--chrome-sidebar-muted-ink)"
       title={viewOnly ? m.nav_view_only_title() : undefined}
     >
       {viewOnly && <EyeIcon aria-hidden="true" focusable="false" />}

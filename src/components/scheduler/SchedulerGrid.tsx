@@ -407,7 +407,7 @@ export function SchedulerGrid() {
         role="row"
         aria-rowindex={rowIndex}
         data-testid="discipline-group"
-        className="flex border-y border-line-soft bg-scheduler-group"
+        className="flex border-y border-line-soft bg-scheduler-group text-faint"
         style={{ height: density.groupHeaderHeight }}
       >
         <div
@@ -423,9 +423,9 @@ export function SchedulerGrid() {
             className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
           >
             {collapsed ? (
-              <ChevronRight data-icon="inline-start" className="text-scheduler-group-ink" />
+              <ChevronRight data-icon="inline-start" />
             ) : (
-              <ChevronDown data-icon="inline-start" className="text-scheduler-group-ink" />
+              <ChevronDown data-icon="inline-start" />
             )}
             <span
               className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
@@ -437,7 +437,7 @@ export function SchedulerGrid() {
         <div
           role="gridcell"
           aria-colindex={2}
-          className="flex shrink-0 items-center px-3 text-xs text-scheduler-group-ink"
+          className="flex shrink-0 items-center px-3 text-xs"
           style={{ width: geom.totalWidth }}
         >
           {collapsed
@@ -465,13 +465,13 @@ export function SchedulerGrid() {
         data-testid="scheduler-row"
         data-dimmed={dimmed || undefined}
         title={dimmed ? m.scheduler_row_dimmed_title() : undefined}
-        className={`flex border-b border-line-soft bg-scheduler-row ${dimmed ? "opacity-45" : ""}`}
+        className={`flex border-b border-line-soft bg-scheduler-canvas ${dimmed ? "opacity-45" : ""}`}
         style={{ height: rowHeight }}
       >
         <div
           role="rowheader"
           aria-colindex={1}
-          className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-scheduler-row ps-3 ${
+          className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-scheduler-canvas ps-3 ${
             resource.kind === "placeholder" ? "hatch-lines" : ""
           }`}
           style={{ width: LAYOUT.leftColWidth }}
