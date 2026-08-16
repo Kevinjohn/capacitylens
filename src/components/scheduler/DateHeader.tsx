@@ -133,7 +133,7 @@ export const DateHeader = memo(function DateHeader({
                 <span
                   data-month-label
                   data-month-placement="sticky-start"
-                  className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
+                  className="sticky inline-block max-w-full truncate bg-scheduler-header px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
                   style={{ left: LAYOUT.leftColWidth }}
                 >
                   {mo.label}

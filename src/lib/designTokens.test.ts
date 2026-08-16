@@ -8,6 +8,53 @@ import { contrastRatio, ensureBarColors } from "@capacitylens/shared/lib/color";
 import { DEFAULT_COLORS, SWATCHES } from "./palette";
 import indexCss from "../index.css?raw";
 
+const chromeTokens = {
+  light: {
+    sidebar: "#222222",
+    toolbar: "#d3d3cf",
+    filterbar: "#e2e2df",
+    canvas: "#ffffff",
+  },
+  dark: {
+    sidebar: "#0d0d0d",
+    toolbar: "#1a1a1a",
+    filterbar: "#242424",
+    canvas: "#2c2c2c",
+  },
+} as const;
+
+describe("chrome depth tokens", () => {
+  it("defines the six core chrome values in both theme blocks and leaves shadcn surfaces mapped to --c-*", () => {
+    for (const name of ["sidebar", "sidebar-border", "toolbar", "toolbar-border", "filterbar", "filterbar-border"]) {
+      expect(indexCss.match(new RegExp(`--chrome-${name}:`, "g"))).toHaveLength(2);
+    }
+    expect(indexCss).toMatch(/--background:\s*var\(--c-base\)/);
+    expect(indexCss).toMatch(/--card:\s*var\(--c-surface\)/);
+    expect(indexCss).toMatch(/--muted:\s*var\(--c-base\)/);
+  });
+
+  it("orders every light chrome tier from the most distinct sidebar to the clean canvas", () => {
+    const { sidebar, toolbar, filterbar, canvas } = chromeTokens.light;
+    expect(contrastRatio(sidebar, canvas)).toBeGreaterThan(contrastRatio(toolbar, canvas));
+    expect(contrastRatio(toolbar, canvas)).toBeGreaterThan(contrastRatio(filterbar, canvas));
+    expect(contrastRatio(filterbar, canvas)).toBeGreaterThan(1);
+  });
+
+  it("orders every dark chrome tier below the scheduler canvas and preserves faint-text AA", () => {
+    const { sidebar, toolbar, filterbar, canvas } = chromeTokens.dark;
+    const black = "#000000";
+    expect(contrastRatio(sidebar, black)).toBeLessThan(contrastRatio(toolbar, black));
+    expect(contrastRatio(toolbar, black)).toBeLessThan(contrastRatio(filterbar, black));
+    expect(contrastRatio(filterbar, black)).toBeLessThan(contrastRatio(canvas, black));
+    expect(contrastRatio("#8b93a3", canvas)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("gives every band control a shared surface with an explicit dark-theme override", () => {
+    expect(indexCss).toMatch(/\[data-chrome-band\][\s\S]*?\[data-slot="button"\]\[data-variant="outline"\][\s\S]*?\[data-slot="input"\][\s\S]*?\[data-slot="select-trigger"\]/);
+    expect(indexCss).toMatch(/:root\[data-theme="dark"\][\s\S]*?\[data-chrome-band\][\s\S]*?background-color:\s*var\(--chrome-control\)/);
+  });
+});
+
 describe("DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)", () => {
   it("guarantees the label clears 4.5:1 for every default colour", () => {
     // An app-palette invariant, not a re-test of ensureBarColors: retuning a DEFAULT_COLORS entry
@@ -99,8 +146,9 @@ describe("action and identity token contrast", () => {
 
 // The global :focus-visible rule uses opaque brand blue for native controls and composed
 // `[tabindex]` primitives alike. These are every normal adjacent app surface in both themes;
-// sidebar maps to surface and its hover/active ground maps to canvas. Pinning the pairs here makes
-// a future token edit fail before it can turn the shared focus indicator sub-3:1 again.
+// The sidebar now has its own chrome ground while ordinary app surfaces retain the established
+// semantic values. Pinning every pair here makes a future token edit fail before it can turn the
+// shared focus indicator sub-3:1 again.
 describe("global focus outline contrast (WCAG 1.4.11 non-text >=3:1)", () => {
   it("applies the opaque brand outline to tabindex-composed primitives", () => {
     expect(indexCss).toMatch(/\[tabindex\][\s\S]*?\):focus-visible\s*\{[^}]*outline:\s*2px solid var\(--color-brand\)/);
@@ -108,7 +156,8 @@ describe("global focus outline contrast (WCAG 1.4.11 non-text >=3:1)", () => {
 
   it.each([
     ["light canvas", "#2563eb", "#f4f5f8"],
-    ["light surface/sidebar/popover", "#2563eb", "#ffffff"],
+    ["light surface/popover", "#2563eb", "#ffffff"],
+    ["light sidebar chrome", "#2563eb", "#222222"],
     ["dark canvas", "#60a5fa", "#0e1016"],
     ["dark surface/sidebar", "#60a5fa", "#161922"],
     ["dark elevated/popover", "#60a5fa", "#1d212c"],
