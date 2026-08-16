@@ -189,6 +189,25 @@ describe("SettingsView — global working days", () => {
   });
 });
 
+describe("#257 characterization: empty company working week baseline", () => {
+  // FLIPS in Phase 6 when Settings prevents the final checked day from being cleared.
+  it("allows all seven company working days to remain unchecked and persists the empty set", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
+      await user.click(screen.getByRole("checkbox", { name: day }));
+    }
+
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+      expect(screen.getByRole("checkbox", { name: day })).not.toBeChecked();
+    }
+    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual(
+      [],
+    );
+  });
+});
+
 describe("SettingsView — Internal work colours", () => {
   it("defaults to Grey and stores Use colour palette on the active account", async () => {
     const user = userEvent.setup();

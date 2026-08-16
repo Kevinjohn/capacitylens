@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
+import { AllocationBar } from "./AllocationBar";
 import { useStore } from "../../store/useStore";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import {
@@ -16,7 +17,7 @@ import {
 } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
-import { chooseOption } from "./__tests__/schedulerTestKit";
+import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
 
 const capacityAdvisoryMock = vi.hoisted(() => vi.fn(() => ({ overDays: 0, timeOffDays: 0 })));
 // The mock is declared without a parameter list, so reach its recorded arguments through a cast:
@@ -1461,6 +1462,77 @@ describe("AllocationModal edit", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(/hours per day must be greater than 0/i);
     expect(useStore.getState().data.allocations).toHaveLength(1);
+  });
+});
+
+describe("#257 characterization: modal and gesture working-week divergence", () => {
+  // FLIPS across Phases 4 and 5 when both interaction paths use the effective working week.
+  it("ends the same five-day span on Friday in the modal but Monday through the gesture path", async () => {
+    useStore.getState().updateAccount(ACC, { schedulingMode: "days", workingDays: [1, 2, 3, 4] });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-04",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const user = userEvent.setup();
+    const modal = render(<AllocationModal allocationId={allocation.id} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const modalEnd = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!.endDate;
+    modal.unmount();
+
+    useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-04", hoursPerDay: 8 });
+    const resetAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
+    renderWithTooltip(
+      <AllocationBar
+        bar={{
+          allocation: resetAllocation,
+          x: 0,
+          width: 192,
+          top: 0,
+          color: "#3b82f6",
+          label: "Wireframes",
+          external: false,
+        }}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
+    const gestureEnd = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!.endDate;
+
+    expect([modalEnd, gestureEnd]).toEqual(["2026-06-05", "2026-06-08"]);
+  });
+});
+
+describe("#257 characterization: duplicate start gate baseline", () => {
+  // FLIPS in Phase 5 when duplicate becomes a gated record-creating action.
+  it("duplicates an allocation whose start is company-non-working", async () => {
+    useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-05",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<AllocationModal allocationId={allocation.id} onClose={onClose} />);
+
+    await user.click(screen.getByRole("button", { name: "Duplicate" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(useStore.getState().data.allocations).toHaveLength(2);
+    expect(useStore.getState().data.allocations.every(({ startDate }) => startDate === "2026-06-05")).toBe(true);
   });
 });
 

@@ -19,6 +19,16 @@ it("pins the public maximum scheduling span independently of its implementation"
   expect(MAX_SPAN_DAYS).toBe(36_500);
 });
 
+describe("#257 characterization: empty working-set hazard", () => {
+  // PERMANENT hazard record: Phase 2's typed effective week must keep callers out of this calendar fallback.
+  it("treats an empty working-day array as literal calendar mode", () => {
+    const emptyWorkingSet = { workingDays: [] as Weekday[] };
+
+    expect(spanDays("2026-06-01", "2026-06-05", emptyWorkingSet)).toBe(5);
+    expect(endDateForSpan("2026-06-01", 5, emptyWorkingSet)).toBe("2026-06-05");
+  });
+});
+
 describe("spanDays", () => {
   it("counts working days when weekend-aware", () => {
     expect(spanDays("2026-06-01", "2026-06-05", { workingDays: MON_FRI })).toBe(5);

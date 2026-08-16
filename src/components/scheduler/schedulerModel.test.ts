@@ -181,6 +181,40 @@ const barIds = (model: GroupModel[]) =>
     .map((b) => b.allocation.id)
     .sort();
 
+describe("#257 characterization: company-off tint/capacity disagreement", () => {
+  // FLIPS in Phase 3 when company closure also zeroes scheduled and available capacity.
+  it("tints a company-closed Friday unavailable while personal capacity remains eight hours", () => {
+    const data = dataset();
+    const resource = data.resources.find((candidate) => candidate.id === "r1")!;
+    const row = buildSchedulerModel({
+      data,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: emptyFilters(),
+      preferences: {
+        disciplinesEnabled: true,
+        placeholdersEnabled: true,
+        externalEnabled: true,
+        accountWorkingDays: [1, 2, 3, 4],
+      },
+    })
+      .flatMap((group) => group.rows)
+      .find((candidate) => candidate.resource.id === resource.id)!;
+    const fridayCapacity = capacityForWindowOf(
+      resource,
+      data.allocations.filter((allocation) => allocation.resourceId === resource.id),
+      [],
+      "2026-06-05",
+      "2026-06-05",
+    )[0]!;
+
+    expect(row.dayStates[4]).toMatchObject({ unavailable: true, creationBlocked: true });
+    expect(fridayCapacity.available).toBe(8);
+  });
+});
+
 it("keeps discipline groups while ordering engagement partitions and externals deterministically", () => {
   const data = dataset();
   const designTemplate = data.resources[0]!;

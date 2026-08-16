@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Allocation, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
 import type { Draft } from "../store/useStore";
 import {
   projectAllocationDates,
@@ -23,6 +25,42 @@ const baseDraft = (overrides: Partial<Draft<Allocation>> = {}): Draft<Allocation
 const resourceContext = (
   overrides: Partial<RepeatProjectionContext["resource"]> = {},
 ): RepeatProjectionContext["resource"] => ({ id: "r1", kind: "person", workingDays: [1, 2, 3, 4, 5], ...overrides });
+
+describe("#257 characterization: repeat start-day policy", () => {
+  // PERMANENT invariants: monthly off-day starts are created, while weekly cadences retain their anchor weekday.
+  it("projects monthly occurrences even when generated starts are personally non-working", () => {
+    const startDates = generateRepeatingStartDates("2026-06-01", "2026-08-01", {
+      kind: "monthly-date",
+    }).startDates;
+    const projected = projectAllocationDates(
+      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }),
+      startDates,
+      {
+        schedulingMode: "days",
+        daysOver: 1,
+        resource: resourceContext({ workingDays: [1] }),
+      },
+    );
+
+    expect(startDates.map(weekdayOf)).toEqual([1, 3, 6]);
+    expect(projected.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
+      ["2026-06-01", "2026-06-01"],
+      ["2026-07-01", "2026-07-06"],
+      ["2026-08-01", "2026-08-03"],
+    ]);
+  });
+
+  it("preserves the weekly anchor weekday across the generated batch", () => {
+    const startDates = generateRepeatingStartDates(
+      "2026-06-01",
+      "2026-07-27",
+      repeatPatternForSelection("weekly"),
+    ).startDates;
+
+    expect(startDates).toHaveLength(9);
+    expect(new Set(startDates.map(weekdayOf))).toEqual(new Set([1]));
+  });
+});
 
 describe("repeatPatternForSelection", () => {
   it("maps every repeating form choice exhaustively", () => {

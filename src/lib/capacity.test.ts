@@ -10,6 +10,7 @@ import {
   isHalfDay,
   isOnTimeOff,
   isWorkingDay,
+  scheduledHoursOnDay,
   utilization,
   utilizationFromCapacity,
   type CapacityAllocationInput,
@@ -58,6 +59,38 @@ const makeTimeOff = (over: Partial<TimeOff> = {}): TimeOff => ({
   endDate: "2026-06-03",
   type: "holiday",
   ...over,
+});
+
+describe("#257 characterization: pre-effective-week capacity baseline", () => {
+  // FLIPS in Phase 3 when capacity and load use the company/personal effective week.
+  it("keeps Friday capacity, load and utilisation when only the company calendar excludes Friday", () => {
+    // Premise: the company week is Mon–Thu, but no capacity function consults it today.
+    const resource = makeResource({ workingDays: [1, 2, 3, 4, 5] });
+    const allocation = makeAlloc({
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+    });
+
+    expect(scheduledHoursOnDay(resource, "2026-06-05")).toBe(8);
+    expect(availableHoursOnDay(resource, "2026-06-05", [])).toBe(8);
+    expect(allocatedHoursOnDay(resource, "2026-06-05", [allocation])).toBe(8);
+    expect(utilization(resource, [allocation], [], "2026-06-05", "2026-06-05")).toBe(1);
+  });
+
+  // FLIPS in Phase 3: intersecting with a partial company week makes a seven-day
+  // resource weekend-aware, so weekend hours stop counting.
+  it("loads Saturday and Sunday for a normal allocation on a seven-day resource", () => {
+    const resource = makeResource({ workingDays: [0, 1, 2, 3, 4, 5, 6] });
+    const allocation = makeAlloc({
+      startDate: "2026-06-01",
+      endDate: "2026-06-07",
+      hoursPerDay: 8,
+    });
+
+    expect(allocatedHoursOnDay(resource, "2026-06-06", [allocation])).toBe(8);
+    expect(allocatedHoursOnDay(resource, "2026-06-07", [allocation])).toBe(8);
+  });
 });
 
 describe("capacityAllocationsForMode", () => {
