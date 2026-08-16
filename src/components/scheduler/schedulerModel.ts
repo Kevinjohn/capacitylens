@@ -115,11 +115,21 @@ function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>
 }
 
 /** Index rows (allocations, time off) by the resource they belong to, so building a row is a Map
- *  lookup instead of a full-array scan per resource. Insertion order inside each bucket follows
- *  `rows`, which the capacity sums below depend on (float addition is not associative). */
-function groupByResourceId<T extends { resourceId: ID }>(rows: T[]): Map<ID, T[]> {
+ *  lookup instead of a full-array scan per resource. `include` avoids an intermediate filtered
+ *  array, while `visit` observes every source row before filtering. Insertion order inside each
+ *  bucket follows `rows`, which the capacity sums below depend on (float addition is not
+ *  associative). */
+function groupByResourceId<T extends { resourceId: ID }>(
+  rows: T[],
+  options: {
+    include?: (row: T) => boolean;
+    visit?: (row: T) => void;
+  } = {},
+): Map<ID, T[]> {
   const byResource = new Map<ID, T[]>();
   for (const row of rows) {
+    options.visit?.(row);
+    if (options.include && !options.include(row)) continue;
     const list = byResource.get(row.resourceId);
     if (list) list.push(row);
     else byResource.set(row.resourceId, [row]);
@@ -259,8 +269,8 @@ export function refreshVisibleUtilization(
   blocksMode = false,
 ): GroupModel[] {
   const days = eachDayISO(start, end);
-  const allocations = groupByResourceId(data.allocations.filter(hasRenderableDateRange));
-  const timeOff = groupByResourceId(data.timeOff.filter(hasRenderableDateRange));
+  const allocations = groupByResourceId(data.allocations, { include: hasRenderableDateRange });
+  const timeOff = groupByResourceId(data.timeOff, { include: hasRenderableDateRange });
   return model.map((group) => {
     let changed = false;
     const rows = group.rows.map((row) => {
@@ -370,16 +380,18 @@ export function buildSchedulerModel({
   // Group allocations / time off by resource ONCE up front, so building each row
   // is a Map lookup instead of a full-array scan per resource (was O(resources ×
   // (allocations + timeOff)); now O(allocations + timeOff + resources)).
-  const allocsByResource = groupByResourceId(data.allocations);
-  const timeOffByResource = groupByResourceId(data.timeOff);
   const seriesEndByKey = new Map<string, ISODate>();
-  for (const a of data.allocations) {
-    if (a.seriesId && isValidISODate(a.endDate)) {
-      const key = `${a.accountId}\u0000${a.seriesId}`;
+  const allocsByResource = groupByResourceId(data.allocations, {
+    visit: (allocation) => {
+      if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
+      const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
       const current = seriesEndByKey.get(key);
-      if (!current || a.endDate > current) seriesEndByKey.set(key, a.endDate);
-    }
-  }
+      if (!current || allocation.endDate > current) {
+        seriesEndByKey.set(key, allocation.endDate);
+      }
+    },
+  });
+  const timeOffByResource = groupByResourceId(data.timeOff);
 
   // Does this allocation match the active project/client filter (ignoring tentative)?
   const matchesProjectClient = (a: Allocation): boolean => {
