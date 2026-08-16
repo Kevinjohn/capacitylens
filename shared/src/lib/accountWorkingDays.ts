@@ -8,8 +8,8 @@ const DEFAULT_WORKING_DAY_COUNT = 5;
 export const isWeekday = (value: unknown): value is Weekday =>
   Number.isInteger(value) && (value as number) >= 0 && (value as number) < WEEKDAY_COUNT;
 
-/** True for an array of DISTINCT weekdays. Emptiness is deliberately NOT judged here: an empty
- *  company selection is legal while an empty resource week is not, so each caller keeps that policy. */
+/** True for an array of DISTINCT weekdays. Emptiness is deliberately NOT judged here because this
+ *  shape guard is shared: account/resource weeks require a day, while half-day sets may be empty. */
 export const isWeekdaySet = (days: unknown): days is Weekday[] =>
   Array.isArray(days) && new Set(days).size === days.length && days.every(isWeekday);
 
@@ -20,12 +20,17 @@ export function defaultAccountWorkingDays(weekStartsOn: 0 | 1 = 1): Weekday[] {
   return orderedWeekdays(weekStartsOn).slice(0, DEFAULT_WORKING_DAY_COUNT);
 }
 
-/** Repair an account weekday selection at an import or direct-write boundary. Empty is deliberate. */
+/** The stored canonical form for every weekday set: distinct values, ascending. */
+export function canonicalWeekdaySet(days: readonly Weekday[]): Weekday[] {
+  return [...new Set(days)].sort((a, b) => a - b);
+}
+
+/** Repair an absent, empty or malformed account selection to the week-start-aware default. */
 export function normalizeAccountWorkingDays(value: unknown, weekStartsOn: 0 | 1 = 1): Weekday[] {
-  if (!Array.isArray(value) || !value.every(isWeekday)) {
+  if (!Array.isArray(value) || value.length === 0 || !value.every(isWeekday)) {
     return defaultAccountWorkingDays(weekStartsOn);
   }
-  return [...new Set(value as Weekday[])].sort((a, b) => a - b);
+  return canonicalWeekdaySet(value as Weekday[]);
 }
 
 /** Weekdays ordered for presentation, beginning with the company's configured week start. */

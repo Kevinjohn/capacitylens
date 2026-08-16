@@ -8,6 +8,8 @@ import {
   type DayCapacity,
 } from "../../lib/capacity";
 import { eachDayISO, rangesOverlap, weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolveBarColor } from "@capacitylens/shared/lib/color";
 import { placeholderDisplayName, timeOffTypeLabel, resourceDisplayName } from "../../lib/metadata";
@@ -28,7 +30,7 @@ import type {
   TimeOff,
   Weekday,
 } from "@capacitylens/shared/types/entities";
-import { isCreationStartBlocked } from "./creationAvailability";
+import { isCreationStartBlockedForEffectiveWeek } from "./creationAvailability";
 import {
   displayNameComparator,
   engagementFavouriteDisplayNameComparator,
@@ -266,6 +268,7 @@ export function refreshVisibleUtilization(
   data: AppData,
   start: ISODate,
   end: ISODate,
+  accountWorkingDays: Weekday[],
   blocksMode = false,
 ): GroupModel[] {
   const days = eachDayISO(start, end);
@@ -283,6 +286,7 @@ export function refreshVisibleUtilization(
       }
       const resourceAllocations = capacityAllocationsForMode(allocations.get(row.resource.id) ?? [], blocksMode);
       const resourceTimeOff = timeOff.get(row.resource.id) ?? [];
+      const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
       // Bucket this resource's load and time off by the days they cover ONCE, exactly as the full
       // build does, so a horizontal scroll costs O(days + coverage) per row instead of rescanning
       // every allocation on every day of the window. Bucket order follows the input, so the hours
@@ -296,6 +300,7 @@ export function refreshVisibleUtilization(
             date,
             allocsByDate.get(date) ?? NO_ALLOCATIONS,
             timeOffByDate.get(date) ?? NO_TIME_OFF,
+            effectiveWeek,
           ),
         ),
       );
@@ -497,7 +502,12 @@ export function buildSchedulerModel({
     overOn: (dates: ISODate[]) => boolean;
   }
   const NO_CAPACITY = (date: ISODate): DayCapacity => ({ date, allocated: 0, available: 0, over: false });
-  const capacitySourceFor = (resource: Resource, allocations: Allocation[], resTimeOff: TimeOff[]): CapacitySource => {
+  const capacitySourceFor = (
+    resource: Resource,
+    allocations: Allocation[],
+    resTimeOff: TimeOff[],
+    effectiveWeek: EffectiveWorkingWeek,
+  ): CapacitySource => {
     if (isExternalResource(resource)) {
       return {
         tracked: false,
@@ -524,8 +534,14 @@ export function buildSchedulerModel({
       // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
       // such a date today; this keeps a future caller correct rather than silently empty.
       const computed = capacityDateSet.has(date)
-        ? dayCapacity(resource, date, allocsByDate.get(date) ?? NO_ALLOCATIONS, timeOffByDate.get(date) ?? NO_TIME_OFF)
-        : dayCapacity(resource, date, capacityAllocs, resTimeOff);
+        ? dayCapacity(
+            resource,
+            date,
+            allocsByDate.get(date) ?? NO_ALLOCATIONS,
+            timeOffByDate.get(date) ?? NO_TIME_OFF,
+            effectiveWeek,
+          )
+        : dayCapacity(resource, date, capacityAllocs, resTimeOff, effectiveWeek);
       capacityByDate.set(date, computed);
       return computed;
     };
@@ -621,6 +637,9 @@ export function buildSchedulerModel({
           const allAllocs = (allocsByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
           const resTimeOff = (timeOffByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
           const isExternal = isExternalResource(resource);
+          // Resolve the company/personal intersection once for the whole row. Capacity, creation
+          // blocking, visible utilisation and overSoon all reuse this discriminated result.
+          const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
           // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
           // this resource has NO MATCHING BAR in the displayed timeline — we still show their full
           // real load (so you can see who's free to staff), just visually de-emphasised. Deriving this
@@ -659,7 +678,7 @@ export function buildSchedulerModel({
               external: isExternal,
             };
           });
-          const capacity = capacitySourceFor(resource, allAllocs, resTimeOff);
+          const capacity = capacitySourceFor(resource, allAllocs, resTimeOff, effectiveWeek);
           const dayStates: DayState[] = [];
           let conflictDayCount = 0;
           let partialCapacityDayCount = 0;
@@ -667,7 +686,12 @@ export function buildSchedulerModel({
             const cap = capacity.capacityOnDay(date);
             // Company-closed dates still receive the shared unavailable tint on EVERY row, starved
             // or not, because allocation creation is blocked there for everyone.
-            const creationBlocked = isCreationStartBlocked(resource, date, capacity.timeOff, accountWorkingDays);
+            const creationBlocked = isCreationStartBlockedForEffectiveWeek(
+              resource,
+              date,
+              capacity.timeOff,
+              effectiveWeek,
+            );
             const unavailable = (capacity.tracked && cap.available === 0) || creationBlocked;
             const partialCapacity = capacity.tracked && !unavailable && isHalfDay(resource, weekdayOf(date));
             const hasTimeOff = capacity.timeOffCountOn(date) > 0;

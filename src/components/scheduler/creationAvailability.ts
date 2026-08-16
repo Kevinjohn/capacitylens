@@ -1,14 +1,18 @@
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { effectiveWeekIncludes, effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { isOnTimeOff } from "../../lib/capacity";
 import type { ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
 /** Recurring weekdays on which an allocation may start for this resource. Company closure wins;
- *  externals have no personal capacity pattern, so only the company calendar applies to them. */
+ *  externals have no personal capacity pattern, so only the company calendar applies to them.
+ *  TRANSITIONAL SEAM: the ONLY place an EffectiveWorkingWeek collapses to a plain array. An empty
+ *  result for "none" happens to be correct for start gating (every day blocked); #257 Phases 3-5
+ *  replace this with explicit "none" branches where downstream behavior must differ. */
 export function effectiveWorkingDays(resource: Resource, accountWorkingDays: Weekday[]): Weekday[] {
-  if (isExternalResource(resource)) return accountWorkingDays;
-  const personalWorkingDays = new Set(resource.workingDays);
-  return accountWorkingDays.filter((weekday) => personalWorkingDays.has(weekday));
+  const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
+  return effectiveWeek.kind === "days" ? effectiveWeek.days : [];
 }
 
 /** Why a schedule gesture may not begin on a date: the recurring company/personal calendars reject
@@ -31,13 +35,53 @@ export function creationBlockedAt(
   accountWorkingDays: Weekday[],
   ignoreWorkingDays?: boolean,
 ): CreationBlockReason | null {
-  if (!ignoreWorkingDays && !effectiveWorkingDays(resource, accountWorkingDays).includes(weekdayOf(date))) {
+  return creationBlockedForCalendar(
+    resource,
+    date,
+    timeOff,
+    effectiveWorkingDays(resource, accountWorkingDays).includes(weekdayOf(date)),
+    ignoreWorkingDays,
+  );
+}
+
+function creationBlockedForCalendar(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  calendarAllowsStart: boolean,
+  ignoreWorkingDays?: boolean,
+): CreationBlockReason | null {
+  if (!ignoreWorkingDays && !calendarAllowsStart) {
     return "non-working";
   }
   // Externals are an awareness band with no capacity of their own: only the company calendar above
   // applies to them, never time off.
   if (isExternalResource(resource)) return null;
   return isOnTimeOff(resource.id, date, timeOff) ? "time-off" : null;
+}
+
+/** The resolved-week variant of `creationBlockedAt`, for callers (the scheduler rows, the modal's
+ * typed-date gate) that already hold the effective week. Same rules, same reasons: the creation
+ * gate never honors the allocation-level override — there is no ignored-creation escape hatch. */
+export function creationBlockedForEffectiveWeek(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
+): CreationBlockReason | null {
+  const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
+  return creationBlockedForCalendar(resource, date, timeOff, calendarAllowsStart, false);
+}
+
+/** The per-row scheduler variant: its caller has already resolved the effective week once and
+ * reuses it for capacity and every day-state instead of re-intersecting calendars per date. */
+export function isCreationStartBlockedForEffectiveWeek(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
+): boolean {
+  return creationBlockedForEffectiveWeek(resource, date, timeOff, effectiveWeek) !== null;
 }
 
 /** Whether recurring company/personal calendars reject an EXISTING allocation's proposed start.

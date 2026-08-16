@@ -281,8 +281,8 @@ export function SchedulerGrid() {
     ],
   );
   const model = useMemo(
-    () => refreshVisibleUtilization(staticModel, data, visStart, visEnd, blocksMode),
-    [staticModel, data, visStart, visEnd, blocksMode],
+    () => refreshVisibleUtilization(staticModel, data, visStart, visEnd, accountWorkingDays, blocksMode),
+    [staticModel, data, visStart, visEnd, accountWorkingDays, blocksMode],
   );
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null;

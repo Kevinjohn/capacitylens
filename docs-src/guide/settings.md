@@ -16,15 +16,24 @@ text on the page.
 
 ## Global working days
 
-**Global working days** is the company's shared outer boundary for starting work. Seven abbreviated
+**Global working days** is the company's shared working week. Seven abbreviated
 weekday headings sit in one row with their checkboxes directly underneath, beginning with the first
 day of the company's configured week. New companies select the first five days. You can select any
-combination of the seven checkboxes.
+combination, but at least one day must stay checked: when only one remains, its checkbox is
+disabled with an explanation until another day is selected.
 
-The schedule combines this selection with each person's own working pattern and time off. On a
-blocked start date, the lane does not show the hover **+**, and clicking or beginning a draw does
-nothing. A draw that begins on an allowed date may still cross blocked dates. This setting controls
-where creation can start; it does not recalculate existing capacity or utilisation.
+Each person works the days that are ticked here **and** in their own working pattern. Days outside
+that combination hold no capacity: allocations skip them, they count for nothing in utilisation,
+and on such a start date the lane does not show the hover **+**, clicking or beginning a draw does
+nothing, and a typed start date, a duplicate or a reassignment is rejected with the same rule. A
+draw that begins on an allowed date may still cross blocked dates. The per-allocation
+**Ignore working days** checkbox makes that allocation use every calendar day in its span and lets
+an existing allocation be dragged or extended onto closed days — it never changes where a new
+allocation may start — and time off stays a separate, visible conflict.
+
+Changing the selection recalculates capacity, utilisation and conflicts for existing allocations.
+Allocation dates never move, but work on newly non-working days no longer counts unless the
+allocation has Ignore working days enabled.
 
 ## Internal work visibility
 
@@ -57,7 +66,7 @@ The rest of Settings, roughly top to bottom:
 | Section                       | What it controls                                                                                                                                                                                                                                                                                                                       |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scheduling                    | Whether allocations are entered as Hours, Days or Blocks — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
-| Global working days           | The seven company weekdays on which a schedule click or draw may start work. Personal patterns and time off can restrict a person further.                                                                                                                                                                                              |
+| Global working days           | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
 | Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. On by default. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
 | Engagement grouping           | Whether Resources separates Studio and Supplementary people. On the schedule, those bands hold people outside a discipline and become the main groups when disciplines are off. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |
 | Schedule (this device)        | Minimise weekends, snap to week start, and compact view — your own display preferences, not shared with teammates.                                                                                                                                                                                                                     |

@@ -3,10 +3,10 @@ import {
   daysInclusive,
   eachDayISO,
   isWithin,
-  isWorkingWeekday,
   weekdayOf,
 } from "@capacitylens/shared/lib/dateMath";
 import { blockHoursPerDay, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
+import { effectiveWeekIncludes, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { m } from "@/i18n";
 import { FULL_DAY_HOURS, HALF_DAY_HOURS } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
@@ -33,10 +33,10 @@ export function capacityAllocationsForMode(allocations: Allocation[], blocksMode
     : allocations;
 }
 
-// Capacity reflects the explicit working pattern: a resource has 0 available hours on a
-// non-working weekday or time-off day, 4 hours on a half day, and 8 hours on a full day.
+// Capacity reflects the effective company/personal working pattern: a resource has 0 available
+// hours on a non-working weekday or time-off day, 4 hours on a half day, and 8 hours on a full day.
 // A day is over-allocated when allocated hours exceed available hours. A normal
-// (weekend-aware) allocation does NO work on the resource's non-working weekdays —
+// (weekend-aware) allocation does NO work on the effective week's non-working weekdays —
 // a bar that merely SPANS Sat/Sun is not over there — so the only zero-capacity
 // days that read as over are (a) a TIME-OFF day a working allocation covers (a real
 // conflict) and (b) a weekend an allocation opts into via `ignoreWeekends`.
@@ -61,12 +61,20 @@ function devAssertFinite(n: number): void {
 // takes one already derived. `weekdayOf` is a parseISO, and `dayCapacity` — the scheduler's hottest
 // path, ~27k resource-days per model rebuild — needs the SAME weekday four times over. It derives
 // it ONCE and threads it through the twins; the public signatures stay date-only.
-function worksWeekday(resource: Resource, weekday: Weekday): boolean {
-  return resource.workingDays.includes(weekday);
+/** Whether an allocation loads this date. Keep `none` explicit: an empty weekday array has
+ * calendar-day semantics in allocationWorksOnDay, which is the opposite of the capacity contract. */
+function allocationLoadsOnDay(
+  effectiveWeek: EffectiveWorkingWeek,
+  ignoreWorkingDays: boolean | undefined,
+  dayIsWorking: boolean,
+): boolean {
+  if (ignoreWorkingDays) return true;
+  if (effectiveWeek.kind === "none") return false;
+  return allocationWorksOnDay(effectiveWeek.days, false, dayIsWorking);
 }
 
-export function isWorkingDay(resource: Resource, date: ISODate): boolean {
-  return isWorkingWeekday(date, resource.workingDays);
+export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
+  return effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
 }
 
 /** A saved half-day working pattern on this weekday — 4h of capacity instead of 8h. The scheduler's
@@ -75,43 +83,59 @@ export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
   return resource.halfDays.includes(weekday);
 }
 
-function scheduledHoursForWeekday(resource: Resource, weekday: Weekday): number {
-  if (!worksWeekday(resource, weekday)) return 0;
+function scheduledHoursForWeekday(resource: Resource, weekday: Weekday, effectiveWeek: EffectiveWorkingWeek): number {
+  if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
   return isHalfDay(resource, weekday) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
 }
 
 /** Fixed capacity before time off: 8h full day, 4h half day, or 0 when not working. */
-export function scheduledHoursOnDay(resource: Resource, date: ISODate): number {
-  return scheduledHoursForWeekday(resource, weekdayOf(date));
+export function scheduledHoursOnDay(resource: Resource, date: ISODate, effectiveWeek: EffectiveWorkingWeek): number {
+  return scheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
   return timeOff.some((t) => t.resourceId === resourceId && isWithin(date, t.startDate, t.endDate));
 }
 
-function availableHoursForWeekday(resource: Resource, date: ISODate, timeOff: TimeOff[], weekday: Weekday): number {
-  if (!worksWeekday(resource, weekday)) return 0;
+function availableHoursForWeekday(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  weekday: Weekday,
+  effectiveWeek: EffectiveWorkingWeek,
+): number {
+  if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
   if (isOnTimeOff(resource.id, date, timeOff)) return 0;
-  return scheduledHoursForWeekday(resource, weekday);
+  return scheduledHoursForWeekday(resource, weekday, effectiveWeek);
 }
 
 /** Available working hours for `resource` on `date`: 0 on a non-working weekday or time off,
  *  fixed 4h on a half day, otherwise fixed 8h. */
-export function availableHoursOnDay(resource: Resource, date: ISODate, timeOff: TimeOff[]): number {
-  return availableHoursForWeekday(resource, date, timeOff, weekdayOf(date));
+export function availableHoursOnDay(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
+): number {
+  return availableHoursForWeekday(resource, date, timeOff, weekdayOf(date), effectiveWeek);
 }
 
 /** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
  *  A weekend-aware allocation (the default for a partial working week) does NO work on the
- *  resource's non-working weekdays, so a bar that merely SPANS Sat/Sun contributes 0 there —
+ *  effective week's non-working weekdays, so a bar that merely SPANS Sat/Sun contributes 0 there —
  *  matching how the same `isWeekendAware` rule governs the bar's duration and drag. An allocation
- *  that opts into weekends (`ignoreWeekends`), or a resource with a full/empty working week, places
- *  its hours on every calendar day in `[startDate, endDate]`. Time-off days are working weekdays,
- *  so they still count (work on a holiday stays a real over-capacity conflict).
+ *  that ignores the working calendars (`ignoreWeekends`) places its hours on every calendar day in
+ *  `[startDate, endDate]`. A normal allocation with no effective week loads no days. Time-off days
+ *  that remain effective weekdays still load, preserving the real over-capacity conflict.
  *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition) — a NaN would
  *    poison the sum and make every over/utilisation comparison read as "never over". */
-export function allocatedHoursOnDay(resource: Resource, date: ISODate, allocations: Allocation[]): number {
-  return allocatedHoursForWeekday(resource, date, allocations, weekdayOf(date));
+export function allocatedHoursOnDay(
+  resource: Resource,
+  date: ISODate,
+  allocations: Allocation[],
+  effectiveWeek: EffectiveWorkingWeek,
+): number {
+  return allocatedHoursForWeekday(resource, date, allocations, weekdayOf(date), effectiveWeek);
 }
 
 function allocatedHoursForWeekday(
@@ -119,17 +143,19 @@ function allocatedHoursForWeekday(
   date: ISODate,
   allocations: Allocation[],
   weekday: Weekday,
+  effectiveWeek: EffectiveWorkingWeek,
 ): number {
   // Derive the working-weekday flag ONCE per day: it's invariant across the loop, only the
   // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
-  const dayIsWorking = worksWeekday(resource, weekday);
+  const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);
   let sum = 0;
   for (const a of allocations) {
     if (a.resourceId !== resource.id || !isWithin(date, a.startDate, a.endDate)) continue;
-    // Weekend-aware allocations do no work on the resource's non-working weekdays — a bar that
-    // merely SPANS Sat/Sun must not read as over. ignoreWeekends / a full working week opts in.
-    if (!allocationWorksOnDay(resource.workingDays, a.ignoreWeekends, dayIsWorking)) continue;
+    // `none` must stay explicit: passing [] to allocationWorksOnDay would mean calendar-day load.
+    // Ignore working days bypasses both calendars; a normal allocation with no effective days
+    // loads nothing anywhere.
+    if (!allocationLoadsOnDay(effectiveWeek, a.ignoreWeekends, dayIsWorking)) continue;
     sum += a.hoursPerDay;
   }
   devAssertFinite(sum);
@@ -150,13 +176,14 @@ export function dayCapacity(
   date: ISODate,
   allocations: Allocation[],
   timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
 ): DayCapacity {
   // ONE parseISO for the whole resource-day: the availability and load halves each need the
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
-  const available = availableHoursForWeekday(resource, date, timeOff, weekday);
-  const allocated = allocatedHoursForWeekday(resource, date, allocations, weekday);
+  const available = availableHoursForWeekday(resource, date, timeOff, weekday, effectiveWeek);
+  const allocated = allocatedHoursForWeekday(resource, date, allocations, weekday, effectiveWeek);
   return {
     date,
     allocated,
@@ -176,8 +203,9 @@ export function capacityForWindow(
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,
+  effectiveWeek: EffectiveWorkingWeek,
 ): DayCapacity[] {
-  return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff));
+  return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff, effectiveWeek));
 }
 
 /** Reduce already-computed resource-day capacity into the visible-window utilisation ratio. */
@@ -204,13 +232,16 @@ export function utilization(
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,
+  effectiveWeek: EffectiveWorkingWeek,
 ): number {
-  return utilizationFromCapacity(capacityForWindow(resource, allocations, timeOff, start, end));
+  return utilizationFromCapacity(capacityForWindow(resource, allocations, timeOff, start, end, effectiveWeek));
 }
 
 export interface CapacityAdvisory {
   overDays: number; // days the proposed allocation works where existing + proposed hours exceed availability
   timeOffDays: number; // days in the window the resource is on time off
+  /** Repeat-only: generated occurrences whose start weekday is outside the effective week. */
+  nonEffectiveStartAllocations?: number;
 }
 
 /** Allocation fields read by the capacity advisory, accepting persisted rows or transient drafts. */
@@ -236,6 +267,7 @@ export function addCapacityLoad(
   allocation: CapacityAllocationInput,
   start: ISODate,
   end: ISODate,
+  effectiveWeek: EffectiveWorkingWeek,
 ): void {
   if (allocation.resourceId !== resource.id) return;
   // Zero-padded ISO dates compare lexicographically, so these min/max clamps are correct.
@@ -243,7 +275,7 @@ export function addCapacityLoad(
   const to = allocation.endDate < end ? allocation.endDate : end;
   for (const d of eachDayISO(from, to)) {
     // Count each existing allocation only on the days IT works, matching the over-marker's load.
-    if (!allocationWorksOnDay(resource.workingDays, allocation.ignoreWeekends, isWorkingDay(resource, d))) continue;
+    if (!allocationLoadsOnDay(effectiveWeek, allocation.ignoreWeekends, isWorkingDay(effectiveWeek, d))) continue;
     byDay.set(d, (byDay.get(d) ?? 0) + allocation.hoursPerDay);
   }
 }
@@ -256,9 +288,10 @@ export function bucketCapacityLoad(
   allocations: readonly CapacityAllocationInput[],
   start: ISODate,
   end: ISODate,
+  effectiveWeek: EffectiveWorkingWeek,
 ): CapacityLoadByDay {
   const byDay: CapacityLoadByDay = new Map();
-  for (const a of allocations) addCapacityLoad(byDay, resource, a, start, end);
+  for (const a of allocations) addCapacityLoad(byDay, resource, a, start, end, effectiveWeek);
   return byDay;
 }
 
@@ -277,6 +310,7 @@ function tallyAdvisory(
   days: ISODate[],
   loadByDay: CapacityLoadByDay,
   timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
 ): CapacityAdvisory {
   let overDays = 0;
   let timeOffDays = 0;
@@ -284,7 +318,7 @@ function tallyAdvisory(
     // Derive the weekday + time-off ONCE per day and reuse for both tallies — availableHoursOnDay
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = weekdayOf(day);
-    const working = worksWeekday(resource, weekday);
+    const working = effectiveWeekIncludes(effectiveWeek, weekday);
     const onTimeOff = working && isOnTimeOff(resource.id, day, timeOff);
     // Time off is its own category (counted, surfaced separately) and never folded into overDays —
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
@@ -294,10 +328,10 @@ function tallyAdvisory(
       continue;
     }
     // The proposal does no work on a day it doesn't cover (a weekend-aware bar over Sat/Sun) — skip.
-    if (!allocationWorksOnDay(resource.workingDays, proposal.ignoreWeekends, working)) continue;
+    if (!allocationLoadsOnDay(effectiveWeek, proposal.ignoreWeekends, working)) continue;
     // Mirrors availableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over — exactly like the per-day over-marker.
-    const available = working ? scheduledHoursForWeekday(resource, weekday) : 0;
+    const available = working ? scheduledHoursForWeekday(resource, weekday, effectiveWeek) : 0;
     if (exceedsCapacity((loadByDay.get(day) ?? 0) + proposal.hoursPerDay, available)) overDays++;
   }
   return { overDays, timeOffDays };
@@ -321,11 +355,12 @@ export function capacityAdvisory(
   proposal: CapacityAllocationInput,
   otherAllocations: readonly CapacityAllocationInput[],
   timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
 ): CapacityAdvisory {
   const days = advisoryDays(proposal);
   if (!days) return { overDays: 0, timeOffDays: 0 };
-  const loadByDay = bucketCapacityLoad(resource, otherAllocations, proposal.startDate, proposal.endDate);
-  return tallyAdvisory(resource, proposal, days, loadByDay, timeOff);
+  const loadByDay = bucketCapacityLoad(resource, otherAllocations, proposal.startDate, proposal.endDate, effectiveWeek);
+  return tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek);
 }
 
 /** `capacityAdvisory` against a load bucket the caller already holds — for a BATCH of proposals on
@@ -336,14 +371,17 @@ export function capacityAdvisoryFromLoad(
   proposal: CapacityAllocationInput,
   loadByDay: CapacityLoadByDay,
   timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
 ): CapacityAdvisory {
   const days = advisoryDays(proposal);
-  return days ? tallyAdvisory(resource, proposal, days, loadByDay, timeOff) : { overDays: 0, timeOffDays: 0 };
+  return days
+    ? tallyAdvisory(resource, proposal, days, loadByDay, timeOff, effectiveWeek)
+    : { overDays: 0, timeOffDays: 0 };
 }
 
-/** The surface an advisory is written for. The two counts are the same on every surface; only the
- *  wording differs (a toast appends to a committed-move sentence, the form states it standalone),
- *  and the `repeat` variant counts whole ALLOCATIONS in a repeat batch rather than days. */
+/** The surface an advisory is written for. Over/time-off counts exist on every surface; only the
+ *  wording differs (a toast appends to a committed-move sentence, the form states it standalone).
+ *  The `repeat` variant counts whole ALLOCATIONS and can add the non-effective-start count. */
 export type CapacityAdvisoryVariant = "toast" | "form" | "repeat";
 
 /** Pick the one/other form for a count. `one` and `other` are UNCALLED message references, invoked
@@ -359,6 +397,7 @@ const ADVISORY_COPY: Record<
   {
     over: (count: number) => string;
     timeOff: (count: number) => string;
+    nonEffectiveStart?: (count: number) => string;
     join: () => string;
     wrap: (bits: string) => string;
   }
@@ -381,19 +420,26 @@ const ADVISORY_COPY: Record<
       m.form_allocation_repeat_advisory_over_capacity_other,
     ),
     timeOff: plural(m.form_allocation_repeat_advisory_timeoff_one, m.form_allocation_repeat_advisory_timeoff_other),
+    nonEffectiveStart: plural(
+      m.form_allocation_repeat_advisory_non_effective_start_one,
+      m.form_allocation_repeat_advisory_non_effective_start_other,
+    ),
     join: m.form_allocation_repeat_advisory_join,
     wrap: (advisory) => m.form_allocation_repeat_advisory({ advisory }),
   },
 };
 
 /** The human sentence for an advisory result, or "" when it has nothing to say. Every surface
- *  builds it the same way — over-capacity bit, then time-off bit, joined and wrapped — so the
- *  ORDER and the "silent when both are zero" rule live here once instead of at each call site.
+ *  builds it the same way — over-capacity bit, then time-off bit, then the repeat-only non-effective
+ *  start bit, joined and wrapped — so ORDER and the "silent when all counts are zero" rule live here.
  *  For the `repeat` variant the counts are allocations, not days (see the copy table). */
 export function formatCapacityAdvisory(result: CapacityAdvisory, variant: CapacityAdvisoryVariant): string {
   const copy = ADVISORY_COPY[variant];
   const bits: string[] = [];
   if (result.overDays) bits.push(copy.over(result.overDays));
   if (result.timeOffDays) bits.push(copy.timeOff(result.timeOffDays));
+  if (result.nonEffectiveStartAllocations && copy.nonEffectiveStart) {
+    bits.push(copy.nonEffectiveStart(result.nonEffectiveStartAllocations));
+  }
   return bits.length ? copy.wrap(bits.join(copy.join())) : "";
 }

@@ -102,11 +102,13 @@ test.describe("Allocation editor", () => {
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    await dialog.getByLabel("Start Date").fill("2026-06-13");
-    await dialog.getByLabel(/^End/).fill("2026-06-13");
+    // Fri 2026-06-12: since #257 a new allocation must start on an effective working day —
+    // there is no ignored-creation escape hatch, so the anchor itself moves to a weekday.
+    await dialog.getByLabel("Start Date").fill("2026-06-12");
+    await dialog.getByLabel(/^End/).fill("2026-06-12");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "every-three-weeks");
     await dialog.getByLabel("Repeat until").fill("2026-09-13");
-    await expect(dialog).toContainText("Creates 5 linked allocations through Sun 13th Sep. Last start: Sat 5th Sep.");
+    await expect(dialog).toContainText("Creates 5 linked allocations through Sun 13th Sep. Last start: Fri 4th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(11);
   });
@@ -118,15 +120,17 @@ test.describe("Allocation editor", () => {
     let dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    await dialog.getByLabel("Start Date").fill("2026-06-13");
-    await dialog.getByLabel(/^End/).fill("2026-06-13");
+    // Fri 2026-06-12 anchor (weekday start required since #257); later monthly occurrences may
+    // drift onto weekends and are still created — that is the advisory contract under test.
+    await dialog.getByLabel("Start Date").fill("2026-06-12");
+    await dialog.getByLabel(/^End/).fill("2026-06-12");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
     await dialog.getByLabel("Repeat until").fill("2026-09-13");
-    await expect(dialog).toContainText("Creates 4 linked allocations through Sun 13th Sep. Last start: Sun 13th Sep.");
+    await expect(dialog).toContainText("Creates 4 linked allocations through Sun 13th Sep. Last start: Sat 12th Sep.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(10);
 
-    const julyOccurrence = page.locator('[data-testid="allocation-bar"][aria-label*="13 Jul to 13 Jul"]');
+    const julyOccurrence = page.locator('[data-testid="allocation-bar"][aria-label*="12 Jul to 12 Jul"]');
     await julyOccurrence.click();
     let editor = page.getByRole("dialog", { name: "Edit allocation" });
     await expect(editor.getByRole("combobox", { name: "Repeat" })).toHaveCount(0);
@@ -142,9 +146,9 @@ test.describe("Allocation editor", () => {
     await expect(repeatedDelete.getByRole("button", { name: "Delete this occurrence" })).toBeVisible();
     await repeatedDelete.getByRole("button", { name: "Delete this and future occurrences" }).click();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(7);
-    const survivingOccurrence = page.locator('[data-testid="allocation-bar"][aria-label*="13 Jun to 13 Jun"]');
+    const survivingOccurrence = page.locator('[data-testid="allocation-bar"][aria-label*="12 Jun to 12 Jun"]');
     await expect(survivingOccurrence).toBeVisible();
-    await expect(survivingOccurrence).toHaveAttribute("aria-label", /series through 13 Jun/i);
+    await expect(survivingOccurrence).toHaveAttribute("aria-label", /series through 12 Jun/i);
     await expect(julyOccurrence).toHaveCount(0);
 
     await page.keyboard.press("ControlOrMeta+z");
@@ -155,11 +159,13 @@ test.describe("Allocation editor", () => {
     dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
-    await dialog.getByLabel("Start Date").fill("2027-01-31");
-    await dialog.getByLabel(/^End/).fill("2027-01-31");
+    // Fri 2027-01-29: a weekday day-29 anchor (weekday start required since #257) that still
+    // exercises the February month-length clamp without any month-end fallback copy.
+    await dialog.getByLabel("Start Date").fill("2027-01-29");
+    await dialog.getByLabel(/^End/).fill("2027-01-29");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
     await dialog.getByLabel("Repeat until").fill("2027-04-30");
-    await expect(dialog).toContainText("Creates 4 linked allocations through Fri 30th Apr. Last start: Fri 30th Apr.");
+    await expect(dialog).toContainText("Creates 4 linked allocations through Fri 30th Apr. Last start: Thu 29th Apr.");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);

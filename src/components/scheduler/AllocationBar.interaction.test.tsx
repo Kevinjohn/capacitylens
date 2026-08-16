@@ -501,6 +501,11 @@ describe("AllocationBar interactions", () => {
       accountWorkingDays: [1, 2, 3, 4] as Weekday[],
       targetWorkingDays: [1, 2, 3, 4, 5] as Weekday[],
     },
+    {
+      boundary: "zero-overlap",
+      accountWorkingDays: [1, 2, 3, 4] as Weekday[],
+      targetWorkingDays: [5] as Weekday[],
+    },
   ])(
     "rejects a purely vertical drop onto a $boundary non-working start date",
     ({ accountWorkingDays, targetWorkingDays }) => {
@@ -592,14 +597,14 @@ describe("AllocationBar interactions", () => {
       employmentType: "permanent",
       engagement: "studio" as const,
       workingHoursPerDay: 8,
-      workingDays: [1, 2, 3],
+      workingDays: [5], // no overlap with the company's Mon–Thu week
       halfDays: [],
       color: "#4",
     });
     const allocation = st.addAllocation({
       resourceId: source.id,
       activityId: activity.id,
-      startDate: "2026-06-05", // Friday, closed by both destination calendars
+      startDate: "2026-06-05", // Friday; destination has no effective weekdays under Mon–Thu company days
       endDate: "2026-06-05",
       hoursPerDay: 8,
       status: "confirmed",

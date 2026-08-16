@@ -13,9 +13,10 @@ describe("account working days", () => {
     expect(defaultAccountWorkingDays(0)).toEqual([0, 1, 2, 3, 4]);
   });
 
-  it("repairs malformed selections while preserving a deliberate empty week", () => {
+  it("repairs empty and malformed selections to the configured week's default", () => {
     expect(normalizeAccountWorkingDays([5, 1, 5], 1)).toEqual([1, 5]);
-    expect(normalizeAccountWorkingDays([], 1)).toEqual([]);
+    expect(normalizeAccountWorkingDays([], 1)).toEqual([1, 2, 3, 4, 5]);
+    expect(normalizeAccountWorkingDays([], 0)).toEqual([0, 1, 2, 3, 4]);
     expect(normalizeAccountWorkingDays([1, 7], 1)).toEqual([1, 2, 3, 4, 5]);
     expect(normalizeAccountWorkingDays("weekdays", 0)).toEqual([0, 1, 2, 3, 4]);
   });

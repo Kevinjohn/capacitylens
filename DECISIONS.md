@@ -24,8 +24,16 @@ This is the short, present-tense record of decisions that constrain future work.
 ## Scheduling invariants
 
 - A day is over capacity only when allocated capacity is strictly greater than available capacity.
-- Normal allocations do not consume a resource's non-working weekdays. `ignoreWeekends` is the
-  explicit exception.
+- A person's effective working week is the intersection of the company's global working days and
+  their personal pattern; external parties use the company set verbatim. A company must keep at
+  least one working day — an empty stored selection is repaired to the week-start default.
+- Normal allocations do not consume days outside the effective working week. `ignoreWeekends`
+  (the **Ignore working days** checkbox) is the explicit exception; it never bypasses time off.
+- New allocations must start on an effective working day (create, duplicate and reassignment all
+  enforce it); edits to existing allocations stay permissive. Later occurrences of a repeat batch
+  may start on non-effective days and are counted in an advisory, not blocked.
+- Changing global working days reinterprets existing allocations: stored dates never move, while
+  capacity, utilisation and conflicts are recalculated.
 - Displayed utilisation is calculated over the visible 1/2/4/6/8-week window.
 - `overSoon` is calculated over a fixed forward 14-day window from today and never changes with
   zoom or pan.

@@ -163,7 +163,7 @@ describe("account feature selector defaults", () => {
 });
 
 describe("calendar primitive selectors", () => {
-  const accounts = (calendar?: { timezone?: string; weekStartsOn?: 0 | 1 }) => ({
+  const accounts = (calendar?: Pick<Partial<Account>, "timezone" | "weekStartsOn" | "workingDays">) => ({
     ...emptyAppData(),
     accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", ...calendar }],
   });
@@ -191,6 +191,11 @@ describe("calendar primitive selectors", () => {
         "a1",
       ),
     ).toEqual([1, 3, 5]);
+  });
+
+  it("repairs an empty persisted account week from its configured week start", () => {
+    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 1, workingDays: [] }), "a1")).toEqual([1, 2, 3, 4, 5]);
+    expect(accountWorkingDaysFor(accounts({ weekStartsOn: 0, workingDays: [] }), "a1")).toEqual([0, 1, 2, 3, 4]);
   });
 });
 

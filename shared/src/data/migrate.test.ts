@@ -445,12 +445,32 @@ describe("migrate", () => {
         accounts: [
           { id: "sun", name: "Sunday", color: "#2d75da", weekStartsOn: 0, createdAt: "t", updatedAt: "t" },
           { id: "mon", name: "Monday", color: "#2d75da", weekStartsOn: 1, createdAt: "t", updatedAt: "t" },
+          {
+            id: "sun-empty",
+            name: "Empty Sunday",
+            color: "#2d75da",
+            weekStartsOn: 0,
+            workingDays: [],
+            createdAt: "t",
+            updatedAt: "t",
+          },
+          {
+            id: "mon-empty",
+            name: "Empty Monday",
+            color: "#2d75da",
+            weekStartsOn: 1,
+            workingDays: [],
+            createdAt: "t",
+            updatedAt: "t",
+          },
         ],
       },
     });
 
     expect(out.accounts.find((account) => account.id === "sun")?.workingDays).toEqual([0, 1, 2, 3, 4]);
     expect(out.accounts.find((account) => account.id === "mon")?.workingDays).toEqual([1, 2, 3, 4, 5]);
+    expect(out.accounts.find((account) => account.id === "sun-empty")?.workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect(out.accounts.find((account) => account.id === "mon-empty")?.workingDays).toEqual([1, 2, 3, 4, 5]);
   });
 
   it("keeps legacy repeat allocations unlinked at v14 to v15", () => {

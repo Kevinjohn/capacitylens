@@ -3,10 +3,11 @@ import {
   volumePreservingHoursClamped,
   computeGesture,
   snappedBarGeometry,
-  reconcileReassignedHours,
+  reconcileReassignedHours as reconcileReassignedHoursWithWeek,
 } from "./allocationDrag";
 import { buildColumnGeometry } from "./columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { DateRange } from "../../lib/gestureMath";
 import type { Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { makeResource } from "../../test/fixtures";
@@ -18,6 +19,14 @@ import { makeResource } from "../../test/fixtures";
 
 const IGNORE = { ignoreWeekends: true }; // not weekend-aware → spans are plain calendar days
 const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate });
+const reconcileReassignedHours = (current: number, target: Resource, zeroLoadMode: boolean, startDate: string) =>
+  reconcileReassignedHoursWithWeek(
+    current,
+    target,
+    zeroLoadMode,
+    startDate,
+    effectiveWorkingWeek(target, [1, 2, 3, 4, 5]),
+  );
 
 describe("volumePreservingHoursClamped", () => {
   // The .hours field on its own (what the old volumePreservingHours wrapper returned): rescale,

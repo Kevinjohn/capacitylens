@@ -51,3 +51,19 @@ describe("creation start availability", () => {
     expect(creationBlockedAt(person, "2026-06-03", [holiday], [1, 2, 3, 4, 5], true)).toBe("time-off");
   });
 });
+
+describe("#257 characterization: creation and move gate boundaries", () => {
+  // PERMANENT invariants: creation never accepts the override, and the override never bypasses time off.
+  it("keeps a creation start blocked where the existing-allocation move override is allowed", () => {
+    const companyMondayToThursday = [1, 2, 3, 4] as Resource["workingDays"];
+
+    expect(creationBlockedAt(person, "2026-06-05", [], companyMondayToThursday, true)).toBe(null);
+    expect(isCreationStartBlocked(person, "2026-06-05", [], companyMondayToThursday)).toBe(true);
+  });
+
+  it("returns time-off when the override bypasses both recurring calendars", () => {
+    const fridayHoliday = makeTimeOff({ startDate: "2026-06-05", endDate: "2026-06-05" });
+
+    expect(creationBlockedAt(person, "2026-06-05", [fridayHoliday], [1, 2, 3, 4], true)).toBe("time-off");
+  });
+});

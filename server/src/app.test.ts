@@ -1656,6 +1656,9 @@ describe("value-level sanitization on direct writes (server is the integrity bou
 
     expect((await patch(app, "accounts", "a1", { workingDays: [1, 9] })).statusCode).toBe(200);
     expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
+
+    expect((await patch(app, "accounts", "a1", { workingDays: [] })).statusCode).toBe(200);
+    expect((await state(app)).accounts[0].workingDays).toEqual([0, 1, 2, 3, 4]);
   });
 });
 
