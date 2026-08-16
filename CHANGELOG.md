@@ -7,20 +7,25 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-## [0.53.1-alpha.1] — 2026-08-16
+## [0.53.2-alpha.1] — 2026-08-16
 
 ### Changed
 
 - Gave the schedule distinct sidebar, toolbar, filter-bar and data-canvas depth tiers in both
   themes, with controls seated on a consistent raised or inset surface (#379).
-- Placeholders now follow the company's working days and always use full-day capacity (#382), rather than
-  carrying a separate personal working pattern. Their resource form shows the company days as
-  read-only guidance and directs changes to Settings.
 
 ### Fixed
 
 - Reworked segmented controls with concentric size-specific radii, stable reserved borders and
   explicit gapped or connected layouts; full-width groups now divide into exactly equal cells (#380).
+
+## [0.53.1-alpha.1] — 2026-08-16
+
+### Changed
+
+- Placeholders now follow the company's working days and always use full-day capacity (#382), rather than
+  carrying a separate personal working pattern. Their resource form shows the company days as
+  read-only guidance and directs changes to Settings.
 
 ## [0.53.0-alpha.1] — 2026-08-16
 
@@ -3717,7 +3722,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.2-alpha.1...HEAD
+[0.53.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.1-alpha.1...v0.53.2-alpha.1
 [0.53.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.0-alpha.1...v0.53.1-alpha.1
 [0.53.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.52.0-alpha.1...v0.53.0-alpha.1
 [0.52.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.51.1-alpha.1...v0.52.0-alpha.1
