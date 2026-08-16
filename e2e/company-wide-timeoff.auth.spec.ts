@@ -1,6 +1,6 @@
 import { test, expect, type APIRequestContext, type Locator, type Page } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent, freezeBrowserDate, resetSchedulerScroll, selectShadOption, setZoom } from "./helpers";
+import { dismissIntroIfPresent, freezeBrowserDate, goToSeedWeek, selectShadOption, setZoom } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -132,7 +132,7 @@ test("an editor manages an Everyone closure through capacity, persistence and re
 
   await signInAsEditor(page);
   await setZoom(page, 4);
-  await resetSchedulerScroll(page);
+  await goToSeedWeek(page);
   const barbaraRow = page.getByTestId("scheduler-row").filter({ hasText: "Barbara Gordon" });
   const barbaraLane = page.locator(`[data-resource-id="${IDS.barbara}"]`);
   const dickLane = page.locator(`[data-resource-id="${IDS.dick}"]`);
@@ -171,12 +171,12 @@ test("an editor manages an Everyone closure through capacity, persistence and re
     })
     .not.toBe("");
 
-  // setZoom after every return to the schedule is deliberately kept even though in-app navigation
-  // preserves the store: the (no-op) interaction gives the freshly mounted grid time to settle
-  // before resetSchedulerScroll, which otherwise races the scroll snap under suite load.
+  // Re-anchor with the Today button, not a raw scrollLeft write: the grid's scroll-idle week
+  // snap can land AFTER a DOM reset and silently move the visible window off the seed week,
+  // making every zero-count assertion pass vacuously while utilisation reads 0%.
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
-  await resetSchedulerScroll(page);
+  await goToSeedWeek(page);
   const holidayBlock = (lane: Locator) => lane.getByTestId("timeoff-block").filter({ hasText: "Holiday" });
   await expect(holidayBlock(barbaraLane)).toHaveCount(1);
   await expect(holidayBlock(dickLane)).toHaveCount(1);
@@ -186,7 +186,7 @@ test("an editor manages an Everyone closure through capacity, persistence and re
 
   await reopenOrgAfterReload(page);
   await setZoom(page, 4);
-  await resetSchedulerScroll(page);
+  await goToSeedWeek(page);
   await expect(holidayBlock(barbaraLane)).toHaveCount(1);
   await expect(holidayBlock(dickLane)).toHaveCount(1);
   await expect(barbaraLane.getByTestId("over-marker")).toHaveCount(1);
@@ -219,7 +219,7 @@ test("an editor manages an Everyone closure through capacity, persistence and re
 
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
-  await resetSchedulerScroll(page);
+  await goToSeedWeek(page);
   await expect(holidayBlock(barbaraLane)).toHaveCount(1);
   await expect(holidayBlock(dickLane)).toHaveCount(0);
   await expect(barbaraLane.getByTestId("over-marker")).toHaveCount(1);
@@ -242,7 +242,7 @@ test("an editor manages an Everyone closure through capacity, persistence and re
 
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
-  await resetSchedulerScroll(page);
+  await goToSeedWeek(page);
   await expect(holidayBlock(barbaraLane)).toHaveCount(0);
   await expect(barbaraLane.getByTestId("over-marker")).toHaveCount(0);
   await expect(barbaraRow.getByTestId("utilization")).toHaveText(baselineUtilisation);
