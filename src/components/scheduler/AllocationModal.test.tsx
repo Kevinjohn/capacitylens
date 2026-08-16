@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { AllocationBar } from "./AllocationBar";
 import { useStore } from "../../store/useStore";
-import type { AppData } from "@capacitylens/shared/types/entities";
+import type { AppData, Weekday } from "@capacitylens/shared/types/entities";
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
@@ -532,8 +532,80 @@ describe("AllocationModal advisory work bounds", () => {
   });
 });
 
+const enableDays = (workingDays?: Weekday[]) =>
+  useStore.getState().updateAccount(ACC, { schedulingMode: "days", ...(workingDays && { workingDays }) });
+
 describe("AllocationModal days mode", () => {
-  const enableDays = () => useStore.getState().updateAccount(ACC, { schedulingMode: "days" });
+  it("counts and derives spans through a company-narrowed effective week", async () => {
+    enableDays([1, 2, 3, 4]);
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-05" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Days over")).toHaveValue(4);
+    expect(screen.getByLabelText("Days of work")).toHaveValue(4);
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations[0]).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-08",
+      hoursPerDay: 6.4,
+    });
+  });
+
+  it("validates the maximum working span against the narrowed company week", async () => {
+    enableDays([1, 2, 3, 4]);
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "9999-12-27", endDate: "9999-12-27" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+
+    const daysOver = screen.getByLabelText("Days over");
+    expect(daysOver).toHaveAttribute("max", "4");
+    fireEvent.change(daysOver, { target: { value: "5" } });
+    fireEvent.submit(daysOver.closest("form")!);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
+    expect(useStore.getState().data.allocations).toHaveLength(0);
+  });
+
+  it("keeps the typed range unchanged when the effective week has no days", async () => {
+    enableDays([2]);
+    const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        create={{ resourceId: resource.id, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
+    expect(screen.getByText("Ends Wed 3 Jun 2026 · 1.6h/day")).toBeInTheDocument();
+    expect(screen.queryByText(/9999/)).not.toBeInTheDocument();
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations[0]).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+    });
+  });
 
   it("leaves Ignore working days unchecked and skips personal non-working weekdays", async () => {
     enableDays();
@@ -1465,10 +1537,9 @@ describe("AllocationModal edit", () => {
   });
 });
 
-describe("#257 characterization: modal and gesture working-week divergence", () => {
-  // FLIPS across Phases 4 and 5 when both interaction paths use the effective working week.
-  it("ends the same five-day span on Friday in the modal but Monday through the gesture path", async () => {
-    useStore.getState().updateAccount(ACC, { schedulingMode: "days", workingDays: [1, 2, 3, 4] });
+describe("#257: modal and gesture effective-week agreement", () => {
+  it("saves the same end and hours/day as a resize commit for the same five-day span", async () => {
+    enableDays([1, 2, 3, 4]);
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
       resourceId: resource.id,
@@ -1483,7 +1554,7 @@ describe("#257 characterization: modal and gesture working-week divergence", () 
 
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
-    const modalEnd = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!.endDate;
+    const modalAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
     modal.unmount();
 
     useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-04", hoursPerDay: 8 });
@@ -1505,9 +1576,13 @@ describe("#257 characterization: modal and gesture working-week divergence", () 
       />,
     );
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
-    const gestureEnd = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!.endDate;
+    const gestureAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
 
-    expect([modalEnd, gestureEnd]).toEqual(["2026-06-05", "2026-06-08"]);
+    expect(modalAllocation).toMatchObject({ endDate: "2026-06-08", hoursPerDay: 6.4 });
+    expect(gestureAllocation).toMatchObject({
+      endDate: modalAllocation.endDate,
+      hoursPerDay: modalAllocation.hoursPerDay,
+    });
   });
 });
 
@@ -1808,7 +1883,7 @@ describe("AllocationModal repeat creation", () => {
   it.each(["days", "blocks"] as const)(
     "rejects a %s repeat when a later occurrence cannot fit the complete working span",
     async (schedulingMode) => {
-      useStore.getState().updateAccount(ACC, { schedulingMode });
+      useStore.getState().updateAccount(ACC, { schedulingMode, workingDays: [0, 1, 2, 3, 4, 5, 6] });
       const resource = useStore.getState().addResource({
         ...person("Tyler"),
         workingDays: [0, 1, 2, 3, 4, 5, 6],

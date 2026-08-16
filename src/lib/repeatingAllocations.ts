@@ -15,13 +15,19 @@ import {
 
 /** Transient choice shown only while creating an allocation. */
 export type RepeatSelection =
-  "none" | "weekly" | "every-two-weeks" | "every-three-weeks" | "every-four-weeks" | "monthly";
+  | "none"
+  | "weekly"
+  | "every-two-weeks"
+  | "every-three-weeks"
+  | "every-four-weeks"
+  | "monthly";
 
 /** Scheduling inputs that a persisted allocation draft does not carry. */
 export interface RepeatProjectionContext {
   schedulingMode: SchedulingMode;
   daysOver: number;
-  resource: Pick<Resource, "id" | "kind" | "workingDays">;
+  resource: Pick<Resource, "id" | "kind">;
+  effectiveWeek: EffectiveWorkingWeek;
 }
 
 /** Number of generated allocations with each non-blocking advisory category. */
@@ -48,8 +54,8 @@ export function repeatPatternForSelection(selection: Exclude<RepeatSelection, "n
  * The first result is the exact `baseDraft` object; later results change only the date range.
  *
  * @throws Error when the resolved resource does not match the draft.
- * @throws RangeError when a working-span mode receives an invalid `daysOver` value or a projected range
- *   leaves the supported ISO-date domain.
+ * @throws RangeError when a working-span mode receives an invalid `daysOver` value, has no effective
+ *   working day, or a projected range leaves the supported ISO-date domain.
  */
 export function projectAllocationDates(
   baseDraft: Draft<Allocation>,
@@ -74,8 +80,11 @@ export function projectAllocationDates(
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (calendarSpan < 1) throw new RangeError("Repeat projection requires a valid inclusive date range.");
   const usesCalendarSpan = external || context.schedulingMode === "hourly";
+  if (!usesCalendarSpan && context.effectiveWeek.kind === "none") {
+    throw new RangeError("Repeat projection requires at least one effective working day.");
+  }
   const spanOptions = {
-    workingDays: context.resource.workingDays,
+    workingDays: context.effectiveWeek.kind === "days" ? context.effectiveWeek.days : undefined,
     ignoreWeekends: baseDraft.ignoreWeekends,
   };
   if (!usesCalendarSpan) {
