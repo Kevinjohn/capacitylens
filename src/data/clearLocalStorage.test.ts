@@ -8,23 +8,19 @@ import {
 describe("clearCapacitylensLocalStorage", () => {
   beforeEach(() => localStorage.clear());
 
-  it("removes every current and legacy app key and leaves unrelated origin keys alone", () => {
+  it("removes every app key and leaves unrelated origin keys alone", () => {
     localStorage.setItem("capacitylens/offlineRead", "on");
     localStorage.setItem("capacitylens/theme", "dark");
     localStorage.setItem("capacitylens/sidebar", "true");
-    localStorage.setItem("floaty/sidebar", "closed");
-    localStorage.setItem("floaty/theme", "light");
     localStorage.setItem("some-other-tool", "keep");
     localStorage.setItem("analytics", "keep");
 
     const removed = clearCapacitylensLocalStorage();
 
-    expect(removed).toBe(5);
+    expect(removed).toBe(3);
     expect(localStorage.getItem("capacitylens/offlineRead")).toBeNull();
     expect(localStorage.getItem("capacitylens/theme")).toBeNull();
     expect(localStorage.getItem("capacitylens/sidebar")).toBeNull();
-    expect(localStorage.getItem("floaty/sidebar")).toBeNull();
-    expect(localStorage.getItem("floaty/theme")).toBeNull();
     expect(localStorage.getItem("some-other-tool")).toBe("keep");
     expect(localStorage.getItem("analytics")).toBe("keep");
   });
@@ -37,13 +33,9 @@ describe("clearCapacitylensLocalStorage", () => {
 
   it("reads owned raw values without including sibling-origin data", () => {
     localStorage.setItem("capacitylens/data", "{not-json");
-    localStorage.setItem("floaty/data", "legacy-bytes");
     localStorage.setItem("unrelated", "keep-private");
 
-    expect(readCapacitylensLocalStorage()).toEqual([
-      { key: "capacitylens/data", value: "{not-json" },
-      { key: "floaty/data", value: "legacy-bytes" },
-    ]);
+    expect(readCapacitylensLocalStorage()).toEqual([{ key: "capacitylens/data", value: "{not-json" }]);
   });
 
   it("removes ALL matching keys even though removal mutates the key list mid-clear", () => {

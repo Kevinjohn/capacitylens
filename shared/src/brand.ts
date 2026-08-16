@@ -18,6 +18,6 @@ export const APP_NAME = "CapacityLens";
  *
  * INVARIANT: all persisted keys are `${STORAGE_KEY_PREFIX}<name>`. Clearing/iterating by this prefix
  * touches only this app's keys, never unrelated keys on a shared origin. The trailing slash is part
- * of the prefix. `floaty/` is retained only for explicit user-triggered legacy preference cleanup.
+ * of the prefix.
  */
 export const STORAGE_KEY_PREFIX = "capacitylens/";
