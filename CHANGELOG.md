@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Gave the allocation modal's scheduling controls the full row width, with equal columns at normal
+  widths and a stacked layout on narrow screens (#377).
+
 ## [0.53.2-alpha.1] — 2026-08-16
 
 ### Changed

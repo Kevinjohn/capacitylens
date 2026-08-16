@@ -293,8 +293,20 @@ function expectInAllocationControlColumn(control: HTMLElement) {
   expect(control.closest("[data-allocation-control-column]")).toBeInTheDocument();
 }
 
+function expectAllocationSpanRow(controls: HTMLElement[]) {
+  const row = controls[0]?.closest("[data-allocation-span-row]");
+  expect(row).toBeInTheDocument();
+  expect(row?.querySelectorAll(":scope > [data-allocation-span-controls] > [data-slot='field']")).toHaveLength(
+    controls.length,
+  );
+  for (const control of controls) {
+    expect(control.closest("[data-allocation-span-row]")).toBe(row);
+    expect(control.closest("[data-allocation-control-column]")).not.toBeInTheDocument();
+  }
+}
+
 describe("AllocationModal compact layout", () => {
-  it("aligns Hours-mode create fields, compound dates, inline creation and repeat hints", async () => {
+  it("aligns Hours-mode create fields, the full-width scheduling row, inline creation and repeat hints", async () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
     render(
@@ -307,7 +319,6 @@ describe("AllocationModal compact layout", () => {
     for (const control of [
       screen.getByRole("combobox", { name: "Project" }),
       screen.getByRole("combobox", { name: "Activity" }),
-      screen.getByLabelText("Hours / day"),
       screen.getByRole("combobox", { name: "Repeat" }),
       screen.getByRole("radiogroup", { name: "Status" }),
       screen.getByLabelText("Note"),
@@ -316,8 +327,11 @@ describe("AllocationModal compact layout", () => {
       expectLabelControl(control);
     }
     expect(screen.getByRole("radiogroup", { name: "Status" })).toHaveClass("w-full");
-    expectInAllocationControlColumn(screen.getByLabelText("Start Date"));
-    expectInAllocationControlColumn(screen.getByLabelText("End"));
+    expectAllocationSpanRow([
+      screen.getByLabelText("Start Date"),
+      screen.getByLabelText("End"),
+      screen.getByLabelText("Hours / day"),
+    ]);
     expectInAllocationControlColumn(screen.getByRole("textbox", { name: "New activity name" }));
 
     await chooseOption(user, "Project", "Acme / Lightning");
@@ -341,14 +355,17 @@ describe("AllocationModal compact layout", () => {
 
     expectLabelControl(screen.getByRole("combobox", { name: "Assignee" }));
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
-    expectInAllocationControlColumn(screen.getByLabelText("Start Date"));
-    expectInAllocationControlColumn(screen.getByLabelText("End"));
+    expectAllocationSpanRow([
+      screen.getByLabelText("Start Date"),
+      screen.getByLabelText("End"),
+      screen.getByLabelText("Hours / day"),
+    ]);
   });
 
   it.each([
     ["days", ["Start Date", "Days of work", "Days over"]],
     ["blocks", ["Start Date", "Days over"]],
-  ] as const)("keeps %s-mode compound inputs and the end hint in the control column", (mode, labels) => {
+  ] as const)("uses a full-width scheduling row for %s mode", (mode, labels) => {
     useStore.getState().updateAccount(ACC, { schedulingMode: mode });
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     render(
@@ -358,8 +375,8 @@ describe("AllocationModal compact layout", () => {
       />,
     );
 
-    for (const label of labels) expectInAllocationControlColumn(screen.getByLabelText(label));
-    expectInAllocationControlColumn(screen.getByText(/^Ends /));
+    expectAllocationSpanRow(labels.map((label) => screen.getByLabelText(label)));
+    expect(screen.getByText(/^Ends /).closest("[data-allocation-span-row]")).toBeInTheDocument();
   });
 
   it("keeps External dates aligned and the placeholder hint under the control area", () => {
@@ -380,8 +397,7 @@ describe("AllocationModal compact layout", () => {
         onClose={vi.fn()}
       />,
     );
-    expectInAllocationControlColumn(screen.getByLabelText("Start Date"));
-    expectInAllocationControlColumn(screen.getByLabelText("End"));
+    expectAllocationSpanRow([screen.getByLabelText("Start Date"), screen.getByLabelText("End")]);
     expect(screen.queryByRole("checkbox", { name: "Ignore working days" })).not.toBeInTheDocument();
     externalView.unmount();
 
