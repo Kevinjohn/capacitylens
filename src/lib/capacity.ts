@@ -80,7 +80,7 @@ export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate)
 /** A saved half-day working pattern on this weekday — 4h of capacity instead of 8h. The scheduler's
  *  partial-capacity tint asks the same question, so both read this one definition. */
 export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
-  return resource.halfDays.includes(weekday);
+  return resource.kind === "person" && resource.halfDays.includes(weekday);
 }
 
 function scheduledHoursForWeekday(resource: Resource, weekday: Weekday, effectiveWeek: EffectiveWorkingWeek): number {

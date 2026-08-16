@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Placeholders now follow the company's working days and always use full-day capacity (#382), rather than
+  carrying a separate personal working pattern. Their resource form shows the company days as
+  read-only guidance and directs changes to Settings.
+
 ## [0.53.0-alpha.1] — 2026-08-16
 
 ### Added

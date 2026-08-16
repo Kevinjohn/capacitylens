@@ -19,8 +19,11 @@ import {
 import { FieldError, FieldGroup } from "../ui/field";
 import { resourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
+import { weekdayLabel } from "../../lib/weekdays";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   FULL_DAY_HOURS,
+  placeholderCapacityDefaults,
   type Resource,
   type ResourceEngagement,
   type ResourceKind,
@@ -37,11 +40,11 @@ import {
  * @param onClose  called after a successful save, or on cancel.
  *
  * Non-obvious rules enforced here: a PERSON requires a name (a placeholder's is optional); a
- * PLACEHOLDER must be bound to a project; at least one working day must be selected (a zero-capacity
- * resource reads as permanently over-allocated); every form write uses the fixed 8-hour full-day
- * capacity; hidden employment data is preserved on person edits; placeholders force Studio
- * engagement; and a resource's colour is DERIVED from its discipline (no per-resource colour
- * control — see DECISIONS).
+ * PLACEHOLDER must be bound to a project; a person must select at least one working day (a
+ * zero-capacity person reads as permanently over-allocated); placeholders display the company week
+ * read-only; every form write uses the fixed 8-hour full-day capacity; hidden employment data is
+ * preserved on person edits; placeholders force Studio engagement; and a resource's colour is
+ * DERIVED from its discipline (no per-resource colour control — see DECISIONS).
  */
 export function ResourceForm({
   resource,
@@ -54,6 +57,7 @@ export function ResourceForm({
 }) {
   const add = useStore((s) => s.addResource);
   const update = useStore((s) => s.updateResource);
+  const account = useStore((s) => s.data.accounts.find((candidate) => candidate.id === s.activeAccountId));
   const data = useActiveScopedData();
   // When the account doesn't use disciplines, hide the picker. Any existing disciplineId
   // on an edited resource is left untouched (the field just isn't shown).
@@ -69,6 +73,11 @@ export function ResourceForm({
 
   const kind = resource?.kind ?? kindProp ?? "person";
   const isPlaceholder = kind === "placeholder";
+  const companyWorkingDays = useMemo(
+    () => normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1),
+    [account?.workingDays, account?.weekStartsOn],
+  );
+  const companyWorkingDayNames = companyWorkingDays.map(weekdayLabel).join(", ");
   const [name, setName] = useState(resource?.name ?? "");
   const [role, setRole] = useState(resource?.role ?? "");
   const [disciplineId, setDisciplineId] = useState(resource?.disciplineId ?? "");
@@ -128,9 +137,9 @@ export function ResourceForm({
       fail("projectId", m.form_resource_err_placeholder_project());
       return;
     }
-    // A resource with zero working days has zero capacity every day (reads as
-    // permanently over-allocated), so at least one weekday must be selected.
-    if (!validateWorkingDays(workingDays, fail)) return;
+    // Placeholders inherit the company calendar and persist only inert defaults. A person with zero
+    // working days has zero capacity every day, so their personal selection remains validated.
+    if (!isPlaceholder && !validateWorkingDays(workingDays, fail)) return;
     const patch = {
       kind,
       name: cleanName ? cleanName : undefined,
@@ -147,6 +156,7 @@ export function ResourceForm({
       workingHoursPerDay: FULL_DAY_HOURS,
       workingDays,
       halfDays,
+      ...(isPlaceholder ? placeholderCapacityDefaults() : {}),
       projectId: isPlaceholder ? projectId : undefined,
       // Resources no longer carry their own colour — the scheduler/list derive it
       // from the discipline. Keep a stable fallback so the entity stays valid.
@@ -236,17 +246,26 @@ export function ResourceForm({
           />
         )}
       </FieldGroup>
-      <WorkingDayPicker
-        label={m.form_resource_working_days_label()}
-        workingDays={workingDays}
-        halfDays={halfDays}
-        onChange={(nextWorkingDays, nextHalfDays) => {
-          setWorkingDays(nextWorkingDays);
-          setHalfDays(nextHalfDays);
-        }}
-        invalid={errorField === "workingDays"}
-        describedById={errorId}
-      />
+      {isPlaceholder ? (
+        <div className="space-y-1.5">
+          <div className="text-sm font-medium">{m.form_resource_working_days_label()}</div>
+          <p className="text-sm text-muted-foreground">
+            {m.form_resource_placeholder_working_days({ days: companyWorkingDayNames })}
+          </p>
+        </div>
+      ) : (
+        <WorkingDayPicker
+          label={m.form_resource_working_days_label()}
+          workingDays={workingDays}
+          halfDays={halfDays}
+          onChange={(nextWorkingDays, nextHalfDays) => {
+            setWorkingDays(nextWorkingDays);
+            setHalfDays(nextHalfDays);
+          }}
+          invalid={errorField === "workingDays"}
+          describedById={errorId}
+        />
+      )}
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </Modal>

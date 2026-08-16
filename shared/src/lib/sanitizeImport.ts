@@ -12,6 +12,7 @@ import {
   INTERNAL_COLOUR_MODES,
   COMPANY_WIDE_TIME_OFF_FALLBACK,
   isCompanyWideTimeOffType,
+  placeholderCapacityDefaults,
   type TimeOffType,
   type Account,
   type AppData,
@@ -296,8 +297,12 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
         rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, "permanent");
         rec.engagement = rec.kind === "placeholder" ? "studio" : oneOf(rec.engagement, VALID_ENGAGEMENT, "studio");
         rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay);
-        rec.workingDays = safeWorkingDays(rec.workingDays);
-        rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);
+        if (rec.kind === "placeholder") {
+          Object.assign(rec, placeholderCapacityDefaults());
+        } else {
+          rec.workingDays = safeWorkingDays(rec.workingDays);
+          rec.halfDays = safeHalfDays(rec.halfDays, rec.workingDays as Weekday[]);
+        }
         rec.color = snapToPresetColor(rec.color);
         if (rec.kind !== "placeholder") delete rec.projectId;
       }

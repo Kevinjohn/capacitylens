@@ -75,6 +75,7 @@ describe("ResourceForm placeholder binding", () => {
   it("saves a placeholder once a bound project is chosen", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
+    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, { workingDays: [1, 3, 5] });
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     render(<ResourceForm kind="placeholder" onClose={onClose} />);
@@ -90,6 +91,8 @@ describe("ResourceForm placeholder binding", () => {
     expect(resources[0].kind).toBe("placeholder");
     expect(resources[0].projectId).toBe(project.id);
     expect(resources[0].engagement).toBe("studio");
+    expect(resources[0].workingDays).toEqual([1, 2, 3, 4, 5]);
+    expect(resources[0].halfDays).toEqual([]);
   });
 
   // Editing a placeholder whose bound project is ARCHIVED (hidden from the active-only picker): the
@@ -181,6 +184,18 @@ describe("ResourceForm engagement", () => {
 });
 
 describe("ResourceForm working days", () => {
+  it("shows company working days as read-only guidance for placeholders", () => {
+    useStore.getState().updateAccount(useStore.getState().data.accounts[0].id, { workingDays: [1, 3, 5] });
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+
+    expect(screen.queryByRole("group", { name: "Working days" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Monday, Wednesday, Friday. Placeholders use the company working days. Change them in Settings.",
+      ),
+    ).toBeVisible();
+  });
+
   it("opens legacy working days as full days and unselected weekdays as not working", () => {
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 

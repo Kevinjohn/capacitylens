@@ -1479,6 +1479,23 @@ describe("remapAndValidateImport", () => {
     const disc = data.disciplines.find((x) => x.accountId === A1);
     expect(r?.disciplineId).toBe(disc?.id); // valid discipline kept + remapped
     expect(r?.projectId).toBe(proj?.id); // valid placeholder project kept + remapped
+    expect(r).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
+  });
+
+  it("normalizes imported placeholder working patterns independently of the target account", () => {
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [client("c", "src")],
+      projects: [project("p", "src", "c")],
+      resources: [{ ...placeholder("ph", "src", "p"), workingDays: [0, 6], halfDays: [6] }],
+    };
+    const target = { ...base(), accounts: [{ ...account(A1), workingDays: [2, 4] }] };
+    const { data } = remapAndValidateImport(target, A1, incoming, TS);
+
+    expect(data.resources.find((resource) => resource.accountId === A1)).toMatchObject({
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+    });
   });
 
   it("KEEPS a project activity’s valid phase and its kind (no over-unbind, no re-classify)", () => {

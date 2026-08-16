@@ -42,6 +42,7 @@ import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
   emptyAppData,
+  placeholderCapacityDefaults,
 } from "@capacitylens/shared/types/entities";
 import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
 import type {
@@ -1147,6 +1148,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
         // Programmatic callers written before half-day patterns existed retain the exact legacy
         // meaning: every selected working day is full, represented by an empty half-day subset.
         halfDays: input.halfDays ?? [],
+        ...(input.kind === "placeholder" ? placeholderCapacityDefaults() : {}),
         // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
         // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).
         // 0 is rejected (a resource works a positive day) — distinct from an allocation, where 0 is legal.
@@ -1157,7 +1159,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       }),
       (e, input) => {
         assertScopedRefs(get().data, e.accountId, "resources", input);
-        assertWorkingDays(input.workingDays);
+        assertWorkingDays(e.workingDays);
         assertHalfDays(e.halfDays, e.workingDays);
         // Colour snap runs LAST, right before persisting — never before the asserts above, so a
         // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
@@ -1168,6 +1170,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ),
     updateResource: guarded((id: ID, patch: Patch<Resource>) => {
       updateOwned("resources", id, patch, (merged, existing) => {
+        const capacityPatch = merged.kind === "placeholder" ? { ...patch, ...placeholderCapacityDefaults() } : patch;
+        const normalizedMerged =
+          merged.kind === "placeholder" ? { ...merged, ...placeholderCapacityDefaults() } : merged;
         // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
         // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
         // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
@@ -1175,14 +1180,15 @@ export const useStore = create<StoreState>()((set, get, store) => {
         // Flipping a resource to external while it still owns loaded work / time-off would orphan
         // those dependents (the scheduler hides external capacity + time-off). A no-op when the
         // resource isn't becoming external. Mirrors the server's validateWrite resources branch.
-        assertResourceProjectAllowsDependents(get().data, existing.accountId, id, merged, existing);
-        assertResourceKindAllowsDependents(get().data, existing.accountId, id, merged.kind);
-        if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
-        if (patch.workingDays !== undefined || patch.halfDays !== undefined) {
-          assertHalfDays(merged.halfDays, merged.workingDays);
+        assertResourceProjectAllowsDependents(get().data, existing.accountId, id, normalizedMerged, existing);
+        assertResourceKindAllowsDependents(get().data, existing.accountId, id, normalizedMerged.kind);
+        if (capacityPatch.workingDays !== undefined) assertWorkingDays(capacityPatch.workingDays);
+        if (capacityPatch.workingDays !== undefined || capacityPatch.halfDays !== undefined) {
+          assertHalfDays(normalizedMerged.halfDays, normalizedMerged.workingDays);
         }
-        const engagementPatch = merged.kind !== "person" ? { ...patch, engagement: "studio" as const } : patch;
-        const colorPatch = withSnappedColor(engagementPatch, merged.kind === "external");
+        const engagementPatch =
+          normalizedMerged.kind !== "person" ? { ...capacityPatch, engagement: "studio" as const } : capacityPatch;
+        const colorPatch = withSnappedColor(engagementPatch, normalizedMerged.kind === "external");
         return patch.workingHoursPerDay !== undefined
           ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
           : colorPatch;

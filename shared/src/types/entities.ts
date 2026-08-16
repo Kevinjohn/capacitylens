@@ -155,9 +155,10 @@ export interface Resource extends ScopedEntity {
   engagement: ResourceEngagement;
   /** Capacity per working day. Unused (silent default) for `external` — externals have no capacity. */
   workingHoursPerDay: number;
-  /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. */
+  /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. Unused for placeholders and externals. */
   workingDays: Weekday[];
-  /** Working weekdays whose capacity is the fixed four-hour half day. Always a subset of workingDays. */
+  /** Working weekdays whose capacity is the fixed four-hour half day. Always a subset of workingDays.
+   *  Unused for placeholders and externals. */
   halfDays: Weekday[];
   /** PLACEHOLDERS ONLY: the single project a placeholder is bound to. */
   projectId?: ID;
@@ -412,6 +413,17 @@ export function externalCapacityDefaults(): Pick<
     employmentType: "permanent",
     engagement: "studio" as const,
     workingHoursPerDay: FULL_DAY_HOURS,
+    workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
+  };
+}
+
+/** The account-independent silent defaults for placeholder capacity fields. Placeholders derive
+ *  their live working week from the company calendar, so these persisted fields are deliberately
+ *  inert and must never copy an account's current selection. A factory gives every caller fresh
+ *  arrays, avoiding aliases if a consumer mutates one. */
+export function placeholderCapacityDefaults(): Pick<Resource, "workingDays" | "halfDays"> {
+  return {
     workingDays: [1, 2, 3, 4, 5],
     halfDays: [],
   };

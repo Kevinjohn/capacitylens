@@ -277,6 +277,22 @@ describe("CRUD round-trip", () => {
     });
   });
 
+  it("normalizes placeholder working patterns on create and partial update", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    const created = await post(app, "resources", {
+      ...placeholder("ph", "a1", "p1"),
+      workingDays: [0, 6],
+      halfDays: [6],
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
+    const updated = await patch(app, "resources", "ph", { workingDays: [2], halfDays: [2] });
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json()).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
+  });
+
   it("PATCH updates fields; DELETE removes a non-lifecycle row", async () => {
     const { app } = freshApp();
     await scaffold(app);
