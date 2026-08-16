@@ -24,7 +24,7 @@ import { m } from "@/i18n";
 import type { Weekday } from "@capacitylens/shared/types/entities";
 import { weekdayLabel } from "../../lib/weekdays";
 import { useMarkFormDirty } from "./formDirty";
-import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
+import { SegmentedControl, type SegmentedGeometry, type SegmentedOption, type SegmentedSize } from "./SegmentedControl";
 
 // Product field APIs composed from ShadCN's Field family.
 export type ProductFieldLayout = "stacked" | "label-control";
@@ -578,6 +578,9 @@ export function SegmentedField<T extends string | number>({
   ariaLabel,
   controlClassName,
   itemClassName,
+  geometry = "gapped",
+  fullWidth = false,
+  size = "md",
   layout = "stacked",
 }: {
   label: string;
@@ -590,6 +593,12 @@ export function SegmentedField<T extends string | number>({
   controlClassName?: string;
   /** Optional layout classes applied to every segment. */
   itemClassName?: string;
+  /** Visual relationship between items. */
+  geometry?: SegmentedGeometry;
+  /** Give every option an equal-width cell across the available track width. */
+  fullWidth?: boolean;
+  /** Track/item scale. */
+  size?: SegmentedSize;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 }) {
@@ -605,6 +614,9 @@ export function SegmentedField<T extends string | number>({
         ariaLabelledby={ariaLabel ? undefined : labelId}
         className={controlClassName}
         itemClassName={itemClassName}
+        geometry={geometry}
+        fullWidth={fullWidth}
+        size={size}
       />
     </Field>
   );

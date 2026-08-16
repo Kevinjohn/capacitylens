@@ -314,6 +314,22 @@
   background-color: var(--chrome-control-hover);
 }
 
+/* The global focus treatment defaults unknown controls to 4px. Segmented items have explicit
+   nested radii, so retain their size's inner curve while the focused item rises above neighbours. */
+[data-segmented-control] [data-slot="toggle-group-item"]:focus {
+  position: relative;
+  z-index: 20;
+}
+[data-segmented-control][data-segmented-size="sm"] [data-slot="toggle-group-item"]:focus-visible {
+  border-radius: 4px;
+}
+[data-segmented-control][data-segmented-size="md"] [data-slot="toggle-group-item"]:focus-visible {
+  border-radius: 5px;
+}
+[data-segmented-control][data-segmented-size="lg"] [data-slot="toggle-group-item"]:focus-visible {
+  border-radius: 6px;
+}
+
 html,
 body,
 #root {

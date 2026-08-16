@@ -12,6 +12,11 @@ new features and **patch** versions carry fixes.
 - Gave the schedule distinct sidebar, toolbar, filter-bar and data-canvas depth tiers in both
   themes, with controls seated on a consistent raised or inset surface (#379).
 
+### Fixed
+
+- Reworked segmented controls with concentric size-specific radii, stable reserved borders and
+  explicit gapped or connected layouts; full-width groups now divide into exactly equal cells (#380).
+
 ## [0.53.0-alpha.1] — 2026-08-16
 
 ### Added

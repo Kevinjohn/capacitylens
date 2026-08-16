@@ -253,6 +253,8 @@ export function SettingsView() {
         >
           <SegmentedControl
             ariaLabel={m.settings_scheduling_aria()}
+            geometry="gapped"
+            size="md"
             value={schedulingMode}
             onChange={(value) => updateSetting({ schedulingMode: value })}
             options={toOptions(labelsFrom(SCHEDULING_MESSAGES))}
@@ -369,6 +371,8 @@ export function SettingsView() {
         <SettingsSection title={m.settings_internal_colours_heading()} help={m.settings_internal_colours_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_internal_colours_aria()}
+            geometry="gapped"
+            size="md"
             value={internalColourMode}
             onChange={(value) => updateSetting({ internalColourMode: value })}
             options={toOptions(labelsFrom(INTERNAL_COLOUR_MESSAGES))}
@@ -468,6 +472,8 @@ export function SettingsView() {
         <SettingsSection title={m.settings_appearance_heading()} help={m.settings_appearance_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_appearance_aria()}
+            geometry="gapped"
+            size="md"
             value={theme}
             onChange={setTheme}
             options={toOptions(labelsFrom(THEME_MESSAGES))}

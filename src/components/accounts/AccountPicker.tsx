@@ -462,6 +462,8 @@ export function AccountPicker() {
                   <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
                   <SegmentedControl
                     ariaLabel={m.picker_week_start()}
+                    geometry="gapped"
+                    size="md"
                     value={weekStartsOn}
                     onChange={setWeekStartsOn}
                     options={weekStartSelectOptions}

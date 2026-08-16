@@ -327,6 +327,8 @@ export function SchedulerToolbar() {
           {canEdit && (
             <SegmentedControl
               ariaLabel={m.scheduler_draw_mode_aria()}
+              geometry="gapped"
+              size="sm"
               value={drawMode}
               onChange={setDrawMode}
               options={[

@@ -1183,7 +1183,8 @@ export function AllocationModal(props: AllocationModalProps) {
         value={status}
         onChange={setStatus}
         options={allocationStatusOptions()}
-        controlClassName="w-full [&>*]:flex-1"
+        geometry="connected"
+        fullWidth
         layout="label-control"
       />
       <TextField
