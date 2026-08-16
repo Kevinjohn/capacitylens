@@ -35,6 +35,16 @@
      so a non-working day never reads as an alert. Shared by the lane tint AND the date-header
      weekend cell, so Sat/Sun reads as one continuous band header-to-lane. */
   --color-weekend: var(--c-weekend);
+  /* App chrome is intentionally independent from the shadcn surface semantics below: changing
+     navigation or scheduler depth must never recolour cards, dialogs, popovers or tables. */
+  --color-chrome-toolbar: var(--chrome-toolbar);
+  --color-chrome-toolbar-border: var(--chrome-toolbar-border);
+  --color-chrome-filterbar: var(--chrome-filterbar);
+  --color-chrome-filterbar-border: var(--chrome-filterbar-border);
+  /* Scheduler-only surfaces let the dark data canvas come forward without lightening the whole app. */
+  --color-scheduler-canvas: var(--scheduler-canvas);
+  --color-scheduler-header: var(--scheduler-header);
+  --color-scheduler-group: var(--scheduler-group);
   --color-ink: var(--c-ink);
   --color-faint: var(--c-faint);
   --color-brand: var(--c-brand);
@@ -99,7 +109,7 @@
   ); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
   --c-ink: #1c2230;
   --c-muted: #5b6472;
-  --c-faint: #677080; /* darkened one step from #6b7280 (which was 4.43:1 on --c-base, sub-AA): now 4.58:1 on the canvas, 4.99:1 on --c-surface — clears WCAG AA (4.5:1) for small text on BOTH grounds */
+  --c-faint: #636c7c; /* darkened from #6b7280 so small text clears WCAG AA (4.5:1) on every ordinary and scheduler light ground */
   /* CapacityLens blue: identity and state. Keep the light theme dark enough for
      small labels and focus indicators; the dark theme can use a brighter blue
      without losing contrast against the charcoal surfaces. */
@@ -130,6 +140,23 @@
   --c-ok-strong: #047857;
   --c-ok-strong-hover: #065f46; /* darker, rather than translucent-over-surface: white stays AA */
   --c-ok-strong-ink: #ffffff;
+  /* Chrome depth, darkest → cleanest: sidebar, toolbar, filter bar, then the scheduler canvas.
+     These neutral tokens stay separate from --c-base/--c-surface and shadcn's semantic family. */
+  --chrome-sidebar: #222222;
+  --chrome-sidebar-border: #171717;
+  --chrome-sidebar-ink: #f5f5f5;
+  --chrome-sidebar-muted-ink: #c0c0c0;
+  --chrome-toolbar: #d3d3cf;
+  --chrome-toolbar-border: #bcbcb7;
+  --chrome-filterbar: #e2e2df;
+  --chrome-filterbar-border: #cbcbc7;
+  --chrome-filterbar-ink: var(--c-muted);
+  --chrome-control: #ffffff;
+  --chrome-control-border: #c4c4c1;
+  --chrome-control-hover: #f7f7f6;
+  --scheduler-canvas: #ffffff;
+  --scheduler-header: #f7f7f6;
+  --scheduler-group: #f2f2f1;
   color-scheme: light;
 
   /* ShadCN semantic tokens share the established CapacityLens palette. Components
@@ -153,18 +180,22 @@
   --destructive-foreground: #ffffff;
   --border: var(--c-line);
   --input: var(--c-line);
+  --input-background: transparent;
+  --input-hover-background: transparent;
+  --outline-background: var(--background);
+  --outline-hover-background: var(--accent);
   --ring: var(--c-brand);
   --radius: 0.625rem;
-  /* ShadCN Sidebar uses its own semantic token family. Point it at the established
-     CapacityLens surfaces so adopting the standard mechanics does not introduce a
-     second sidebar palette. The referenced --c-* values swap under data-theme. */
-  --sidebar: var(--c-surface);
-  --sidebar-foreground: var(--c-ink);
+  /* ShadCN Sidebar keeps its standard semantic API, but its values now derive from the dedicated
+     chrome tier. That lets every source-owned sidebar primitive move together without component
+     hexes or coupling navigation depth to ordinary app surfaces. */
+  --sidebar: var(--chrome-sidebar);
+  --sidebar-foreground: var(--chrome-sidebar-ink);
   --sidebar-primary: var(--c-brand-soft);
-  --sidebar-primary-foreground: var(--c-ink);
-  --sidebar-accent: var(--c-base);
-  --sidebar-accent-foreground: var(--c-ink);
-  --sidebar-border: var(--c-line);
+  --sidebar-primary-foreground: var(--c-brand-soft-ink);
+  --sidebar-accent: color-mix(in oklab, var(--chrome-sidebar) 88%, white);
+  --sidebar-accent-foreground: var(--c-focus-halo);
+  --sidebar-border: var(--chrome-sidebar-border);
   --sidebar-ring: var(--c-brand);
 }
 
@@ -203,6 +234,26 @@
   --c-ok-strong: #047857;
   --c-ok-strong-hover: #065f46;
   --c-ok-strong-ink: #ffffff;
+  --chrome-sidebar: #0d0d0d;
+  --chrome-sidebar-border: #000000;
+  --chrome-sidebar-ink: #f5f5f5;
+  --chrome-sidebar-muted-ink: #bbbbbb;
+  --chrome-toolbar: #1a1a1a;
+  --chrome-toolbar-border: #303030;
+  --chrome-filterbar: #242424;
+  --chrome-filterbar-border: #3a3a3a;
+  --chrome-filterbar-ink: var(--c-muted);
+  --chrome-control: #141414;
+  --chrome-control-border: #3f3f3f;
+  --chrome-control-hover: #1f1f1f;
+  /* #2c2c2c is lighter than every chrome band while retaining 4.52:1 with --c-faint. */
+  --scheduler-canvas: #2c2c2c;
+  --scheduler-header: #292929;
+  --scheduler-group: #292929;
+  --input-background: color-mix(in oklab, var(--input) 30%, transparent);
+  --input-hover-background: color-mix(in oklab, var(--input) 50%, transparent);
+  --outline-background: color-mix(in oklab, var(--input) 30%, transparent);
+  --outline-hover-background: color-mix(in oklab, var(--input) 50%, transparent);
   color-scheme: dark;
 
   /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */
@@ -248,6 +299,27 @@
   *::after {
     border-color: var(--color-line);
   }
+}
+
+/* Controls on a chrome band consume the same semantic API as they do elsewhere. Redefining the
+   inputs instead of their final properties preserves the tier while explicit colour utilities
+   remain free to override it. */
+[data-chrome-band] {
+  --background: var(--chrome-control);
+  --border: var(--chrome-control-border);
+  --input: var(--chrome-control-border);
+  --input-background: var(--chrome-control);
+  --input-hover-background: var(--chrome-control-hover);
+  --outline-background: var(--chrome-control);
+  --outline-hover-background: var(--chrome-control-hover);
+}
+
+/* The global focus treatment defaults unknown controls to 4px. Segmented items retain the same
+   nested radius they use at rest, sourced from the track's single per-size variable. */
+[data-segmented-control] [data-slot="toggle-group-item"]:focus-visible {
+  position: relative;
+  z-index: 20;
+  border-radius: var(--segment-radius);
 }
 
 html,

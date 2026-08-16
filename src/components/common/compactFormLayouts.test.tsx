@@ -67,10 +67,9 @@ describe("compact input modal layouts", () => {
     expectCompact(screen.getByLabelText("Name"));
     const kind = screen.getByRole("radiogroup", { name: "Activity kind" });
     expectCompact(kind);
-    expect(kind).toHaveClass("w-full");
-    expect(kind).toHaveClass("[&>*]:flex-1");
+    expect(kind).toHaveAttribute("data-geometry", "gapped");
+    expect(kind).toHaveAttribute("data-density", "compact");
     expect(kind.children).toHaveLength(3);
-    for (const segment of kind.children) expect(segment).toHaveClass("px-1.5", "tracking-tighter");
     expect(screen.getAllByRole("radio").map((segment) => segment.textContent)).toEqual([
       "Internal",
       "Cross-project",

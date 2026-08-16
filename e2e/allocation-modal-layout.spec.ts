@@ -75,13 +75,14 @@ test.describe("Allocation modal label/control layout", () => {
     const status = dialog.getByRole("radiogroup", { name: "Status" });
     const statusBox = await status.boundingBox();
     const segments = await status.getByRole("radio").all();
+    const segmentBoxes = await Promise.all(segments.map((segment) => segment.boundingBox()));
+    const noteBox = await dialog.getByLabel("Note").boundingBox();
     expect(statusBox).not.toBeNull();
-    for (const segment of segments) {
-      const segmentBox = await segment.boundingBox();
-      expect(segmentBox).not.toBeNull();
-      expect(segmentBox!.width).toBeGreaterThan(statusBox!.width / 3 - 2);
-      expect(segmentBox!.width).toBeLessThan(statusBox!.width / 3 + 2);
-    }
+    expect(noteBox).not.toBeNull();
+    expect(segmentBoxes.every((box) => box !== null)).toBe(true);
+    const segmentWidths = segmentBoxes.map((box) => box!.width);
+    expect(Math.max(...segmentWidths) - Math.min(...segmentWidths)).toBeLessThanOrEqual(1);
+    expect(Math.abs(statusBox!.width - noteBox!.width)).toBeLessThanOrEqual(1);
 
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity" }), "t-wires");

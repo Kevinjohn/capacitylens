@@ -433,7 +433,7 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("applies the connected outline shadow selector to the numeric default spacing", () => {
+  it("renders the default gapped intent through the shared radio-group primitive", () => {
     render(
       <SegmentedControl
         value="week"
@@ -447,33 +447,34 @@ describe("Modal", () => {
     );
 
     const group = screen.getByRole("radiogroup", { name: "Zoom" });
-    expect(group).toHaveAttribute("data-spacing", "0");
     expect(group).toHaveAttribute("data-variant", "outline");
-    expect(group).toHaveClass("data-[spacing=0]:data-[variant=outline]:shadow-xs");
-    expect(group).not.toHaveClass("data-[spacing=default]:data-[variant=outline]:shadow-xs");
+    expect(group).toHaveAttribute("data-geometry", "gapped");
+    expect(group).toHaveAttribute("data-size", "md");
+    expect(group).toHaveAttribute("data-density", "default");
+    expect(screen.getByRole("radio", { name: "Week" })).toHaveAttribute("data-state", "on");
   });
 
-  it("keeps the selected outline one pixel thick at every connected position", () => {
+  it("renders connected full-width intent without changing radio semantics", () => {
     const options = [
       { value: "first", label: "First" },
       { value: "middle", label: "Middle" },
       { value: "last", label: "Last" },
     ];
-    const control = (value: string) => (
-      <SegmentedControl value={value} onChange={vi.fn()} options={options} ariaLabel="Positions" />
+    render(
+      <SegmentedControl
+        value="first"
+        onChange={vi.fn()}
+        options={options}
+        ariaLabel="Positions"
+        geometry="connected"
+        fullWidth
+      />,
     );
-    const { rerender } = render(control("first"));
 
-    for (const selectedOption of options) {
-      rerender(control(selectedOption.value));
-      const selected = screen.getByRole("radio", { name: selectedOption.label });
-      expect(selected).toHaveAttribute("data-state", "on");
-      expect(selected).toHaveClass("data-[state=on]:border-brand", "data-[state=on]:z-10");
-      expect(selected).toHaveClass(
-        "data-[spacing=0]:not-first:data-[state=on]:shadow-[inset_1px_0_0_var(--color-brand)]",
-      );
-      expect(selected).not.toHaveClass("data-[spacing=0]:data-[state=on]:shadow-[inset_0_0_0_1px_var(--color-brand)]");
-    }
+    const group = screen.getByRole("radiogroup", { name: "Positions" });
+    expect(group).toHaveAttribute("data-geometry", "connected");
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    expect(screen.getByRole("radio", { name: "First" })).toHaveAttribute("data-state", "on");
   });
 
   it("round-trips numeric and string values that have the same display text", () => {

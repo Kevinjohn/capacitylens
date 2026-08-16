@@ -5,8 +5,8 @@ import { Slot } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 // Local shadcn deviation: preserve the AA-tuned green default, danger-soft action, enabled-only
-// pressed feedback, and compact/icon sizes (including their icon retinting) when comparing or
-// refreshing this source-owned primitive.
+// pressed feedback, semantic outline-fill variables for chrome bands, and compact/icon sizes
+// (including their icon retinting) when comparing or refreshing this source-owned primitive.
 // Keep transition-colors rather than upstream transition-all so disabled opacity clears immediately;
 // otherwise an enabled button can remain semi-transparent long enough to fail text contrast.
 const buttonVariants = cva(
@@ -20,7 +20,7 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border border-border bg-(--outline-background) shadow-xs hover:bg-(--outline-hover-background) hover:text-accent-foreground dark:border-input",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:

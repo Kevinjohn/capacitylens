@@ -95,7 +95,7 @@ export function AppSidebar({
         </Tooltip>
         <div
           data-visual-intent="brand"
-          className="truncate text-xl font-bold text-brand group-data-[collapsible=icon]:hidden"
+          className="truncate text-xl font-bold text-sidebar-foreground group-data-[collapsible=icon]:hidden"
         >
           {APP_NAME}
         </div>
@@ -225,7 +225,7 @@ function ActiveRoleBadge() {
     <Badge
       data-testid="active-role"
       variant="outline"
-      className="mt-1 text-2xs text-muted-foreground"
+      className="mt-1 text-2xs text-(--chrome-sidebar-muted-ink)"
       title={viewOnly ? m.nav_view_only_title() : undefined}
     >
       {viewOnly && <EyeIcon aria-hidden="true" focusable="false" />}

@@ -208,7 +208,7 @@ export function SchedulerToolbar() {
   };
 
   return (
-    <div data-testid="scheduler-toolbar" className="@container border-b border-line bg-surface">
+    <div data-testid="scheduler-toolbar" className="@container">
       {/* flex-wrap (mirrors the filters row below): at ~320 CSS px the title + nav + date + zoom +
           draw + undo/redo would otherwise pack onto one non-wrapping line and force horizontal
           scroll, failing WCAG 1.4.10 Reflow. Wrapping lets the chrome reflow into stacked lines
@@ -218,7 +218,8 @@ export function SchedulerToolbar() {
           gap-x stays at 2 in both densities because this row wraps, and widening the horizontal gap
           would push it to wrap sooner — the opposite of the Reflow behaviour above. */}
       <div
-        className="flex flex-wrap items-center gap-x-2 px-4"
+        data-chrome-band="toolbar"
+        className="flex flex-wrap items-center gap-x-2 border-b border-chrome-toolbar-border bg-chrome-toolbar px-4"
         style={{ paddingBlock: density.toolbarPadY, rowGap: density.toolbarGapY }}
       >
         <h1 className="mr-auto text-xl font-semibold">{m.scheduler_title()}</h1>
@@ -320,11 +321,14 @@ export function SchedulerToolbar() {
         // so the roomy rhythm that suits one line of controls stacks up here.
         <div
           id="scheduler-filters"
-          className={`flex flex-wrap items-center justify-center gap-x-2 px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
+          data-chrome-band="filterbar"
+          className={`flex flex-wrap items-center justify-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm text-chrome-filterbar-ink ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
         >
           {canEdit && (
             <SegmentedControl
               ariaLabel={m.scheduler_draw_mode_aria()}
+              geometry="gapped"
+              size="sm"
               value={drawMode}
               onChange={setDrawMode}
               options={[

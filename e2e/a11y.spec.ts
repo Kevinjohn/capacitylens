@@ -1,6 +1,14 @@
 import { test, expect, type Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { disableCssMotion, openApp, resetSchedulerScroll, setZoom, showScheduleFilters } from "./helpers";
+import {
+  computedStyles,
+  disableCssMotion,
+  openApp,
+  resetSchedulerScroll,
+  setTheme,
+  setZoom,
+  showScheduleFilters,
+} from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -36,7 +44,7 @@ test("scheduler has no serious or critical accessibility violations", async ({ p
 test("scheduler in dark mode has no serious or critical violations", async ({ page }) => {
   // Dark is now an explicit preference (default is light), so seed the stored theme
   // rather than emulating the OS scheme — otherwise axe would sample the light palette.
-  await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
+  await setTheme(page, "dark");
   await openApp(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
@@ -62,18 +70,10 @@ async function openDrawMode(page: import("@playwright/test").Page): Promise<void
   await expect(page.getByTestId("allocation-bar").first()).toBeVisible();
   const timeOffBlock = page.locator('[data-resource-id="r-tyler"]').getByTestId("timeoff-block");
   await expect(timeOffBlock).toBeVisible();
-  const treatment = await timeOffBlock.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      backgroundColor: style.backgroundColor,
-      backgroundImage: style.backgroundImage,
-      boxShadow: style.boxShadow,
-      color: style.color,
-    };
-  });
-  expect(treatment.backgroundColor).toBe("rgb(250, 204, 21)");
-  expect(treatment.backgroundImage).toContain("repeating-linear-gradient");
-  expect(treatment.boxShadow).toContain("6px 1px");
+  const treatment = await computedStyles(timeOffBlock, ["background-color", "background-image", "box-shadow", "color"]);
+  expect(treatment["background-color"]).toBe("rgb(250, 204, 21)");
+  expect(treatment["background-image"]).toContain("repeating-linear-gradient");
+  expect(treatment["box-shadow"]).toContain("6px 1px");
   expect(treatment.color).toBe("rgb(28, 34, 48)");
 }
 
@@ -83,7 +83,7 @@ test("scheduler in time-off draw mode has no serious or critical violations", as
 });
 
 test("scheduler in time-off draw mode (dark) has no serious or critical violations", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
+  await setTheme(page, "dark");
   await openDrawMode(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await settledAxe(page);
@@ -117,7 +117,7 @@ test("the allocation editor modal has no serious or critical violations", async 
 });
 
 test("the allocation editor modal (dark) has no serious or critical violations", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
+  await setTheme(page, "dark");
   await openAllocationEditor(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await settledAxe(page);
@@ -136,7 +136,7 @@ test("a resource form modal has no serious or critical violations", async ({ pag
 // pairing (bg-danger-soft + danger-soft-ink) instead; this scan locks that in so the button
 // can't silently regress to the failing solid fill.
 test("a confirm dialog (dark) danger button has no serious or critical violations", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
+  await setTheme(page, "dark");
   await openApp(page, "Wayne Enterprises", "/clients");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   // P2.5b: the row's destructive action archives; the confirm dialog's "Archive" button is still the
@@ -165,7 +165,7 @@ test("the empty schedule has no serious or critical violations", async ({ page }
 });
 
 test("the empty schedule (dark) has no serious or critical violations", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
+  await setTheme(page, "dark");
   await openApp(page);
   await showScheduleFilters(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

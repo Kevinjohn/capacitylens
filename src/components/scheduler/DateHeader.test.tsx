@@ -45,7 +45,7 @@ describe("DateHeader", () => {
     const label = screen.getByText("Jun 2026");
 
     expect(label).toHaveAttribute("data-month-placement", "sticky-start");
-    expect(label).toHaveClass("sticky", "max-w-full", "truncate", "bg-surface");
+    expect(label).toHaveClass("sticky", "max-w-full", "truncate", "bg-scheduler-header");
     expect(label).toHaveStyle({ left: "256px" });
   });
 

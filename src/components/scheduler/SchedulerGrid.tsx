@@ -407,7 +407,7 @@ export function SchedulerGrid() {
         role="row"
         aria-rowindex={rowIndex}
         data-testid="discipline-group"
-        className="flex border-y border-line-soft bg-surface"
+        className="flex border-y border-line-soft bg-scheduler-group text-faint"
         style={{ height: density.groupHeaderHeight }}
       >
         <div
@@ -422,11 +422,7 @@ export function SchedulerGrid() {
             aria-expanded={!collapsed}
             className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
           >
-            {collapsed ? (
-              <ChevronRight data-icon="inline-start" className="text-faint" />
-            ) : (
-              <ChevronDown data-icon="inline-start" className="text-faint" />
-            )}
+            {collapsed ? <ChevronRight data-icon="inline-start" /> : <ChevronDown data-icon="inline-start" />}
             <span
               className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
               style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
@@ -437,7 +433,7 @@ export function SchedulerGrid() {
         <div
           role="gridcell"
           aria-colindex={2}
-          className="flex shrink-0 items-center px-3 text-xs text-faint"
+          className="flex shrink-0 items-center px-3 text-xs"
           style={{ width: geom.totalWidth }}
         >
           {collapsed
@@ -455,8 +451,8 @@ export function SchedulerGrid() {
   const renderRow = (group: GroupModel, row: RowModel, rowIndex: number, key: string) => {
     const { resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon, dimmed } = row;
     return (
-      /* bg-surface on the whole row (not just the sticky header) so the row divider
-         sits on ONE background — without it the border crosses the surface left column
+      /* One scheduler-row surface on the whole row (not just the sticky header) keeps the divider
+         on ONE background — without it the border crosses the frozen left column
          and the darker timeline, reading as a two-tone line. */
       <div
         key={key}
@@ -465,13 +461,13 @@ export function SchedulerGrid() {
         data-testid="scheduler-row"
         data-dimmed={dimmed || undefined}
         title={dimmed ? m.scheduler_row_dimmed_title() : undefined}
-        className={`flex border-b border-line-soft bg-surface ${dimmed ? "opacity-45" : ""}`}
+        className={`flex border-b border-line-soft bg-scheduler-canvas ${dimmed ? "opacity-45" : ""}`}
         style={{ height: rowHeight }}
       >
         <div
           role="rowheader"
           aria-colindex={1}
-          className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-surface ps-3 ${
+          className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-scheduler-canvas ps-3 ${
             resource.kind === "placeholder" ? "hatch-lines" : ""
           }`}
           style={{ width: LAYOUT.leftColWidth }}
@@ -610,7 +606,7 @@ export function SchedulerGrid() {
           ref={scrollRef}
           /* overscroll-x-contain: hitting the timeline's left edge must NOT chain into the
            page — on macOS that overscroll is the browser's back-swipe, which nukes the app. */
-          className="relative flex h-full flex-col overflow-auto overscroll-x-contain"
+          className="relative flex h-full flex-col overflow-auto overscroll-x-contain bg-scheduler-canvas"
           data-testid="scheduler-grid"
           /* Signals the active draw mode to CSS: in "timeoff" mode the stylesheet fades the
            work bars back and makes booked time-off glow, so the toolbar toggle gives an
@@ -657,7 +653,7 @@ export function SchedulerGrid() {
             ref={headerRef}
             role="row"
             aria-rowindex={1}
-            className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface"
+            className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-scheduler-header"
             style={{ minHeight: LAYOUT.headerHeight }}
           >
             <div
@@ -665,7 +661,7 @@ export function SchedulerGrid() {
               role="columnheader"
               aria-colindex={1}
               aria-label={m.scheduler_resources_column()}
-              className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
+              className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-scheduler-header px-3"
               style={{ width: LAYOUT.leftColWidth }}
             >
               {utilizationPrefs.showTotal && (

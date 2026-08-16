@@ -5,6 +5,9 @@ import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 
 /** One selectable segment: the value it sets and the label shown on its button. */
 export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string };
+export type SegmentedGeometry = "gapped" | "connected";
+export type SegmentedSize = "sm" | "md" | "lg";
+export type SegmentedDensity = "default" | "compact";
 
 function encodedValue(value: string | number): string {
   return `${typeof value === "number" ? "n" : "s"}:${String(value)}`;
@@ -18,16 +21,6 @@ function encodedValue(value: string | number): string {
 // sidebar nav already uses (`--sidebar-primary: var(--c-brand-soft)`) — and outline the segment in
 // --c-brand so the state survives as a shape, not only as a tint.
 //
-// Closing that outline takes two pieces. `border-brand` covers top/right/bottom, but the
-// connected-control CSS strips each item's left border (`data-[spacing=0]:…:border-l-0`) so
-// adjacent segments share one hairline — re-adding `border-l` would both lose on specificity (two
-// data-attributes to one) and widen the group by 1px whenever the selection moves. So the left
-// edge comes from an inset shadow instead: it costs no layout. Only non-first segments need that
-// shadow because the first retains its real left border, and the shadow is left-only so it does
-// not double the weight of the real top/right/bottom borders. z-10 lifts the selected segment
-// above the neighbour whose right border would otherwise overdraw its left edge. The shadow
-// carries both data-attributes so it outranks the primitive's `data-[spacing=0]:shadow-none`.
-//
 // The `data-[state=on]:hover:*` pair re-pins the colours because the outline variant's
 // `hover:bg-accent` would otherwise flip the selected segment back to grey on hover.
 //
@@ -35,8 +28,24 @@ function encodedValue(value: string | number): string {
 const selectedSegmentClass = [
   "data-[state=on]:bg-brand-soft data-[state=on]:text-brand-soft-ink",
   "data-[state=on]:hover:bg-brand-soft data-[state=on]:hover:text-brand-soft-ink",
-  "data-[state=on]:border-brand data-[state=on]:z-10",
-  "data-[spacing=0]:not-first:data-[state=on]:shadow-[inset_1px_0_0_var(--color-brand)]",
+  "data-[state=on]:relative data-[state=on]:z-10 data-[state=on]:border-brand",
+].join(" ");
+
+// Nested-radius contract: padding is ALWAYS 2px; the item radius is therefore exactly the track
+// radius minus 2px at every size. Inactive items reserve the selected border with transparent ink,
+// so moving selection cannot change either the track width or an item's box by 2px.
+const sizeClasses: Record<SegmentedSize, { radius: string; item: string }> = {
+  sm: { radius: "[--segment-radius:4px]", item: "h-6 px-3 text-[12.5px]" },
+  md: { radius: "[--segment-radius:5px]", item: "h-7 px-[15px] text-[13.5px]" },
+  lg: { radius: "[--segment-radius:6px]", item: "h-8 px-4 text-[14.5px]" },
+};
+
+// Connected groups use inset separators so the active item's real 1px border never competes for
+// layout space. Clear the rule on the active item and its immediate successor to avoid a doubled
+// edge. Focus rises above selection so the shared focus outline is never clipped by a neighbour.
+const connectedItemClass = [
+  "not-first:shadow-[inset_1px_0_0_var(--color-line)]",
+  "data-[state=on]:shadow-none [[data-state=on]+&]:shadow-none",
 ].join(" ");
 
 /** Single-select option group backed by ShadCN ToggleGroup. */
@@ -47,7 +56,10 @@ export function SegmentedControl<T extends string | number>({
   ariaLabel,
   ariaLabelledby,
   className,
-  itemClassName,
+  geometry = "gapped",
+  fullWidth = false,
+  size = "md",
+  density = "default",
   disabled = false,
 }: {
   value: T;
@@ -59,8 +71,14 @@ export function SegmentedControl<T extends string | number>({
   ariaLabelledby?: string;
   /** Optional layout classes for the group container. */
   className?: string;
-  /** Optional layout classes applied to every segment. */
-  itemClassName?: string;
+  /** Visual relationship between items. `gapped` leaves 2px channels; `connected` uses inset rules. */
+  geometry?: SegmentedGeometry;
+  /** Give every option an equal-width cell across the available track width. */
+  fullWidth?: boolean;
+  /** Track/item scale. Track padding remains 2px at every size. */
+  size?: SegmentedSize;
+  /** Named spacing treatment for labels that need less horizontal room. */
+  density?: SegmentedDensity;
   /**
    * When true, the group gives every segment the native `disabled` attribute, so the selected value
    * remains visible but cannot receive sequential focus or change. Used for the frozen week-start
@@ -73,10 +91,19 @@ export function SegmentedControl<T extends string | number>({
     <ToggleGroup
       type="single"
       variant="outline"
-      size="sm"
+      data-segmented-control
+      data-geometry={geometry}
+      data-density={density}
+      data-size={size}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
-      className={className}
+      className={cn(
+        "h-auto rounded-[calc(var(--segment-radius)+2px)] border border-input bg-background p-[2px] shadow-xs",
+        sizeClasses[size].radius,
+        geometry === "gapped" ? "gap-0.5" : "gap-0",
+        fullWidth && "flex w-full",
+        className,
+      )}
       value={encodedValue(value)}
       disabled={disabled}
       onValueChange={(next) => {
@@ -93,7 +120,14 @@ export function SegmentedControl<T extends string | number>({
           value={encodedValue(opt.value)}
           title={opt.title}
           data-form-dirty-managed
-          className={cn(selectedSegmentClass, itemClassName)}
+          className={cn(
+            "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none",
+            sizeClasses[size].item,
+            density === "compact" && "px-1.5 tracking-tighter",
+            selectedSegmentClass,
+            geometry === "connected" && connectedItemClass,
+            fullWidth && "flex-1 basis-0 min-w-0 justify-center truncate",
+          )}
         >
           {opt.label}
         </ToggleGroupItem>
