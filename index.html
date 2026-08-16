@@ -9,9 +9,7 @@
     <!-- Set the colour scheme before first paint so dark-mode users don't get a
          flash of light. Mirrors readStoredTheme()/resolveTheme() in
          src/lib/theme.ts (default: light); main.tsx re-applies + wires changes.
-         Reads the new `capacitylens/theme` key, falling back to the legacy `floaty/theme`
-         so a returning user still gets the right pre-paint scheme BEFORE main.tsx's
-         storage-key migration runs (the legacy fallback is removable a release later). -->
+         Reads the `capacitylens/theme` key. -->
     <script src="/theme-init.js"></script>
     <noscript>
       <!-- With scripting disabled, replace the transient/selective-blocking placeholder with the

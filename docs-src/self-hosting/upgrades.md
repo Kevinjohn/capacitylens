@@ -29,7 +29,7 @@ printf 'Database volume: %s\n' "$db_volume"
 
 If that name isn't `capacitylens_capacitylens-db`, take the prefix before
 `_capacitylens-db` and add it to your existing `.env`, for example
-`COMPOSE_PROJECT_NAME=floaty-v1`. Keep that override for the life of the install. After
+`COMPOSE_PROJECT_NAME=capacity-v1`. Keep that override for the life of the install. After
 pulling the new release, run `docker compose config` and confirm its three rendered
 physical volume names carry the same historical prefix before starting anything. If more
 than one candidate prefix exists, stop and identify the volume mounted by the old API

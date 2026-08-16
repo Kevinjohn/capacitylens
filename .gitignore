@@ -60,7 +60,6 @@ FORGE-DEPLOY-RUNBOOK.md
 .claude/
 .codex/
 plan__*.md
-floaty-copy.md
 shadcn-branch-plan.md
 CapacityLens.md
 loop-workflow.md

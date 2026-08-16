@@ -20,39 +20,11 @@ describe("readStoredTheme", () => {
     expect(readStoredTheme()).toBe("system");
   });
 
-  it.each(["light", "dark", "system"] as const)("migrates a legacy %s preference once", (preference) => {
-    localStorage.setItem("floaty/theme", preference);
-
-    expect(readStoredTheme()).toBe(preference);
-    expect(localStorage.getItem("capacitylens/theme")).toBe(preference);
-    expect(localStorage.getItem("floaty/theme")).toBeNull();
-  });
-
-  it("returns the migrated value when stale-key cleanup fails after the current key is written", () => {
-    localStorage.setItem("floaty/theme", "dark");
-    vi.spyOn(Storage.prototype, "removeItem").mockImplementation((key) => {
-      if (key === "floaty/theme") throw new Error("storage cleanup blocked");
+  it("falls back to light when storage cannot be read", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("storage disabled");
     });
-
-    expect(readStoredTheme()).toBe("dark");
-    expect(localStorage.getItem("capacitylens/theme")).toBe("dark");
-  });
-
-  it.each(["dark", "system"] as const)("uses legacy %s for this session when migration writing fails", (preference) => {
-    localStorage.setItem("floaty/theme", preference);
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
-      if (key === "capacitylens/theme") throw new Error("storage write blocked");
-    });
-
-    expect(readStoredTheme()).toBe(preference);
-  });
-
-  it("does not let a legacy preference override an explicit current value", () => {
-    localStorage.setItem("capacitylens/theme", "neon");
-    localStorage.setItem("floaty/theme", "dark");
-
     expect(readStoredTheme()).toBe("light");
-    expect(localStorage.getItem("floaty/theme")).toBe("dark");
   });
 
   it("falls back to light for an unrecognised stored value", () => {
