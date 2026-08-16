@@ -104,6 +104,9 @@ test.describe("Allocation editor", () => {
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
+    // 2026-06-13 is a Saturday: since #257 a new allocation cannot start outside the
+    // effective working week, so weekend-start repeats need the explicit override.
+    await dialog.getByRole("checkbox", { name: "Ignore working days" }).check();
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "every-three-weeks");
     await dialog.getByLabel("Repeat until").fill("2026-09-13");
     await expect(dialog).toContainText("Creates 5 linked allocations through Sun 13th Sep. Last start: Sat 5th Sep.");
@@ -120,6 +123,8 @@ test.describe("Allocation editor", () => {
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
     await dialog.getByLabel("Start Date").fill("2026-06-13");
     await dialog.getByLabel(/^End/).fill("2026-06-13");
+    // Saturday start needs the explicit override since #257 — see the test above.
+    await dialog.getByRole("checkbox", { name: "Ignore working days" }).check();
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
     await dialog.getByLabel("Repeat until").fill("2026-09-13");
     await expect(dialog).toContainText("Creates 4 linked allocations through Sun 13th Sep. Last start: Sun 13th Sep.");
@@ -157,6 +162,8 @@ test.describe("Allocation editor", () => {
     await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), "t-wires");
     await dialog.getByLabel("Start Date").fill("2027-01-31");
     await dialog.getByLabel(/^End/).fill("2027-01-31");
+    // 2027-01-31 is a Sunday: the day-31 anchor needs the override since #257.
+    await dialog.getByRole("checkbox", { name: "Ignore working days" }).check();
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "monthly");
     await dialog.getByLabel("Repeat until").fill("2027-04-30");
     await expect(dialog).toContainText("Creates 4 linked allocations through Fri 30th Apr. Last start: Fri 30th Apr.");
