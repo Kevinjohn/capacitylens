@@ -270,6 +270,12 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Continuous integration
 
+- `0.51.1-alpha.1` is a recorded release-process deviation: commit `a114c30` combined the version
+  and changelog update with the round-10 e2e refactor instead of landing it from a later,
+  version-only branch. The published history remains unchanged. A 2026-08-16 audit confirmed that
+  the tag workflows select `refs/tags/v*`, check out the tagged tree and build or attest that tree;
+  no release tooling assumes that the tagged commit changes only version files. The next release
+  returns to the required functional-branch-then-version-branch sequence.
 - Coverage thresholds and the main-entry bundle limits are standing regression boundaries, not
   automatic high-water-mark ratchets. Maintainers own them. A feature that reaches a boundary must
   first add focused tests, remove dead code or preserve lazy-loading/code-splitting as applicable.
