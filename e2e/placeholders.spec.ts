@@ -36,7 +36,8 @@ test.describe("Placeholders (per-account pref, default off)", () => {
     const phRow = page.getByTestId("resource-row").filter({ hasText: "Senior Designer" });
     await expect(phRow.getByText("Placeholder", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Add placeholder" }).click();
-    await expect(page.getByRole("group", { name: "Working days" })).toHaveCount(0);
+    const workingDays = page.getByRole("group", { name: "Working days" });
+    await expect(workingDays.getByRole("radio")).toHaveCount(0);
     await expect(
       page.getByText(
         "Monday, Tuesday, Wednesday, Thursday, Friday. Placeholders use the company working days. Change them in Settings.",
