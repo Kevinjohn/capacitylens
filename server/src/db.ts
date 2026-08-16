@@ -10,6 +10,7 @@ import {
 } from "@capacitylens/shared/data/internalClient";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import type { AppData } from "@capacitylens/shared/types/entities";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
 // keep resolving it from this module; the single definition lives in shared/types.
@@ -866,7 +867,14 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
 
     // Control tables are an idempotent every-boot repair boundary, not only a v8 migration helper.
     // Reserve the writer before inspecting them so a concurrent process cannot race the repair.
-    tx(db, () => ensureControlTables(db), "immediate");
+    tx(
+      db,
+      () => {
+        ensureControlTables(db);
+        repairEmptyAccountWorkingDays(db);
+      },
+      "immediate",
+    );
 
     assertSchemaCurrent(db);
     assertControlTablesCurrent(db);
@@ -976,6 +984,18 @@ function ensureInternalClients(db: Db): void {
       }
     }
   });
+}
+
+/** Every-boot data repair for alpha-era rows written before an empty company week became invalid. */
+function repairEmptyAccountWorkingDays(db: Db): void {
+  const rows = db.prepare(`SELECT id, weekStartsOn FROM accounts WHERE workingDays = '[]'`).all() as Array<{
+    id: string;
+    weekStartsOn: string | null;
+  }>;
+  const update = db.prepare(`UPDATE accounts SET workingDays = ? WHERE id = ?`);
+  for (const row of rows) {
+    update.run(JSON.stringify(normalizeAccountWorkingDays([], row.weekStartsOn === "0" ? 0 : 1)), row.id);
+  }
 }
 
 /** Database-v22 recovery for the historical generated-replacement path that could promote an

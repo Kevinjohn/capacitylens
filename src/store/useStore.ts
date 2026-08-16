@@ -707,8 +707,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // any day. The form guards this, but the store is the last line so no path can persist
   // it. (The import path instead REPAIRS an empty set to Mon–Fri — see sanitizeImport.)
   // The three guards share ONE shape rule — a distinct set of in-week weekday numbers, from the
-  // shared isWeekdaySet — and differ ONLY in the extra policy each adds: a resource must work at
-  // least one day, a company may legitimately work none, and a half day must be a working day.
+  // shared isWeekdaySet — and differ ONLY in the extra policy each adds: resources and companies
+  // must work at least one day, because company days now govern capacity and an empty company week
+  // would zero every person; a half day must also be a working day.
   const assertWorkingDays = (days: Weekday[]): void => {
     if (!isWeekdaySet(days) || days.length === 0) {
       throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");
@@ -717,6 +718,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
   const assertAccountWorkingDays = (days: Weekday[]): void => {
     if (!isWeekdaySet(days)) {
       throw new Error("Company working days must be unique whole-number weekdays from 0 to 6.");
+    }
+    if (days.length === 0) {
+      throw new Error("At least one company working day is required.");
     }
   };
   const assertHalfDays = (halfDays: Weekday[], workingDays: Weekday[]): void => {

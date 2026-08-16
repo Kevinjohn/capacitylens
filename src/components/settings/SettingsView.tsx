@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useAuth } from "../../auth/authContext";
 import { buildStamp, feedbackMailto } from "../../data/buildInfo";
 import { isServerConfigured } from "../../data/apiConfig";
@@ -44,7 +44,7 @@ import { SettingsSection } from "./SettingsSection";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { weekdayLabel, weekdayShortLabel } from "../../lib/weekdays";
 import { Checkbox } from "../ui/checkbox";
-import { Field, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../ui/field";
 import { labelsFrom, toOptions, type LabelMessages } from "../../lib/metadata";
 import type { BarLabelPrefs, UtilizationPrefs } from "../../lib/displayPrefs";
 import { useExclusiveAction } from "../../hooks/useExclusiveAction";
@@ -86,6 +86,7 @@ const BAR_LABEL_MESSAGES: LabelMessages<keyof BarLabelPrefs> = {
 
 // App-level preferences, opened from the nav like the CRUD list pages.
 export function SettingsView() {
+  const workingDaysMinimumId = useId();
   const canEdit = useCanEdit();
   // ONE data subscription: every per-account read below goes through a `*For(data, id)` selector,
   // and the offline opt-in caches the whole slice, so a separate `s.data.accounts` subscription
@@ -259,7 +260,15 @@ export function SettingsView() {
           />
         </SettingsSection>
 
-        <SettingsSection title={m.settings_working_days_heading()} help={m.settings_working_days_intro()}>
+        <SettingsSection
+          title={m.settings_working_days_heading()}
+          help={
+            <>
+              <p>{m.settings_working_days_intro()}</p>
+              <p>{m.settings_working_days_impact()}</p>
+            </>
+          }
+        >
           <FieldSet>
             <FieldLegend variant="label" className="sr-only">
               {m.settings_working_days_legend()}
@@ -279,17 +288,22 @@ export function SettingsView() {
                   {workingDayOrder.map((day) => {
                     const id = `account-working-day-${day}`;
                     const checked = workingDays.includes(day);
+                    // Live-disable rather than submit-time validation (the resource form's
+                    // strategy for the same min-one rule): this table saves per toggle, so a
+                    // refused click must be impossible, not rejected after it appears to save.
+                    const isOnlyWorkingDay = checked && workingDays.length === 1;
                     return (
                       <td key={day} className="px-1 text-center">
                         <Field
                           orientation="horizontal"
-                          data-disabled={!canEdit || undefined}
+                          data-disabled={!canEdit || isOnlyWorkingDay || undefined}
                           className="justify-center gap-0"
                         >
                           <Checkbox
                             id={id}
                             checked={checked}
-                            disabled={!canEdit}
+                            disabled={!canEdit || isOnlyWorkingDay}
+                            aria-describedby={isOnlyWorkingDay ? workingDaysMinimumId : undefined}
                             onCheckedChange={() =>
                               updateSetting({
                                 workingDays: checked
@@ -308,6 +322,9 @@ export function SettingsView() {
                 </tr>
               </tbody>
             </table>
+            {workingDays.length === 1 && (
+              <FieldDescription id={workingDaysMinimumId}>{m.settings_working_days_min_one()}</FieldDescription>
+            )}
           </FieldSet>
         </SettingsSection>
 

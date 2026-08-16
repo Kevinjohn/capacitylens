@@ -443,7 +443,7 @@ describe("sanitizeAccount", () => {
   it("repairs account working days from the configured week while preserving valid selections", () => {
     expect(sanitizeAccount({ weekStartsOn: 0 }).workingDays).toEqual([0, 1, 2, 3, 4]);
     expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [5, 1, 5] }).workingDays).toEqual([1, 5]);
-    expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [] }).workingDays).toEqual([]);
+    expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [] }).workingDays).toEqual([1, 2, 3, 4, 5]);
     expect(sanitizeAccount({ weekStartsOn: 1, workingDays: [1, 9] }).workingDays).toEqual([1, 2, 3, 4, 5]);
   });
 

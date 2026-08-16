@@ -1269,6 +1269,38 @@ describe("schema migration of an existing on-disk DB", () => {
     db.close();
   });
 
+  it("repairs raw empty account working weeks on every boot without a schema migration", () => {
+    const db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "a-monday",
+      name: "Wayne Enterprises",
+      color: "#5c34d4",
+      weekStartsOn: 1,
+      workingDays: [1],
+      createdAt: TS,
+      updatedAt: TS,
+    });
+    insertRow(db, "accounts", {
+      id: "a-sunday",
+      name: "Stark Industries",
+      color: "#5c34d4",
+      weekStartsOn: 0,
+      workingDays: [0],
+      createdAt: TS,
+      updatedAt: TS,
+    });
+    db.exec(`UPDATE accounts SET workingDays = '[]';`);
+
+    initializeOpenDb(db, ":memory:");
+
+    expect(db.prepare(`SELECT id, workingDays FROM accounts ORDER BY id`).all()).toEqual([
+      { id: "a-monday", workingDays: "[1,2,3,4,5]" },
+      { id: "a-sunday", workingDays: "[0,1,2,3,4]" },
+    ]);
+    expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION);
+    db.close();
+  });
+
   it("treats migrations committed by a concurrent boot after planning as already applied", () => {
     const copied = copyFixture("v16-off.db");
     try {

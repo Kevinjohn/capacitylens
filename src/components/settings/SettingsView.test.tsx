@@ -160,6 +160,25 @@ describe("SettingsView — global working days", () => {
     );
   });
 
+  it("warns that calendar changes reinterpret existing allocations without moving their dates", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    await user.click(screen.getByRole("button", { name: "About Global working days" }));
+
+    expect(
+      screen.getByText(
+        "New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto recurring non-working days. Time off remains separate.",
+        { exact: false },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Changing global working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("reorders from Sunday without changing an explicit saved selection", () => {
     useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
     render(<SettingsView />);
@@ -189,21 +208,26 @@ describe("SettingsView — global working days", () => {
   });
 });
 
-describe("#257 characterization: empty company working week baseline", () => {
-  // FLIPS in Phase 6 when Settings prevents the final checked day from being cleared.
-  it("allows all seven company working days to remain unchecked and persists the empty set", async () => {
+describe("SettingsView — minimum company working week", () => {
+  it("disables and explains the final checked day without attempting an empty save", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
 
-    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday"]) {
       await user.click(screen.getByRole("checkbox", { name: day }));
     }
 
-    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
-      expect(screen.getByRole("checkbox", { name: day })).not.toBeChecked();
-    }
+    const friday = screen.getByRole("checkbox", { name: "Friday" });
+    const explanation = screen.getByText("At least one company working day is required.");
+    expect(friday).toBeChecked();
+    expect(friday).toBeDisabled();
+    expect(explanation).toBeVisible();
+    expect(friday).toHaveAttribute("aria-describedby", explanation.id);
+
+    await user.click(friday);
+
     expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual(
-      [],
+      [5],
     );
   });
 });
