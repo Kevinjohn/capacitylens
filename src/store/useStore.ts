@@ -59,7 +59,6 @@ import type {
   Project,
   Resource,
   ResourceEngagement,
-  ResourceKind,
   ScopedEntityKey,
   Activity,
   TimeOff,
@@ -80,15 +79,9 @@ import { isWeekdaySet, normalizeAccountWorkingDays } from "@capacitylens/shared/
 // rely on. Excluding the field at the type level is the guard; the store also strips it defensively at
 // runtime (see addClient/updateClient).
 type DraftFields<T extends Entity> = Omit<T, "id" | "accountId" | "createdAt" | "updatedAt" | "builtin">;
-type ResourceDraftBase = Omit<DraftFields<Resource>, "kind" | "halfDays" | "engagement" | "workingDays"> & {
-  halfDays?: Weekday[];
+type ResourceDraft = Omit<DraftFields<Resource>, "engagement"> & {
   engagement?: ResourceEngagement;
 };
-type ResourceDraft = ResourceDraftBase &
-  (
-    | { kind: Exclude<ResourceKind, "placeholder">; workingDays: Weekday[] }
-    | { kind: "placeholder"; workingDays?: Weekday[] }
-  );
 export type Draft<T extends Entity> = T extends Resource ? ResourceDraft : DraftFields<T>;
 export type Patch<T extends Entity> = Partial<Draft<T>>;
 
@@ -1147,11 +1140,11 @@ export const useStore = create<StoreState>()((set, get, store) => {
 
     addResource: guardedAdd(
       (input: Draft<Resource>): Resource => {
-        // Placeholder drafts may omit their inert pattern. Other programmatic callers written
-        // before half-day patterns existed retain full days via the empty half-day default.
+        // Placeholder drafts carry inert defaults for a complete entity contract; normalise them
+        // again here so the store remains the authoritative last line for persisted values.
         const workingPattern = isPlaceholderResource(input)
           ? placeholderCapacityDefaults()
-          : { workingDays: input.workingDays, halfDays: input.halfDays ?? [] };
+          : { workingDays: input.workingDays, halfDays: input.halfDays };
         return {
           ...input,
           ...workingPattern,

@@ -23,6 +23,7 @@ import { weekdayLabel } from "../../lib/weekdays";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   FULL_DAY_HOURS,
+  placeholderCapacityDefaults,
   type Resource,
   type ResourceEngagement,
   type ResourceKind,
@@ -159,7 +160,7 @@ export function ResourceForm({
       color: resource?.color ?? DEFAULT_COLORS.resource,
     };
     const patch = isPlaceholder
-      ? { ...basePatch, kind: "placeholder" as const }
+      ? { ...basePatch, kind: "placeholder" as const, ...placeholderCapacityDefaults() }
       : { ...basePatch, kind, workingDays, halfDays };
     // Surface a store-side rejection (e.g. a dangling disciplineId/placeholder projectId, or the
     // empty-working-days backstop) as a form error rather than an uncaught React error — see the
