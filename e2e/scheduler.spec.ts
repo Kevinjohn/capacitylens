@@ -161,22 +161,37 @@ test.describe("Scheduler", () => {
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before + 1);
   });
 
-  test("drags a bar to move it later", async ({ page }) => {
+  test("drags a bar to move it later", async ({ page }, testInfo) => {
     await openApp(page);
     await setZoom(page, 4);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
+    const lane = bar.locator('xpath=ancestor::*[@data-testid="resource-lane"]');
     const b0 = await box(bar);
     const cx = b0.x + b0.width / 2;
     const cy = b0.y + b0.height / 2;
+    const dragX = cx + 240;
 
     await page.mouse.move(cx, cy);
     await page.mouse.down();
-    await page.mouse.move(cx + 60, cy, { steps: 8 }); // ~1 day right
+    await page.mouse.move(dragX, cy, { steps: 8 }); // several days right
     await page.mouse.up();
 
     const b1 = await box(bar);
     expect(b1.x).toBeGreaterThan(b0.x + 20);
+
+    const laneBounds = await box(lane);
+    await page.screenshot({
+      path: testInfo.outputPath("day_add_hint_after_drag.png"),
+      clip: { x: cx - 100, y: laneBounds.y, width: 440, height: laneBounds.height },
+    });
+    await expect(lane.getByTestId("day-add-hint")).toHaveCount(0);
+
+    const hoverX = cx;
+    await page.mouse.move(hoverX, cy);
+    const hint = await box(lane.getByTestId("day-add-hint"));
+    expect(hoverX).toBeGreaterThanOrEqual(hint.x);
+    expect(hoverX).toBeLessThanOrEqual(hint.x + hint.width);
   });
 
   test("resizes a bar via its end handle", async ({ page }) => {
