@@ -328,6 +328,7 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       break;
     case "timeOff":
       rec.type = oneOf(rec.type, VALID_TIMEOFF, "other");
+      if (rec.resourceId === null && (rec.type === "sick" || rec.type === "unpaid")) rec.type = "other";
       rec.startDate = normalizeISODate(rec.startDate);
       rec.endDate = normalizeISODate(rec.endDate);
       cleanField(rec, "note", true);

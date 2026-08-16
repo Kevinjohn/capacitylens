@@ -29,6 +29,7 @@ import type {
   ScopedEntityKey,
   Activity,
   TimeOff,
+  TimeOffType,
 } from "../types/entities";
 
 /**
@@ -404,7 +405,8 @@ export function assertResourceKindAllowsDependents(
   // A loaded allocation OR any time-off both vanish from the scheduler once the resource is external.
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
-  const owns = (e: Allocation | TimeOff) => e.resourceId === resourceId && belongsToAccount(e, accountId);
+  const owns = (e: Allocation | TimeOff) =>
+    e.resourceId !== null && e.resourceId === resourceId && belongsToAccount(e, accountId);
   const hasLoadedAllocation = lookup
     ? lookup.resourceHasLoadedAllocation(accountId, resourceId)
     : data.allocations.some((a) => owns(a) && a.hoursPerDay !== 0);
@@ -522,14 +524,19 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
  * time off is meaningless for it (the scheduler hides external time-off entirely): the form
  * omits externals from the picker AND rejects a crafted pick, so enforce the SAME rule here
  * so a direct store / API write can't persist an invisible orphan.
+ *
+ * `null` is the company-wide "Everyone" entry (#372): there is no resource to check, so it is
+ * always valid here — accepting it inside the assert keeps every current and future call site
+ * from having to remember the skip.
  */
 export function assertResourceExists(
   data: AppData,
   accountId: ID,
-  resourceId: ID,
+  resourceId: ID | null,
   existing?: Pick<TimeOff, "resourceId">,
   lookup?: ValidationDataLookup,
 ): void {
+  if (resourceId === null) return;
   const resource = ownedRow<Resource>(data, "resources", resourceId, accountId, lookup);
   if (!resource) {
     domainError("time_off_resource_invalid", "Time off must reference an existing resource in this company.");
@@ -539,6 +546,18 @@ export function assertResourceExists(
   }
   if (isExternalResource(resource)) {
     domainError("time_off_external_resource", "Time off can’t be recorded for an external / 3rd-party resource.");
+  }
+}
+
+/**
+ * A company-wide "Everyone" entry describes the agency being shut, so only `holiday`/`other`
+ * make sense — sick and unpaid leave are personal by nature (#372 decision 8). Imports REPAIR
+ * such values to `other` (a bulk file is reconciled, not rejected); interactive store and
+ * direct API writes reject them here so both boundaries share one contract point.
+ */
+export function assertCompanyWideTimeOffType(resourceId: ID | null, type: TimeOffType): void {
+  if (resourceId === null && (type === "sick" || type === "unpaid")) {
+    domainError("time_off_company_wide_type", "Company-wide time off must use holiday or other.");
   }
 }
 
@@ -785,12 +804,16 @@ export function remapAndValidateImport(
     return kept;
   }, []) as unknown as Array<Record<string, unknown>>;
   brought.timeOff = (brought.timeOff as unknown as TimeOff[]).reduce<TimeOff[]>((kept, t) => {
+    if (!validateDateRange(t.startDate, t.endDate).ok) return kept;
+    if (t.resourceId === null) {
+      kept.push(t);
+      return kept;
+    }
     // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
     // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
     // same rule here keeps import from landing an invisible orphan a hand-edited file could carry.
     const resource = resources.get(t.resourceId);
-    if (resource === undefined || isExternalResource(resource) || !validateDateRange(t.startDate, t.endDate).ok)
-      return kept;
+    if (resource === undefined || isExternalResource(resource)) return kept;
     // Medical/absence detail is the most sensitive dependent free text. Match the lifecycle delete
     // path by retaining the valid scheduling record while removing its note for a deleted person.
     kept.push(resource.deletedAt !== undefined && t.note !== undefined ? { ...t, note: undefined } : t);

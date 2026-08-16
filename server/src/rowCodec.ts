@@ -34,7 +34,7 @@ export function fromRow(spec: TableSpec, row: Row): Row {
   for (const c of spec.columns) {
     const v = row[c.name];
     if (v === null || v === undefined) {
-      if (!c.optional) obj[c.name] = v; // required column: keep as-is (shouldn't be null)
+      if (!c.optional || (v === null && c.preserveNull)) obj[c.name] = v;
       continue;
     }
     if (c.json) {

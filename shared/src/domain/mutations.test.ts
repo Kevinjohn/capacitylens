@@ -113,7 +113,7 @@ const allocation = (
   status: "confirmed",
   ...o,
 });
-const timeOff = (id: ID, accountId: ID, resourceId: ID, o: Partial<TimeOff> = {}): TimeOff => ({
+const timeOff = (id: ID, accountId: ID, resourceId: ID | null, o: Partial<TimeOff> = {}): TimeOff => ({
   ...meta(id, accountId),
   resourceId,
   startDate: "2026-01-01",
@@ -781,6 +781,15 @@ describe("assertResourceKindAllowsDependents", () => {
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).toThrow(reject);
   });
 
+  it("ignores company-wide time off when making a resource external", () => {
+    const data: AppData = {
+      ...base(),
+      resources: [person("r1", A1)],
+      timeOff: [timeOff("company", A1, null)],
+    };
+    expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
+  });
+
   it("allows making external a resource whose only allocation carries a zero load (already valid for an external)", () => {
     const data: AppData = {
       ...base(),
@@ -1050,6 +1059,29 @@ describe("remapAndValidateImport", () => {
     const { data, skipped } = remapAndValidateImport(base(), A1, bad, TS);
     expect(data.allocations).toHaveLength(1); // only the valid one survives
     expect(skipped).toBe(3); // 2 bad allocations + 1 dangling time-off
+  });
+
+  it("keeps company-wide time off when the import has no resources", () => {
+    const companyTimeOff = timeOff("company", "src-acct", null, {
+      startDate: "2026-12-24",
+      endDate: "2026-12-25",
+    });
+    const { data, imported, skipped } = remapAndValidateImport(
+      base(),
+      A1,
+      { ...emptyAppData(), timeOff: [companyTimeOff] },
+      TS,
+    );
+
+    expect(data.timeOff).toHaveLength(1);
+    expect(data.timeOff[0]).toMatchObject({
+      accountId: A1,
+      resourceId: null,
+      startDate: "2026-12-24",
+      endDate: "2026-12-25",
+    });
+    expect(imported).toBe(1);
+    expect(skipped).toBe(0);
   });
 
   it("drops imported allocation and time-off ranges beyond the calendar-span bound", () => {

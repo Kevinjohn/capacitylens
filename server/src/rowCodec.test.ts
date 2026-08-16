@@ -50,4 +50,23 @@ describe("rowCodec", () => {
       }),
     ).toThrow(/Corrupt JSON in accounts\.weekStartsOn \(id=a-broken\)/);
   });
+
+  it("preserves explicit SQL null for company-wide time off", () => {
+    const timeOff = TABLES.timeOff;
+    const databaseRow = {
+      id: "to1",
+      accountId: "a1",
+      resourceId: null,
+      startDate: "2026-12-24",
+      endDate: "2026-12-25",
+      type: "holiday",
+      note: null,
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    expect(fromRow(timeOff, databaseRow)).toMatchObject({ resourceId: null });
+    expect(fromRow(timeOff, { ...databaseRow, resourceId: undefined })).not.toHaveProperty("resourceId");
+    expect(toRow(timeOff, { resourceId: null })[2]).toBeNull();
+    expect(toRow(timeOff, {})[2]).toBeNull();
+  });
 });

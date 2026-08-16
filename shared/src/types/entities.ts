@@ -241,7 +241,8 @@ export interface Allocation extends ScopedEntity {
 }
 
 export interface TimeOff extends ScopedEntity {
-  resourceId: ID;
+  /** The resource taking time off, or `null` when the entry applies company-wide to Everyone. */
+  resourceId: ID | null;
   startDate: ISODate; // inclusive
   endDate: ISODate; // inclusive
   type: TimeOffType;
@@ -413,8 +414,9 @@ export function externalCapacityDefaults(): Pick<
  *  Resource.engagement, defaulting legacy resources to Studio; v13 adds the optional account-wide
  *  groupResourcesByEngagement view preference, whose absence means enabled; v14 adds account-wide
  *  working days, defaulting legacy accounts to the first five days of their configured week; v15
- *  adds optional Allocation.seriesId without inferring links for legacy repeat batches.) */
-export const EXPORT_SCHEMA_VERSION = 15;
+ *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
+ *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone.) */
+export const EXPORT_SCHEMA_VERSION = 16;
 
 export interface PersistedState {
   schemaVersion: number;

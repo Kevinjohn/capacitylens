@@ -329,6 +329,12 @@ function migrateV14toV15(data: Record<string, unknown>): Record<string, unknown>
   return data;
 }
 
+// v15 → v16 widens TimeOff.resourceId to nullable so one row can represent company-wide time
+// off. Existing personal rows already have the current shape and remain byte-for-byte unchanged.
+function migrateV15toV16(data: Record<string, unknown>): Record<string, unknown> {
+  return data;
+}
+
 /** One versioned step: run `apply` when the blob predates `version`. */
 interface MigrationStep {
   readonly version: number;
@@ -357,6 +363,7 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 13, apply: migrateV12toV13 }, // no-op: Account.groupResourcesByEngagement
   { version: 14, apply: migrateV13toV14 },
   { version: 15, apply: migrateV14toV15 }, // no-op: repeat-series identity is forward-only
+  { version: 16, apply: migrateV15toV16 }, // no-op: TimeOff.resourceId is widened to nullable
 ];
 
 export interface MigrationWithRepairBase {

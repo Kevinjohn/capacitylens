@@ -116,10 +116,15 @@ const V31_ALLOCATIONS: TableSpec = {
   ...TABLES.allocations,
   columns: TABLES.allocations.columns.filter((column) => column.name !== "seriesId"),
 };
+const V32_TIME_OFF: TableSpec = {
+  ...TABLES.timeOff,
+  columns: TABLES.timeOff.columns.map((column) => (column.name === "resourceId" ? { name: column.name } : column)),
+};
 const V27_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V29_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
+  timeOff: V32_TIME_OFF,
   resources: {
     ...TABLES.resources,
     columns: TABLES.resources.columns.filter((column) => column.name !== "halfDays" && column.name !== "engagement"),
@@ -129,6 +134,7 @@ const V28_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V29_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
+  timeOff: V32_TIME_OFF,
   resources: {
     ...TABLES.resources,
     columns: TABLES.resources.columns.filter((column) => column.name !== "engagement"),
@@ -138,15 +144,22 @@ const V29_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V29_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
+  timeOff: V32_TIME_OFF,
 };
 const V30_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: V30_ACCOUNTS,
   allocations: V31_ALLOCATIONS,
+  timeOff: V32_TIME_OFF,
 };
 const V31_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   allocations: V31_ALLOCATIONS,
+  timeOff: V32_TIME_OFF,
+};
+const V32_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  timeOff: V32_TIME_OFF,
 };
 
 /**
@@ -348,7 +361,11 @@ function assertSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>, allo
       if (col.name === "id") continue; // TEXT PRIMARY KEY: PRAGMA reports notnull=0 on older DDL
       const liveNotNull = liveColumn.notnull === 1;
       const specNotNull = !col.optional;
-      if (liveNotNull !== specNotNull) {
+      // Historical migrations may be replayed in tests or an idempotent recovery against the
+      // already-widened v33 shape. Nullable resourceId is forward-compatible with every personal
+      // v8-v32 row; the current TABLES assertion still requires it because its spec is optional.
+      const compatibleV33Widening = table === "timeOff" && col.name === "resourceId" && specNotNull && !liveNotNull;
+      if (liveNotNull !== specNotNull && !compatibleV33Widening) {
         nullabilityProblems.push(
           `${table}.${col.name} (spec ${specNotNull ? "required" : "optional"}, ` +
             `DB ${liveNotNull ? "NOT NULL" : "nullable"})`,
@@ -541,6 +558,11 @@ export function assertSchemaV30(db: Db): void {
 /** Assert the released v31 shape without requiring the v32 allocation series column. */
 export function assertSchemaV31(db: Db): void {
   assertSchemaVersion(db, V31_TABLES, true);
+}
+
+/** Assert the released v32 shape without requiring nullable company-wide time off. */
+export function assertSchemaV32(db: Db): void {
+  assertSchemaVersion(db, V32_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

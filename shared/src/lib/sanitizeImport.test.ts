@@ -152,6 +152,20 @@ describe("sanitizeImportedRecord", () => {
     expect(sanitizeImportedRecord("timeOff", { type: "vacation" }).type).toBe("other");
   });
 
+  it("preserves company-wide null distinctly and repairs unsupported Everyone types", () => {
+    expect(sanitizeImportedRecord("timeOff", { resourceId: null, type: "holiday" })).toMatchObject({
+      resourceId: null,
+      type: "holiday",
+    });
+    expect(sanitizeImportedRecord("timeOff", { resourceId: null, type: "sick" }).type).toBe("other");
+    expect(sanitizeImportedRecord("timeOff", { resourceId: null, type: "unpaid" }).type).toBe("other");
+    expect(sanitizeImportedRecord("timeOff", { type: "holiday" })).not.toHaveProperty("resourceId");
+  });
+
+  it.each(["holiday", "sick", "unpaid", "other"] as const)("preserves personal time-off type %s", (type) => {
+    expect(sanitizeImportedRecord("timeOff", { resourceId: "r1", type }).type).toBe(type);
+  });
+
   it("repairs a padded non-preset hex colour to its nearest preset", () => {
     expect(sanitizeImportedRecord("clients", { color: "  #aAbBcC  " }).color).toBe(snapToPresetColor("#aabbcc"));
   });
