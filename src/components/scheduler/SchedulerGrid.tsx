@@ -423,9 +423,9 @@ export function SchedulerGrid() {
             className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
           >
             {collapsed ? (
-              <ChevronRight data-icon="inline-start" className="text-faint" />
+              <ChevronRight data-icon="inline-start" className="text-scheduler-group-ink" />
             ) : (
-              <ChevronDown data-icon="inline-start" className="text-faint" />
+              <ChevronDown data-icon="inline-start" className="text-scheduler-group-ink" />
             )}
             <span
               className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
@@ -437,7 +437,7 @@ export function SchedulerGrid() {
         <div
           role="gridcell"
           aria-colindex={2}
-          className="flex shrink-0 items-center px-3 text-xs text-faint"
+          className="flex shrink-0 items-center px-3 text-xs text-scheduler-group-ink"
           style={{ width: geom.totalWidth }}
         >
           {collapsed

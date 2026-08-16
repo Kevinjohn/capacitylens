@@ -46,6 +46,7 @@
   --color-scheduler-row: var(--scheduler-row);
   --color-scheduler-header: var(--scheduler-header);
   --color-scheduler-group: var(--scheduler-group);
+  --color-scheduler-group-ink: var(--scheduler-group-ink);
   --color-ink: var(--c-ink);
   --color-faint: var(--c-faint);
   --color-brand: var(--c-brand);
@@ -156,6 +157,7 @@
   --scheduler-row: #ffffff;
   --scheduler-header: #f7f7f6;
   --scheduler-group: #f2f2f1;
+  --scheduler-group-ink: #636c7c;
   color-scheme: light;
 
   /* ShadCN semantic tokens share the established CapacityLens palette. Components
@@ -243,6 +245,7 @@
   --scheduler-row: #2c2c2c;
   --scheduler-header: #292929;
   --scheduler-group: #292929;
+  --scheduler-group-ink: #8b93a3;
   color-scheme: dark;
 
   /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */

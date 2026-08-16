@@ -14,12 +14,16 @@ const chromeTokens = {
     toolbar: "#d3d3cf",
     filterbar: "#e2e2df",
     canvas: "#ffffff",
+    group: "#f2f2f1",
+    groupInk: "#636c7c",
   },
   dark: {
     sidebar: "#0d0d0d",
     toolbar: "#1a1a1a",
     filterbar: "#242424",
     canvas: "#2c2c2c",
+    group: "#292929",
+    groupInk: "#8b93a3",
   },
 } as const;
 
@@ -49,9 +53,20 @@ describe("chrome depth tokens", () => {
     expect(contrastRatio("#8b93a3", canvas)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each([
+    ["light", chromeTokens.light],
+    ["dark", chromeTokens.dark],
+  ])("keeps the %s scheduler group ink AA on its tinted surface", (_theme, { group, groupInk }) => {
+    expect(contrastRatio(groupInk, group)).toBeGreaterThanOrEqual(4.6);
+  });
+
   it("gives every band control a shared surface with an explicit dark-theme override", () => {
-    expect(indexCss).toMatch(/\[data-chrome-band\][\s\S]*?\[data-slot="button"\]\[data-variant="outline"\][\s\S]*?\[data-slot="input"\][\s\S]*?\[data-slot="select-trigger"\]/);
-    expect(indexCss).toMatch(/:root\[data-theme="dark"\][\s\S]*?\[data-chrome-band\][\s\S]*?background-color:\s*var\(--chrome-control\)/);
+    expect(indexCss).toMatch(
+      /\[data-chrome-band\][\s\S]*?\[data-slot="button"\]\[data-variant="outline"\][\s\S]*?\[data-slot="input"\][\s\S]*?\[data-slot="select-trigger"\]/,
+    );
+    expect(indexCss).toMatch(
+      /:root\[data-theme="dark"\][\s\S]*?\[data-chrome-band\][\s\S]*?background-color:\s*var\(--chrome-control\)/,
+    );
   });
 });
 
