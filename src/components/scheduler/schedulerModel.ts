@@ -124,11 +124,6 @@ function timeOffLookup(
   };
 }
 
-/** Row-level list for hatch rendering and fallback capacity queries, with the same reuse rule. */
-function timeOffForRow(company: TimeOff[], personal: PersonalTimeOff[]): TimeOff[] {
-  return mergeTimeOff(company, personal);
-}
-
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
  *  (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
  *  lexicographic order IS chronological order and a plain string compare is a valid ordering. */
@@ -543,6 +538,21 @@ export function buildSchedulerModel({
     timelineEnd !== undefined &&
     rangesOverlap(row.startDate, row.endDate, timelineStart, timelineEnd);
 
+  const timeOffBlockFor = (t: TimeOff): TimeOffBlock => ({
+    id: t.id,
+    x: geom.xForDateInGeom(t.startDate),
+    width: geom.widthForDates(t.startDate, t.endDate),
+    label: timeOffTypeLabel(t.type),
+    note: t.note,
+  });
+  // Company closures are resource-invariant, so their render blocks are geometry-identical on
+  // every row: build the array ONCE and share it instead of re-filtering and re-allocating the
+  // same objects per row (which would also defeat memoization keyed on block identity).
+  const companyTimeOffBlocks: TimeOffBlock[] = partitionedTimeOff.company
+    .filter(intersectsTimeline)
+    .map(timeOffBlockFor);
+  const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
+
   /** A row's capacity view of its own data. External / 3rd-party rows have NO capacity: no
    *  over-markers, no utilisation, no time-off blocks — an awareness band, not a bookable lane. That
    *  STARVATION CONTRACT lives HERE, as capacity-free outputs behind the same shape the tracked path
@@ -551,9 +561,11 @@ export function buildSchedulerModel({
    *  genuinely tracked resource can be made unavailable by its own capacity. */
   interface CapacitySource {
     tracked: boolean;
-    /** The time off the row may show and be gated by — empty for a starved row, so a stray record
-     *  attached to an external resource can neither draw a block nor block creation. */
-    timeOff: TimeOff[];
+    /** The row's applicable time off covering one date, served from the per-date buckets so the
+     *  day loop never rescans a full row list. A starved (external) row surfaces ONLY the company
+     *  closures here — they gate its placement starts — so a stray personal record attached to an
+     *  external resource can neither draw a block nor block creation. */
+    timeOffOn: (date: ISODate) => TimeOff[];
     capacityOnDay: (date: ISODate) => DayCapacity;
     allocationCountOn: (date: ISODate) => number;
     timeOffCountOn: (date: ISODate) => number;
@@ -570,7 +582,8 @@ export function buildSchedulerModel({
     if (isExternalResource(resource)) {
       return {
         tracked: false,
-        timeOff: NO_TIME_OFF,
+        timeOffOn: (date) =>
+          capacityDateSet.has(date) ? (companyTimeOffByDate.get(date) ?? NO_TIME_OFF) : partitionedTimeOff.company,
         capacityOnDay: NO_CAPACITY,
         allocationCountOn: () => 0,
         timeOffCountOn: () => 0,
@@ -580,7 +593,7 @@ export function buildSchedulerModel({
     }
     // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
     const capacityAllocs = capacityAllocationsForMode(allocations, blocksMode);
-    const rowTimeOff = timeOffForRow(partitionedTimeOff.company, resTimeOff);
+    const rowTimeOff = mergeTimeOff(partitionedTimeOff.company, resTimeOff);
     // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
     // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
     // of making it rescan every allocation (and every time-off row) per day.
@@ -600,12 +613,13 @@ export function buildSchedulerModel({
       capacityByDate.set(date, computed);
       return computed;
     };
+    const timeOffOn = (date: ISODate) => (capacityDateSet.has(date) ? timeOffOnDate(date) : rowTimeOff);
     return {
       tracked: true,
-      timeOff: rowTimeOff,
+      timeOffOn,
       capacityOnDay,
       allocationCountOn: (date) => allocsByDate.get(date)?.length ?? 0,
-      timeOffCountOn: (date) => timeOffOnDate(date).length,
+      timeOffCountOn: (date) => timeOffOn(date).length,
       utilizationOver: (dates) => utilizationFromCapacity(dates.map(capacityOnDay)),
       overOn: (dates) => dates.some((date) => capacityOnDay(date).over),
     };
@@ -740,11 +754,12 @@ export function buildSchedulerModel({
           for (const date of days) {
             const cap = capacity.capacityOnDay(date);
             // Company-closed dates still receive the shared unavailable tint on EVERY row, starved
-            // or not, because allocation creation is blocked there for everyone.
+            // or not, because allocation creation is blocked there for everyone. The per-date
+            // bucket keeps this O(coverage) instead of rescanning the full row list each day.
             const creationBlocked = isCreationStartBlockedForEffectiveWeek(
               resource,
               date,
-              capacity.tracked ? capacity.timeOff : partitionedTimeOff.company,
+              capacity.timeOffOn(date),
               effectiveWeek,
             );
             const unavailable = (capacity.tracked && cap.available === 0) || creationBlocked;
@@ -765,13 +780,16 @@ export function buildSchedulerModel({
               hasTimeOff,
             });
           }
-          const timeOff: TimeOffBlock[] = capacity.timeOff.filter(intersectsTimeline).map((t) => ({
-            id: t.id,
-            x: geom.xForDateInGeom(t.startDate),
-            width: geom.widthForDates(t.startDate, t.endDate),
-            label: timeOffTypeLabel(t.type),
-            note: t.note,
-          }));
+          // Starved rows draw no blocks (see CapacitySource); tracked rows share the company
+          // array and reuse one side untouched when the other is empty, same as mergeTimeOff.
+          const personalTimeOffBlocks = resTimeOff.filter(intersectsTimeline).map(timeOffBlockFor);
+          const timeOff: TimeOffBlock[] = !capacity.tracked
+            ? NO_TIME_OFF_BLOCKS
+            : personalTimeOffBlocks.length === 0
+              ? companyTimeOffBlocks
+              : companyTimeOffBlocks.length === 0
+                ? personalTimeOffBlocks
+                : [...companyTimeOffBlocks, ...personalTimeOffBlocks];
           // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
           // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
           // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity

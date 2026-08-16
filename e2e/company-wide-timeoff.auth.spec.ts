@@ -171,9 +171,11 @@ test("an editor manages an Everyone closure through capacity, persistence and re
     })
     .not.toBe("");
 
-  // In-app navigation preserves the scheduler store, so the zoom set at sign-in still applies;
-  // only the full reload below needs setZoom again.
+  // setZoom after every return to the schedule is deliberately kept even though in-app navigation
+  // preserves the store: the (no-op) interaction gives the freshly mounted grid time to settle
+  // before resetSchedulerScroll, which otherwise races the scroll snap under suite load.
   await page.getByRole("link", { name: "Schedule" }).click();
+  await setZoom(page, 4);
   await resetSchedulerScroll(page);
   const holidayBlock = (lane: Locator) => lane.getByTestId("timeoff-block").filter({ hasText: "Holiday" });
   await expect(holidayBlock(barbaraLane)).toHaveCount(1);
@@ -216,6 +218,7 @@ test("an editor manages an Everyone closure through capacity, persistence and re
     .toBe(IDS.barbara);
 
   await page.getByRole("link", { name: "Schedule" }).click();
+  await setZoom(page, 4);
   await resetSchedulerScroll(page);
   await expect(holidayBlock(barbaraLane)).toHaveCount(1);
   await expect(holidayBlock(dickLane)).toHaveCount(0);
@@ -238,6 +241,7 @@ test("an editor manages an Everyone closure through capacity, persistence and re
     .toBe(false);
 
   await page.getByRole("link", { name: "Schedule" }).click();
+  await setZoom(page, 4);
   await resetSchedulerScroll(page);
   await expect(holidayBlock(barbaraLane)).toHaveCount(0);
   await expect(barbaraLane.getByTestId("over-marker")).toHaveCount(0);

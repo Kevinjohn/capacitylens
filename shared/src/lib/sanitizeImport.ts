@@ -10,6 +10,7 @@ import {
   externalCapacityDefaults,
   FULL_DAY_HOURS,
   INTERNAL_COLOUR_MODES,
+  COMPANY_WIDE_TIME_OFF_FALLBACK,
   isCompanyWideTimeOffType,
   type TimeOffType,
   type Account,
@@ -330,7 +331,8 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, rec: Record<string,
       break;
     case "timeOff":
       rec.type = oneOf(rec.type, VALID_TIMEOFF, "other");
-      if (rec.resourceId === null && !isCompanyWideTimeOffType(rec.type as TimeOffType)) rec.type = "other";
+      if (rec.resourceId === null && !isCompanyWideTimeOffType(rec.type as TimeOffType))
+        rec.type = COMPANY_WIDE_TIME_OFF_FALLBACK;
       rec.startDate = normalizeISODate(rec.startDate);
       rec.endDate = normalizeISODate(rec.endDate);
       cleanField(rec, "note", true);

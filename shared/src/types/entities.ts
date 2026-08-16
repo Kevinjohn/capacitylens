@@ -56,6 +56,12 @@ export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
  */
 export const COMPANY_WIDE_TIME_OFF_TYPES = ["holiday", "other"] as const satisfies readonly TimeOffType[];
 
+/** The semantically-neutral repair target when an Everyone entry carries a type outside the set
+ * (import repair, UI coercion). Declared beside the set so narrowing it can't strand a stale
+ * literal in a caller. */
+export const COMPANY_WIDE_TIME_OFF_FALLBACK: TimeOffType =
+  "other" satisfies (typeof COMPANY_WIDE_TIME_OFF_TYPES)[number];
+
 export function isCompanyWideTimeOffType(type: TimeOffType): boolean {
   return (COMPANY_WIDE_TIME_OFF_TYPES as readonly TimeOffType[]).includes(type);
 }

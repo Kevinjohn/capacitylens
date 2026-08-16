@@ -12,7 +12,11 @@ import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
 import { timeOffTypeOptions, resourceDisplayName } from "../../lib/metadata";
-import { isCompanyWideTimeOffType, isExternalResource } from "@capacitylens/shared/types/entities";
+import {
+  COMPANY_WIDE_TIME_OFF_FALLBACK,
+  isCompanyWideTimeOffType,
+  isExternalResource,
+} from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
 import { useRole } from "../../auth/permissionContext";
@@ -77,20 +81,23 @@ export function TimeOffForm({
   const typeOptions = timeOffTypeOptions().filter(
     (option) => !everyoneSelected || isCompanyWideTimeOffType(option.value),
   );
-
-  const changeResource = (nextResourceId: string) => {
-    setResourceId(nextResourceId);
-    if (nextResourceId === EVERYONE_RESOURCE_VALUE && !isCompanyWideTimeOffType(type)) setType("other");
-  };
+  // Derived, never destructive: `type` always holds the user's last EXPLICIT choice. While
+  // Everyone is selected an out-of-set choice (e.g. Sick) merely DISPLAYS and persists as the
+  // fallback; switching back to a person restores the original pick instead of silently
+  // rewriting a sick-leave entry to Other because Everyone was momentarily selected.
+  const effectiveType = everyoneSelected && !isCompanyWideTimeOffType(type) ? COMPANY_WIDE_TIME_OFF_FALLBACK : type;
 
   const submit = () => {
-    // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
-    // capacity (the picker omits them, but a draw on an external lane could seed one), so guard the
-    // write boundary too rather than persist an orphan time-off the schedule never renders.
-    const chosen = everyoneSelected ? null : resources.find((r) => r.id === resourceId);
-    if (!everyoneSelected && (!chosen || isExternalResource(chosen))) {
-      fail("resource", m.form_timeoff_err_choose_resource());
-      return;
+    const persistedResourceId = everyoneSelected ? null : resourceId;
+    if (persistedResourceId !== null) {
+      // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
+      // capacity (the picker omits them, but a draw on an external lane could seed one), so guard
+      // the write boundary too rather than persist an orphan time-off the schedule never renders.
+      const chosen = resources.find((r) => r.id === persistedResourceId);
+      if (!chosen || isExternalResource(chosen)) {
+        fail("resource", m.form_timeoff_err_choose_resource());
+        return;
+      }
     }
     if (!startDate || !endDate) {
       fail("dates", m.form_timeoff_err_dates_required());
@@ -100,7 +107,7 @@ export function TimeOffForm({
       fail("dates", m.form_timeoff_err_end_before_start());
       return;
     }
-    const basePatch = { resourceId: everyoneSelected ? null : resourceId, startDate, endDate, type };
+    const basePatch = { resourceId: persistedResourceId, startDate, endDate, type: effectiveType };
     let cleanNote: string | undefined;
     if (canEditNote) {
       const validatedNote = validateText(note, fail, {
@@ -137,7 +144,7 @@ export function TimeOffForm({
       <SelectField
         label={m.form_timeoff_resource_label()}
         value={resourceId}
-        onChange={changeResource}
+        onChange={setResourceId}
         options={resourceOptions}
         placeholder={m.form_timeoff_select_resource_placeholder()}
         required
@@ -165,7 +172,7 @@ export function TimeOffForm({
       />
       <SelectField
         label={m.form_timeoff_type_label()}
-        value={type}
+        value={effectiveType}
         onChange={(v) => setType(v as TimeOffType)}
         options={typeOptions}
         layout="label-control"
