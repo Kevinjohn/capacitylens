@@ -76,8 +76,11 @@ unless your company has turned that convenience off in [Settings](/guide/setting
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
 single-line.
 
-Leave **Ignore working days** unchecked to follow the person's working pattern. Check it when the
-allocation must use every calendar day in its date span, including personal non-working weekdays.
+Leave **Ignore working days** unchecked to follow the person's effective working week — the days
+in both the company's [global working days](/guide/settings#global-working-days) and their own
+pattern. Check it when the allocation must use every calendar day in its date span, including
+company and personal non-working weekdays. Either way, a new allocation must start on an effective
+working day unless the checkbox is ticked; time off is never bypassed.
 External-party allocations already use literal calendar spans, so they do not show this checkbox.
 On a regular-width screen, the form keeps its labels in a narrow left column and aligns the controls
 on the right. On a narrow screen, each label stacks above its control so nothing is clipped.

@@ -373,7 +373,8 @@ Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` ra
 is a single-line text field. A historical multiline note remains byte-for-byte intact when another
 field is edited and saved; editing the note itself adopts the single-line value shown by the field.
 The allocation checkbox is labelled exactly `Ignore working days`. Unchecked, the allocation follows
-the assignee's personal working pattern; checked, it uses every calendar day in the date span. The
+the assignee's effective working week (the company's global working days intersected with their
+personal pattern); checked, it uses every calendar day in the date span. The
 control is hidden for external allocations, whose start/end span is already literal.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
@@ -448,7 +449,10 @@ that occurrence and all later starts in its series; earlier starts are untouched
 the Repeat choice. Duplicate is available only for unlinked allocations, where it creates one
 independent allocation; linked occurrences hide it. Capacity and time-off warnings count the
 generated allocations affected, remain advisory, and include conflicts between allocations in the
-same generated batch.
+same generated batch. The batch advisory also counts occurrences whose generated start lands on a
+non-effective working day (a monthly day-of-month cadence can drift onto one): the first occurrence
+must start on an effective day like any new allocation, but later occurrences are still created and
+simply load nothing there, so the count is informational rather than blocking.
 
 Linked-series bars show a repeat icon when space permits. Their hover/focus details and accessible
 name state **Series through <date>**, where the date is the end of the last surviving allocation in
@@ -531,15 +535,37 @@ configured week order. A new company selects the first five days of that week by
 (Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
 Changing the week-start presentation only reorders these controls; it never changes the saved
 selection. Editors and above may change the selection; Viewers can read it but cannot edit it.
-The account selection is the hard boundary for starting work in the schedule: the lane hover **+**
-is absent and a click or draw is rejected when its start date is globally non-working, outside the
-resource's personal working pattern, or covered by that resource's time off. A multi-day draw may
-still cross blocked dates after an allowed start. A new click/draw has no allocation-level override
-yet, so it cannot begin on a globally non-working date. Moving an existing allocation whose
-**Ignore working days** checkbox is already enabled is different: that explicit override permits a
-literal start on either a company or personal non-working date. These interaction rules do not
-change existing capacity/utilisation calculations; that separate question remains outside this
-behaviour.
+The selection cannot be emptied: when exactly one day remains checked, that checkbox is disabled
+(still visibly checked) and a visible explanation — `At least one company working day is
+required.` — is referenced from the checkbox via `aria-describedby`. The store rejects an empty
+company week outright, and every repair boundary (import, server write, startup) heals an empty or
+malformed stored selection to the week-start-aware default.
+
+The account selection governs **capacity**, not just interaction. Each capacity-tracked person's
+**effective working week** is the intersection of the company's global working days and their
+personal working pattern; External parties use the company set verbatim. A normal allocation
+schedules and loads hours only on effective days — a day it merely spans that is company- or
+personally-non-working stays grey and unavailable, contributes zero scheduled and zero available
+hours, and is excluded from utilisation on both sides of the ratio. Days- and Blocks-mode spans
+count their length in effective days, so the stored day count is preserved and the end date is
+reinterpreted when either calendar changes. A person whose intersection is empty has **no effective
+working days**: zero capacity everywhere, and no new work can be placed on them.
+
+New placement is gated at every entry point: the lane hover **+** is absent and a click or draw is
+rejected when its start date is not an effective working day or is covered by that resource's time
+off; a typed start date in the creation form, a **Duplicate**, and a reassignment to another person
+are all rejected with the same rule — new allocations must start on a company and personal working
+day. A multi-day draw may still cross blocked dates after an allowed start. **Ignore working days**
+is the explicit per-allocation escape hatch: it makes the saved allocation use every calendar day
+in its span (loading hours on company- and personally-non-working days, which then read as
+over-capacity), and moving an existing allocation with it enabled may land a literal start on
+either kind of non-working date. It never bypasses time off. Saving edits to an existing
+allocation stays permissive so historical records never trap the form.
+
+Changing the global selection **reinterprets** existing allocations rather than rewriting them:
+stored dates never move, but capacity, utilisation and conflicts are recalculated, so work on newly
+non-working days no longer counts unless the allocation has Ignore working days enabled. Time off
+remains a separate mechanism and a visible conflict rather than a calendar rule.
 
 **Schedule display (snap to week start).** The same Settings → **Schedule** section has a second
 switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
@@ -1328,10 +1354,11 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   working-day patterns migrate to full days and existing non-working weekdays remain non-working.
   A day is **over-allocated** when allocated > available
   (STRICTLY greater — exactly at capacity is NOT over). Allocated hours are **weekend-aware**: a
-  normal allocation does no work on the resource's non-working weekdays, so a weekend a bar merely
+  normal allocation does no work outside the resource's effective working week (company global
+  working days ∩ personal pattern), so a weekend or other non-effective day a bar merely
   **spans** is NOT over (it keeps only the grey unavailable tint). The zero-capacity days that DO
-  read as over are a **time-off** day a working allocation covers, and any personal non-working day an
-  allocation opts into via **Ignore working days** (`ignoreWeekends`). An over-allocated day renders
+  read as over are a **time-off** day a working allocation covers, and any company or personal
+  non-working day an allocation opts into via **Ignore working days** (`ignoreWeekends`). An over-allocated day renders
   with a **clear red background** (`data-testid="over-marker"`) plus a solid
   red top band, in both light and dark themes. When work overlaps time off, the red marker is
   composited above the holiday hatch while its label stays legible, and the allocation bar remains

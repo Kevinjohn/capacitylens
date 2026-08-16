@@ -44,7 +44,9 @@ vertically on a narrow screen, while the **Working days** grid remains full widt
 
 Working days drive the utilisation figures directly: CapacityLens compares that fixed
 8/4/0-hour pattern with the person's bookings to decide whether they're over capacity.
-Set the pattern correctly, or the overwork indicators on
+The days that count are those in both this pattern and the company's
+[global working days](/guide/settings#global-working-days) — a day outside either holds no
+capacity for this person. Set the pattern correctly, or the overwork indicators on
 [the schedule](/guide/the-schedule#reading-overwork) will be wrong for that person.
 
 Open **Engagement** to choose between the two company-facing groups. The current choice
