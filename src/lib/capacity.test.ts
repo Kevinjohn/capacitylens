@@ -230,6 +230,16 @@ describe("availability", () => {
     expect(isOnTimeOff("other", "2026-06-03", timeOff)).toBe(false);
   });
 
+  it("matches company-wide time off for people and placeholders while keeping personal entries scoped", () => {
+    const company = makeTimeOff({ resourceId: null, startDate: "2026-06-03", endDate: "2026-06-03" });
+    const personal = makeTimeOff({ id: "personal", resourceId: "r1", startDate: "2026-06-04", endDate: "2026-06-04" });
+
+    expect(isOnTimeOff("r1", "2026-06-03", [company, personal])).toBe(true);
+    expect(isOnTimeOff("placeholder-1", "2026-06-03", [company, personal])).toBe(true);
+    expect(isOnTimeOff("r1", "2026-06-04", [company, personal])).toBe(true);
+    expect(isOnTimeOff("placeholder-1", "2026-06-04", [company, personal])).toBe(false);
+  });
+
   it("uses fixed eight-hour full days, four-hour half days, and zero for non-working/time-off days", () => {
     expect(availableHoursOnDay(r, "2026-06-01", [])).toBe(8); // Monday
     expect(availableHoursOnDay(makeResource({ workingHoursPerDay: 6, halfDays: [2] }), "2026-06-02", [])).toBe(4);
@@ -562,6 +572,17 @@ describe("utilization", () => {
     ];
     expect(utilization(r, allocs, [], "2026-06-01", "2026-06-07")).toBe(0);
   });
+
+  it("excludes a company-closure day from both sides of utilisation", () => {
+    const allocations = [
+      makeAlloc({ id: "monday", startDate: "2026-06-01", endDate: "2026-06-01", hoursPerDay: 8 }),
+      makeAlloc({ id: "tuesday", startDate: "2026-06-02", endDate: "2026-06-02", hoursPerDay: 4 }),
+    ];
+    const closure = [makeTimeOff({ resourceId: null, startDate: "2026-06-01", endDate: "2026-06-01" })];
+
+    expect(utilization(r, allocations, [], "2026-06-01", "2026-06-02")).toBeCloseTo(0.75);
+    expect(utilization(r, allocations, closure, "2026-06-01", "2026-06-02")).toBeCloseTo(0.5);
+  });
 });
 
 // The near-term "over soon" radar is a `.some(day => day.over)` over the window's capacity — the
@@ -637,6 +658,15 @@ describe("capacityAdvisory", () => {
     );
     expect(timeOffDays).toBe(1);
     expect(overDays).toBe(4); // 06-03 is unavailable → not "over", the other 4 weekdays are
+  });
+
+  it("counts company-wide closure dates in the same advisory category", () => {
+    const closure = [makeTimeOff({ resourceId: null, startDate: "2026-06-03", endDate: "2026-06-03" })];
+
+    expect(capacityAdvisory(r, proposal("2026-06-01", "2026-06-05", 8, false), [], closure)).toEqual({
+      overDays: 0,
+      timeOffDays: 1,
+    });
   });
 
   it("does not count time off on non-working days (a weekend holiday costs no capacity)", () => {

@@ -16,7 +16,7 @@ import {
   type LifecycleAncestryRow,
   type LifecycleFields,
 } from "./lifecycle";
-import { isExternalResource, SCOPED_KEYS, scopedTables } from "../types/entities";
+import { isCompanyWideTimeOffType, isExternalResource, SCOPED_KEYS, scopedTables } from "../types/entities";
 import type {
   Allocation,
   AppData,
@@ -549,14 +549,11 @@ export function assertResourceExists(
   }
 }
 
-/**
- * A company-wide "Everyone" entry describes the agency being shut, so only `holiday`/`other`
- * make sense — sick and unpaid leave are personal by nature (#372 decision 8). Imports REPAIR
- * such values to `other` (a bulk file is reconciled, not rejected); interactive store and
- * direct API writes reject them here so both boundaries share one contract point.
- */
+/** Imports REPAIR invalid company-wide types to `other` (a bulk file is reconciled, not
+ * rejected); interactive store and direct API writes reject them here so both boundaries share
+ * one contract point. The allowed set itself lives beside TimeOffType in entities.ts. */
 export function assertCompanyWideTimeOffType(resourceId: ID | null, type: TimeOffType): void {
-  if (resourceId === null && (type === "sick" || type === "unpaid")) {
+  if (resourceId === null && !isCompanyWideTimeOffType(type)) {
     domainError("time_off_company_wide_type", "Company-wide time off must use holiday or other.");
   }
 }

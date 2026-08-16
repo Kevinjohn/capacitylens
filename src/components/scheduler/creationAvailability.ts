@@ -1,7 +1,6 @@
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWeekIncludes, effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { isOnTimeOff } from "../../lib/capacity";
 import type { ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 
@@ -54,9 +53,10 @@ function creationBlockedForCalendar(
   if (!ignoreWorkingDays && !calendarAllowsStart) {
     return "non-working";
   }
-  // Externals are an awareness band with no capacity of their own: only the company calendar above
-  // applies to them, never time off.
-  if (isExternalResource(resource)) return null;
+  // Externals stay exempt from personal time off, yet a company-wide closure gates them too: the
+  // agency is shut. One unconditional isOnTimeOff covers both, because the domain layer forbids a
+  // personal entry ever targeting an external (time_off_external_resource), so for an external
+  // only the company-wide rows can match.
   return isOnTimeOff(resource.id, date, timeOff) ? "time-off" : null;
 }
 

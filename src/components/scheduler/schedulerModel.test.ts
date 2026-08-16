@@ -662,6 +662,16 @@ describe("buildSchedulerModel", () => {
 
   it("refreshes visible utilisation without rebuilding static schedule rows", () => {
     const data = dataset();
+    data.timeOff.push({
+      id: "company-wednesday",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: null,
+      startDate: "2026-06-03",
+      endDate: "2026-06-03",
+      type: "holiday",
+    });
     const base = buildSchedulerModel({
       data,
       geom,
@@ -692,6 +702,7 @@ describe("buildSchedulerModel", () => {
     const utilisationByResource = (groups: GroupModel[]) =>
       Object.fromEntries(groups.flatMap((group) => group.rows.map((row) => [row.resource.id, row.utilization])));
     expect(utilisationByResource(refreshed)).toEqual(utilisationByResource(rebuilt));
+    expect(utilisationByResource(refreshed).r1).toBe(0.25);
 
     const baseRow = base[0]!.rows[0]!;
     const refreshedRow = refreshed[0]!.rows[0]!;
@@ -2143,6 +2154,152 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     expect(r2.dayStates[2]).toMatchObject({ unavailable: true, over: false, timeOffConflict: false });
   });
 
+  describe("company-wide time off", () => {
+    const companyData = (): AppData => {
+      const d = withExternal();
+      d.resources.push(
+        makeResource({
+          id: "placeholder-1",
+          accountId: "acct-test",
+          kind: "placeholder",
+          name: "Design placeholder",
+          role: "Designer",
+          disciplineId: "d-design",
+        }),
+      );
+      d.allocations.push({
+        id: "ignored-r2-saturday",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r2",
+        activityId: "t2",
+        startDate: "2026-06-06",
+        endDate: "2026-06-06",
+        hoursPerDay: 4,
+        status: "confirmed",
+        ignoreWeekends: true,
+      });
+      d.timeOff.push(
+        {
+          id: "company-wednesday",
+          accountId: "acct-test",
+          createdAt: "t",
+          updatedAt: "t",
+          resourceId: null,
+          startDate: "2026-06-03",
+          endDate: "2026-06-03",
+          type: "holiday",
+        },
+        {
+          id: "company-saturday",
+          accountId: "acct-test",
+          createdAt: "t",
+          updatedAt: "t",
+          resourceId: null,
+          startDate: "2026-06-06",
+          endDate: "2026-06-06",
+          type: "other",
+        },
+        {
+          id: "personal-r1-wednesday",
+          accountId: "acct-test",
+          createdAt: "t",
+          updatedAt: "t",
+          resourceId: "r1",
+          startDate: "2026-06-03",
+          endDate: "2026-06-03",
+          type: "holiday",
+        },
+      );
+      return d;
+    };
+
+    const buildCompany = (blocksMode = false) =>
+      buildSchedulerModel({
+        data: companyData(),
+        geom,
+        days,
+        visibleWindow: { start, end },
+        overSoonWindow: { start, end },
+        filters: emptyFilters(),
+        preferences: {
+          disciplinesEnabled: true,
+          placeholdersEnabled: true,
+          externalEnabled: true,
+          blocksMode,
+        },
+      });
+
+    it("applies closure capacity, hatches and conflict cells to every tracked row", () => {
+      const rows = buildCompany().flatMap((group) => group.rows);
+      const r1 = rows.find((row) => row.resource.id === "r1")!;
+      const r2 = rows.find((row) => row.resource.id === "r2")!;
+      const placeholder = rows.find((row) => row.resource.id === "placeholder-1")!;
+
+      // Wednesday: r1 has work (red), while r2 and the placeholder have only the grey closure.
+      expect(r1.dayStates[2]).toMatchObject({
+        unavailable: true,
+        hasTimeOff: true,
+        over: true,
+        timeOffConflict: true,
+      });
+      expect(r2.dayStates[2]).toMatchObject({
+        unavailable: true,
+        hasTimeOff: true,
+        over: false,
+        timeOffConflict: false,
+      });
+      expect(placeholder.dayStates[2]).toMatchObject({
+        unavailable: true,
+        hasTimeOff: true,
+        over: false,
+        timeOffConflict: false,
+      });
+
+      // Saturday is already recurring-off: the marker/hatch remains without red unless work opts in.
+      expect(r1.dayStates[5]).toMatchObject({ hasTimeOff: true, over: false, timeOffConflict: false });
+      expect(r2.dayStates[5]).toMatchObject({ hasTimeOff: true, over: true, timeOffConflict: true });
+      expect(r1.overSoon).toBe(true);
+      expect(placeholder.overSoon).toBe(false);
+
+      for (const row of [r1, r2, placeholder]) {
+        expect(row.timeOff.map((entry) => entry.id)).toEqual(
+          expect.arrayContaining(["company-wednesday", "company-saturday"]),
+        );
+        expect(row.timeOff.find((entry) => entry.id === "company-wednesday")?.label).toBeTruthy();
+      }
+      // The personal + Everyone overlap is one conflicting day, even though both hatch records render.
+      expect(r1.timeOff.map((entry) => entry.id)).toContain("personal-r1-wednesday");
+      expect(r1.conflictDayCount).toBe(1);
+    });
+
+    it("flags a zero-load Block overlapping a closure", () => {
+      const r1 = buildCompany(true)
+        .flatMap((group) => group.rows)
+        .find((row) => row.resource.id === "r1")!;
+
+      expect(r1.dayStates[2]).toMatchObject({ over: false, hasTimeOff: true, timeOffConflict: true });
+      expect(r1.conflictDayCount).toBe(1);
+    });
+
+    it("keeps external capacity starved while company closures still gate starts", () => {
+      const external = buildCompany().find((group) => group.external)!.rows[0]!;
+
+      expect(external.timeOff).toEqual([]);
+      expect(external.conflictDayCount).toBe(0);
+      expect(external.utilization).toBe(0);
+      expect(external.overSoon).toBe(false);
+      expect(external.dayStates[2]).toMatchObject({
+        creationBlocked: true,
+        unavailable: true,
+        hasTimeOff: false,
+        over: false,
+        timeOffConflict: false,
+      });
+    });
+  });
+
   it("external rows use literal {over:false, unavailable:false} day-states (real booleans, not an empty object)", () => {
     const model = buildSchedulerModel({
       data: withExternal(),
@@ -2760,6 +2917,16 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     ];
     d.timeOff = [
       {
+        id: "company-to",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: null,
+        startDate: "2026-06-03",
+        endDate: "2026-06-03",
+        type: "holiday",
+      },
+      {
         id: "to1",
         accountId: "acct-test",
         createdAt: "t",
@@ -2800,7 +2967,7 @@ describe("buildSchedulerModel — mutation-testing gap-fill", () => {
     for (const resourceId of ["r1", "r2"]) {
       const resource = d.resources.find((r) => r.id === resourceId)!;
       const allocs = d.allocations.filter((a) => a.resourceId === resourceId);
-      const off = d.timeOff.filter((t) => t.resourceId === resourceId);
+      const off = d.timeOff.filter((t) => t.resourceId === null || t.resourceId === resourceId);
       const row = rows.find((r) => r.resource.id === resourceId)!;
       const naiveTimeline = capacityForWindowOf(resource, allocs, off, days[0]!, days[days.length - 1]!);
       expect(row.dayStates).toEqual(

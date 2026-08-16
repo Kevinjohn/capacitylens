@@ -12,10 +12,14 @@ import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
 import { timeOffTypeOptions, resourceDisplayName } from "../../lib/metadata";
-import { isExternalResource } from "@capacitylens/shared/types/entities";
+import { isCompanyWideTimeOffType, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
 import { useRole } from "../../auth/permissionContext";
+
+// Radix uses the empty string for the unselected placeholder. Keep Everyone in a separate,
+// UI-only value domain and translate it to the persisted `null` company-assignee contract.
+const EVERYONE_RESOURCE_VALUE = "__capacitylens_everyone__";
 
 export function TimeOffForm({
   timeOff,
@@ -36,7 +40,9 @@ export function TimeOffForm({
   // Null is the OFF/demo/no-provider mode, where there is no server field projection to enforce.
   const canEditNote = role === null || canSeeTimeOffNote(role);
 
-  const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? "");
+  const [resourceId, setResourceId] = useState(
+    timeOff ? (timeOff.resourceId ?? EVERYONE_RESOURCE_VALUE) : (defaults?.resourceId ?? ""),
+  );
   const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO(calendarTimeZone));
   const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone));
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? "holiday");
@@ -63,14 +69,26 @@ export function TimeOffForm({
         .filter((r) => placeholdersEnabled || r.kind !== "placeholder" || r.id === resourceId),
     [resources, placeholdersEnabled, resourceId],
   );
-  const resourceOptions: Option[] = filteredResources.map((r) => ({ value: r.id, label: resourceDisplayName(r) }));
+  const resourceOptions: Option[] = [
+    { value: EVERYONE_RESOURCE_VALUE, label: m.form_timeoff_everyone_option() },
+    ...filteredResources.map((r) => ({ value: r.id, label: resourceDisplayName(r) })),
+  ];
+  const everyoneSelected = resourceId === EVERYONE_RESOURCE_VALUE;
+  const typeOptions = timeOffTypeOptions().filter(
+    (option) => !everyoneSelected || isCompanyWideTimeOffType(option.value),
+  );
+
+  const changeResource = (nextResourceId: string) => {
+    setResourceId(nextResourceId);
+    if (nextResourceId === EVERYONE_RESOURCE_VALUE && !isCompanyWideTimeOffType(type)) setType("other");
+  };
 
   const submit = () => {
     // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
     // capacity (the picker omits them, but a draw on an external lane could seed one), so guard the
     // write boundary too rather than persist an orphan time-off the schedule never renders.
-    const chosen = resources.find((r) => r.id === resourceId);
-    if (!chosen || isExternalResource(chosen)) {
+    const chosen = everyoneSelected ? null : resources.find((r) => r.id === resourceId);
+    if (!everyoneSelected && (!chosen || isExternalResource(chosen))) {
       fail("resource", m.form_timeoff_err_choose_resource());
       return;
     }
@@ -82,7 +100,7 @@ export function TimeOffForm({
       fail("dates", m.form_timeoff_err_end_before_start());
       return;
     }
-    const basePatch = { resourceId, startDate, endDate, type };
+    const basePatch = { resourceId: everyoneSelected ? null : resourceId, startDate, endDate, type };
     let cleanNote: string | undefined;
     if (canEditNote) {
       const validatedNote = validateText(note, fail, {
@@ -119,7 +137,7 @@ export function TimeOffForm({
       <SelectField
         label={m.form_timeoff_resource_label()}
         value={resourceId}
-        onChange={setResourceId}
+        onChange={changeResource}
         options={resourceOptions}
         placeholder={m.form_timeoff_select_resource_placeholder()}
         required
@@ -149,7 +167,7 @@ export function TimeOffForm({
         label={m.form_timeoff_type_label()}
         value={type}
         onChange={(v) => setType(v as TimeOffType)}
-        options={timeOffTypeOptions()}
+        options={typeOptions}
         layout="label-control"
       />
       {canEditNote && (

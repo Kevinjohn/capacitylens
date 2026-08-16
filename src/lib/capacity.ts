@@ -93,8 +93,17 @@ export function scheduledHoursOnDay(resource: Resource, date: ISODate, effective
   return scheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
+/** The entries that apply to this resource: their own plus every company-wide (null) closure.
+ * Callers that pre-filter a slice for capacity/advisory math must use this, not strict equality,
+ * or Everyone rows silently vanish from their tallies. */
+export function timeOffApplyingTo(resourceId: ID, timeOff: TimeOff[]): TimeOff[] {
+  return timeOff.filter((t) => t.resourceId === null || t.resourceId === resourceId);
+}
+
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
-  return timeOff.some((t) => t.resourceId === resourceId && isWithin(date, t.startDate, t.endDate));
+  return timeOff.some(
+    (t) => (t.resourceId === null || t.resourceId === resourceId) && isWithin(date, t.startDate, t.endDate),
+  );
 }
 
 function availableHoursForWeekday(

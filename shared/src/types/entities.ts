@@ -47,6 +47,18 @@ export type EmploymentType = "permanent" | "freelancer" | "contractor";
 /** How the agency regards a person, independently of contract status or discipline. */
 export type ResourceEngagement = "studio" | "supplementary";
 export type TimeOffType = "holiday" | "sick" | "unpaid" | "other";
+
+/**
+ * A company-wide "Everyone" entry describes the agency being shut, so only `holiday`/`other`
+ * make sense — sick and unpaid leave are personal by nature (#372 decision 8). The ONE copy of
+ * that set: the form's type picker, the store/server asserts and the import repair all derive
+ * from it so the boundaries can't drift.
+ */
+export const COMPANY_WIDE_TIME_OFF_TYPES = ["holiday", "other"] as const satisfies readonly TimeOffType[];
+
+export function isCompanyWideTimeOffType(type: TimeOffType): boolean {
+  return (COMPANY_WIDE_TIME_OFF_TYPES as readonly TimeOffType[]).includes(type);
+}
 /**
  * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`    — project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).

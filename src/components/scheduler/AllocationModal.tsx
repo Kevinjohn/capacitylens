@@ -63,6 +63,7 @@ import {
   capacityAllocationsForMode,
   formatCapacityAdvisory,
   scheduledHoursOnDay,
+  timeOffApplyingTo,
 } from "../../lib/capacity";
 import { allocationStatusOptions, resourceDisplayName } from "../../lib/metadata";
 import {
@@ -583,7 +584,7 @@ export function AllocationModal(props: AllocationModalProps) {
       data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId),
       isBlocks,
     );
-    const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId);
+    const resourceTimeOff = timeOffApplyingTo(resourceId, data.timeOff);
     if (create && repeat !== "none") {
       if (!repeatProjection) return null;
       // The repeat variant counts whole OCCURRENCES rather than days; the two tallies otherwise read

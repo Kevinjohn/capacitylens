@@ -78,6 +78,57 @@ function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: 
 const NO_ALLOCATIONS: Allocation[] = [];
 const NO_TIME_OFF: TimeOff[] = [];
 
+type PersonalTimeOff = TimeOff & { resourceId: ID };
+
+function isPersonalTimeOff(entry: TimeOff): entry is PersonalTimeOff {
+  return entry.resourceId !== null;
+}
+
+/** Split the nullable Everyone rows before any resource-id grouping. The predicate is applied in
+ * the same pass so callers can validate renderable ranges without another full scan. */
+function partitionTimeOff(
+  rows: TimeOff[],
+  include: (row: TimeOff) => boolean,
+): { company: TimeOff[]; personal: PersonalTimeOff[] } {
+  const company: TimeOff[] = [];
+  const personal: PersonalTimeOff[] = [];
+  for (const row of rows) {
+    if (!include(row)) continue;
+    if (isPersonalTimeOff(row)) personal.push(row);
+    else company.push(row);
+  }
+  return { company, personal };
+}
+
+/** The one merge rule: reuse either side untouched, allocate only for a genuine overlap. */
+function mergeTimeOff(company: TimeOff[], personal: readonly PersonalTimeOff[] | TimeOff[]): TimeOff[] {
+  if (company.length === 0) return personal as TimeOff[];
+  if (personal.length === 0) return company;
+  return [...company, ...personal];
+}
+
+/** Row-local memoized lookup for the model build, where capacity, counts and conflicts all ask
+ * for the same date and should share one merged array. (The utilisation refresh queries each date
+ * exactly once, so it merges inline instead of paying for a cache with no hits.) */
+function timeOffLookup(
+  companyByDate: Map<ISODate, TimeOff[]>,
+  personalByDate: Map<ISODate, PersonalTimeOff[]>,
+): (date: ISODate) => TimeOff[] {
+  const mergedByDate = new Map<ISODate, TimeOff[]>();
+  return (date) => {
+    const cached = mergedByDate.get(date);
+    if (cached) return cached;
+    const merged = mergeTimeOff(companyByDate.get(date) ?? NO_TIME_OFF, personalByDate.get(date) ?? NO_TIME_OFF);
+    mergedByDate.set(date, merged);
+    return merged;
+  };
+}
+
+/** Row-level list for hatch rendering and fallback capacity queries, with the same reuse rule. */
+function timeOffForRow(company: TimeOff[], personal: PersonalTimeOff[]): TimeOff[] {
+  return mergeTimeOff(company, personal);
+}
+
 /** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
  *  (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
  *  lexicographic order IS chronological order and a plain string compare is a valid ordering. */
@@ -273,7 +324,9 @@ export function refreshVisibleUtilization(
 ): GroupModel[] {
   const days = eachDayISO(start, end);
   const allocations = groupByResourceId(data.allocations, { include: hasRenderableDateRange });
-  const timeOff = groupByResourceId(data.timeOff, { include: hasRenderableDateRange });
+  const partitionedTimeOff = partitionTimeOff(data.timeOff, hasRenderableDateRange);
+  const personalTimeOff = groupByResourceId(partitionedTimeOff.personal);
+  const companyTimeOffByDate = bucketByCoveredDate(partitionedTimeOff.company, days);
   return model.map((group) => {
     let changed = false;
     const rows = group.rows.map((row) => {
@@ -285,21 +338,23 @@ export function refreshVisibleUtilization(
         return { ...row, utilization: 0 };
       }
       const resourceAllocations = capacityAllocationsForMode(allocations.get(row.resource.id) ?? [], blocksMode);
-      const resourceTimeOff = timeOff.get(row.resource.id) ?? [];
+      const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
       const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
       // Bucket this resource's load and time off by the days they cover ONCE, exactly as the full
       // build does, so a horizontal scroll costs O(days + coverage) per row instead of rescanning
       // every allocation on every day of the window. Bucket order follows the input, so the hours
       // are summed in the same order and the ratio is bit-identical to the rescan.
       const allocsByDate = bucketByCoveredDate(resourceAllocations, days);
-      const timeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
+      const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
+      // Each date is queried exactly once here, so merge inline — the memoized timeOffLookup
+      // belongs to the model build where several consumers re-ask the same date.
       const next = utilizationFromCapacity(
         days.map((date) =>
           dayCapacity(
             row.resource,
             date,
             allocsByDate.get(date) ?? NO_ALLOCATIONS,
-            timeOffByDate.get(date) ?? NO_TIME_OFF,
+            mergeTimeOff(companyTimeOffByDate.get(date) ?? NO_TIME_OFF, personalTimeOffByDate.get(date) ?? NO_TIME_OFF),
             effectiveWeek,
           ),
         ),
@@ -396,7 +451,8 @@ export function buildSchedulerModel({
       }
     },
   });
-  const timeOffByResource = groupByResourceId(data.timeOff);
+  const partitionedTimeOff = partitionTimeOff(data.timeOff, hasRenderableDateRange);
+  const timeOffByResource = groupByResourceId(partitionedTimeOff.personal);
 
   // Does this allocation match the active project/client filter (ignoring tentative)?
   const matchesProjectClient = (a: Allocation): boolean => {
@@ -476,6 +532,9 @@ export function buildSchedulerModel({
   // is built here once rather than per row. ISO dates sort lexicographically = chronologically.
   const capacityDates = Array.from(new Set([...days, ...visDays, ...overDays])).sort();
   const capacityDateSet = new Set(capacityDates);
+  // Everyone rows are resource-invariant: expand them across the complete queried date set ONCE.
+  // Personal rows retain one bucket per resource below; nullable rows never enter that grouping.
+  const companyTimeOffByDate = bucketByCoveredDate(partitionedTimeOff.company, capacityDates);
 
   const timelineStart = days[0];
   const timelineEnd = days[days.length - 1];
@@ -505,7 +564,7 @@ export function buildSchedulerModel({
   const capacitySourceFor = (
     resource: Resource,
     allocations: Allocation[],
-    resTimeOff: TimeOff[],
+    resTimeOff: PersonalTimeOff[],
     effectiveWeek: EffectiveWorkingWeek,
   ): CapacitySource => {
     if (isExternalResource(resource)) {
@@ -521,11 +580,13 @@ export function buildSchedulerModel({
     }
     // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
     const capacityAllocs = capacityAllocationsForMode(allocations, blocksMode);
+    const rowTimeOff = timeOffForRow(partitionedTimeOff.company, resTimeOff);
     // Bucket this resource's load and time off by the days they cover, ONCE, so each of the
     // ~150 timeline days hands capacity.ts only the rows that actually touch that day instead
     // of making it rescan every allocation (and every time-off row) per day.
     const allocsByDate = bucketByCoveredDate(capacityAllocs, capacityDates);
-    const timeOffByDate = bucketByCoveredDate(resTimeOff, capacityDates);
+    const personalTimeOffByDate = bucketByCoveredDate(resTimeOff, capacityDates);
+    const timeOffOnDate = timeOffLookup(companyTimeOffByDate, personalTimeOffByDate);
     const capacityByDate = new Map<ISODate, DayCapacity>();
     const capacityOnDay = (date: ISODate): DayCapacity => {
       const cached = capacityByDate.get(date);
@@ -534,23 +595,17 @@ export function buildSchedulerModel({
       // bucketed" are indistinguishable), so fall back to the full lists. Nothing queries
       // such a date today; this keeps a future caller correct rather than silently empty.
       const computed = capacityDateSet.has(date)
-        ? dayCapacity(
-            resource,
-            date,
-            allocsByDate.get(date) ?? NO_ALLOCATIONS,
-            timeOffByDate.get(date) ?? NO_TIME_OFF,
-            effectiveWeek,
-          )
-        : dayCapacity(resource, date, capacityAllocs, resTimeOff, effectiveWeek);
+        ? dayCapacity(resource, date, allocsByDate.get(date) ?? NO_ALLOCATIONS, timeOffOnDate(date), effectiveWeek)
+        : dayCapacity(resource, date, capacityAllocs, rowTimeOff, effectiveWeek);
       capacityByDate.set(date, computed);
       return computed;
     };
     return {
       tracked: true,
-      timeOff: resTimeOff,
+      timeOff: rowTimeOff,
       capacityOnDay,
       allocationCountOn: (date) => allocsByDate.get(date)?.length ?? 0,
-      timeOffCountOn: (date) => timeOffByDate.get(date)?.length ?? 0,
+      timeOffCountOn: (date) => timeOffOnDate(date).length,
       utilizationOver: (dates) => utilizationFromCapacity(dates.map(capacityOnDay)),
       overOn: (dates) => dates.some((date) => capacityOnDay(date).over),
     };
@@ -635,7 +690,7 @@ export function buildSchedulerModel({
           // This resource's data, pre-grouped above; capacity then scans only its own
           // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
           const allAllocs = (allocsByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
-          const resTimeOff = (timeOffByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
+          const resTimeOff = timeOffByResource.get(resource.id) ?? [];
           const isExternal = isExternalResource(resource);
           // Resolve the company/personal intersection once for the whole row. Capacity, creation
           // blocking, visible utilisation and overSoon all reuse this discriminated result.
@@ -689,7 +744,7 @@ export function buildSchedulerModel({
             const creationBlocked = isCreationStartBlockedForEffectiveWeek(
               resource,
               date,
-              capacity.timeOff,
+              capacity.tracked ? capacity.timeOff : partitionedTimeOff.company,
               effectiveWeek,
             );
             const unavailable = (capacity.tracked && cap.available === 0) || creationBlocked;
