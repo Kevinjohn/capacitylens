@@ -10,6 +10,11 @@
   worktree from `origin/main`. If the branch or path exists, choose another; never reuse or clean it.
   Never implement in the primary checkout or another task's worktree. Report the branch, worktree
   and base revision before editing.
+- Create the worktree as a sibling directory named for the task, before any edit. A session whose
+  working directory is the primary checkout cannot relocate itself part-way through a task, so
+  either enter the new worktree using the mechanism your harness provides for that, or start a
+  fresh session whose working directory is the worktree. Concurrent tasks each get their own
+  worktree and their own session, so they never contend for the same files.
 - Default to one issue per branch and one pull request per issue. Group issues only when they are
   inseparable or a combined change is materially clearer, and explain the reason in the pull request.
 - Make the smallest, simplest maintainable change that completely solves the request. Keep unrelated
