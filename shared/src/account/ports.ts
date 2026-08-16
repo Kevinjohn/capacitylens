@@ -223,6 +223,12 @@ export interface InviteSignupResult {
   compensated: false;
 }
 
+/**
+ * Closed vocabulary for durable account-flow operations coordinated across account ports.
+ *
+ * These values appear in operation receipts and reconciliation records. Adding, renaming or
+ * removing a member changes the published serialized contract and is therefore a breaking change.
+ */
 export const ACCOUNT_FLOW_OPERATIONS = Object.freeze([
   "invite-password-signup",
   "password-reset",
@@ -231,8 +237,15 @@ export const ACCOUNT_FLOW_OPERATIONS = Object.freeze([
   "workspace-erasure",
 ] as const);
 
+/** A durable account-flow operation from the closed {@link ACCOUNT_FLOW_OPERATIONS} vocabulary. */
 export type AccountFlowOperation = (typeof ACCOUNT_FLOW_OPERATIONS)[number];
 
+/**
+ * Validate an untrusted transport or persisted value at the account-flow operation boundary.
+ *
+ * This pure guard never throws. It is the boundary check for unknown input, not a convenience
+ * predicate for values that are already typed as {@link AccountFlowOperation}.
+ */
 export function isAccountFlowOperation(value: unknown): value is AccountFlowOperation {
   return typeof value === "string" && (ACCOUNT_FLOW_OPERATIONS as readonly string[]).includes(value);
 }
