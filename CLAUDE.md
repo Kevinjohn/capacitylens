@@ -1,3 +1,4 @@
 # Repository instructions
 
-Follow [AGENTS.md](AGENTS.md). It is the single source of repository-specific working guidance.
+@AGENTS.md is the single source of repository-specific working guidance. The `@` prefix imports it
+into context automatically; a plain link would not be read.
