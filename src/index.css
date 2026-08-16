@@ -41,6 +41,7 @@
   --color-chrome-toolbar-border: var(--chrome-toolbar-border);
   --color-chrome-filterbar: var(--chrome-filterbar);
   --color-chrome-filterbar-border: var(--chrome-filterbar-border);
+  --color-chrome-filterbar-ink: var(--chrome-filterbar-ink);
   /* Scheduler-only surfaces let the dark data canvas come forward without lightening the whole app. */
   --color-scheduler-canvas: var(--scheduler-canvas);
   --color-scheduler-row: var(--scheduler-row);
@@ -150,6 +151,7 @@
   --chrome-toolbar-border: #bcbcb7;
   --chrome-filterbar: #e2e2df;
   --chrome-filterbar-border: #cbcbc7;
+  --chrome-filterbar-ink: #5b6472;
   --chrome-control: #ffffff;
   --chrome-control-border: #c4c4c1;
   --chrome-control-hover: #f7f7f6;
@@ -237,6 +239,7 @@
   --chrome-toolbar-border: #303030;
   --chrome-filterbar: #242424;
   --chrome-filterbar-border: #3a3a3a;
+  --chrome-filterbar-ink: #a3acbd;
   --chrome-control: #141414;
   --chrome-control-border: #3f3f3f;
   --chrome-control-hover: #1f1f1f;

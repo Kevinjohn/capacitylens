@@ -11,26 +11,52 @@ import indexCss from "../index.css?raw";
 const chromeTokens = {
   light: {
     sidebar: "#222222",
+    sidebarInk: "#f5f5f5",
     toolbar: "#d3d3cf",
+    toolbarInk: "#1c2230",
     filterbar: "#e2e2df",
+    filterbarInk: "#5b6472",
     canvas: "#ffffff",
+    canvasInk: "#677080",
+    row: "#ffffff",
+    rowInk: "#677080",
+    header: "#f7f7f6",
+    headerInk: "#677080",
     group: "#f2f2f1",
     groupInk: "#636c7c",
   },
   dark: {
     sidebar: "#0d0d0d",
+    sidebarInk: "#e7eaf0",
     toolbar: "#1a1a1a",
+    toolbarInk: "#e7eaf0",
     filterbar: "#242424",
+    filterbarInk: "#a3acbd",
     canvas: "#2c2c2c",
+    canvasInk: "#8b93a3",
+    row: "#2c2c2c",
+    rowInk: "#8b93a3",
+    header: "#292929",
+    headerInk: "#8b93a3",
     group: "#292929",
     groupInk: "#8b93a3",
   },
 } as const;
 
 describe("chrome depth tokens", () => {
-  it("defines the six core chrome values in both theme blocks and leaves shadcn surfaces mapped to --c-*", () => {
-    for (const name of ["sidebar", "sidebar-border", "toolbar", "toolbar-border", "filterbar", "filterbar-border"]) {
-      expect(indexCss.match(new RegExp(`--chrome-${name}:`, "g"))).toHaveLength(2);
+  it("defines every chrome and scheduler ground in both themes and leaves shadcn surfaces mapped to --c-*", () => {
+    for (const name of [
+      "chrome-sidebar",
+      "chrome-toolbar",
+      "chrome-filterbar",
+      "chrome-filterbar-ink",
+      "scheduler-canvas",
+      "scheduler-row",
+      "scheduler-header",
+      "scheduler-group",
+      "scheduler-group-ink",
+    ]) {
+      expect(indexCss.match(new RegExp(`--${name}:`, "g"))).toHaveLength(2);
     }
     expect(indexCss).toMatch(/--background:\s*var\(--c-base\)/);
     expect(indexCss).toMatch(/--card:\s*var\(--c-surface\)/);
@@ -56,8 +82,22 @@ describe("chrome depth tokens", () => {
   it.each([
     ["light", chromeTokens.light],
     ["dark", chromeTokens.dark],
-  ])("keeps the %s scheduler group ink AA on its tinted surface", (_theme, { group, groupInk }) => {
-    expect(contrastRatio(groupInk, group)).toBeGreaterThanOrEqual(4.6);
+  ])("keeps every %s chrome and scheduler ground paired with AA ink", (_theme, tokens) => {
+    const pairs = [
+      ["sidebar", tokens.sidebarInk, tokens.sidebar],
+      ["toolbar", tokens.toolbarInk, tokens.toolbar],
+      // Filter-bar secondary copy must use its paired ink: --c-faint is not AA on the light ground.
+      ["filterbar", tokens.filterbarInk, tokens.filterbar],
+      // The canvas has no direct copy today; pin faint as the intended safe secondary ink.
+      ["scheduler canvas", tokens.canvasInk, tokens.canvas],
+      ["scheduler row", tokens.rowInk, tokens.row],
+      ["scheduler header", tokens.headerInk, tokens.header],
+      ["scheduler group", tokens.groupInk, tokens.group],
+    ] as const;
+
+    for (const [, ink, ground] of pairs) {
+      expect(contrastRatio(ink, ground)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it("gives every band control a shared surface with an explicit dark-theme override", () => {

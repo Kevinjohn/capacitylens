@@ -322,7 +322,7 @@ export function SchedulerToolbar() {
         <div
           id="scheduler-filters"
           data-chrome-band="filterbar"
-          className={`flex flex-wrap items-center justify-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
+          className={`flex flex-wrap items-center justify-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm text-chrome-filterbar-ink ${compactView ? "gap-y-2 pb-2" : "gap-y-3 pb-3"}`}
         >
           {canEdit && (
             <SegmentedControl
