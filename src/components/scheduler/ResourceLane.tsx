@@ -224,9 +224,7 @@ export const ResourceLane = memo(function ResourceLane({
       onPointerMove={(e) => {
         if (!onDraw) return; // Viewer (P1.12): no create → no hover "+" hint to track.
         if (e.pointerType !== "mouse") return; // touch/pen have no hover state
-        // A move with a button held is part of a GESTURE (this lane's draw, or a bar drag/resize),
-        // not a hover. The hint is hidden for the whole of it anyway, so tracking the day under the
-        // pointer only costs a measure + re-render per move.
+        // A held move is a gesture, not a hover; pointer-up capture below clears its stale origin.
         if (e.buttons !== 0) return;
         const i = indexAt(e.clientX);
         if (dayStates[i]?.creationBlocked) {
@@ -234,6 +232,13 @@ export const ResourceLane = memo(function ResourceLane({
           return;
         }
         setHoverDay((prev) => (prev === i ? prev : i));
+      }}
+      onPointerUpCapture={(e) => {
+        if (!onDraw || e.pointerType !== "mouse") return;
+        // Allocation bars capture the pointer for their document-level gesture, so held-button
+        // moves do not reliably retarget this lane. Clear the pre-drag day at that captured
+        // pointer-up; the next ordinary mousemove restores the hint in its current column.
+        setHoverDay(null);
       }}
       onPointerLeave={() => setHoverDay(null)}
     >
