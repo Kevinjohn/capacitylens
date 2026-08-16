@@ -19,9 +19,12 @@ new features and **patch** versions carry fixes.
   a company non-working day that an allocation used to load now shows no work instead of a red
   conflict unless that override is on.
 - New allocations must start on an effective working day: creation (click/draw and typed dates),
-  duplication and reassignment all reject non-effective starts with guidance to move the date or
-  enable Ignore working days. Repeat batches still generate later occurrences on non-effective
-  days and count them in the batch advisory. Edits to existing allocations stay permissive.
+  duplication and reassignment all reject non-effective starts, with no override at creation —
+  closed-day work is reached by creating on an open day with Ignore working days ticked, then
+  dragging or extending onto closed days. Repeat batches still generate later occurrences on
+  non-effective days and count them in the batch advisory. Edits to existing allocations stay
+  permissive, though a person with no effective days cannot have their normal allocations moved
+  or resized until a working day returns.
 - The company working-days selection can no longer be emptied: Settings disables the last checked
   day with a visible explanation, the store rejects an empty week, and empty or malformed stored
   selections repair to the week-start default at every boundary (import, server write, startup).

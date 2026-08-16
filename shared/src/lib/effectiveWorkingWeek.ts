@@ -12,14 +12,25 @@ export function effectiveWeekIncludes(effectiveWeek: EffectiveWorkingWeek, weekd
 }
 
 /** Whether a normal (calendar-respecting) record placed at `weekday` starts outside the effective
- *  week. Ignore-working-days placements are exempt by definition. Shared by the create/duplicate
- *  gates and the repeat advisory so "non-effective start" has exactly one meaning. */
+ *  week. Ignore-working-days placements are exempt by definition — which is why this is the
+ *  ADVISORY test (repeat occurrences), never the creation gate: creation has no ignored-creation
+ *  escape hatch and uses creationBlockedAt/creationBlockedForEffectiveWeek instead. */
 export function startsOnNonEffectiveWeekday(
   effectiveWeek: EffectiveWorkingWeek,
   ignoreWorkingDays: boolean | undefined,
   weekday: Weekday,
 ): boolean {
   return !ignoreWorkingDays && !effectiveWeekIncludes(effectiveWeek, weekday);
+}
+
+/** The ONE predicate for a normal allocation that cannot use working-span math, because feeding
+ *  `none` into date math means calendar-day semantics or a 9999-12-31 end date. An ignored
+ *  allocation always spans calendar days, so it is exempt. */
+export function lacksEffectiveWorkingDays(
+  effectiveWeek: EffectiveWorkingWeek | null | undefined,
+  ignoreWorkingDays: boolean | undefined,
+): boolean {
+  return effectiveWeek?.kind !== "days" && !ignoreWorkingDays;
 }
 
 /** Derives the company/personal calendar intersection for capacity-tracked resources. Externals

@@ -559,8 +559,12 @@ day. A multi-day draw may still cross blocked dates after an allowed start. **Ig
 is the explicit per-allocation escape hatch: it makes the saved allocation use every calendar day
 in its span (loading hours on company- and personally-non-working days, which then read as
 over-capacity), and moving an existing allocation with it enabled may land a literal start on
-either kind of non-working date. It never bypasses time off. Saving edits to an existing
-allocation stays permissive so historical records never trap the form.
+either kind of non-working date. It never bypasses time off, and it never changes where a **new**
+allocation may start — closed-day work is reached by creating on an open day with the checkbox
+ticked, then dragging or extending onto closed days. Saving edits to an existing allocation stays
+permissive so historical records never trap the form, though a person with no effective working
+days cannot have their normal (non-ignoring) allocations moved or resized until a working day
+returns.
 
 Changing the global selection **reinterprets** existing allocations rather than rewriting them:
 stored dates never move, but capacity, utilisation and conflicts are recalculated, so work on newly

@@ -245,8 +245,11 @@ const ACCOUNT_ENUM_FIELDS: { readonly [K in "language" | "internalColourMode"]: 
 };
 
 /** Sanitize the optional calendar fields of an account record in place.
- *  Called by the server write path; the import path doesn't re-import accounts. */
-export function sanitizeAccount(rec: Record<string, unknown>): Record<string, unknown> {
+ *  Called by the server write path; the import path doesn't re-import accounts.
+ *  `storedWeekStartsOn` is the row's persisted week start, used to repair an empty or malformed
+ *  workingDays value when the payload itself omits the (immutable, restored-later) field — without
+ *  it a Sunday-start account's repair would silently produce the Monday-start default. */
+export function sanitizeAccount(rec: Record<string, unknown>, storedWeekStartsOn?: 0 | 1): Record<string, unknown> {
   if (rec.timezone !== undefined) {
     if (typeof rec.timezone !== "string") {
       delete rec.timezone;
@@ -261,7 +264,8 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   if (rec.weekStartsOn !== undefined && rec.weekStartsOn !== 0 && rec.weekStartsOn !== 1) {
     delete rec.weekStartsOn;
   }
-  rec.workingDays = normalizeAccountWorkingDays(rec.workingDays, rec.weekStartsOn === 0 ? 0 : 1);
+  const repairWeekStartsOn = rec.weekStartsOn === 0 || rec.weekStartsOn === 1 ? rec.weekStartsOn : storedWeekStartsOn;
+  rec.workingDays = normalizeAccountWorkingDays(rec.workingDays, repairWeekStartsOn === 0 ? 0 : 1);
   // Drop rather than coerce: see ACCOUNT_BOOLEAN_FIELDS / ACCOUNT_ENUM_FIELDS above for the
   // per-field default each absence reads back as.
   for (const field of ACCOUNT_BOOLEAN_FIELDS) {

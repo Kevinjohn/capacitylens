@@ -3,7 +3,6 @@ import {
   daysInclusive,
   eachDayISO,
   isWithin,
-  isWorkingWeekday,
   weekdayOf,
 } from "@capacitylens/shared/lib/dateMath";
 import { blockHoursPerDay, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
@@ -62,10 +61,6 @@ function devAssertFinite(n: number): void {
 // takes one already derived. `weekdayOf` is a parseISO, and `dayCapacity` — the scheduler's hottest
 // path, ~27k resource-days per model rebuild — needs the SAME weekday four times over. It derives
 // it ONCE and threads it through the twins; the public signatures stay date-only.
-function worksWeekday(effectiveWeek: EffectiveWorkingWeek, weekday: Weekday): boolean {
-  return effectiveWeekIncludes(effectiveWeek, weekday);
-}
-
 /** Whether an allocation loads this date. Keep `none` explicit: an empty weekday array has
  * calendar-day semantics in allocationWorksOnDay, which is the opposite of the capacity contract. */
 function allocationLoadsOnDay(
@@ -79,7 +74,7 @@ function allocationLoadsOnDay(
 }
 
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
-  return effectiveWeek.kind === "days" && isWorkingWeekday(date, effectiveWeek.days);
+  return effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
 }
 
 /** A saved half-day working pattern on this weekday — 4h of capacity instead of 8h. The scheduler's
@@ -89,7 +84,7 @@ export function isHalfDay(resource: Resource, weekday: Weekday): boolean {
 }
 
 function scheduledHoursForWeekday(resource: Resource, weekday: Weekday, effectiveWeek: EffectiveWorkingWeek): number {
-  if (!worksWeekday(effectiveWeek, weekday)) return 0;
+  if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
   return isHalfDay(resource, weekday) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
 }
 
@@ -109,7 +104,7 @@ function availableHoursForWeekday(
   weekday: Weekday,
   effectiveWeek: EffectiveWorkingWeek,
 ): number {
-  if (!worksWeekday(effectiveWeek, weekday)) return 0;
+  if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
   if (isOnTimeOff(resource.id, date, timeOff)) return 0;
   return scheduledHoursForWeekday(resource, weekday, effectiveWeek);
 }
@@ -153,7 +148,7 @@ function allocatedHoursForWeekday(
   // Derive the working-weekday flag ONCE per day: it's invariant across the loop, only the
   // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
-  const dayIsWorking = worksWeekday(effectiveWeek, weekday);
+  const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);
   let sum = 0;
   for (const a of allocations) {
     if (a.resourceId !== resource.id || !isWithin(date, a.startDate, a.endDate)) continue;
@@ -323,7 +318,7 @@ function tallyAdvisory(
     // Derive the weekday + time-off ONCE per day and reuse for both tallies — availableHoursOnDay
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = weekdayOf(day);
-    const working = worksWeekday(effectiveWeek, weekday);
+    const working = effectiveWeekIncludes(effectiveWeek, weekday);
     const onTimeOff = working && isOnTimeOff(resource.id, day, timeOff);
     // Time off is its own category (counted, surfaced separately) and never folded into overDays —
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on

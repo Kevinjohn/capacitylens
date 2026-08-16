@@ -707,20 +707,12 @@ export const useStore = create<StoreState>()((set, get, store) => {
   // any day. The form guards this, but the store is the last line so no path can persist
   // it. (The import path instead REPAIRS an empty set to Mon–Fri — see sanitizeImport.)
   // The three guards share ONE shape rule — a distinct set of in-week weekday numbers, from the
-  // shared isWeekdaySet — and differ ONLY in the extra policy each adds: resources and companies
-  // must work at least one day, because company days now govern capacity and an empty company week
-  // would zero every person; a half day must also be a working day.
+  // shared isWeekdaySet — and now enforce the SAME policy for resources and companies: at least
+  // one working day, because company days govern capacity and an empty company week would zero
+  // every person. A half day must additionally be a working day.
   const assertWorkingDays = (days: Weekday[]): void => {
     if (!isWeekdaySet(days) || days.length === 0) {
       throw new Error("At least one working day is required, using unique whole-number weekdays from 0 to 6.");
-    }
-  };
-  const assertAccountWorkingDays = (days: Weekday[]): void => {
-    if (!isWeekdaySet(days)) {
-      throw new Error("Company working days must be unique whole-number weekdays from 0 to 6.");
-    }
-    if (days.length === 0) {
-      throw new Error("At least one company working day is required.");
     }
   };
   const assertHalfDays = (halfDays: Weekday[], workingDays: Weekday[]): void => {
@@ -864,7 +856,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     addAccount: guarded((input: Draft<Account>): Account | null => {
       const ts = stamp();
       const weekStartsOn = input.weekStartsOn ?? 1;
-      if (input.workingDays !== undefined) assertAccountWorkingDays(input.workingDays);
+      if (input.workingDays !== undefined) assertWorkingDays(input.workingDays);
       // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
       // scheduling with disciplines OFF, placeholder + external features hidden, and Internal work
       // grey. `...input`
@@ -914,7 +906,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
       if (state.activeAccountId !== id) {
         throw new Error("Cannot update a company other than the active company.");
       }
-      if (patch.workingDays !== undefined) assertAccountWorkingDays(patch.workingDays);
+      if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
       const safePatch =
         patch.workingDays === undefined
           ? patch

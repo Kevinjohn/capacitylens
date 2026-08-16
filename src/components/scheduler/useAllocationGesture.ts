@@ -151,6 +151,19 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
     return effectiveWorkingDays(resource, accountWorkingDaysFor(state.data, state.activeAccountId));
   };
 
+  /** A non-ignored gesture on a resource with NO effective working days is refused outright:
+   *  working-span math is undefined there, and passing the collapsed empty week into GestureOpts
+   *  would hit isWeekendAware's calendar-day fallback — silently rewriting stored hours the
+   *  capacity model says load nothing. The move gates below catch start changes; this also covers
+   *  a pure end-edge resize. Mirrors the modal's frozen Days-over for the same week. */
+  const lacksEffectiveDaysFor = (targetResourceId: ID) => {
+    if (bar.allocation.ignoreWeekends) return false;
+    const state = useStore.getState();
+    const resource = state.data.resources.find((candidate) => candidate.id === targetResourceId);
+    if (!resource) return false;
+    return effectiveWorkingWeek(resource, accountWorkingDaysFor(state.data, state.activeAccountId)).kind === "none";
+  };
+
   const previewWorkingDaysFor = (targetResourceId: ID) => {
     const memo = gestureWorkingDaysRef.current;
     if (memo.has(targetResourceId)) return memo.get(targetResourceId);
@@ -222,10 +235,14 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
       // below and the bar's own preview pixels then read the same range instead of each deriving it.
       // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
+      // An empty memoized week ([]) is the collapsed "none" state: the commit below refuses the
+      // gesture, so the preview shows no movement rather than calendar-day math the save rejects.
+      const previewDays = previewWorkingDaysFor(destination?.id ?? resourceId);
+      const previewImpossible = previewDays?.length === 0 && !bar.allocation.ignoreWeekends;
       const dates =
-        deltaDays !== 0 || mode === "move"
+        !previewImpossible && (deltaDays !== 0 || mode === "move")
           ? applyGesture(mode, { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }, deltaDays, {
-              workingDays: previewWorkingDaysFor(destination?.id ?? resourceId),
+              workingDays: previewDays,
               ignoreWeekends: bar.allocation.ignoreWeekends,
             })
           : null;
@@ -243,13 +260,14 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
           : undefined;
         const blocked =
           !!targetResource &&
-          !!dates &&
-          isAllocationMoveStartBlocked(
-            targetResource,
-            dates.startDate,
-            accountWorkingDaysFor(state.data, state.activeAccountId),
-            bar.allocation.ignoreWeekends,
-          );
+          (previewImpossible ||
+            (!!dates &&
+              isAllocationMoveStartBlocked(
+                targetResource,
+                dates.startDate,
+                accountWorkingDaysFor(state.data, state.activeAccountId),
+                bar.allocation.ignoreWeekends,
+              )));
         setDropTarget(destination && !blocked ? destination.el : null);
       }
     },
@@ -296,6 +314,14 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
       };
 
       const effectiveResourceId = reassignTo ?? resourceId;
+      // Resize only: a move (same-lane or reassign) is fully covered by the start gate below —
+      // every none-week start day is non-working — and moving work AWAY from a none-week person
+      // must stay possible. A pure end-edge resize never changes the start, so it needs this
+      // explicit refusal to keep the empty week out of calendar-day volume math.
+      if (mode !== "move" && lacksEffectiveDaysFor(effectiveResourceId)) {
+        setNotice(m.scheduler_toast_no_effective_days_gesture(), "error");
+        return;
+      }
       const { dates, hours, clamped } = computeFor(effectiveResourceId);
       const state = useStore.getState();
       const effectiveResource = state.data.resources.find((resource) => resource.id === effectiveResourceId);
@@ -390,6 +416,12 @@ export function useAllocationGesture({ bar, geom, indexAtClientX, onEdit }: Allo
 
   const nudge = (mode: DragMode, delta: number) => {
     const { setNotice, updateAllocation, announceCapacity } = useStore.getState();
+    // Same resize-only refusal as the pointer commit path: keyboard moves fall through to the
+    // start gate below, which already rejects every none-week start day.
+    if (mode !== "move" && lacksEffectiveDaysFor(resourceId)) {
+      setNotice(m.scheduler_toast_no_effective_days_gesture(), "error");
+      return;
+    }
     const options = {
       workingDays: workingDaysFor(resourceId),
       ignoreWeekends: bar.allocation.ignoreWeekends,

@@ -27,8 +27,9 @@ that combination hold no capacity: allocations skip them, they count for nothing
 and on such a start date the lane does not show the hover **+**, clicking or beginning a draw does
 nothing, and a typed start date, a duplicate or a reassignment is rejected with the same rule. A
 draw that begins on an allowed date may still cross blocked dates. The per-allocation
-**Ignore working days** checkbox is the escape hatch — it makes that allocation use every calendar
-day in its span — and time off stays a separate, visible conflict.
+**Ignore working days** checkbox makes that allocation use every calendar day in its span and lets
+an existing allocation be dragged or extended onto closed days — it never changes where a new
+allocation may start — and time off stays a separate, visible conflict.
 
 Changing the selection recalculates capacity, utilisation and conflicts for existing allocations.
 Allocation dates never move, but work on newly non-working days no longer counts unless the

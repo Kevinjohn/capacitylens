@@ -3,21 +3,15 @@ import { flushSync } from "react-dom";
 import { format } from "date-fns";
 import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import {
-  daysInclusive,
-  eachDayISO,
-  MAX_ISO_DATE,
-  parseDate,
-  todayISO,
-  weekdayOf,
-} from "@capacitylens/shared/lib/dateMath";
+import { daysInclusive, eachDayISO, MAX_ISO_DATE, parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import {
   effectiveWorkingWeek,
-  startsOnNonEffectiveWeekday,
+  lacksEffectiveWorkingDays,
   type EffectiveWorkingWeek,
 } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import { creationBlockedForEffectiveWeek } from "./creationAvailability";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   generateRepeatingStartDates,
   defaultRepeatUntilDate,
@@ -210,12 +204,6 @@ function usesWorkingSpanFor(resource: Resource | undefined, mode: SchedulingMode
   return !!resource && !isExternalResource(resource) && (mode === "blocks" || mode === "days");
 }
 
-/** The ONE predicate for a normal allocation that cannot use working-span math or create new work,
- *  because feeding `none` into date math means calendar-day semantics or a 9999-12-31 end date. */
-function hasNoEffectiveWorkingDays(effectiveWeek: EffectiveWorkingWeek | null, ignoreWeekends: boolean): boolean {
-  return effectiveWeek?.kind !== "days" && !ignoreWeekends;
-}
-
 function effectiveAllocationValues({
   resource,
   effectiveWeek,
@@ -243,7 +231,11 @@ function effectiveAllocationValues({
     };
   }
 
-  if (hasNoEffectiveWorkingDays(effectiveWeek, ignoreWeekends)) {
+  if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWeekends)) {
+    // Working-span math is impossible with no effective days, so the typed range is literal and
+    // "Days over" is frozen at its seed (its field is disabled below). Every seed derives
+    // daysOfWork and daysOver from the same span, so this recomputation is the identity on the
+    // stored volume — the field freeze is what stops a manual change from silently diluting it.
     return {
       external,
       validDaysOver,
@@ -297,12 +289,12 @@ export function AllocationModal(props: AllocationModalProps) {
   const activeAccount = useStore((state) =>
     state.data.accounts.find((account) => account.id === state.activeAccountId),
   );
-  const accountWorkingDays = useMemo(() => {
-    const weekStartsOn = activeAccount?.weekStartsOn ?? 1;
-    return activeAccount?.workingDays === undefined
-      ? defaultAccountWorkingDays(weekStartsOn)
-      : normalizeAccountWorkingDays(activeAccount.workingDays, weekStartsOn);
-  }, [activeAccount]);
+  // Not accountWorkingDaysFor: the modal's scoped data blanks `accounts`, so it subscribes to the
+  // account row itself and runs the selector's one repair seam directly.
+  const accountWorkingDays = useMemo(
+    () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
+    [activeAccount],
+  );
   // Per-account view pref (default OFF): when off, placeholders are dropped from the assignee
   // picker (except an already-assigned one — see resourceOptions below for risk A).
   const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId));
@@ -361,7 +353,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialIgnoreWeekends = editing?.ignoreWeekends ?? false;
   const initialUsesWorkingSpan = usesWorkingSpanFor(initialResource, mode);
   const initialHasNoEffectiveDays =
-    initialUsesWorkingSpan && hasNoEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends);
+    initialUsesWorkingSpan && lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWeekends);
   const initialDaysOver = !seedEnd
     ? 1
     : initialHasNoEffectiveDays
@@ -837,21 +829,30 @@ export function AllocationModal(props: AllocationModalProps) {
 
   /** The calendar gates for NEW placement only: create, duplicate, or an assignee-changing edit.
    *  A normal edit on the original assignee remains valid after calendar settings change (its
-   *  stale start stays editable). Two distinct rejections share this seam: an empty effective
-   *  week, and a start weekday outside a non-empty one — the contract is "new allocations must
-   *  begin on a company and personal working day"; repeat OCCURRENCES are the deliberate
-   *  exception (advisory-counted instead, decision 9). */
+   *  stale start stays editable). Routed through the grid's own start gate so a typed date obeys
+   *  exactly the rules a click or draw does: no effective week means no new work at all, a start
+   *  must land on a company and personal working day, and never on time off — with NO exemption
+   *  for Ignore working days (there is no ignored-creation escape hatch; the override affects
+   *  spans and moves of saved allocations only). Repeat OCCURRENCES are the deliberate exception
+   *  (advisory-counted instead, decision 9). */
   const rejectNewPlacementCalendarConflicts = (draft: ReturnType<typeof validatedDraft>, newPlacement: boolean) => {
-    if (!draft || !newPlacement) return false;
-    if (hasNoEffectiveWorkingDays(selectedEffectiveWeek, draft.ignoreWeekends)) {
+    if (!draft || !newPlacement || !selectedResource || !selectedEffectiveWeek) return false;
+    if (selectedEffectiveWeek.kind !== "days") {
       fail("resource", m.form_allocation_err_no_effective_working_days());
       return true;
     }
-    if (
-      selectedEffectiveWeek &&
-      startsOnNonEffectiveWeekday(selectedEffectiveWeek, draft.ignoreWeekends, weekdayOf(draft.startDate))
-    ) {
-      fail("resource", m.form_allocation_err_start_non_working());
+    const blocked = creationBlockedForEffectiveWeek(
+      selectedResource,
+      draft.startDate,
+      data.timeOff,
+      selectedEffectiveWeek,
+    );
+    if (blocked === "non-working") {
+      fail("startDate", m.form_allocation_err_start_non_working());
+      return true;
+    }
+    if (blocked === "time-off") {
+      fail("startDate", m.form_allocation_err_start_time_off());
       return true;
     }
     return false;
@@ -1122,6 +1123,12 @@ export function AllocationModal(props: AllocationModalProps) {
               min={1}
               max={maximumDaysOver}
               step={1}
+              // No effective working days ⇒ a working span is undefined; the count stays at its
+              // neutral seed so a permitted edit cannot silently rescale the stored volume.
+              disabled={
+                usesWorkingSpanFor(selectedResource, mode) &&
+                lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWeekends)
+              }
               invalid={errorField === "daysOver"}
               describedById={errorId}
             />

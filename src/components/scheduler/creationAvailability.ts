@@ -60,6 +60,19 @@ function creationBlockedForCalendar(
   return isOnTimeOff(resource.id, date, timeOff) ? "time-off" : null;
 }
 
+/** The resolved-week variant of `creationBlockedAt`, for callers (the scheduler rows, the modal's
+ * typed-date gate) that already hold the effective week. Same rules, same reasons: the creation
+ * gate never honors the allocation-level override — there is no ignored-creation escape hatch. */
+export function creationBlockedForEffectiveWeek(
+  resource: Resource,
+  date: ISODate,
+  timeOff: TimeOff[],
+  effectiveWeek: EffectiveWorkingWeek,
+): CreationBlockReason | null {
+  const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
+  return creationBlockedForCalendar(resource, date, timeOff, calendarAllowsStart, false);
+}
+
 /** The per-row scheduler variant: its caller has already resolved the effective week once and
  * reuses it for capacity and every day-state instead of re-intersecting calendars per date. */
 export function isCreationStartBlockedForEffectiveWeek(
@@ -68,8 +81,7 @@ export function isCreationStartBlockedForEffectiveWeek(
   timeOff: TimeOff[],
   effectiveWeek: EffectiveWorkingWeek,
 ): boolean {
-  const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
-  return creationBlockedForCalendar(resource, date, timeOff, calendarAllowsStart, false) !== null;
+  return creationBlockedForEffectiveWeek(resource, date, timeOff, effectiveWeek) !== null;
 }
 
 /** Whether recurring company/personal calendars reject an EXISTING allocation's proposed start.

@@ -175,7 +175,10 @@ export function sanitizeWrite(
     if (copy.schedulingMode !== undefined && !SCHEDULING_MODES.includes(copy.schedulingMode as never)) {
       delete copy.schedulingMode;
     }
-    sanitizeAccount(copy);
+    // The stored week start feeds the empty-workingDays repair: weekStartsOn is immutable and only
+    // restored onto the copy AFTER sanitisation (see the loop below), so without this a payload
+    // omitting it would repair a Sunday-start account's week to the Monday-start default.
+    sanitizeAccount(copy, existing?.weekStartsOn === 0 ? 0 : existing?.weekStartsOn === 1 ? 1 : undefined);
     // A full PUT from a pre-v31 client cannot express this field. Preserve the stored selection
     // when it was omitted, while still repairing an explicitly malformed direct write above.
     if (!workingDaysRequested && existing?.workingDays !== undefined) {

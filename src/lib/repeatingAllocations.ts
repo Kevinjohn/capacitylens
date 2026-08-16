@@ -1,5 +1,9 @@
 import { addDaysISO, daysInclusive, weekdayOf } from "@capacitylens/shared/lib/dateMath";
-import { startsOnNonEffectiveWeekday, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import {
+  lacksEffectiveWorkingDays,
+  startsOnNonEffectiveWeekday,
+  type EffectiveWorkingWeek,
+} from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import type { RepeatPattern } from "@capacitylens/shared/lib/repeatingDates";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
@@ -77,7 +81,7 @@ export function projectAllocationDates(
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (calendarSpan < 1) throw new RangeError("Repeat projection requires a valid inclusive date range.");
   const usesCalendarSpan = external || context.schedulingMode === "hourly";
-  if (!usesCalendarSpan && !baseDraft.ignoreWeekends && context.effectiveWeek.kind === "none") {
+  if (!usesCalendarSpan && lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends)) {
     throw new RangeError("Repeat projection requires at least one effective working day.");
   }
   const spanOptions = {

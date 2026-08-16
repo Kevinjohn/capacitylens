@@ -268,6 +268,7 @@ export function NumberField({
   step,
   invalid,
   required,
+  disabled,
   describedById,
   layout = "stacked",
 }: {
@@ -279,13 +280,18 @@ export function NumberField({
   step?: number;
   invalid?: boolean;
   required?: boolean;
+  disabled?: boolean;
   describedById?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined} {...productFieldLayoutProps(layout)}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-disabled={disabled || undefined}
+      {...productFieldLayoutProps(layout)}
+    >
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
         id={id}
@@ -294,6 +300,7 @@ export function NumberField({
         min={min}
         max={max}
         step={step}
+        disabled={disabled}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}

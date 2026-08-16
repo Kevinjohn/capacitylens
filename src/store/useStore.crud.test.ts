@@ -42,16 +42,16 @@ describe("store CRUD covers every entity", () => {
     s().updateAccount(account.id, { workingDays: [1, 3, 5] });
     expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
 
-    expect(() => s().updateAccount(account.id, { workingDays: [] })).toThrow(/at least one company working day/i);
+    expect(() => s().updateAccount(account.id, { workingDays: [] })).toThrow(/at least one working day/i);
     expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
 
     expect(() => s().updateAccount(account.id, { workingDays: [1, 9] as Resource["workingDays"] })).toThrow(
-      /company working days/i,
+      /working day/i,
     );
     expect(s().data.accounts[0].workingDays).toEqual([1, 3, 5]);
 
     expect(() => s().addAccount({ name: "Empty-week company", color: "#2d75da", workingDays: [] })).toThrow(
-      /at least one company working day/i,
+      /at least one working day/i,
     );
 
     const sundayStart = s().addAccount({ name: "Sunday company", color: "#2d75da", weekStartsOn: 0 });
@@ -62,7 +62,7 @@ describe("store CRUD covers every entity", () => {
         color: "#2d75da",
         workingDays: [1, 9] as Resource["workingDays"],
       }),
-    ).toThrow(/company working days/i);
+    ).toThrow(/working day/i);
 
     s().updateAccount(account.id, { workingDays: [2, 4] });
     s().undo();
