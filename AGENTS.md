@@ -113,6 +113,33 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
 
+## Validation environment
+
+- Run focused tests for affected files during implementation. Run the repository's complete
+  validation commands before submission using Node >= 24.
+- CapacityLens requires Node >= 24. Under Node 22, server tests fail with
+  `db.setAuthorizer is not a function`. Restricted environments may also produce EPERM errors;
+  only Node >= 24 runs are valid gate evidence.
+- Treat failures seen only in unsupported runtimes or restricted filesystems as
+  environment-specific until they are reproduced in the supported validation environment.
+
+## Known pitfalls
+
+Check these constraints before making related changes; violating them commonly causes avoidable
+validation failures.
+
+- Released SQLite migrations are checksum-pinned: the database ledger validates each migration's
+  name and SHA-256. Never edit a shipped migration file — schema changes always mean a new
+  migration.
+- Bumping `DB_SCHEMA_VERSION` (or adding a migration/fixture) requires extending the released
+  version and fixture pins in the server backup/restore tests (`server/src/backup.test.ts`,
+  `server/src/restore.drill.test.ts`).
+- Within a migration, create SQLite triggers only after every table and column they reference
+  exists; trigger creation order relative to DDL matters.
+- After editing `messages/en.json`, run `pnpm run paraglide:compile` (the `test`/`build` scripts do
+  this automatically, but direct `vitest`/`tsc` invocations do not) or type-checking will fail on
+  stale generated messages.
+
 ## Green gate
 
 Run `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e`. Cross-browser and mutation suites
