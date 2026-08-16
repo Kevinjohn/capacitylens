@@ -25,6 +25,7 @@ import { isIsoInstant } from "@capacitylens/shared/account/types";
 import { runImportWorker } from "./runImportWorker";
 import type { AuditEntry } from "./audit";
 import { WorkQueueFullError } from "./workQueue";
+import { emptyAppData, EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
@@ -153,6 +154,15 @@ const allocation = (
     },
     o,
   );
+const timeOff = (id: string, accountId: string, resourceId: string | null, type = "holiday") => ({
+  id,
+  accountId,
+  resourceId,
+  startDate: "2026-06-03",
+  endDate: "2026-06-03",
+  type,
+  ...meta(),
+});
 
 // app.inject's overloads resolve to a union that hides statusCode/json; this wrapper
 // pins the single Promise-returning shape so call sites stay terse.
@@ -478,6 +488,45 @@ describe("generic lifecycle deletion guard", () => {
 });
 
 describe("batch sync (/api/batch — transactional, ordered)", () => {
+  it("accepts explicit resourceId:null through direct and batch time-off writes", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+
+    expect((await post(app, "timeOff", timeOff("direct-company", "a1", null))).statusCode).toBe(201);
+    expect(
+      (
+        await batch(app, [
+          {
+            method: "PUT",
+            table: "timeOff",
+            id: "batch-company",
+            row: timeOff("batch-company", "a1", null, "other"),
+          },
+        ])
+      ).statusCode,
+    ).toBe(200);
+
+    expect((await state(app)).timeOff).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "direct-company", resourceId: null }),
+        expect.objectContaining({ id: "batch-company", resourceId: null }),
+      ]),
+    );
+  });
+
+  it("rejects an omitted time-off resourceId through direct and batch writes", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+    const missing = timeOff("missing-resource", "a1", null) as Record<string, unknown>;
+    delete missing.resourceId;
+
+    expect((await post(app, "timeOff", missing)).statusCode).toBe(400);
+    expect(
+      (await batch(app, [{ method: "PUT", table: "timeOff", id: "missing-resource", row: missing }])).statusCode,
+    ).toBe(400);
+    expect((await state(app)).timeOff).toEqual([]);
+  });
+
   it("rejects a lifecycle DELETE before executing any batch operation", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -612,6 +661,19 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
 });
 
 describe("validation (shared domain-core) rejects bad writes with 400", () => {
+  it.each(["sick", "unpaid"])("repairs a direct company-wide %s write to other", async (type) => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+
+    const response = await post(app, "timeOff", timeOff(`company-${type}`, "a1", null, type));
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ resourceId: null, type: "other" });
+    expect((await state(app)).timeOff).toEqual([
+      expect.objectContaining({ id: `company-${type}`, resourceId: null, type: "other" }),
+    ]);
+  });
+
   it("rejects direct writes that omit values only the import path may repair", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -1049,6 +1111,60 @@ describe("import", () => {
       ],
       timeOff: [],
     },
+  });
+
+  it("atomically imports mixed personal/company time off and round-trips null distinctly from absent", async () => {
+    const { app } = freshApp(true, { multiAccount: true });
+    await post(app, "accounts", account("a1"));
+    await post(app, "accounts", account("a2"));
+    const missingResource = timeOff("missing-resource", "source", null) as Record<string, unknown>;
+    delete missingResource.resourceId;
+    const file = {
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      data: {
+        ...emptyAppData(),
+        resources: [person("source-person", "source")],
+        timeOff: [
+          timeOff("personal", "source", "source-person"),
+          timeOff("company", "source", null, "sick"),
+          missingResource,
+        ],
+      },
+    };
+
+    const firstImport = await call(app, {
+      method: "POST",
+      url: "/api/import",
+      payload: { accountId: "a1", data: file },
+    });
+    expect(firstImport.statusCode).toBe(200);
+    expect(firstImport.json()).toMatchObject({ imported: 3, skipped: 1 });
+
+    const exported = await call(app, {
+      method: "GET",
+      url: "/api/state?accountId=a1&includeInactive=1",
+    });
+    expect(exported.statusCode).toBe(200);
+    expect(exported.json().timeOff).toHaveLength(2);
+    const company = exported.json().timeOff.find((row: { resourceId?: string | null }) => row.resourceId === null);
+    expect(company).toHaveProperty("resourceId", null);
+
+    const secondImport = await call(app, {
+      method: "POST",
+      url: "/api/import",
+      payload: { accountId: "a2", data: { schemaVersion: EXPORT_SCHEMA_VERSION, data: exported.json() } },
+    });
+    expect(secondImport.statusCode).toBe(200);
+    expect(secondImport.json()).toMatchObject({ imported: 3, skipped: 0 });
+
+    const roundTripped = await call(app, { method: "GET", url: "/api/state?accountId=a2" });
+    expect(roundTripped.json().timeOff).toHaveLength(2);
+    expect(roundTripped.json().timeOff).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resourceId: null, type: "other" }),
+        expect.objectContaining({ resourceId: expect.any(String), type: "holiday" }),
+      ]),
+    );
   });
 
   it("imports into an account with fresh ids + remapped FKs, dropping invalid rows", async () => {

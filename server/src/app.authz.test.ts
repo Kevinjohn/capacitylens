@@ -42,7 +42,7 @@ const person = (id: string, accountId: string) => ({
   color: "#3b82f6",
   ...meta(),
 });
-const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
+const timeOff = (id: string, accountId: string, resourceId: string | null, note?: string) => ({
   id,
   accountId,
   resourceId,
@@ -165,6 +165,26 @@ const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?:
     headers: cookie ? { cookie } : {},
   });
 
+const writeCompanyTimeOff = (app: FastifyInstance, accountId: string, id: string, cookie: string, batched: boolean) => {
+  const row = { ...timeOff(id, accountId, null), type: "holiday" };
+  return call(
+    app,
+    batched
+      ? {
+          method: "POST",
+          url: "/api/batch",
+          payload: { ops: [{ method: "PUT", table: "timeOff", id, row }] },
+          headers: { cookie },
+        }
+      : {
+          method: "POST",
+          url: "/api/timeOff",
+          payload: row,
+          headers: { cookie },
+        },
+  );
+};
+
 const replaceGeneratedInternal = (app: FastifyInstance, cookie: string, batched: boolean) => {
   const row = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
   return call(
@@ -197,6 +217,28 @@ const importInto = (app: FastifyInstance, accountId: string, id: string, cookie?
 };
 
 describe("P1.5 authorize — auth-on 403 matrix", () => {
+  it.each([false, true])("keeps company-wide time off at the editor+ write tier (batched=%s)", async (batched) => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+
+    for (const role of ["viewer", "editor", "admin", "owner"] as const) {
+      const { cookie, userId } = await signUp(app, `${role}-company-timeoff-${batched}@capacitylens.dev`);
+      upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
+      const id = `${role}-company-${batched}`;
+      const response = await writeCompanyTimeOff(app, "a1", id, cookie, batched);
+
+      expect(response.statusCode, role).toBe(role === "viewer" ? 403 : batched ? 200 : 201);
+      if (role === "viewer") expect(getRow(db, "timeOff", id), role).toBeUndefined();
+      else {
+        expect(getRow(db, "timeOff", id), role).toMatchObject({
+          accountId: "a1",
+          resourceId: null,
+          type: "holiday",
+        });
+      }
+    }
+  });
+
   it("non-member: account-asserted operations are 403 while row-addressed PATCH conceals as 404", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -597,6 +639,27 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
   // latter is what proves the redaction is server-side (the string was never serialized), not a
   // client-side hide.
   const noteOf = (res: LightMyRequestResponse): string | undefined => (res.json().timeOff[0] as { note?: string }).note;
+
+  it.each([
+    ["owner", true],
+    ["editor", false],
+  ] as const)("applies the %s note projection without dropping resourceId:null", async (role, canSeeNote) => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    db.prepare("UPDATE timeOff SET resourceId = NULL, type = 'holiday' WHERE id = 'to1'").run();
+    const { cookie, userId } = await signUp(app, `${role}-company-note@capacitylens.dev`);
+    upsertMember(db, { accountId: "a1", userId, role, status: "active", createdAt: TS });
+
+    const res = await getState(app, "a1", cookie);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().timeOff[0]).toMatchObject({ id: "to1", resourceId: null });
+    if (canSeeNote) {
+      expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+    } else {
+      expect(res.json().timeOff[0]).not.toHaveProperty("note");
+      expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
+    }
+  });
 
   it.each(["owner", "admin"] as const)("%s of a1: scoped read INCLUDES the note", async (role) => {
     const { app, db } = await appWithAuth();

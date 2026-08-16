@@ -106,6 +106,12 @@ export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): 
   );
 }
 
+/** Only the company-wide (Everyone) closures — the one slice of time off that applies to an
+ * EXTERNAL party. Kept beside isOnTimeOff so both date-window predicates share one home. */
+export function isOnCompanyTimeOff(date: ISODate, timeOff: TimeOff[]): boolean {
+  return timeOff.some((t) => t.resourceId === null && isWithin(date, t.startDate, t.endDate));
+}
+
 function availableHoursForWeekday(
   resource: Resource,
   date: ISODate,

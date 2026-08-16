@@ -27,9 +27,18 @@ describe("company-wide time-off validation", () => {
     expect(() => sanitizeWrite("timeOff", missing)).toThrow(/missing required field.*resourceId/i);
   });
 
-  it("repairs unsupported Everyone types and still rejects reversed dates", () => {
-    expect(sanitizeWrite("timeOff", row({ type: "sick" })).type).toBe("other");
-    expect(sanitizeWrite("timeOff", row({ type: "unpaid" })).type).toBe("other");
+  it.each(["sick", "unpaid"])("repairs company-wide %s before the validation backstop", (type) => {
+    const sanitized = sanitizeWrite("timeOff", row({ type }));
+    expect(sanitized.type).toBe("other");
+    expect(() => validateWrite(emptyAppData(), "timeOff", sanitized)).not.toThrow();
+
+    // The validator remains a real backstop if a future caller bypasses the sanitizer.
+    expect(() => validateWrite(emptyAppData(), "timeOff", row({ type }))).toThrow(
+      /company-wide time off must use holiday or other/i,
+    );
+  });
+
+  it("still rejects reversed dates after sanitizing a company-wide row", () => {
     expect(() => validateWrite(emptyAppData(), "timeOff", row({ endDate: "2026-12-23" }))).toThrow(
       /end date cannot be before the start date/i,
     );

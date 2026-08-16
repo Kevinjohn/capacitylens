@@ -549,9 +549,9 @@ export function assertResourceExists(
   }
 }
 
-/** Imports REPAIR invalid company-wide types to `other` (a bulk file is reconciled, not
- * rejected); interactive store and direct API writes reject them here so both boundaries share
- * one contract point. The allowed set itself lives beside TimeOffType in entities.ts. */
+/** Imports and the server's sanitizeWrite REPAIR invalid company-wide types to `other`; the
+ * interactive store rejects them, and server validation keeps this assertion as a backstop if a
+ * future caller bypasses sanitisation. The allowed set itself lives beside TimeOffType in entities.ts. */
 export function assertCompanyWideTimeOffType(resourceId: ID | null, type: TimeOffType): void {
   if (resourceId === null && !isCompanyWideTimeOffType(type)) {
     domainError("time_off_company_wide_type", "Company-wide time off must use holiday or other.");
