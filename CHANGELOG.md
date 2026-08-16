@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.53.0-alpha.1] — 2026-08-16
+
 ### Added
 
 - Company-wide time off (#372): the time-off form's assignee picker gains an **Everyone** option
@@ -3700,7 +3702,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.52.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.53.0-alpha.1...HEAD
+[0.53.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.52.0-alpha.1...v0.53.0-alpha.1
 [0.52.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.51.1-alpha.1...v0.52.0-alpha.1
 [0.51.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.51.0-alpha.1...v0.51.1-alpha.1
 [0.51.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.50.0-alpha.1...v0.51.0-alpha.1
