@@ -54,6 +54,10 @@ src/paraglide/
 *-audit.jsonl
 
 # Agent/loop scratch — never ship these in a clone (P0.2)
+# Anchored exact names, deliberately not broad globs: these two directories are
+# repository-local tool scratch that any clone may accumulate.
+/.playwright-mcp/
+/.issue-fix-state/
 *-state.json
 FORGE-DEPLOY-TODO.md
 FORGE-DEPLOY-RUNBOOK.md
